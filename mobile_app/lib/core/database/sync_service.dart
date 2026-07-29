@@ -520,7 +520,7 @@ class SyncService {
     try {
       final response = await supabase
           .from('sales')
-          .select('id, tenant_id, "shopId", "paymentMethod", "paymentStatus", subtotal, tax, "totalAmount", "paidAmount", date, items')
+          .select('id, tenant_id, "shopId", "paymentMethod", "paymentStatus", subtotal, tax, "totalAmount", "paidAmount", date, items, created_at, "customerInfo"')
           .isFilter('deleted_at', null)
           .order('date', ascending: false)
           .limit(500);
@@ -545,6 +545,8 @@ class SyncService {
               paidAmount:    Value((item['paidAmount'] ?? 0).toDouble()),
               date:          date,
               itemsJson:     item['items'] == null ? '[]' : jsonEncode(item['items']),
+              createdAt:     Value(_ts(item['created_at'])),
+              customerInfoJson: Value(item['customerInfo'] == null ? null : jsonEncode(item['customerInfo'])),
             ),
             mode: InsertMode.insertOrReplace,
           );
@@ -559,7 +561,7 @@ class SyncService {
     try {
       final response = await supabase
           .from('expenses')
-          .select('id, tenant_id, category, amount, note, date').isFilter('deleted_at', null)
+          .select('id, tenant_id, category, amount, note, date, created_at').isFilter('deleted_at', null)
           .order('date', ascending: false)
           .limit(500);
       final List<dynamic> data = response as List<dynamic>;
@@ -578,6 +580,7 @@ class SyncService {
               amount:   (item['amount'] ?? 0).toDouble(),
               note:     Value(item['note'] as String?),
               date:     date,
+              createdAt: Value(_ts(item['created_at'])),
             ),
             mode: InsertMode.insertOrReplace,
           );
@@ -592,7 +595,7 @@ class SyncService {
     try {
       final response = await supabase
           .from('purchases')
-          .select('id, tenant_id, supplier_id, product_id, quantity, total_amount, date').isFilter('deleted_at', null)
+          .select('id, tenant_id, supplier_id, linked_product_id, quantity, total_amount, date, payment_type, created_at').isFilter('deleted_at', null)
           .order('date', ascending: false)
           .limit(500);
       final List<dynamic> data = response as List<dynamic>;
@@ -614,6 +617,8 @@ class SyncService {
               quantity:    (item['quantity'] ?? 0).toDouble(),
               totalAmount: (item['total_amount'] ?? 0).toDouble(),
               date:        date,
+              paymentType: Value(item['payment_type'] as String?),
+              createdAt:   Value(_ts(item['created_at'])),
             ),
             mode: InsertMode.insertOrReplace,
           );

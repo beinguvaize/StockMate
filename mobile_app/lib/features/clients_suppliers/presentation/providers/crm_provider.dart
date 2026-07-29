@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/database/offline_reads.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client_payment.dart';
@@ -79,26 +80,39 @@ final suppliersProvider = FutureProvider<List<Supplier>>((ref) async {
 final clientPaymentsProvider = FutureProvider<List<ClientPayment>>((ref) async {
   final ctx = await ref.watch(tenantContextProvider.future);
   if (ctx == null) return [];
-  final response = await supabase
-      .from('client_payments')
-      .select()
-      .eq('tenant_id', ctx.tenantId)
-      .isFilter('deleted_at', null)
-      .order('created_at', ascending: false)
-      .limit(500);
-  return (response as List).map((d) => ClientPayment.fromJson(d as Map<String, dynamic>)).toList();
+  try {
+    final response = await supabase
+        .from('client_payments')
+        .select()
+        .eq('tenant_id', ctx.tenantId)
+        .isFilter('deleted_at', null)
+        .order('created_at', ascending: false)
+        .limit(500);
+    return (response as List).map((d) => ClientPayment.fromJson(d as Map<String, dynamic>)).toList();
+  } catch (e) {
+    debugPrint('[clientPaymentsProvider] online failed, using Drift cache: $e');
+    final rows = await cachedClientPayments(ref.read(databaseProvider), ctx.tenantId);
+    return rows.map(ClientPayment.fromJson).toList();
+  }
 });
 
 final clientPaymentsForClientProvider =
     FutureProvider.family<List<ClientPayment>, String>((ref, clientId) async {
   final ctx = await ref.watch(tenantContextProvider.future);
   if (ctx == null) return [];
-  final response = await supabase
-      .from('client_payments')
-      .select()
-      .eq('client_id', clientId)
-      .eq('tenant_id', ctx.tenantId)
-      .isFilter('deleted_at', null)
-      .order('date', ascending: true);
-  return (response as List).map((d) => ClientPayment.fromJson(d as Map<String, dynamic>)).toList();
+  try {
+    final response = await supabase
+        .from('client_payments')
+        .select()
+        .eq('client_id', clientId)
+        .eq('tenant_id', ctx.tenantId)
+        .isFilter('deleted_at', null)
+        .order('date', ascending: true);
+    return (response as List).map((d) => ClientPayment.fromJson(d as Map<String, dynamic>)).toList();
+  } catch (e) {
+    debugPrint('[clientPaymentsForClient] online failed, using Drift cache: $e');
+    final rows = await cachedClientPayments(
+        ref.read(databaseProvider), ctx.tenantId, clientId: clientId);
+    return rows.map(ClientPayment.fromJson).toList();
+  }
 });

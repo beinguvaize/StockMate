@@ -779,8 +779,14 @@ late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>('date', al
 static const VerificationMeta _itemsJsonMeta = const VerificationMeta('itemsJson');
 @override
 late final GeneratedColumn<String> itemsJson = GeneratedColumn<String>('items_json', aliasedName, false, type: DriftSqlType.string, requiredDuringInsert: true);
+static const VerificationMeta _createdAtMeta = const VerificationMeta('createdAt');
 @override
-List<GeneratedColumn> get $columns => [id, tenantId, clientId, paymentMethod, paymentStatus, subtotal, tax, totalAmount, paidAmount, date, itemsJson];
+late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>('created_at', aliasedName, true, type: DriftSqlType.dateTime, requiredDuringInsert: false);
+static const VerificationMeta _customerInfoJsonMeta = const VerificationMeta('customerInfoJson');
+@override
+late final GeneratedColumn<String> customerInfoJson = GeneratedColumn<String>('customer_info_json', aliasedName, true, type: DriftSqlType.string, requiredDuringInsert: false);
+@override
+List<GeneratedColumn> get $columns => [id, tenantId, clientId, paymentMethod, paymentStatus, subtotal, tax, totalAmount, paidAmount, date, itemsJson, createdAt, customerInfoJson];
 @override
 String get aliasedName => _alias ?? actualTableName;
 @override
@@ -828,12 +834,14 @@ if (data.containsKey('items_json')) {
 context.handle(_itemsJsonMeta, itemsJson.isAcceptableOrUnknown(data['items_json']!, _itemsJsonMeta));} else if (isInserting) {
 context.missing(_itemsJsonMeta);
 }
-return context;
+if (data.containsKey('created_at')) {
+context.handle(_createdAtMeta, createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));}if (data.containsKey('customer_info_json')) {
+context.handle(_customerInfoJsonMeta, customerInfoJson.isAcceptableOrUnknown(data['customer_info_json']!, _customerInfoJsonMeta));}return context;
 }
 @override
 Set<GeneratedColumn> get $primaryKey => {id};
 @override Sale map(Map<String, dynamic> data, {String? tablePrefix})  {
-final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';return Sale(id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!, tenantId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!, clientId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}client_id']), paymentMethod: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}payment_method'])!, paymentStatus: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}payment_status'])!, subtotal: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}subtotal'])!, tax: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}tax'])!, totalAmount: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}total_amount'])!, paidAmount: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}paid_amount'])!, date: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!, itemsJson: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}items_json'])!, );
+final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';return Sale(id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!, tenantId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!, clientId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}client_id']), paymentMethod: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}payment_method'])!, paymentStatus: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}payment_status'])!, subtotal: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}subtotal'])!, tax: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}tax'])!, totalAmount: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}total_amount'])!, paidAmount: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}paid_amount'])!, date: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!, itemsJson: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}items_json'])!, createdAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}created_at']), customerInfoJson: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}customer_info_json']), );
 }
 @override
 $SalesTable createAlias(String alias) {
@@ -850,7 +858,9 @@ final double totalAmount;
 final double paidAmount;
 final DateTime date;
 final String itemsJson;
-const Sale({required this.id, required this.tenantId, this.clientId, required this.paymentMethod, required this.paymentStatus, required this.subtotal, required this.tax, required this.totalAmount, required this.paidAmount, required this.date, required this.itemsJson});@override
+final DateTime? createdAt;
+final String? customerInfoJson;
+const Sale({required this.id, required this.tenantId, this.clientId, required this.paymentMethod, required this.paymentStatus, required this.subtotal, required this.tax, required this.totalAmount, required this.paidAmount, required this.date, required this.itemsJson, this.createdAt, this.customerInfoJson});@override
 Map<String, Expression> toColumns(bool nullToAbsent) {
 final map = <String, Expression> {};map['id'] = Variable<String>(id);
 map['tenant_id'] = Variable<String>(tenantId);
@@ -863,26 +873,28 @@ map['total_amount'] = Variable<double>(totalAmount);
 map['paid_amount'] = Variable<double>(paidAmount);
 map['date'] = Variable<DateTime>(date);
 map['items_json'] = Variable<String>(itemsJson);
-return map; 
+if (!nullToAbsent || createdAt != null){map['created_at'] = Variable<DateTime>(createdAt);
+}if (!nullToAbsent || customerInfoJson != null){map['customer_info_json'] = Variable<String>(customerInfoJson);
+}return map; 
 }
 SalesCompanion toCompanion(bool nullToAbsent) {
-return SalesCompanion(id: Value(id),tenantId: Value(tenantId),clientId: clientId == null && nullToAbsent ? const Value.absent() : Value(clientId),paymentMethod: Value(paymentMethod),paymentStatus: Value(paymentStatus),subtotal: Value(subtotal),tax: Value(tax),totalAmount: Value(totalAmount),paidAmount: Value(paidAmount),date: Value(date),itemsJson: Value(itemsJson),);
+return SalesCompanion(id: Value(id),tenantId: Value(tenantId),clientId: clientId == null && nullToAbsent ? const Value.absent() : Value(clientId),paymentMethod: Value(paymentMethod),paymentStatus: Value(paymentStatus),subtotal: Value(subtotal),tax: Value(tax),totalAmount: Value(totalAmount),paidAmount: Value(paidAmount),date: Value(date),itemsJson: Value(itemsJson),createdAt: createdAt == null && nullToAbsent ? const Value.absent() : Value(createdAt),customerInfoJson: customerInfoJson == null && nullToAbsent ? const Value.absent() : Value(customerInfoJson),);
 }
 factory Sale.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
 serializer ??= driftRuntimeOptions.defaultSerializer;
-return Sale(id: serializer.fromJson<String>(json['id']),tenantId: serializer.fromJson<String>(json['tenantId']),clientId: serializer.fromJson<String?>(json['clientId']),paymentMethod: serializer.fromJson<String>(json['paymentMethod']),paymentStatus: serializer.fromJson<String>(json['paymentStatus']),subtotal: serializer.fromJson<double>(json['subtotal']),tax: serializer.fromJson<double>(json['tax']),totalAmount: serializer.fromJson<double>(json['totalAmount']),paidAmount: serializer.fromJson<double>(json['paidAmount']),date: serializer.fromJson<DateTime>(json['date']),itemsJson: serializer.fromJson<String>(json['itemsJson']),);}
+return Sale(id: serializer.fromJson<String>(json['id']),tenantId: serializer.fromJson<String>(json['tenantId']),clientId: serializer.fromJson<String?>(json['clientId']),paymentMethod: serializer.fromJson<String>(json['paymentMethod']),paymentStatus: serializer.fromJson<String>(json['paymentStatus']),subtotal: serializer.fromJson<double>(json['subtotal']),tax: serializer.fromJson<double>(json['tax']),totalAmount: serializer.fromJson<double>(json['totalAmount']),paidAmount: serializer.fromJson<double>(json['paidAmount']),date: serializer.fromJson<DateTime>(json['date']),itemsJson: serializer.fromJson<String>(json['itemsJson']),createdAt: serializer.fromJson<DateTime?>(json['createdAt']),customerInfoJson: serializer.fromJson<String?>(json['customerInfoJson']),);}
 @override Map<String, dynamic> toJson({ValueSerializer? serializer}) {
 serializer ??= driftRuntimeOptions.defaultSerializer;
 return <String, dynamic>{
-'id': serializer.toJson<String>(id),'tenantId': serializer.toJson<String>(tenantId),'clientId': serializer.toJson<String?>(clientId),'paymentMethod': serializer.toJson<String>(paymentMethod),'paymentStatus': serializer.toJson<String>(paymentStatus),'subtotal': serializer.toJson<double>(subtotal),'tax': serializer.toJson<double>(tax),'totalAmount': serializer.toJson<double>(totalAmount),'paidAmount': serializer.toJson<double>(paidAmount),'date': serializer.toJson<DateTime>(date),'itemsJson': serializer.toJson<String>(itemsJson),};}Sale copyWith({String? id,String? tenantId,Value<String?> clientId = const Value.absent(),String? paymentMethod,String? paymentStatus,double? subtotal,double? tax,double? totalAmount,double? paidAmount,DateTime? date,String? itemsJson}) => Sale(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,clientId: clientId.present ? clientId.value : this.clientId,paymentMethod: paymentMethod ?? this.paymentMethod,paymentStatus: paymentStatus ?? this.paymentStatus,subtotal: subtotal ?? this.subtotal,tax: tax ?? this.tax,totalAmount: totalAmount ?? this.totalAmount,paidAmount: paidAmount ?? this.paidAmount,date: date ?? this.date,itemsJson: itemsJson ?? this.itemsJson,);Sale copyWithCompanion(SalesCompanion data) {
+'id': serializer.toJson<String>(id),'tenantId': serializer.toJson<String>(tenantId),'clientId': serializer.toJson<String?>(clientId),'paymentMethod': serializer.toJson<String>(paymentMethod),'paymentStatus': serializer.toJson<String>(paymentStatus),'subtotal': serializer.toJson<double>(subtotal),'tax': serializer.toJson<double>(tax),'totalAmount': serializer.toJson<double>(totalAmount),'paidAmount': serializer.toJson<double>(paidAmount),'date': serializer.toJson<DateTime>(date),'itemsJson': serializer.toJson<String>(itemsJson),'createdAt': serializer.toJson<DateTime?>(createdAt),'customerInfoJson': serializer.toJson<String?>(customerInfoJson),};}Sale copyWith({String? id,String? tenantId,Value<String?> clientId = const Value.absent(),String? paymentMethod,String? paymentStatus,double? subtotal,double? tax,double? totalAmount,double? paidAmount,DateTime? date,String? itemsJson,Value<DateTime?> createdAt = const Value.absent(),Value<String?> customerInfoJson = const Value.absent()}) => Sale(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,clientId: clientId.present ? clientId.value : this.clientId,paymentMethod: paymentMethod ?? this.paymentMethod,paymentStatus: paymentStatus ?? this.paymentStatus,subtotal: subtotal ?? this.subtotal,tax: tax ?? this.tax,totalAmount: totalAmount ?? this.totalAmount,paidAmount: paidAmount ?? this.paidAmount,date: date ?? this.date,itemsJson: itemsJson ?? this.itemsJson,createdAt: createdAt.present ? createdAt.value : this.createdAt,customerInfoJson: customerInfoJson.present ? customerInfoJson.value : this.customerInfoJson,);Sale copyWithCompanion(SalesCompanion data) {
 return Sale(
-id: data.id.present ? data.id.value : this.id,tenantId: data.tenantId.present ? data.tenantId.value : this.tenantId,clientId: data.clientId.present ? data.clientId.value : this.clientId,paymentMethod: data.paymentMethod.present ? data.paymentMethod.value : this.paymentMethod,paymentStatus: data.paymentStatus.present ? data.paymentStatus.value : this.paymentStatus,subtotal: data.subtotal.present ? data.subtotal.value : this.subtotal,tax: data.tax.present ? data.tax.value : this.tax,totalAmount: data.totalAmount.present ? data.totalAmount.value : this.totalAmount,paidAmount: data.paidAmount.present ? data.paidAmount.value : this.paidAmount,date: data.date.present ? data.date.value : this.date,itemsJson: data.itemsJson.present ? data.itemsJson.value : this.itemsJson,);
+id: data.id.present ? data.id.value : this.id,tenantId: data.tenantId.present ? data.tenantId.value : this.tenantId,clientId: data.clientId.present ? data.clientId.value : this.clientId,paymentMethod: data.paymentMethod.present ? data.paymentMethod.value : this.paymentMethod,paymentStatus: data.paymentStatus.present ? data.paymentStatus.value : this.paymentStatus,subtotal: data.subtotal.present ? data.subtotal.value : this.subtotal,tax: data.tax.present ? data.tax.value : this.tax,totalAmount: data.totalAmount.present ? data.totalAmount.value : this.totalAmount,paidAmount: data.paidAmount.present ? data.paidAmount.value : this.paidAmount,date: data.date.present ? data.date.value : this.date,itemsJson: data.itemsJson.present ? data.itemsJson.value : this.itemsJson,createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,customerInfoJson: data.customerInfoJson.present ? data.customerInfoJson.value : this.customerInfoJson,);
 }
 @override
-String toString() {return (StringBuffer('Sale(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('clientId: $clientId, ')..write('paymentMethod: $paymentMethod, ')..write('paymentStatus: $paymentStatus, ')..write('subtotal: $subtotal, ')..write('tax: $tax, ')..write('totalAmount: $totalAmount, ')..write('paidAmount: $paidAmount, ')..write('date: $date, ')..write('itemsJson: $itemsJson')..write(')')).toString();}
+String toString() {return (StringBuffer('Sale(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('clientId: $clientId, ')..write('paymentMethod: $paymentMethod, ')..write('paymentStatus: $paymentStatus, ')..write('subtotal: $subtotal, ')..write('tax: $tax, ')..write('totalAmount: $totalAmount, ')..write('paidAmount: $paidAmount, ')..write('date: $date, ')..write('itemsJson: $itemsJson, ')..write('createdAt: $createdAt, ')..write('customerInfoJson: $customerInfoJson')..write(')')).toString();}
 @override
- int get hashCode => Object.hash(id, tenantId, clientId, paymentMethod, paymentStatus, subtotal, tax, totalAmount, paidAmount, date, itemsJson);@override
-bool operator ==(Object other) => identical(this, other) || (other is Sale && other.id == this.id && other.tenantId == this.tenantId && other.clientId == this.clientId && other.paymentMethod == this.paymentMethod && other.paymentStatus == this.paymentStatus && other.subtotal == this.subtotal && other.tax == this.tax && other.totalAmount == this.totalAmount && other.paidAmount == this.paidAmount && other.date == this.date && other.itemsJson == this.itemsJson);
+ int get hashCode => Object.hash(id, tenantId, clientId, paymentMethod, paymentStatus, subtotal, tax, totalAmount, paidAmount, date, itemsJson, createdAt, customerInfoJson);@override
+bool operator ==(Object other) => identical(this, other) || (other is Sale && other.id == this.id && other.tenantId == this.tenantId && other.clientId == this.clientId && other.paymentMethod == this.paymentMethod && other.paymentStatus == this.paymentStatus && other.subtotal == this.subtotal && other.tax == this.tax && other.totalAmount == this.totalAmount && other.paidAmount == this.paidAmount && other.date == this.date && other.itemsJson == this.itemsJson && other.createdAt == this.createdAt && other.customerInfoJson == this.customerInfoJson);
 }class SalesCompanion extends UpdateCompanion<Sale> {
 final Value<String> id;
 final Value<String> tenantId;
@@ -895,9 +907,11 @@ final Value<double> totalAmount;
 final Value<double> paidAmount;
 final Value<DateTime> date;
 final Value<String> itemsJson;
+final Value<DateTime?> createdAt;
+final Value<String?> customerInfoJson;
 final Value<int> rowid;
-const SalesCompanion({this.id = const Value.absent(),this.tenantId = const Value.absent(),this.clientId = const Value.absent(),this.paymentMethod = const Value.absent(),this.paymentStatus = const Value.absent(),this.subtotal = const Value.absent(),this.tax = const Value.absent(),this.totalAmount = const Value.absent(),this.paidAmount = const Value.absent(),this.date = const Value.absent(),this.itemsJson = const Value.absent(),this.rowid = const Value.absent(),});
-SalesCompanion.insert({required String id,required String tenantId,this.clientId = const Value.absent(),required String paymentMethod,required String paymentStatus,required double subtotal,required double tax,required double totalAmount,this.paidAmount = const Value.absent(),required DateTime date,required String itemsJson,this.rowid = const Value.absent(),}): id = Value(id), tenantId = Value(tenantId), paymentMethod = Value(paymentMethod), paymentStatus = Value(paymentStatus), subtotal = Value(subtotal), tax = Value(tax), totalAmount = Value(totalAmount), date = Value(date), itemsJson = Value(itemsJson);
+const SalesCompanion({this.id = const Value.absent(),this.tenantId = const Value.absent(),this.clientId = const Value.absent(),this.paymentMethod = const Value.absent(),this.paymentStatus = const Value.absent(),this.subtotal = const Value.absent(),this.tax = const Value.absent(),this.totalAmount = const Value.absent(),this.paidAmount = const Value.absent(),this.date = const Value.absent(),this.itemsJson = const Value.absent(),this.createdAt = const Value.absent(),this.customerInfoJson = const Value.absent(),this.rowid = const Value.absent(),});
+SalesCompanion.insert({required String id,required String tenantId,this.clientId = const Value.absent(),required String paymentMethod,required String paymentStatus,required double subtotal,required double tax,required double totalAmount,this.paidAmount = const Value.absent(),required DateTime date,required String itemsJson,this.createdAt = const Value.absent(),this.customerInfoJson = const Value.absent(),this.rowid = const Value.absent(),}): id = Value(id), tenantId = Value(tenantId), paymentMethod = Value(paymentMethod), paymentStatus = Value(paymentStatus), subtotal = Value(subtotal), tax = Value(tax), totalAmount = Value(totalAmount), date = Value(date), itemsJson = Value(itemsJson);
 static Insertable<Sale> custom({Expression<String>? id, 
 Expression<String>? tenantId, 
 Expression<String>? clientId, 
@@ -909,11 +923,13 @@ Expression<double>? totalAmount,
 Expression<double>? paidAmount, 
 Expression<DateTime>? date, 
 Expression<String>? itemsJson, 
+Expression<DateTime>? createdAt, 
+Expression<String>? customerInfoJson, 
 Expression<int>? rowid, 
 }) {
-return RawValuesInsertable({if (id != null)'id': id,if (tenantId != null)'tenant_id': tenantId,if (clientId != null)'client_id': clientId,if (paymentMethod != null)'payment_method': paymentMethod,if (paymentStatus != null)'payment_status': paymentStatus,if (subtotal != null)'subtotal': subtotal,if (tax != null)'tax': tax,if (totalAmount != null)'total_amount': totalAmount,if (paidAmount != null)'paid_amount': paidAmount,if (date != null)'date': date,if (itemsJson != null)'items_json': itemsJson,if (rowid != null)'rowid': rowid,});
-}SalesCompanion copyWith({Value<String>? id, Value<String>? tenantId, Value<String?>? clientId, Value<String>? paymentMethod, Value<String>? paymentStatus, Value<double>? subtotal, Value<double>? tax, Value<double>? totalAmount, Value<double>? paidAmount, Value<DateTime>? date, Value<String>? itemsJson, Value<int>? rowid}) {
-return SalesCompanion(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,clientId: clientId ?? this.clientId,paymentMethod: paymentMethod ?? this.paymentMethod,paymentStatus: paymentStatus ?? this.paymentStatus,subtotal: subtotal ?? this.subtotal,tax: tax ?? this.tax,totalAmount: totalAmount ?? this.totalAmount,paidAmount: paidAmount ?? this.paidAmount,date: date ?? this.date,itemsJson: itemsJson ?? this.itemsJson,rowid: rowid ?? this.rowid,);
+return RawValuesInsertable({if (id != null)'id': id,if (tenantId != null)'tenant_id': tenantId,if (clientId != null)'client_id': clientId,if (paymentMethod != null)'payment_method': paymentMethod,if (paymentStatus != null)'payment_status': paymentStatus,if (subtotal != null)'subtotal': subtotal,if (tax != null)'tax': tax,if (totalAmount != null)'total_amount': totalAmount,if (paidAmount != null)'paid_amount': paidAmount,if (date != null)'date': date,if (itemsJson != null)'items_json': itemsJson,if (createdAt != null)'created_at': createdAt,if (customerInfoJson != null)'customer_info_json': customerInfoJson,if (rowid != null)'rowid': rowid,});
+}SalesCompanion copyWith({Value<String>? id, Value<String>? tenantId, Value<String?>? clientId, Value<String>? paymentMethod, Value<String>? paymentStatus, Value<double>? subtotal, Value<double>? tax, Value<double>? totalAmount, Value<double>? paidAmount, Value<DateTime>? date, Value<String>? itemsJson, Value<DateTime?>? createdAt, Value<String?>? customerInfoJson, Value<int>? rowid}) {
+return SalesCompanion(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,clientId: clientId ?? this.clientId,paymentMethod: paymentMethod ?? this.paymentMethod,paymentStatus: paymentStatus ?? this.paymentStatus,subtotal: subtotal ?? this.subtotal,tax: tax ?? this.tax,totalAmount: totalAmount ?? this.totalAmount,paidAmount: paidAmount ?? this.paidAmount,date: date ?? this.date,itemsJson: itemsJson ?? this.itemsJson,createdAt: createdAt ?? this.createdAt,customerInfoJson: customerInfoJson ?? this.customerInfoJson,rowid: rowid ?? this.rowid,);
 }
 @override
 Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -939,12 +955,16 @@ if (date.present) {
 map['date'] = Variable<DateTime>(date.value);}
 if (itemsJson.present) {
 map['items_json'] = Variable<String>(itemsJson.value);}
+if (createdAt.present) {
+map['created_at'] = Variable<DateTime>(createdAt.value);}
+if (customerInfoJson.present) {
+map['customer_info_json'] = Variable<String>(customerInfoJson.value);}
 if (rowid.present) {
 map['rowid'] = Variable<int>(rowid.value);}
 return map; 
 }
 @override
-String toString() {return (StringBuffer('SalesCompanion(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('clientId: $clientId, ')..write('paymentMethod: $paymentMethod, ')..write('paymentStatus: $paymentStatus, ')..write('subtotal: $subtotal, ')..write('tax: $tax, ')..write('totalAmount: $totalAmount, ')..write('paidAmount: $paidAmount, ')..write('date: $date, ')..write('itemsJson: $itemsJson, ')..write('rowid: $rowid')..write(')')).toString();}
+String toString() {return (StringBuffer('SalesCompanion(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('clientId: $clientId, ')..write('paymentMethod: $paymentMethod, ')..write('paymentStatus: $paymentStatus, ')..write('subtotal: $subtotal, ')..write('tax: $tax, ')..write('totalAmount: $totalAmount, ')..write('paidAmount: $paidAmount, ')..write('date: $date, ')..write('itemsJson: $itemsJson, ')..write('createdAt: $createdAt, ')..write('customerInfoJson: $customerInfoJson, ')..write('rowid: $rowid')..write(')')).toString();}
 }
 class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense>{
 @override final GeneratedDatabase attachedDatabase;
@@ -968,8 +988,11 @@ late final GeneratedColumn<String> note = GeneratedColumn<String>('note', aliase
 static const VerificationMeta _dateMeta = const VerificationMeta('date');
 @override
 late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>('date', aliasedName, false, type: DriftSqlType.dateTime, requiredDuringInsert: true);
+static const VerificationMeta _createdAtMeta = const VerificationMeta('createdAt');
 @override
-List<GeneratedColumn> get $columns => [id, tenantId, category, amount, note, date];
+late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>('created_at', aliasedName, true, type: DriftSqlType.dateTime, requiredDuringInsert: false);
+@override
+List<GeneratedColumn> get $columns => [id, tenantId, category, amount, note, date, createdAt];
 @override
 String get aliasedName => _alias ?? actualTableName;
 @override
@@ -1000,12 +1023,13 @@ context.handle(_noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
 context.handle(_dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));} else if (isInserting) {
 context.missing(_dateMeta);
 }
-return context;
+if (data.containsKey('created_at')) {
+context.handle(_createdAtMeta, createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));}return context;
 }
 @override
 Set<GeneratedColumn> get $primaryKey => {id};
 @override Expense map(Map<String, dynamic> data, {String? tablePrefix})  {
-final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';return Expense(id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!, tenantId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!, category: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}category'])!, amount: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}amount'])!, note: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}note']), date: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!, );
+final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';return Expense(id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!, tenantId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!, category: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}category'])!, amount: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}amount'])!, note: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}note']), date: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!, createdAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}created_at']), );
 }
 @override
 $ExpensesTable createAlias(String alias) {
@@ -1017,7 +1041,8 @@ final String category;
 final double amount;
 final String? note;
 final DateTime date;
-const Expense({required this.id, required this.tenantId, required this.category, required this.amount, this.note, required this.date});@override
+final DateTime? createdAt;
+const Expense({required this.id, required this.tenantId, required this.category, required this.amount, this.note, required this.date, this.createdAt});@override
 Map<String, Expression> toColumns(bool nullToAbsent) {
 final map = <String, Expression> {};map['id'] = Variable<String>(id);
 map['tenant_id'] = Variable<String>(tenantId);
@@ -1025,26 +1050,27 @@ map['category'] = Variable<String>(category);
 map['amount'] = Variable<double>(amount);
 if (!nullToAbsent || note != null){map['note'] = Variable<String>(note);
 }map['date'] = Variable<DateTime>(date);
-return map; 
+if (!nullToAbsent || createdAt != null){map['created_at'] = Variable<DateTime>(createdAt);
+}return map; 
 }
 ExpensesCompanion toCompanion(bool nullToAbsent) {
-return ExpensesCompanion(id: Value(id),tenantId: Value(tenantId),category: Value(category),amount: Value(amount),note: note == null && nullToAbsent ? const Value.absent() : Value(note),date: Value(date),);
+return ExpensesCompanion(id: Value(id),tenantId: Value(tenantId),category: Value(category),amount: Value(amount),note: note == null && nullToAbsent ? const Value.absent() : Value(note),date: Value(date),createdAt: createdAt == null && nullToAbsent ? const Value.absent() : Value(createdAt),);
 }
 factory Expense.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
 serializer ??= driftRuntimeOptions.defaultSerializer;
-return Expense(id: serializer.fromJson<String>(json['id']),tenantId: serializer.fromJson<String>(json['tenantId']),category: serializer.fromJson<String>(json['category']),amount: serializer.fromJson<double>(json['amount']),note: serializer.fromJson<String?>(json['note']),date: serializer.fromJson<DateTime>(json['date']),);}
+return Expense(id: serializer.fromJson<String>(json['id']),tenantId: serializer.fromJson<String>(json['tenantId']),category: serializer.fromJson<String>(json['category']),amount: serializer.fromJson<double>(json['amount']),note: serializer.fromJson<String?>(json['note']),date: serializer.fromJson<DateTime>(json['date']),createdAt: serializer.fromJson<DateTime?>(json['createdAt']),);}
 @override Map<String, dynamic> toJson({ValueSerializer? serializer}) {
 serializer ??= driftRuntimeOptions.defaultSerializer;
 return <String, dynamic>{
-'id': serializer.toJson<String>(id),'tenantId': serializer.toJson<String>(tenantId),'category': serializer.toJson<String>(category),'amount': serializer.toJson<double>(amount),'note': serializer.toJson<String?>(note),'date': serializer.toJson<DateTime>(date),};}Expense copyWith({String? id,String? tenantId,String? category,double? amount,Value<String?> note = const Value.absent(),DateTime? date}) => Expense(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,category: category ?? this.category,amount: amount ?? this.amount,note: note.present ? note.value : this.note,date: date ?? this.date,);Expense copyWithCompanion(ExpensesCompanion data) {
+'id': serializer.toJson<String>(id),'tenantId': serializer.toJson<String>(tenantId),'category': serializer.toJson<String>(category),'amount': serializer.toJson<double>(amount),'note': serializer.toJson<String?>(note),'date': serializer.toJson<DateTime>(date),'createdAt': serializer.toJson<DateTime?>(createdAt),};}Expense copyWith({String? id,String? tenantId,String? category,double? amount,Value<String?> note = const Value.absent(),DateTime? date,Value<DateTime?> createdAt = const Value.absent()}) => Expense(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,category: category ?? this.category,amount: amount ?? this.amount,note: note.present ? note.value : this.note,date: date ?? this.date,createdAt: createdAt.present ? createdAt.value : this.createdAt,);Expense copyWithCompanion(ExpensesCompanion data) {
 return Expense(
-id: data.id.present ? data.id.value : this.id,tenantId: data.tenantId.present ? data.tenantId.value : this.tenantId,category: data.category.present ? data.category.value : this.category,amount: data.amount.present ? data.amount.value : this.amount,note: data.note.present ? data.note.value : this.note,date: data.date.present ? data.date.value : this.date,);
+id: data.id.present ? data.id.value : this.id,tenantId: data.tenantId.present ? data.tenantId.value : this.tenantId,category: data.category.present ? data.category.value : this.category,amount: data.amount.present ? data.amount.value : this.amount,note: data.note.present ? data.note.value : this.note,date: data.date.present ? data.date.value : this.date,createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,);
 }
 @override
-String toString() {return (StringBuffer('Expense(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('category: $category, ')..write('amount: $amount, ')..write('note: $note, ')..write('date: $date')..write(')')).toString();}
+String toString() {return (StringBuffer('Expense(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('category: $category, ')..write('amount: $amount, ')..write('note: $note, ')..write('date: $date, ')..write('createdAt: $createdAt')..write(')')).toString();}
 @override
- int get hashCode => Object.hash(id, tenantId, category, amount, note, date);@override
-bool operator ==(Object other) => identical(this, other) || (other is Expense && other.id == this.id && other.tenantId == this.tenantId && other.category == this.category && other.amount == this.amount && other.note == this.note && other.date == this.date);
+ int get hashCode => Object.hash(id, tenantId, category, amount, note, date, createdAt);@override
+bool operator ==(Object other) => identical(this, other) || (other is Expense && other.id == this.id && other.tenantId == this.tenantId && other.category == this.category && other.amount == this.amount && other.note == this.note && other.date == this.date && other.createdAt == this.createdAt);
 }class ExpensesCompanion extends UpdateCompanion<Expense> {
 final Value<String> id;
 final Value<String> tenantId;
@@ -1052,20 +1078,22 @@ final Value<String> category;
 final Value<double> amount;
 final Value<String?> note;
 final Value<DateTime> date;
+final Value<DateTime?> createdAt;
 final Value<int> rowid;
-const ExpensesCompanion({this.id = const Value.absent(),this.tenantId = const Value.absent(),this.category = const Value.absent(),this.amount = const Value.absent(),this.note = const Value.absent(),this.date = const Value.absent(),this.rowid = const Value.absent(),});
-ExpensesCompanion.insert({required String id,required String tenantId,required String category,required double amount,this.note = const Value.absent(),required DateTime date,this.rowid = const Value.absent(),}): id = Value(id), tenantId = Value(tenantId), category = Value(category), amount = Value(amount), date = Value(date);
+const ExpensesCompanion({this.id = const Value.absent(),this.tenantId = const Value.absent(),this.category = const Value.absent(),this.amount = const Value.absent(),this.note = const Value.absent(),this.date = const Value.absent(),this.createdAt = const Value.absent(),this.rowid = const Value.absent(),});
+ExpensesCompanion.insert({required String id,required String tenantId,required String category,required double amount,this.note = const Value.absent(),required DateTime date,this.createdAt = const Value.absent(),this.rowid = const Value.absent(),}): id = Value(id), tenantId = Value(tenantId), category = Value(category), amount = Value(amount), date = Value(date);
 static Insertable<Expense> custom({Expression<String>? id, 
 Expression<String>? tenantId, 
 Expression<String>? category, 
 Expression<double>? amount, 
 Expression<String>? note, 
 Expression<DateTime>? date, 
+Expression<DateTime>? createdAt, 
 Expression<int>? rowid, 
 }) {
-return RawValuesInsertable({if (id != null)'id': id,if (tenantId != null)'tenant_id': tenantId,if (category != null)'category': category,if (amount != null)'amount': amount,if (note != null)'note': note,if (date != null)'date': date,if (rowid != null)'rowid': rowid,});
-}ExpensesCompanion copyWith({Value<String>? id, Value<String>? tenantId, Value<String>? category, Value<double>? amount, Value<String?>? note, Value<DateTime>? date, Value<int>? rowid}) {
-return ExpensesCompanion(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,category: category ?? this.category,amount: amount ?? this.amount,note: note ?? this.note,date: date ?? this.date,rowid: rowid ?? this.rowid,);
+return RawValuesInsertable({if (id != null)'id': id,if (tenantId != null)'tenant_id': tenantId,if (category != null)'category': category,if (amount != null)'amount': amount,if (note != null)'note': note,if (date != null)'date': date,if (createdAt != null)'created_at': createdAt,if (rowid != null)'rowid': rowid,});
+}ExpensesCompanion copyWith({Value<String>? id, Value<String>? tenantId, Value<String>? category, Value<double>? amount, Value<String?>? note, Value<DateTime>? date, Value<DateTime?>? createdAt, Value<int>? rowid}) {
+return ExpensesCompanion(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,category: category ?? this.category,amount: amount ?? this.amount,note: note ?? this.note,date: date ?? this.date,createdAt: createdAt ?? this.createdAt,rowid: rowid ?? this.rowid,);
 }
 @override
 Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1081,12 +1109,14 @@ if (note.present) {
 map['note'] = Variable<String>(note.value);}
 if (date.present) {
 map['date'] = Variable<DateTime>(date.value);}
+if (createdAt.present) {
+map['created_at'] = Variable<DateTime>(createdAt.value);}
 if (rowid.present) {
 map['rowid'] = Variable<int>(rowid.value);}
 return map; 
 }
 @override
-String toString() {return (StringBuffer('ExpensesCompanion(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('category: $category, ')..write('amount: $amount, ')..write('note: $note, ')..write('date: $date, ')..write('rowid: $rowid')..write(')')).toString();}
+String toString() {return (StringBuffer('ExpensesCompanion(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('category: $category, ')..write('amount: $amount, ')..write('note: $note, ')..write('date: $date, ')..write('createdAt: $createdAt, ')..write('rowid: $rowid')..write(')')).toString();}
 }
 class $SuppliersTable extends Suppliers with TableInfo<$SuppliersTable, Supplier>{
 @override final GeneratedDatabase attachedDatabase;
@@ -1249,8 +1279,14 @@ late final GeneratedColumn<double> totalAmount = GeneratedColumn<double>('total_
 static const VerificationMeta _dateMeta = const VerificationMeta('date');
 @override
 late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>('date', aliasedName, false, type: DriftSqlType.dateTime, requiredDuringInsert: true);
+static const VerificationMeta _paymentTypeMeta = const VerificationMeta('paymentType');
 @override
-List<GeneratedColumn> get $columns => [id, tenantId, supplierId, productId, quantity, totalAmount, date];
+late final GeneratedColumn<String> paymentType = GeneratedColumn<String>('payment_type', aliasedName, true, type: DriftSqlType.string, requiredDuringInsert: false);
+static const VerificationMeta _createdAtMeta = const VerificationMeta('createdAt');
+@override
+late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>('created_at', aliasedName, true, type: DriftSqlType.dateTime, requiredDuringInsert: false);
+@override
+List<GeneratedColumn> get $columns => [id, tenantId, supplierId, productId, quantity, totalAmount, date, paymentType, createdAt];
 @override
 String get aliasedName => _alias ?? actualTableName;
 @override
@@ -1282,12 +1318,14 @@ if (data.containsKey('date')) {
 context.handle(_dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));} else if (isInserting) {
 context.missing(_dateMeta);
 }
-return context;
+if (data.containsKey('payment_type')) {
+context.handle(_paymentTypeMeta, paymentType.isAcceptableOrUnknown(data['payment_type']!, _paymentTypeMeta));}if (data.containsKey('created_at')) {
+context.handle(_createdAtMeta, createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));}return context;
 }
 @override
 Set<GeneratedColumn> get $primaryKey => {id};
 @override Purchase map(Map<String, dynamic> data, {String? tablePrefix})  {
-final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';return Purchase(id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!, tenantId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!, supplierId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}supplier_id']), productId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}product_id']), quantity: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}quantity'])!, totalAmount: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}total_amount'])!, date: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!, );
+final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';return Purchase(id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!, tenantId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!, supplierId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}supplier_id']), productId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}product_id']), quantity: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}quantity'])!, totalAmount: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}total_amount'])!, date: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!, paymentType: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}payment_type']), createdAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}created_at']), );
 }
 @override
 $PurchasesTable createAlias(String alias) {
@@ -1300,7 +1338,9 @@ final String? productId;
 final double quantity;
 final double totalAmount;
 final DateTime date;
-const Purchase({required this.id, required this.tenantId, this.supplierId, this.productId, required this.quantity, required this.totalAmount, required this.date});@override
+final String? paymentType;
+final DateTime? createdAt;
+const Purchase({required this.id, required this.tenantId, this.supplierId, this.productId, required this.quantity, required this.totalAmount, required this.date, this.paymentType, this.createdAt});@override
 Map<String, Expression> toColumns(bool nullToAbsent) {
 final map = <String, Expression> {};map['id'] = Variable<String>(id);
 map['tenant_id'] = Variable<String>(tenantId);
@@ -1309,26 +1349,28 @@ if (!nullToAbsent || supplierId != null){map['supplier_id'] = Variable<String>(s
 }map['quantity'] = Variable<double>(quantity);
 map['total_amount'] = Variable<double>(totalAmount);
 map['date'] = Variable<DateTime>(date);
-return map; 
+if (!nullToAbsent || paymentType != null){map['payment_type'] = Variable<String>(paymentType);
+}if (!nullToAbsent || createdAt != null){map['created_at'] = Variable<DateTime>(createdAt);
+}return map; 
 }
 PurchasesCompanion toCompanion(bool nullToAbsent) {
-return PurchasesCompanion(id: Value(id),tenantId: Value(tenantId),supplierId: supplierId == null && nullToAbsent ? const Value.absent() : Value(supplierId),productId: productId == null && nullToAbsent ? const Value.absent() : Value(productId),quantity: Value(quantity),totalAmount: Value(totalAmount),date: Value(date),);
+return PurchasesCompanion(id: Value(id),tenantId: Value(tenantId),supplierId: supplierId == null && nullToAbsent ? const Value.absent() : Value(supplierId),productId: productId == null && nullToAbsent ? const Value.absent() : Value(productId),quantity: Value(quantity),totalAmount: Value(totalAmount),date: Value(date),paymentType: paymentType == null && nullToAbsent ? const Value.absent() : Value(paymentType),createdAt: createdAt == null && nullToAbsent ? const Value.absent() : Value(createdAt),);
 }
 factory Purchase.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
 serializer ??= driftRuntimeOptions.defaultSerializer;
-return Purchase(id: serializer.fromJson<String>(json['id']),tenantId: serializer.fromJson<String>(json['tenantId']),supplierId: serializer.fromJson<String?>(json['supplierId']),productId: serializer.fromJson<String?>(json['productId']),quantity: serializer.fromJson<double>(json['quantity']),totalAmount: serializer.fromJson<double>(json['totalAmount']),date: serializer.fromJson<DateTime>(json['date']),);}
+return Purchase(id: serializer.fromJson<String>(json['id']),tenantId: serializer.fromJson<String>(json['tenantId']),supplierId: serializer.fromJson<String?>(json['supplierId']),productId: serializer.fromJson<String?>(json['productId']),quantity: serializer.fromJson<double>(json['quantity']),totalAmount: serializer.fromJson<double>(json['totalAmount']),date: serializer.fromJson<DateTime>(json['date']),paymentType: serializer.fromJson<String?>(json['paymentType']),createdAt: serializer.fromJson<DateTime?>(json['createdAt']),);}
 @override Map<String, dynamic> toJson({ValueSerializer? serializer}) {
 serializer ??= driftRuntimeOptions.defaultSerializer;
 return <String, dynamic>{
-'id': serializer.toJson<String>(id),'tenantId': serializer.toJson<String>(tenantId),'supplierId': serializer.toJson<String?>(supplierId),'productId': serializer.toJson<String?>(productId),'quantity': serializer.toJson<double>(quantity),'totalAmount': serializer.toJson<double>(totalAmount),'date': serializer.toJson<DateTime>(date),};}Purchase copyWith({String? id,String? tenantId,Value<String?> supplierId = const Value.absent(),Value<String?> productId = const Value.absent(),double? quantity,double? totalAmount,DateTime? date}) => Purchase(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,supplierId: supplierId.present ? supplierId.value : this.supplierId,productId: productId.present ? productId.value : this.productId,quantity: quantity ?? this.quantity,totalAmount: totalAmount ?? this.totalAmount,date: date ?? this.date,);Purchase copyWithCompanion(PurchasesCompanion data) {
+'id': serializer.toJson<String>(id),'tenantId': serializer.toJson<String>(tenantId),'supplierId': serializer.toJson<String?>(supplierId),'productId': serializer.toJson<String?>(productId),'quantity': serializer.toJson<double>(quantity),'totalAmount': serializer.toJson<double>(totalAmount),'date': serializer.toJson<DateTime>(date),'paymentType': serializer.toJson<String?>(paymentType),'createdAt': serializer.toJson<DateTime?>(createdAt),};}Purchase copyWith({String? id,String? tenantId,Value<String?> supplierId = const Value.absent(),Value<String?> productId = const Value.absent(),double? quantity,double? totalAmount,DateTime? date,Value<String?> paymentType = const Value.absent(),Value<DateTime?> createdAt = const Value.absent()}) => Purchase(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,supplierId: supplierId.present ? supplierId.value : this.supplierId,productId: productId.present ? productId.value : this.productId,quantity: quantity ?? this.quantity,totalAmount: totalAmount ?? this.totalAmount,date: date ?? this.date,paymentType: paymentType.present ? paymentType.value : this.paymentType,createdAt: createdAt.present ? createdAt.value : this.createdAt,);Purchase copyWithCompanion(PurchasesCompanion data) {
 return Purchase(
-id: data.id.present ? data.id.value : this.id,tenantId: data.tenantId.present ? data.tenantId.value : this.tenantId,supplierId: data.supplierId.present ? data.supplierId.value : this.supplierId,productId: data.productId.present ? data.productId.value : this.productId,quantity: data.quantity.present ? data.quantity.value : this.quantity,totalAmount: data.totalAmount.present ? data.totalAmount.value : this.totalAmount,date: data.date.present ? data.date.value : this.date,);
+id: data.id.present ? data.id.value : this.id,tenantId: data.tenantId.present ? data.tenantId.value : this.tenantId,supplierId: data.supplierId.present ? data.supplierId.value : this.supplierId,productId: data.productId.present ? data.productId.value : this.productId,quantity: data.quantity.present ? data.quantity.value : this.quantity,totalAmount: data.totalAmount.present ? data.totalAmount.value : this.totalAmount,date: data.date.present ? data.date.value : this.date,paymentType: data.paymentType.present ? data.paymentType.value : this.paymentType,createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,);
 }
 @override
-String toString() {return (StringBuffer('Purchase(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('supplierId: $supplierId, ')..write('productId: $productId, ')..write('quantity: $quantity, ')..write('totalAmount: $totalAmount, ')..write('date: $date')..write(')')).toString();}
+String toString() {return (StringBuffer('Purchase(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('supplierId: $supplierId, ')..write('productId: $productId, ')..write('quantity: $quantity, ')..write('totalAmount: $totalAmount, ')..write('date: $date, ')..write('paymentType: $paymentType, ')..write('createdAt: $createdAt')..write(')')).toString();}
 @override
- int get hashCode => Object.hash(id, tenantId, supplierId, productId, quantity, totalAmount, date);@override
-bool operator ==(Object other) => identical(this, other) || (other is Purchase && other.id == this.id && other.tenantId == this.tenantId && other.supplierId == this.supplierId && other.productId == this.productId && other.quantity == this.quantity && other.totalAmount == this.totalAmount && other.date == this.date);
+ int get hashCode => Object.hash(id, tenantId, supplierId, productId, quantity, totalAmount, date, paymentType, createdAt);@override
+bool operator ==(Object other) => identical(this, other) || (other is Purchase && other.id == this.id && other.tenantId == this.tenantId && other.supplierId == this.supplierId && other.productId == this.productId && other.quantity == this.quantity && other.totalAmount == this.totalAmount && other.date == this.date && other.paymentType == this.paymentType && other.createdAt == this.createdAt);
 }class PurchasesCompanion extends UpdateCompanion<Purchase> {
 final Value<String> id;
 final Value<String> tenantId;
@@ -1337,9 +1379,11 @@ final Value<String?> productId;
 final Value<double> quantity;
 final Value<double> totalAmount;
 final Value<DateTime> date;
+final Value<String?> paymentType;
+final Value<DateTime?> createdAt;
 final Value<int> rowid;
-const PurchasesCompanion({this.id = const Value.absent(),this.tenantId = const Value.absent(),this.supplierId = const Value.absent(),this.productId = const Value.absent(),this.quantity = const Value.absent(),this.totalAmount = const Value.absent(),this.date = const Value.absent(),this.rowid = const Value.absent(),});
-PurchasesCompanion.insert({required String id,required String tenantId,this.supplierId = const Value.absent(),this.productId = const Value.absent(),required double quantity,required double totalAmount,required DateTime date,this.rowid = const Value.absent(),}): id = Value(id), tenantId = Value(tenantId), quantity = Value(quantity), totalAmount = Value(totalAmount), date = Value(date);
+const PurchasesCompanion({this.id = const Value.absent(),this.tenantId = const Value.absent(),this.supplierId = const Value.absent(),this.productId = const Value.absent(),this.quantity = const Value.absent(),this.totalAmount = const Value.absent(),this.date = const Value.absent(),this.paymentType = const Value.absent(),this.createdAt = const Value.absent(),this.rowid = const Value.absent(),});
+PurchasesCompanion.insert({required String id,required String tenantId,this.supplierId = const Value.absent(),this.productId = const Value.absent(),required double quantity,required double totalAmount,required DateTime date,this.paymentType = const Value.absent(),this.createdAt = const Value.absent(),this.rowid = const Value.absent(),}): id = Value(id), tenantId = Value(tenantId), quantity = Value(quantity), totalAmount = Value(totalAmount), date = Value(date);
 static Insertable<Purchase> custom({Expression<String>? id, 
 Expression<String>? tenantId, 
 Expression<String>? supplierId, 
@@ -1347,11 +1391,13 @@ Expression<String>? productId,
 Expression<double>? quantity, 
 Expression<double>? totalAmount, 
 Expression<DateTime>? date, 
+Expression<String>? paymentType, 
+Expression<DateTime>? createdAt, 
 Expression<int>? rowid, 
 }) {
-return RawValuesInsertable({if (id != null)'id': id,if (tenantId != null)'tenant_id': tenantId,if (supplierId != null)'supplier_id': supplierId,if (productId != null)'product_id': productId,if (quantity != null)'quantity': quantity,if (totalAmount != null)'total_amount': totalAmount,if (date != null)'date': date,if (rowid != null)'rowid': rowid,});
-}PurchasesCompanion copyWith({Value<String>? id, Value<String>? tenantId, Value<String?>? supplierId, Value<String?>? productId, Value<double>? quantity, Value<double>? totalAmount, Value<DateTime>? date, Value<int>? rowid}) {
-return PurchasesCompanion(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,supplierId: supplierId ?? this.supplierId,productId: productId ?? this.productId,quantity: quantity ?? this.quantity,totalAmount: totalAmount ?? this.totalAmount,date: date ?? this.date,rowid: rowid ?? this.rowid,);
+return RawValuesInsertable({if (id != null)'id': id,if (tenantId != null)'tenant_id': tenantId,if (supplierId != null)'supplier_id': supplierId,if (productId != null)'product_id': productId,if (quantity != null)'quantity': quantity,if (totalAmount != null)'total_amount': totalAmount,if (date != null)'date': date,if (paymentType != null)'payment_type': paymentType,if (createdAt != null)'created_at': createdAt,if (rowid != null)'rowid': rowid,});
+}PurchasesCompanion copyWith({Value<String>? id, Value<String>? tenantId, Value<String?>? supplierId, Value<String?>? productId, Value<double>? quantity, Value<double>? totalAmount, Value<DateTime>? date, Value<String?>? paymentType, Value<DateTime?>? createdAt, Value<int>? rowid}) {
+return PurchasesCompanion(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,supplierId: supplierId ?? this.supplierId,productId: productId ?? this.productId,quantity: quantity ?? this.quantity,totalAmount: totalAmount ?? this.totalAmount,date: date ?? this.date,paymentType: paymentType ?? this.paymentType,createdAt: createdAt ?? this.createdAt,rowid: rowid ?? this.rowid,);
 }
 @override
 Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1369,12 +1415,16 @@ if (totalAmount.present) {
 map['total_amount'] = Variable<double>(totalAmount.value);}
 if (date.present) {
 map['date'] = Variable<DateTime>(date.value);}
+if (paymentType.present) {
+map['payment_type'] = Variable<String>(paymentType.value);}
+if (createdAt.present) {
+map['created_at'] = Variable<DateTime>(createdAt.value);}
 if (rowid.present) {
 map['rowid'] = Variable<int>(rowid.value);}
 return map; 
 }
 @override
-String toString() {return (StringBuffer('PurchasesCompanion(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('supplierId: $supplierId, ')..write('productId: $productId, ')..write('quantity: $quantity, ')..write('totalAmount: $totalAmount, ')..write('date: $date, ')..write('rowid: $rowid')..write(')')).toString();}
+String toString() {return (StringBuffer('PurchasesCompanion(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('supplierId: $supplierId, ')..write('productId: $productId, ')..write('quantity: $quantity, ')..write('totalAmount: $totalAmount, ')..write('date: $date, ')..write('paymentType: $paymentType, ')..write('createdAt: $createdAt, ')..write('rowid: $rowid')..write(')')).toString();}
 }
 class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice>{
 @override final GeneratedDatabase attachedDatabase;
@@ -4841,8 +4891,8 @@ GeneratedColumn<DateTime> get updatedAt => $composableBuilder(
     (Client,BaseReferences<_$AppDatabase,$ClientsTable,Client>),
     Client,
     PrefetchHooks Function()
-    >;typedef $$SalesTableCreateCompanionBuilder = SalesCompanion Function({required String id,required String tenantId,Value<String?> clientId,required String paymentMethod,required String paymentStatus,required double subtotal,required double tax,required double totalAmount,Value<double> paidAmount,required DateTime date,required String itemsJson,Value<int> rowid,});
-typedef $$SalesTableUpdateCompanionBuilder = SalesCompanion Function({Value<String> id,Value<String> tenantId,Value<String?> clientId,Value<String> paymentMethod,Value<String> paymentStatus,Value<double> subtotal,Value<double> tax,Value<double> totalAmount,Value<double> paidAmount,Value<DateTime> date,Value<String> itemsJson,Value<int> rowid,});
+    >;typedef $$SalesTableCreateCompanionBuilder = SalesCompanion Function({required String id,required String tenantId,Value<String?> clientId,required String paymentMethod,required String paymentStatus,required double subtotal,required double tax,required double totalAmount,Value<double> paidAmount,required DateTime date,required String itemsJson,Value<DateTime?> createdAt,Value<String?> customerInfoJson,Value<int> rowid,});
+typedef $$SalesTableUpdateCompanionBuilder = SalesCompanion Function({Value<String> id,Value<String> tenantId,Value<String?> clientId,Value<String> paymentMethod,Value<String> paymentStatus,Value<double> subtotal,Value<double> tax,Value<double> totalAmount,Value<double> paidAmount,Value<DateTime> date,Value<String> itemsJson,Value<DateTime?> createdAt,Value<String?> customerInfoJson,Value<int> rowid,});
 class $$SalesTableFilterComposer extends Composer<
         _$AppDatabase,
         $SalesTable> {
@@ -4905,6 +4955,16 @@ ColumnFilters<DateTime> get date => $composableBuilder(
       
 ColumnFilters<String> get itemsJson => $composableBuilder(
       column: $table.itemsJson,
+      builder: (column) => 
+      ColumnFilters(column));
+      
+ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt,
+      builder: (column) => 
+      ColumnFilters(column));
+      
+ColumnFilters<String> get customerInfoJson => $composableBuilder(
+      column: $table.customerInfoJson,
       builder: (column) => 
       ColumnFilters(column));
       
@@ -4974,6 +5034,16 @@ ColumnOrderings<String> get itemsJson => $composableBuilder(
       builder: (column) => 
       ColumnOrderings(column));
       
+ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt,
+      builder: (column) => 
+      ColumnOrderings(column));
+      
+ColumnOrderings<String> get customerInfoJson => $composableBuilder(
+      column: $table.customerInfoJson,
+      builder: (column) => 
+      ColumnOrderings(column));
+      
         }
       class $$SalesTableAnnotationComposer extends Composer<
         _$AppDatabase,
@@ -5029,6 +5099,14 @@ GeneratedColumn<String> get itemsJson => $composableBuilder(
       column: $table.itemsJson,
       builder: (column) => column);
       
+GeneratedColumn<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt,
+      builder: (column) => column);
+      
+GeneratedColumn<String> get customerInfoJson => $composableBuilder(
+      column: $table.customerInfoJson,
+      builder: (column) => column);
+      
         }
       class $$SalesTableTableManager extends RootTableManager    <_$AppDatabase,
     $SalesTable,
@@ -5049,8 +5127,8 @@ GeneratedColumn<String> get itemsJson => $composableBuilder(
         createFilteringComposer: () => $$SalesTableFilterComposer($db: db,$table:table),
         createOrderingComposer: () => $$SalesTableOrderingComposer($db: db,$table:table),
         createComputedFieldComposer: () => $$SalesTableAnnotationComposer($db: db,$table:table),
-        updateCompanionCallback: ({Value<String> id = const Value.absent(),Value<String> tenantId = const Value.absent(),Value<String?> clientId = const Value.absent(),Value<String> paymentMethod = const Value.absent(),Value<String> paymentStatus = const Value.absent(),Value<double> subtotal = const Value.absent(),Value<double> tax = const Value.absent(),Value<double> totalAmount = const Value.absent(),Value<double> paidAmount = const Value.absent(),Value<DateTime> date = const Value.absent(),Value<String> itemsJson = const Value.absent(),Value<int> rowid = const Value.absent(),})=> SalesCompanion(id: id,tenantId: tenantId,clientId: clientId,paymentMethod: paymentMethod,paymentStatus: paymentStatus,subtotal: subtotal,tax: tax,totalAmount: totalAmount,paidAmount: paidAmount,date: date,itemsJson: itemsJson,rowid: rowid,),
-        createCompanionCallback: ({required String id,required String tenantId,Value<String?> clientId = const Value.absent(),required String paymentMethod,required String paymentStatus,required double subtotal,required double tax,required double totalAmount,Value<double> paidAmount = const Value.absent(),required DateTime date,required String itemsJson,Value<int> rowid = const Value.absent(),})=> SalesCompanion.insert(id: id,tenantId: tenantId,clientId: clientId,paymentMethod: paymentMethod,paymentStatus: paymentStatus,subtotal: subtotal,tax: tax,totalAmount: totalAmount,paidAmount: paidAmount,date: date,itemsJson: itemsJson,rowid: rowid,),
+        updateCompanionCallback: ({Value<String> id = const Value.absent(),Value<String> tenantId = const Value.absent(),Value<String?> clientId = const Value.absent(),Value<String> paymentMethod = const Value.absent(),Value<String> paymentStatus = const Value.absent(),Value<double> subtotal = const Value.absent(),Value<double> tax = const Value.absent(),Value<double> totalAmount = const Value.absent(),Value<double> paidAmount = const Value.absent(),Value<DateTime> date = const Value.absent(),Value<String> itemsJson = const Value.absent(),Value<DateTime?> createdAt = const Value.absent(),Value<String?> customerInfoJson = const Value.absent(),Value<int> rowid = const Value.absent(),})=> SalesCompanion(id: id,tenantId: tenantId,clientId: clientId,paymentMethod: paymentMethod,paymentStatus: paymentStatus,subtotal: subtotal,tax: tax,totalAmount: totalAmount,paidAmount: paidAmount,date: date,itemsJson: itemsJson,createdAt: createdAt,customerInfoJson: customerInfoJson,rowid: rowid,),
+        createCompanionCallback: ({required String id,required String tenantId,Value<String?> clientId = const Value.absent(),required String paymentMethod,required String paymentStatus,required double subtotal,required double tax,required double totalAmount,Value<double> paidAmount = const Value.absent(),required DateTime date,required String itemsJson,Value<DateTime?> createdAt = const Value.absent(),Value<String?> customerInfoJson = const Value.absent(),Value<int> rowid = const Value.absent(),})=> SalesCompanion.insert(id: id,tenantId: tenantId,clientId: clientId,paymentMethod: paymentMethod,paymentStatus: paymentStatus,subtotal: subtotal,tax: tax,totalAmount: totalAmount,paidAmount: paidAmount,date: date,itemsJson: itemsJson,createdAt: createdAt,customerInfoJson: customerInfoJson,rowid: rowid,),
         withReferenceMapper: (p0) => p0
               .map(
                   (e) =>
@@ -5071,8 +5149,8 @@ GeneratedColumn<String> get itemsJson => $composableBuilder(
     (Sale,BaseReferences<_$AppDatabase,$SalesTable,Sale>),
     Sale,
     PrefetchHooks Function()
-    >;typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({required String id,required String tenantId,required String category,required double amount,Value<String?> note,required DateTime date,Value<int> rowid,});
-typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({Value<String> id,Value<String> tenantId,Value<String> category,Value<double> amount,Value<String?> note,Value<DateTime> date,Value<int> rowid,});
+    >;typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({required String id,required String tenantId,required String category,required double amount,Value<String?> note,required DateTime date,Value<DateTime?> createdAt,Value<int> rowid,});
+typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({Value<String> id,Value<String> tenantId,Value<String> category,Value<double> amount,Value<String?> note,Value<DateTime> date,Value<DateTime?> createdAt,Value<int> rowid,});
 class $$ExpensesTableFilterComposer extends Composer<
         _$AppDatabase,
         $ExpensesTable> {
@@ -5110,6 +5188,11 @@ ColumnFilters<String> get note => $composableBuilder(
       
 ColumnFilters<DateTime> get date => $composableBuilder(
       column: $table.date,
+      builder: (column) => 
+      ColumnFilters(column));
+      
+ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt,
       builder: (column) => 
       ColumnFilters(column));
       
@@ -5154,6 +5237,11 @@ ColumnOrderings<DateTime> get date => $composableBuilder(
       builder: (column) => 
       ColumnOrderings(column));
       
+ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt,
+      builder: (column) => 
+      ColumnOrderings(column));
+      
         }
       class $$ExpensesTableAnnotationComposer extends Composer<
         _$AppDatabase,
@@ -5189,6 +5277,10 @@ GeneratedColumn<DateTime> get date => $composableBuilder(
       column: $table.date,
       builder: (column) => column);
       
+GeneratedColumn<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt,
+      builder: (column) => column);
+      
         }
       class $$ExpensesTableTableManager extends RootTableManager    <_$AppDatabase,
     $ExpensesTable,
@@ -5209,8 +5301,8 @@ GeneratedColumn<DateTime> get date => $composableBuilder(
         createFilteringComposer: () => $$ExpensesTableFilterComposer($db: db,$table:table),
         createOrderingComposer: () => $$ExpensesTableOrderingComposer($db: db,$table:table),
         createComputedFieldComposer: () => $$ExpensesTableAnnotationComposer($db: db,$table:table),
-        updateCompanionCallback: ({Value<String> id = const Value.absent(),Value<String> tenantId = const Value.absent(),Value<String> category = const Value.absent(),Value<double> amount = const Value.absent(),Value<String?> note = const Value.absent(),Value<DateTime> date = const Value.absent(),Value<int> rowid = const Value.absent(),})=> ExpensesCompanion(id: id,tenantId: tenantId,category: category,amount: amount,note: note,date: date,rowid: rowid,),
-        createCompanionCallback: ({required String id,required String tenantId,required String category,required double amount,Value<String?> note = const Value.absent(),required DateTime date,Value<int> rowid = const Value.absent(),})=> ExpensesCompanion.insert(id: id,tenantId: tenantId,category: category,amount: amount,note: note,date: date,rowid: rowid,),
+        updateCompanionCallback: ({Value<String> id = const Value.absent(),Value<String> tenantId = const Value.absent(),Value<String> category = const Value.absent(),Value<double> amount = const Value.absent(),Value<String?> note = const Value.absent(),Value<DateTime> date = const Value.absent(),Value<DateTime?> createdAt = const Value.absent(),Value<int> rowid = const Value.absent(),})=> ExpensesCompanion(id: id,tenantId: tenantId,category: category,amount: amount,note: note,date: date,createdAt: createdAt,rowid: rowid,),
+        createCompanionCallback: ({required String id,required String tenantId,required String category,required double amount,Value<String?> note = const Value.absent(),required DateTime date,Value<DateTime?> createdAt = const Value.absent(),Value<int> rowid = const Value.absent(),})=> ExpensesCompanion.insert(id: id,tenantId: tenantId,category: category,amount: amount,note: note,date: date,createdAt: createdAt,rowid: rowid,),
         withReferenceMapper: (p0) => p0
               .map(
                   (e) =>
@@ -5391,8 +5483,8 @@ GeneratedColumn<double> get balance => $composableBuilder(
     (Supplier,BaseReferences<_$AppDatabase,$SuppliersTable,Supplier>),
     Supplier,
     PrefetchHooks Function()
-    >;typedef $$PurchasesTableCreateCompanionBuilder = PurchasesCompanion Function({required String id,required String tenantId,Value<String?> supplierId,Value<String?> productId,required double quantity,required double totalAmount,required DateTime date,Value<int> rowid,});
-typedef $$PurchasesTableUpdateCompanionBuilder = PurchasesCompanion Function({Value<String> id,Value<String> tenantId,Value<String?> supplierId,Value<String?> productId,Value<double> quantity,Value<double> totalAmount,Value<DateTime> date,Value<int> rowid,});
+    >;typedef $$PurchasesTableCreateCompanionBuilder = PurchasesCompanion Function({required String id,required String tenantId,Value<String?> supplierId,Value<String?> productId,required double quantity,required double totalAmount,required DateTime date,Value<String?> paymentType,Value<DateTime?> createdAt,Value<int> rowid,});
+typedef $$PurchasesTableUpdateCompanionBuilder = PurchasesCompanion Function({Value<String> id,Value<String> tenantId,Value<String?> supplierId,Value<String?> productId,Value<double> quantity,Value<double> totalAmount,Value<DateTime> date,Value<String?> paymentType,Value<DateTime?> createdAt,Value<int> rowid,});
 class $$PurchasesTableFilterComposer extends Composer<
         _$AppDatabase,
         $PurchasesTable> {
@@ -5435,6 +5527,16 @@ ColumnFilters<double> get totalAmount => $composableBuilder(
       
 ColumnFilters<DateTime> get date => $composableBuilder(
       column: $table.date,
+      builder: (column) => 
+      ColumnFilters(column));
+      
+ColumnFilters<String> get paymentType => $composableBuilder(
+      column: $table.paymentType,
+      builder: (column) => 
+      ColumnFilters(column));
+      
+ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt,
       builder: (column) => 
       ColumnFilters(column));
       
@@ -5484,6 +5586,16 @@ ColumnOrderings<DateTime> get date => $composableBuilder(
       builder: (column) => 
       ColumnOrderings(column));
       
+ColumnOrderings<String> get paymentType => $composableBuilder(
+      column: $table.paymentType,
+      builder: (column) => 
+      ColumnOrderings(column));
+      
+ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt,
+      builder: (column) => 
+      ColumnOrderings(column));
+      
         }
       class $$PurchasesTableAnnotationComposer extends Composer<
         _$AppDatabase,
@@ -5523,6 +5635,14 @@ GeneratedColumn<DateTime> get date => $composableBuilder(
       column: $table.date,
       builder: (column) => column);
       
+GeneratedColumn<String> get paymentType => $composableBuilder(
+      column: $table.paymentType,
+      builder: (column) => column);
+      
+GeneratedColumn<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt,
+      builder: (column) => column);
+      
         }
       class $$PurchasesTableTableManager extends RootTableManager    <_$AppDatabase,
     $PurchasesTable,
@@ -5543,8 +5663,8 @@ GeneratedColumn<DateTime> get date => $composableBuilder(
         createFilteringComposer: () => $$PurchasesTableFilterComposer($db: db,$table:table),
         createOrderingComposer: () => $$PurchasesTableOrderingComposer($db: db,$table:table),
         createComputedFieldComposer: () => $$PurchasesTableAnnotationComposer($db: db,$table:table),
-        updateCompanionCallback: ({Value<String> id = const Value.absent(),Value<String> tenantId = const Value.absent(),Value<String?> supplierId = const Value.absent(),Value<String?> productId = const Value.absent(),Value<double> quantity = const Value.absent(),Value<double> totalAmount = const Value.absent(),Value<DateTime> date = const Value.absent(),Value<int> rowid = const Value.absent(),})=> PurchasesCompanion(id: id,tenantId: tenantId,supplierId: supplierId,productId: productId,quantity: quantity,totalAmount: totalAmount,date: date,rowid: rowid,),
-        createCompanionCallback: ({required String id,required String tenantId,Value<String?> supplierId = const Value.absent(),Value<String?> productId = const Value.absent(),required double quantity,required double totalAmount,required DateTime date,Value<int> rowid = const Value.absent(),})=> PurchasesCompanion.insert(id: id,tenantId: tenantId,supplierId: supplierId,productId: productId,quantity: quantity,totalAmount: totalAmount,date: date,rowid: rowid,),
+        updateCompanionCallback: ({Value<String> id = const Value.absent(),Value<String> tenantId = const Value.absent(),Value<String?> supplierId = const Value.absent(),Value<String?> productId = const Value.absent(),Value<double> quantity = const Value.absent(),Value<double> totalAmount = const Value.absent(),Value<DateTime> date = const Value.absent(),Value<String?> paymentType = const Value.absent(),Value<DateTime?> createdAt = const Value.absent(),Value<int> rowid = const Value.absent(),})=> PurchasesCompanion(id: id,tenantId: tenantId,supplierId: supplierId,productId: productId,quantity: quantity,totalAmount: totalAmount,date: date,paymentType: paymentType,createdAt: createdAt,rowid: rowid,),
+        createCompanionCallback: ({required String id,required String tenantId,Value<String?> supplierId = const Value.absent(),Value<String?> productId = const Value.absent(),required double quantity,required double totalAmount,required DateTime date,Value<String?> paymentType = const Value.absent(),Value<DateTime?> createdAt = const Value.absent(),Value<int> rowid = const Value.absent(),})=> PurchasesCompanion.insert(id: id,tenantId: tenantId,supplierId: supplierId,productId: productId,quantity: quantity,totalAmount: totalAmount,date: date,paymentType: paymentType,createdAt: createdAt,rowid: rowid,),
         withReferenceMapper: (p0) => p0
               .map(
                   (e) =>

@@ -90,6 +90,10 @@ class Sales extends Table {
   RealColumn get paidAmount => real().withDefault(const Constant(0))();
   DateTimeColumn get date => dateTime()();
   TextColumn get itemsJson => text()(); // Store items as JSON to simplify V1 offline storage
+  // Needed by the DayBook ledger: without created_at every offline row fell back
+  // to DateTime.now() and the day's ordering scrambled.
+  DateTimeColumn get createdAt => dateTime().nullable()();
+  TextColumn get customerInfoJson => text().nullable()();
   
   @override
   Set<Column> get primaryKey => {id};
@@ -102,6 +106,7 @@ class Expenses extends Table {
   RealColumn get amount => real()();
   TextColumn get note => text().nullable()();
   DateTimeColumn get date => dateTime()();
+  DateTimeColumn get createdAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -127,6 +132,11 @@ class Purchases extends Table {
   RealColumn get quantity => real()();
   RealColumn get totalAmount => real()();
   DateTimeColumn get date => dateTime()();
+  // The DayBook ledger reads payment_type and treats null as CASH. Caching a
+  // purchase without it would report a credit purchase as cash leaving the
+  // drawer, so it is not optional.
+  TextColumn get paymentType => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -462,6 +472,12 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(routeStops);
         await m.createTable(purchaseReturns);
         await m.createTable(usersLocal);
+        // Columns the DayBook ledger needs to render an offline day faithfully.
+        await m.addColumn(sales, sales.createdAt);
+        await m.addColumn(sales, sales.customerInfoJson);
+        await m.addColumn(expenses, expenses.createdAt);
+        await m.addColumn(purchases, purchases.paymentType);
+        await m.addColumn(purchases, purchases.createdAt);
       }
     },
   );

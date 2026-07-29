@@ -11,7 +11,7 @@
 
 import 'dart:io';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_app/core/database/database.dart';
@@ -28,9 +28,9 @@ void main() {
     final file = File('${Directory.systemTemp.path}/ledgr_v5_${DateTime.now().microsecondsSinceEpoch}.sqlite');
     addTearDown(() { if (file.existsSync()) file.deleteSync(); });
 
-    // --- Stand up a v5 database the way a real device would have it. Only the
-    // tables the test touches are needed; the migration must not depend on the
-    // others being present.
+    // --- Stand up a v5 database the way a real device would have it. sales,
+    // expenses and purchases must be present: the v6 upgrade adds columns to all
+    // three, so a fixture without them would pass while a real device threw.
     final raw = sqlite3.open(file.path);
     raw.execute('''
       CREATE TABLE products (
@@ -47,8 +47,32 @@ void main() {
         hsn_code TEXT, image TEXT
       );
     ''');
+    raw.execute('''
+      CREATE TABLE sales (
+        id TEXT NOT NULL PRIMARY KEY, tenant_id TEXT NOT NULL, client_id TEXT,
+        payment_method TEXT NOT NULL, payment_status TEXT NOT NULL,
+        subtotal REAL NOT NULL, tax REAL NOT NULL, total_amount REAL NOT NULL,
+        paid_amount REAL NOT NULL DEFAULT 0, date INTEGER NOT NULL, items_json TEXT NOT NULL
+      );
+    ''');
+    raw.execute('''
+      CREATE TABLE expenses (
+        id TEXT NOT NULL PRIMARY KEY, tenant_id TEXT NOT NULL, category TEXT NOT NULL,
+        amount REAL NOT NULL, note TEXT, date INTEGER NOT NULL
+      );
+    ''');
+    raw.execute('''
+      CREATE TABLE purchases (
+        id TEXT NOT NULL PRIMARY KEY, tenant_id TEXT NOT NULL, supplier_id TEXT,
+        product_id TEXT, quantity REAL NOT NULL, total_amount REAL NOT NULL,
+        date INTEGER NOT NULL
+      );
+    ''');
     raw.execute(
       "INSERT INTO products (id, tenant_id, name, stock) VALUES ('P1', 'T1', 'Pre-existing item', 42)",
+    );
+    raw.execute(
+      "INSERT INTO purchases (id, tenant_id, quantity, total_amount, date) VALUES ('PUR1', 'T1', 5, 500, 0)",
     );
     raw.execute('PRAGMA user_version = 5');
     raw.dispose();
@@ -71,6 +95,23 @@ void main() {
     for (final t in _v6Tables) {
       expect(names, contains(t), reason: '$t should have been created by the v6 upgrade');
     }
+
+    // The five columns the DayBook ledger needs must have been added to the
+    // pre-existing tables, not just created on fresh ones.
+    Future<Set<String>> cols(String table) async => (await db
+            .customSelect('PRAGMA table_info($table)')
+            .get())
+        .map((r) => r.data['name'] as String)
+        .toSet();
+    expect(await cols('sales'), containsAll(['created_at', 'customer_info_json']));
+    expect(await cols('expenses'), contains('created_at'));
+    expect(await cols('purchases'), containsAll(['payment_type', 'created_at']));
+
+    // A row that existed before the upgrade must read back through the new
+    // nullable column rather than erroring.
+    final pur = await db.customSelect(
+        "SELECT payment_type FROM purchases WHERE id = 'PUR1'").getSingle();
+    expect(pur.data['payment_type'], isNull);
 
     // The upgrade must not have dropped or recreated what was already there.
     final kept = await db.customSelect('SELECT name, stock FROM products WHERE id = ?',
