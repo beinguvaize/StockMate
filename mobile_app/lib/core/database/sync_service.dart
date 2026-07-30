@@ -350,8 +350,19 @@ class SyncService {
       // server but the local Drift cache has no tenant separation, so we
       // must be explicit — otherwise a GLOBAL_ADMIN view pollutes the
       // shared products table on every device.
+      // currentUser!.id threw "Null check operator used on a null value" whenever
+      // this ran without a session — caught by the per-table catch below, so
+      // products silently did not sync and nothing said why. Seen on a real
+      // device upgrade: "[pullSync] products failed: Null check operator used on
+      // a null value". Session restore is async, so a sync firing before it
+      // completes hits exactly this.
+      final uid = supabase.auth.currentUser?.id;
+      if (uid == null) {
+        debugPrint('[pullSync] products skipped — no session yet');
+        return;
+      }
       final tenantId = supabase.auth.currentUser?.userMetadata?['tenant_id'] as String?
-          ?? (await supabase.from('users').select('tenant_id').eq('id', supabase.auth.currentUser!.id).maybeSingle())?['tenant_id'] as String?;
+          ?? (await supabase.from('users').select('tenant_id').eq('id', uid).maybeSingle())?['tenant_id'] as String?;
       var q = supabase.from('products').select().isFilter('deleted_at', null);
       if (tenantId != null) q = q.eq('tenant_id', tenantId);
       final response = await q;
