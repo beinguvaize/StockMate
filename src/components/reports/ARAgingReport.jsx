@@ -192,7 +192,7 @@ const ARAgingReport = () => {
     width: 130,
     render: (val) => {
       const c = AGING_BUCKET_COLORS[bucket];
-      if (!val || val <= 0) return <span className="text-gray-300">—</span>;
+      if (!val || val <= 0) return <span className="text-muted-foreground">—</span>;
       return <span className={`font-semibold ${c.text}`}>{formatINR(val)}</span>;
     },
   });

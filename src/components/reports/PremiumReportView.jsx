@@ -137,7 +137,7 @@ const ChartPanel = ({ config, loading }) => {
     chart = <div className="h-[280px] bg-canvas animate-pulse rounded-xl" />;
   } else if (!data.length) {
     chart = (
-      <div className="h-[280px] flex flex-col items-center justify-center gap-3 text-gray-300">
+      <div className="h-[280px] flex flex-col items-center justify-center gap-3 text-muted-foreground">
         <BarChart3 size={40} strokeWidth={1.5} />
         <span className="text-[10px] font-semibold uppercase tracking-widest">No data for this view</span>
       </div>
@@ -228,7 +228,7 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
 
   if (!activeTab) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 text-gray-300">
+      <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
         <BarChart3 size={56} strokeWidth={1} />
         <p className="text-sm font-semibold uppercase mt-5 tracking-widest">Access Denied</p>
       </div>

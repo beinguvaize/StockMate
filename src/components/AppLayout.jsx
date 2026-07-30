@@ -29,9 +29,9 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
 
  if (!isOnline || status === 'OFFLINE') {
  config.label = 'Offline';
- config.bg = 'bg-gray-100';
- config.border = 'border-gray-200';
- config.text = 'text-gray-500';
+ config.bg = 'bg-muted';
+ config.border = 'border-border';
+ config.text = 'text-muted-foreground';
  config.circle = 'bg-gray-400';
 } else if (status === 'SYNCING') {
  config.label = 'Syncing...';
@@ -55,7 +55,7 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  
  {/* Tooltip on Hover */}
  <div className="absolute top-full right-0 mt-2 w-48 bg-surface rounded-lg border border-black/5 shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[120]">
- <p className="text-[10px] font-bold text-gray-700 mb-1">Status Report</p>
+ <p className="text-[10px] font-bold text-ink-secondary mb-1">Status Report</p>
  <p className="text-xs text-ink-primary mb-2">
  {status === 'SYNCED' ? 'Cloud database is fully synchronized.' : 
  status === 'SYNCING' ? 'Changes are being uploaded to cloud.' :
@@ -63,7 +63,7 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  'Synchronization delayed by server.'}
  </p>
  <div className="flex items-center justify-between pt-2 border-t border-black/5">
- <span className="text-[9px] text-gray-700">Last Sync</span>
+ <span className="text-[9px] text-ink-secondary">Last Sync</span>
  <span className="text-[9px] font-bold text-ink-primary">{new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}</span>
  </div>
  </div>
@@ -159,7 +159,7 @@ const Navbar = () => {
      return (
        <div
          key={item.path}
-         className="flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold text-gray-400 cursor-not-allowed relative group"
+         className="flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold text-muted-foreground cursor-not-allowed relative group"
          title={`Upgrade to access ${item.label}`}
        >
          <span className="opacity-40">{item.icon}</span>
@@ -176,7 +176,7 @@ const Navbar = () => {
        className={({ isActive}) => `flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
          isActive 
          ? 'bg-ink-primary text-white shadow-md' 
-         : 'text-gray-700 hover:text-ink-primary hover:bg-gray-100'
+         : 'text-ink-secondary hover:text-ink-primary hover:bg-muted'
        }`}
      >
        {({ isActive}) => (
@@ -210,11 +210,11 @@ const Navbar = () => {
  {currentTenant && (
    <div className="hidden md:flex items-center gap-2">
      <div className="w-px h-6 bg-black/10"></div>
-     <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wide leading-tight">{currentTenant.name}</span>
+     <span className="text-[11px] font-bold text-ink-secondary uppercase tracking-wide leading-tight">{currentTenant.name}</span>
      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
        currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
        currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
-       'bg-gray-100 text-gray-500'
+       'bg-muted text-muted-foreground'
      }`}>{currentTenant.plan}</span>
    </div>
  )}
@@ -231,7 +231,7 @@ const Navbar = () => {
  className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
  activeInMore 
  ? 'bg-ink-primary text-white shadow-md' 
- : 'text-gray-700 hover:text-ink-primary hover:bg-gray-100'
+ : 'text-ink-secondary hover:text-ink-primary hover:bg-muted'
 }`}
  >
  <span className={activeInMore ? 'text-white/60' : 'opacity-70'}><Menu size={18} /></span>
@@ -244,7 +244,7 @@ const Navbar = () => {
  {moreNavItems.filter(i => !i.hidden).map((item) => {
    if (item.locked) {
      return (
-       <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium text-gray-400 cursor-not-allowed">
+       <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium text-muted-foreground cursor-not-allowed">
          <span className="opacity-40">{item.icon}</span>
          {item.label}
          <Sparkles size={12} className="text-accent-signature/70 ml-auto" />
@@ -259,7 +259,7 @@ const Navbar = () => {
        className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium transition-all ${
          isActive 
          ? 'bg-canvas text-ink-primary font-bold shadow-sm' 
-         : 'text-gray-700 hover:bg-canvas/50 hover:text-ink-primary'
+         : 'text-ink-secondary hover:bg-canvas/50 hover:text-ink-primary'
        }`}
      >
        <span className="opacity-60">{item.icon}</span>
@@ -314,12 +314,12 @@ const Navbar = () => {
        </button>
        <div className="min-w-0">
          <p className="text-sm font-bold text-ink-primary truncate">{currentUser?.name || 'Member'}</p>
-         <p className="text-[10px] text-gray-500 truncate">{currentUser?.email}</p>
+         <p className="text-[10px] text-muted-foreground truncate">{currentUser?.email}</p>
        </div>
      </div>
 
      <div className="mb-4 pb-4 border-b border-black/5">
-       <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-2 uppercase px-1">Workspace Portal</p>
+       <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-2 uppercase px-1">Workspace Portal</p>
        <div className="space-y-1">
          {adminItems.filter(i => !i.hidden).map(item => (
            <NavLink
@@ -384,22 +384,22 @@ const Navbar = () => {
  {/* Tenant Badge in Mobile */}
  {currentTenant && (
    <div className="px-5 py-3 border-b border-black/5">
-     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 leading-tight">{currentTenant.name}</p>
+     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 leading-tight">{currentTenant.name}</p>
      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
        currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
        currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
-       'bg-gray-100 text-gray-500'
+       'bg-muted text-muted-foreground'
      }`}>{currentTenant.plan} Plan</span>
    </div>
  )}
  
  {/* Nav Items */}
  <nav className="flex-1 overflow-y-auto py-3 px-3">
- <p className="text-[9px] font-semibold text-gray-700 opacity-[0.85] px-3 mb-2">Navigation</p>
+ <p className="text-[9px] font-semibold text-ink-secondary opacity-[0.85] px-3 mb-2">Navigation</p>
  {allNavItems.filter(i => !i.hidden).map(item => {
    if (item.locked) {
      return (
-       <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-400 cursor-not-allowed mb-0.5">
+       <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-muted-foreground cursor-not-allowed mb-0.5">
          <span className="opacity-40">{item.icon}</span>
          {item.label}
          <Sparkles size={12} className="text-accent-signature/70 ml-auto" />
@@ -414,7 +414,7 @@ const Navbar = () => {
        className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all mb-0.5 ${
          isActive 
          ? 'bg-ink-primary text-white shadow-md' 
-         : 'text-gray-700 hover:bg-canvas'
+         : 'text-ink-secondary hover:bg-canvas'
        }`}
      >
        {({ isActive}) => (
@@ -431,7 +431,7 @@ const Navbar = () => {
  {adminItems.filter(i => !i.hidden).length > 0 && (
  <>
  <div className="my-3 border-t border-black/5" />
- <p className="text-[9px] font-semibold text-gray-700 opacity-[0.85] px-3 mb-2">WORKSPACE PORTAL</p>
+ <p className="text-[9px] font-semibold text-ink-secondary opacity-[0.85] px-3 mb-2">WORKSPACE PORTAL</p>
  {adminItems.filter(i => !i.hidden).map(item => (
  <NavLink
  key={item.path}
@@ -440,7 +440,7 @@ const Navbar = () => {
  className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all mb-0.5 ${
  isActive 
  ? 'bg-ink-primary text-white shadow-md' 
- : 'text-gray-700 hover:bg-canvas'
+ : 'text-ink-secondary hover:bg-canvas'
 }`}
  >
  {({ isActive}) => (
@@ -481,7 +481,7 @@ const Navbar = () => {
      </div>
      <div className="flex-1 text-left">
        <p className="text-sm font-bold text-ink-primary truncate">{currentUser?.name || 'Member'}</p>
-       <p className="text-[10px] text-gray-500">Edit Avatar</p>
+       <p className="text-[10px] text-muted-foreground">Edit Avatar</p>
      </div>
    </button>
    <button

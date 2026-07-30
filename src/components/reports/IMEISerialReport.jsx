@@ -63,7 +63,7 @@ const IMEISerialReport = () => {
     onExport: exportExcel,
     columns: [
       { key: 'serial', label: 'IMEI / Serial', sortable: true, width: 200, render: (v) => <span className="tabular-nums text-[11px] font-semibold text-foreground">{v}</span> },
-      { key: '_product', label: 'Product', sortable: true, width: 200, render: (v) => <span className="font-semibold text-gray-700">{v}</span> },
+      { key: '_product', label: 'Product', sortable: true, width: 200, render: (v) => <span className="font-semibold text-ink-secondary">{v}</span> },
       { key: 'status', label: 'Status', width: 110, render: (v) => {
         const s = (v || '').toUpperCase();
         const sold = s === 'SOLD';
@@ -71,7 +71,7 @@ const IMEISerialReport = () => {
       } },
       { key: '_saleRef', label: 'Sale', width: 100, render: (v) => <span className="tabular-nums text-[11px] text-muted-foreground">{v}</span> },
       { key: '_date', label: 'Date', width: 110, render: (v) => <span className="text-xs font-semibold text-muted-foreground">{v}</span> },
-      { key: '_buyer', label: 'Buyer', width: 200, render: (v) => <span className="text-xs font-semibold text-gray-700">{v}</span> },
+      { key: '_buyer', label: 'Buyer', width: 200, render: (v) => <span className="text-xs font-semibold text-ink-secondary">{v}</span> },
     ],
     kpis: [
       { id: 'total', label: 'Total Units', value: rows.length, isCount: true, trendDir: 'none', color: 'indigo', chartData: [] },

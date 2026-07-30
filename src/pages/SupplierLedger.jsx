@@ -188,9 +188,9 @@ const SupplierLedger = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] animate-fade-in text-center p-12">
         <div className="glass-panel !py-12 px-8 max-w-sm rounded-[3rem] border-dashed border-2">
-            <Info size={64} className="mx-auto mb-6 text-gray-300 opacity-50" />
+            <Info size={64} className="mx-auto mb-6 text-muted-foreground opacity-50" />
             <h2 className="text-3xl font-bold text-ink-primary mb-2">Supplier Not Found</h2>
-            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
               This supplier record was deleted or is no longer available.
             </p>
             <button onClick={() => navigate(-1)} className="btn-signature !px-10 !h-14 !rounded-pill">Back to Suppliers</button>
@@ -211,7 +211,7 @@ const SupplierLedger = () => {
             <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
           </button>
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">
               Suppliers
               <ChevronRight size={10} className="opacity-40" />
               <span className="text-accent-signature">Ledger</span>
@@ -221,7 +221,7 @@ const SupplierLedger = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <span className="hidden lg:block text-[10px] font-semibold text-gray-400">
+          <span className="hidden lg:block text-[10px] font-semibold text-muted-foreground">
             As of {new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
           </span>
           <button
@@ -239,34 +239,34 @@ const SupplierLedger = () => {
           {/* Profile Card */}
           <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
             <div className="flex items-center gap-4 mb-5 pb-5 border-b border-black/5">
-              <div className="w-14 h-14 rounded-2xl bg-accent-signature/10 border border-accent-signature/25 flex items-center justify-center text-accent-signature font-mono font-bold text-lg shrink-0">
+              <div className="w-14 h-14 rounded-2xl bg-accent-signature/10 border border-accent-signature/25 flex items-center justify-center text-accent-signature tabular-nums font-bold text-lg shrink-0">
                 {(supplier.name || '–').trim().split(/\s+/).filter(Boolean).slice(0,2).map(w => w[0]).join('').toUpperCase()}
               </div>
               <div className="min-w-0">
                 <h3 className="text-base font-extrabold text-ink-primary leading-tight truncate">{supplier.name}</h3>
                 <div className="flex items-center gap-1.5 mt-1">
                   <ShieldCheck size={12} className="text-accent-signature" />
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active supplier</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Active supplier</span>
                 </div>
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-[13px]">
-                <Phone size={14} className="text-gray-300 shrink-0" />
-                <span className="font-semibold text-ink-primary">{supplier.phone || <span className="text-gray-400 font-normal">No phone</span>}</span>
+                <Phone size={14} className="text-muted-foreground shrink-0" />
+                <span className="font-semibold text-ink-primary">{supplier.phone || <span className="text-muted-foreground font-normal">No phone</span>}</span>
               </div>
               <div className="flex items-center gap-3 text-[13px] min-w-0">
-                <Mail size={14} className="text-gray-300 shrink-0" />
-                <span className="font-semibold text-ink-primary truncate lowercase">{supplier.email || <span className="text-gray-400 font-normal normal-case">No email</span>}</span>
+                <Mail size={14} className="text-muted-foreground shrink-0" />
+                <span className="font-semibold text-ink-primary truncate lowercase">{supplier.email || <span className="text-muted-foreground font-normal normal-case">No email</span>}</span>
               </div>
               <div className="flex items-start gap-3 text-[13px]">
-                <MapPin size={14} className="text-gray-300 shrink-0 mt-0.5" />
-                <span className="font-semibold text-ink-primary leading-snug">{supplier.address || <span className="text-gray-400 font-normal">No address on file</span>}</span>
+                <MapPin size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+                <span className="font-semibold text-ink-primary leading-snug">{supplier.address || <span className="text-muted-foreground font-normal">No address on file</span>}</span>
               </div>
               <div className="flex items-center gap-3 text-[13px] pt-3 border-t border-black/5">
-                <User2 size={14} className="text-gray-300 shrink-0" />
-                <span className="font-semibold text-ink-primary">{supplier.contact_person || <span className="text-gray-400 font-normal">No contact person</span>}</span>
+                <User2 size={14} className="text-muted-foreground shrink-0" />
+                <span className="font-semibold text-ink-primary">{supplier.contact_person || <span className="text-muted-foreground font-normal">No contact person</span>}</span>
               </div>
             </div>
           </div>
@@ -276,7 +276,7 @@ const SupplierLedger = () => {
             <div className="flex items-center justify-between">
               <div>
                 <span className={`text-[10px] font-bold uppercase tracking-wider ${metrics.payable > 0 ? 'text-red-400' : 'text-emerald-500'}`}>Amount due</span>
-                <div className={`font-mono tabular-nums text-2xl font-bold mt-0.5 ${metrics.payable > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                <div className={` tabular-nums text-2xl font-bold mt-0.5 ${metrics.payable > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                   <span className="text-base opacity-60 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{metrics.payable.toLocaleString()}
                 </div>
               </div>
@@ -298,7 +298,7 @@ const SupplierLedger = () => {
           <div className="rounded-2xl bg-ink-primary p-5 relative overflow-hidden">
             <div className="absolute top-4 right-4 opacity-15 text-accent-signature/70"><Box size={36} strokeWidth={1.5} /></div>
             <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Total purchased</span>
-            <div className="font-mono tabular-nums text-3xl font-bold text-white leading-none mt-1.5">
+            <div className="tabular-nums text-3xl font-bold text-white leading-none mt-1.5">
               <span className="text-lg text-accent-signature/70 mr-1">{businessProfile?.currencySymbol || '₹'}</span>{metrics.total.toLocaleString()}
             </div>
             <span className="inline-block mt-3 text-[10px] font-bold text-accent-signature/70 uppercase tracking-wider">{metrics.count} {metrics.count === 1 ? 'purchase' : 'purchases'}</span>
@@ -318,8 +318,8 @@ const SupplierLedger = () => {
               ] : []),
             ].map(([label, val, cls]) => (
               <div key={label} className="flex justify-between items-center px-4 py-3">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{label}</span>
-                <span className={`font-mono tabular-nums text-[13px] font-bold ${cls}`}>{val}</span>
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</span>
+                <span className={` tabular-nums text-[13px] font-bold ${cls}`}>{val}</span>
               </div>
             ))}
           </div>
@@ -331,17 +331,17 @@ const SupplierLedger = () => {
               <span className="flex items-center gap-2">
                 <History size={14} className="text-accent-signature" />
                 <span className="text-[12px] font-bold text-ink-primary">Payment history</span>
-                <span className="text-[11px] font-semibold text-gray-400">{paymentHistory.length}</span>
+                <span className="text-[11px] font-semibold text-muted-foreground">{paymentHistory.length}</span>
               </span>
               <span className="flex items-center gap-2">
-                <span className="font-mono tabular-nums text-[12px] font-bold text-emerald-600">{businessProfile?.currencySymbol || '₹'}{Math.round(paymentHistoryTotal).toLocaleString()}</span>
-                <ChevronRight size={15} className={`text-gray-400 transition-transform ${showPayHist ? 'rotate-90' : ''}`} />
+                <span className="tabular-nums text-[12px] font-bold text-emerald-600">{businessProfile?.currencySymbol || '₹'}{Math.round(paymentHistoryTotal).toLocaleString()}</span>
+                <ChevronRight size={15} className={`text-muted-foreground transition-transform ${showPayHist ? 'rotate-90' : ''}`} />
               </span>
             </button>
             {showPayHist && (
               <div className="border-t border-black/5 max-h-80 overflow-y-auto custom-scrollbar">
                 {paymentHistory.length === 0 && (
-                  <div className="px-4 py-8 text-center text-[12px] font-semibold text-gray-400">No payments yet.</div>
+                  <div className="px-4 py-8 text-center text-[12px] font-semibold text-muted-foreground">No payments yet.</div>
                 )}
                 {paymentHistory.map(p => {
                   const ord = p.purchase_id
@@ -352,15 +352,15 @@ const SupplierLedger = () => {
                       <div className="min-w-0">
                         <div className="text-[12px] font-semibold text-ink-primary">{formatDate(p.date)}</div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[9px] font-bold uppercase tracking-wide text-gray-500 bg-black/[0.05] px-1.5 py-0.5 rounded">{p.method || 'CASH'}</span>
+                          <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground bg-black/[0.05] px-1.5 py-0.5 rounded">{p.method || 'CASH'}</span>
                           {p.source === 'purchase'
-                            ? <span className="font-mono text-[9px] font-bold text-accent-signature-hover">{ord} · cash buy</span>
+                            ? <span className="tabular-nums text-[9px] font-bold text-accent-signature-hover">{ord} · cash buy</span>
                             : ord
-                              ? <span className="font-mono text-[9px] font-bold text-accent-signature-hover">{ord}</span>
-                              : <span className="text-[9px] font-semibold text-gray-400 uppercase">On account</span>}
+                              ? <span className="tabular-nums text-[9px] font-bold text-accent-signature-hover">{ord}</span>
+                              : <span className="text-[9px] font-semibold text-muted-foreground uppercase">On account</span>}
                         </div>
                       </div>
-                      <span className="font-mono tabular-nums text-[13px] font-bold text-emerald-600 shrink-0">{businessProfile?.currencySymbol || '₹'}{Number(p.amount || 0).toLocaleString()}</span>
+                      <span className="tabular-nums text-[13px] font-bold text-emerald-600 shrink-0">{businessProfile?.currencySymbol || '₹'}{Number(p.amount || 0).toLocaleString()}</span>
                     </div>
                   );
                 })}
@@ -375,11 +375,11 @@ const SupplierLedger = () => {
             {/* Table Header Utility Bar */}
             <div className="p-4 border-b border-black/5 flex flex-col md:flex-row justify-between items-center gap-3">
               <div className="relative group flex-1 w-full md:max-w-xs">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-accent-signature transition-colors" />
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent-signature transition-colors" />
                 <input
                   type="text"
                   placeholder="Search reference or notes…"
-                  className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border border-gray-300 text-[12px] font-semibold text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:font-normal"
+                  className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border border-border text-[12px] font-semibold text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-muted-foreground placeholder:font-normal"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                 />
@@ -394,14 +394,14 @@ const SupplierLedger = () => {
                       className={`px-3 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
                         paymentFilter === opt
                           ? 'bg-accent-signature text-white shadow-sm'
-                          : 'text-gray-500 hover:text-ink-primary'
+                          : 'text-muted-foreground hover:text-ink-primary'
                       }`}
                     >
                       {opt}
                     </button>
                   ))}
                 </div>
-                <span className="text-[11px] font-bold text-gray-400">
+                <span className="text-[11px] font-bold text-muted-foreground">
                   {filteredPurchases.length} {filteredPurchases.length === 1 ? 'record' : 'records'}
                 </span>
               </div>
@@ -412,13 +412,13 @@ const SupplierLedger = () => {
               <table className="w-full text-left border-collapse">
                 <thead className="bg-canvas/70 sticky top-0 z-10 border-b border-black/5">
                   <tr>
-                    <th className="py-4 px-6 text-[10px] font-bold text-gray-500 uppercase tracking-wider w-10"></th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Reference</th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Product</th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center">Qty</th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Payment</th>
-                    <th className="py-4 px-6 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right">Amount</th>
+                    <th className="py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-wider w-10"></th>
+                    <th className="py-4 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date</th>
+                    <th className="py-4 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Reference</th>
+                    <th className="py-4 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Product</th>
+                    <th className="py-4 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-center">Qty</th>
+                    <th className="py-4 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Payment</th>
+                    <th className="py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
@@ -427,7 +427,7 @@ const SupplierLedger = () => {
                       <td colSpan="7" className="py-24 text-center">
                         <div className="opacity-10 mb-4 flex justify-center"><Box size={72} strokeWidth={1} /></div>
                         <h4 className="text-xl font-bold text-ink-primary mb-1">No transactions</h4>
-                        <p className="text-xs text-gray-400">This supplier has no recorded purchases yet.</p>
+                        <p className="text-xs text-muted-foreground">This supplier has no recorded purchases yet.</p>
                       </td>
                     </tr>
                   ) : (
@@ -445,14 +445,14 @@ const SupplierLedger = () => {
                             className={`cursor-pointer transition-colors ${expanded ? 'bg-canvas' : 'hover:bg-canvas/60'}`}
                             onClick={() => setExpandedRow(expanded ? null : p.id)}
                           >
-                            <td className="py-4 px-6 text-gray-400">
+                            <td className="py-4 px-6 text-muted-foreground">
                               <ChevronRight size={14} className={`transition-transform ${expanded ? 'rotate-90 text-accent-signature' : ''}`} />
                             </td>
                             <td className="py-4 px-4">
                               <div className="text-xs font-semibold text-ink-primary">{formatDate(p.date)}</div>
                             </td>
                             <td className="py-4 px-4">
-                              <div className="text-xs font-mono text-gray-600">#{(p.id || '').slice(-8).toUpperCase()}</div>
+                              <div className="text-xs tabular-nums text-ink-secondary">#{(p.id || '').slice(-8).toUpperCase()}</div>
                             </td>
                             <td className="py-4 px-4">
                               <div className="text-xs font-semibold text-ink-primary truncate max-w-[180px]">{product?.name || '—'}</div>
@@ -470,7 +470,7 @@ const SupplierLedger = () => {
                                   <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                                     <span className="inline-flex flex-col leading-tight">
                                       <span className="text-[10px] font-bold uppercase tracking-wider text-accent-signature-hover">{paid > 0 ? 'Partial' : 'Credit'}</span>
-                                      <span className="font-mono text-[10px] text-red-500">due {businessProfile?.currencySymbol || '₹'}{Math.round(orderDue).toLocaleString()}</span>
+                                      <span className="tabular-nums text-[10px] text-red-500">due {businessProfile?.currencySymbol || '₹'}{Math.round(orderDue).toLocaleString()}</span>
                                     </span>
                                     {hasPermission('purchases', 'edit') !== false && (
                                       <button onClick={() => openPay(p, orderDue)}
@@ -481,7 +481,7 @@ const SupplierLedger = () => {
                               })()}
                             </td>
                             <td className="py-4 px-6 text-right">
-                              <div className="text-sm font-bold font-mono tabular-nums text-ink-primary">
+                              <div className="text-sm font-bold tabular-nums text-ink-primary">
                                 {businessProfile?.currencySymbol || '₹'}{amount.toLocaleString()}
                               </div>
                             </td>
@@ -491,26 +491,26 @@ const SupplierLedger = () => {
                               <td colSpan="7" className="px-6 py-5">
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
                                   <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Full Reference</div>
-                                    <div className="font-mono text-ink-primary break-all">{p.id}</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Full Reference</div>
+                                    <div className="tabular-nums text-ink-primary break-all">{p.id}</div>
                                   </div>
                                   <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Unit Cost</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Unit Cost</div>
                                     <div className="font-semibold text-ink-primary tabular-nums">{businessProfile?.currencySymbol || '₹'}{unit.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
                                   </div>
                                   <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Product SKU</div>
-                                    <div className="font-mono text-ink-primary">{product?.sku || '—'}</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Product SKU</div>
+                                    <div className="tabular-nums text-ink-primary">{product?.sku || '—'}</div>
                                   </div>
                                   <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Status</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Status</div>
                                     <div className={`font-semibold ${credit ? 'text-accent-signature' : 'text-emerald-600'}`}>
                                       {credit ? 'Payable (Credit)' : 'Settled (Cash Paid)'}
                                     </div>
                                   </div>
                                   <div className="col-span-2 md:col-span-4">
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Notes</div>
-                                    <div className="text-ink-primary">{p.notes || <span className="text-gray-400 italic">No notes</span>}</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Notes</div>
+                                    <div className="text-ink-primary">{p.notes || <span className="text-muted-foreground italic">No notes</span>}</div>
                                   </div>
                                 </div>
                               </td>
@@ -536,7 +536,7 @@ const SupplierLedger = () => {
                               <div className="text-xs font-semibold text-ink-primary">{formatDate(r.date)}</div>
                             </td>
                             <td className="py-4 px-4">
-                              <div className="text-xs font-mono text-rose-600">#{(r.id || '').slice(-8).toUpperCase()}</div>
+                              <div className="text-xs tabular-nums text-rose-600">#{(r.id || '').slice(-8).toUpperCase()}</div>
                               <div className="text-[9px] font-bold text-rose-400 uppercase tracking-wider">Debit Note</div>
                             </td>
                             <td className="py-4 px-4">
@@ -551,7 +551,7 @@ const SupplierLedger = () => {
                               </span>
                             </td>
                             <td className="py-4 px-6 text-right">
-                              <div className="text-sm font-bold font-mono tabular-nums text-rose-600">
+                              <div className="text-sm font-bold tabular-nums text-rose-600">
                                 −{businessProfile?.currencySymbol || '₹'}{Number(r.total_amount).toLocaleString()}
                               </div>
                             </td>
@@ -561,24 +561,24 @@ const SupplierLedger = () => {
                               <td colSpan="7" className="px-6 py-5">
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
                                   <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Full Reference</div>
-                                    <div className="font-mono text-ink-primary break-all">{r.id}</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Full Reference</div>
+                                    <div className="tabular-nums text-ink-primary break-all">{r.id}</div>
                                   </div>
                                   <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Qty Returned</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Qty Returned</div>
                                     <div className="font-semibold text-rose-600 tabular-nums">{Number(r.quantity)}</div>
                                   </div>
                                   <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Unit Price</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Unit Price</div>
                                     <div className="font-semibold text-ink-primary tabular-nums">{businessProfile?.currencySymbol || '₹'}{Number(r.unit_price || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
                                   </div>
                                   <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Linked Purchase</div>
-                                    <div className="font-mono text-ink-primary text-[10px]">{r.purchase_id || '—'}</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Linked Purchase</div>
+                                    <div className="tabular-nums text-ink-primary text-[10px]">{r.purchase_id || '—'}</div>
                                   </div>
                                   <div className="col-span-2 md:col-span-4">
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Reason</div>
-                                    <div className="text-ink-primary">{r.reason || <span className="text-gray-400 italic">No reason given</span>}</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Reason</div>
+                                    <div className="text-ink-primary">{r.reason || <span className="text-muted-foreground italic">No reason given</span>}</div>
                                   </div>
                                 </div>
                               </td>
@@ -593,20 +593,20 @@ const SupplierLedger = () => {
                         <td className="py-4 px-6 text-emerald-300"><CreditCard size={14} /></td>
                         <td className="py-4 px-4"><div className="text-xs font-semibold text-ink-primary">{formatDate(p.date)}</div></td>
                         <td className="py-4 px-4">
-                          <div className="text-xs font-mono text-emerald-600">#{(p.id || '').slice(-8).toUpperCase()}</div>
+                          <div className="text-xs tabular-nums text-emerald-600">#{(p.id || '').slice(-8).toUpperCase()}</div>
                           <div className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider">Payment</div>
                         </td>
                         <td className="py-4 px-4">
                           <div className="text-xs font-semibold text-ink-primary truncate max-w-[180px]">{p.note || (p.reference_no ? `Ref ${p.reference_no}` : '—')}</div>
                         </td>
-                        <td className="py-4 px-4 text-center text-gray-300">—</td>
+                        <td className="py-4 px-4 text-center text-muted-foreground">—</td>
                         <td className="py-4 px-4">
                           <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">
                             {p.payment_method || 'PAID'}
                           </span>
                         </td>
                         <td className="py-4 px-6 text-right">
-                          <div className="text-sm font-bold font-mono tabular-nums text-emerald-600">
+                          <div className="text-sm font-bold tabular-nums text-emerald-600">
                             −{businessProfile?.currencySymbol || '₹'}{Number(p.amount).toLocaleString()}
                           </div>
                         </td>
@@ -620,15 +620,15 @@ const SupplierLedger = () => {
 
             {/* Slim summary footer */}
             <div className="border-t border-black/5 bg-canvas/60 px-5 py-3 flex items-center justify-between gap-4">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                 <TrendingUp size={13} className="text-accent-signature" /> Total purchased
               </span>
               <div className="flex items-center gap-6">
                 <div className="text-right">
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Avg</span>
-                  <span className="font-mono tabular-nums text-[13px] font-bold text-ink-primary">{businessProfile?.currencySymbol || '₹'}{Math.round(metrics.avg).toLocaleString()}</span>
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Avg</span>
+                  <span className="tabular-nums text-[13px] font-bold text-ink-primary">{businessProfile?.currencySymbol || '₹'}{Math.round(metrics.avg).toLocaleString()}</span>
                 </div>
-                <div className="font-mono tabular-nums text-xl font-bold text-ink-primary">
+                <div className="tabular-nums text-xl font-bold text-ink-primary">
                   <span className="text-sm text-accent-signature mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{metrics.total.toLocaleString()}
                 </div>
               </div>
@@ -648,13 +648,13 @@ const SupplierLedger = () => {
                 <h2 className="text-base font-black text-ink-primary leading-none">
                   {payTarget ? `Pay order #${(payTarget.id || '').slice(-6).toUpperCase()}` : `Pay ${supplier?.name || 'Supplier'}`}
                 </h2>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
                   {payTarget
                     ? `Order due: ${businessProfile?.currencySymbol}${Math.round(Math.max(0, Number(payTarget.total_amount ?? payTarget.total_cost ?? 0) - (paidByPurchase[payTarget.id] || 0))).toLocaleString()}`
                     : `Outstanding: ${businessProfile?.currencySymbol}${Math.round(metrics.payable).toLocaleString()} · spreads across oldest credit orders`}
                 </p>
               </div>
-              <button onClick={() => { setPayOpen(false); setPayTarget(null); }} className="text-gray-400 hover:text-ink-primary text-2xl leading-none">×</button>
+              <button onClick={() => { setPayOpen(false); setPayTarget(null); }} className="text-muted-foreground hover:text-ink-primary text-2xl leading-none">×</button>
             </div>
 
             <div className="p-5 space-y-4">
@@ -663,7 +663,7 @@ const SupplierLedger = () => {
                 <input type="number" min="0" step="0.01" autoFocus
                   value={payAmount} onChange={e => setPayAmount(e.target.value)}
                   placeholder={String(Math.round(metrics.payable))}
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3.5 py-3 text-sm font-black text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 tabular-nums" />
+                  className="w-full bg-white border border-border shadow-sm rounded-xl px-3.5 py-3 text-sm font-black text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 tabular-nums" />
               </div>
 
               <div>
@@ -672,7 +672,7 @@ const SupplierLedger = () => {
                   {['CASH','BANK','UPI','CHEQUE','OTHER'].map(m => (
                     <button key={m} type="button" onClick={() => setPayMethod(m)}
                       className={`px-2 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
-                        payMethod === m ? 'bg-ink-primary text-white border-ink-primary' : 'bg-white border-gray-300 text-gray-500 hover:border-accent-signature/40'
+                        payMethod === m ? 'bg-ink-primary text-white border-ink-primary' : 'bg-white border-border text-muted-foreground hover:border-accent-signature/40'
                       }`}>{m}</button>
                   ))}
                 </div>
@@ -682,13 +682,13 @@ const SupplierLedger = () => {
                 <div>
                   <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Date</label>
                   <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
-                    className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
+                    className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Reference no.</label>
                   <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)}
                     placeholder="UPI / cheque no."
-                    className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
+                    className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
                 </div>
               </div>
 
@@ -696,7 +696,7 @@ const SupplierLedger = () => {
                 <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Note</label>
                 <input type="text" value={payNote} onChange={e => setPayNote(e.target.value)}
                   placeholder="Optional remarks"
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-xs font-medium outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
+                  className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-xs font-medium outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
               </div>
 
               {payError && (

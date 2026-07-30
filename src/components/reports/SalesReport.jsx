@@ -21,7 +21,7 @@ const payBadge = (method) => {
     BANK:   'bg-blue-50    text-blue-700    border-blue-100',
     UPI:    'bg-accent-signature/10  text-accent-signature-hover  border-accent-signature/15',
   };
-  const cls = colors[m] || 'bg-gray-50 text-gray-600 border-gray-100';
+  const cls = colors[m] || 'bg-muted text-ink-secondary border-border';
   return (
     <span className={`inline-block text-[9px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
       {m}
@@ -480,7 +480,7 @@ const SalesReport = () => {
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-[11px] shrink-0 ${
               row._rank === 1 ? 'bg-accent-signature/15 text-accent-signature-hover'
-              : row._rank === 2 ? 'bg-gray-100 text-gray-600'
+              : row._rank === 2 ? 'bg-muted text-ink-secondary'
               : 'bg-accent-signature/15 text-accent-signature'
             }`}>
               {(val || 'W')[0].toUpperCase()}

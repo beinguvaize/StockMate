@@ -68,7 +68,7 @@ const BADGE_CLS = {
   rose:    'bg-rose-50 text-rose-600 border-rose-200',
   amber:   'bg-accent-signature/10 text-accent-signature border-accent-signature/25',
   indigo:  'bg-accent-signature/10 text-accent-signature border-accent-signature/25',
-  gray:    'bg-gray-50 text-muted-foreground border-border',
+  gray:    'bg-muted text-muted-foreground border-border',
 };
 
 const BudgetVsActualReport = () => {
@@ -357,8 +357,8 @@ const BudgetVsActualReport = () => {
     {
       key: 'variancePct', label: 'Δ %', align: 'right', sortable: true, width: 100,
       render: (val, row) => {
-        if (!row.budget) return <span className="text-gray-300">—</span>;
-        if (val == null) return <span className="text-gray-300">—</span>;
+        if (!row.budget) return <span className="text-muted-foreground">—</span>;
+        if (val == null) return <span className="text-muted-foreground">—</span>;
         const good = (row.type === 'EXPENSE' && val <= 0) || (row.type === 'REVENUE' && val >= 0);
         const cls = good ? 'text-emerald-600' : 'text-rose-500';
         const prefix = val > 0 ? '+' : '';
@@ -464,7 +464,7 @@ const BudgetVsActualReport = () => {
 
         <button
           onClick={handleCopyLastMonth}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600 hover:text-foreground bg-card border border-black/10 hover:border-accent-signature rounded-md transition-all"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-secondary hover:text-foreground bg-card border border-black/10 hover:border-accent-signature rounded-md transition-all"
         >
           <Copy size={12} /> Copy Last Month
         </button>

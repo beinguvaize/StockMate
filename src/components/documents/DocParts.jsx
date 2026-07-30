@@ -9,15 +9,15 @@ export const inr = (n) => `₹${(Number(n) || 0).toLocaleString('en-IN', { minim
 
 export const Field = ({ label, value, mono }) => (
   <div>
-    <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">{label}</div>
-    <div className={`text-[13px] font-bold text-ink-primary ${mono ? 'font-mono' : ''}`}>{value}</div>
+    <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{label}</div>
+    <div className={`text-[13px] font-bold text-ink-primary ${mono ? 'tabular-nums' : ''}`}>{value}</div>
   </div>
 );
 
 export const Row = ({ label, value, muted }) => (
   <div className="flex justify-between text-[13px] py-1.5">
-    <span className="text-gray-500">{label}</span>
-    <span className={`font-mono ${muted ? 'text-gray-400' : 'text-ink-primary'}`}>{value}</span>
+    <span className="text-muted-foreground">{label}</span>
+    <span className={`tabular-nums ${muted ? 'text-muted-foreground' : 'text-ink-primary'}`}>{value}</span>
   </div>
 );
 
@@ -25,7 +25,7 @@ export const PartyPicker = ({ label, party, clients = [], onChange, manual = fal
   const [open, setOpen] = useState(false);
   return (
     <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
-      <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">{label}</div>
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">{label}</div>
       {manual && (
         <div className="grid grid-cols-2 gap-2 mb-3">
           <input value={party?.name || ''} placeholder="Customer name"
@@ -33,7 +33,7 @@ export const PartyPicker = ({ label, party, clients = [], onChange, manual = fal
             className="col-span-2 text-[13px] font-bold border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
           <input value={party?.gstin || ''} placeholder="GSTIN (optional)"
             onChange={(e) => onChange({ ...(party || {}), gstin: e.target.value.toUpperCase(), manual: true })}
-            className="font-mono text-[12px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
+            className="tabular-nums text-[12px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
           <input value={party?.state || ''} placeholder="State / place of supply"
             onChange={(e) => onChange({ ...(party || {}), state: e.target.value, manual: true })}
             className="text-[12px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
@@ -45,7 +45,7 @@ export const PartyPicker = ({ label, party, clients = [], onChange, manual = fal
           <div className="w-9 h-9 rounded-full bg-accent-signature/15 text-accent-signature-hover grid place-items-center font-black text-[12px]">{party.name?.slice(0, 2).toUpperCase()}</div>
           <div className="leading-tight">
             <div className="font-black text-sm text-ink-primary">{party.name}</div>
-            <div className="text-[11px] text-gray-500">{party.gstin ? `GSTIN ${party.gstin} · ` : ''}{party.state || '—'}</div>
+            <div className="text-[11px] text-muted-foreground">{party.gstin ? `GSTIN ${party.gstin} · ` : ''}{party.state || '—'}</div>
           </div>
           <button onClick={() => setOpen(true)} className="ml-auto text-[11px] font-bold px-2.5 py-1 rounded-lg border border-black/10 hover:bg-black/5">Change</button>
         </div>
@@ -54,11 +54,11 @@ export const PartyPicker = ({ label, party, clients = [], onChange, manual = fal
       ))}
       {open && (
         <div className="mt-3 max-h-52 overflow-auto rounded-xl border border-black/10 divide-y divide-black/5">
-          {clients.length === 0 && <div className="p-3 text-[12px] text-gray-400">No clients yet.</div>}
+          {clients.length === 0 && <div className="p-3 text-[12px] text-muted-foreground">No clients yet.</div>}
           {clients.map((c) => (
             <button key={c.id} onClick={() => { onChange(c); setOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-black/5 text-[13px]">
               <span className="font-bold text-ink-primary">{c.name}</span>
-              <span className="text-[11px] text-gray-400 ml-2">{c.state || ''}</span>
+              <span className="text-[11px] text-muted-foreground ml-2">{c.state || ''}</span>
             </button>
           ))}
         </div>
@@ -81,7 +81,7 @@ export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, on
 
   return (
     <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-      <div className={`${COLS} px-3 py-2.5 bg-canvas text-[10px] uppercase tracking-wider text-gray-400`}>
+      <div className={`${COLS} px-3 py-2.5 bg-canvas text-[10px] uppercase tracking-wider text-muted-foreground`}>
         <div>#</div><div>Item / service</div><div>HSN/SAC</div><div className="text-right">Qty</div>
         <div className="text-right">Rate</div><div className="text-right">Disc%</div><div className="text-right">Tax</div><div className="text-right">Amount</div><div></div>
       </div>
@@ -89,19 +89,19 @@ export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, on
         const lineAmt = (Number(l.qty) || 0) * (Number(l.rate) || 0) * (1 - (Number(l.disc) || 0) / 100);
         return (
           <div key={l.uid} className={`${COLS} px-3 py-2 border-t border-black/5 items-center text-[13px]`}>
-            <div className="text-gray-400">{i + 1}</div>
+            <div className="text-muted-foreground">{i + 1}</div>
             {manual
               ? <input value={l.name} onChange={(e) => onPatch(l.uid, { name: e.target.value })} placeholder="Item name" className={`font-bold ${cell}`} />
               : <div className="font-bold text-ink-primary truncate">{l.name}</div>}
-            <input value={l.hsn} onChange={(e) => onPatch(l.uid, { hsn: e.target.value.replace(/[^0-9]/g, '') })} className={`font-mono text-[12px] ${cell}`} placeholder="HSN" />
+            <input value={l.hsn} onChange={(e) => onPatch(l.uid, { hsn: e.target.value.replace(/[^0-9]/g, '') })} className={`tabular-nums text-[12px] ${cell}`} placeholder="HSN" />
             <input type="number" value={l.qty} onChange={(e) => onPatch(l.uid, { qty: e.target.value })} className={`text-right ${cell}`} />
             <input type="number" value={l.rate} onChange={(e) => onPatch(l.uid, { rate: e.target.value })} className={`text-right ${cell}`} />
             <input type="number" value={l.disc} onChange={(e) => onPatch(l.uid, { disc: e.target.value })} className={`text-right ${cell}`} />
             {manual && gstOn
               ? <input type="number" value={l.taxRate} onChange={(e) => onPatch(l.uid, { taxRate: e.target.value })} className={`text-right ${cell}`} />
-              : <div className="text-right text-gray-500">{gstOn ? `${l.taxRate}%` : '—'}</div>}
-            <div className="text-right font-bold font-mono">{inr(lineAmt)}</div>
-            <button onClick={() => onRemove(l.uid)} className="text-gray-300 hover:text-rose-500"><Trash2 size={14} /></button>
+              : <div className="text-right text-muted-foreground">{gstOn ? `${l.taxRate}%` : '—'}</div>}
+            <div className="text-right font-bold tabular-nums">{inr(lineAmt)}</div>
+            <button onClick={() => onRemove(l.uid)} className="text-muted-foreground hover:text-rose-500"><Trash2 size={14} /></button>
           </div>
         );
       })}
@@ -116,21 +116,21 @@ export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, on
         <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 sm:p-10" onClick={() => setPicker(false)}>
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 p-3 border-b border-black/5">
-              <Search size={16} className="text-gray-400" />
+              <Search size={16} className="text-muted-foreground" />
               <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products…" className="flex-1 text-[14px] outline-none" />
-              <button onClick={() => setPicker(false)}><X size={18} className="text-gray-400" /></button>
+              <button onClick={() => setPicker(false)}><X size={18} className="text-muted-foreground" /></button>
             </div>
             <div className="overflow-auto divide-y divide-black/5">
               {filtered.map((p) => (
                 <button key={p.id} onClick={() => { onAdd(p); setPicker(false); setQuery(''); }} className="w-full text-left px-4 py-2.5 hover:bg-black/5 flex items-center gap-3">
                   <div className="flex-1">
                     <div className="font-bold text-[13px] text-ink-primary">{p.name}</div>
-                    <div className="text-[11px] text-gray-400">{p.sku || ''} {p.hsn_code ? `· HSN ${p.hsn_code}` : ''} · {p.taxRate || 0}% GST</div>
+                    <div className="text-[11px] text-muted-foreground">{p.sku || ''} {p.hsn_code ? `· HSN ${p.hsn_code}` : ''} · {p.taxRate || 0}% GST</div>
                   </div>
-                  <div className="font-mono text-[13px] font-bold">{inr(p.sellingPrice)}</div>
+                  <div className="tabular-nums text-[13px] font-bold">{inr(p.sellingPrice)}</div>
                 </button>
               ))}
-              {filtered.length === 0 && <div className="p-4 text-[13px] text-gray-400">No products match.</div>}
+              {filtered.length === 0 && <div className="p-4 text-[13px] text-muted-foreground">No products match.</div>}
             </div>
           </div>
         </div>
@@ -139,7 +139,7 @@ export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, on
   );
 };
 
-const miniInput = 'w-24 text-right text-[12px] font-mono border border-black/10 rounded px-2 py-1 outline-none focus:border-accent-signature/40';
+const miniInput = 'w-24 text-right text-[12px] tabular-nums border border-black/10 rounded px-2 py-1 outline-none focus:border-accent-signature/40';
 
 export const TotalsPanel = ({
   gst, gstOn = true, interstate = false, showPayment = false,
@@ -164,19 +164,19 @@ export const TotalsPanel = ({
       {!!gst.roundOff && <Row label="Round off" value={inr(gst.roundOff)} muted />}
       {setCharges && (
         <div className="flex justify-between items-center text-[13px] py-1.5">
-          <span className="text-gray-500">Additional charges</span>
+          <span className="text-muted-foreground">Additional charges</span>
           <input type="number" value={charges} onChange={(e) => setCharges(e.target.value)} placeholder="0.00" className={miniInput} />
         </div>
       )}
       {setBillDiscount && (
         <div className="flex justify-between items-center text-[13px] py-1.5">
-          <span className="text-gray-500">Bill discount</span>
+          <span className="text-muted-foreground">Bill discount</span>
           <input type="number" value={billDiscount} onChange={(e) => setBillDiscount(e.target.value)} placeholder="0.00" className={miniInput} />
         </div>
       )}
       <div className="flex justify-between items-baseline pt-3 mt-2 border-t border-black/10">
         <span className="font-black text-ink-primary">Total</span>
-        <span className="font-black text-xl font-mono text-accent-signature-hover">{inr(total)}</span>
+        <span className="font-black text-xl tabular-nums text-accent-signature-hover">{inr(total)}</span>
       </div>
       {showPayment && (
         <>
@@ -190,12 +190,12 @@ export const TotalsPanel = ({
           {setReceived && !markPaid && (
             <>
               <div className="flex justify-between items-center text-[13px] py-1.5 mt-1">
-                <span className="text-gray-500">Amount received</span>
+                <span className="text-muted-foreground">Amount received</span>
                 <input type="number" value={received} onChange={(e) => setReceived(e.target.value)} placeholder="0.00" className={miniInput} />
               </div>
               <div className="flex justify-between text-[13px] py-1">
-                <span className="text-gray-500">Balance</span>
-                <span className="font-mono font-bold text-rose-600">{inr(balance)}</span>
+                <span className="text-muted-foreground">Balance</span>
+                <span className="tabular-nums font-bold text-rose-600">{inr(balance)}</span>
               </div>
             </>
           )}

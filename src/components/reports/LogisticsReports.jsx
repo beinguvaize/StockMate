@@ -96,7 +96,7 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
  {/* Vehicle Performance Chart */}
  <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Fleet Productivity.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">Revenue generation per vehicle unit</p>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">Revenue generation per vehicle unit</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
  <BarChart data={vehiclePerformance}>
@@ -125,7 +125,7 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
  {/* Route Dominance */}
  <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Route Dominance.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">Delivery volume distribution by region</p>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">Delivery volume distribution by region</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
  <PieChart>
@@ -164,7 +164,7 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
  <div className="flex justify-between items-center mb-10">
  <div>
  <h3 className="text-2xl font-semibold text-foreground mb-2">Logistics Intelligence Board.</h3>
- <p className="text-[10px] font-semibold text-gray-700">Historical fleet efficiency metrics</p>
+ <p className="text-[10px] font-semibold text-ink-secondary">Historical fleet efficiency metrics</p>
  </div>
  <button 
  onClick={() => downloadCSV(vehicles, 'ledgr_fleet_list', businessProfile.name)}

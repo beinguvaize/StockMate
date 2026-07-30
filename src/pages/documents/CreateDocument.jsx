@@ -234,7 +234,7 @@ const CreateDocument = () => {
         {Object.entries(DOC_TYPES).map(([k, d]) => (
           <button key={k} onClick={() => { setDocType(k); }}
             className={`px-3 py-1.5 rounded-full text-[12px] font-bold transition-colors ${
-              docType === k ? 'bg-accent-signature text-white' : 'text-gray-500 border border-black/10 hover:text-ink-primary'
+              docType === k ? 'bg-accent-signature text-white' : 'text-muted-foreground border border-black/10 hover:text-ink-primary'
             }`}>{d.label}</button>
         ))}
       </div>
@@ -247,7 +247,7 @@ const CreateDocument = () => {
           <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4 grid grid-cols-2 gap-3">
             <Field label={`${cfg.prefix} no.`} value={`${cfg.prefix}-XXXX`} mono />
             <div>
-              <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Date</div>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Date</div>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
                 className="w-full text-[13px] font-bold border border-black/10 rounded-lg px-2 py-1.5 outline-none focus:border-accent-signature/40" />
             </div>
@@ -264,17 +264,17 @@ const CreateDocument = () => {
         {/* Payment In — amount card (no line items) */}
         {cfg.noItems && (
           <div className="bg-white rounded-2xl border border-black/10 shadow-sm p-4 max-w-sm">
-            <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Amount received</div>
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Amount received</div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-black text-gray-400">₹</span>
+              <span className="text-lg font-black text-muted-foreground">₹</span>
               <input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00"
-                className="flex-1 text-xl font-black font-mono border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
+                className="flex-1 text-xl font-black tabular-nums border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
             </div>
             <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
               className="mt-3 w-full text-[12px] border border-black/10 rounded-lg px-2 py-2 outline-none">
               <option>CASH</option><option>BANK</option><option>UPI</option>
             </select>
-            <div className="text-[11px] text-gray-400 mt-2">Settles the party's oldest open invoice.</div>
+            <div className="text-[11px] text-muted-foreground mt-2">Settles the party's oldest open invoice.</div>
           </div>
         )}
 
@@ -282,11 +282,11 @@ const CreateDocument = () => {
         {!cfg.noItems && (
         <div className="grid md:grid-cols-2 gap-4">
           <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
-            <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Notes</div>
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Notes</div>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notes for the customer…"
               className="w-full text-[12px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40 resize-none" />
-            <div className="text-[10px] uppercase tracking-widest text-gray-400 mt-3 mb-1">Terms</div>
-            <div className="text-[12px] text-gray-500 leading-relaxed">
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-3 mb-1">Terms</div>
+            <div className="text-[12px] text-muted-foreground leading-relaxed">
               Goods once sold are not taken back. Disputes subject to local jurisdiction.
             </div>
           </div>

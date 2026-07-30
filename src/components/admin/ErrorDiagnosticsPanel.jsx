@@ -104,7 +104,7 @@ const ErrorDiagnosticsPanel = () => {
       </div>
       <div>
         <h4 className="text-2xl font-black text-ink-primary tracking-tighter uppercase leading-none">{value}</h4>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{label}</p>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">{label}</p>
       </div>
     </div>
   );
@@ -122,7 +122,7 @@ const ErrorDiagnosticsPanel = () => {
       <div className="flex flex-wrap items-center justify-between gap-4 glass-panel border-black/5 bg-white px-6 py-4 shadow-sm">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <Filter size={14} className="text-gray-400" />
+            <Filter size={14} className="text-muted-foreground" />
             <select 
               value={filterSeverity} 
               onChange={e => setFilterSeverity(e.target.value)}
@@ -136,7 +136,7 @@ const ErrorDiagnosticsPanel = () => {
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <Filter size={14} className="text-gray-400" />
+            <Filter size={14} className="text-muted-foreground" />
             <select 
               value={filterModule} 
               onChange={e => setFilterModule(e.target.value)}
@@ -165,24 +165,24 @@ const ErrorDiagnosticsPanel = () => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-canvas/50 border-b border-black/5">
-              <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Temporal Node</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Context</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Failure Signature</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Status</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right">Drill-down</th>
+              <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Temporal Node</th>
+              <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Context</th>
+              <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Failure Signature</th>
+              <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Status</th>
+              <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-right">Drill-down</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-black/5">
             {filteredLogs.map((log) => (
               <React.Fragment key={log.id}>
-                <tr className={`hover:bg-gray-50 transition-colors ${log.severity === 'Critical' ? 'bg-red-50/10' : ''}`}>
+                <tr className={`hover:bg-muted transition-colors ${log.severity === 'Critical' ? 'bg-red-50/10' : ''}`}>
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                       <span className="text-[10px] font-bold text-ink-primary flex items-center gap-2">
-                        <Clock size={10} className="text-gray-400" />
+                        <Clock size={10} className="text-muted-foreground" />
                         {new Date(log.created_at).toLocaleTimeString()}
                       </span>
-                      <span className="text-[9px] text-gray-400 font-bold mt-1">{new Date(log.created_at).toLocaleDateString()}</span>
+                      <span className="text-[9px] text-muted-foreground font-bold mt-1">{new Date(log.created_at).toLocaleDateString()}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -199,7 +199,7 @@ const ErrorDiagnosticsPanel = () => {
                         {log.severity}
                       </span>
                       <p className="text-[10px] font-bold text-ink-primary truncate overflow-hidden">{log.error_message}</p>
-                      <p className="text-[9px] text-gray-400 font-bold uppercase">{log.action}</p>
+                      <p className="text-[9px] text-muted-foreground font-bold uppercase">{log.action}</p>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -220,7 +220,7 @@ const ErrorDiagnosticsPanel = () => {
                   <td className="px-6 py-4 text-right">
                     <button 
                       onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
-                      className="p-2 hover:bg-black/5 rounded-full text-gray-400 transition-all"
+                      className="p-2 hover:bg-black/5 rounded-full text-muted-foreground transition-all"
                     >
                       {expandedRow === log.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </button>
@@ -231,29 +231,29 @@ const ErrorDiagnosticsPanel = () => {
                     <td colSpan="5" className="px-12 py-8 transition-all animate-in slide-in-from-top-4 duration-500">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
-                          <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Diagnostic Trace</h5>
-                          <pre className="p-4 bg-ink-primary text-gray-300 text-[10px] leading-relaxed rounded-2xl border border-white/5 overflow-x-auto selection:bg-accent-signature/30 max-h-[300px] no-scrollbar shadow-2xl">
+                          <h5 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Diagnostic Trace</h5>
+                          <pre className="p-4 bg-ink-primary text-muted-foreground text-[10px] leading-relaxed rounded-2xl border border-white/5 overflow-x-auto selection:bg-accent-signature/30 max-h-[300px] no-scrollbar shadow-2xl">
                             {log.stack_trace || 'No manual trace captured.'}
                           </pre>
                         </div>
                         <div className="space-y-6">
                           <div>
-                            <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Context Matrix</h5>
+                            <h5 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Context Matrix</h5>
                             <div className="grid grid-cols-2 gap-4">
                               <div className="glass-panel border-white/5 bg-white/50 p-3 rounded-xl">
-                                <p className="text-[8px] font-black text-gray-400 uppercase">Tenant ID</p>
-                                <p className="text-[9px] font-black text-ink-primary font-mono truncate">{log.tenant_id}</p>
+                                <p className="text-[8px] font-black text-muted-foreground uppercase">Tenant ID</p>
+                                <p className="text-[9px] font-black text-ink-primary tabular-nums truncate">{log.tenant_id}</p>
                               </div>
                               <div className="glass-panel border-white/5 bg-white/50 p-3 rounded-xl">
-                                <p className="text-[8px] font-black text-gray-400 uppercase">Plan Tier</p>
+                                <p className="text-[8px] font-black text-muted-foreground uppercase">Plan Tier</p>
                                 <p className="text-[9px] font-black text-accent-signature">{log.plan_tier}</p>
                               </div>
                               <div className="glass-panel border-white/5 bg-white/50 p-3 rounded-xl">
-                                <p className="text-[8px] font-black text-gray-400 uppercase">Actor Role</p>
+                                <p className="text-[8px] font-black text-muted-foreground uppercase">Actor Role</p>
                                 <p className="text-[9px] font-black text-emerald-600">{log.user_role}</p>
                               </div>
                               <div className="glass-panel border-white/5 bg-white/50 p-3 rounded-xl">
-                                <p className="text-[8px] font-black text-gray-400 uppercase">Postgres Code</p>
+                                <p className="text-[8px] font-black text-muted-foreground uppercase">Postgres Code</p>
                                 <p className="text-[9px] font-black text-red-600">{log.error_code}</p>
                               </div>
                             </div>
@@ -276,7 +276,7 @@ const ErrorDiagnosticsPanel = () => {
                 <td colSpan="5" className="px-6 py-20 text-center">
                   <div className="flex flex-col items-center gap-4 opacity-30">
                     <CheckCircle2 size={40} className="text-emerald-500" />
-                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">System Integrity Validated • No Active Faults</p>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">System Integrity Validated • No Active Faults</p>
                   </div>
                 </td>
               </tr>

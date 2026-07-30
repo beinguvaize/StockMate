@@ -1654,7 +1654,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               {/* Totals */}
               <div className="bg-card rounded-2xl border border-border/60 p-5 space-y-2">
                 <div className="flex items-center justify-between mb-1">
-                  <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${taxInclusive ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-muted-foreground'}`}>
+                  <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${taxInclusive ? 'bg-blue-50 text-blue-600' : 'bg-muted text-muted-foreground'}`}>
                     {taxInclusive ? 'TAX INCLUSIVE' : 'TAX EXCLUSIVE'}
                   </span>
                 </div>

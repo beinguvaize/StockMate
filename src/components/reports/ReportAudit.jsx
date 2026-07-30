@@ -53,7 +53,7 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  <button
  key={t}
  onClick={() => setTypeFilter(t)}
- className={`px-4 py-2 rounded-xl text-[9px] font-semibold transition-all ${typeFilter === t ? 'bg-ink-primary text-accent-signature shadow-lg' : 'text-gray-700 hover:bg-black/5'}`}
+ className={`px-4 py-2 rounded-xl text-[9px] font-semibold transition-all ${typeFilter === t ? 'bg-ink-primary text-accent-signature shadow-lg' : 'text-ink-secondary hover:bg-black/5'}`}
  >
  {t}
  </button>
@@ -85,12 +85,12 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  <table className="w-full text-left border-collapse">
  <thead>
  <tr className="bg-canvas/50">
- <th className="py-2 px-6 text-[9px] font-semibold text-gray-700">Timestamp</th>
- <th className="py-2 px-6 text-[9px] font-semibold text-gray-700">Actor</th>
- <th className="py-2 px-6 text-[9px] font-semibold text-gray-700">Activity</th>
- <th className="py-2 px-6 text-[9px] font-semibold text-gray-700">Product / Item</th>
- <th className="py-2 px-6 text-[9px] font-semibold text-gray-700 text-right">Quantity Change</th>
- <th className="py-2 px-6 text-[9px] font-semibold text-gray-700">Notes</th>
+ <th className="py-2 px-6 text-[9px] font-semibold text-ink-secondary">Timestamp</th>
+ <th className="py-2 px-6 text-[9px] font-semibold text-ink-secondary">Actor</th>
+ <th className="py-2 px-6 text-[9px] font-semibold text-ink-secondary">Activity</th>
+ <th className="py-2 px-6 text-[9px] font-semibold text-ink-secondary">Product / Item</th>
+ <th className="py-2 px-6 text-[9px] font-semibold text-ink-secondary text-right">Quantity Change</th>
+ <th className="py-2 px-6 text-[9px] font-semibold text-ink-secondary">Notes</th>
  </tr>
  </thead>
  <tbody className="divide-y divide-black/5">

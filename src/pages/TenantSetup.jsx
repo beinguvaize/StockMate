@@ -207,9 +207,9 @@ const TenantSetup = () => {
                   <div className="text-white font-black text-sm uppercase tracking-tight">{plan.label}</div>
                   <div className="flex items-baseline gap-1 mt-0.5 mb-1">
                     <span className={`text-2xl font-black ${active ? 'text-accent-signature' : 'text-white'}`}>{plan.price}</span>
-                    <span className="text-[11px] text-gray-500 font-bold">/mo</span>
+                    <span className="text-[11px] text-muted-foreground font-bold">/mo</span>
                   </div>
-                  <p className="text-[11px] text-gray-400 font-medium leading-snug mb-4 min-h-[2.4em]">{plan.tagline}</p>
+                  <p className="text-[11px] text-muted-foreground font-medium leading-snug mb-4 min-h-[2.4em]">{plan.tagline}</p>
                   <ul className="space-y-1.5">
                     {plan.features.map(f => (
                       <li key={f} className="flex items-center gap-2 text-[11px] text-gray-200 font-medium">
@@ -218,7 +218,7 @@ const TenantSetup = () => {
                       </li>
                     ))}
                     {plan.locked.map(f => (
-                      <li key={f} className="flex items-center gap-2 text-[11px] text-gray-600 font-medium line-through decoration-gray-700">
+                      <li key={f} className="flex items-center gap-2 text-[11px] text-ink-secondary font-medium line-through decoration-gray-700">
                         <span className="w-[11px] h-[11px] shrink-0" />
                         {f}
                       </li>
@@ -239,7 +239,7 @@ const TenantSetup = () => {
             </button>
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
               {TRUST.map(t => (
-                <span key={t.text} className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400">
+                <span key={t.text} className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
                   <span className="text-accent-signature">{t.icon}</span>{t.text}
                 </span>
               ))}
@@ -253,7 +253,7 @@ const TenantSetup = () => {
         <div className="w-full max-w-lg relative z-10 animate-in fade-in slide-in-from-bottom-3 duration-500">
           <button
             onClick={() => setStep(1)}
-            className="flex items-center gap-1.5 text-gray-400 hover:text-white text-[11px] font-bold mb-5 transition-colors"
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-white text-[11px] font-bold mb-5 transition-colors"
           >
             <ChevronLeft size={14} /> Back to plans
           </button>
@@ -269,7 +269,7 @@ const TenantSetup = () => {
 
             <form onSubmit={handleSetup} className="space-y-6">
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-0.5 block mb-2.5">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-0.5 block mb-2.5">
                   What kind of business?
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -284,12 +284,12 @@ const TenantSetup = () => {
                           active ? 'border-accent-signature bg-accent-signature/10' : 'border-white/10 bg-white/[0.03] hover:border-white/25'
                         }`}
                       >
-                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-accent-signature text-black' : 'bg-white/10 text-gray-300'}`}>
+                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-accent-signature text-black' : 'bg-white/10 text-muted-foreground'}`}>
                           {v.icon}
                         </span>
                         <span className="sm:mt-1">
                           <span className="block text-white font-black text-[12px] uppercase tracking-tight">{v.label}</span>
-                          <span className="block text-[10px] text-gray-400 mt-0.5 leading-tight">{v.desc}</span>
+                          <span className="block text-[10px] text-muted-foreground mt-0.5 leading-tight">{v.desc}</span>
                         </span>
                       </button>
                     );
@@ -298,8 +298,8 @@ const TenantSetup = () => {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-0.5 block mb-2">
-                  Business name <span className="text-gray-600 normal-case font-medium tracking-normal">— shown on every invoice</span>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-0.5 block mb-2">
+                  Business name <span className="text-ink-secondary normal-case font-medium tracking-normal">— shown on every invoice</span>
                 </label>
                 <input
                   value={businessName}
@@ -330,7 +330,7 @@ const TenantSetup = () => {
                 )}
               </button>
 
-              <p className="flex items-center justify-center gap-1.5 text-[10px] text-gray-500 font-medium">
+              <p className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground font-medium">
                 <ShieldCheck size={12} className="text-accent-signature" />
                 Free for 60 days · no card · cancel anytime
               </p>

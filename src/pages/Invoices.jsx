@@ -43,9 +43,9 @@ const SummaryCard = ({ label, value, sub, tone }) => {
   const cls = tone === 'emerald' ? 'text-emerald-600' : tone === 'amber' ? 'text-accent-signature' : tone === 'rose' ? 'text-rose-500' : 'text-ink-primary';
   return (
     <div className="bg-white rounded-2xl border border-black/5 px-4 py-3">
-      <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</div>
-      <div className={`font-mono text-xl font-bold tabular-nums mt-0.5 ${cls}`}>{value}</div>
-      {sub && <div className="text-[11px] font-semibold text-gray-500 mt-0.5">{sub}</div>}
+      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</div>
+      <div className={` text-xl font-bold tabular-nums mt-0.5 ${cls}`}>{value}</div>
+      {sub && <div className="text-[11px] font-semibold text-muted-foreground mt-0.5">{sub}</div>}
     </div>
   );
 };
@@ -69,12 +69,12 @@ const StatusBadge = ({ status }) => {
 };
 
 const DateTab  = ({ k, label, active, onClick }) => (
-  <button onClick={onClick} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${active ? 'bg-accent-signature text-button-text' : 'bg-white text-gray-600 hover:text-ink-primary border border-black/5'}`}>{label}</button>
+  <button onClick={onClick} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${active ? 'bg-accent-signature text-button-text' : 'bg-white text-ink-secondary hover:text-ink-primary border border-black/5'}`}>{label}</button>
 );
 
 const StatusTab = ({ k, label, count, active, onClick }) => (
-  <button onClick={onClick} className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${active ? 'bg-ink-primary text-surface' : 'bg-white text-gray-600 hover:text-ink-primary border border-black/5'}`}>
-    {label}{count != null && <span className={`ml-1.5 ${active ? 'opacity-70' : 'text-gray-400'}`}>{count}</span>}
+  <button onClick={onClick} className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${active ? 'bg-ink-primary text-surface' : 'bg-white text-ink-secondary hover:text-ink-primary border border-black/5'}`}>
+    {label}{count != null && <span className={`ml-1.5 ${active ? 'opacity-70' : 'text-muted-foreground'}`}>{count}</span>}
   </button>
 );
 
@@ -82,8 +82,8 @@ const MetaRow = ({ icon: Icon, label, value, tone }) => {
   const cls = tone === 'emerald' ? 'text-emerald-600' : tone === 'amber' ? 'text-accent-signature' : 'text-ink-primary';
   return (
     <div className="flex items-start gap-2.5 p-3 bg-canvas rounded-xl">
-      <Icon size={14} className="text-gray-400 mt-0.5" />
-      <div><div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</div>
+      <Icon size={14} className="text-muted-foreground mt-0.5" />
+      <div><div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</div>
       <div className={`text-sm font-semibold ${cls}`}>{value}</div></div>
     </div>
   );
@@ -93,7 +93,7 @@ const TotalRow = ({ label, value, bold, tone }) => {
   const cls = tone === 'emerald' ? 'text-emerald-600' : tone === 'amber' ? 'text-accent-signature' : 'text-ink-primary';
   return (
     <div className="flex items-center justify-between">
-      <span className={`text-xs font-semibold ${bold ? 'text-ink-primary' : 'text-gray-600'}`}>{label}</span>
+      <span className={`text-xs font-semibold ${bold ? 'text-ink-primary' : 'text-ink-secondary'}`}>{label}</span>
       <span className={`text-sm tabular-nums ${bold ? 'font-bold' : 'font-semibold'} ${cls}`}>{value}</span>
     </div>
   );
@@ -265,7 +265,7 @@ const Invoices = () => {
         <td className="px-4 py-4">
           <div className="text-sm font-semibold text-ink-primary">{formatDate(inv.invoice_date)}</div>
           {inv.due_date && status !== 'PAID' && (
-            <div className="text-[11px] font-medium text-gray-500 mt-0.5">Due {formatDate(inv.due_date)}</div>
+            <div className="text-[11px] font-medium text-muted-foreground mt-0.5">Due {formatDate(inv.due_date)}</div>
           )}
         </td>
         <td className="px-4 py-4">
@@ -273,10 +273,10 @@ const Invoices = () => {
         </td>
         <td className="px-4 py-4">
           <div className="text-sm font-semibold text-ink-primary">{client?.name}</div>
-          <div className="text-[11px] font-medium text-gray-500 mt-0.5">{client?.gstin || client?.gst_no || 'URD'}</div>
+          <div className="text-[11px] font-medium text-muted-foreground mt-0.5">{client?.gstin || client?.gst_no || 'URD'}</div>
         </td>
         <td className="px-4 py-4 text-right">
-          <div className="font-mono text-sm font-bold text-ink-primary tabular-nums">{formatCurrency(inv.grand_total)}</div>
+          <div className="text-sm font-bold text-ink-primary tabular-nums">{formatCurrency(inv.grand_total)}</div>
           {out > 0 && status !== 'PAID' && (
             <div className="text-[11px] font-semibold text-accent-signature tabular-nums mt-0.5">Due: {formatCurrency(out)}</div>
           )}
@@ -302,7 +302,7 @@ const Invoices = () => {
             <button
               onClick={() => setEwayInv(inv)}
               title={inv.eway_no ? `e-Way ${inv.eway_no}` : 'Generate e-Way bill'}
-              className={`p-2 rounded-lg transition-colors ${inv.eway_no ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'hover:bg-accent-signature/10 text-gray-400 hover:text-accent-signature'}`}
+              className={`p-2 rounded-lg transition-colors ${inv.eway_no ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature'}`}
             >
               <FileText size={15} />
             </button>
@@ -317,7 +317,7 @@ const Invoices = () => {
                 refetchInvoices?.();
               }}
               title={inv.delivery_required ? 'Remove delivery flag' : 'Mark as requires delivery'}
-              className={`p-2 rounded-lg transition-colors ${inv.delivery_required ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'hover:bg-blue-50 text-gray-400 hover:text-blue-600'}`}
+              className={`p-2 rounded-lg transition-colors ${inv.delivery_required ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'hover:bg-blue-50 text-muted-foreground hover:text-blue-600'}`}
             >
               <Truck size={15} />
             </button>
@@ -325,7 +325,7 @@ const Invoices = () => {
               <button
                 onClick={() => { setDetailInv(inv); setSettleInput(String(out)); }}
                 title="Settle Payment"
-                className="p-2 rounded-lg hover:bg-emerald-50 text-gray-400 hover:text-emerald-600 transition-colors"
+                className="p-2 rounded-lg hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600 transition-colors"
               >
                 <CheckCircle2 size={15} />
               </button>
@@ -333,14 +333,14 @@ const Invoices = () => {
             <button
               onClick={() => { setViewingInvoice(inv); setInvoiceMode('gst'); }}
               title="View / Print"
-              className="p-2 rounded-lg hover:bg-white text-gray-500 hover:text-ink-primary transition-colors"
+              className="p-2 rounded-lg hover:bg-white text-muted-foreground hover:text-ink-primary transition-colors"
             >
               <Printer size={15} />
             </button>
             <button
               onClick={() => shareToWhatsApp(inv, client, businessProfile)}
               title="Share WhatsApp"
-              className="p-2 rounded-lg hover:bg-[#25D366]/10 text-gray-400 hover:text-[#25D366] transition-colors"
+              className="p-2 rounded-lg hover:bg-[#25D366]/10 text-muted-foreground hover:text-[#25D366] transition-colors"
             >
               <Share2 size={15} />
             </button>
@@ -348,7 +348,7 @@ const Invoices = () => {
               <button
                 onClick={() => handleRemind(inv, client)}
                 title="Send payment reminder (SMS/WhatsApp)"
-                className="p-2 rounded-lg hover:bg-accent-signature/10 text-gray-400 hover:text-accent-signature transition-colors"
+                className="p-2 rounded-lg hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature transition-colors"
               >
                 <BellRing size={15} />
               </button>
@@ -369,7 +369,7 @@ const Invoices = () => {
           <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
             Invoices<span className="text-accent-signature">.</span>
           </h1>
-          <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">GST billing & settlement</span>
+          <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">GST billing & settlement</span>
         </div>
         <button
           onClick={() => navigate('/documents/new?type=SALES_INVOICE')}
@@ -391,7 +391,7 @@ const Invoices = () => {
 
       {/* Date range */}
       <div className="flex flex-wrap items-center gap-2">
-        <Calendar size={14} className="text-gray-400" />
+        <Calendar size={14} className="text-muted-foreground" />
         {[['ALL','All time'],['TODAY','Today'],['7D','7 days'],['30D','30 days'],['CUSTOM','Custom']].map(([k,l]) => (
           <DateTab key={k} k={k} label={l} active={dateFilter === k} onClick={() => setDateFilter(k)} />
         ))}
@@ -399,7 +399,7 @@ const Invoices = () => {
           <div className="flex items-center gap-2 ml-2">
             <input type="date" value={customRange.from} onChange={e => setCustomRange(r => ({ ...r, from: e.target.value }))}
               className="px-2.5 py-1.5 rounded-lg border border-black/10 text-xs font-semibold bg-white" />
-            <span className="text-xs text-gray-400">to</span>
+            <span className="text-xs text-muted-foreground">to</span>
             <input type="date" value={customRange.to} onChange={e => setCustomRange(r => ({ ...r, to: e.target.value }))}
               className="px-2.5 py-1.5 rounded-lg border border-black/10 text-xs font-semibold bg-white" />
           </div>
@@ -409,7 +409,7 @@ const Invoices = () => {
       {/* Search + status + export */}
       <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
         <div className="relative flex-1 md:max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
           <input
             type="text"
             placeholder="Search invoice # or client…"
@@ -424,14 +424,14 @@ const Invoices = () => {
           ))}
           <button
             onClick={() => setShowRecurring(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-gray-700 hover:text-ink-primary hover:border-black/20 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-ink-secondary hover:text-ink-primary hover:border-black/20 transition-colors"
           >
             <TrendingUp size={13} /> Recurring
           </button>
           <button
             onClick={handleExport}
             disabled={!filtered.length}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-gray-700 hover:text-ink-primary hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-ink-secondary hover:text-ink-primary hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <Download size={13} /> Export
           </button>
@@ -456,7 +456,7 @@ const Invoices = () => {
         rows={filtered}
         renderRow={renderRow}
         emptyMessage={
-          <div className="flex flex-col items-center gap-2 py-8 text-gray-500">
+          <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
             <FileText size={24} className="opacity-40" />
             <div className="text-sm font-semibold">No invoices match</div>
             <div className="text-xs">Adjust filters or create a new invoice.</div>
@@ -496,14 +496,14 @@ const Invoices = () => {
 
                 {/* Line items */}
                 <div className="border border-black/5 rounded-xl overflow-hidden">
-                  <div className="bg-canvas px-4 py-2 text-[11px] font-bold text-gray-600 uppercase tracking-wider grid grid-cols-12 gap-2">
+                  <div className="bg-canvas px-4 py-2 text-[11px] font-bold text-ink-secondary uppercase tracking-wider grid grid-cols-12 gap-2">
                     <div className="col-span-6">Item</div>
                     <div className="col-span-2 text-center">Qty</div>
                     <div className="col-span-2 text-right">Rate</div>
                     <div className="col-span-2 text-right">Total</div>
                   </div>
                   {items.length === 0 ? (
-                    <div className="p-6 text-center text-xs text-gray-500">No line items</div>
+                    <div className="p-6 text-center text-xs text-muted-foreground">No line items</div>
                   ) : items.map((it, idx) => {
                     const qty   = Number(it.qty || it.quantity || 0);
                     const rate  = Number(it.rate || it.price || 0);
@@ -511,8 +511,8 @@ const Invoices = () => {
                     return (
                       <div key={idx} className="px-4 py-2.5 text-sm grid grid-cols-12 gap-2 items-center border-t border-black/5">
                         <div className="col-span-6 font-semibold text-ink-primary truncate">{it.name}</div>
-                        <div className="col-span-2 text-center font-semibold text-gray-600">{qty}</div>
-                        <div className="col-span-2 text-right text-gray-600 tabular-nums">{formatCurrency(rate)}</div>
+                        <div className="col-span-2 text-center font-semibold text-ink-secondary">{qty}</div>
+                        <div className="col-span-2 text-right text-ink-secondary tabular-nums">{formatCurrency(rate)}</div>
                         <div className="col-span-2 text-right font-bold text-ink-primary tabular-nums">{formatCurrency(qty * rate + taxAmt)}</div>
                       </div>
                     );
@@ -524,16 +524,16 @@ const Invoices = () => {
                   inv.irn_status === 'SUCCESS' ? 'bg-emerald-50 border-emerald-200' :
                   inv.irn_status === 'FAILED'  ? 'bg-red-50 border-red-200' :
                   inv.irn_status === 'PENDING' || inv.irn_status === 'PROCESSING' ? 'bg-accent-signature/10 border-accent-signature/25' :
-                  'bg-gray-50 border-gray-200'
+                  'bg-muted border-border'
                 }`}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">E-Invoice IRN</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">E-Invoice IRN</p>
                       <p className={`text-sm font-bold mt-0.5 ${
                         inv.irn_status === 'SUCCESS' ? 'text-emerald-700' :
                         inv.irn_status === 'FAILED'  ? 'text-red-700' :
                         inv.irn_status === 'PENDING' || inv.irn_status === 'PROCESSING' ? 'text-accent-signature-hover' :
-                        'text-gray-700'
+                        'text-ink-secondary'
                       }`}>
                         {inv.irn_status === 'SUCCESS' ? `Generated · ${inv.irn?.slice(0, 16)}…` :
                          inv.irn_status === 'FAILED'  ? 'Failed — see error' :
@@ -558,7 +558,7 @@ const Invoices = () => {
                     )}
                   </div>
                   {inv.ack_no && (
-                    <p className="text-[10px] text-gray-500 mt-1.5 font-mono">Ack: {inv.ack_no} · {inv.ack_date}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1.5 tabular-nums">Ack: {inv.ack_no} · {inv.ack_date}</p>
                   )}
                 </div>
 
@@ -585,7 +585,7 @@ const Invoices = () => {
                       <>
                         <div className="h-px bg-black/10 my-2" />
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-gray-500">{client?.name || 'This client'} — total outstanding</span>
+                          <span className="text-muted-foreground">{client?.name || 'This client'} — total outstanding</span>
                           <span className="font-semibold text-amber-600 tabular-nums">
                             {formatCurrency(clientTotal)}{unpaidCount > 1 ? ` · ${unpaidCount} bills` : ''}
                           </span>

@@ -62,7 +62,7 @@ const StatementTable = ({ sections = [], grandTotal, note }) => (
                     {/* group subtotal */}
                     <tr className="border-t border-black/[0.06]">
                       <td className="pl-10 pr-6 py-1.5 text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">{g.subtotalLabel || `Total ${g.title || ''}`.trim()}</td>
-                      <td className="px-6 py-1.5 text-right"><Amount v={subtotal} className="text-[13px] font-semibold text-gray-600" /></td>
+                      <td className="px-6 py-1.5 text-right"><Amount v={subtotal} className="text-[13px] font-semibold text-ink-secondary" /></td>
                     </tr>
                   </React.Fragment>
                 );

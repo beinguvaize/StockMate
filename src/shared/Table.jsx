@@ -16,7 +16,7 @@ const Table = ({
               {headers.map((header, idx) => (
                 <th 
                   key={idx} 
-                  className={`px-4 py-3 text-sm font-semibold text-gray-700 opacity-80 ${header.className || ''}`}
+                  className={`px-4 py-3 text-sm font-semibold text-ink-secondary opacity-80 ${header.className || ''}`}
                 >
                   {header.label}
                 </th>

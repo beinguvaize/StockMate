@@ -25,10 +25,10 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
     return (
       <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-16 text-center">
         <div className="w-12 h-12 rounded-xl bg-canvas flex items-center justify-center mx-auto mb-4">
-          <Receipt size={20} className="text-gray-300" />
+          <Receipt size={20} className="text-muted-foreground" />
         </div>
         <p className="text-sm font-semibold text-ink-primary mb-1">No pay history</p>
-        <p className="text-[11px] text-gray-400 mb-6">Process a payroll run to see records here.</p>
+        <p className="text-[11px] text-muted-foreground mb-6">Process a payroll run to see records here.</p>
         <button className="btn-signature !h-10 !px-6 !text-xs mx-auto" onClick={openPayRun}>Run Payroll</button>
       </div>
     );
@@ -37,8 +37,8 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
   return (
     <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
       <div className="px-5 py-3 border-b border-black/5 flex items-center justify-between">
-        <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Pay Runs</span>
-        <span className="text-[10px] font-semibold text-gray-400">{payrollRecords.length} record{payrollRecords.length !== 1 ? 's' : ''}</span>
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Pay Runs</span>
+        <span className="text-[10px] font-semibold text-muted-foreground">{payrollRecords.length} record{payrollRecords.length !== 1 ? 's' : ''}</span>
       </div>
 
       <div className="divide-y divide-black/5">
@@ -66,18 +66,18 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-ink-primary">{label}</span>
                     {type && (
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${type === 'Weekly' ? 'bg-blue-50 text-blue-500' : 'bg-gray-100 text-gray-400'}`}>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${type === 'Weekly' ? 'bg-blue-50 text-blue-500' : 'bg-muted text-muted-foreground'}`}>
                         {type}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5">
                     {runDate && (
-                      <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                         <Calendar size={9} /> {runDate}
                       </span>
                     )}
-                    <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                       <Users size={9} /> {empCount} employee{empCount !== 1 ? 's' : ''}
                     </span>
                   </div>
@@ -85,10 +85,10 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
 
                 <div className="text-right shrink-0">
                   <div className="text-base font-bold text-ink-primary tabular-nums">{sym}{(record.totalNet || 0).toLocaleString('en-IN')}</div>
-                  <div className="text-[9px] text-gray-400 font-medium uppercase">Net paid</div>
+                  <div className="text-[9px] text-muted-foreground font-medium uppercase">Net paid</div>
                 </div>
 
-                <div className={`w-7 h-7 rounded-full border border-black/10 flex items-center justify-center transition-all shrink-0 ${isExpanded ? 'bg-ink-primary text-white rotate-180' : 'text-gray-400'}`}>
+                <div className={`w-7 h-7 rounded-full border border-black/10 flex items-center justify-center transition-all shrink-0 ${isExpanded ? 'bg-ink-primary text-white rotate-180' : 'text-muted-foreground'}`}>
                   <ChevronDown size={13} />
                 </div>
               </div>
@@ -105,7 +105,7 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                       { label: 'Net Total',  value: record.totalNet         || 0, color: 'text-ink-primary', bold: true },
                     ].map(s => (
                       <div key={s.label} className="bg-white rounded-xl border border-black/5 px-4 py-3 shadow-sm">
-                        <div className="text-[9px] font-semibold text-gray-400 uppercase mb-1">{s.label}</div>
+                        <div className="text-[9px] font-semibold text-muted-foreground uppercase mb-1">{s.label}</div>
                         <div className={`text-sm font-bold tabular-nums ${s.color}`}>
                           {s.prefix || ''}{sym}{s.value.toLocaleString('en-IN')}
                         </div>
@@ -116,7 +116,7 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                   {/* Staff table */}
                   <div className="bg-white rounded-xl border border-black/5 overflow-hidden">
                     <div className="px-4 py-2.5 border-b border-black/5 flex items-center justify-between">
-                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Staff breakdown</span>
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Staff breakdown</span>
                       <button
                         className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors"
                         title="Delete record"
@@ -128,11 +128,11 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                     <table className="w-full text-left">
                       <thead>
                         <tr className="bg-canvas/50">
-                          <th className="px-4 py-2 text-[9px] font-semibold text-gray-400 uppercase">Employee</th>
-                          <th className="px-4 py-2 text-right text-[9px] font-semibold text-gray-400 uppercase">Base</th>
-                          <th className="px-4 py-2 text-right text-[9px] font-semibold text-gray-400 uppercase">Extras</th>
-                          <th className="px-4 py-2 text-right text-[9px] font-semibold text-gray-400 uppercase">Deductions</th>
-                          <th className="px-4 py-2 text-right text-[9px] font-semibold text-gray-400 uppercase">Net Pay</th>
+                          <th className="px-4 py-2 text-[9px] font-semibold text-muted-foreground uppercase">Employee</th>
+                          <th className="px-4 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase">Base</th>
+                          <th className="px-4 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase">Extras</th>
+                          <th className="px-4 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase">Deductions</th>
+                          <th className="px-4 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase">Net Pay</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-black/5">
@@ -140,9 +140,9 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                           <tr key={item.employeeId} className="hover:bg-canvas/30 transition-colors">
                             <td className="px-4 py-3">
                               <div className="text-sm font-semibold text-ink-primary">{item.employeeName}</div>
-                              <div className="text-[9px] text-gray-400">{item.department} · {item.payType}</div>
+                              <div className="text-[9px] text-muted-foreground">{item.department} · {item.payType}</div>
                             </td>
-                            <td className="px-4 py-3 text-right text-xs font-semibold text-gray-600 tabular-nums">{sym}{Math.round(item.basePay || 0).toLocaleString('en-IN')}</td>
+                            <td className="px-4 py-3 text-right text-xs font-semibold text-ink-secondary tabular-nums">{sym}{Math.round(item.basePay || 0).toLocaleString('en-IN')}</td>
                             <td className="px-4 py-3 text-right text-xs font-semibold text-emerald-600 tabular-nums">+{sym}{Math.round((item.overtime || 0) + (item.commission || 0) + (item.bonus || 0)).toLocaleString('en-IN')}</td>
                             <td className="px-4 py-3 text-right text-xs font-semibold text-red-500 tabular-nums">-{sym}{Math.round(item.deductions || 0).toLocaleString('en-IN')}</td>
                             <td className="px-4 py-3 text-right text-sm font-bold text-ink-primary tabular-nums">{sym}{Math.round(item.netPay || 0).toLocaleString('en-IN')}</td>

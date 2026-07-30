@@ -176,16 +176,16 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
               <Truck size={15} className="text-blue-600" />
             </div>
             <div>
-              <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{L.title}</div>
+              <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{L.title}</div>
               <div className="text-sm font-black text-ink-primary leading-tight">
                 {vanName}
-                {vanPlate && <span className="ml-2 text-[10px] font-mono text-gray-400">{vanPlate}</span>}
+                {vanPlate && <span className="ml-2 text-[10px] tabular-nums text-muted-foreground">{vanPlate}</span>}
               </div>
             </div>
           </div>
           <div className="flex-1" />
           <button onClick={onClose}
-            className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center text-gray-400 hover:text-ink-primary hover:border-black/20 transition-all">
+            className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:border-black/20 transition-all">
             <X size={14} />
           </button>
         </div>
@@ -196,7 +196,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
           {/* LEFT: warehouse products */}
           <div className="flex-1 flex flex-col gap-4 overflow-hidden p-4">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
               <input
                 ref={searchRef}
                 type="text"
@@ -206,7 +206,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
                 onChange={e => setSearchTerm(e.target.value)}
               />
               {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-ink-secondary">
                   <X size={14} />
                 </button>
               )}
@@ -214,7 +214,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
 
             <div className="flex flex-col gap-px overflow-y-auto pr-1 pb-4">
               {filtered.length === 0 && (
-                <div className="py-16 text-center text-sm text-gray-400">
+                <div className="py-16 text-center text-sm text-muted-foreground">
                   {L.empty}
                 </div>
               )}
@@ -232,7 +232,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
                         ? 'border-accent-signature/30 bg-accent-signature/5 hover:bg-accent-signature/8'
                         : 'border-transparent bg-white/60 hover:bg-white hover:border-accent-signature/20 hover:shadow-sm'
                     }`}>
-                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-white border border-gray-300 shadow-sm">
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-white border border-border shadow-sm">
                       <span className="text-[11px] font-black text-ink-primary/30 uppercase">
                         {(item.productName || '?').slice(0, 2)}
                       </span>
@@ -242,7 +242,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
                       {inList && <div className="text-[10px] text-accent-signature font-bold">{inList.quantity} {L.inWord}</div>}
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <div className={`text-xs font-semibold ${out ? 'text-red-400' : 'text-gray-400'}`}>
+                      <div className={`text-xs font-semibold ${out ? 'text-red-400' : 'text-muted-foreground'}`}>
                         {out ? 'OUT' : `${stock} ${L.stockTag}`}
                       </div>
                     </div>
@@ -271,8 +271,8 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
 
             {loadList.length > 0 && (
               <div className="grid grid-cols-[1fr_120px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-black/5">
-                <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Product</span>
-                <span className="text-xs font-black text-gray-400 uppercase tracking-widest text-center">Qty</span>
+                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Product</span>
+                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest text-center">Qty</span>
                 <span />
               </div>
             )}
@@ -283,7 +283,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
                   className="grid grid-cols-[1fr_120px_20px] gap-2 items-center px-4 py-2.5 border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-ink-primary truncate uppercase">{item.name}</div>
-                    <div className="text-[10px] text-gray-400 font-medium">max {item.max}</div>
+                    <div className="text-[10px] text-muted-foreground font-medium">max {item.max}</div>
                   </div>
                   <div className="flex items-center justify-center gap-0.5 bg-white border border-black/8 rounded-lg p-0.5">
                     <button onClick={() => stepQty(item.productId, -1)}
@@ -299,7 +299,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
                     </button>
                   </div>
                   <button onClick={() => removeItem(item.productId)}
-                    className="text-gray-300 hover:text-red-400 transition-colors flex items-center justify-center">
+                    className="text-muted-foreground hover:text-red-400 transition-colors flex items-center justify-center">
                     <X size={11} strokeWidth={2.5} />
                   </button>
                 </div>

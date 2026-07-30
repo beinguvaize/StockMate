@@ -131,7 +131,7 @@ const Onboarding = () => {
               <CheckCircle2 size={18} className="text-white" />
             </div>
             <div>
-              <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">Workspace Ready</div>
+              <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Workspace Ready</div>
               <div className="text-sm font-black text-ink-primary">{currentTenant?.name || 'Your Business'}</div>
             </div>
           </div>
@@ -152,7 +152,7 @@ const Onboarding = () => {
                   ? 'bg-accent-signature border-accent-signature text-button-text'
                   : i === currentStep
                   ? 'border-ink-primary bg-ink-primary text-white'
-                  : 'border-black/10 bg-white text-gray-400'
+                  : 'border-black/10 bg-white text-muted-foreground'
               }`}>
                 {completed.has(step.id) ? <CheckCircle2 size={12} /> : i + 1}
               </div>
@@ -164,7 +164,7 @@ const Onboarding = () => {
         </div>
         <div className="flex justify-between mt-1">
           {STEPS.map((step, i) => (
-            <span key={step.id} className={`text-[8px] font-black uppercase tracking-widest ${i === currentStep ? 'text-ink-primary' : 'text-gray-400'}`}>
+            <span key={step.id} className={`text-[8px] font-black uppercase tracking-widest ${i === currentStep ? 'text-ink-primary' : 'text-muted-foreground'}`}>
               {step.title.split(' ')[0]}
             </span>
           ))}
@@ -184,7 +184,7 @@ const Onboarding = () => {
               <h1 className="text-2xl font-black text-ink-primary tracking-tight mb-2">
                 Welcome, {currentTenant?.name || 'to bookledger'}!
               </h1>
-              <p className="text-[12px] text-gray-500 font-medium">
+              <p className="text-[12px] text-muted-foreground font-medium">
                 Your <span className={`font-black ${planInfo.color}`}>{planInfo.label} plan</span> is active.
                 60 days free, no credit card needed.
               </p>
@@ -193,7 +193,7 @@ const Onboarding = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
               {/* What's included */}
               <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">What's included</div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">What's included</div>
                 <ul className="space-y-2">
                   {planInfo.included.map((f, i) => (
                     <li key={i} className="flex items-center gap-2.5 text-[11px] font-semibold text-ink-primary">
@@ -207,10 +207,10 @@ const Onboarding = () => {
               {/* Locked / upgrade */}
               {planInfo.locked.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Unlock with upgrade</div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Unlock with upgrade</div>
                   <ul className="space-y-2 mb-4">
                     {planInfo.locked.map((f, i) => (
-                      <li key={i} className="flex items-center gap-2.5 text-[11px] font-semibold text-gray-400">
+                      <li key={i} className="flex items-center gap-2.5 text-[11px] font-semibold text-muted-foreground">
                         <span className="w-3.5 h-3.5 rounded border border-black/10 shrink-0" />
                         {f}
                       </li>
@@ -238,22 +238,22 @@ const Onboarding = () => {
         {currentStep > 0 && currentStep < STEPS.length && (
           <div className="bg-white border border-black/5 rounded-3xl shadow-premium p-8">
             <div className="mb-6">
-              <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
+              <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">
                 Step {currentStep} of {STEPS.length - 1}
               </div>
               <h2 className="text-xl font-black text-ink-primary tracking-tight">{STEPS[currentStep].title}</h2>
-              <p className="text-[12px] text-gray-500 font-medium mt-1">{STEPS[currentStep].subtitle}</p>
+              <p className="text-[12px] text-muted-foreground font-medium mt-1">{STEPS[currentStep].subtitle}</p>
             </div>
 
             {/* Step-specific content */}
             {STEPS[currentStep].id === 'profile' && (
               <div className="space-y-3 mb-6">
-                <p className="text-[12px] text-gray-600 font-medium">
+                <p className="text-[12px] text-ink-secondary font-medium">
                   Go to <strong>Settings → Business Profile</strong> to add your GST number, address, and upload your logo. This information appears on all your invoices.
                 </p>
                 <button
                   onClick={() => navigate(`/settings`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Open Settings <ChevronRight size={14} />
                 </button>
@@ -262,12 +262,12 @@ const Onboarding = () => {
 
             {STEPS[currentStep].id === 'product' && (
               <div className="space-y-3 mb-6">
-                <p className="text-[12px] text-gray-600 font-medium">
+                <p className="text-[12px] text-ink-secondary font-medium">
                   Add products to your inventory. Include HSN code and GST tax rate for accurate billing.
                 </p>
                 <button
                   onClick={() => navigate(`/inventory`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Go to Inventory <ChevronRight size={14} />
                 </button>
@@ -276,12 +276,12 @@ const Onboarding = () => {
 
             {STEPS[currentStep].id === 'client' && (
               <div className="space-y-3 mb-6">
-                <p className="text-[12px] text-gray-600 font-medium">
+                <p className="text-[12px] text-ink-secondary font-medium">
                   Add a client with their GSTIN for B2B billing. Walk-in customers don't need registration.
                 </p>
                 <button
                   onClick={() => navigate(`/clients`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Go to Clients <ChevronRight size={14} />
                 </button>
@@ -290,12 +290,12 @@ const Onboarding = () => {
 
             {STEPS[currentStep].id === 'sale' && (
               <div className="space-y-3 mb-6">
-                <p className="text-[12px] text-gray-600 font-medium">
+                <p className="text-[12px] text-ink-secondary font-medium">
                   Create your first sale. Use the <strong>Invoice Builder</strong> for formal GST invoices or <strong>POS</strong> for quick counter sales.
                 </p>
                 <button
                   onClick={() => navigate(`/sales`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Go to Sales <ChevronRight size={14} />
                 </button>
@@ -320,7 +320,7 @@ const Onboarding = () => {
                   </button>
                   <button
                     onClick={() => setCurrentStep(s => s + 1)}
-                    className="px-6 py-4 border border-black/8 rounded-2xl text-[12px] font-black text-gray-500 hover:text-ink-primary hover:bg-canvas transition-all"
+                    className="px-6 py-4 border border-black/8 rounded-2xl text-[12px] font-black text-muted-foreground hover:text-ink-primary hover:bg-canvas transition-all"
                   >
                     Skip
                   </button>
@@ -333,7 +333,7 @@ const Onboarding = () => {
         {/* Quick actions at bottom (always visible from step 1+) */}
         {currentStep > 0 && (
           <div className="mt-6">
-            <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Quick access</div>
+            <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Quick access</div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {QUICK_ACTIONS.map(action => (
                 <button
@@ -353,7 +353,7 @@ const Onboarding = () => {
         <div className="text-center mt-6">
           <button
             onClick={goToDashboard}
-            className="text-[10px] font-black text-gray-400 hover:text-gray-600 uppercase tracking-widest transition-colors"
+            className="text-[10px] font-black text-muted-foreground hover:text-ink-secondary uppercase tracking-widest transition-colors"
           >
             Skip onboarding → Go to dashboard
           </button>

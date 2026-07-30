@@ -28,12 +28,12 @@ const PlanUsageBanner = ({ plan = 'STARTER', invoiceCount = 0, userCount = 0, ma
   return (
     <div className={`rounded-2xl border p-4 space-y-3 ${isWarn ? 'bg-accent-signature/10 border-accent-signature/25' : 'bg-canvas border-black/5'}`}>
       <div className="flex items-center justify-between">
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Plan Usage — {plan}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Plan Usage — {plan}</p>
         {isWarn && <button onClick={onUpgrade} className="text-[10px] font-black text-accent-signature underline">Upgrade</button>}
       </div>
       {invPct !== null && (
         <div>
-          <div className="flex justify-between text-[10px] font-bold text-gray-500 mb-1">
+          <div className="flex justify-between text-[10px] font-bold text-muted-foreground mb-1">
             <span>Invoices this month</span>
             <span>{invoiceCount} / {maxInvoices}</span>
           </div>
@@ -44,7 +44,7 @@ const PlanUsageBanner = ({ plan = 'STARTER', invoiceCount = 0, userCount = 0, ma
       )}
       {usrPct !== null && (
         <div>
-          <div className="flex justify-between text-[10px] font-bold text-gray-500 mb-1">
+          <div className="flex justify-between text-[10px] font-bold text-muted-foreground mb-1">
             <span>Active users</span>
             <span>{userCount} / {maxUsers}</span>
           </div>
@@ -365,7 +365,7 @@ const Settings = ({ embedded = false, section = null }) => {
  <div className="flex justify-between items-center py-2 border-b border-black/5">
  <div className="flex items-center gap-3">
  <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Settings<span className="text-accent-signature">.</span></h1>
- <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">System configuration & preferences</span>
+ <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">System configuration & preferences</span>
  </div>
  {savedStatus && (
  <div className="bg-accent-signature/10 text-ink-primary px-4 py-1.5 rounded-lg text-[10px] font-semibold border border-accent-signature/20 flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
@@ -392,7 +392,7 @@ const Settings = ({ embedded = false, section = null }) => {
          const el = document.getElementById(t.id);
          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
        }}
-       className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-gray-500 hover:text-ink-primary hover:bg-white transition-all whitespace-nowrap">
+       className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-ink-primary hover:bg-white transition-all whitespace-nowrap">
        {t.icon}{t.label}
      </button>
    ))}
@@ -412,11 +412,11 @@ const Settings = ({ embedded = false, section = null }) => {
  <div className="p-5 bg-surface">
  <form onSubmit={handleSaveProfile} className="space-y-6">
  <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Business Name</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Business Name</label>
  <input
  required
  type="text"
- className="input-field !rounded-xl !py-2.5 font-bold text-base !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-bold text-base !bg-white border border-border shadow-sm"
  value={profileData.name}
  onChange={e => setProfileData({ ...profileData, name: e.target.value})}
  placeholder="Business Name..."
@@ -425,20 +425,20 @@ const Settings = ({ embedded = false, section = null }) => {
 
  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
  <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Contact Phone</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Contact Phone</label>
  <input
  type="text"
- className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-border shadow-sm"
  value={profileData.phone}
  onChange={e => setProfileData({ ...profileData, phone: e.target.value})}
  placeholder="Phone Number..."
  />
  </div>
  <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Official Email</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Official Email</label>
  <input
  type="email"
- className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-border shadow-sm"
  value={profileData.email}
  onChange={e => setProfileData({ ...profileData, email: e.target.value})}
  placeholder="Email Address..."
@@ -447,10 +447,10 @@ const Settings = ({ embedded = false, section = null }) => {
  </div>
 
  <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Business Address</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Business Address</label>
  <textarea
  rows="3"
- className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm w-full resize-none"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-border shadow-sm w-full resize-none"
  value={profileData.address}
  onChange={e => setProfileData({ ...profileData, address: e.target.value})}
  placeholder="Full Physical Address..."
@@ -464,20 +464,20 @@ const Settings = ({ embedded = false, section = null }) => {
  </div>
  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
  <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">GSTIN (GST Number)</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">GSTIN (GST Number)</label>
  <input
  type="text"
- className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-border shadow-sm"
  value={profileData.gst_no}
  onChange={e => setProfileData({ ...profileData, gst_no: e.target.value})}
  placeholder="GSTIN..."
  />
  </div>
  <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">PAN Number</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">PAN Number</label>
  <input
  type="text"
- className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-border shadow-sm"
  value={profileData.pan_no}
  onChange={e => setProfileData({ ...profileData, pan_no: e.target.value})}
  placeholder="Permanent Account Number..."
@@ -487,7 +487,7 @@ const Settings = ({ embedded = false, section = null }) => {
 
  {/* Tax Mode toggle */}
  <div className="mt-5">
-   <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-3">Tax Mode</label>
+   <label className="block text-sm font-semibold text-ink-secondary opacity-[0.85] mb-3">Tax Mode</label>
    <div className="grid grid-cols-2 gap-2">
      {[
        { value: 'EXCLUSIVE', label: 'Tax Exclusive', desc: 'Price shown before GST · tax added on top' },
@@ -505,22 +505,22 @@ const Settings = ({ embedded = false, section = null }) => {
          }`}
        >
          <p className={`text-xs font-black ${profileData.tax_mode === opt.value ? 'text-white' : 'text-ink-primary'}`}>{opt.label}</p>
-         <p className={`text-[10px] mt-0.5 font-medium ${profileData.tax_mode === opt.value ? 'text-white/70' : 'text-gray-400'}`}>{opt.desc}</p>
+         <p className={`text-[10px] mt-0.5 font-medium ${profileData.tax_mode === opt.value ? 'text-white/70' : 'text-muted-foreground'}`}>{opt.desc}</p>
        </button>
      ))}
    </div>
-   <p className="text-[10px] text-gray-400 mt-2">
+   <p className="text-[10px] text-muted-foreground mt-2">
      Applies to all invoices and POS sales. Save profile to update.
    </p>
  </div>
 
  {/* Auto IRN toggle */}
  <div className="mt-5">
-   <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-3">E-Invoice (IRN)</label>
+   <label className="block text-sm font-semibold text-ink-secondary opacity-[0.85] mb-3">E-Invoice (IRN)</label>
    <div className="flex items-center justify-between px-4 py-3 rounded-xl border-2 bg-canvas border-black/10">
      <div className="flex-1 pr-4">
        <p className="text-xs font-black text-ink-primary">Auto-generate IRN for every invoice</p>
-       <p className="text-[10px] mt-0.5 font-medium text-gray-400">
+       <p className="text-[10px] mt-0.5 font-medium text-muted-foreground">
          Required if your aggregate turnover exceeds ₹5 Cr. Queues an IRN request to the NIC portal on each invoice — fetched asynchronously by the worker.
        </p>
      </div>
@@ -542,40 +542,40 @@ const Settings = ({ embedded = false, section = null }) => {
  </div>
  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
  <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Bank Name</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Bank Name</label>
  <input
  type="text"
- className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-border shadow-sm"
  value={profileData.bank_name}
  onChange={e => setProfileData({ ...profileData, bank_name: e.target.value})}
  placeholder="e.g. HDFC Bank"
  />
  </div>
  <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Account Number</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Account Number</label>
  <input
  type="text"
- className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-border shadow-sm"
  value={profileData.account_no}
  onChange={e => setProfileData({ ...profileData, account_no: e.target.value})}
  placeholder="Bank Account No..."
  />
  </div>
  <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">IFSC Code</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">IFSC Code</label>
  <input
  type="text"
- className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-border shadow-sm"
  value={profileData.ifsc_code}
  onChange={e => setProfileData({ ...profileData, ifsc_code: e.target.value})}
  placeholder="Bank IFSC..."
  />
  </div>
  <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">UPI ID (for QR)</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">UPI ID (for QR)</label>
  <input
  type="text"
- className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-border shadow-sm"
  value={profileData.upi_id}
  onChange={e => setProfileData({ ...profileData, upi_id: e.target.value})}
  placeholder="e.g. name@bank"
@@ -586,10 +586,10 @@ const Settings = ({ embedded = false, section = null }) => {
 
  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-8 border-t border-black/5">
  <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Country</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Country</label>
  <div className="relative">
  <Globe size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
- <select className="input-field !pl-16 !rounded-xl !py-2.5 font-medium text-sm appearance-none !bg-white border border-gray-300 shadow-sm" value={profileData.country} onChange={e => {
+ <select className="input-field !pl-16 !rounded-xl !py-2.5 font-medium text-sm appearance-none !bg-white border border-border shadow-sm" value={profileData.country} onChange={e => {
  const country = e.target.value;
  let currency = profileData.currency;
  let currencySymbol = profileData.currencySymbol;
@@ -610,10 +610,10 @@ const Settings = ({ embedded = false, section = null }) => {
  </div>
 
  <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Currency</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Currency</label>
  <div className="relative">
  <Coins size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
- <select className="input-field !pl-16 !rounded-xl !py-2.5 font-medium text-sm appearance-none !bg-white border border-gray-300 shadow-sm" value={profileData.currency} onChange={e => setProfileData({ ...profileData, currency: e.target.value})}>
+ <select className="input-field !pl-16 !rounded-xl !py-2.5 font-medium text-sm appearance-none !bg-white border border-border shadow-sm" value={profileData.currency} onChange={e => setProfileData({ ...profileData, currency: e.target.value})}>
  <option value="INR">INR - INDIAN RUPEE</option>
  <option value="AED">AED - UAE DIRHAM</option>
  <option value="USD">USD - US DOLLAR</option>
@@ -661,9 +661,9 @@ const Settings = ({ embedded = false, section = null }) => {
         {/* Plan Details (hidden in hub — Plan & billing panel covers it) */}
         {!embedded && (
                 <div className="flex flex-col gap-4">
-          <div className="p-5 rounded-2xl bg-white border border-gray-300 shadow-sm">
+          <div className="p-5 rounded-2xl bg-white border border-border shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-bold text-gray-700 uppercase">Current Plan</span>
+              <span className="text-xs font-bold text-ink-secondary uppercase">Current Plan</span>
               <Sparkles size={16} className="text-accent-signature" />
             </div>
             {(() => {
@@ -677,7 +677,7 @@ const Settings = ({ embedded = false, section = null }) => {
               return (
                 <>
                   <h3 className="text-3xl font-black text-ink-primary mb-2 uppercase tracking-tight">{plan}</h3>
-                  <p className="text-[10px] font-semibold text-gray-600 opacity-70 mb-6 leading-relaxed uppercase">{blurb}</p>
+                  <p className="text-[10px] font-semibold text-ink-secondary opacity-70 mb-6 leading-relaxed uppercase">{blurb}</p>
                   {isTop ? (
                     <div className="w-full h-10 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
                       <CheckCircle2 size={14} /> TOP TIER — ALL MODULES UNLOCKED
@@ -717,7 +717,7 @@ const Settings = ({ embedded = false, section = null }) => {
  <input
  type="text"
  placeholder="New Category..."
- className="input-field !rounded-xl !py-2.5 font-bold text-sm bg-white border border-gray-300 shadow-sm flex-1"
+ className="input-field !rounded-xl !py-2.5 font-bold text-sm bg-white border border-border shadow-sm flex-1"
  value={newCategory}
  onChange={e => setNewCategory(e.target.value)}
  onKeyPress={e => {
@@ -741,7 +741,7 @@ const Settings = ({ embedded = false, section = null }) => {
  {/* Category List */}
  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
  {expenseCategories.map(cat => (
- <div key={cat} className="group flex items-center justify-between p-4 rounded-xl bg-white border border-gray-300 shadow-sm hover:border-accent-signature/30 transition-all">
+ <div key={cat} className="group flex items-center justify-between p-4 rounded-xl bg-white border border-border shadow-sm hover:border-accent-signature/30 transition-all">
  {editingCategory === cat ? (
  <div className="flex items-center gap-2 w-full">
  <input
@@ -761,7 +761,7 @@ const Settings = ({ embedded = false, section = null }) => {
 }
 }}
  />
- <button onClick={() => setEditingCategory(null)} className="text-gray-700 hover:text-ink-primary">
+ <button onClick={() => setEditingCategory(null)} className="text-ink-secondary hover:text-ink-primary">
  <X size={14} />
  </button>
  </div>
@@ -770,7 +770,7 @@ const Settings = ({ embedded = false, section = null }) => {
  <span className="text-sm font-semibold text-ink-primary">{cat}</span>
  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
  <button 
- className="p-2 rounded-lg hover:bg-black/5 text-gray-700 hover:text-ink-primary transition-colors"
+ className="p-2 rounded-lg hover:bg-black/5 text-ink-secondary hover:text-ink-primary transition-colors"
  onClick={() => {
  setEditingCategory(cat);
  setEditValue(cat);
@@ -779,7 +779,7 @@ const Settings = ({ embedded = false, section = null }) => {
  <Edit2 size={14} />
  </button>
  <button 
- className="p-2 rounded-lg hover:bg-red-50 text-gray-700 hover:text-red-500 transition-colors"
+ className="p-2 rounded-lg hover:bg-red-50 text-ink-secondary hover:text-red-500 transition-colors"
  onClick={() => {
  if (window.confirm(`Delete category"${cat}"?`)) {
  deleteExpenseCategory(cat);
@@ -811,7 +811,7 @@ const Settings = ({ embedded = false, section = null }) => {
  <input
  type="text"
  placeholder="New Category..."
- className="input-field !rounded-xl !py-2.5 font-bold text-sm bg-white border border-gray-300 shadow-sm flex-1"
+ className="input-field !rounded-xl !py-2.5 font-bold text-sm bg-white border border-border shadow-sm flex-1"
  value={newProductCategory}
  onChange={e => setNewProductCategory(e.target.value)}
  onKeyPress={e => {
@@ -852,7 +852,7 @@ const Settings = ({ embedded = false, section = null }) => {
 
  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
  {productCategories.map(cat => (
- <div key={cat.id} className="group flex items-center justify-between p-4 rounded-xl bg-white border border-gray-300 shadow-sm hover:border-accent-signature/30 transition-all">
+ <div key={cat.id} className="group flex items-center justify-between p-4 rounded-xl bg-white border border-border shadow-sm hover:border-accent-signature/30 transition-all">
  {editingProductCategory === cat.id ? (
  <div className="flex items-center gap-2 w-full">
  <input
@@ -872,7 +872,7 @@ const Settings = ({ embedded = false, section = null }) => {
 }
 }}
  />
- <button onClick={() => setEditingProductCategory(null)} className="text-gray-700 hover:text-ink-primary">
+ <button onClick={() => setEditingProductCategory(null)} className="text-ink-secondary hover:text-ink-primary">
  <X size={14} />
  </button>
  </div>
@@ -881,13 +881,13 @@ const Settings = ({ embedded = false, section = null }) => {
  <span className="text-sm font-semibold text-ink-primary">{cat.name}</span>
  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
  <button
- className="p-2 rounded-lg hover:bg-black/5 text-gray-700 hover:text-ink-primary transition-colors"
+ className="p-2 rounded-lg hover:bg-black/5 text-ink-secondary hover:text-ink-primary transition-colors"
  onClick={() => { setEditingProductCategory(cat.id); setEditProductValue(cat.name); }}
  >
  <Edit2 size={14} />
  </button>
  <button
- className="p-2 rounded-lg hover:bg-red-50 text-gray-700 hover:text-red-500 transition-colors"
+ className="p-2 rounded-lg hover:bg-red-50 text-ink-secondary hover:text-red-500 transition-colors"
  onClick={() => { if (window.confirm(`Delete category "${cat.name}"?`)) deleteProductCategory(cat.id); }}
  >
  <Trash2 size={14} />
@@ -898,7 +898,7 @@ const Settings = ({ embedded = false, section = null }) => {
  </div>
  ))}
  {productCategories.length === 0 && (
- <p className="text-sm text-gray-500 col-span-2">No product categories yet. Add one above.</p>
+ <p className="text-sm text-muted-foreground col-span-2">No product categories yet. Add one above.</p>
  )}
  </div>
  </div>
@@ -910,16 +910,16 @@ const Settings = ({ embedded = false, section = null }) => {
  <Zap size={36} />
  </div>
  <div className="flex-1">
- <div className="text-sm font-semibold text-gray-700 opacity-70 mb-3">Inventory Alerts</div>
+ <div className="text-sm font-semibold text-ink-secondary opacity-70 mb-3">Inventory Alerts</div>
  <h3 className="text-2xl font-semibold text-ink-primary mb-4">Low Stock Threshold</h3>
  <div className="flex items-center gap-4">
  <input
  type="number"
- className="input-field !max-w-[140px] !rounded-lg !py-2.5 !text-center !font-semibold !text-2xl bg-white border border-gray-300 shadow-sm"
+ className="input-field !max-w-[140px] !rounded-lg !py-2.5 !text-center !font-semibold !text-2xl bg-white border border-border shadow-sm"
  value={profileData.lowStockThreshold}
  onChange={e => setProfileData({ ...profileData, lowStockThreshold: parseInt(e.target.value) || 0})}
  />
- <span className="text-xs font-semibold text-gray-700 opacity-70 leading-tight">Minimum Stock<br/>Level</span>
+ <span className="text-xs font-semibold text-ink-secondary opacity-70 leading-tight">Minimum Stock<br/>Level</span>
  </div>
  </div>
  </div>
@@ -943,7 +943,7 @@ const Settings = ({ embedded = false, section = null }) => {
 
      {/* Toggle rows */}
      <div>
-       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Business Info on Bill</p>
+       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Business Info on Bill</p>
        <div className="space-y-1">
          {[
            { key: 'show_address',  label: 'Business Address' },
@@ -966,7 +966,7 @@ const Settings = ({ embedded = false, section = null }) => {
      </div>
 
      <div>
-       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Customer Info on Bill</p>
+       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Customer Info on Bill</p>
        <div className="space-y-1">
          {[
            { key: 'show_customer_name',  label: 'Customer Name' },
@@ -986,7 +986,7 @@ const Settings = ({ embedded = false, section = null }) => {
      </div>
 
      <div>
-       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Amounts & Tax</p>
+       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Amounts & Tax</p>
        <div className="space-y-1">
          {[
            { key: 'show_tax_breakdown', label: 'Show CGST / SGST breakdown' },
@@ -1007,7 +1007,7 @@ const Settings = ({ embedded = false, section = null }) => {
 
      {/* Bill title */}
      <div>
-       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Bill Title</p>
+       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Bill Title</p>
        <div className="flex gap-2">
          {['TAX INVOICE', 'CASH BILL', 'RECEIPT', 'RETAIL INVOICE'].map(opt => (
            <button
@@ -1016,7 +1016,7 @@ const Settings = ({ embedded = false, section = null }) => {
              className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wide border transition-all ${
                billSettings.bill_title === opt
                  ? 'bg-ink-primary text-white border-ink-primary'
-                 : 'bg-canvas border-black/10 text-gray-500 hover:border-black/30'
+                 : 'bg-canvas border-black/10 text-muted-foreground hover:border-black/30'
              }`}
            >
              {opt}
@@ -1027,15 +1027,15 @@ const Settings = ({ embedded = false, section = null }) => {
 
      {/* Footer message */}
      <div>
-       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Footer Message</label>
+       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-2">Footer Message</label>
        <input
          type="text"
          value={billSettings.footer_message}
          onChange={e => setBillSettings(prev => ({ ...prev, footer_message: e.target.value }))}
          placeholder="e.g. Thank You • Visit Again"
-         className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-3 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
+         className="w-full bg-white border border-border shadow-sm rounded-xl px-4 py-3 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
        />
-       <p className="text-[10px] text-gray-400 mt-1.5">Appears at the bottom of every printed bill. Leave blank to hide.</p>
+       <p className="text-[10px] text-muted-foreground mt-1.5">Appears at the bottom of every printed bill. Leave blank to hide.</p>
      </div>
 
      {/* Save */}
@@ -1059,7 +1059,7 @@ const Settings = ({ embedded = false, section = null }) => {
  <div className="text-[9px] font-semibold text-accent-signature opacity-70">CSV & JSON</div>
  </div>
  <div className="p-5 space-y-4">
- <p className="text-[11px] font-bold text-gray-700 leading-relaxed">
+ <p className="text-[11px] font-bold text-ink-secondary leading-relaxed">
  Import your existing business data or export a backup. Supports CSV and JSON formats for Products, Clients, Orders, Expenses, and Employees.
  </p>
  <button
@@ -1138,8 +1138,8 @@ const Settings = ({ embedded = false, section = null }) => {
          {/* Existing locations */}
          <div className="space-y-2">
            {inventoryLocations.map(loc => (
-             <div key={loc.id} className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white border border-gray-300 shadow-sm">
-               <MapPin size={14} className="text-gray-400 shrink-0" />
+             <div key={loc.id} className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white border border-border shadow-sm">
+               <MapPin size={14} className="text-muted-foreground shrink-0" />
                {editingLoc?.id === loc.id ? (
                  <div className="flex-1 flex gap-2">
                    <input
@@ -1154,26 +1154,26 @@ const Settings = ({ embedded = false, section = null }) => {
                      className="flex-1 text-xs font-semibold bg-white border border-black/10 rounded-xl px-3 py-1.5 outline-none"
                    />
                    <button onClick={handleSaveEditLoc} disabled={locSaving} className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 px-2">Save</button>
-                   <button onClick={() => setEditingLoc(null)} className="text-[10px] font-black text-gray-400 hover:text-gray-600 px-2">Cancel</button>
+                   <button onClick={() => setEditingLoc(null)} className="text-[10px] font-black text-muted-foreground hover:text-ink-secondary px-2">Cancel</button>
                  </div>
                ) : (
                  <>
                    <div className="flex-1 min-w-0">
                      <p className="text-sm font-black text-ink-primary truncate">{loc.name}</p>
-                     {loc.address && <p className="text-[10px] text-gray-400 truncate">{loc.address}</p>}
+                     {loc.address && <p className="text-[10px] text-muted-foreground truncate">{loc.address}</p>}
                    </div>
                    {loc.id !== '00000000-0000-0000-0000-000000000001' && (
                      <div className="flex gap-1.5">
                        <button onClick={() => setEditingLoc({ ...loc })} className="w-7 h-7 rounded-lg hover:bg-black/5 flex items-center justify-center transition-colors">
-                         <Edit2 size={12} className="text-gray-400" />
+                         <Edit2 size={12} className="text-muted-foreground" />
                        </button>
                        <button onClick={() => handleDeleteLoc(loc.id)} className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center transition-colors group">
-                         <Trash2 size={12} className="text-gray-300 group-hover:text-red-400" />
+                         <Trash2 size={12} className="text-muted-foreground group-hover:text-red-400" />
                        </button>
                      </div>
                    )}
                    {loc.id === '00000000-0000-0000-0000-000000000001' && (
-                     <span className="text-[9px] font-black text-gray-400 bg-black/5 px-2 py-0.5 rounded-full">Main</span>
+                     <span className="text-[9px] font-black text-muted-foreground bg-black/5 px-2 py-0.5 rounded-full">Main</span>
                    )}
                  </>
                )}
@@ -1186,13 +1186,13 @@ const Settings = ({ embedded = false, section = null }) => {
              value={newLocName}
              onChange={e => setNewLocName(e.target.value)}
              placeholder="Branch name (e.g. Kozhikode Outlet)"
-             className="flex-1 text-xs font-semibold bg-white border border-gray-300 shadow-sm rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-accent-signature/25"
+             className="flex-1 text-xs font-semibold bg-white border border-border shadow-sm rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-accent-signature/25"
            />
            <input
              value={newLocAddr}
              onChange={e => setNewLocAddr(e.target.value)}
              placeholder="Address (optional)"
-             className="flex-1 text-xs font-semibold bg-white border border-gray-300 shadow-sm rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-accent-signature/25"
+             className="flex-1 text-xs font-semibold bg-white border border-border shadow-sm rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-accent-signature/25"
            />
            <button
              onClick={handleAddLocation}
@@ -1228,18 +1228,18 @@ const Settings = ({ embedded = false, section = null }) => {
        </div>
      ) : (
        <div className="space-y-4">
-         <p className="text-xs font-semibold text-gray-500">
+         <p className="text-xs font-semibold text-muted-foreground">
            Use this key to authenticate API requests. Keep it secret — treat like a password.
          </p>
          {apiKey ? (
-           <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-gray-300 shadow-sm">
-             <Key size={14} className="text-gray-400 shrink-0" />
-             <code className="flex-1 text-[11px] font-mono text-ink-primary tracking-tight truncate">
+           <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-border shadow-sm">
+             <Key size={14} className="text-muted-foreground shrink-0" />
+             <code className="flex-1 text-[11px] tabular-nums text-ink-primary tracking-tight truncate">
                {apiKeyVisible ? apiKey : '••••••••••••••••••••••••••••••••••••••••'}
              </code>
              <button
                onClick={() => setApiKeyVisible(v => !v)}
-               className="text-[10px] font-black text-gray-400 hover:text-ink-primary px-2"
+               className="text-[10px] font-black text-muted-foreground hover:text-ink-primary px-2"
              >
                {apiKeyVisible ? 'Hide' : 'Show'}
              </button>
@@ -1247,12 +1247,12 @@ const Settings = ({ embedded = false, section = null }) => {
                onClick={copyApiKey}
                className="w-8 h-8 rounded-xl hover:bg-black/5 flex items-center justify-center transition-colors"
              >
-               {apiKeyCopied ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Copy size={14} className="text-gray-400" />}
+               {apiKeyCopied ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Copy size={14} className="text-muted-foreground" />}
              </button>
            </div>
          ) : (
            <div className="p-4 rounded-2xl bg-canvas border border-dashed border-black/10 text-center">
-             <p className="text-xs font-semibold text-gray-400">No API key generated yet.</p>
+             <p className="text-xs font-semibold text-muted-foreground">No API key generated yet.</p>
            </div>
          )}
          <button
@@ -1293,16 +1293,16 @@ const Settings = ({ embedded = false, section = null }) => {
          </div>
        </div>
        <h2 className="text-3xl font-black text-ink-primary mb-4 uppercase tracking-tighter">Enter the Pro Tier<span className="text-accent-signature">.</span></h2>
-       <p className="text-sm font-semibold text-gray-700 opacity-70 mb-10 leading-relaxed uppercase">
+       <p className="text-sm font-semibold text-ink-secondary opacity-70 mb-10 leading-relaxed uppercase">
          Unlock high-density logistics tracking, enterprise RLS governance, and advanced sync engine capabilities.
        </p>
        
        <div className="space-y-3 mb-10">
-         <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-gray-300 shadow-sm">
+         <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-border shadow-sm">
            <div className="w-8 h-8 rounded-lg bg-ink-primary flex items-center justify-center text-accent-signature"><Database size={16} /></div>
            <span className="text-[10px] font-bold text-ink-primary uppercase tracking-wide text-left">Advanced Multi-Tenant Governance</span>
          </div>
-         <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-gray-300 shadow-sm">
+         <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-border shadow-sm">
            <div className="w-8 h-8 rounded-lg bg-ink-primary flex items-center justify-center text-accent-signature"><Zap size={16} /></div>
            <span className="text-[10px] font-bold text-ink-primary uppercase tracking-wide text-left">Real-time Logistics Replication</span>
          </div>
@@ -1320,7 +1320,7 @@ const Settings = ({ embedded = false, section = null }) => {
          </a>
          <button 
            onClick={() => setShowUpgradeModal(false)}
-           className="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase hover:text-ink-primary transition-all"
+           className="px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase hover:text-ink-primary transition-all"
          >
            Close
          </button>

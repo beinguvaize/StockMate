@@ -106,7 +106,7 @@ const AdminPanel = () => {
           <div>
             <button
               onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-xs font-semibold text-gray-500 hover:text-ink-primary mb-4 transition-colors"
+              className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-ink-primary mb-4 transition-colors"
             >
               <ArrowLeft size={14} />
               Back to Workspace
@@ -114,7 +114,7 @@ const AdminPanel = () => {
             <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">
               ADMIN<span className="text-accent-signature">.</span>
             </h1>
-            <p className="text-[10px] font-semibold text-gray-600 opacity-80 uppercase">
+            <p className="text-[10px] font-semibold text-ink-secondary opacity-80 uppercase">
               MULTI-TENANT CONTROL CENTER
             </p>
           </div>
@@ -139,7 +139,7 @@ const AdminPanel = () => {
                 {kpi.icon}
               </div>
               <p className="text-3xl font-bold text-ink-primary font-sora">{kpi.value}</p>
-              <p className="text-[10px] font-semibold text-gray-600 opacity-80 uppercase mt-1">{kpi.label}</p>
+              <p className="text-[10px] font-semibold text-ink-secondary opacity-80 uppercase mt-1">{kpi.label}</p>
             </div>
           ))}
         </div>
@@ -147,13 +147,13 @@ const AdminPanel = () => {
         {/* Search & Filter Bar */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search tenants..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-field !pl-12 !rounded-xl !py-3 font-medium text-sm !bg-white border border-gray-300 shadow-sm w-full"
+              className="input-field !pl-12 !rounded-xl !py-3 font-medium text-sm !bg-white border border-border shadow-sm w-full"
             />
           </div>
           <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-black/5">
@@ -164,7 +164,7 @@ const AdminPanel = () => {
                 className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
                   selectedPlan === plan
                     ? 'bg-ink-primary text-white shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-50'
+                    : 'text-ink-secondary hover:bg-muted'
                 }`}
               >
                 {plan}
@@ -194,8 +194,8 @@ const AdminPanel = () => {
                       <div className="min-w-0">
                         <h3 className="text-base font-bold text-ink-primary truncate">{tenant.name}</h3>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[11px] font-medium text-gray-500">/{tenant.slug}</span>
-                          <span className="text-[9px] text-gray-400">•</span>
+                          <span className="text-[11px] font-medium text-muted-foreground">/{tenant.slug}</span>
+                          <span className="text-[9px] text-muted-foreground">•</span>
                           <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${statusConfig.color}`}>
                             {statusConfig.label}
                           </span>
@@ -221,13 +221,13 @@ const AdminPanel = () => {
                     <div className="flex items-center gap-6">
                       <div className="text-center">
                         <p className="text-lg font-bold text-ink-primary">{tenant.userCount || 0}</p>
-                        <p className="text-[9px] font-semibold text-gray-500 uppercase">Users</p>
+                        <p className="text-[9px] font-semibold text-muted-foreground uppercase">Users</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[10px] font-medium text-gray-500">
+                        <p className="text-[10px] font-medium text-muted-foreground">
                           {new Date(tenant.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
                         </p>
-                        <p className="text-[9px] font-semibold text-gray-500 uppercase">Created</p>
+                        <p className="text-[9px] font-semibold text-muted-foreground uppercase">Created</p>
                       </div>
                     </div>
 
@@ -246,7 +246,7 @@ const AdminPanel = () => {
                       </button>
                       <button
                         onClick={() => navigate(`/${tenant.slug}/dashboard`)}
-                        className="p-2 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-ink-primary transition-colors"
+                        className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-ink-primary transition-colors"
                         title="Impersonate"
                       >
                         <Eye size={18} />
@@ -258,7 +258,7 @@ const AdminPanel = () => {
             })}
 
             {filteredTenants.length === 0 && (
-              <div className="text-center py-16 text-gray-500">
+              <div className="text-center py-16 text-muted-foreground">
                 <Building2 size={48} className="mx-auto mb-4 opacity-30" />
                 <p className="text-sm font-semibold">No tenants found</p>
               </div>

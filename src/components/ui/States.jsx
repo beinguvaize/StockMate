@@ -46,7 +46,7 @@ export const SkeletonCards = ({ count = 4, className = '' }) => (
 export const LoadingBlock = ({ label = 'Loading…', className = '' }) => (
   <div className={`flex flex-col items-center justify-center gap-3 py-20 text-center ${className}`}>
     <Spinner size={24} />
-    <p className="text-[13px] font-bold text-gray-400 tracking-wide">{label}</p>
+    <p className="text-[13px] font-bold text-muted-foreground tracking-wide">{label}</p>
   </div>
 );
 
@@ -85,7 +85,7 @@ export const EmptyState = ({
       <Icon size={26} className="text-accent-signature" strokeWidth={1.6} />
     </div>
     <p className="text-sm font-bold text-ink-primary">{title}</p>
-    {description && <p className="text-[12px] font-medium text-gray-400 mt-1 max-w-sm">{description}</p>}
+    {description && <p className="text-[12px] font-medium text-muted-foreground mt-1 max-w-sm">{description}</p>}
     {action && (
       <button
         onClick={action.onClick}
@@ -109,7 +109,7 @@ export const ErrorState = ({
       <AlertTriangle size={26} className="text-rose-500" strokeWidth={1.6} />
     </div>
     <p className="text-sm font-bold text-ink-primary">{title}</p>
-    <p className="text-[12px] font-medium text-gray-400 mt-1 max-w-sm">{description}</p>
+    <p className="text-[12px] font-medium text-muted-foreground mt-1 max-w-sm">{description}</p>
     {onRetry && (
       <button
         onClick={onRetry}

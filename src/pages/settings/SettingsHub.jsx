@@ -109,16 +109,16 @@ const EmbedSkin = ({ children }) => (
 
 // ── Shared primitives ────────────────────────────────────────────────────────
 const Card = ({ title, description, footer, children }) => (
-  <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+  <section className="bg-white border border-border rounded-lg overflow-hidden">
     {(title || description) && (
-      <header className="px-5 py-4 border-b border-gray-100">
-        <h2 className="text-[14px] font-semibold text-gray-900">{title}</h2>
-        {description && <p className="text-[12.5px] text-gray-500 mt-0.5">{description}</p>}
+      <header className="px-5 py-4 border-b border-border">
+        <h2 className="text-[14px] font-semibold text-foreground">{title}</h2>
+        {description && <p className="text-[12.5px] text-muted-foreground mt-0.5">{description}</p>}
       </header>
     )}
     <div className="px-5 py-4">{children}</div>
     {footer && (
-      <footer className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2">
+      <footer className="px-5 py-3 bg-muted border-t border-border flex items-center justify-end gap-2">
         {footer}
       </footer>
     )}
@@ -126,10 +126,10 @@ const Card = ({ title, description, footer, children }) => (
 );
 
 const FormRow = ({ label, hint, children }) => (
-  <div className="grid sm:grid-cols-[180px_1fr] gap-1.5 sm:gap-6 py-3.5 first:pt-0 last:pb-0 border-b border-gray-100 last:border-0 items-start">
+  <div className="grid sm:grid-cols-[180px_1fr] gap-1.5 sm:gap-6 py-3.5 first:pt-0 last:pb-0 border-b border-border last:border-0 items-start">
     <div>
-      <div className="text-[13px] font-medium text-gray-700">{label}</div>
-      {hint && <div className="text-[12px] text-gray-400 mt-0.5">{hint}</div>}
+      <div className="text-[13px] font-medium text-ink-secondary">{label}</div>
+      {hint && <div className="text-[12px] text-muted-foreground mt-0.5">{hint}</div>}
     </div>
     <div className="min-w-0">{children}</div>
   </div>
@@ -149,7 +149,7 @@ const Toggle = ({ checked, onChange }) => (
   </button>
 );
 
-const inputCls = 'w-full max-w-sm border border-gray-300 rounded-md px-3 py-2 text-[13px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition';
+const inputCls = 'w-full max-w-sm border border-border rounded-md px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition';
 
 // ── Account ──────────────────────────────────────────────────────────────────
 const AccountPanel = () => {
@@ -174,15 +174,15 @@ const AccountPanel = () => {
     <div className="max-w-2xl space-y-4">
       <Card title="Profile" description="Your personal account details.">
         <FormRow label="Name">
-          <div className="text-[13px] text-gray-900 py-1.5">{currentUser?.name || '—'}</div>
+          <div className="text-[13px] text-foreground py-1.5">{currentUser?.name || '—'}</div>
         </FormRow>
         <FormRow label="Email">
-          <div className="text-[13px] text-gray-900 py-1.5">{currentUser?.email}</div>
+          <div className="text-[13px] text-foreground py-1.5">{currentUser?.email}</div>
         </FormRow>
         <FormRow label="Roles">
           <div className="flex flex-wrap gap-1.5 py-1">
             {(currentUser?.roles || []).map(r => (
-              <span key={r} className="px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600">{r}</span>
+              <span key={r} className="px-2 py-0.5 rounded text-[11px] font-medium bg-muted text-ink-secondary">{r}</span>
             ))}
           </div>
         </FormRow>
@@ -198,7 +198,7 @@ const AccountPanel = () => {
         </FormRow>
         <FormRow label="Confirm password">
           <input type="password" className={inputCls} placeholder="••••••••" value={pw2} onChange={e => setPw2(e.target.value)} />
-          {msg && <p className="text-[12px] text-gray-600 mt-2">{msg}</p>}
+          {msg && <p className="text-[12px] text-ink-secondary mt-2">{msg}</p>}
         </FormRow>
       </Card>
 
@@ -304,23 +304,23 @@ const PrintPanel = ({ tenantId }) => {
         footer={<PrimaryBtn onClick={save}>{saved ? <span className="inline-flex items-center gap-1.5"><Check size={13} /> Saved</span> : 'Save changes'}</PrimaryBtn>}
       >
         <FormRow label="Paper width" hint="Match your thermal printer roll.">
-          <div className="inline-flex rounded-md border border-gray-300 overflow-hidden">
+          <div className="inline-flex rounded-md border border-border overflow-hidden">
             {[['58', '58 mm'], ['80', '80 mm'], ['A4', 'A4']].map(([v, l], i) => (
               <button key={v} onClick={() => setPrefs({ ...prefs, paper: v })}
-                className={`px-4 py-2 text-[13px] font-medium transition-colors ${i > 0 ? 'border-l border-gray-300' : ''} ${
-                  prefs.paper === v ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                className={`px-4 py-2 text-[13px] font-medium transition-colors ${i > 0 ? 'border-l border-border' : ''} ${
+                  prefs.paper === v ? 'bg-gray-900 text-white' : 'bg-white text-ink-secondary hover:bg-muted'}`}>
                 {l}
               </button>
             ))}
           </div>
         </FormRow>
         <FormRow label="Copies per receipt">
-          <div className="inline-flex items-center rounded-md border border-gray-300 overflow-hidden">
+          <div className="inline-flex items-center rounded-md border border-border overflow-hidden">
             <button onClick={() => setPrefs({ ...prefs, copies: Math.max(1, prefs.copies - 1) })}
-              className="w-9 h-9 text-gray-600 hover:bg-gray-50 text-[15px]">−</button>
-            <span className="w-10 text-center text-[13px] font-semibold text-gray-900 border-x border-gray-300 leading-9">{prefs.copies}</span>
+              className="w-9 h-9 text-ink-secondary hover:bg-muted text-[15px]">−</button>
+            <span className="w-10 text-center text-[13px] font-semibold text-foreground border-x border-border leading-9">{prefs.copies}</span>
             <button onClick={() => setPrefs({ ...prefs, copies: Math.min(3, prefs.copies + 1) })}
-              className="w-9 h-9 text-gray-600 hover:bg-gray-50 text-[15px]">+</button>
+              className="w-9 h-9 text-ink-secondary hover:bg-muted text-[15px]">+</button>
           </div>
         </FormRow>
         <FormRow label="Auto-print" hint="Open the print dialog automatically after each sale.">
@@ -334,11 +334,11 @@ const PrintPanel = ({ tenantId }) => {
         footer={<PrimaryBtn onClick={save}>{saved ? <span className="inline-flex items-center gap-1.5"><Check size={13} /> Saved</span> : 'Save design & text'}</PrimaryBtn>}
       >
         {/* doc tabs */}
-        <div className="inline-flex rounded-md border border-gray-300 overflow-hidden mb-4">
+        <div className="inline-flex rounded-md border border-border overflow-hidden mb-4">
           {[['receipt', 'Thermal receipt'], ['invoice', 'A4 tax invoice']].map(([v, l], i) => (
             <button key={v} onClick={() => setDocTab(v)}
-              className={`px-4 py-2 text-[13px] font-medium transition-colors ${i > 0 ? 'border-l border-gray-300' : ''} ${
-                docTab === v ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+              className={`px-4 py-2 text-[13px] font-medium transition-colors ${i > 0 ? 'border-l border-border' : ''} ${
+                docTab === v ? 'bg-gray-900 text-white' : 'bg-white text-ink-secondary hover:bg-muted'}`}>
               {l}
             </button>
           ))}
@@ -349,14 +349,14 @@ const PrintPanel = ({ tenantId }) => {
             <div className="grid grid-cols-3 gap-3 mb-4">
               {RECEIPT_META.map(t => (
                 <button key={t.id} onClick={() => setPrefs({ ...prefs, receiptTemplate: t.id })}
-                  className={`text-left rounded-md border p-3 transition-colors ${prefs.receiptTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <div className="text-[13px] font-semibold text-gray-900">{t.name}</div>
-                  <div className="text-[11.5px] text-gray-500">{t.blurb}</div>
+                  className={`text-left rounded-md border p-3 transition-colors ${prefs.receiptTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-border hover:border-border'}`}>
+                  <div className="text-[13px] font-semibold text-foreground">{t.name}</div>
+                  <div className="text-[11.5px] text-muted-foreground">{t.blurb}</div>
                 </button>
               ))}
             </div>
             <div className="grid lg:grid-cols-[1fr_230px] gap-4">
-            <div className="bg-gray-100 rounded-md p-4 overflow-auto flex justify-center">
+            <div className="bg-muted rounded-md p-4 overflow-auto flex justify-center">
               {/* Live preview = the real receipt component (POSReceipt) so what
                   you toggle/label/size here is exactly what prints (web + mobile). */}
               <POSReceipt
@@ -378,19 +378,19 @@ const PrintPanel = ({ tenantId }) => {
             </div>
             <div>
               {/* Paper width — strict thermal sizing, no distortion. */}
-              <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Paper width</div>
+              <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Paper width</div>
               <div className="flex gap-2 mb-4">
                 {[['80', '80mm'], ['58', '58mm']].map(([v, label]) => (
                   <button key={v} onClick={() => setBillSet({ ...billSet, paper_width: v })}
                     className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${
                       (billSet.paper_width || '80') === v
                         ? 'bg-gray-900 text-white border-gray-900'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                        : 'bg-white text-ink-secondary border-border hover:border-gray-400'
                     }`}>{label}</button>
                 ))}
               </div>
 
-              <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Receipt content — show / hide</div>
+              <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Receipt content — show / hide</div>
               <div className="space-y-1.5">
                 {[
                   ['show_business_name', 'Business name'],
@@ -410,7 +410,7 @@ const PrintPanel = ({ tenantId }) => {
                   ['show_footer', 'Footer message'],
                   ['show_terms', 'Terms & conditions'],
                 ].map(([k, label]) => (
-                  <label key={k} className="flex items-center justify-between text-[12.5px] text-gray-700 cursor-pointer">
+                  <label key={k} className="flex items-center justify-between text-[12.5px] text-ink-secondary cursor-pointer">
                     {label}
                     <Toggle checked={!!billSet[k]} onChange={v => setBillSet({ ...billSet, [k]: v })} />
                   </label>
@@ -418,7 +418,7 @@ const PrintPanel = ({ tenantId }) => {
               </div>
 
               {/* Editable prefix labels */}
-              <div className="text-[11px] font-semibold text-gray-500 mt-4 mb-1.5">Field labels</div>
+              <div className="text-[11px] font-semibold text-muted-foreground mt-4 mb-1.5">Field labels</div>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   ['bill_title', 'Title', billSet.bill_title || ''],
@@ -440,11 +440,11 @@ const PrintPanel = ({ tenantId }) => {
                         setBillSet({ ...billSet, [k]: v });
                       }
                     }}
-                    className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-[12px] outline-none focus:border-gray-400" />
+                    className="w-full bg-white border border-border rounded-lg px-2.5 py-1.5 text-[12px] outline-none focus:border-gray-400" />
                 ))}
               </div>
 
-              <div className="text-[10.5px] text-gray-400 mt-3">Applies to POS receipts (web + mobile print). Saved with this card.</div>
+              <div className="text-[10.5px] text-muted-foreground mt-3">Applies to POS receipts (web + mobile print). Saved with this card.</div>
             </div>
             </div>
           </>
@@ -453,15 +453,15 @@ const PrintPanel = ({ tenantId }) => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               {INVOICE_LAYOUT_META.map(t => (
                 <button key={t.id} onClick={() => setPrefs({ ...prefs, invoiceTemplate: t.id })}
-                  className={`text-left rounded-md border p-3 transition-colors ${prefs.invoiceTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <div className="text-[13px] font-semibold text-gray-900">{t.name}</div>
-                  <div className="text-[11.5px] text-gray-500">{t.blurb}</div>
+                  className={`text-left rounded-md border p-3 transition-colors ${prefs.invoiceTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-border hover:border-border'}`}>
+                  <div className="text-[13px] font-semibold text-foreground">{t.name}</div>
+                  <div className="text-[11.5px] text-muted-foreground">{t.blurb}</div>
                 </button>
               ))}
             </div>
             <div className="grid lg:grid-cols-[1fr_230px] gap-4">
               {/* live preview */}
-              <div className="bg-gray-100 rounded-md p-4 overflow-auto">
+              <div className="bg-muted rounded-md p-4 overflow-auto">
                 <div style={{ width: 794 * 0.55 }} className="mx-auto">
                   {/* zoom (not transform) so the wrapper's layout height shrinks with the content */}
                   <div style={{ zoom: 0.55, width: 794 }}>
@@ -486,7 +486,7 @@ const PrintPanel = ({ tenantId }) => {
               {/* control rail */}
               <div className="space-y-4">
                 <div>
-                  <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Accent colour</div>
+                  <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Accent colour</div>
                   <div className="flex flex-wrap gap-1.5">
                     {ACCENT_SWATCHES.map(c => (
                       <button key={c} onClick={() => setPrefs({ ...prefs, invAccent: c })}
@@ -494,14 +494,14 @@ const PrintPanel = ({ tenantId }) => {
                         style={{ background: c }} aria-label={c} />
                     ))}
                   </div>
-                  <div className="text-[10.5px] text-gray-400 mt-1">Applies to Modern & Letterhead designs.</div>
+                  <div className="text-[10.5px] text-muted-foreground mt-1">Applies to Modern & Letterhead designs.</div>
                 </div>
                 {OPT_GROUPS.map(([group, items]) => (
                   <div key={group}>
-                    <div className="text-[11px] font-semibold text-gray-500 mb-1.5">{group}</div>
+                    <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">{group}</div>
                     <div className="space-y-1.5">
                       {items.map(([k, label]) => (
-                        <label key={k} className="flex items-center justify-between text-[12.5px] text-gray-700 cursor-pointer">
+                        <label key={k} className="flex items-center justify-between text-[12.5px] text-ink-secondary cursor-pointer">
                           {label}
                           <Toggle checked={invOpts[k]} onChange={v => setOpt(k, v)} />
                         </label>
@@ -512,30 +512,30 @@ const PrintPanel = ({ tenantId }) => {
 
                 {/* Signature image */}
                 <div>
-                  <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Signature image</div>
+                  <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Signature image</div>
                   {businessProfile?.signature_url ? (
                     <div className="space-y-1.5">
-                      <div className="bg-white border border-gray-200 rounded-md p-2 flex justify-center">
+                      <div className="bg-white border border-border rounded-md p-2 flex justify-center">
                         <img src={businessProfile.signature_url} alt="signature" className="h-10 object-contain" />
                       </div>
                       <button onClick={removeSignature} disabled={sigBusy}
-                        className="w-full py-1.5 rounded-md border border-gray-200 text-[12px] font-medium text-gray-500 hover:text-red-500 hover:border-red-200 disabled:opacity-50">
+                        className="w-full py-1.5 rounded-md border border-border text-[12px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-200 disabled:opacity-50">
                         {sigBusy ? 'Removing…' : 'Remove signature'}
                       </button>
                     </div>
                   ) : (
-                    <label className={`block w-full py-1.5 rounded-md border border-dashed border-gray-300 text-[12px] font-medium text-gray-500 text-center cursor-pointer hover:border-gray-400 hover:text-gray-700 ${sigBusy ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <label className={`block w-full py-1.5 rounded-md border border-dashed border-border text-[12px] font-medium text-muted-foreground text-center cursor-pointer hover:border-gray-400 hover:text-ink-secondary ${sigBusy ? 'opacity-50 pointer-events-none' : ''}`}>
                       {sigBusy ? 'Uploading…' : '+ Upload signature (PNG)'}
                       <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
                         onChange={e => uploadSignature(e.target.files?.[0])} />
                     </label>
                   )}
-                  <div className="text-[10.5px] text-gray-400 mt-1">Transparent PNG works best. Shown above "Authorised Signatory".</div>
+                  <div className="text-[10.5px] text-muted-foreground mt-1">Transparent PNG works best. Shown above "Authorised Signatory".</div>
                 </div>
 
                 {/* Custom fields (label: value pairs printed on every invoice) */}
                 <div>
-                  <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Custom fields</div>
+                  <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Custom fields</div>
                   <div className="space-y-2">
                     {(prefs.customFields || []).map((f, i) => (
                       <div key={i} className="flex gap-1.5 items-center">
@@ -544,24 +544,24 @@ const PrintPanel = ({ tenantId }) => {
                             const cf = [...prefs.customFields]; cf[i] = { ...cf[i], label: e.target.value };
                             setPrefs({ ...prefs, customFields: cf });
                           }}
-                          className="w-[38%] border border-gray-300 rounded-md px-2 py-1.5 text-[12px] outline-none focus:border-gray-900" />
+                          className="w-[38%] border border-border rounded-md px-2 py-1.5 text-[12px] outline-none focus:border-gray-900" />
                         <input value={f.value} placeholder="Value"
                           onChange={e => {
                             const cf = [...prefs.customFields]; cf[i] = { ...cf[i], value: e.target.value };
                             setPrefs({ ...prefs, customFields: cf });
                           }}
-                          className="flex-1 border border-gray-300 rounded-md px-2 py-1.5 text-[12px] outline-none focus:border-gray-900" />
+                          className="flex-1 border border-border rounded-md px-2 py-1.5 text-[12px] outline-none focus:border-gray-900" />
                         <button onClick={() => setPrefs({ ...prefs, customFields: prefs.customFields.filter((_, j) => j !== i) })}
-                          className="w-6 h-6 shrink-0 rounded border border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200 text-[12px]">×</button>
+                          className="w-6 h-6 shrink-0 rounded border border-border text-muted-foreground hover:text-red-500 hover:border-red-200 text-[12px]">×</button>
                       </div>
                     ))}
                     {(prefs.customFields || []).length < 4 && (
                       <button onClick={() => setPrefs({ ...prefs, customFields: [...(prefs.customFields || []), { label: '', value: '' }] })}
-                        className="w-full py-1.5 rounded-md border border-dashed border-gray-300 text-[12px] font-medium text-gray-500 hover:border-gray-400 hover:text-gray-700">
+                        className="w-full py-1.5 rounded-md border border-dashed border-border text-[12px] font-medium text-muted-foreground hover:border-gray-400 hover:text-ink-secondary">
                         + Add field
                       </button>
                     )}
-                    <div className="text-[10.5px] text-gray-400">e.g. PAN, FSSAI No, Website — printed on every invoice.</div>
+                    <div className="text-[10.5px] text-muted-foreground">e.g. PAN, FSSAI No, Website — printed on every invoice.</div>
                   </div>
                 </div>
               </div>
@@ -573,7 +573,7 @@ const PrintPanel = ({ tenantId }) => {
       <Card title="Barcode labels" description="Label templates, per-field typography and bulk barcode generation.">
         <FormRow label="Labels tool" hint="Design and print price labels for products.">
           <a href="labels"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-gray-300 text-gray-700 text-[13px] font-semibold hover:bg-gray-50 transition-colors">
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-border text-ink-secondary text-[13px] font-semibold hover:bg-muted transition-colors">
             Open Labels <ChevronRight size={14} />
           </a>
         </FormRow>
@@ -621,27 +621,27 @@ const RemindersPanel = ({ tenantId }) => {
         description="Send a WhatsApp payment reminder with the client's name and amount prefilled."
       >
         {loading ? (
-          <p className="py-4 text-center text-[13px] text-gray-400">Loading…</p>
+          <p className="py-4 text-center text-[13px] text-muted-foreground">Loading…</p>
         ) : rows.length === 0 ? (
-          <p className="py-4 text-center text-[13px] text-gray-400">No outstanding balances.</p>
+          <p className="py-4 text-center text-[13px] text-muted-foreground">No outstanding balances.</p>
         ) : (
           <div className="-mx-5 -my-4 divide-y divide-gray-100 max-h-[480px] overflow-y-auto">
             {rows.map(c => (
               <div key={c.id} className="flex items-center gap-4 px-5 py-3">
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-medium text-gray-900 truncate">{c.name}</div>
-                  <div className="text-[12px] text-gray-400">{c.phone || 'No phone on file'}</div>
+                  <div className="text-[13px] font-medium text-foreground truncate">{c.name}</div>
+                  <div className="text-[12px] text-muted-foreground">{c.phone || 'No phone on file'}</div>
                 </div>
-                <div className="text-[13px] font-semibold text-gray-900 tabular-nums shrink-0">
+                <div className="text-[13px] font-semibold text-foreground tabular-nums shrink-0">
                   ₹{Number(c.outstanding_balance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                 </div>
                 {c.phone ? (
                   <a href={waLink(c)} target="_blank" rel="noreferrer"
-                    className="shrink-0 px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 text-[12px] font-semibold hover:bg-gray-50 transition-colors">
+                    className="shrink-0 px-3 py-1.5 rounded-md border border-border text-ink-secondary text-[12px] font-semibold hover:bg-muted transition-colors">
                     Send reminder
                   </a>
                 ) : (
-                  <span className="text-[11px] text-gray-400 shrink-0">—</span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">—</span>
                 )}
               </div>
             ))}
@@ -664,7 +664,7 @@ const PricingPanel = () => {
       <Card title="Current plan">
         <FormRow label="Plan">
           <div className="flex items-center gap-2 py-1">
-            <span className="text-[13px] font-semibold text-gray-900">{PLANS[plan]?.label || plan}</span>
+            <span className="text-[13px] font-semibold text-foreground">{PLANS[plan]?.label || plan}</span>
             {currentTenant?.status === 'TRIAL' && daysLeft != null && (
               <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-accent-signature/10 text-accent-signature-hover border border-accent-signature/25">
                 Trial · {daysLeft} day{daysLeft === 1 ? '' : 's'} left
@@ -673,27 +673,27 @@ const PricingPanel = () => {
           </div>
         </FormRow>
         <FormRow label="Billing" hint="Online payments are coming soon.">
-          <div className="text-[13px] text-gray-500 py-1.5">Contact us to upgrade or change plans.</div>
+          <div className="text-[13px] text-muted-foreground py-1.5">Contact us to upgrade or change plans.</div>
         </FormRow>
       </Card>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
         {Object.entries(PLANS).filter(([id]) => id !== 'STARTER').map(([id, p]) => (
           <section key={id}
-            className={`bg-white rounded-lg border p-5 ${id === plan ? 'border-gray-900' : 'border-gray-200'}`}>
+            className={`bg-white rounded-lg border p-5 ${id === plan ? 'border-gray-900' : 'border-border'}`}>
             <div className="flex items-center justify-between">
-              <span className="text-[12px] font-semibold text-gray-900 uppercase tracking-wide">{p.label}</span>
+              <span className="text-[12px] font-semibold text-foreground uppercase tracking-wide">{p.label}</span>
               {id === plan && (
                 <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-900 text-white">CURRENT</span>
               )}
             </div>
-            <div className="text-[18px] font-semibold text-gray-900 mt-1.5">{p.price}</div>
-            <ul className="text-[12.5px] text-gray-600 space-y-1.5 mt-3">
-              <li className="flex items-center gap-2"><Check size={13} className="text-gray-400 shrink-0" />{(p.modules || []).length} modules</li>
-              <li className="flex items-center gap-2"><Check size={13} className="text-gray-400 shrink-0" />{p.maxUsers === -1 ? 'Unlimited users' : `Up to ${p.maxUsers} users`}</li>
+            <div className="text-[18px] font-semibold text-foreground mt-1.5">{p.price}</div>
+            <ul className="text-[12.5px] text-ink-secondary space-y-1.5 mt-3">
+              <li className="flex items-center gap-2"><Check size={13} className="text-muted-foreground shrink-0" />{(p.modules || []).length} modules</li>
+              <li className="flex items-center gap-2"><Check size={13} className="text-muted-foreground shrink-0" />{p.maxUsers === -1 ? 'Unlimited users' : `Up to ${p.maxUsers} users`}</li>
               {(p.features || []).slice(0, 4).map(f => (
                 <li key={f} className="flex items-center gap-2">
-                  <Check size={13} className="text-gray-400 shrink-0" />
+                  <Check size={13} className="text-muted-foreground shrink-0" />
                   <span className="capitalize">{String(f).replaceAll('_', ' ')}</span>
                 </li>
               ))}
@@ -717,10 +717,10 @@ const SupportPanel = () => (
         <FormRow key={t} label={t} hint={sub}>
           {href ? (
             <a href={href} target="_blank" rel="noreferrer"
-              className="inline-flex px-3.5 py-2 rounded-md border border-gray-300 text-gray-700 text-[13px] font-semibold hover:bg-gray-50 transition-colors">
+              className="inline-flex px-3.5 py-2 rounded-md border border-border text-ink-secondary text-[13px] font-semibold hover:bg-muted transition-colors">
               {cta}
             </a>
-          ) : <span className="text-[13px] text-gray-400 py-1.5 inline-block">—</span>}
+          ) : <span className="text-[13px] text-muted-foreground py-1.5 inline-block">—</span>}
         </FormRow>
       ))}
     </Card>
@@ -735,9 +735,9 @@ const SettingsHub = () => {
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
-      <header className="mb-6 pb-5 border-b border-gray-200">
-        <h1 className="text-[20px] font-semibold text-gray-900">Settings</h1>
-        <p className="text-[13px] text-gray-500 mt-0.5">Manage your account, workspace and billing preferences.</p>
+      <header className="mb-6 pb-5 border-b border-border">
+        <h1 className="text-[20px] font-semibold text-foreground">Settings</h1>
+        <p className="text-[13px] text-muted-foreground mt-0.5">Manage your account, workspace and billing preferences.</p>
       </header>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -746,17 +746,17 @@ const SettingsHub = () => {
           <div className="flex lg:flex-col gap-0.5 overflow-x-auto no-scrollbar lg:sticky lg:top-6">
             {NAV_GROUPS.map(g => (
               <div key={g.caption} className="lg:mb-4 flex lg:block gap-0.5">
-                <div className="hidden lg:block px-2.5 mb-1.5 text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+                <div className="hidden lg:block px-2.5 mb-1.5 text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wider">
                   {g.caption}
                 </div>
                 {g.items.map(n => (
                   <button key={n.id} onClick={() => setActive(n.id)}
                     className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] whitespace-nowrap w-full text-left transition-colors ${
                       active === n.id
-                        ? 'bg-gray-200/70 text-gray-900 font-semibold'
-                        : 'text-gray-600 hover:bg-gray-100 font-medium'
+                        ? 'bg-border/70 text-foreground font-semibold'
+                        : 'text-ink-secondary hover:bg-muted font-medium'
                     }`}>
-                    <span className={active === n.id ? 'text-gray-900' : 'text-gray-400'}>{n.icon}</span>
+                    <span className={active === n.id ? 'text-foreground' : 'text-muted-foreground'}>{n.icon}</span>
                     {n.label}
                   </button>
                 ))}
@@ -773,7 +773,7 @@ const SettingsHub = () => {
           )}
           {active === 'appearance' && (isOwner
             ? <EmbedSkin><ThemePicker /></EmbedSkin>
-            : <div className="text-sm font-semibold text-gray-400 p-6">Only the owner can change the workspace theme.</div>)}
+            : <div className="text-sm font-semibold text-muted-foreground p-6">Only the owner can change the workspace theme.</div>)}
           {active === 'print'    && <PrintPanel tenantId={currentTenantId} />}
           {active === 'users'    && <EmbedSkin><Users embedded /></EmbedSkin>}
           {active === 'reminders' && <RemindersPanel tenantId={currentTenantId} />}

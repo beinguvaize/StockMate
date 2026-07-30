@@ -252,7 +252,7 @@ const Login = () => {
  placeholder="Email Address" 
  autoComplete="off"
  required
- className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-gray-700/30"
+ className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-ink-secondary/30"
  value={credentials.email}
  onChange={(e) => setCredentials({ ...credentials, email: e.target.value})}
  />
@@ -273,7 +273,7 @@ const Login = () => {
  placeholder="Password" 
  autoComplete="off"
  required
- className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-gray-700/30"
+ className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-ink-secondary/30"
  value={credentials.password}
  onChange={(e) => setCredentials({ ...credentials, password: e.target.value})}
  />
@@ -322,7 +322,7 @@ const Login = () => {
            placeholder={f.ph}
            autoComplete="off"
            required
-           className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] p-[13px] placeholder:text-gray-700/30"
+           className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] p-[13px] placeholder:text-ink-secondary/30"
            value={signup[f.key]}
            onChange={(e) => setSignup({ ...signup, [f.key]: e.target.value })}
          />
@@ -371,7 +371,7 @@ const Login = () => {
          autoComplete="email"
          required
          autoFocus
-         className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-gray-700/30"
+         className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-ink-secondary/30"
          value={credentials.email}
          onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
        />

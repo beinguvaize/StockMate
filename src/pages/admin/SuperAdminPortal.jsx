@@ -202,10 +202,10 @@ const SuperAdminPortal = () => {
         <div className={`p-3 rounded-xl ${color} bg-opacity-10 text-${color.split('-')[1]}`}>
           <Icon size={20} />
         </div>
-        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{detail}</span>
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{detail}</span>
       </div>
       <h3 className="text-3xl font-black text-ink-primary mb-1 uppercase tracking-tighter">{value}</h3>
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
     </div>
   );
 
@@ -220,21 +220,21 @@ const SuperAdminPortal = () => {
             </div>
             <h1 className="text-2xl font-black text-ink-primary uppercase tracking-tighter">The Nexus Protocol</h1>
           </div>
-          <p className="text-[10px] font-semibold text-gray-600 tracking-[0.2em] uppercase">Global Platform Governance & Tenant Orchestration</p>
+          <p className="text-[10px] font-semibold text-ink-secondary tracking-[0.2em] uppercase">Global Platform Governance & Tenant Orchestration</p>
         </div>
         
         <div className="flex items-center gap-3">
           <div className="flex items-center p-1 bg-white border border-black/5 rounded-full shadow-sm">
             <button 
               onClick={() => setActiveView('TENANTS')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-[10px] font-black transition-all ${activeView === 'TENANTS' ? 'bg-ink-primary text-white' : 'text-gray-400 hover:text-ink-primary'}`}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-[10px] font-black transition-all ${activeView === 'TENANTS' ? 'bg-ink-primary text-white' : 'text-muted-foreground hover:text-ink-primary'}`}
             >
               <Users size={14} />
               TENANTS
             </button>
             <button 
               onClick={() => setActiveView('DIAGNOSTICS')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-[10px] font-black transition-all ${activeView === 'DIAGNOSTICS' ? 'bg-ink-primary text-white' : 'text-gray-400 hover:text-ink-primary'}`}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-[10px] font-black transition-all ${activeView === 'DIAGNOSTICS' ? 'bg-ink-primary text-white' : 'text-muted-foreground hover:text-ink-primary'}`}
             >
               <Activity size={14} />
               DIAGNOSTICS
@@ -243,7 +243,7 @@ const SuperAdminPortal = () => {
           
           <div className="glass-panel border-black/5 bg-white px-6 py-4 flex items-center gap-4 shadow-sm">
             <div className="text-right">
-              <p className="text-[10px] font-bold text-gray-500 uppercase">Administrator</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase">Administrator</p>
               <p className="text-sm font-bold text-ink-primary">{currentUser?.name || 'Uvaize'}</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-accent-signature flex items-center justify-center text-ink-primary font-black">
@@ -285,7 +285,7 @@ const SuperAdminPortal = () => {
                 </h2>
                 <div className="flex items-center gap-2">
                   <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input 
                       type="text" 
                       placeholder="SEARCH SLUG..." 
@@ -300,18 +300,18 @@ const SuperAdminPortal = () => {
               <div className="glass-panel !p-0 border-black/5 bg-white overflow-hidden shadow-premium">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-black/5">
-                      <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Business Detail</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Slug</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Tier</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Status</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Billing</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right">Action</th>
+                    <tr className="bg-muted border-b border-black/5">
+                      <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Business Detail</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Slug</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Tier</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Status</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Billing</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black/5">
                     {tenants.filter(t => (t.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (t.slug || '').toLowerCase().includes(searchQuery.toLowerCase())).map((tenant) => (
-                      <tr key={tenant.id} className="hover:bg-gray-50 transition-colors group">
+                      <tr key={tenant.id} className="hover:bg-muted transition-colors group">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-accent-signature/20 flex items-center justify-center text-ink-primary font-black text-sm">
@@ -319,7 +319,7 @@ const SuperAdminPortal = () => {
                             </div>
                             <div>
                               <p className="text-xs font-bold text-ink-primary uppercase">{tenant.name}</p>
-                              <p className="text-[9px] text-gray-500 font-semibold">{new Date(tenant.created_at).toLocaleDateString()}</p>
+                              <p className="text-[9px] text-muted-foreground font-semibold">{new Date(tenant.created_at).toLocaleDateString()}</p>
                             </div>
                           </div>
                         </td>
@@ -330,7 +330,7 @@ const SuperAdminPortal = () => {
                           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
                             tenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
                             tenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
-                            'bg-gray-100 text-gray-500'
+                            'bg-muted text-muted-foreground'
                           } border border-current`}>{tenant.plan || 'STARTER'}</span>
                         </td>
                         <td className="px-6 py-4">
@@ -346,7 +346,7 @@ const SuperAdminPortal = () => {
                             const cls = st === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : st === 'PAST_DUE' ? 'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25'
                               : st === 'EXPIRED' || st === 'CANCELLED' ? 'bg-red-50 text-red-600 border-red-200'
-                              : 'bg-gray-100 text-gray-600 border-gray-200';
+                              : 'bg-muted text-ink-secondary border-border';
                             return (
                               <div className="flex items-center gap-2">
                                 <select
@@ -357,7 +357,7 @@ const SuperAdminPortal = () => {
                                   {['TRIAL','ACTIVE','PAST_DUE','EXPIRED','CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
                                 <button onClick={() => extendTrial(tenant.id, 14)} title="Extend trial 14 days"
-                                  className="text-[10px] font-bold text-gray-400 hover:text-accent-signature">+14d</button>
+                                  className="text-[10px] font-bold text-muted-foreground hover:text-accent-signature">+14d</button>
                               </div>
                             );
                           })()}
@@ -368,7 +368,7 @@ const SuperAdminPortal = () => {
                               setSelectedTenant(tenant);
                               setIsDrawerOpen(true);
                             }}
-                            className="p-2 hover:bg-black/5 rounded-lg text-gray-400 hover:text-accent-signature transition-all"
+                            className="p-2 hover:bg-black/5 rounded-lg text-muted-foreground hover:text-accent-signature transition-all"
                             title="Manage Tenant"
                           >
                             <Settings size={14} />
@@ -381,7 +381,7 @@ const SuperAdminPortal = () => {
                         <td colSpan="5" className="px-6 py-20 text-center">
                           <div className="flex flex-col items-center gap-4">
                             <RefreshCcw size={32} className="text-accent-signature animate-spin" />
-                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Accessing Nexus Records...</p>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Accessing Nexus Records...</p>
                           </div>
                         </td>
                       </tr>
@@ -399,18 +399,18 @@ const SuperAdminPortal = () => {
               </h2>
               
               <div className="glass-panel border-black/5 bg-white p-6 space-y-6 shadow-premium">
-                <p className="text-[11px] font-bold text-gray-500 uppercase mb-4">Manual Orchestration</p>
+                <p className="text-[11px] font-bold text-muted-foreground uppercase mb-4">Manual Orchestration</p>
                 <button 
                   onClick={() => setIsProvisioning(true)}
-                  className="w-full flex items-center justify-between p-4 rounded-xl bg-canvas hover:bg-gray-100 border border-black/5 transition-all group">
+                  className="w-full flex items-center justify-between p-4 rounded-xl bg-canvas hover:bg-muted border border-black/5 transition-all group">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-accent-signature/20 text-ink-primary"><Plus size={16} /></div>
                     <div className="text-left">
                       <p className="text-xs font-bold text-ink-primary uppercase">Provision Workspace</p>
-                      <p className="text-[8px] text-gray-500 font-bold uppercase tracking-wide">Automated Database Orchestration</p>
+                      <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-wide">Automated Database Orchestration</p>
                     </div>
                   </div>
-                  <ChevronRight size={16} className="text-gray-400 group-hover:text-accent-signature transition-colors" />
+                  <ChevronRight size={16} className="text-muted-foreground group-hover:text-accent-signature transition-colors" />
                 </button>
 
                 <button 
@@ -418,15 +418,15 @@ const SuperAdminPortal = () => {
                     cacheClear();
                     addNotification('Global Cache Purge triggered successfully', 'success');
                   }}
-                  className="w-full flex items-center justify-between p-4 rounded-xl bg-canvas hover:bg-gray-100 border border-black/5 transition-all group">
+                  className="w-full flex items-center justify-between p-4 rounded-xl bg-canvas hover:bg-muted border border-black/5 transition-all group">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-accent-signature/10 text-accent-signature"><RefreshCcw size={16} /></div>
                     <div className="text-left">
                       <p className="text-xs font-bold text-ink-primary uppercase">Global Cache Reset</p>
-                      <p className="text-[8px] text-gray-500 font-bold uppercase tracking-wide">Flush Cloud Instance Data</p>
+                      <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-wide">Flush Cloud Instance Data</p>
                     </div>
                   </div>
-                  <ChevronRight size={16} className="text-gray-400 group-hover:text-accent-signature transition-colors" />
+                  <ChevronRight size={16} className="text-muted-foreground group-hover:text-accent-signature transition-colors" />
                 </button>
 
                 <button 
@@ -443,7 +443,7 @@ const SuperAdminPortal = () => {
                       <p className={`text-[8px] font-bold uppercase tracking-wide ${isMaintenance ? 'text-white/70' : 'text-red-400'}`}>{isMaintenance ? 'Platform is currently RESTRICTED' : 'Lock All Tenant Transactions'}</p>
                     </div>
                   </div>
-                  <ChevronRight size={16} className={`transition-colors ${isMaintenance ? 'text-white/40 group-hover:text-white' : 'text-gray-400 group-hover:text-red-500'}`} />
+                  <ChevronRight size={16} className={`transition-colors ${isMaintenance ? 'text-white/40 group-hover:text-white' : 'text-muted-foreground group-hover:text-red-500'}`} />
                 </button>
               </div>
 
@@ -462,19 +462,19 @@ const SuperAdminPortal = () => {
 
                 <div className="space-y-6">
                   {recentActivities.length === 0 && !loading && (
-                    <p className="text-[9px] font-bold text-gray-400 uppercase text-center py-10 tracking-widest">No live telemetry detected</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase text-center py-10 tracking-widest">No live telemetry detected</p>
                   )}
                   {recentActivities.map((activity, idx) => (
                     <div key={activity.id + idx} className="flex gap-4 group cursor-default transition-all">
-                      <div className={`shrink-0 w-8 h-8 rounded-lg bg-white border border-gray-300 shadow-sm flex items-center justify-center ${activity.color} shadow-sm group-hover:scale-110 transition-transform`}>
+                      <div className={`shrink-0 w-8 h-8 rounded-lg bg-white border border-border shadow-sm flex items-center justify-center ${activity.color} shadow-sm group-hover:scale-110 transition-transform`}>
                         <activity.icon size={14} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
                           <p className="text-[9px] font-black text-ink-primary uppercase tracking-tight truncate">{activity.tenant?.name || 'System Override'}</p>
-                          <span className="text-[8px] font-bold text-gray-400 capitalize">{new Date(activity.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-[8px] font-bold text-muted-foreground capitalize">{new Date(activity.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
-                        <p className="text-[10px] font-semibold text-gray-500 truncate">{activity.description}</p>
+                        <p className="text-[10px] font-semibold text-muted-foreground truncate">{activity.description}</p>
                       </div>
                     </div>
                   ))}
@@ -513,13 +513,13 @@ const SuperAdminPortal = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-[10px] font-black text-ink-primary/60 uppercase mb-1.5 ml-1">Business Name</label>
-                    <input type="text" defaultValue={selectedTenant.name} ref={nameRef} autoComplete="off" className="w-full px-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-xs font-bold focus:ring-2 focus:ring-accent-signature/20 focus:border-accent-signature outline-none transition-all" />
+                    <input type="text" defaultValue={selectedTenant.name} ref={nameRef} autoComplete="off" className="w-full px-4 py-3 bg-white border border-border shadow-sm rounded-xl text-xs font-bold focus:ring-2 focus:ring-accent-signature/20 focus:border-accent-signature outline-none transition-all" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-ink-primary/60 uppercase mb-1.5 ml-1">Workspace Slug</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary/30 text-xs font-bold">/</span>
-                      <input type="text" defaultValue={selectedTenant.slug} ref={slugRef} autoComplete="off" className="w-full pl-7 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-accent-signature/20 focus:border-accent-signature outline-none transition-all uppercase" />
+                      <input type="text" defaultValue={selectedTenant.slug} ref={slugRef} autoComplete="off" className="w-full pl-7 pr-4 py-3 bg-white border border-border shadow-sm rounded-xl text-xs tabular-nums font-bold focus:ring-2 focus:ring-accent-signature/20 focus:border-accent-signature outline-none transition-all uppercase" />
                     </div>
                   </div>
                 </div>
@@ -641,7 +641,7 @@ const SuperAdminPortal = () => {
                       type="text" 
                       placeholder="e.g. ACME LOGISTICS LTD" 
                       autoComplete="off" 
-                      className="w-full px-5 py-4 bg-white border border-gray-300 shadow-sm rounded-2xl text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all uppercase placeholder:text-gray-300" 
+                      className="w-full px-5 py-4 bg-white border border-border shadow-sm rounded-2xl text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all uppercase placeholder:text-muted-foreground" 
                       value={provisioningData.businessName}
                       onChange={e => setProvisioningData({...provisioningData, businessName: e.target.value})}
                       disabled={isProvisioningLoading}

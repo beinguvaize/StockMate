@@ -50,7 +50,7 @@ const MethodBadge = ({ method = '' }) => {
     return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[8px] font-bold uppercase tracking-wider"><CreditCard size={9} />Credit</span>;
   if (['BANK','UPI','TRANSFER','NEFT','RTGS'].includes(m))
     return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent-signature/10 text-accent-signature border border-accent-signature/15 text-[8px] font-bold uppercase tracking-wider"><Building2 size={9} />{m === 'UPI' ? 'UPI' : 'Bank'}</span>;
-  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-canvas text-gray-500 border border-black/5 text-[8px] font-bold uppercase tracking-wider"><Banknote size={9} />Cash</span>;
+  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-canvas text-muted-foreground border border-black/5 text-[8px] font-bold uppercase tracking-wider"><Banknote size={9} />Cash</span>;
 };
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ const KpiCard = ({ label, value, sub, icon, color = 'default', cy }) => {
     dark:     'bg-ink-primary border-transparent text-accent-signature',
     darkred:  'bg-red-600 border-transparent text-white',
   };
-  const labelColor = { default: 'text-gray-400', green: 'text-emerald-500/70', red: 'text-red-500/70', dark: 'text-white/40', darkred: 'text-red-200' };
+  const labelColor = { default: 'text-muted-foreground', green: 'text-emerald-500/70', red: 'text-red-500/70', dark: 'text-white/40', darkred: 'text-red-200' };
   const isDark = color === 'dark' || color === 'darkred';
   return (
     <div className={`p-5 rounded-2xl border flex flex-col gap-2 ${styles[color]}`}>
@@ -70,7 +70,7 @@ const KpiCard = ({ label, value, sub, icon, color = 'default', cy }) => {
         <p className={`text-[9px] font-bold uppercase tracking-widest ${labelColor[color]}`}>{label}</p>
         {icon && <span className={isDark ? 'opacity-40' : 'opacity-60'}>{icon}</span>}
       </div>
-      <p className="font-mono text-2xl font-bold tabular-nums leading-none">
+      <p className="text-2xl font-bold tabular-nums leading-none">
         <span className="text-xs opacity-40 mr-0.5">{cy}</span>
         {value}
       </p>
@@ -405,10 +405,10 @@ const DayBook = () => {
               <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
                 Day Book History<span className="text-accent-signature">.</span>
               </h1>
-              <span className="text-[10px] font-semibold text-gray-400">Click any day to view its ledger</span>
+              <span className="text-[10px] font-semibold text-muted-foreground">Click any day to view its ledger</span>
             </div>
           </div>
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{totalDays} records</span>
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{totalDays} records</span>
         </div>
 
         {/* Summary strip */}
@@ -442,7 +442,7 @@ const DayBook = () => {
                 <thead>
                   <tr className="bg-canvas/60 border-b border-black/[0.04]">
                     {['Date', 'Opening', 'Sales', 'Expenses', 'Closing', 'Net', 'Discrepancy', 'Status', 'Closed At'].map(h => (
-                      <th key={h} className="py-3 px-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                      <th key={h} className="py-3 px-4 text-[9px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -471,7 +471,7 @@ const DayBook = () => {
                                 <span className="text-[8px] font-bold text-accent-signature uppercase tracking-widest">Today</span>
                               )}
                               {isSel && !isToday && (
-                                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Viewing</span>
+                                <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Viewing</span>
                               )}
                             </div>
                           </td>
@@ -496,7 +496,7 @@ const DayBook = () => {
                           </td>
                           <td className="py-3.5 px-4">
                             {recVar == null ? (
-                              <span className="text-[9px] text-gray-300 font-bold">—</span>
+                              <span className="text-[9px] text-muted-foreground font-bold">—</span>
                             ) : !hasDiscrep ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[8px] font-bold">
                                 <CheckCircle2 size={8} /> Balanced
@@ -523,7 +523,7 @@ const DayBook = () => {
                               </span>
                             )}
                           </td>
-                          <td className="py-3.5 px-4 text-[9px] font-bold text-gray-400 whitespace-nowrap">
+                          <td className="py-3.5 px-4 text-[9px] font-bold text-muted-foreground whitespace-nowrap">
                             {rec.closed_at
                               ? new Date(rec.closed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
                               : '—'}
@@ -549,7 +549,7 @@ const DayBook = () => {
           <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
             Day Book<span className="text-accent-signature">.</span>
           </h1>
-          <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Cash & transaction ledger</span>
+          <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">Cash & transaction ledger</span>
           {/* Store filter — per-store cash drawer when the tenant has >1 store. */}
           {posStores.length > 1 && (
             <select
@@ -570,7 +570,7 @@ const DayBook = () => {
             <ChevronLeft size={16} />
           </button>
           <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-black/5 shadow-sm min-w-[200px] justify-center">
-            <Calendar size={13} className="text-gray-400" />
+            <Calendar size={13} className="text-muted-foreground" />
             <input type="date"
               className="bg-transparent border-none text-xs font-black outline-none cursor-pointer text-ink-primary"
               value={selectedDate}
@@ -584,12 +584,12 @@ const DayBook = () => {
           </button>
           {selectedDate !== today && (
             <button onClick={() => setSelectedDate(today)}
-              className="px-3 h-9 text-[9px] font-black uppercase tracking-widest bg-white border border-gray-300 shadow-sm rounded-full hover:bg-white transition-all text-gray-500">
+              className="px-3 h-9 text-[9px] font-black uppercase tracking-widest bg-white border border-border shadow-sm rounded-full hover:bg-white transition-all text-muted-foreground">
               Today
             </button>
           )}
           <button onClick={() => setShowHistory(true)}
-            className="flex items-center gap-2 px-4 h-9 bg-white border border-gray-300 shadow-sm text-gray-600 text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-white transition-all shadow-sm">
+            className="flex items-center gap-2 px-4 h-9 bg-white border border-border shadow-sm text-ink-secondary text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-white transition-all shadow-sm">
             <History size={12} />
             History
           </button>
@@ -615,7 +615,7 @@ const DayBook = () => {
           </span>
         )}
         {isFuture && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-canvas text-gray-400 border border-black/5 rounded-full text-[9px] font-black uppercase tracking-widest">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-canvas text-muted-foreground border border-black/5 rounded-full text-[9px] font-black uppercase tracking-widest">
             Future date
           </span>
         )}
@@ -651,7 +651,7 @@ const DayBook = () => {
               <span className="text-xs font-black text-ink-primary uppercase tracking-widest">
                 Transaction Log
               </span>
-              <span className="bg-white border border-gray-300 shadow-sm text-[9px] font-black text-gray-400 px-2 py-0.5 rounded-full">
+              <span className="bg-white border border-border shadow-sm text-[9px] font-black text-muted-foreground px-2 py-0.5 rounded-full">
                 {ledger.txCount}
               </span>
             </div>
@@ -672,7 +672,7 @@ const DayBook = () => {
               <thead>
                 <tr className="bg-canvas/60 border-b border-black/[0.04]">
                   {['Time', 'Description', 'Type', 'Method', 'In (+)', 'Out (−)', 'Balance'].map(h => (
-                    <th key={h} className="py-3 px-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap last:text-right">
+                    <th key={h} className="py-3 px-4 text-[9px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap last:text-right">
                       {h}
                     </th>
                   ))}
@@ -698,15 +698,15 @@ const DayBook = () => {
                     Sale:       'bg-emerald-50 text-emerald-600',
                     Collection: 'bg-blue-50 text-blue-600',
                     Purchase:   'bg-orange-50 text-orange-600',
-                  }[tx.category] || 'bg-gray-50 text-gray-500';
+                  }[tx.category] || 'bg-muted text-muted-foreground';
 
                   return (
                     <tr key={tx.id || i}
                       className={`hover:bg-canvas/30 transition-colors ${isCreditSale ? 'opacity-50' : ''}`}>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1">
-                          <Clock size={9} className="text-gray-300" />
-                          <span className="text-[9px] font-black font-mono tabular-nums text-ink-primary">
+                          <Clock size={9} className="text-muted-foreground" />
+                          <span className="text-[9px] font-black tabular-nums text-ink-primary">
                             {new Date(tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
@@ -720,7 +720,7 @@ const DayBook = () => {
                           </div>
                           <div className="min-w-0">
                             <p className="text-[10px] font-black text-ink-primary leading-none truncate">{tx.title}</p>
-                            {tx.note && <p className="text-[9px] text-gray-400 mt-0.5 truncate">{tx.note}</p>}
+                            {tx.note && <p className="text-[9px] text-muted-foreground mt-0.5 truncate">{tx.note}</p>}
                           </div>
                         </div>
                       </td>
@@ -734,7 +734,7 @@ const DayBook = () => {
                         {isIncome && !isCreditSale
                           ? <span className="text-[11px] font-black text-emerald-600 tabular-nums">{cy}{fmt(tx.amount)}</span>
                           : isCreditSale
-                            ? <span className="text-[9px] font-bold text-gray-300 tabular-nums italic">{cy}{fmt(tx.invoiceAmount ?? tx.amount)}</span>
+                            ? <span className="text-[9px] font-bold text-muted-foreground tabular-nums italic">{cy}{fmt(tx.invoiceAmount ?? tx.amount)}</span>
                             : <span className="text-gray-200">—</span>}
                       </td>
                       <td className="py-3 px-4">
@@ -783,7 +783,7 @@ const DayBook = () => {
                 { label: '+ Cash Receipts', val: ledger.cashIn,     color: 'text-emerald-600' },
                 { label: '− Cash Payments', val: ledger.cashOut,    color: 'text-red-500'     },
               ].map(({ label, val, color }) => (
-                <div key={label} className="flex justify-between text-[10px] font-bold text-gray-400">
+                <div key={label} className="flex justify-between text-[10px] font-bold text-muted-foreground">
                   <span>{label}</span>
                   <span className={`font-black tabular-nums ${color}`}>{cy}{fmt(val)}</span>
                 </div>
@@ -816,19 +816,19 @@ const DayBook = () => {
                 {/* Carry forward button */}
                 {ledger.prevClosing !== null && !ledger.hasOpening && (
                   <button onClick={handleUseYesterdayClosing} disabled={isSaving}
-                    className="w-full h-10 flex items-center justify-center gap-2 bg-white border border-gray-300 shadow-sm rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-600 hover:bg-black/5 transition-all">
+                    className="w-full h-10 flex items-center justify-center gap-2 bg-white border border-border shadow-sm rounded-xl text-[9px] font-black uppercase tracking-widest text-ink-secondary hover:bg-black/5 transition-all">
                     <ChevronRight size={12} />
                     Use prev. closing ({cy}{fmt(ledger.prevClosing)})
                   </button>
                 )}
                 <div className="relative">
                   <input type="number" placeholder="Enter opening amount"
-                    className="w-full h-11 bg-white border border-gray-300 shadow-sm rounded-xl px-4 pr-10 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                    className="w-full h-11 bg-white border border-border shadow-sm rounded-xl px-4 pr-10 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
                     value={openingInput}
                     onChange={e => setOpeningInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSaveOpening()}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-gray-300">{cy}</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-muted-foreground">{cy}</span>
                 </div>
                 <button onClick={handleSaveOpening} disabled={isSaving || !openingInput}
                   className="w-full h-11 bg-ink-primary text-white font-black text-[9px] uppercase tracking-widest rounded-xl hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-40">
@@ -837,13 +837,13 @@ const DayBook = () => {
                 </button>
               </div>
             ) : (
-              <p className="text-[9px] font-bold text-gray-400 text-center uppercase tracking-widest">View-only</p>
+              <p className="text-[9px] font-bold text-muted-foreground text-center uppercase tracking-widest">View-only</p>
             )}
           </div>
 
           {/* ── Receipts breakdown ────────────────────────────────────────── */}
           <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
-            <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <h3 className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
               <TrendingUp size={11} className="text-emerald-500" /> Receipts Breakdown
             </h3>
             <div className="space-y-2.5">
@@ -855,11 +855,11 @@ const DayBook = () => {
                 { label: 'Bank Collections',  val: ledger.bankCollect, icon: <Users size={10} />,     color: 'text-accent-signature'  },
               ].map(({ label, val, icon, color, muted }) => (
                 <div key={label} className={`flex items-center justify-between ${muted ? 'opacity-50' : ''}`}>
-                  <div className={`flex items-center gap-1.5 text-[9px] font-bold text-gray-500 ${color}`}>
-                    {icon} <span className="text-gray-500">{label}</span>
-                    {muted && <span className="text-[8px] text-gray-400">(excl.)</span>}
+                  <div className={`flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground ${color}`}>
+                    {icon} <span className="text-muted-foreground">{label}</span>
+                    {muted && <span className="text-[8px] text-muted-foreground">(excl.)</span>}
                   </div>
-                  <span className={`text-[10px] font-black tabular-nums ${val > 0 ? color : 'text-gray-300'}`}>
+                  <span className={`text-[10px] font-black tabular-nums ${val > 0 ? color : 'text-muted-foreground'}`}>
                     {cy}{fmt(val)}
                   </span>
                 </div>
@@ -869,7 +869,7 @@ const DayBook = () => {
                 <span className="text-emerald-600 tabular-nums">{cy}{fmt(ledger.cashIn)}</span>
               </div>
               {ledger.bankIn > 0 && (
-                <div className="flex justify-between text-[9px] font-bold text-gray-400">
+                <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
                   <span>+ Bank / UPI In</span>
                   <span className="tabular-nums text-accent-signature">{cy}{fmt(ledger.bankIn)}</span>
                 </div>
@@ -879,7 +879,7 @@ const DayBook = () => {
 
           {/* ── Payments breakdown ────────────────────────────────────────── */}
           <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
-            <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <h3 className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
               <TrendingDown size={11} className="text-red-500" /> Payments Breakdown
             </h3>
             <div className="space-y-2.5">
@@ -889,9 +889,9 @@ const DayBook = () => {
               ].map(({ label, val, icon, color }) => (
                 <div key={label} className="flex items-center justify-between">
                   <div className={`flex items-center gap-1.5 text-[9px] font-bold ${color}`}>
-                    {icon} <span className="text-gray-500">{label}</span>
+                    {icon} <span className="text-muted-foreground">{label}</span>
                   </div>
-                  <span className={`text-[10px] font-black tabular-nums ${val > 0 ? color : 'text-gray-300'}`}>
+                  <span className={`text-[10px] font-black tabular-nums ${val > 0 ? color : 'text-muted-foreground'}`}>
                     {cy}{fmt(val)}
                   </span>
                 </div>
@@ -901,7 +901,7 @@ const DayBook = () => {
                 <span className="text-red-600 tabular-nums">{cy}{fmt(ledger.cashOut)}</span>
               </div>
               {ledger.bankPurchPaid > 0 && (
-                <div className="flex justify-between text-[9px] font-bold text-gray-400">
+                <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
                   <span>+ Bank / UPI Purchases</span>
                   <span className="tabular-nums text-accent-signature">{cy}{fmt(ledger.bankPurchPaid)}</span>
                 </div>
@@ -911,7 +911,7 @@ const DayBook = () => {
 
           {/* ── Physical cash reconciliation ─────────────────────────────── */}
           <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
-            <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <h3 className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
               <Banknote size={11} className="text-accent-signature" /> Cash Reconciliation
               {ledger.savedVariance != null && (
                 <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold ${
@@ -927,7 +927,7 @@ const DayBook = () => {
               )}
             </h3>
             <div className="space-y-3">
-              <div className="flex justify-between text-[10px] font-bold text-gray-400">
+              <div className="flex justify-between text-[10px] font-bold text-muted-foreground">
                 <span>Book Balance</span>
                 <span className={`font-black tabular-nums ${isDeficit ? 'text-red-600' : 'text-ink-primary'}`}>
                   {cy}{fmt(ledger.closingBal)}
@@ -935,11 +935,11 @@ const DayBook = () => {
               </div>
               <div className="relative">
                 <input type="number" placeholder="Enter physical cash count"
-                  className="w-full h-10 bg-white border border-gray-300 shadow-sm rounded-xl px-3 pr-8 text-xs font-black outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                  className="w-full h-10 bg-white border border-border shadow-sm rounded-xl px-3 pr-8 text-xs font-black outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
                   value={physicalCash}
                   onChange={e => setPhysicalCash(e.target.value)}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-300">{cy}</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground">{cy}</span>
               </div>
               {variance !== null && (
                 <div className={`flex items-center justify-between p-3 rounded-xl text-[10px] font-black ${
@@ -958,7 +958,7 @@ const DayBook = () => {
               {variance !== null && !isFuture && (
                 <button
                   onClick={handleSavePhysicalCash}
-                  className="w-full h-9 flex items-center justify-center gap-2 bg-white border border-gray-300 shadow-sm rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-600 hover:bg-black/5 transition-all"
+                  className="w-full h-9 flex items-center justify-center gap-2 bg-white border border-border shadow-sm rounded-xl text-[9px] font-black uppercase tracking-widest text-ink-secondary hover:bg-black/5 transition-all"
                 >
                   <Save size={11} /> Save Count
                 </button>
@@ -1038,34 +1038,34 @@ const CloseDayModal = ({ date, closingBal, cy, initialPhysical, isClosing, onCan
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-[15px] font-black text-ink-primary leading-none">Close Day</h2>
-            <p className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-widest">{displayDate(date)}</p>
+            <p className="text-[10px] font-bold text-muted-foreground mt-0.5 uppercase tracking-widest">{displayDate(date)}</p>
           </div>
-          <button onClick={onCancel} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-black/5">
+          <button onClick={onCancel} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-black/5">
             <X size={16} />
           </button>
         </div>
 
         {/* Expected */}
         <div className="bg-canvas rounded-xl p-4 mb-4 flex items-center justify-between">
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Expected Cash</span>
-          <span className="font-mono font-black text-lg text-ink-primary tabular-nums">
+          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Expected Cash</span>
+          <span className="font-black text-lg text-ink-primary tabular-nums">
             {cy}{fmt(closingBal)}
           </span>
         </div>
 
         {/* Physical count input */}
-        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1 block">
           Physical Count
         </label>
         <div className="relative mb-3">
           <input
             type="number" step="0.01" placeholder="Count cash in drawer"
-            className="w-full h-11 border border-gray-300 shadow-sm rounded-xl px-3 pr-8 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+            className="w-full h-11 border border-border shadow-sm rounded-xl px-3 pr-8 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
             value={pc}
             onChange={e => setPc(e.target.value)}
             autoFocus
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-300">{cy}</span>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground">{cy}</span>
         </div>
 
         {/* Variance */}
@@ -1082,22 +1082,22 @@ const CloseDayModal = ({ date, closingBal, cy, initialPhysical, isClosing, onCan
           </div>
         )}
         {v != null && !balanced && (
-          <p className="text-[9px] text-gray-400 mb-3 leading-relaxed">
+          <p className="text-[9px] text-muted-foreground mb-3 leading-relaxed">
             Variance will be recorded as an account adjustment.
           </p>
         )}
 
         {/* Note */}
-        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Note (optional)</label>
+        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1 block">Note (optional)</label>
         <input
-          className="w-full h-9 border border-gray-200 rounded-xl px-3 text-xs font-semibold outline-none focus:border-accent-signature/40 mb-4"
+          className="w-full h-9 border border-border rounded-xl px-3 text-xs font-semibold outline-none focus:border-accent-signature/40 mb-4"
           placeholder="e.g. Handover to office"
           value={note} onChange={e => setNote(e.target.value)}
         />
 
         <div className="flex gap-2">
           <button onClick={onCancel}
-            className="flex-1 h-11 rounded-xl border border-black/10 text-[12px] font-bold text-gray-500 hover:bg-black/5 transition-all">
+            className="flex-1 h-11 rounded-xl border border-black/10 text-[12px] font-bold text-muted-foreground hover:bg-black/5 transition-all">
             Cancel
           </button>
           <button

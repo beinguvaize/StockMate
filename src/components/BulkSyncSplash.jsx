@@ -66,7 +66,7 @@ const BulkSyncSplash = ({ tenantId, onDone }) => {
              phase === 'done'    ? 'You\'re ready' :
                                    'Sync incomplete'}
           </h2>
-          <p className="text-sm text-gray-500 mb-6">
+          <p className="text-sm text-muted-foreground mb-6">
             {phase === 'running'
               ? 'Downloading your tenant data so every tab works without internet.'
               : phase === 'done'
@@ -75,13 +75,13 @@ const BulkSyncSplash = ({ tenantId, onDone }) => {
           </p>
 
           {/* Progress bar */}
-          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+          <div className="w-full h-2 bg-muted rounded-full overflow-hidden mb-3">
             <div
               className="h-full bg-accent-signature transition-all duration-300"
               style={{ width: `${phase === 'done' ? 100 : pct}%` }}
             />
           </div>
-          <div className="flex items-center justify-between w-full text-[11px] font-mono text-gray-500">
+          <div className="flex items-center justify-between w-full text-[11px] tabular-nums text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <Download size={12} />
               {progress.table || '…'}
@@ -97,7 +97,7 @@ const BulkSyncSplash = ({ tenantId, onDone }) => {
 
           {phase === 'running' && (
             <button onClick={onDone}
-              className="mt-6 text-[11px] font-bold text-gray-400 hover:text-ink-primary underline underline-offset-4">
+              className="mt-6 text-[11px] font-bold text-muted-foreground hover:text-ink-primary underline underline-offset-4">
               Skip — I'll work online for now
             </button>
           )}

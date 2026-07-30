@@ -497,7 +497,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   Conversion {formData.secondary_unit && `(1 ${formData.secondary_unit} = ? ${formData.unit})`}
                 </label>
                 <input type="number" step="0.0001" min="0"
-                  className={`${inputCls} ${!formData.secondary_unit ? 'opacity-60 cursor-not-allowed !bg-gray-50 hover:!border-border' : ''}`}
+                  className={`${inputCls} ${!formData.secondary_unit ? 'opacity-60 cursor-not-allowed !bg-muted hover:!border-border' : ''}`}
                   placeholder={`e.g. 24`}
                   disabled={!formData.secondary_unit}
                   value={formData.conversion_factor}

@@ -17,7 +17,7 @@ const Button = ({
     amber: 'bg-accent-signature text-white hover:bg-accent-signature-hover shadow-lg shadow-accent-signature/25',
     secondary: 'border border-black/10 text-ink-primary hover:bg-black/5',
     danger: 'bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/20',
-    ghost: 'text-gray-500 hover:text-ink-primary hover:bg-black/5'
+    ghost: 'text-muted-foreground hover:text-ink-primary hover:bg-black/5'
   };
 
   const sizes = {

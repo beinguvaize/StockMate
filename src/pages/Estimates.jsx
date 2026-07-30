@@ -12,7 +12,7 @@ import { supabase } from '../lib/supabase';
 import { Plus, Search, Trash2, X, FileText, Send, CheckCircle2, ArrowRight, MessageCircle, Edit3 } from 'lucide-react';
 
 const STATUS_STYLE = {
-  DRAFT:     'bg-gray-100 text-gray-600',
+  DRAFT:     'bg-muted text-ink-secondary',
   SENT:      'bg-blue-50 text-blue-600',
   ACCEPTED:  'bg-emerald-100 text-emerald-700',
   REJECTED:  'bg-red-50 text-red-600',
@@ -151,7 +151,7 @@ const Estimates = () => {
       <div className="flex justify-between items-center gap-3 pb-3 border-b border-black/5 flex-wrap">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-extrabold text-ink-primary leading-none">Estimates<span className="text-accent-signature">.</span></h1>
-          <span className="text-[11px] font-semibold text-gray-400 hidden sm:block">Quotations · convert to sale</span>
+          <span className="text-[11px] font-semibold text-muted-foreground hidden sm:block">Quotations · convert to sale</span>
         </div>
         <button onClick={() => navigate('/documents/new?type=QUOTATION')} className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover">
           <Plus size={15} strokeWidth={2.6} /> New estimate
@@ -159,24 +159,24 @@ const Estimates = () => {
       </div>
 
       <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
-        <div className="hidden md:grid grid-cols-[8rem_1fr_7rem_8rem_9rem] gap-4 px-5 py-2.5 text-[10px] uppercase tracking-wider font-bold text-gray-400 border-b border-black/5">
+        <div className="hidden md:grid grid-cols-[8rem_1fr_7rem_8rem_9rem] gap-4 px-5 py-2.5 text-[10px] uppercase tracking-wider font-bold text-muted-foreground border-b border-black/5">
           <div>Number</div><div>Client</div><div className="text-right">Total</div><div className="text-center">Status</div><div className="text-right">Actions</div>
         </div>
-        {estimates.length === 0 && <div className="px-5 py-16 text-center text-sm font-semibold text-gray-400">No estimates yet.</div>}
+        {estimates.length === 0 && <div className="px-5 py-16 text-center text-sm font-semibold text-muted-foreground">No estimates yet.</div>}
         <div className="divide-y divide-black/5">
           {estimates.map(e => (
             <div key={e.id} className="grid grid-cols-2 md:grid-cols-[8rem_1fr_7rem_8rem_9rem] gap-x-4 gap-y-1 px-5 py-3 items-center hover:bg-accent-signature/5">
-              <div className="font-mono text-[12px] font-bold text-ink-primary">{e.estimate_number}</div>
+              <div className="tabular-nums text-[12px] font-bold text-ink-primary">{e.estimate_number}</div>
               <div className="text-[13px] font-semibold text-ink-primary truncate">{e.client_name || '—'}</div>
-              <div className="text-right font-mono tabular-nums text-[13px] font-bold">{cur}{Math.round(e.grand_total).toLocaleString('en-IN')}</div>
+              <div className="text-right tabular-nums text-[13px] font-bold">{cur}{Math.round(e.grand_total).toLocaleString('en-IN')}</div>
               <div className="md:text-center"><span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${STATUS_STYLE[e.status] || STATUS_STYLE.DRAFT}`}>{e.status}</span></div>
               <div className="flex items-center justify-end gap-1" onClick={ev => ev.stopPropagation()}>
                 <button onClick={() => shareWhatsApp(e)} title="WhatsApp" className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600"><MessageCircle size={15} /></button>
                 {e.status === 'DRAFT' && <button onClick={() => setStatus(e.id, 'SENT')} title="Mark sent" className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600"><Send size={14} /></button>}
                 {['DRAFT','SENT'].includes(e.status) && <button onClick={() => setStatus(e.id, 'ACCEPTED')} title="Accept" className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600"><CheckCircle2 size={15} /></button>}
-                {e.status !== 'CONVERTED' && <button onClick={() => openEdit(e)} title="Edit" className="p-1.5 rounded-lg hover:bg-black/5 text-gray-400 hover:text-ink-primary"><Edit3 size={14} /></button>}
+                {e.status !== 'CONVERTED' && <button onClick={() => openEdit(e)} title="Edit" className="p-1.5 rounded-lg hover:bg-black/5 text-muted-foreground hover:text-ink-primary"><Edit3 size={14} /></button>}
                 {e.status !== 'CONVERTED' && <button onClick={() => convert(e)} title="Convert to sale" className="p-1.5 rounded-lg hover:bg-purple-50 text-purple-600"><ArrowRight size={15} /></button>}
-                <button onClick={() => { if (window.confirm(`Delete estimate ${e.estimate_number}?`)) remove(e.id); }} title="Delete" className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
+                <button onClick={() => { if (window.confirm(`Delete estimate ${e.estimate_number}?`)) remove(e.id); }} title="Delete" className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
               </div>
             </div>
           ))}
@@ -192,24 +192,24 @@ const Estimates = () => {
                 <div className="w-10 h-10 rounded-xl bg-accent-signature/10 border border-accent-signature/25 text-accent-signature flex items-center justify-center"><FileText size={18} /></div>
                 <div>
                   <h2 className="text-base font-extrabold text-ink-primary leading-none">{editingId ? 'Edit Estimate' : 'New Estimate'}</h2>
-                  <p className="text-[11px] font-semibold text-gray-400 mt-1">Quotation · no stock or payment impact</p>
+                  <p className="text-[11px] font-semibold text-muted-foreground mt-1">Quotation · no stock or payment impact</p>
                 </div>
               </div>
-              <button onClick={() => { setAdding(false); reset(); }} className="w-8 h-8 rounded-lg hover:bg-black/5 text-gray-400 hover:text-ink-primary flex items-center justify-center"><X size={18} /></button>
+              <button onClick={() => { setAdding(false); reset(); }} className="w-8 h-8 rounded-lg hover:bg-black/5 text-muted-foreground hover:text-ink-primary flex items-center justify-center"><X size={18} /></button>
             </div>
 
             {/* Body — scrolls internally; header + footer stay pinned */}
             <div className="flex-1 min-h-0 overflow-y-auto w-full max-w-3xl mx-auto px-6 py-6 space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <label className="block">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Client</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Client</span>
                   <select value={clientId} onChange={e => { const id = e.target.value; setClientId(id); const c = clients?.find(x => x.id === id); if (c?.price_tier) applyTier(String(c.price_tier).toUpperCase()); }} className="mt-1 w-full h-11 px-3 bg-white border border-black/10 rounded-xl text-[13px] font-semibold text-ink-primary outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/20">
                     <option value="">Walk-in (no client)</option>
                     {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Price tier</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Price tier</span>
                   <select value={priceTier} onChange={e => applyTier(e.target.value)} className="mt-1 w-full h-11 px-3 bg-white border border-black/10 rounded-xl text-[13px] font-semibold text-ink-primary outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/20">
                     <option value="RETAIL">Retail</option>
                     <option value="WHOLESALE">Wholesale</option>
@@ -217,19 +217,19 @@ const Estimates = () => {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Valid until</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Valid until</span>
                   <input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} className="mt-1 w-full h-11 px-3 bg-white border border-black/10 rounded-xl text-[13px] font-semibold text-ink-primary outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/20" />
                 </label>
               </div>
 
               <div className="relative">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input value={prodSearch} onChange={e => setProdSearch(e.target.value)} placeholder="Search & add product…" className="w-full h-11 pl-10 pr-3 bg-white border border-black/10 rounded-xl text-[13px] font-medium outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/20" />
                 {prodMatches.length > 0 && (
                   <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-black/10 rounded-xl shadow-lg max-h-52 overflow-y-auto">
                     {prodMatches.map(p => (
                       <button key={p.id} onClick={() => addLine(p)} className="w-full text-left px-3.5 py-2.5 hover:bg-accent-signature/10 text-[13px] font-medium flex justify-between items-center border-b border-black/[0.04] last:border-0">
-                        <span className="truncate">{p.name}</span><span className="font-mono tabular-nums text-gray-500 shrink-0 ml-3">{cur}{Number(p.sellingPrice || 0).toLocaleString('en-IN')}</span>
+                        <span className="truncate">{p.name}</span><span className="tabular-nums text-muted-foreground shrink-0 ml-3">{cur}{Number(p.sellingPrice || 0).toLocaleString('en-IN')}</span>
                       </button>
                     ))}
                   </div>
@@ -238,23 +238,23 @@ const Estimates = () => {
 
               {/* Line items */}
               <div className="border border-black/[0.07] rounded-2xl overflow-hidden">
-                <div className="grid grid-cols-[1fr_4rem_5.5rem_5.5rem_2rem] gap-2 px-4 py-2 bg-black/[0.025] text-[9px] uppercase tracking-widest font-bold text-gray-400 border-b border-black/5">
+                <div className="grid grid-cols-[1fr_4rem_5.5rem_5.5rem_2rem] gap-2 px-4 py-2 bg-black/[0.025] text-[9px] uppercase tracking-widest font-bold text-muted-foreground border-b border-black/5">
                   <div>Item</div><div className="text-center">Qty</div><div className="text-right">Rate</div><div className="text-right">Amount</div><div />
                 </div>
                 {lines.length === 0 && (
                   <div className="px-4 py-10 text-center">
                     <FileText size={28} className="mx-auto text-gray-200 mb-2" />
-                    <p className="text-[12px] font-semibold text-gray-400">No items yet — search a product above.</p>
+                    <p className="text-[12px] font-semibold text-muted-foreground">No items yet — search a product above.</p>
                   </div>
                 )}
                 <div className="divide-y divide-black/[0.05]">
                   {lines.map((l, i) => (
                     <div key={i} className="grid grid-cols-[1fr_4rem_5.5rem_5.5rem_2rem] gap-2 px-4 py-2.5 items-center">
-                      <div className="min-w-0"><div className="text-[13px] font-semibold text-ink-primary truncate">{l.name}</div><div className="text-[10px] font-bold text-gray-400">GST {l.taxRate}%</div></div>
-                      <input type="number" min="1" value={l.qty} onChange={e => patchLine(i, { qty: Number(e.target.value) })} className="h-8 px-1 border border-black/10 rounded-lg text-[12px] text-center font-mono tabular-nums outline-none focus:border-accent-signature/70" />
-                      <input type="number" min="0" value={l.rate} onChange={e => patchLine(i, { rate: Number(e.target.value) })} className="h-8 px-2 border border-black/10 rounded-lg text-[12px] text-right font-mono tabular-nums outline-none focus:border-accent-signature/70" />
-                      <span className="text-right font-mono tabular-nums text-[12px] font-bold text-ink-primary">{cur}{Math.round((l.qty || 0) * (l.rate || 0)).toLocaleString('en-IN')}</span>
-                      <button onClick={() => delLine(i)} className="text-gray-300 hover:text-red-500 flex justify-end"><Trash2 size={14} /></button>
+                      <div className="min-w-0"><div className="text-[13px] font-semibold text-ink-primary truncate">{l.name}</div><div className="text-[10px] font-bold text-muted-foreground">GST {l.taxRate}%</div></div>
+                      <input type="number" min="1" value={l.qty} onChange={e => patchLine(i, { qty: Number(e.target.value) })} className="h-8 px-1 border border-black/10 rounded-lg text-[12px] text-center tabular-nums outline-none focus:border-accent-signature/70" />
+                      <input type="number" min="0" value={l.rate} onChange={e => patchLine(i, { rate: Number(e.target.value) })} className="h-8 px-2 border border-black/10 rounded-lg text-[12px] text-right tabular-nums outline-none focus:border-accent-signature/70" />
+                      <span className="text-right tabular-nums text-[12px] font-bold text-ink-primary">{cur}{Math.round((l.qty || 0) * (l.rate || 0)).toLocaleString('en-IN')}</span>
+                      <button onClick={() => delLine(i)} className="text-muted-foreground hover:text-red-500 flex justify-end"><Trash2 size={14} /></button>
                     </div>
                   ))}
                 </div>
@@ -262,13 +262,13 @@ const Estimates = () => {
 
               {/* Totals */}
               <div className="bg-accent-signature/5 border border-accent-signature/15 rounded-2xl px-4 py-3">
-                <div className="flex justify-between text-[12px] mb-1.5"><span className="font-semibold text-gray-500">Taxable</span><span className="font-mono tabular-nums font-bold text-ink-primary">{cur}{Math.round(totals.taxable || 0).toLocaleString('en-IN')}</span></div>
-                <div className="flex justify-between text-[12px] mb-2"><span className="font-semibold text-gray-500">Tax (GST)</span><span className="font-mono tabular-nums font-bold text-ink-primary">{cur}{Math.round(totals.totalTax || 0).toLocaleString('en-IN')}</span></div>
-                <div className="flex justify-between items-baseline pt-2 border-t border-accent-signature/20"><span className="text-[13px] font-extrabold text-ink-primary">Total</span><span className="font-mono tabular-nums text-lg font-extrabold text-accent-signature-hover">{cur}{Math.round(totals.grandTotal || 0).toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between text-[12px] mb-1.5"><span className="font-semibold text-muted-foreground">Taxable</span><span className="tabular-nums font-bold text-ink-primary">{cur}{Math.round(totals.taxable || 0).toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between text-[12px] mb-2"><span className="font-semibold text-muted-foreground">Tax (GST)</span><span className="tabular-nums font-bold text-ink-primary">{cur}{Math.round(totals.totalTax || 0).toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between items-baseline pt-2 border-t border-accent-signature/20"><span className="text-[13px] font-extrabold text-ink-primary">Total</span><span className="tabular-nums text-lg font-extrabold text-accent-signature-hover">{cur}{Math.round(totals.grandTotal || 0).toLocaleString('en-IN')}</span></div>
               </div>
 
               <label className="block">
-                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Notes</span>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Notes</span>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Terms, delivery, validity…" rows={2} className="mt-1 w-full p-3 bg-white border border-black/10 rounded-xl text-[12px] outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/20 resize-none" />
               </label>
             </div>
@@ -276,7 +276,7 @@ const Estimates = () => {
             {/* Sticky footer */}
             <div className="flex items-center gap-2 justify-end px-6 py-4 border-t border-black/5 bg-white">
               {saveErr && <span className="mr-auto text-[12px] font-semibold text-red-600 truncate">{saveErr}</span>}
-              <button onClick={() => { setAdding(false); reset(); }} className="h-11 px-5 rounded-xl border border-black/10 text-[13px] font-bold text-gray-600 hover:bg-black/5">Cancel</button>
+              <button onClick={() => { setAdding(false); reset(); }} className="h-11 px-5 rounded-xl border border-black/10 text-[13px] font-bold text-ink-secondary hover:bg-black/5">Cancel</button>
               <button onClick={save} disabled={saving || !lines.length} className="h-11 px-6 rounded-xl bg-accent-signature text-white text-[13px] font-bold disabled:opacity-40 hover:bg-accent-signature-hover flex items-center gap-2 transition-colors"><FileText size={15} /> {saving ? 'Saving…' : editingId ? 'Update estimate' : 'Save estimate'}</button>
             </div>
           </div>

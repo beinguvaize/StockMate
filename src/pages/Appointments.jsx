@@ -12,7 +12,7 @@ import { CalendarClock, Plus, X, Clock, User2, Check, Ban } from 'lucide-react';
 const STATUS_CHIP = {
   BOOKED:    'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25',
   COMPLETED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  CANCELLED: 'bg-gray-100 text-gray-500 border-gray-200',
+  CANCELLED: 'bg-muted text-muted-foreground border-border',
   NOSHOW:    'bg-red-50 text-red-600 border-red-200',
 };
 
@@ -43,7 +43,7 @@ const Appointments = () => {
           </div>
           <div>
             <h1 className="text-xl font-extrabold text-ink-primary leading-none">Appointments<span className="text-accent-signature">.</span></h1>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{appointments.length} total</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">{appointments.length} total</p>
           </div>
         </div>
         <button onClick={() => setBooking(true)}
@@ -56,41 +56,41 @@ const Appointments = () => {
         <div className="rounded-2xl border border-black/[0.07] bg-white"><SkeletonRows rows={6} /></div>
       ) : appointments.length === 0 ? (
         <div className="py-16 text-center bg-white rounded-2xl border border-black/5">
-          <CalendarClock size={36} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-sm font-bold text-gray-500">No appointments yet</p>
-          <p className="text-xs text-gray-400 mt-1">Book your first appointment to start scheduling.</p>
+          <CalendarClock size={36} className="mx-auto text-muted-foreground mb-3" />
+          <p className="text-sm font-bold text-muted-foreground">No appointments yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Book your first appointment to start scheduling.</p>
         </div>
       ) : (
         Object.entries(groups).map(([day, list]) => (
           <div key={day}>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">{day}</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">{day}</div>
             <div className="space-y-2">
               {list.map(a => {
                 const cancelled = a.status === 'CANCELLED' || a.status === 'NOSHOW';
                 return (
                   <div key={a.id} className={`bg-white rounded-2xl border border-black/5 shadow-sm flex items-center gap-4 px-5 py-3 ${cancelled ? 'opacity-60' : ''}`}>
                     <div className="text-center shrink-0 w-16">
-                      <div className="font-mono text-[15px] font-bold text-ink-primary">{timeStr(a.start_at)}</div>
-                      <div className="text-[10px] text-gray-400 flex items-center justify-center gap-0.5"><Clock size={9} />{a.duration_min}m</div>
+                      <div className="tabular-nums text-[15px] font-bold text-ink-primary">{timeStr(a.start_at)}</div>
+                      <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-0.5"><Clock size={9} />{a.duration_min}m</div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold text-ink-primary truncate">{a.service_name || 'Service'}</div>
-                      <div className="text-[11px] text-gray-400 truncate flex items-center gap-1">
+                      <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
                         <User2 size={10} /> {a.client_name || 'Walk-in'}{a.staff_id ? ` · ${staff.find(s => s.id === a.staff_id)?.name || ''}` : ''}
                       </div>
                     </div>
-                    {a.price > 0 && <div className="font-mono text-[13px] font-bold text-ink-primary shrink-0">{formatCurrency(a.price)}</div>}
+                    {a.price > 0 && <div className="tabular-nums text-[13px] font-bold text-ink-primary shrink-0">{formatCurrency(a.price)}</div>}
                     <span className={`text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border shrink-0 ${STATUS_CHIP[a.status] || STATUS_CHIP.BOOKED}`}>{a.status}</span>
                     {a.status === 'BOOKED' && (
                       <div className="flex items-center gap-1 shrink-0">
                         <button onClick={() => setStatus(a.id, 'COMPLETED')} title="Complete"
                           className="w-7 h-7 rounded-lg grid place-items-center text-emerald-600 hover:bg-emerald-50"><Check size={14} /></button>
                         <button onClick={() => setStatus(a.id, 'NOSHOW')} title="No-show"
-                          className="w-7 h-7 rounded-lg grid place-items-center text-gray-400 hover:bg-red-50 hover:text-red-500"><Ban size={13} /></button>
+                          className="w-7 h-7 rounded-lg grid place-items-center text-muted-foreground hover:bg-red-50 hover:text-red-500"><Ban size={13} /></button>
                       </div>
                     )}
                     <button onClick={() => { if (window.confirm('Delete this appointment?')) remove(a.id); }}
-                      title="Delete" className="w-7 h-7 rounded-lg grid place-items-center text-gray-300 hover:text-red-500"><X size={14} /></button>
+                      title="Delete" className="w-7 h-7 rounded-lg grid place-items-center text-muted-foreground hover:text-red-500"><X size={14} /></button>
                   </div>
                 );
               })}
@@ -113,7 +113,7 @@ const Appointments = () => {
 };
 
 const inputCls = 'w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10';
-const lblCls = 'block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5';
+const lblCls = 'block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5';
 
 const BookModal = ({ clients, staff, services, onClose, onSave }) => {
   useDialogClose(onClose);
@@ -136,9 +136,9 @@ const BookModal = ({ clients, staff, services, onClose, onSave }) => {
         <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
           <div>
             <h3 className="text-base font-extrabold text-ink-primary">Book appointment</h3>
-            <p className="text-[11px] text-gray-400">Schedule a service for a client</p>
+            <p className="text-[11px] text-muted-foreground">Schedule a service for a client</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-ink-primary"><X size={18} /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-ink-primary"><X size={18} /></button>
         </div>
         <div className="p-5 space-y-4">
           <div>
@@ -147,7 +147,7 @@ const BookModal = ({ clients, staff, services, onClose, onSave }) => {
               <option value="">Select service…</option>
               {services.map(s => <option key={s.id} value={s.id}>{s.name}{s.sellingPrice ? ` · ₹${s.sellingPrice}` : ''}</option>)}
             </select>
-            {service && <div className="text-[11px] text-gray-400 mt-1">{duration} min · {formatCurrency(price)}</div>}
+            {service && <div className="text-[11px] text-muted-foreground mt-1">{duration} min · {formatCurrency(price)}</div>}
           </div>
           <div>
             <label className={lblCls}>Client</label>

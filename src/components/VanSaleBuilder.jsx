@@ -208,11 +208,11 @@ const VanSaleBuilder = ({
           {/* Receipt body */}
           <div className="px-6 py-5 space-y-3">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-400 font-semibold">Customer</span>
+              <span className="text-muted-foreground font-semibold">Customer</span>
               <span className="font-bold text-ink-primary">{receipt.client}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-400 font-semibold">Payment</span>
+              <span className="text-muted-foreground font-semibold">Payment</span>
               <span className="font-black uppercase text-ink-primary">{receipt.method}</span>
             </div>
             <div className="border-t border-black/5 pt-3 space-y-1.5">
@@ -253,7 +253,7 @@ const VanSaleBuilder = ({
       <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-black/5 shrink-0">
         <button
           onClick={() => { setShowCheckout(false); setSubmitError(''); }}
-          className="flex items-center gap-2 text-xs font-black text-gray-500 hover:text-ink-primary transition-colors"
+          className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-ink-primary transition-colors"
         >
           <ChevronLeft size={16} /> Back to Cart
         </button>
@@ -262,7 +262,7 @@ const VanSaleBuilder = ({
           Van Sale<span className="text-emerald-500">.</span>
         </h1>
         <div className="flex-1" />
-        <span className="text-xs font-semibold text-gray-400">{cart.length} item{cart.length !== 1 ? 's' : ''}</span>
+        <span className="text-xs font-semibold text-muted-foreground">{cart.length} item{cart.length !== 1 ? 's' : ''}</span>
       </div>
 
       {/* Body */}
@@ -271,16 +271,16 @@ const VanSaleBuilder = ({
 
           {/* Left: Order Summary */}
           <div className="space-y-4">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order Summary</p>
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Order Summary</p>
             <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
               {cart.map((item, idx) => (
                 <div key={item.productId} className={`flex items-center gap-4 px-5 py-3.5 ${idx !== cart.length - 1 ? 'border-b border-black/5' : ''}`}>
-                  <div className="w-8 h-8 rounded-lg bg-white border border-gray-300 shadow-sm flex items-center justify-center shrink-0">
-                    <Package size={14} className="text-gray-400" />
+                  <div className="w-8 h-8 rounded-lg bg-white border border-border shadow-sm flex items-center justify-center shrink-0">
+                    <Package size={14} className="text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-ink-primary truncate">{item.name}</div>
-                    <div className="text-[10px] text-gray-400 font-medium">{formatCurrency(item.price)} × {item.quantity}</div>
+                    <div className="text-[10px] text-muted-foreground font-medium">{formatCurrency(item.price)} × {item.quantity}</div>
                   </div>
                   <div className="text-sm font-black text-ink-primary tabular-nums shrink-0">
                     {formatCurrency(item.price * item.quantity)}
@@ -291,7 +291,7 @@ const VanSaleBuilder = ({
 
             {/* Totals */}
             <div className="bg-white rounded-2xl border border-black/5 p-5">
-              <div className="flex justify-between text-xs font-semibold text-gray-500 mb-2">
+              <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-2">
                 <span>Subtotal</span>
                 <span className="tabular-nums">{formatCurrency(subtotal)}</span>
               </div>
@@ -308,7 +308,7 @@ const VanSaleBuilder = ({
               </div>
               <div>
                 <div className="text-sm font-bold text-ink-primary">{vanName}</div>
-                {vanPlate && <div className="text-[10px] text-gray-400 font-mono">{vanPlate}</div>}
+                {vanPlate && <div className="text-[10px] text-muted-foreground tabular-nums">{vanPlate}</div>}
               </div>
               <div className="ml-auto">
                 <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
@@ -327,7 +327,7 @@ const VanSaleBuilder = ({
                   </div>
                   <div>
                     <div className="text-sm font-bold text-ink-primary">{cl.name}</div>
-                    {cl.phone && <div className="text-[10px] text-gray-400">{cl.phone}</div>}
+                    {cl.phone && <div className="text-[10px] text-muted-foreground">{cl.phone}</div>}
                   </div>
                 </div>
               ) : null;
@@ -338,7 +338,7 @@ const VanSaleBuilder = ({
           <div className="space-y-4">
             {/* Payment Method */}
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Payment Method</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Payment Method</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { key: 'CASH', label: 'Cash', icon: <Banknote size={22} /> },
@@ -352,7 +352,7 @@ const VanSaleBuilder = ({
                         : 'border-black/8 bg-white hover:border-black/15'
                     }`}
                   >
-                    <div className={`p-2 rounded-xl ${paymentMethod === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
+                    <div className={`p-2 rounded-xl ${paymentMethod === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-muted-foreground'}`}>
                       {icon}
                     </div>
                     <span className="text-xs font-black uppercase tracking-widest">{label}</span>
@@ -373,12 +373,12 @@ const VanSaleBuilder = ({
                       : 'border-black/8 bg-white hover:border-black/15'
                   }`}
                 >
-                  <div className={`p-2 rounded-xl ${paymentMethod === 'CREDIT' ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
+                  <div className={`p-2 rounded-xl ${paymentMethod === 'CREDIT' ? 'bg-accent-signature text-button-text' : 'bg-canvas text-muted-foreground'}`}>
                     <CreditCard size={22} />
                   </div>
                   <div className="text-left">
                     <div className="text-xs font-black uppercase tracking-widest">Client Credit</div>
-                    {selectedClientId === 'WALKIN' && <div className="text-[9px] text-gray-400">Select a client first</div>}
+                    {selectedClientId === 'WALKIN' && <div className="text-[9px] text-muted-foreground">Select a client first</div>}
                   </div>
                 </button>
               </div>
@@ -429,17 +429,17 @@ const VanSaleBuilder = ({
                 <Truck size={15} className="text-emerald-600" />
               </div>
               <div>
-                <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Van Sale</div>
+                <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Van Sale</div>
                 <div className="text-sm font-black text-ink-primary leading-tight">
                   {vanName}
-                  {vanPlate && <span className="ml-2 text-[10px] font-mono text-gray-400">{vanPlate}</span>}
+                  {vanPlate && <span className="ml-2 text-[10px] tabular-nums text-muted-foreground">{vanPlate}</span>}
                 </div>
               </div>
             </div>
             <div className="flex-1" />
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center text-gray-400 hover:text-ink-primary hover:border-black/20 transition-all"
+              className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:border-black/20 transition-all"
             >
               <X size={14} />
             </button>
@@ -452,7 +452,7 @@ const VanSaleBuilder = ({
             <div className="flex-1 flex flex-col gap-4 overflow-hidden p-4">
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -462,7 +462,7 @@ const VanSaleBuilder = ({
                   onChange={e => setSearchTerm(e.target.value)}
                 />
                 {searchTerm && (
-                  <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-ink-secondary">
                     <X size={14} />
                   </button>
                 )}
@@ -471,7 +471,7 @@ const VanSaleBuilder = ({
               {/* Product rows */}
               <div className="flex flex-col gap-px overflow-y-auto pr-1 pb-4">
                 {filteredProducts.length === 0 && (
-                  <div className="py-16 text-center text-sm text-gray-400">
+                  <div className="py-16 text-center text-sm text-muted-foreground">
                     No stock on van.<br />
                     <span className="text-[11px]">Load products via Fleet → Load Van Stock</span>
                   </div>
@@ -493,7 +493,7 @@ const VanSaleBuilder = ({
                       }`}
                     >
                       {/* Thumbnail */}
-                      <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-white border border-gray-300 shadow-sm">
+                      <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-white border border-border shadow-sm">
                         <span className="text-[11px] font-black text-ink-primary/30 uppercase">
                           {(item.productName || '?').slice(0, 2)}
                         </span>
@@ -510,7 +510,7 @@ const VanSaleBuilder = ({
                       {/* Price + stock */}
                       <div className="text-right flex-shrink-0">
                         <div className="text-sm font-black text-ink-primary">{formatCurrency(item.sellingPrice)}</div>
-                        <div className={`text-xs font-semibold mt-0.5 ${outOfStock ? 'text-red-400' : 'text-gray-400'}`}>
+                        <div className={`text-xs font-semibold mt-0.5 ${outOfStock ? 'text-red-400' : 'text-muted-foreground'}`}>
                           {outOfStock ? 'OUT' : `${stock} avail`}
                         </div>
                       </div>
@@ -544,10 +544,10 @@ const VanSaleBuilder = ({
               {/* Column headers */}
               {cart.length > 0 && (
                 <div className="grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-black/5">
-                  <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Product</span>
-                  <span className="text-xs font-black text-gray-400 uppercase tracking-widest text-center">Qty</span>
-                  <span className="text-xs font-black text-gray-400 uppercase tracking-widest text-right">Unit Price</span>
-                  <span className="text-xs font-black text-gray-400 uppercase tracking-widest text-right">Total</span>
+                  <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Product</span>
+                  <span className="text-xs font-black text-muted-foreground uppercase tracking-widest text-center">Qty</span>
+                  <span className="text-xs font-black text-muted-foreground uppercase tracking-widest text-right">Unit Price</span>
+                  <span className="text-xs font-black text-muted-foreground uppercase tracking-widest text-right">Total</span>
                   <span />
                 </div>
               )}
@@ -589,7 +589,7 @@ const VanSaleBuilder = ({
 
                     {/* Unit price input */}
                     <div className="relative">
-                      <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold pointer-events-none">₹</span>
+                      <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold pointer-events-none">₹</span>
                       <input
                         type="number"
                         min="0"
@@ -608,7 +608,7 @@ const VanSaleBuilder = ({
                     {/* Remove */}
                     <button
                       onClick={() => setCart(prev => prev.filter(c => c.productId !== item.productId))}
-                      className="text-gray-300 hover:text-red-400 transition-colors flex items-center justify-center"
+                      className="text-muted-foreground hover:text-red-400 transition-colors flex items-center justify-center"
                     >
                       <X size={11} strokeWidth={2.5} />
                     </button>
@@ -628,7 +628,7 @@ const VanSaleBuilder = ({
 
                 {/* Client picker */}
                 <div className="mb-4">
-                  <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">
                     <User size={12} /> Client
                   </label>
                   <div ref={clientDropRef} className="relative">
@@ -639,13 +639,13 @@ const VanSaleBuilder = ({
                           <span className="flex flex-col min-w-0 flex-1">
                             <span className="text-xs font-black text-ink-primary uppercase tracking-tight truncate">{(sel?.name || 'Unknown').toUpperCase()}</span>
                             {(sel?.phone || sel?.address) && (
-                              <span className="text-[9px] text-gray-400 font-medium truncate mt-0.5">{sel?.phone || sel?.address}</span>
+                              <span className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">{sel?.phone || sel?.address}</span>
                             )}
                           </span>
                           <button
                             type="button"
                             onClick={() => { setSelectedClientId('WALKIN'); setClientSearch(''); setClientDropOpen(false); }}
-                            className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center text-gray-400 hover:bg-black/10 shrink-0"
+                            className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center text-muted-foreground hover:bg-black/10 shrink-0"
                           >
                             <X size={10} />
                           </button>
@@ -653,17 +653,17 @@ const VanSaleBuilder = ({
                       );
                     })() : (
                       <div className="relative">
-                        <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <input
                           type="text"
                           placeholder="Type client name to search…"
-                          className="w-full bg-white rounded-xl py-3 pl-9 pr-4 border border-black/8 outline-none focus:ring-2 focus:ring-accent-signature/20 text-xs font-semibold text-ink-primary placeholder:text-gray-400 placeholder:font-normal"
+                          className="w-full bg-white rounded-xl py-3 pl-9 pr-4 border border-black/8 outline-none focus:ring-2 focus:ring-accent-signature/20 text-xs font-semibold text-ink-primary placeholder:text-muted-foreground placeholder:font-normal"
                           value={clientSearch}
                           onChange={e => { setClientSearch(e.target.value); setClientDropOpen(true); }}
                           onFocus={() => setClientDropOpen(true)}
                         />
                         {clientSearch && (
-                          <button type="button" onClick={() => { setClientSearch(''); setClientDropOpen(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                          <button type="button" onClick={() => { setClientSearch(''); setClientDropOpen(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-ink-secondary">
                             <X size={11} />
                           </button>
                         )}
@@ -676,7 +676,7 @@ const VanSaleBuilder = ({
                           <button
                             type="button"
                             onClick={() => { setSelectedClientId('WALKIN'); setClientDropOpen(false); setClientSearch(''); }}
-                            className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-tight flex items-center justify-between hover:bg-canvas transition-colors border-b border-black/5 ${selectedClientId === 'WALKIN' ? 'text-accent-signature bg-accent-signature/5' : 'text-gray-400'}`}
+                            className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-tight flex items-center justify-between hover:bg-canvas transition-colors border-b border-black/5 ${selectedClientId === 'WALKIN' ? 'text-accent-signature bg-accent-signature/5' : 'text-muted-foreground'}`}
                           >
                             Walk-in / No client
                             {selectedClientId === 'WALKIN' && <Check size={12} />}
@@ -695,7 +695,7 @@ const VanSaleBuilder = ({
                                     {(c.name || 'Unnamed').toUpperCase()}
                                   </span>
                                   {(c.phone || c.address) && (
-                                    <span className="text-[9px] text-gray-400 font-medium truncate mt-0.5">{c.phone || c.address}</span>
+                                    <span className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">{c.phone || c.address}</span>
                                   )}
                                 </span>
                                 {selectedClientId === c.id && <Check size={12} className="shrink-0 text-accent-signature ml-2" />}
@@ -703,7 +703,7 @@ const VanSaleBuilder = ({
                             ))
                           }
                           {clientSearch && clients.filter(c => (c.name || '').toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
-                            <div className="px-4 py-5 text-center text-[10px] text-gray-400">No clients match "{clientSearch}"</div>
+                            <div className="px-4 py-5 text-center text-[10px] text-muted-foreground">No clients match "{clientSearch}"</div>
                           )}
                         </div>
                       </div>
@@ -713,7 +713,7 @@ const VanSaleBuilder = ({
 
                 {/* Totals */}
                 <div className="space-y-2 mb-6">
-                  <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase tracking-widest">
                     <span>Subtotal</span><span>{formatCurrency(subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-xl font-black text-ink-primary pt-2 border-t border-black/5">

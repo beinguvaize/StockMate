@@ -204,7 +204,7 @@ const ReportFilterBar = ({
                   onChange={e => setFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, start: e.target.value } }))}
                   className="bg-transparent border-none text-[10px] font-semibold text-foreground outline-none uppercase tabular-nums"
                 />
-                <span className="text-gray-300 font-semibold px-2">/</span>
+                <span className="text-muted-foreground font-semibold px-2">/</span>
                 <input 
                   type="date" 
                   value={filters.dateRange?.end || ''} 

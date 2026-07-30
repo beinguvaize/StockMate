@@ -258,10 +258,10 @@ const ClientStatementReport = () => {
                       <span className="text-xs font-semibold text-ink-secondary tabular-nums">{row.date}</span>
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-semibold w-fit ${ts.bg} ${ts.text}`}>{ts.label}</span>
                       <span className="text-xs font-semibold text-foreground truncate tabular-nums">{row.ref}</span>
-                      <span className={`text-xs font-semibold tabular-nums ${row.debit > 0 ? 'text-red-500' : 'text-gray-300'}`}>
+                      <span className={`text-xs font-semibold tabular-nums ${row.debit > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
                         {row.debit > 0 ? formatCurrency(row.debit) : '—'}
                       </span>
-                      <span className={`text-xs font-semibold tabular-nums ${row.credit > 0 ? 'text-emerald-600' : 'text-gray-300'}`}>
+                      <span className={`text-xs font-semibold tabular-nums ${row.credit > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
                         {row.credit > 0 ? formatCurrency(row.credit) : '—'}
                       </span>
                       <span className={`text-xs font-semibold tabular-nums ${row.balance > 0 ? 'text-red-500' : row.balance < 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
@@ -288,7 +288,7 @@ const ClientStatementReport = () => {
 
       {!selectedClient && !cLoading && (
         <div className="py-20 text-center text-sm text-muted-foreground bg-card rounded-[10px] border border-border/60 shadow-sm">
-          <UserCircle size={32} className="mx-auto mb-3 text-gray-300" />
+          <UserCircle size={32} className="mx-auto mb-3 text-muted-foreground" />
           Select a client above to view their statement
         </div>
       )}

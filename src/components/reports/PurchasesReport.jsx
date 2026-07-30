@@ -17,7 +17,7 @@ const payBadge = (method) => {
     CREDIT: 'bg-accent-signature/10   text-accent-signature-hover   border-accent-signature/15',
     BANK:   'bg-blue-50    text-blue-700    border-blue-100',
   };
-  const cls = colors[m] || 'bg-gray-50 text-muted-foreground border-gray-100';
+  const cls = colors[m] || 'bg-muted text-muted-foreground border-border';
   return (
     <span className={`inline-block text-[9px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
       {m}
@@ -31,7 +31,7 @@ const statusBadge = (status) => {
     ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
     : s === 'PENDING'
     ? 'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/15'
-    : 'bg-gray-50 text-muted-foreground border-gray-100';
+    : 'bg-muted text-muted-foreground border-border';
   return (
     <span className={`inline-block text-[9px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
       {s}

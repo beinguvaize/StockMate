@@ -218,7 +218,7 @@ const AllTransactionsReport = () => {
               ))}
             </div>
             {filteredRows.map((row, i) => {
-              const ts = TYPE_STYLE[row.type] || { bg: 'bg-gray-100', text: 'text-gray-600' };
+              const ts = TYPE_STYLE[row.type] || { bg: 'bg-muted', text: 'text-ink-secondary' };
               return (
                 <div key={`${row.ref}-${i}`}
                   className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">

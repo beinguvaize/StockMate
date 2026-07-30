@@ -178,13 +178,13 @@ const ProductMovementReport = () => {
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 windowDays === w.key
                   ? 'bg-accent-signature text-button-text'
-                  : 'bg-card text-gray-600 hover:text-foreground border border-border/60'
+                  : 'bg-card text-ink-secondary hover:text-foreground border border-border/60'
               }`}>
               {w.label}
             </button>
           ))}
           <button onClick={exportCSV} disabled={loading || (!fast.length && !slow.length)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-card border border-border/60 text-gray-700 hover:text-foreground hover:border-black/20 disabled:opacity-40 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-card border border-border/60 text-ink-secondary hover:text-foreground hover:border-black/20 disabled:opacity-40 transition-colors">
             <Download size={13} /> Export
           </button>
         </div>
@@ -280,7 +280,7 @@ const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => 
               <span className="text-sm font-semibold text-ink-secondary tabular-nums">{p.stock}</span>
               <span className="text-sm font-semibold tabular-nums">
                 {p.daysCover == null
-                  ? <span className="text-gray-300">∞</span>
+                  ? <span className="text-muted-foreground">∞</span>
                   : <span className={p.daysCover > 90 ? 'text-red-500' : p.daysCover > 45 ? 'text-accent-signature' : 'text-emerald-600'}>{Math.round(p.daysCover)}d</span>
                 }
               </span>

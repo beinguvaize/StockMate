@@ -121,7 +121,7 @@ const ClientReports = ({ clients, sales, businessProfile}) => {
  {/* Aging Chart */}
  <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Debt Aging Analysis.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">Receivables age distribution</p>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">Receivables age distribution</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
  <BarChart data={agingData}>
@@ -146,7 +146,7 @@ const ClientReports = ({ clients, sales, businessProfile}) => {
  {/* Top Debtors List */}
  <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Exposure Ranking.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">Clients with highest outstanding balances</p>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">Clients with highest outstanding balances</p>
  <div className="space-y-4 max-h-[300px] overflow-y-auto scrollbar-hide">
  {topDebtors.map((c, i) => (
  <div key={c.id} className="flex justify-between items-center p-4 bg-canvas/30 rounded-lg border border-border/60">
@@ -176,7 +176,7 @@ const ClientReports = ({ clients, sales, businessProfile}) => {
  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
  <div>
  <h3 className="text-2xl font-semibold text-foreground leading-none mb-2">Statement Terminal.</h3>
- <p className="text-[10px] font-semibold text-gray-700">Direct ledger access & print support</p>
+ <p className="text-[10px] font-semibold text-ink-secondary">Direct ledger access & print support</p>
  </div>
  <div className="flex w-full md:w-96 items-center gap-3 bg-canvas px-6 py-3 rounded-full border border-border/60 shadow-inner">
  <Search size={16} className="text-[#4b5563] opacity-70" />

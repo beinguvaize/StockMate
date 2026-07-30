@@ -372,20 +372,20 @@ const Payroll = () => {
   <div className="pill-nav self-start">
     <button
       onClick={() => setActiveTab('EMPLOYEES')}
-      className={`px-10 py-2 rounded-pill text-[10px] font-semibold transition-all ${activeTab === 'EMPLOYEES' ? 'bg-ink-primary text-surface shadow-premium' : 'text-gray-700 hover:text-ink-primary'}`}
+      className={`px-10 py-2 rounded-pill text-[10px] font-semibold transition-all ${activeTab === 'EMPLOYEES' ? 'bg-ink-primary text-surface shadow-premium' : 'text-ink-secondary hover:text-ink-primary'}`}
     >
       Employees
     </button>
     <button
       onClick={() => setActiveTab('ATTENDANCE')}
-      className={`px-10 py-2 rounded-pill text-[10px] font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'ATTENDANCE' ? 'bg-ink-primary text-surface shadow-premium' : 'text-gray-700 hover:text-ink-primary'}`}
+      className={`px-10 py-2 rounded-pill text-[10px] font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'ATTENDANCE' ? 'bg-ink-primary text-surface shadow-premium' : 'text-ink-secondary hover:text-ink-primary'}`}
     >
       <Calendar size={10} />
       Attendance
     </button>
     <button
       onClick={() => setActiveTab('HISTORY')}
-      className={`px-10 py-2 rounded-pill text-[10px] font-semibold transition-all ${activeTab === 'HISTORY' ? 'bg-ink-primary text-surface shadow-premium' : 'text-gray-700 hover:text-ink-primary'}`}
+      className={`px-10 py-2 rounded-pill text-[10px] font-semibold transition-all ${activeTab === 'HISTORY' ? 'bg-ink-primary text-surface shadow-premium' : 'text-ink-secondary hover:text-ink-primary'}`}
     >
       Pay History
     </button>
@@ -422,7 +422,7 @@ const Payroll = () => {
       if (s === 'PRESENT')  return 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200';
       if (s === 'ABSENT')   return 'bg-red-50 text-red-500 hover:bg-red-100';
       if (s === 'HALF_DAY') return 'bg-accent-signature/10 text-accent-signature hover:bg-accent-signature/15';
-      return 'bg-canvas text-gray-300 hover:bg-gray-100 hover:text-gray-500';
+      return 'bg-canvas text-muted-foreground hover:bg-muted hover:text-muted-foreground';
     };
     const statusLabel = (s) => s === 'PRESENT' ? '✓' : s === 'ABSENT' ? '✗' : s === 'HALF_DAY' ? '½' : '·';
 
@@ -444,35 +444,35 @@ const Payroll = () => {
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-emerald-100 text-emerald-700 flex items-center justify-center text-[9px] font-bold">✓</span> Present</span>
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-red-50 text-red-500 flex items-center justify-center text-[9px] font-bold">✗</span> Absent</span>
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-accent-signature/10 text-accent-signature flex items-center justify-center text-[9px] font-bold">½</span> Half Day</span>
-          <span className="text-gray-400 italic">Click cell to cycle status · Hover to set custom rate</span>
-          {attLoading && <span className="text-gray-400 animate-pulse">Loading…</span>}
+          <span className="text-muted-foreground italic">Click cell to cycle status · Hover to set custom rate</span>
+          {attLoading && <span className="text-muted-foreground animate-pulse">Loading…</span>}
         </div>
 
         {/* Daily wage grid */}
         {dailyWageEmps.length > 0 && (
           <div className="bg-white rounded-2xl border border-black/5 overflow-hidden shadow-sm">
             <div className="px-4 py-3 border-b border-black/5 flex items-center gap-2">
-              <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">Daily Wage / Hourly Employees</span>
+              <span className="text-[10px] font-semibold text-ink-secondary uppercase tracking-wide">Daily Wage / Hourly Employees</span>
               <span className="text-[9px] bg-accent-signature/15 text-accent-signature-hover px-2 py-0.5 rounded-pill font-bold uppercase">Attendance tracked</span>
             </div>
             <div className="overflow-x-auto">
               <table className="border-collapse" style={{ minWidth: `${140 + attDays.length * 34 + 120}px` }}>
                 <thead>
                   <tr className="bg-canvas">
-                    <th className="text-left px-4 py-2 text-[9px] font-semibold text-gray-500 uppercase sticky left-0 bg-canvas z-10 w-36">Employee</th>
+                    <th className="text-left px-4 py-2 text-[9px] font-semibold text-muted-foreground uppercase sticky left-0 bg-canvas z-10 w-36">Employee</th>
                     {attDays.map(d => {
                       const dow = new Date(attYear, attMonth - 1, d).getDay(); // 0=Sun,6=Sat
                       const isWeekend = dow === 0 || dow === 6;
                       const dayName = ['Su','Mo','Tu','We','Th','Fr','Sa'][dow];
                       return (
                         <th key={d} className={`px-0.5 py-1 text-center w-8 ${isWeekend ? 'bg-orange-50' : ''}`}>
-                          <div className={`text-[8px] font-bold leading-none mb-0.5 ${isWeekend ? 'text-orange-400' : 'text-gray-300'}`}>{dayName}</div>
-                          <div className={`text-[9px] font-semibold ${isWeekend ? 'text-orange-500' : 'text-gray-400'}`}>{d}</div>
+                          <div className={`text-[8px] font-bold leading-none mb-0.5 ${isWeekend ? 'text-orange-400' : 'text-muted-foreground'}`}>{dayName}</div>
+                          <div className={`text-[9px] font-semibold ${isWeekend ? 'text-orange-500' : 'text-muted-foreground'}`}>{d}</div>
                         </th>
                       );
                     })}
-                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-gray-500 uppercase w-14">Days</th>
-                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-gray-500 uppercase w-24">Wage</th>
+                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-14">Days</th>
+                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-24">Wage</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
@@ -483,7 +483,7 @@ const Payroll = () => {
                       <tr key={emp.id} className="hover:bg-canvas/50">
                         <td className="px-4 py-2 sticky left-0 bg-white z-10">
                           <div className="text-xs font-semibold text-ink-primary leading-none truncate max-w-[120px]">{emp.name}</div>
-                          <div className="text-[8px] text-gray-400 font-semibold mt-0.5">{sym}{(emp.daily_rate || 0).toLocaleString('en-IN')}/day</div>
+                          <div className="text-[8px] text-muted-foreground font-semibold mt-0.5">{sym}{(emp.daily_rate || 0).toLocaleString('en-IN')}/day</div>
                         </td>
                         {attDays.map(d => {
                           const dateStr = `${attYear}-${padZ(attMonth)}-${padZ(d)}`;
@@ -541,14 +541,14 @@ const Payroll = () => {
         {monthlyEmps.length > 0 && (
           <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-black/5">
-              <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">Monthly Salary Employees</span>
+              <span className="text-[10px] font-semibold text-ink-secondary uppercase tracking-wide">Monthly Salary Employees</span>
             </div>
             <div className="divide-y divide-black/5">
               {monthlyEmps.map(emp => (
                 <div key={emp.id} className="flex items-center justify-between px-4 py-3">
                   <div>
                     <div className="text-sm font-semibold text-ink-primary">{emp.name}</div>
-                    <div className="text-[9px] font-semibold text-gray-400 uppercase mt-0.5">{emp.department} · {emp.pay_type}</div>
+                    <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-0.5">{emp.department} · {emp.pay_type}</div>
                   </div>
                   <div className="text-sm font-bold text-ink-primary tabular-nums">
                     Fixed {sym}{(Number(emp.salary) || 0).toLocaleString('en-IN')}/mo
@@ -560,7 +560,7 @@ const Payroll = () => {
         )}
 
         {employees.filter(e => e.status === 'ACTIVE').length === 0 && (
-          <div className="text-center py-16 text-gray-400 text-sm font-semibold">No active employees. Add employees first.</div>
+          <div className="text-center py-16 text-muted-foreground text-sm font-semibold">No active employees. Add employees first.</div>
         )}
 
         {/* Process payroll CTA */}
@@ -585,7 +585,7 @@ const Payroll = () => {
   <div className="flex justify-between items-start mb-4">
   <div>
   <h2 className="text-xl font-semibold text-ink-primary">Record Payment</h2>
-  <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Pay Employee Salary</p>
+  <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-6 uppercase">Pay Employee Salary</p>
   </div>
   <button onClick={() => setShowSalaryModal(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-primary transition-all">
   <X size={16} />
@@ -593,18 +593,18 @@ const Payroll = () => {
   </div>
   <form onSubmit={handleMarkSalaryPaid} className="space-y-4">
   <div>
-  <label className="text-[10px] font-semibold text-gray-700 opacity-70 block mb-2">Amount Paying</label>
+  <label className="text-[10px] font-semibold text-ink-secondary opacity-70 block mb-2">Amount Paying</label>
   <div className="flex items-center gap-2 bg-canvas px-4 py-3 rounded-xl border border-black/10">
-  <span className="text-sm font-semibold text-gray-700">{businessProfile?.currencySymbol || ''}</span>
+  <span className="text-sm font-semibold text-ink-secondary">{businessProfile?.currencySymbol || ''}</span>
   <input type="number" step="0.01" required className="w-full bg-transparent border-none text-base font-semibold text-ink-primary outline-none" value={salaryPayment.amount} onChange={e => setSalaryPayment({...salaryPayment, amount: e.target.value})} />
   </div>
   </div>
   <div>
-  <label className="text-[10px] font-semibold text-gray-700 opacity-70 block mb-2">Payment Date</label>
+  <label className="text-[10px] font-semibold text-ink-secondary opacity-70 block mb-2">Payment Date</label>
   <input type="date" required className="w-full bg-canvas px-4 py-3 rounded-xl border border-black/10 text-sm font-semibold text-ink-primary outline-none" value={salaryPayment.date} onChange={e => setSalaryPayment({...salaryPayment, date: e.target.value})} />
   </div>
   <div>
-  <label className="text-[10px] font-semibold text-gray-700 opacity-70 block mb-2">Notes (Optional)</label>
+  <label className="text-[10px] font-semibold text-ink-secondary opacity-70 block mb-2">Notes (Optional)</label>
   <input type="text" className="w-full bg-canvas px-4 py-3 rounded-xl border border-black/10 text-sm font-semibold text-ink-primary outline-none" value={salaryPayment.notes} onChange={e => setSalaryPayment({...salaryPayment, notes: e.target.value})} />
   </div>
   <button type="submit" className="w-full btn-signature py-2 rounded-xl mt-4 text-xs font-semibold">
@@ -624,7 +624,7 @@ const Payroll = () => {
     <div className="flex items-center justify-between px-6 py-4 border-b border-black/8 shrink-0">
       <div>
         <h2 className="text-base font-semibold text-ink-primary">{editingEmployee ? 'Edit employee' : 'Add employee'}</h2>
-        <p className="text-[11px] text-gray-500 mt-0.5">{editingEmployee ? 'Update staff member details' : 'New staff member will be added to payroll'}</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{editingEmployee ? 'Update staff member details' : 'New staff member will be added to payroll'}</p>
       </div>
       <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary">
         <X size={15} />
@@ -636,22 +636,22 @@ const Payroll = () => {
 
       {/* ── Personal ── */}
       <div>
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Personal information</p>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Personal information</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Full name</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Full name</label>
             <input required type="text" placeholder="e.g. Ramesh Kumar"
               className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={empForm.name} onChange={e => setEmpForm({...empForm, name: e.target.value})} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Date of birth</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Date of birth</label>
             <input type="date"
               className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={empForm.dob} onChange={e => setEmpForm({...empForm, dob: e.target.value})} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Gender</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Gender</label>
             <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer"
               value={empForm.gender} onChange={e => setEmpForm({...empForm, gender: e.target.value})}>
               <option value="">Select</option>
@@ -661,7 +661,7 @@ const Payroll = () => {
             </select>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Blood group</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Blood group</label>
             <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer"
               value={empForm.bloodGroup} onChange={e => setEmpForm({...empForm, bloodGroup: e.target.value})}>
               <option value="">Select</option>
@@ -669,13 +669,13 @@ const Payroll = () => {
             </select>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Phone</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Phone</label>
             <input type="tel" placeholder="9876543210"
               className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={empForm.phone} onChange={e => setEmpForm({...empForm, phone: e.target.value})} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Emergency contact</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Emergency contact</label>
             <input type="tel" placeholder="Family member's number"
               className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={empForm.emergencyContact} onChange={e => setEmpForm({...empForm, emergencyContact: e.target.value})} />
@@ -685,16 +685,16 @@ const Payroll = () => {
 
       {/* ── Employment ── */}
       <div className="border-t border-black/6 pt-5">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Employment</p>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Employment</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Date of joining</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Date of joining</label>
             <input type="date"
               className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={empForm.joiningDate} onChange={e => setEmpForm({...empForm, joiningDate: e.target.value})} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Employment type</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Employment type</label>
             <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer"
               value={empForm.employmentType} onChange={e => setEmpForm({...empForm, employmentType: e.target.value})}>
               <option value="FULL_TIME">Full-time</option>
@@ -704,21 +704,21 @@ const Payroll = () => {
             </select>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Department</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Department</label>
             <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer"
               value={empForm.department} onChange={e => setEmpForm({...empForm, department: e.target.value})}>
               {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Position / role</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Position / role</label>
             <input required type="text" placeholder="e.g. Driver, Cashier, Warehouse Staff"
               className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={empForm.position} onChange={e => setEmpForm({...empForm, position: e.target.value})} />
           </div>
           <div className="col-span-2">
-            <label className="block text-[11px] font-medium text-gray-600 mb-1 flex items-center gap-1">
-              <Link2 size={10} /> Link to user account <span className="text-gray-400 font-normal">(optional)</span>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1 flex items-center gap-1">
+              <Link2 size={10} /> Link to user account <span className="text-muted-foreground font-normal">(optional)</span>
             </label>
             <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer"
               value={empForm.userId}
@@ -736,19 +736,19 @@ const Payroll = () => {
 
       {/* ── Pay structure ── */}
       <div className="border-t border-black/6 pt-5">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Pay structure</p>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Pay structure</p>
         <div className="flex gap-2 mb-4 bg-canvas border border-black/8 rounded-lg p-1">
           {PAY_TYPES.map(t => (
             <button key={t} type="button"
               onClick={() => setEmpForm({...empForm, payType: t})}
-              className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${empForm.payType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-gray-500 hover:text-ink-primary'}`}>
+              className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${empForm.payType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
               {t === 'MONTHLY' ? 'Monthly' : t === 'DAILY' ? 'Daily' : t === 'HOURLY' ? 'Hourly' : 'Weekly'}
             </button>
           ))}
         </div>
         {(empForm.payType === 'MONTHLY' || empForm.payType === 'WEEKLY') ? (
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">{empForm.payType === 'MONTHLY' ? 'Monthly salary (₹)' : 'Weekly pay (₹)'}</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">{empForm.payType === 'MONTHLY' ? 'Monthly salary (₹)' : 'Weekly pay (₹)'}</label>
             <input required type="number" step="0.01" placeholder="e.g. 15000"
               className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={empForm.basePay} onChange={e => setEmpForm({...empForm, basePay: e.target.value})} />
@@ -756,13 +756,13 @@ const Payroll = () => {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-gray-600 mb-1">{empForm.payType === 'DAILY' ? 'Daily rate (₹)' : 'Hourly rate (₹)'}</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1">{empForm.payType === 'DAILY' ? 'Daily rate (₹)' : 'Hourly rate (₹)'}</label>
               <input required type="number" step="0.01" placeholder="e.g. 500"
                 className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
                 value={empForm.dailyRate} onChange={e => setEmpForm({...empForm, dailyRate: e.target.value})} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-gray-600 mb-1">Days worked (this cycle)</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1">Days worked (this cycle)</label>
               <input type="number" placeholder="0"
                 className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
                 value={empForm.daysWorked} onChange={e => setEmpForm({...empForm, daysWorked: e.target.value})} />
@@ -771,7 +771,7 @@ const Payroll = () => {
         )}
         <div className="grid grid-cols-2 gap-3 mt-3">
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Payment mode</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Payment mode</label>
             <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer">
               <option>Cash</option>
               <option>Bank transfer</option>
@@ -779,7 +779,7 @@ const Payroll = () => {
             </select>
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Bank account / UPI ID</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Bank account / UPI ID</label>
             <input type="text" placeholder="Account no. or handle@upi"
               className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={empForm.bankAccount} onChange={e => setEmpForm({...empForm, bankAccount: e.target.value})} />
@@ -789,17 +789,17 @@ const Payroll = () => {
 
       {/* ── Statutory ── */}
       <div className="border-t border-black/6 pt-5">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Statutory IDs</p>
-        <p className="text-[11px] text-gray-400 mb-3">Required for PF, TDS and ESI compliance</p>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">Statutory IDs</p>
+        <p className="text-[11px] text-muted-foreground mb-3">Required for PF, TDS and ESI compliance</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">Aadhaar number</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Aadhaar number</label>
             <input type="text" placeholder="XXXX XXXX XXXX" maxLength={14}
               className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={empForm.aadhaar} onChange={e => setEmpForm({...empForm, aadhaar: e.target.value})} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">
               PAN <span className="text-[9px] bg-red-50 text-red-500 font-bold px-1.5 py-0.5 rounded ml-1">TDS</span>
             </label>
             <input type="text" placeholder="ABCDE1234F" maxLength={10}
@@ -807,13 +807,13 @@ const Payroll = () => {
               value={empForm.pan} onChange={e => setEmpForm({...empForm, pan: e.target.value.toUpperCase()})} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">PF account no.</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">PF account no.</label>
             <input type="text" placeholder="MH/BOM/12345/000/0000000"
               className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={empForm.pfAccount} onChange={e => setEmpForm({...empForm, pfAccount: e.target.value})} />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-gray-600 mb-1">ESI no.</label>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">ESI no.</label>
             <input type="text" placeholder="31-00-123456-000-0001"
               className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={empForm.esiNo} onChange={e => setEmpForm({...empForm, esiNo: e.target.value})} />
@@ -826,7 +826,7 @@ const Payroll = () => {
     {/* Footer */}
     <div className="px-6 py-4 border-t border-black/8 flex gap-3 justify-end shrink-0">
       <button type="button" onClick={() => setShowForm(false)}
-        className="px-5 py-2 rounded-lg border border-black/10 text-sm font-medium text-gray-600 hover:bg-black/5 transition-all cursor-pointer">
+        className="px-5 py-2 rounded-lg border border-black/10 text-sm font-medium text-ink-secondary hover:bg-black/5 transition-all cursor-pointer">
         Cancel
       </button>
       <button form="emp-form-inner" type="submit" onClick={handleSubmit} disabled={isSaving}
@@ -857,9 +857,9 @@ const Payroll = () => {
     <div className="flex items-center justify-between px-6 py-4 border-b border-black/8 shrink-0">
       <div>
         <h2 className="text-base font-semibold text-ink-primary">Process Payroll</h2>
-        <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-2">
+        <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2">
           <span>{periodLabel}</span>
-          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-pill uppercase ${payPeriodType === 'WEEKLY' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>{payPeriodType === 'WEEKLY' ? 'Weekly' : 'Monthly'}</span>
+          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-pill uppercase ${payPeriodType === 'WEEKLY' ? 'bg-blue-50 text-blue-600' : 'bg-muted text-muted-foreground'}`}>{payPeriodType === 'WEEKLY' ? 'Weekly' : 'Monthly'}</span>
         </p>
       </div>
       <div className="flex items-center gap-3">
@@ -867,7 +867,7 @@ const Payroll = () => {
         <div className="flex bg-canvas rounded-lg border border-black/8 p-0.5 gap-0.5">
           {['MONTHLY', 'WEEKLY'].map(t => (
             <button key={t} type="button" onClick={() => setPayPeriodType(t)}
-              className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${payPeriodType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-gray-500 hover:text-ink-primary'}`}>
+              className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${payPeriodType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
               {t === 'MONTHLY' ? 'Monthly' : 'Weekly'}
             </button>
           ))}
@@ -876,7 +876,7 @@ const Payroll = () => {
           <input type="month" className="bg-canvas border border-black/8 rounded-lg px-3 py-2 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20" value={payRunMonth} onChange={e => setPayRunMonth(e.target.value)} />
         ) : (
           <div className="flex flex-col gap-0.5">
-            <label className="text-[9px] font-semibold text-gray-400 uppercase px-1">Week start (Mon)</label>
+            <label className="text-[9px] font-semibold text-muted-foreground uppercase px-1">Week start (Mon)</label>
             <input type="date" className="bg-canvas border border-black/8 rounded-lg px-3 py-2 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20" value={weekStart} onChange={e => setWeekStart(e.target.value)} />
           </div>
         )}
@@ -891,14 +891,14 @@ const Payroll = () => {
     <table className="w-full text-left border-collapse">
       <thead className="sticky top-0 z-10 bg-canvas border-b border-black/8">
         <tr>
-          <th className="px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Employee</th>
-          <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Days</th>
-          <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Base Pay</th>
-          <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Overtime / Extra</th>
-          <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Commission</th>
-          <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Bonus</th>
-          <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Deductions</th>
-          <th className="px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Net Pay</th>
+          <th className="px-5 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Employee</th>
+          <th className="px-3 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-right">Days</th>
+          <th className="px-3 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-right">Base Pay</th>
+          <th className="px-3 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-right">Overtime / Extra</th>
+          <th className="px-3 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-right">Commission</th>
+          <th className="px-3 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-right">Bonus</th>
+          <th className="px-3 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-right">Deductions</th>
+          <th className="px-5 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-right">Net Pay</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-black/5">
@@ -906,7 +906,7 @@ const Payroll = () => {
         <tr key={item.employeeId} className="hover:bg-canvas/60 transition-colors">
           <td className="px-5 py-4">
             <div className="text-sm font-semibold text-ink-primary leading-none">{item.employeeName}</div>
-            <div className="text-[10px] text-gray-400 font-medium mt-0.5">{item.department} · {item.payType}</div>
+            <div className="text-[10px] text-muted-foreground font-medium mt-0.5">{item.department} · {item.payType}</div>
           </td>
           <td className="px-3 py-4 text-right">
             {item.payType === 'DAILY' ? (
@@ -914,10 +914,10 @@ const Payroll = () => {
             ) : item.payType === 'HOURLY' ? (
               <input type="number" className={inputCls + ' !w-20'} value={item.hoursWorked} onChange={e => updatePayRunItem(item.employeeId, 'hoursWorked', e.target.value)} />
             ) : (
-              <span className="text-xs text-gray-400 italic">Fixed</span>
+              <span className="text-xs text-muted-foreground italic">Fixed</span>
             )}
           </td>
-          <td className="px-3 py-4 text-right text-sm font-semibold text-gray-600 tabular-nums">
+          <td className="px-3 py-4 text-right text-sm font-semibold text-ink-secondary tabular-nums">
             {sym}{Math.round(item.basePay).toLocaleString('en-IN')}
           </td>
           <td className="px-3 py-4 text-right">
@@ -980,7 +980,7 @@ const Payroll = () => {
   <Trash2 size={40} />
   </div>
   <h2 className="text-3xl font-semibold text-ink-primary mb-2">CONFIRM DELETE.</h2>
-  <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">
+  <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-6 uppercase">
   This action cannot be undone. All staff records will be purged.
   </p>
   <div className="grid grid-cols-2 gap-4">

@@ -122,7 +122,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
  {/* Category Valuation Chart */}
  <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Valuation by Category.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">Asset distribution across catalog</p>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">Asset distribution across catalog</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
  <PieChart>
@@ -158,7 +158,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
  {/* Top Stock Movements */}
  <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">High Velocity SKUs.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">Most active products in last 100 logs</p>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">Most active products in last 100 logs</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
  <BarChart data={movementTrends} layout="vertical">
@@ -189,7 +189,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
  <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
  <div>
- <p className="text-[10px] font-semibold text-gray-700">Identify underperforming capital</p>
+ <p className="text-[10px] font-semibold text-ink-secondary">Identify underperforming capital</p>
  </div>
  <div className="flex items-center gap-4">
  <button 

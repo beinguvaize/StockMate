@@ -100,7 +100,7 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
  {/* Payroll Flow Area Chart */}
  <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Expenditure Flow.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">6-Month historical payroll trends</p>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">6-Month historical payroll trends</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
  <AreaChart data={payrollTrends}>
@@ -133,7 +133,7 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
  {/* Department Distribution Pie */}
  <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Structural Density.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">Salary allocation by functional unit</p>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">Salary allocation by functional unit</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
  <PieChart>
@@ -163,7 +163,7 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
  <div className="flex justify-between items-center mb-10">
  <div>
  <h3 className="text-2xl font-semibold text-foreground mb-2">Workforce Integrity.</h3>
- <p className="text-[10px] font-semibold text-gray-700">Departmental cost and population metrics</p>
+ <p className="text-[10px] font-semibold text-ink-secondary">Departmental cost and population metrics</p>
  </div>
  <button 
  onClick={() => downloadCSV(employees, 'ledgr_hr_workforce', businessProfile.name)}

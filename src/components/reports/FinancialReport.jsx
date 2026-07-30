@@ -209,7 +209,7 @@ const FinancialReport = () => {
                 <Cell><Delta cur={m.revenue} prior={p.revenue} /></Cell>
               </tr>
               <tr className="border-t border-black/[0.05]">
-                <Cell align="left" cls="text-gray-600">Cost of goods sold</Cell>
+                <Cell align="left" cls="text-ink-secondary">Cost of goods sold</Cell>
                 <Cell cls="text-rose-600 tabular-nums">({formatCurrency(m.cogs, cur).replace(cur, '')})</Cell>
                 <Cell cls="text-muted-foreground">{pct(m.cogs)}</Cell>
                 <Cell cls="text-muted-foreground">({formatCurrency(p.cogs, cur).replace(cur, '')})</Cell>
@@ -231,15 +231,15 @@ const FinancialReport = () => {
               )}
               {expCats.map(c => (
                 <tr key={c.name}>
-                  <td style={{ padding: '6px 16px 6px 28px' }} className="text-gray-600">{c.name}</td>
+                  <td style={{ padding: '6px 16px 6px 28px' }} className="text-ink-secondary">{c.name}</td>
                   <Cell cls="tabular-nums">{formatCurrency(c.amount, cur).replace(cur, '')}</Cell>
                   <Cell cls="text-muted-foreground">{pct(c.amount)}</Cell>
-                  <Cell cls="text-gray-300">—</Cell>
-                  <Cell cls="text-gray-300">—</Cell>
+                  <Cell cls="text-muted-foreground">—</Cell>
+                  <Cell cls="text-muted-foreground">—</Cell>
                 </tr>
               ))}
               <tr className="border-t border-black/[0.05]">
-                <Cell align="left" cls="text-gray-700">Total operating expenses</Cell>
+                <Cell align="left" cls="text-ink-secondary">Total operating expenses</Cell>
                 <Cell cls="text-rose-600 tabular-nums">({formatCurrency(m.expenses, cur).replace(cur, '')})</Cell>
                 <Cell cls="text-muted-foreground">{pct(m.expenses)}</Cell>
                 <Cell cls="text-muted-foreground">({formatCurrency(p.expenses, cur).replace(cur, '')})</Cell>
@@ -304,7 +304,7 @@ const FinancialReport = () => {
                 {expCats.slice(0, 6).map((c, i) => (
                   <div key={c.name} className="flex items-center gap-2 text-[11px]">
                     <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: EXP_COLORS[i % EXP_COLORS.length] }} />
-                    <span className="font-semibold text-gray-600 truncate flex-1">{c.name}</span>
+                    <span className="font-semibold text-ink-secondary truncate flex-1">{c.name}</span>
                     <span className="font-semibold text-foreground tabular-nums">{pct(c.amount)}</span>
                   </div>
                 ))}

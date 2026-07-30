@@ -57,9 +57,9 @@ const UnverifiedCostReport = () => {
       ...b,
       _age: age,
       _band: band?.label || '—',
-      _bandCls: band?.cls || 'text-muted-foreground bg-gray-50 border-border',
+      _bandCls: band?.cls || 'text-muted-foreground bg-muted border-border',
       _origin: ORIGIN_LABEL[b.origin] || b.origin || '—',
-      _basis: BASIS_LABEL[b.cost_basis] || { text: b.cost_basis || '—', cls: 'text-muted-foreground bg-gray-50 border-border' },
+      _basis: BASIS_LABEL[b.cost_basis] || { text: b.cost_basis || '—', cls: 'text-muted-foreground bg-muted border-border' },
       _value: Number(b.value_at_risk) || 0,
       _sold: Number(b.sold_rows) || 0,
     };
@@ -151,7 +151,7 @@ const UnverifiedCostReport = () => {
     <>
       <div className="no-print flex items-center justify-end gap-2 mb-3">
         <button onClick={() => refetch?.()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border text-[11px] font-semibold text-gray-700 hover:bg-card transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border text-[11px] font-semibold text-ink-secondary hover:bg-card transition-colors">
           <RefreshCw size={13} /> Refresh
         </button>
         <button onClick={exportExcel}

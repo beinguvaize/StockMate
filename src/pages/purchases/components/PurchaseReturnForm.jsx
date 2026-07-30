@@ -71,7 +71,7 @@ const PurchaseReturnForm = ({ purchase, product, supplier, warehouses = [], onSa
             min="0.01"
             max={maxQty}
             step="0.01"
-            className="w-full bg-card border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder={`0 – ${maxQty}`}
             value={formData.quantity}
             onChange={e => setFormData(f => ({ ...f, quantity: e.target.value }))}
@@ -88,7 +88,7 @@ const PurchaseReturnForm = ({ purchase, product, supplier, warehouses = [], onSa
           <input
             required
             type="date"
-            className="w-full bg-card border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             value={formData.date}
             onChange={e => setFormData(f => ({ ...f, date: e.target.value }))}
           />
@@ -98,7 +98,7 @@ const PurchaseReturnForm = ({ purchase, product, supplier, warehouses = [], onSa
           <div>
             <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Return Stock To</label>
             <select
-              className="w-full bg-card border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+              className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={formData.location_id}
               onChange={e => setFormData(f => ({ ...f, location_id: e.target.value }))}
             >
@@ -112,7 +112,7 @@ const PurchaseReturnForm = ({ purchase, product, supplier, warehouses = [], onSa
           <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Reason</label>
           <input
             type="text"
-            className="w-full bg-card border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="Damaged, wrong item, excess stock..."
             value={formData.reason}
             onChange={e => setFormData(f => ({ ...f, reason: e.target.value }))}

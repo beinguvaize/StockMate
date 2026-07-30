@@ -17,7 +17,7 @@ export const PLANS = {
     features: [],
     maxUsers: 1,
     maxInvoices: 100,
-    color: 'bg-gray-100 text-gray-600',
+    color: 'bg-muted text-ink-secondary',
   },
   GROWTH: {
     label: 'Growth',

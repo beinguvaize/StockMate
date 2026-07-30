@@ -43,7 +43,7 @@ const Modal = ({
             </h1>
           )}
           {subtitle && (
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
               {subtitle}
             </p>
           )}
@@ -51,7 +51,7 @@ const Modal = ({
         <button
           type="button"
           onClick={onClose}
-          className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-gray-400 shrink-0"
+          className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-muted-foreground shrink-0"
         >
           <X size={16} />
         </button>

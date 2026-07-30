@@ -149,25 +149,25 @@ const StatusBadge = ({ count, label, color }) => (
 const PreviewTable = ({ validated, cols }) => {
   const show = validated.slice(0, 10);
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
+    <div className="overflow-x-auto rounded-xl border border-border">
       <table className="min-w-full text-sm">
         <thead>
-          <tr className="bg-gray-50">
-            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 w-8">#</th>
+          <tr className="bg-muted">
+            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground w-8">#</th>
             {cols.map(c => (
-              <th key={c.key} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
+              <th key={c.key} className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
                 {c.label}{c.required ? ' *' : ''}
               </th>
             ))}
-            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Status</th>
+            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Status</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
           {show.map(({ row, errors, index }) => (
             <tr key={index} className={errors.length ? 'bg-red-50' : 'bg-white'}>
-              <td className="px-3 py-2 text-gray-400 text-xs">{index}</td>
+              <td className="px-3 py-2 text-muted-foreground text-xs">{index}</td>
               {cols.map(c => (
-                <td key={c.key} className="px-3 py-2 text-gray-700 whitespace-nowrap max-w-[140px] truncate">
+                <td key={c.key} className="px-3 py-2 text-ink-secondary whitespace-nowrap max-w-[140px] truncate">
                   {String(row[c.key] ?? '')}
                 </td>
               ))}
@@ -182,7 +182,7 @@ const PreviewTable = ({ validated, cols }) => {
         </tbody>
       </table>
       {validated.length > 10 && (
-        <div className="px-4 py-2 text-xs text-gray-400 bg-gray-50 border-t border-gray-100">
+        <div className="px-4 py-2 text-xs text-muted-foreground bg-muted border-t border-border">
           Showing 10 of {validated.length} rows
         </div>
       )}
@@ -314,7 +314,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
 
       {/* Column guide */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Expected Columns</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Expected Columns</p>
         <div className="flex flex-wrap gap-2">
           {cols.map(c => (
             <span
@@ -322,22 +322,22 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
               className={`px-2 py-1 rounded-md text-xs font-medium border ${
                 c.required
                   ? 'bg-red-50 border-red-200 text-red-700'
-                  : 'bg-gray-50 border-gray-200 text-gray-600'
+                  : 'bg-muted border-border text-ink-secondary'
               }`}
             >
               {c.label}{c.required ? ' *' : ''}{c.note ? ` (${c.note})` : ''}
             </span>
           ))}
         </div>
-        <p className="text-xs text-gray-400 mt-2">* Required fields</p>
+        <p className="text-xs text-muted-foreground mt-2">* Required fields</p>
       </div>
 
       {/* Upload zone */}
       {status === 'idle' || status === 'error' ? (
-        <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-all">
-          <Upload size={28} className="text-gray-400 mb-2" />
-          <p className="text-sm font-semibold text-gray-600">Click to upload .xlsx file</p>
-          <p className="text-xs text-gray-400 mt-1">Excel files only (.xlsx, .xls)</p>
+        <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-border rounded-xl cursor-pointer bg-muted hover:bg-muted hover:border-border transition-all">
+          <Upload size={28} className="text-muted-foreground mb-2" />
+          <p className="text-sm font-semibold text-ink-secondary">Click to upload .xlsx file</p>
+          <p className="text-xs text-muted-foreground mt-1">Excel files only (.xlsx, .xls)</p>
           {status === 'error' && (
             <p className="text-xs text-red-600 mt-2 font-medium">{errorMsg}</p>
           )}
@@ -350,14 +350,14 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileSpreadsheet size={16} className="text-gray-400" />
-              <span className="text-sm font-semibold text-gray-700">{validated.length} rows detected</span>
+              <FileSpreadsheet size={16} className="text-muted-foreground" />
+              <span className="text-sm font-semibold text-ink-secondary">{validated.length} rows detected</span>
               <StatusBadge count={validRows.length} label="valid" color="bg-emerald-100 text-emerald-700" />
               {invalidCount > 0 && (
                 <StatusBadge count={invalidCount} label="errors" color="bg-red-100 text-red-700" />
               )}
             </div>
-            <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600 underline">
+            <button onClick={reset} className="text-xs text-muted-foreground hover:text-ink-secondary underline">
               Change file
             </button>
           </div>
@@ -409,7 +409,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           </div>
           <button
             onClick={reset}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-sm font-semibold text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold text-ink-secondary rounded-lg hover:bg-muted transition-colors"
           >
             Import Another File
           </button>
@@ -436,23 +436,23 @@ export default function ImportData({ modal = false }) {
       {/* Header — hide when embedded in modal (modal has its own header) */}
       {!modal && (
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Bulk Import — Upload Excel</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-black text-foreground tracking-tight">Bulk Import — Upload Excel</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Bulk import clients, suppliers and products via Excel. Data is isolated to your account.
           </p>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex gap-2 p-1 bg-gray-100 rounded-xl w-fit">
+      <div className="flex gap-2 p-1 bg-muted rounded-xl w-fit">
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               tab === t.key
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-white text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-ink-secondary'
             }`}
           >
             {t.icon}
@@ -462,7 +462,7 @@ export default function ImportData({ modal = false }) {
       </div>
 
       {/* Panel */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+      <div className="bg-white rounded-2xl border border-border p-6 shadow-sm">
         {tabs.map(t =>
           tab === t.key ? (
             <ImportPanel

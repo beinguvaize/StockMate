@@ -102,7 +102,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                     return `${it.name}${q !== 1 ? ` ×${formatQty(q, it.unit)}` : ''}`;
                   }).join(', ');
                   const method   = (s.paymentMethod || 'CASH').toUpperCase();
-                  const badgeCls = PAY_BADGE[method] || 'bg-gray-100 text-gray-600';
+                  const badgeCls = PAY_BADGE[method] || 'bg-muted text-ink-secondary';
                   const isVan    = !!(s.routeId || s.vehicleId) || s.source_app === 'VAN';
                   const vehicle  = isVan && s.vehicleId ? vehicles.find(v => v.id === s.vehicleId) : null;
                   const vanLabel = vehicle ? (vehicle.plateNumber || vehicle.name || 'VAN') : 'VAN';

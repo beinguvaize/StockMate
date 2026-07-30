@@ -55,7 +55,7 @@ const ExpiryReport = () => {
         _sku: p.sku || '',
         _days: days,
         _bucket: bucket?.label || '> 90 days',
-        _bucketColor: bucket?.color || 'text-muted-foreground bg-gray-50 border-border',
+        _bucketColor: bucket?.color || 'text-muted-foreground bg-muted border-border',
         _value: round2(Number(b.qty_remaining) * Number(b.unit_cost || 0)),
       };
     })

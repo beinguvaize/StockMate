@@ -41,7 +41,7 @@ const colorMap = {
   blue:    'bg-blue-50    text-blue-700    border-blue-200',
   rose:    'bg-rose-50    text-rose-700    border-rose-200',
   teal:    'bg-teal-50    text-teal-700    border-teal-200',
-  gray:    'bg-gray-50    text-gray-700    border-gray-200',
+  gray:    'bg-muted    text-ink-secondary    border-border',
 };
 
 /* ─── helpers ─── */
@@ -192,7 +192,7 @@ const AuditLog = () => {
           </h1>
           <div className="flex items-center gap-3">
             <div className="w-1.5 h-4 bg-accent-signature rounded-full animate-pulse" />
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
               Immutable Activity Trail — {totalCount} Event{totalCount !== 1 ? 's' : ''}
             </p>
           </div>
@@ -206,7 +206,7 @@ const AuditLog = () => {
               flex items-center gap-2 px-5 py-2.5 rounded-pill border text-[10px] font-black uppercase tracking-widest transition-all
               ${showFilters || activeFilterCount > 0
                 ? 'bg-ink-primary text-white border-ink-primary shadow-lg'
-                : 'bg-white border-black/5 text-gray-500 hover:border-black/10 hover:shadow-premium'}
+                : 'bg-white border-black/5 text-muted-foreground hover:border-black/10 hover:shadow-premium'}
             `}
           >
             <Filter size={14} />
@@ -222,7 +222,7 @@ const AuditLog = () => {
           <button
             onClick={fetchLogs}
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-pill bg-white border border-black/5 text-[10px] font-black text-gray-500 uppercase tracking-widest hover:shadow-premium transition-all disabled:opacity-40"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-pill bg-white border border-black/5 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:shadow-premium transition-all disabled:opacity-40"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             Refresh
@@ -235,17 +235,17 @@ const AuditLog = () => {
         <div className="flex flex-wrap items-center gap-4 bg-white/60 backdrop-blur-xl p-4 rounded-[2rem] border border-black/5 shadow-glass animate-in slide-in-from-top-4 duration-300">
 
           {/* Search */}
-          <div className="flex items-center gap-2 bg-white border border-gray-300 shadow-sm px-4 py-2.5 rounded-pill flex-1 min-w-[220px]">
-            <Search size={14} className="text-gray-400" />
+          <div className="flex items-center gap-2 bg-white border border-border shadow-sm px-4 py-2.5 rounded-pill flex-1 min-w-[220px]">
+            <Search size={14} className="text-muted-foreground" />
             <input
               type="text"
               placeholder="Search by email or summary…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="bg-transparent border-none text-sm font-medium text-ink-primary outline-none w-full placeholder:text-gray-400"
+              className="bg-transparent border-none text-sm font-medium text-ink-primary outline-none w-full placeholder:text-muted-foreground"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="text-gray-400 hover:text-ink-primary">
+              <button onClick={() => setSearch('')} className="text-muted-foreground hover:text-ink-primary">
                 <X size={14} />
               </button>
             )}
@@ -263,7 +263,7 @@ const AuditLog = () => {
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
-            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           </div>
 
           {/* Date range */}
@@ -273,14 +273,14 @@ const AuditLog = () => {
               type="date"
               value={dateRange.start}
               onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="bg-transparent border-none text-[10px] font-black text-ink-primary outline-none uppercase font-mono"
+              className="bg-transparent border-none text-[10px] font-black text-ink-primary outline-none uppercase tabular-nums"
             />
-            <span className="text-gray-300 font-black px-1">/</span>
+            <span className="text-muted-foreground font-black px-1">/</span>
             <input
               type="date"
               value={dateRange.end}
               onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="bg-transparent border-none text-[10px] font-black text-ink-primary outline-none uppercase font-mono"
+              className="bg-transparent border-none text-[10px] font-black text-ink-primary outline-none uppercase tabular-nums"
             />
           </div>
 
@@ -288,7 +288,7 @@ const AuditLog = () => {
           {activeFilterCount > 0 && (
             <button
               onClick={clearFilters}
-              className="flex items-center gap-2 text-[10px] font-black text-gray-400 hover:text-red-500 transition-colors uppercase tracking-widest"
+              className="flex items-center gap-2 text-[10px] font-black text-muted-foreground hover:text-red-500 transition-colors uppercase tracking-widest"
             >
               <X size={12} />
               Clear All
@@ -320,7 +320,7 @@ const AuditLog = () => {
           <div className="flex flex-col items-center justify-center py-16 opacity-40">
             <Info size={40} strokeWidth={1} />
             <p className="text-sm font-black uppercase mt-4 tracking-widest">No Events Found</p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {activeFilterCount > 0 ? 'Try adjusting your filters' : 'Audit events will appear here as actions occur'}
             </p>
           </div>
@@ -353,7 +353,7 @@ const AuditLog = () => {
                           {meta.label}
                         </span>
                         {row.entity_type && (
-                          <span className="text-[10px] font-bold text-gray-400 uppercase">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">
                             {row.entity_type}
                             {row.entity_id ? ` #${row.entity_id.slice(0, 8)}` : ''}
                           </span>
@@ -365,11 +365,11 @@ const AuditLog = () => {
                     {/* Actor */}
                     <div className="hidden md:flex flex-col items-end shrink-0">
                       <span className="text-[11px] font-bold text-ink-primary">{row.actor_email || 'System'}</span>
-                      <span className="text-[10px] text-gray-400">{relativeTime(row.created_at)}</span>
+                      <span className="text-[10px] text-muted-foreground">{relativeTime(row.created_at)}</span>
                     </div>
 
                     {/* Expand */}
-                    <div className="shrink-0 text-gray-300 group-hover:text-gray-500 transition-colors">
+                    <div className="shrink-0 text-muted-foreground group-hover:text-muted-foreground transition-colors">
                       <Eye size={16} />
                     </div>
                   </button>
@@ -380,27 +380,27 @@ const AuditLog = () => {
                       <div className="bg-canvas rounded-2xl p-5 ml-14 border border-black/5">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                           <div>
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Actor</p>
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Actor</p>
                             <p className="text-sm font-bold text-ink-primary">{row.actor_email || '—'}</p>
-                            <p className="text-[10px] text-gray-400 font-mono">{row.actor_id || '—'}</p>
+                            <p className="text-[10px] text-muted-foreground tabular-nums">{row.actor_id || '—'}</p>
                           </div>
                           <div>
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Timestamp</p>
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Timestamp</p>
                             <p className="text-sm font-bold text-ink-primary">{fmtDate(row.created_at)}</p>
-                            <p className="text-[10px] text-gray-400">{fmtTime(row.created_at)}</p>
+                            <p className="text-[10px] text-muted-foreground">{fmtTime(row.created_at)}</p>
                           </div>
                           <div>
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Tenant</p>
-                            <p className="text-[10px] text-gray-400 font-mono">{row.tenant_id || '—'}</p>
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Tenant</p>
+                            <p className="text-[10px] text-muted-foreground tabular-nums">{row.tenant_id || '—'}</p>
                           </div>
                         </div>
 
                         {/* Metadata JSON */}
                         {row.metadata && Object.keys(row.metadata).length > 0 && (
                           <div>
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Metadata</p>
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">Metadata</p>
                             <div className="bg-ink-primary rounded-xl p-4 overflow-x-auto">
-                              <pre className="text-[11px] text-accent-signature font-mono whitespace-pre-wrap break-all leading-relaxed">
+                              <pre className="text-[11px] text-accent-signature tabular-nums whitespace-pre-wrap break-all leading-relaxed">
                                 {JSON.stringify(row.metadata, null, 2)}
                               </pre>
                             </div>
@@ -418,7 +418,7 @@ const AuditLog = () => {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-black/5 bg-canvas/30">
-            <p className="text-[10px] font-bold text-gray-400">
+            <p className="text-[10px] font-bold text-muted-foreground">
               Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount}
             </p>
             <div className="flex items-center gap-2">
@@ -449,7 +449,7 @@ const AuditLog = () => {
                     className={`w-9 h-9 rounded-xl text-[11px] font-black transition-all ${
                       page === pageNum
                         ? 'bg-ink-primary text-white shadow-lg'
-                        : 'bg-white border border-black/5 text-gray-500 hover:shadow-premium'
+                        : 'bg-white border border-black/5 text-muted-foreground hover:shadow-premium'
                     }`}
                   >
                     {pageNum + 1}

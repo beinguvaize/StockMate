@@ -53,7 +53,7 @@ const ExpensesReport = () => {
       { key: 'date', label: 'Flow Date', type: 'date', sortable: true, width: 140 },
       { key: 'category', label: 'Expense Quadrant', sortable: true, width: 180, render: (val) => <span className="text-[10px] font-semibold uppercase text-accent-signature bg-accent-signature/5 px-2.5 py-1 rounded-full border border-accent-signature/10">{val || 'GENERAL'}</span> },
       { key: 'exclude_from_pl', label: 'P&L', sortable: true, width: 110, render: (val) => val
-        ? <span className="text-[9px] font-semibold uppercase text-muted-foreground bg-gray-100 px-2 py-0.5 rounded-full">Owner / excluded</span>
+        ? <span className="text-[9px] font-semibold uppercase text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Owner / excluded</span>
         : <span className="text-[9px] font-semibold uppercase text-emerald-600">Business</span> },
       { key: 'note', label: 'Operational Note', width: 250, render: (val) => <span className="text-muted-foreground font-semibold italic">{val || 'No Detail'}</span> },
       { key: 'amount', label: 'Magnitude', type: 'currency', align: 'right', sortable: true, width: 150 },

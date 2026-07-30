@@ -294,8 +294,8 @@ const ItemPartyReport = () => {
       {!entitySelected && !loading && (
         <div className="py-20 text-center text-sm text-muted-foreground bg-card rounded-[10px] border border-border/60 shadow-sm">
           {isCustomerView
-            ? <><Users size={32} className="mx-auto mb-3 text-gray-300" />Select a customer above to see their items</>
-            : <><Package size={32} className="mx-auto mb-3 text-gray-300" />Select a product above to see its customers</>
+            ? <><Users size={32} className="mx-auto mb-3 text-muted-foreground" />Select a customer above to see their items</>
+            : <><Package size={32} className="mx-auto mb-3 text-muted-foreground" />Select a product above to see its customers</>
           }
         </div>
       )}

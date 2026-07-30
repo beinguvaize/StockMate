@@ -77,7 +77,7 @@ const BannerCarousel = () => {
         {b.cta_label && b.cta_url && (
           <button
             onClick={() => (b.cta_url.startsWith('http') ? window.open(b.cta_url, '_blank') : goHref(b.cta_url))}
-            className="shrink-0 hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full bg-white text-gray-900 text-[12px] font-extrabold hover:scale-[1.03] active:scale-95 transition-transform"
+            className="shrink-0 hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full bg-white text-foreground text-[12px] font-extrabold hover:scale-[1.03] active:scale-95 transition-transform"
           >
             {b.cta_label} <ArrowRight size={13} />
           </button>

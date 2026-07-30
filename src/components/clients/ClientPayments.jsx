@@ -67,7 +67,7 @@ const ClientPayments = ({ clientPayments, clients, businessProfile }) => {
         ].map((m, i) => (
           <div key={i} className="bg-white rounded-[1.5rem] border border-black/5 shadow-sm p-5 flex flex-col justify-center relative overflow-hidden group hover:border-black/10 transition-all">
             <div className={`absolute top-4 right-4 opacity-[0.07] group-hover:opacity-[0.13] transition-opacity pointer-events-none ${m.color}`}>{m.icon}</div>
-            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-1">{m.label}</span>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-1">{m.label}</span>
             <div className="text-2xl font-black text-ink-primary tabular-nums">{m.value}</div>
           </div>
         ))}
@@ -76,11 +76,11 @@ const ClientPayments = ({ clientPayments, clients, businessProfile }) => {
       {/* Toolbar */}
       <div className="flex flex-wrap lg:flex-nowrap items-center justify-between bg-white border border-black/5 rounded-[2rem] shadow-sm p-2 gap-2">
         <div className="relative group flex-1 max-w-xs ml-2">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search by client, method, notes…"
-            className="w-full h-11 pl-9 pr-4 rounded-pill bg-white border border-gray-300 shadow-sm text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-black/20 focus:bg-white transition-all"
+            className="w-full h-11 pl-9 pr-4 rounded-pill bg-white border border-border shadow-sm text-xs font-bold text-ink-primary placeholder:text-muted-foreground outline-none focus:border-black/20 focus:bg-white transition-all"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -101,30 +101,30 @@ const ClientPayments = ({ clientPayments, clients, businessProfile }) => {
         {filtered.length === 0 ? (
           <div className="py-24 text-center">
             <CreditCard size={48} className="mx-auto mb-4 opacity-10" strokeWidth={1} />
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No Payments Logged</p>
-            <p className="text-xs text-gray-400 mt-1">Record a client payment from the Settle Account page.</p>
+            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">No Payments Logged</p>
+            <p className="text-xs text-muted-foreground mt-1">Record a client payment from the Settle Account page.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-canvas/60 border-b border-black/5">
-                  <th className="py-3.5 px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                  <th className="py-3.5 px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Client</th>
-                  <th className="py-3.5 px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Method</th>
-                  <th className="py-3.5 px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Notes</th>
-                  <th className="py-3.5 px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                  <th className="py-3.5 px-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Date</th>
+                  <th className="py-3.5 px-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Client</th>
+                  <th className="py-3.5 px-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Method</th>
+                  <th className="py-3.5 px-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Notes</th>
+                  <th className="py-3.5 px-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-right">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/5">
                 {filtered.map(p => {
                   const Icon = METHOD_ICON[p.payment_method] || Wallet;
-                  const badge = METHOD_COLOR[p.payment_method] || 'bg-gray-50 text-gray-600 border-gray-100';
+                  const badge = METHOD_COLOR[p.payment_method] || 'bg-muted text-ink-secondary border-border';
                   return (
                     <tr key={p.id} className="hover:bg-canvas/50 transition-colors group">
                       <td className="py-4 px-5">
                         <div className="text-sm font-semibold text-ink-primary">{formatDate(p.date)}</div>
-                        <div className="text-[10px] text-gray-400 mt-0.5">
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
                           {p.created_at ? new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </div>
                       </td>
@@ -142,7 +142,7 @@ const ClientPayments = ({ clientPayments, clients, businessProfile }) => {
                           {METHOD_LABEL[p.payment_method] || p.payment_method}
                         </span>
                       </td>
-                      <td className="py-4 px-5 text-xs text-gray-500 max-w-[200px] truncate">{p.notes || '—'}</td>
+                      <td className="py-4 px-5 text-xs text-muted-foreground max-w-[200px] truncate">{p.notes || '—'}</td>
                       <td className="py-4 px-5 text-right">
                         <span className="text-sm font-black text-emerald-600 tabular-nums">{formatCurrency(p.amount)}</span>
                       </td>
@@ -152,7 +152,7 @@ const ClientPayments = ({ clientPayments, clients, businessProfile }) => {
               </tbody>
               <tfoot className="border-t-2 border-black/10 bg-canvas/30">
                 <tr>
-                  <td colSpan="4" className="py-3 px-5 text-xs font-bold text-gray-500 uppercase tracking-widest">
+                  <td colSpan="4" className="py-3 px-5 text-xs font-bold text-muted-foreground uppercase tracking-widest">
                     {filtered.length} {filtered.length === 1 ? 'transaction' : 'transactions'}
                   </td>
                   <td className="py-3 px-5 text-right">

@@ -217,7 +217,7 @@ const GeneralLedgerReport = () => {
       PURCHASE: 'bg-sky-50 text-sky-600',
     };
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${colors[val] || 'bg-gray-50 text-gray-600'}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${colors[val] || 'bg-muted text-ink-secondary'}`}>
         {val}
       </span>
     );
@@ -237,9 +237,9 @@ const GeneralLedgerReport = () => {
       { key: 'type', label: 'Type', width: 110, render: renderTypeBadge },
       { key: 'accountCode', label: 'GL', width: 80, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
       { key: 'account', label: 'Account', sortable: true, width: 200, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
-      { key: 'description', label: 'Description', width: 220, render: (val) => <span className="text-[11px] text-gray-600">{val}</span> },
-      { key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : <span className="text-gray-300">—</span> },
-      { key: 'credit', label: 'Credit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-semibold text-emerald-600">{formatINR(val)}</span> : <span className="text-gray-300">—</span> },
+      { key: 'description', label: 'Description', width: 220, render: (val) => <span className="text-[11px] text-ink-secondary">{val}</span> },
+      { key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : <span className="text-muted-foreground">—</span> },
+      { key: 'credit', label: 'Credit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-semibold text-emerald-600">{formatINR(val)}</span> : <span className="text-muted-foreground">—</span> },
     ],
     kpis: kpis,
     chartConfig: {

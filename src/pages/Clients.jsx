@@ -224,7 +224,7 @@ const Clients = () => {
  <div className="flex justify-between items-center py-2 border-b border-black/5">
  <div className="flex items-center gap-3">
  <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Clients<span className="text-accent-signature">.</span></h1>
- <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Customer network & accounts</span>
+ <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">Customer network & accounts</span>
  <button onClick={() => { window.location.href = '/bulk-add?type=clients'; }}
    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white border border-black/[0.08] text-ink-primary text-[11px] font-bold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
    Bulk Import
@@ -232,7 +232,7 @@ const Clients = () => {
  </div>
 
  {/* Tab Navigation */}
- <div className="flex bg-white border border-gray-300 shadow-sm rounded-lg p-1 shadow-sm overflow-x-auto no-scrollbar">
+ <div className="flex bg-white border border-border shadow-sm rounded-lg p-1 shadow-sm overflow-x-auto no-scrollbar">
  {[
  { id: 'DIRECTORY', label: 'Directory', icon: <Users size={14} />},
  { id: 'AGING', label: 'Aging Report', icon: <History size={14} />},
@@ -244,7 +244,7 @@ const Clients = () => {
  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-semibold transition-all whitespace-nowrap ${
  activeTab === tab.id 
  ? 'bg-ink-primary text-accent-signature shadow-premium' 
- : 'text-gray-700 hover:bg-black/5'
+ : 'text-ink-secondary hover:bg-black/5'
 }`}
  >
  {tab.icon}
@@ -314,14 +314,14 @@ const Clients = () => {
          <h1 className="text-lg font-black text-ink-primary leading-tight">
            {editingClient ? 'Edit Client' : 'New Client'}<span className="text-accent-signature">.</span>
          </h1>
-         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
            {editingClient ? `Editing — ${editingClient.name}` : 'Register a new business account'}
          </p>
        </div>
        <button
          type="button"
          onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
-         className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-gray-400 shrink-0"
+         className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-muted-foreground shrink-0"
        >
          <X size={16} />
        </button>
@@ -343,7 +343,7 @@ const Clients = () => {
                </div>
                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div className="sm:col-span-2">
-                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Business / Client Name <span className="text-accent-signature">*</span></label>
+                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Business / Client Name <span className="text-accent-signature">*</span></label>
                    <input
                      required
                      autoFocus
@@ -355,7 +355,7 @@ const Clients = () => {
                    />
                  </div>
                  <div>
-                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Contact Person</label>
+                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Contact Person</label>
                    <input
                      type="text"
                      placeholder="e.g. Ramesh Kumar"
@@ -365,7 +365,7 @@ const Clients = () => {
                    />
                  </div>
                  <div>
-                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Phone Number</label>
+                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Phone Number</label>
                    <input
                      type="tel"
                      placeholder="9876543210"
@@ -375,7 +375,7 @@ const Clients = () => {
                    />
                  </div>
                  <div className="sm:col-span-2">
-                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Email Address</label>
+                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Email Address</label>
                    <input
                      type="email"
                      placeholder="billing@client.com"
@@ -385,7 +385,7 @@ const Clients = () => {
                    />
                  </div>
                  <div className="sm:col-span-2">
-                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Address</label>
+                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Address</label>
                    <input
                      type="text"
                      placeholder="Shop / Street / Area / City"
@@ -405,7 +405,7 @@ const Clients = () => {
                </div>
                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div>
-                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">State</label>
+                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">State</label>
                    <select
                      className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 appearance-none"
                      value={formData.state}
@@ -421,7 +421,7 @@ const Clients = () => {
                    </select>
                  </div>
                  <div>
-                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Postal / PIN Code</label>
+                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Postal / PIN Code</label>
                    <input
                      type="text"
                      maxLength={6}
@@ -439,10 +439,10 @@ const Clients = () => {
                <div className="px-5 py-3.5 border-b border-black/5 flex items-center gap-2">
                  <ShieldCheck size={14} className="text-accent-signature" />
                  <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">GST Details</span>
-                 <span className="ml-auto text-[9px] font-semibold text-gray-400">Optional</span>
+                 <span className="ml-auto text-[9px] font-semibold text-muted-foreground">Optional</span>
                </div>
                <div className="p-5">
-                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">GSTIN</label>
+                 <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">GSTIN</label>
                  <input
                    type="text"
                    maxLength={15}
@@ -463,7 +463,7 @@ const Clients = () => {
                <div className="p-5 space-y-4">
                  {/* B2B / B2C */}
                  <div>
-                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Account Type</label>
+                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Account Type</label>
                    <div className="grid grid-cols-2 gap-3">
                      {[
                        { val: 'B2C', label: 'B2C — Consumer', desc: 'Walk-in / retail customer', icon: '🛒' },
@@ -482,7 +482,7 @@ const Clients = () => {
                          <span className="text-lg leading-none mt-0.5">{opt.icon}</span>
                          <div>
                            <div className={`text-xs font-black ${formData.client_type === opt.val ? 'text-accent-signature' : 'text-ink-primary'}`}>{opt.label}</div>
-                           <div className={`text-[9px] mt-0.5 ${formData.client_type === opt.val ? 'text-white/50' : 'text-gray-400'}`}>{opt.desc}</div>
+                           <div className={`text-[9px] mt-0.5 ${formData.client_type === opt.val ? 'text-white/50' : 'text-muted-foreground'}`}>{opt.desc}</div>
                          </div>
                        </button>
                      ))}
@@ -491,7 +491,7 @@ const Clients = () => {
 
                  <div className="grid grid-cols-2 gap-4">
                    <div>
-                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Price Tier</label>
+                     <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Price Tier</label>
                      <select
                        className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 appearance-none"
                        value={formData.price_tier}
@@ -503,7 +503,7 @@ const Clients = () => {
                      </select>
                    </div>
                    <div>
-                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Credit Terms</label>
+                     <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Credit Terms</label>
                      <select
                        className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 appearance-none"
                        value={formData.credit_days}
@@ -540,33 +540,33 @@ const Clients = () => {
                      {formData.name ? formData.name.charAt(0).toUpperCase() : '?'}
                    </div>
                    <div className="min-w-0">
-                     <div className="text-sm font-black text-ink-primary truncate">{formData.name || <span className="text-gray-300 font-medium">Client name</span>}</div>
-                     <div className="text-[10px] text-gray-400 mt-0.5">{formData.contact || <span className="text-gray-300">Contact person</span>}</div>
+                     <div className="text-sm font-black text-ink-primary truncate">{formData.name || <span className="text-muted-foreground font-medium">Client name</span>}</div>
+                     <div className="text-[10px] text-muted-foreground mt-0.5">{formData.contact || <span className="text-muted-foreground">Contact person</span>}</div>
                    </div>
                  </div>
 
                  <div className="space-y-2">
                    {formData.phone && (
-                     <div className="flex items-center gap-2 text-xs text-gray-600">
-                       <Phone size={11} className="text-gray-400 shrink-0" />
+                     <div className="flex items-center gap-2 text-xs text-ink-secondary">
+                       <Phone size={11} className="text-muted-foreground shrink-0" />
                        <span className="tabular-nums">{formData.phone}</span>
                      </div>
                    )}
                    {formData.email && (
-                     <div className="flex items-center gap-2 text-xs text-gray-600">
-                       <Mail size={11} className="text-gray-400 shrink-0" />
+                     <div className="flex items-center gap-2 text-xs text-ink-secondary">
+                       <Mail size={11} className="text-muted-foreground shrink-0" />
                        <span className="truncate">{formData.email}</span>
                      </div>
                    )}
                    {formData.address && (
-                     <div className="flex items-center gap-2 text-xs text-gray-600">
-                       <MapPin size={11} className="text-gray-400 shrink-0" />
+                     <div className="flex items-center gap-2 text-xs text-ink-secondary">
+                       <MapPin size={11} className="text-muted-foreground shrink-0" />
                        <span className="truncate">{formData.address}</span>
                      </div>
                    )}
                    {formData.state && (
-                     <div className="flex items-center gap-2 text-xs text-gray-600">
-                       <Building2 size={11} className="text-gray-400 shrink-0" />
+                     <div className="flex items-center gap-2 text-xs text-ink-secondary">
+                       <Building2 size={11} className="text-muted-foreground shrink-0" />
                        <span>{formData.state}{formData.pin_code ? ` — ${formData.pin_code}` : ''}</span>
                      </div>
                    )}
@@ -578,7 +578,7 @@ const Clients = () => {
                        ? 'bg-blue-50 text-blue-700 border-blue-200'
                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                    }`}>{formData.client_type}</span>
-                   <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-white border border-gray-300 shadow-sm text-gray-600">{formData.price_tier}</span>
+                   <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-white border border-border shadow-sm text-ink-secondary">{formData.price_tier}</span>
                    {formData.credit_days > 0 && (
                      <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-orange-50 border border-orange-200 text-orange-700">Net {formData.credit_days}</span>
                    )}
@@ -606,7 +606,7 @@ const Clients = () => {
              <button
                type="button"
                onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
-               className="w-full py-3 rounded-xl border border-black/10 text-xs font-semibold text-gray-500 hover:bg-black/5 transition-all"
+               className="w-full py-3 rounded-xl border border-black/10 text-xs font-semibold text-muted-foreground hover:bg-black/5 transition-all"
              >
                Cancel
              </button>

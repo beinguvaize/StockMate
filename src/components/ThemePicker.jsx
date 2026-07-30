@@ -32,7 +32,7 @@ export default function ThemePicker() {
 
       {/* Theme grid */}
       <div className="p-6">
-        <p className="text-[11px] font-bold text-gray-700 leading-relaxed mb-4">
+        <p className="text-[11px] font-bold text-ink-secondary leading-relaxed mb-4">
           Choose a colour theme for your workspace. Applies to all users in your tenant.
         </p>
         <div className="grid grid-cols-3 gap-3">
@@ -57,7 +57,7 @@ export default function ThemePicker() {
                   <div className="w-8 h-3 rounded-full" style={{ background: theme.accent }} />
                 </div>
 
-                <span className={`text-xs font-bold ${active ? 'text-ink-primary' : 'text-gray-500'}`}>
+                <span className={`text-xs font-bold ${active ? 'text-ink-primary' : 'text-muted-foreground'}`}>
                   {theme.label}
                 </span>
 

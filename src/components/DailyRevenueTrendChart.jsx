@@ -86,7 +86,7 @@ const DailyRevenueTrendChart = () => {
  if (active && payload && payload.length) {
  return (
  <div className="bg-white/90 backdrop-blur-xl border border-black/5 p-4 rounded-lg shadow-2xl text-ink-primary">
- <p className="text-gray-700 text-xs font-bold mb-2">{label}</p>
+ <p className="text-ink-secondary text-xs font-bold mb-2">{label}</p>
  <div className="space-y-1">
  <p className="flex justify-between gap-5 text-sm">
  <span className="flex items-center gap-2">
@@ -120,17 +120,17 @@ const DailyRevenueTrendChart = () => {
  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
  <div>
  <h2 className="text-xl font-bold text-ink-primary mb-1">Revenue Trend</h2>
- <p className="text-gray-700 text-xs font-semibold leading-none">Last 14 days</p>
+ <p className="text-ink-secondary text-xs font-semibold leading-none">Last 14 days</p>
  </div>
  
  <div className="flex items-center gap-4 text-[10px] md:text-xs">
  <div className="flex items-center gap-2">
  <div className="w-3 h-3 rounded-sm bg-[#378ADD]" />
- <span className="font-bold text-gray-700">Cash Sales</span>
+ <span className="font-bold text-ink-secondary">Cash Sales</span>
  </div>
  <div className="flex items-center gap-2">
  <div className="w-3 h-3 rounded-sm bg-[#7F77DD]" />
- <span className="font-bold text-gray-700">Credit Sales</span>
+ <span className="font-bold text-ink-secondary">Credit Sales</span>
  </div>
  </div>
  </div>
@@ -138,7 +138,7 @@ const DailyRevenueTrendChart = () => {
  <div className="relative flex-1">
  {!hasData ? (
  <div className="absolute inset-0 flex items-center justify-center">
- <p className="text-gray-700 font-medium italic">No sales data yet</p>
+ <p className="text-ink-secondary font-medium italic">No sales data yet</p>
  </div>
  ) : (
  <ResponsiveContainer width="100%" height="100%" debounce={50} minHeight={300}>

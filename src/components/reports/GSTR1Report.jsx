@@ -116,9 +116,9 @@ const ExportMenu = ({ gstr1, gstin }) => {
                 <button
                   key={s.key}
                   onClick={() => handleCSV(s.key, s.key.toUpperCase())}
-                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-left transition-colors"
                 >
-                  <span className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center text-muted-foreground">
+                  <span className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
                     <FileText size={11} />
                   </span>
                   <span className="text-[11px] font-semibold text-foreground">{s.label}</span>

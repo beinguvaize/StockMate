@@ -138,7 +138,7 @@ const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
                     </td>
                     <td className="py-3 px-2 text-center">
                       {depleted ? (
-                        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-muted-foreground">Depleted</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Depleted</span>
                       ) : pct < 25 ? (
                         <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent-signature/15 text-accent-signature-hover">Low</span>
                       ) : (

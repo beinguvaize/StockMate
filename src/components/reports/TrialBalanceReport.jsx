@@ -118,11 +118,11 @@ const TrialBalanceReport = () => {
       { key: 'category', label: 'Classification', width: 180, render: (val) => <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{val}</span> },
       {
         key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 160,
-        render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : <span className="text-gray-300">—</span>,
+        render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : <span className="text-muted-foreground">—</span>,
       },
       {
         key: 'credit', label: 'Credit', type: 'currency', align: 'right', sortable: true, width: 160,
-        render: (val) => val > 0 ? <span className="font-semibold text-emerald-600">{formatINR(val)}</span> : <span className="text-gray-300">—</span>,
+        render: (val) => val > 0 ? <span className="font-semibold text-emerald-600">{formatINR(val)}</span> : <span className="text-muted-foreground">—</span>,
       },
     ],
     kpis: kpis,

@@ -276,7 +276,7 @@ const YoYComparisonReport = () => {
     {
       key: 'pct', label: 'Δ %', align: 'right', sortable: true, width: 110,
       render: (val, row) => {
-        if (!row.lastYear && !row.thisYear) return <span className="text-gray-300">—</span>;
+        if (!row.lastYear && !row.thisYear) return <span className="text-muted-foreground">—</span>;
         const { cls } = deltaBadge(row.delta, inverted);
         const prefix = val > 0 ? '+' : '';
         return <span className={`font-semibold ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
@@ -346,7 +346,7 @@ const YoYComparisonReport = () => {
         render: (val, row) => {
           const { cls } = deltaBadge(row.delta, row.inverted);
           const prefix = val > 0 ? '+' : '';
-          if (val == null) return <span className="text-gray-300">—</span>;
+          if (val == null) return <span className="text-muted-foreground">—</span>;
           return <span className={`font-semibold text-[13px] ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
         },
       },
@@ -484,8 +484,8 @@ const YoYComparisonReport = () => {
       {
         key: 'pct', label: 'Δ %', align: 'right', sortable: true, width: 110,
         render: (val, row) => {
-          if (!row.lastYear && !row.thisYear) return <span className="text-gray-300">—</span>;
-          if (val == null) return <span className="text-gray-300">—</span>;
+          if (!row.lastYear && !row.thisYear) return <span className="text-muted-foreground">—</span>;
+          if (val == null) return <span className="text-muted-foreground">—</span>;
           const { cls } = deltaBadge(row.delta, true);
           const prefix = val > 0 ? '+' : '';
           return <span className={`font-semibold ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;

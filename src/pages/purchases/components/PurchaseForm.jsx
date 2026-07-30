@@ -91,7 +91,7 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Product</label>
           <select
             required
-            className="w-full bg-card border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             value={formData.linked_product_id}
             onChange={e => setFormData({ ...formData, linked_product_id: e.target.value })}
           >
@@ -103,7 +103,7 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Supplier</label>
           <select
             required
-            className="w-full bg-card border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             value={formData.supplier_id}
             onChange={e => setFormData({ ...formData, supplier_id: e.target.value })}
           >
@@ -117,7 +117,7 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
               Quantity {selectedProduct && <span className="text-muted-foreground">({buyUnit})</span>}
             </label>
             {hasAltUnit && (
-              <div className="flex items-center gap-0.5 bg-card border border-gray-300 shadow-sm rounded-lg p-0.5">
+              <div className="flex items-center gap-0.5 bg-card border border-border shadow-sm rounded-lg p-0.5">
                 {[
                   { k: 'BASE', l: selectedProduct.unit },
                   { k: 'SECONDARY', l: selectedProduct.secondary_unit },
@@ -134,7 +134,7 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           <input
             required
             type="number"
-            className="w-full bg-card border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="0"
             min="0"
             value={formData.quantity}
@@ -152,7 +152,7 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           </label>
           <input
             type="number"
-            className="w-full bg-card border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="0.00"
             min="0"
             step="0.01"
@@ -178,7 +178,7 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           <input
             required
             type="number"
-            className="w-full bg-card border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="0.00"
             min="0"
             step="0.01"
@@ -195,7 +195,7 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Payment Type</label>
           <select
             required
-            className="w-full bg-card border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             value={formData.payment_type}
             onChange={e => setFormData({ ...formData, payment_type: e.target.value })}
           >
@@ -208,7 +208,7 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           <input
             required
             type="date"
-            className="w-full bg-card border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             value={formData.date}
             onChange={e => setFormData({ ...formData, date: e.target.value })}
           />
@@ -217,7 +217,7 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Notes</label>
           <input
             type="text"
-            className="w-full bg-card border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="Optional reference or remarks"
             value={formData.notes}
             onChange={e => setFormData({ ...formData, notes: e.target.value })}

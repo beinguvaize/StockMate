@@ -98,7 +98,7 @@ const ReportPerformance = ({ sales, products, businessProfile}) => {
  <div className="flex justify-between items-center mb-10">
  <div>
  <h3 className="text-2xl font-semibold leading-none mb-1">Top Yield Products</h3>
- <p className="text-[10px] font-semibold text-gray-700">Revenue Contribution by item</p>
+ <p className="text-[10px] font-semibold text-ink-secondary">Revenue Contribution by item</p>
  </div>
  <Award size={32} className="text-accent-signature text-opacity-[0.85]" />
  </div>

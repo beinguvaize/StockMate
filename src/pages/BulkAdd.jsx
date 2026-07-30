@@ -173,22 +173,22 @@ const BulkAdd = () => {
     setResult(null);
   };
 
-  const inputCls = 'w-full bg-transparent px-2.5 py-2 text-[13px] text-gray-900 placeholder:text-gray-300 outline-none focus:bg-gray-50';
+  const inputCls = 'w-full bg-transparent px-2.5 py-2 text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:bg-muted';
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       {/* Header */}
-      <header className="flex flex-wrap items-center gap-3 mb-6 pb-5 border-b border-gray-200">
+      <header className="flex flex-wrap items-center gap-3 mb-6 pb-5 border-b border-border">
         <button onClick={() => navigate(-1)}
-          className="w-9 h-9 rounded-md border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors">
+          className="w-9 h-9 rounded-md border border-border flex items-center justify-center text-ink-secondary hover:bg-muted transition-colors">
           <ArrowLeft size={15} />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-[20px] font-semibold text-gray-900">{cfg.title}</h1>
-          <p className="text-[13px] text-gray-500 mt-0.5">Type directly, or copy rows in Excel / Google Sheets and paste anywhere in the grid — columns fill automatically.</p>
+          <h1 className="text-[20px] font-semibold text-foreground">{cfg.title}</h1>
+          <p className="text-[13px] text-muted-foreground mt-0.5">Type directly, or copy rows in Excel / Google Sheets and paste anywhere in the grid — columns fill automatically.</p>
         </div>
         <button onClick={reset}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-gray-300 text-[13px] font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-border text-[13px] font-semibold text-ink-secondary hover:bg-muted transition-colors">
           <RotateCcw size={13} /> Reset
         </button>
         <button
@@ -216,28 +216,28 @@ const BulkAdd = () => {
       )}
 
       {/* Grid */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-auto max-h-[68vh]">
+      <div className="bg-white rounded-lg border border-border overflow-auto max-h-[68vh]">
         <table className="border-collapse w-max min-w-full">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-gray-50">
-              <th className="w-10 border-b border-r border-gray-200 text-[11px] text-gray-400 font-medium px-1 py-2.5">#</th>
+            <tr className="bg-muted">
+              <th className="w-10 border-b border-r border-border text-[11px] text-muted-foreground font-medium px-1 py-2.5">#</th>
               {cfg.cols.map(c => (
-                <th key={c.key} style={{ minWidth: c.w }} className="border-b border-r border-gray-200 text-[12.5px] font-semibold text-gray-700 px-2.5 py-2.5 text-left">
+                <th key={c.key} style={{ minWidth: c.w }} className="border-b border-r border-border text-[12.5px] font-semibold text-ink-secondary px-2.5 py-2.5 text-left">
                   {c.label}
                 </th>
               ))}
-              <th className="w-9 border-b border-gray-200" />
+              <th className="w-9 border-b border-border" />
             </tr>
           </thead>
           <tbody>
             {rows.map((row, r) => {
               const errs = filled.some(f => f.i === r) ? errorsFor(row) : {};
               return (
-                <tr key={r} className="hover:bg-gray-50/40">
-                  <td className="border-b border-r border-gray-100 text-center text-[11px] text-gray-300">{r + 1}</td>
+                <tr key={r} className="hover:bg-muted/40">
+                  <td className="border-b border-r border-border text-center text-[11px] text-muted-foreground">{r + 1}</td>
                   {cfg.cols.map((c, ci) => (
                     <td key={c.key} title={errs[c.key] || ''}
-                      className={`border-b border-r ${errs[c.key] ? 'border-red-300 bg-red-50' : 'border-gray-100'} p-0`}>
+                      className={`border-b border-r ${errs[c.key] ? 'border-red-300 bg-red-50' : 'border-border'} p-0`}>
                       <input
                         className={inputCls}
                         value={row[c.key]}
@@ -246,7 +246,7 @@ const BulkAdd = () => {
                       />
                     </td>
                   ))}
-                  <td className="border-b border-gray-100 text-center">
+                  <td className="border-b border-border text-center">
                     <button onClick={() => setRows(rs => rs.map((x, i) => i === r ? blankRow(cfg.cols) : x))}
                       className="text-gray-200 hover:text-red-500 p-1 transition-colors" title="Clear row">
                       <Trash2 size={12} />
@@ -260,7 +260,7 @@ const BulkAdd = () => {
       </div>
 
       <button onClick={() => setRows(rs => [...rs, ...Array.from({ length: 10 }, () => blankRow(cfg.cols))])}
-        className="mt-3 px-3.5 py-2 rounded-md border border-dashed border-gray-300 text-[12.5px] font-medium text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors">
+        className="mt-3 px-3.5 py-2 rounded-md border border-dashed border-border text-[12.5px] font-medium text-muted-foreground hover:border-gray-400 hover:text-ink-secondary transition-colors">
         + 10 more rows
       </button>
     </div>

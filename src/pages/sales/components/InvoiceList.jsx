@@ -555,7 +555,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           <button
             onClick={handleExport}
             disabled={!sortedSales.length}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-card border border-border/60 text-gray-700 hover:text-foreground hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-card border border-border/60 text-ink-secondary hover:text-foreground hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Export CSV"
           >
             <Download size={13} /> Export

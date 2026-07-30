@@ -54,7 +54,7 @@ const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
   };
 
   const input = 'w-full border border-black/10 rounded-lg px-2.5 py-2 text-[13px] outline-none focus:border-accent-signature';
-  const label = 'block text-[11px] font-bold text-gray-500 mb-1';
+  const label = 'block text-[11px] font-bold text-muted-foreground mb-1';
 
   return createPortal(
     <div className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -64,10 +64,10 @@ const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
             <Truck size={17} className="text-accent-signature" />
             <div>
               <h2 className="text-[15px] font-black text-ink-primary">e-Way Bill</h2>
-              <p className="text-[11px] text-gray-400">{invoice.invoice_number} · ₹{total.toLocaleString('en-IN')}</p>
+              <p className="text-[11px] text-muted-foreground">{invoice.invoice_number} · ₹{total.toLocaleString('en-IN')}</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center"><X size={15} /></button>
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center"><X size={15} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -90,7 +90,7 @@ const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
             </div>
             <div>
               <label className={label}>Vehicle number</label>
-              <input value={t.vehicleNo} onChange={e => setT({ ...t, vehicleNo: e.target.value.toUpperCase() })} className={`${input} font-mono`} placeholder="KL07AB1234" />
+              <input value={t.vehicleNo} onChange={e => setT({ ...t, vehicleNo: e.target.value.toUpperCase() })} className={`${input} tabular-nums`} placeholder="KL07AB1234" />
             </div>
             <div>
               <label className={label}>Transporter name (optional)</label>
@@ -98,11 +98,11 @@ const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
             </div>
             <div>
               <label className={label}>From pincode</label>
-              <input value={t.fromPincode} onChange={e => setT({ ...t, fromPincode: e.target.value.replace(/\D/g, '').slice(0, 6) })} className={`${input} font-mono`} />
+              <input value={t.fromPincode} onChange={e => setT({ ...t, fromPincode: e.target.value.replace(/\D/g, '').slice(0, 6) })} className={`${input} tabular-nums`} />
             </div>
             <div>
               <label className={label}>To pincode</label>
-              <input value={t.toPincode} onChange={e => setT({ ...t, toPincode: e.target.value.replace(/\D/g, '').slice(0, 6) })} className={`${input} font-mono`} />
+              <input value={t.toPincode} onChange={e => setT({ ...t, toPincode: e.target.value.replace(/\D/g, '').slice(0, 6) })} className={`${input} tabular-nums`} />
             </div>
           </div>
 
@@ -116,20 +116,20 @@ const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
             className="w-full py-2.5 rounded-xl bg-ink-primary text-white text-[12px] font-black flex items-center justify-center gap-2 hover:opacity-90">
             <Download size={14} /> Download NIC JSON (bulk upload)
           </button>
-          <p className="text-[11px] text-gray-400 -mt-2">
+          <p className="text-[11px] text-muted-foreground -mt-2">
             Upload at ewaybillgst.gov.in → e-Waybill → Generate Bulk. Paste the EWB number below after generation.
           </p>
 
           <div>
             <label className={label}>e-Way bill number (after portal generation)</label>
             <div className="flex gap-2">
-              <input value={ewbNo} onChange={e => setEwbNo(e.target.value)} className={`${input} font-mono flex-1`} placeholder="12-digit EWB no." />
+              <input value={ewbNo} onChange={e => setEwbNo(e.target.value)} className={`${input} tabular-nums flex-1`} placeholder="12-digit EWB no." />
               <button onClick={handleSaveEwb}
                 className="shrink-0 px-4 rounded-lg border border-accent-signature/40 text-accent-signature text-[12px] font-black hover:bg-accent-signature/10">
                 {saved ? <CheckCircle2 size={14} /> : 'Save'}
               </button>
             </div>
-            <p className="text-[10.5px] text-gray-400 mt-1">Saved EWB + vehicle number print on the invoice.</p>
+            <p className="text-[10.5px] text-muted-foreground mt-1">Saved EWB + vehicle number print on the invoice.</p>
           </div>
         </div>
       </div>

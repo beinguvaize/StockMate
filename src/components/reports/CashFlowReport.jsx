@@ -166,7 +166,7 @@ const CashFlowReport = () => {
       SUMMARY: 'bg-ink-primary text-white',
     };
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${colors[val] || 'bg-gray-50 text-gray-600'}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${colors[val] || 'bg-muted text-ink-secondary'}`}>
         {val}
       </span>
     );
@@ -184,7 +184,7 @@ const CashFlowReport = () => {
       {
         key: 'label', label: 'Line Item', sortable: false, width: 420,
         render: (val, row) => (
-          <span className={`${row.isSubtotal ? 'font-semibold text-foreground uppercase tracking-tight' : 'font-semibold text-gray-600'} ${row.isTotal ? 'text-[13px]' : 'text-[11px]'}`}>
+          <span className={`${row.isSubtotal ? 'font-semibold text-foreground uppercase tracking-tight' : 'font-semibold text-ink-secondary'} ${row.isTotal ? 'text-[13px]' : 'text-[11px]'}`}>
             {val}
           </span>
         ),

@@ -212,15 +212,15 @@ const ItemDetailView = ({
             {inStock ? 'In Stock' : 'Out of Stock'}
           </span>
           <div className="flex items-center gap-2 ml-auto">
-            <button onClick={() => onPrintBarcode?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-gray-700 hover:bg-card transition-colors">
+            <button onClick={() => onPrintBarcode?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
               <ScanLine size={14} /> Print Barcode
             </button>
             {onAdjust && (
-              <button onClick={() => onAdjust(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-gray-700 hover:bg-card transition-colors">
+              <button onClick={() => onAdjust(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
                 <SlidersHorizontal size={14} /> Adjust Stock
               </button>
             )}
-            <button onClick={() => onEdit?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-gray-700 hover:bg-card transition-colors">
+            <button onClick={() => onEdit?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
               <Pencil size={14} /> Edit
             </button>
             <button onClick={() => onDelete?.(product)} className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors">
@@ -381,7 +381,7 @@ const Tbl = ({ head, rows }) => (
       <tbody>
         {rows.map((r, i) => (
           <tr key={i} className="border-b border-black/[0.04] last:border-0">
-            {r.map((c, j) => <td key={j} className={`px-4 py-2.5 text-xs font-semibold text-gray-700 ${j >= r.length - 1 ? 'text-right font-semibold text-foreground' : ''}`}>{c}</td>)}
+            {r.map((c, j) => <td key={j} className={`px-4 py-2.5 text-xs font-semibold text-ink-secondary ${j >= r.length - 1 ? 'text-right font-semibold text-foreground' : ''}`}>{c}</td>)}
           </tr>
         ))}
       </tbody>

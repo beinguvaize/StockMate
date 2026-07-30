@@ -105,16 +105,16 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  <div className="space-y-4">
  <h1 className="text-4xl md:text-5xl font-black font-sora text-ink-primary leading-tight tracking-tight mb-2 uppercase">{business.name || 'BUSINESS NAME'}<span className="text-accent-signature">.</span></h1>
  <div className="space-y-2">
- <div className="flex items-center gap-3 text-sm font-semibold text-gray-700 opacity-80">
+ <div className="flex items-center gap-3 text-sm font-semibold text-ink-secondary opacity-80">
  <MapPin size={16} className="text-accent-signature" />
  {business.address || 'Business Address Not Set'}
  </div>
  <div className="flex items-center gap-4">
- <div className="flex items-center gap-3 text-sm font-semibold text-gray-700 opacity-80">
+ <div className="flex items-center gap-3 text-sm font-semibold text-ink-secondary opacity-80">
  <Phone size={16} className="text-accent-signature" />
  {business.phone || '+91 00000 00000'}
  </div>
- <div className="flex items-center gap-3 text-sm font-semibold text-gray-700 opacity-80">
+ <div className="flex items-center gap-3 text-sm font-semibold text-ink-secondary opacity-80">
  <Mail size={16} className="text-accent-signature" />
  {business.email || 'business@mail.com'}
  </div>
@@ -174,7 +174,7 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  </div>
 
  {/* Billing Info */}
- <div className="bg-white border border-gray-300 shadow-sm rounded-lg p-5 flex flex-col md:flex-row justify-between gap-5">
+ <div className="bg-white border border-border shadow-sm rounded-lg p-5 flex flex-col md:flex-row justify-between gap-5">
  <div className="space-y-3">
  <div className="text-sm font-bold text-accent-signature">Bill To:</div>
  <div className="space-y-2">
@@ -187,7 +187,7 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  ) : (
  <h3 className="text-2xl font-bold text-ink-primary leading-none">{client.name}</h3>
  )}
- <div className="text-sm text-gray-700 mt-2">
+ <div className="text-sm text-ink-secondary mt-2">
  {isEditMode ? (
  <textarea 
  className="w-full bg-white border border-black/10 rounded px-2 outline-none resize-none"
@@ -228,11 +228,11 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  <table className="w-full border-separate border-spacing-0">
  <thead>
  <tr>
- <th className="px-4 py-2 text-left border-y-2 border-black/10 text-xs font-bold text-gray-700">S.No</th>
- <th className="px-4 py-2 text-left border-y-2 border-black/10 text-xs font-bold text-gray-700">Item Description</th>
- <th className="px-4 py-2 text-right border-y-2 border-black/10 text-xs font-bold text-gray-700">QTY</th>
- <th className="px-4 py-2 text-right border-y-2 border-black/10 text-xs font-bold text-gray-700">Rate</th>
- <th className="px-4 py-2 text-right border-y-2 border-black/10 text-xs font-bold text-gray-700">Amount</th>
+ <th className="px-4 py-2 text-left border-y-2 border-black/10 text-xs font-bold text-ink-secondary">S.No</th>
+ <th className="px-4 py-2 text-left border-y-2 border-black/10 text-xs font-bold text-ink-secondary">Item Description</th>
+ <th className="px-4 py-2 text-right border-y-2 border-black/10 text-xs font-bold text-ink-secondary">QTY</th>
+ <th className="px-4 py-2 text-right border-y-2 border-black/10 text-xs font-bold text-ink-secondary">Rate</th>
+ <th className="px-4 py-2 text-right border-y-2 border-black/10 text-xs font-bold text-ink-secondary">Amount</th>
  </tr>
  </thead>
  <tbody className="divide-y divide-black/5">
@@ -241,10 +241,10 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  <td className="px-4 py-5 text-sm text-ink-primary opacity-60 font-medium">{String(idx + 1).padStart(2, '0')}</td>
  <td className="px-4 py-5 font-medium">
  <div className="text-base text-ink-primary mb-1">{item.name || item.productName || 'Unknown Product'}</div>
- <div className="text-xs text-gray-700 opacity-80">SKU: {item.sku || 'N/A'}</div>
+ <div className="text-xs text-ink-secondary opacity-80">SKU: {item.sku || 'N/A'}</div>
  </td>
  <td className="px-4 py-5 text-right text-base font-semibold text-ink-primary">{item.quantity} <span className="text-sm font-normal opacity-70 border-l border-black/10 pl-2 ml-1">{item.unit || 'PCS'}</span></td>
- <td className="px-4 py-5 text-right text-base text-gray-700">₹{(item.price || item.sellingPrice || 0).toLocaleString()}</td>
+ <td className="px-4 py-5 text-right text-base text-ink-secondary">₹{(item.price || item.sellingPrice || 0).toLocaleString()}</td>
  <td className="px-4 py-5 text-right text-base font-bold text-ink-primary">₹{((item.price || item.sellingPrice || 0) * item.quantity).toLocaleString()}</td>
  </tr>
  ))}
@@ -281,11 +281,11 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  {/* Grand Totals */}
  <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-5 shadow-sm">
  <div className="space-y-4">
- <div className="flex justify-between items-center text-sm font-medium text-gray-700">
+ <div className="flex justify-between items-center text-sm font-medium text-ink-secondary">
  <span>Subtotal</span>
  <span>₹{order.subtotal?.toLocaleString() || '0'}</span>
  </div>
- <div className="flex justify-between items-center text-sm font-medium text-gray-700 pb-4 border-b border-black/10">
+ <div className="flex justify-between items-center text-sm font-medium text-ink-secondary pb-4 border-b border-black/10">
  <span>Discount / Tax</span>
  <span>₹{((order.tax || 0) - (order.discount || 0)).toLocaleString() || '0'}</span>
  </div>
@@ -308,13 +308,13 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  <div className="text-sm font-bold text-ink-primary">Terms & Conditions:</div>
  {isEditMode ? (
  <textarea 
- className="w-full bg-white border border-black/20 rounded p-2 text-sm text-gray-700 outline-none resize-none"
+ className="w-full bg-white border border-black/20 rounded p-2 text-sm text-ink-secondary outline-none resize-none"
  value={editedOrder.remarks}
  onChange={e => setEditedOrder({...editedOrder, remarks: e.target.value})}
  rows="3"
  />
  ) : (
- <p className="text-sm text-gray-700 leading-relaxed">
+ <p className="text-sm text-ink-secondary leading-relaxed">
  {editedOrder.remarks}
  </p>
  )}
@@ -326,7 +326,7 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  <div className="h-[1px] w-full md:w-56 bg-black/30 ml-auto"></div>
  <div className="text-sm font-bold text-ink-primary">
  Authorized Signatory
- <div className="text-xs text-gray-700 font-normal mt-1">For {business.name || 'SK Trading'}</div>
+ <div className="text-xs text-ink-secondary font-normal mt-1">For {business.name || 'SK Trading'}</div>
  </div>
  </div>
  </div>
@@ -334,7 +334,7 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  </div>
 
  {/* Print Only Footer Information */}
- <div className="hidden print:block absolute bottom-8 left-1/2 -translate-x-1/2 text-xs font-medium text-gray-700 opacity-70">
+ <div className="hidden print:block absolute bottom-8 left-1/2 -translate-x-1/2 text-xs font-medium text-ink-secondary opacity-70">
  Document generated by Ledgr ERP System
  </div>
  </div>

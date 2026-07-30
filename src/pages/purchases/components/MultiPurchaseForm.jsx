@@ -44,10 +44,10 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
   return (
     <div className="relative">
       <div ref={inputWrapRef} className="relative">
-        <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" />
+        <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         <input
           type="text"
-          className={`w-full bg-card border border-gray-300 shadow-sm rounded-lg pl-6 pr-6 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 ${selected ? '' : 'text-muted-foreground'}`}
+          className={`w-full bg-card border border-border shadow-sm rounded-lg pl-6 pr-6 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 ${selected ? '' : 'text-muted-foreground'}`}
           placeholder="Search product…"
           value={open ? query : (selected?.name || '')}
           // Seed the query with the current product and select it, instead of
@@ -63,7 +63,7 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
             type="button"
             tabIndex={-1}
             onMouseDown={e => { e.preventDefault(); onSelect(''); setQuery(''); }}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-muted-foreground"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
           >
             <X size={11} />
           </button>
@@ -227,7 +227,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
     });
   };
 
-  const inp = 'w-full bg-card border border-gray-300 shadow-sm rounded-lg p-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums';
+  const inp = 'w-full bg-card border border-border shadow-sm rounded-lg p-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums';
 
   return (
     <>
@@ -307,7 +307,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                   {/* Barcode input */}
                   <div>
                     <div className="relative">
-                      <Barcode size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" />
+                      <Barcode size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                       <input
                         type="text"
                         className={`w-full bg-canvas border rounded-lg pl-6 pr-2 py-2 text-xs tabular-nums outline-none focus:ring-2 focus:ring-accent-signature/20 ${
@@ -372,7 +372,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                         <div className="mt-1 ml-0.5">
                           <button type="button"
                             onClick={() => updateLine(line._key, { buyUnit: alt ? 'BASE' : 'ALT' })}
-                            className={`text-[8px] font-semibold px-1.5 py-0.5 rounded ${alt ? 'bg-accent-signature/15 text-accent-signature-hover' : 'bg-gray-100 text-muted-foreground'}`}>
+                            className={`text-[8px] font-semibold px-1.5 py-0.5 rounded ${alt ? 'bg-accent-signature/15 text-accent-signature-hover' : 'bg-muted text-muted-foreground'}`}>
                             {alt ? product.secondary_unit : product.unit}
                           </button>
                           {alt && q > 0 && (

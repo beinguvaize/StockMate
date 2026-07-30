@@ -103,10 +103,10 @@ export default function VehicleLiveMap({ vehicles, tenantId }) {
         <div className="flex items-center gap-2">
           {connected
             ? <><Wifi size={14} className="text-green-500" /><span className="text-[11px] font-bold text-green-600">Live</span></>
-            : <><WifiOff size={14} className="text-gray-400" /><span className="text-[11px] font-bold text-gray-400">Connecting…</span></>
+            : <><WifiOff size={14} className="text-muted-foreground" /><span className="text-[11px] font-bold text-muted-foreground">Connecting…</span></>
           }
         </div>
-        <span className="text-[11px] text-gray-500">{locations.length} vehicle{locations.length !== 1 ? 's' : ''} tracked</span>
+        <span className="text-[11px] text-muted-foreground">{locations.length} vehicle{locations.length !== 1 ? 's' : ''} tracked</span>
       </div>
 
       {/* Map */}
@@ -133,14 +133,14 @@ export default function VehicleLiveMap({ vehicles, tenantId }) {
               >
                 <Popup>
                   <div className="text-sm font-bold">{v?.name || 'Vehicle'}</div>
-                  <div className="text-xs text-gray-500">{v?.plate}</div>
+                  <div className="text-xs text-muted-foreground">{v?.plate}</div>
                   {loc.speed != null && (
                     <div className="text-xs mt-1">
                       <Navigation size={10} className="inline mr-1" />
                       {Math.round(loc.speed)} km/h
                     </div>
                   )}
-                  <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                  <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                     <Clock size={10} />
                     {timeAgo(loc.updated_at)}
                   </div>
@@ -164,12 +164,12 @@ export default function VehicleLiveMap({ vehicles, tenantId }) {
             const stale = (Date.now() - new Date(loc.updated_at)) > 5 * 60 * 1000;
             return (
               <div key={loc.vehicle_id} className="glass-panel p-4 flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${stale ? 'bg-gray-100' : 'bg-accent-signature/20'}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${stale ? 'bg-muted' : 'bg-accent-signature/20'}`}>
                   🚚
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-ink-primary truncate">{v?.name || loc.vehicle_id}</p>
-                  <p className="text-[10px] text-gray-500">{v?.plate} · {timeAgo(loc.updated_at)}</p>
+                  <p className="text-[10px] text-muted-foreground">{v?.plate} · {timeAgo(loc.updated_at)}</p>
                 </div>
                 <div className="text-right">
                   {loc.speed != null && (
@@ -184,7 +184,7 @@ export default function VehicleLiveMap({ vehicles, tenantId }) {
       )}
 
       {locations.length === 0 && (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-muted-foreground">
           <div className="text-4xl mb-3">🗺️</div>
           <p className="text-sm font-bold">No vehicles broadcasting location</p>
           <p className="text-xs mt-1">Share the Driver Link with drivers to start tracking</p>

@@ -100,7 +100,7 @@ const SalesReturnsList = ({ returns = [], onReverse = null }) => {
                   #{String(r.id).split('-').pop()}
                 </td>
                 <td className="px-4 py-3 text-xs font-semibold text-muted-foreground">{r.date || '—'}</td>
-                <td className="px-4 py-3 text-xs font-semibold text-gray-700">{r.client_name || 'Walk-in'}</td>
+                <td className="px-4 py-3 text-xs font-semibold text-ink-secondary">{r.client_name || 'Walk-in'}</td>
                 <td className="px-4 py-3 text-xs font-semibold text-muted-foreground text-center">{itemCount(r)}</td>
                 <td className="px-4 py-3 text-xs font-medium text-muted-foreground max-w-[200px] truncate">{r.reason || '—'}</td>
                 <td className="px-4 py-3 text-xs font-semibold text-rose-600 text-right">{formatCurrency(r.total_amount)}</td>

@@ -321,7 +321,7 @@ const ClientSettlement = () => {
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-12">
         <AlertCircle size={48} className="mx-auto mb-4 text-red-400 opacity-50" />
         <h2 className="text-2xl font-bold text-ink-primary mb-2">Client Not Found</h2>
-        <p className="text-sm text-gray-500 mb-6">This client record may have been deleted.</p>
+        <p className="text-sm text-muted-foreground mb-6">This client record may have been deleted.</p>
         <button onClick={() => navigate(-1)} className="btn-signature px-8 h-11 !rounded-xl text-xs font-bold uppercase tracking-widest">
           Back to Clients
         </button>
@@ -357,25 +357,25 @@ const ClientSettlement = () => {
           <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
         </button>
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="hidden sm:inline text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0">Clients /</span>
+          <span className="hidden sm:inline text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Clients /</span>
           <h1 className="text-base font-extrabold text-ink-primary truncate">
             {client.name}<span className="text-accent-signature">.</span>
           </h1>
           {(client.gstin || client.gst_no) && (
-            <span className="hidden md:inline shrink-0 text-[10px] font-bold text-gray-400 bg-canvas border border-black/5 rounded-full px-2 py-0.5">
+            <span className="hidden md:inline shrink-0 text-[10px] font-bold text-muted-foreground bg-canvas border border-black/5 rounded-full px-2 py-0.5">
               {client.gstin || client.gst_no}
             </span>
           )}
           {client.phone && (
-            <span className="hidden lg:flex items-center gap-1 text-[11px] font-semibold text-gray-400 shrink-0">
+            <span className="hidden lg:flex items-center gap-1 text-[11px] font-semibold text-muted-foreground shrink-0">
               <Phone size={11} />{client.phone}
             </span>
           )}
         </div>
         {/* Outstanding — headline metric in header */}
         <div className="shrink-0 text-right">
-          <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{outstanding < 0 ? 'Advance' : 'Outstanding'}</div>
-          <div className={`text-lg font-black font-mono tabular-nums leading-none ${outstanding > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{outstanding < 0 ? 'Advance' : 'Outstanding'}</div>
+          <div className={`text-lg font-black tabular-nums leading-none ${outstanding > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
             {formatCurrency(Math.abs(outstanding))}
           </div>
         </div>
@@ -390,33 +390,33 @@ const ClientSettlement = () => {
           {/* Client card */}
           <div className="bg-white rounded-2xl border border-black/5 p-4">
             <div className="flex items-center gap-3 mb-3 pb-3 border-b border-black/5">
-              <div className="w-10 h-10 shrink-0 rounded-xl bg-accent-signature/10 border border-accent-signature/25 flex items-center justify-center text-accent-signature font-mono text-sm font-bold">
+              <div className="w-10 h-10 shrink-0 rounded-xl bg-accent-signature/10 border border-accent-signature/25 flex items-center justify-center text-accent-signature tabular-nums text-sm font-bold">
                 {client.name.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-extrabold text-ink-primary leading-tight truncate">{client.name}</div>
-                <div className="text-[10px] text-gray-400 font-semibold mt-0.5">{client.gstin || client.gst_no || 'Unregistered'}</div>
+                <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">{client.gstin || client.gst_no || 'Unregistered'}</div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div className={`rounded-xl p-2.5 border ${outstanding > 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50/60 border-emerald-100'}`}>
                 <div className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${outstanding > 0 ? 'text-red-400' : 'text-emerald-500'}`}>{outstanding < 0 ? 'Advance' : 'Outstanding'}</div>
-                <div className={`text-base font-black font-mono tabular-nums ${outstanding > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatCurrency(Math.abs(outstanding))}</div>
+                <div className={`text-base font-black tabular-nums ${outstanding > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatCurrency(Math.abs(outstanding))}</div>
               </div>
               <div className="bg-canvas rounded-xl p-2.5 border border-black/5">
-                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Unpaid</div>
-                <div className="text-base font-black font-mono tabular-nums text-ink-primary">{clientInvoices.length}</div>
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Unpaid</div>
+                <div className="text-base font-black tabular-nums text-ink-primary">{clientInvoices.length}</div>
               </div>
             </div>
-            <div className="space-y-1.5 text-xs font-semibold text-gray-500">
-              {client.phone && <div className="flex items-center gap-2"><Phone size={11} className="text-gray-300 shrink-0" />{client.phone}</div>}
-              {client.address && <div className="flex items-start gap-2"><MapPin size={11} className="text-gray-300 shrink-0 mt-0.5" />{client.address}</div>}
+            <div className="space-y-1.5 text-xs font-semibold text-muted-foreground">
+              {client.phone && <div className="flex items-center gap-2"><Phone size={11} className="text-muted-foreground shrink-0" />{client.phone}</div>}
+              {client.address && <div className="flex items-start gap-2"><MapPin size={11} className="text-muted-foreground shrink-0 mt-0.5" />{client.address}</div>}
             </div>
           </div>
 
           {/* Payment form */}
           <div className="bg-white rounded-2xl border border-black/5 p-4">
-            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Record Payment</h4>
+            <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Record Payment</h4>
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               {paymentError && (
                 <div className="p-2.5 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2">
@@ -431,15 +431,15 @@ const ClientSettlement = () => {
                 </div>
               )}
               <div>
-                <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Date</label>
+                <label className="block text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Date</label>
                 <input required type="date"
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
                   value={paymentData.date}
                   onChange={e => setPaymentData({ ...paymentData, date: e.target.value })} />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Amount</label>
+                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Amount</label>
                   {outstanding > 0 && (
                     <button type="button"
                       onClick={() => setPaymentData({ ...paymentData, amount: outstanding.toString() })}
@@ -449,11 +449,11 @@ const ClientSettlement = () => {
                   )}
                 </div>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-gray-400">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-muted-foreground">
                     {businessProfile?.currencySymbol || '₹'}
                   </span>
                   <input required type="number" step="0.01" placeholder="0.00"
-                    className="w-full bg-white border border-gray-300 shadow-sm rounded-xl pl-7 pr-3 py-2.5 text-xl font-black text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 font-mono tabular-nums"
+                    className="w-full bg-white border border-border shadow-sm rounded-xl pl-7 pr-3 py-2.5 text-xl font-black text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
                     value={paymentData.amount}
                     onChange={e => setPaymentData({ ...paymentData, amount: e.target.value })} />
                 </div>
@@ -464,9 +464,9 @@ const ClientSettlement = () => {
                 )}
               </div>
               <div>
-                <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Method</label>
+                <label className="block text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Method</label>
                 <select
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
                   value={paymentData.paymentMethod}
                   onChange={e => setPaymentData({ ...paymentData, paymentMethod: e.target.value })}>
                   <option value="CASH">Cash</option>
@@ -476,9 +476,9 @@ const ClientSettlement = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Notes</label>
+                <label className="block text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Notes</label>
                 <textarea
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 resize-none h-16 placeholder:text-gray-300"
+                  className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 resize-none h-16 placeholder:text-muted-foreground"
                   placeholder="Cheque no, reference…"
                   value={paymentData.notes}
                   onChange={e => setPaymentData({ ...paymentData, notes: e.target.value })} />
@@ -498,11 +498,11 @@ const ClientSettlement = () => {
 
           {/* Toolbar — fixed */}
           <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-black/5 bg-white">
-            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Unpaid Bills</span>
-            <span className="text-[10px] font-semibold text-gray-400">({clientInvoices.length})</span>
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Unpaid Bills</span>
+            <span className="text-[10px] font-semibold text-muted-foreground">({clientInvoices.length})</span>
             <div className="flex-1" />
             <div className="relative">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input type="text" placeholder="Search…"
                 className="bg-canvas rounded-lg py-1.5 pl-7 pr-3 border border-black/5 text-xs font-medium outline-none focus:ring-2 focus:ring-accent-signature/20 w-28"
                 value={searchTerm}
@@ -519,17 +519,17 @@ const ClientSettlement = () => {
             {clientInvoices.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center py-16 text-center">
                 <CheckCircle2 size={36} className="mb-3 text-emerald-400 opacity-40" />
-                <p className="text-sm font-bold text-gray-400">No outstanding bills</p>
-                <p className="text-xs text-gray-400 mt-1">This client has no pending payments.</p>
+                <p className="text-sm font-bold text-muted-foreground">No outstanding bills</p>
+                <p className="text-xs text-muted-foreground mt-1">This client has no pending payments.</p>
               </div>
             ) : (
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-white z-10 shadow-[inset_0_-1px_0_rgba(0,0,0,0.06)]">
                   <tr>
-                    <th className="py-2.5 px-4 text-[9px] font-black text-gray-400 uppercase tracking-widest w-7">#</th>
-                    <th className="py-2.5 px-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Invoice</th>
-                    <th className="py-2.5 px-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                    <th className="py-2.5 px-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Due</th>
+                    <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest w-7">#</th>
+                    <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Invoice</th>
+                    <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Date</th>
+                    <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">Due</th>
                     <th className="py-2.5 px-4 w-8" />
                   </tr>
                 </thead>
@@ -542,15 +542,15 @@ const ClientSettlement = () => {
                       <React.Fragment key={inv.id}>
                         <tr onClick={() => toggleInvoice(inv)}
                           className={`cursor-pointer transition-colors ${isSelected ? 'bg-accent-signature/5' : 'hover:bg-canvas/60'}`}>
-                          <td className="py-3 px-4 text-[10px] font-semibold text-gray-400">{idx + 1}</td>
+                          <td className="py-3 px-4 text-[10px] font-semibold text-muted-foreground">{idx + 1}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2.5">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isSelected ? 'bg-ink-primary text-accent-signature' : 'bg-white border border-gray-300 shadow-sm text-gray-400'}`}>
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isSelected ? 'bg-ink-primary text-accent-signature' : 'bg-white border border-border shadow-sm text-muted-foreground'}`}>
                                 <Receipt size={13} />
                               </div>
                               <div>
                                 <div className="text-xs font-bold text-ink-primary">#{String(inv.invoice_number || '').replace(/^#+/, '')}</div>
-                                <div className="text-[9px] text-gray-400 font-semibold mt-0.5">
+                                <div className="text-[9px] text-muted-foreground font-semibold mt-0.5">
                                   {inv.isSale ? 'Cash sale · ' : ''}{inv.payment_status === 'PARTIAL' ? 'Partial' : 'Unpaid'}
                                 </div>
                               </div>
@@ -558,12 +558,12 @@ const ClientSettlement = () => {
                           </td>
                           <td className="py-3 px-4">
                             <div className="text-xs font-semibold text-ink-primary">{formatDate(inv.invoice_date || inv.created_at)}</div>
-                            <div className="text-[9px] text-gray-400 mt-0.5 flex items-center gap-1">
+                            <div className="text-[9px] text-muted-foreground mt-0.5 flex items-center gap-1">
                               <Clock size={9} />{new Date(inv.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </div>
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <div className={`text-xs font-black font-mono tabular-nums ${isSelected ? 'text-ink-primary' : 'text-gray-700'}`}>
+                            <div className={`text-xs font-black tabular-nums ${isSelected ? 'text-ink-primary' : 'text-ink-secondary'}`}>
                               {formatCurrency(invoiceDue(inv))}
                             </div>
                             {inv.paid_amount > 0 && (
@@ -585,7 +585,7 @@ const ClientSettlement = () => {
                                     : `/embed/invoice/${inv.id}`;
                                   window.open(url, '_blank', 'noopener');
                                 }}
-                                className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:bg-black/5 hover:text-ink-primary transition-colors"
+                                className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-black/5 hover:text-ink-primary transition-colors"
                                 title="View bill"
                               >
                                 <Eye size={13} />
@@ -593,7 +593,7 @@ const ClientSettlement = () => {
                               <button
                                 type="button"
                                 onClick={e => { e.stopPropagation(); setExpandedInvoiceId(isExpanded ? null : inv.id); }}
-                                className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:bg-black/5 hover:text-ink-primary transition-colors"
+                                className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-black/5 hover:text-ink-primary transition-colors"
                                 title="View items"
                               >
                                 <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -609,23 +609,23 @@ const ClientSettlement = () => {
                             <td colSpan={5} className="px-4 pb-3 pt-0">
                               <div className="rounded-xl border border-black/5 bg-white overflow-hidden">
                                 {items.length === 0 ? (
-                                  <div className="px-4 py-3 text-[10px] font-semibold text-gray-400">No item details on this invoice.</div>
+                                  <div className="px-4 py-3 text-[10px] font-semibold text-muted-foreground">No item details on this invoice.</div>
                                 ) : (
                                   <table className="w-full text-left">
                                     <thead>
                                       <tr className="border-b border-black/5">
-                                        <th className="py-2 px-3 text-[8px] font-black text-gray-400 uppercase tracking-widest">Product</th>
-                                        <th className="py-2 px-3 text-[8px] font-black text-gray-400 uppercase tracking-widest text-right">Qty</th>
-                                        <th className="py-2 px-3 text-[8px] font-black text-gray-400 uppercase tracking-widest text-right">Rate</th>
-                                        <th className="py-2 px-3 text-[8px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                                        <th className="py-2 px-3 text-[8px] font-black text-muted-foreground uppercase tracking-widest">Product</th>
+                                        <th className="py-2 px-3 text-[8px] font-black text-muted-foreground uppercase tracking-widest text-right">Qty</th>
+                                        <th className="py-2 px-3 text-[8px] font-black text-muted-foreground uppercase tracking-widest text-right">Rate</th>
+                                        <th className="py-2 px-3 text-[8px] font-black text-muted-foreground uppercase tracking-widest text-right">Amount</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-black/[0.04]">
                                       {items.map((it, i) => (
                                         <tr key={i}>
                                           <td className="py-2 px-3 text-[11px] font-bold text-ink-primary">{it.name}</td>
-                                          <td className="py-2 px-3 text-[11px] font-semibold text-gray-600 text-right tabular-nums">{it.quantity ?? it.qty}</td>
-                                          <td className="py-2 px-3 text-[11px] font-semibold text-gray-600 text-right tabular-nums">{formatCurrency(it.rate ?? it.price)}</td>
+                                          <td className="py-2 px-3 text-[11px] font-semibold text-ink-secondary text-right tabular-nums">{it.quantity ?? it.qty}</td>
+                                          <td className="py-2 px-3 text-[11px] font-semibold text-ink-secondary text-right tabular-nums">{formatCurrency(it.rate ?? it.price)}</td>
                                           <td className="py-2 px-3 text-[11px] font-black text-ink-primary text-right tabular-nums">{formatCurrency((Number(it.quantity ?? it.qty) || 0) * (Number(it.rate ?? it.price) || 0))}</td>
                                         </tr>
                                       ))}
@@ -648,11 +648,11 @@ const ClientSettlement = () => {
           <div className="shrink-0 border-t border-black/5 bg-ink-primary px-5 py-3 rounded-b-2xl flex items-center justify-between">
             <div>
               <div className="text-[9px] font-bold text-white/50 uppercase tracking-widest">Selected Total</div>
-              <div className="text-lg font-black text-white font-mono tabular-nums">{formatCurrency(selectedTotal)}</div>
+              <div className="text-lg font-black text-white tabular-nums">{formatCurrency(selectedTotal)}</div>
             </div>
             <div className="text-right">
               <div className="text-[9px] font-bold text-white/50 uppercase tracking-widest">Remaining After</div>
-              <div className="text-base font-black text-accent-signature font-mono tabular-nums">
+              <div className="text-base font-black text-accent-signature tabular-nums">
                 {formatCurrency(Math.max(0, outstanding - selectedTotal))}
               </div>
             </div>
@@ -672,14 +672,14 @@ const ClientSettlement = () => {
                 className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${
                   bottomTab === tid
                     ? 'border-accent-signature text-ink-primary'
-                    : 'border-transparent text-gray-400 hover:text-ink-primary hover:bg-canvas/50'
+                    : 'border-transparent text-muted-foreground hover:text-ink-primary hover:bg-canvas/50'
                 }`}>
                 <Icon size={11} />{label}
               </button>
             ))}
           </div>
           <div className="shrink-0 px-4 py-1.5 border-b border-black/5 bg-canvas/40">
-            <span className="text-[9px] font-semibold text-gray-400">
+            <span className="text-[9px] font-semibold text-muted-foreground">
               {bottomTab === 'HISTORY'
                 ? `${paymentHistory.length} payment${paymentHistory.length !== 1 ? 's' : ''}`
                 : `${statementRows.length} entries`}
@@ -695,16 +695,16 @@ const ClientSettlement = () => {
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center py-10">
                     <Clock size={28} className="mx-auto mb-2 text-gray-200" />
-                    <p className="text-xs font-semibold text-gray-400">No payments yet</p>
+                    <p className="text-xs font-semibold text-muted-foreground">No payments yet</p>
                   </div>
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 bg-white z-10 shadow-[inset_0_-1px_0_rgba(0,0,0,0.06)]">
                     <tr>
-                      <th className="py-2.5 px-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                      <th className="py-2.5 px-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Method</th>
-                      <th className="py-2.5 px-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                      <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Date</th>
+                      <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Method</th>
+                      <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">Amount</th>
                       <th className="py-2.5 px-2 w-6" />
                     </tr>
                   </thead>
@@ -715,21 +715,21 @@ const ClientSettlement = () => {
                         <tr key={p.id} className="hover:bg-canvas/40 transition-colors">
                           <td className="py-2.5 px-4">
                             <div className="text-xs font-semibold text-ink-primary">{formatDate(p.date)}</div>
-                            {p.notes && <div className="text-[9px] text-gray-400 truncate max-w-[100px] mt-0.5">{p.notes}</div>}
+                            {p.notes && <div className="text-[9px] text-muted-foreground truncate max-w-[100px] mt-0.5">{p.notes}</div>}
                           </td>
                           <td className="py-2.5 px-4">
                             <div className="flex items-center gap-1.5">
-                              <Icon size={11} className="text-gray-400 shrink-0" />
+                              <Icon size={11} className="text-muted-foreground shrink-0" />
                               <span className="text-[10px] font-semibold text-ink-primary">{METHOD_LABEL[p.payment_method] || p.payment_method}</span>
                             </div>
-                            {p.collector?.name && <div className="text-[9px] text-gray-400 mt-0.5">{p.collector.name}</div>}
+                            {p.collector?.name && <div className="text-[9px] text-muted-foreground mt-0.5">{p.collector.name}</div>}
                           </td>
                           <td className="py-2.5 px-4 text-right">
-                            <span className="text-xs font-black text-emerald-600 font-mono tabular-nums">{formatCurrency(p.amount)}</span>
+                            <span className="text-xs font-black text-emerald-600 tabular-nums">{formatCurrency(p.amount)}</span>
                           </td>
                           <td className="py-2.5 px-2 text-center">
                             <button onClick={() => handleDeletePayment(p.id)} disabled={deletingPaymentId === p.id}
-                              className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-40" title="Delete">
+                              className="text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-40" title="Delete">
                               <Trash2 size={12} />
                             </button>
                           </td>
@@ -739,9 +739,9 @@ const ClientSettlement = () => {
                   </tbody>
                   <tfoot className="border-t-2 border-black/10">
                     <tr className="bg-canvas/50">
-                      <td colSpan="2" className="py-2.5 px-4 text-[9px] font-black text-gray-500 uppercase tracking-widest">Total Collected</td>
+                      <td colSpan="2" className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Total Collected</td>
                       <td className="py-2.5 px-4 text-right">
-                        <span className="text-xs font-black text-emerald-600 font-mono tabular-nums">
+                        <span className="text-xs font-black text-emerald-600 tabular-nums">
                           {formatCurrency(paymentHistory.reduce((s, p) => s + Number(p.amount), 0))}
                         </span>
                       </td>
@@ -758,18 +758,18 @@ const ClientSettlement = () => {
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center py-10">
                     <BookOpen size={28} className="mx-auto mb-2 text-gray-200" />
-                    <p className="text-xs font-semibold text-gray-400">No transactions yet</p>
+                    <p className="text-xs font-semibold text-muted-foreground">No transactions yet</p>
                   </div>
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 bg-white z-10 shadow-[inset_0_-1px_0_rgba(0,0,0,0.06)]">
                     <tr>
-                      <th className="py-2.5 px-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                      <th className="py-2.5 px-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Description</th>
-                      <th className="py-2.5 px-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Dr</th>
-                      <th className="py-2.5 px-3 text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Cr</th>
-                      <th className="py-2.5 px-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Balance</th>
+                      <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Date</th>
+                      <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Description</th>
+                      <th className="py-2.5 px-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">Dr</th>
+                      <th className="py-2.5 px-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">Cr</th>
+                      <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">Balance</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black/5">
@@ -782,14 +782,14 @@ const ClientSettlement = () => {
                             <span className="text-[10px] font-semibold text-ink-primary truncate">{row.description}</span>
                           </div>
                         </td>
-                        <td className="py-2.5 px-3 text-right text-[10px] font-semibold font-mono tabular-nums text-red-500">
+                        <td className="py-2.5 px-3 text-right text-[10px] font-semibold tabular-nums text-red-500">
                           {row.debit > 0 ? formatCurrency(row.debit) : '—'}
                         </td>
-                        <td className="py-2.5 px-3 text-right text-[10px] font-semibold font-mono tabular-nums text-emerald-600">
+                        <td className="py-2.5 px-3 text-right text-[10px] font-semibold tabular-nums text-emerald-600">
                           {row.credit > 0 ? formatCurrency(row.credit) : '—'}
                         </td>
                         <td className="py-2.5 px-4 text-right">
-                          <span className={`text-xs font-black font-mono tabular-nums ${row.balance > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                          <span className={`text-xs font-black tabular-nums ${row.balance > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
                             {formatCurrency(Math.abs(row.balance))}{row.balance > 0 ? ' Dr' : row.balance < 0 ? ' Cr' : ''}
                           </span>
                         </td>
@@ -799,17 +799,17 @@ const ClientSettlement = () => {
                   <tfoot className="border-t-2 border-black/10 bg-ink-primary">
                     <tr>
                       <td colSpan="2" className="py-2.5 px-4 text-[9px] font-black text-white/60 uppercase tracking-widest">Closing Balance</td>
-                      <td className="py-2.5 px-3 text-right text-[10px] font-black text-red-300 font-mono tabular-nums">
+                      <td className="py-2.5 px-3 text-right text-[10px] font-black text-red-300 tabular-nums">
                         {formatCurrency(statementRows.reduce((s, r) => s + r.debit, 0))}
                       </td>
-                      <td className="py-2.5 px-3 text-right text-[10px] font-black text-emerald-300 font-mono tabular-nums">
+                      <td className="py-2.5 px-3 text-right text-[10px] font-black text-emerald-300 tabular-nums">
                         {formatCurrency(statementRows.reduce((s, r) => s + r.credit, 0))}
                       </td>
                       <td className="py-2.5 px-4 text-right">
                         {(() => {
                           const last = statementRows[statementRows.length - 1];
                           return (
-                            <span className={`text-xs font-black font-mono tabular-nums ${last.balance > 0 ? 'text-red-300' : 'text-emerald-300'}`}>
+                            <span className={`text-xs font-black tabular-nums ${last.balance > 0 ? 'text-red-300' : 'text-emerald-300'}`}>
                               {formatCurrency(Math.abs(last.balance))} {last.balance > 0 ? 'Dr' : 'Cr'}
                             </span>
                           );

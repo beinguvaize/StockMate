@@ -163,7 +163,7 @@ const BalanceSheetReport = () => {
 
         {/* Statement */}
         {loading
-          ? <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-16 text-center text-sm font-semibold text-gray-300 animate-pulse">Loading balance sheet…</div>
+          ? <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-16 text-center text-sm font-semibold text-muted-foreground animate-pulse">Loading balance sheet…</div>
           : <StatementTable
               sections={sections}
               grandTotal={{ label: 'Total Liabilities + Equity', value: liabPlusEquity }}

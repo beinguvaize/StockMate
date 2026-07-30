@@ -640,7 +640,7 @@ const BusinessReport = () => {
             : salesMetrics.topClients.map((c, i) => (
               <div key={c.name} className="flex items-center gap-4 px-6 py-3.5 border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${
-                  i===0?'bg-accent-signature/15 text-accent-signature-hover':i===1?'bg-gray-100 text-gray-600':'bg-accent-signature/10 text-accent-signature'
+                  i===0?'bg-accent-signature/15 text-accent-signature-hover':i===1?'bg-muted text-ink-secondary':'bg-accent-signature/10 text-accent-signature'
                 }`}>
                   {(c.name[0]||'?').toUpperCase()}
                 </div>

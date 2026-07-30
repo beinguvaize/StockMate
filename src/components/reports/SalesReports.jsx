@@ -157,7 +157,7 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
  {/* 30-Day Trend */}
  <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Revenue Velocity.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">Daily sales performance (30D Overvview)</p>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">Daily sales performance (30D Overvview)</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
  <LineChart data={salesTrends}>
@@ -191,7 +191,7 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
  {/* Category Sales */}
  <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Category Dominance.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">Revenue distribution by catalog grouping</p>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">Revenue distribution by catalog grouping</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
  <PieChart>
@@ -230,7 +230,7 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
  <div className="flex justify-between items-center mb-10">
  <div>
  <h3 className="text-2xl font-semibold text-foreground leading-none mb-2">Premium Client Board.</h3>
- <p className="text-[10px] font-semibold text-gray-700">Top revenue generating partners</p>
+ <p className="text-[10px] font-semibold text-ink-secondary">Top revenue generating partners</p>
  </div>
  <button 
  onClick={() => exportSalesCSV(sales, businessProfile.name, (id) => clients.find(c => c.id === id)?.name || id)}

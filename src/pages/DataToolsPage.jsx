@@ -105,7 +105,7 @@ export default function DataToolsPage() {
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-500"
+          className="p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground"
         >
           <ArrowLeft size={20} />
         </button>
@@ -114,22 +114,22 @@ export default function DataToolsPage() {
             <Database size={18} className="text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Data Tools</h1>
-            <p className="text-xs text-gray-400">Import &amp; export your business data</p>
+            <h1 className="text-2xl font-black text-foreground tracking-tight">Data Tools</h1>
+            <p className="text-xs text-muted-foreground">Import &amp; export your business data</p>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
+      <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
         {TABS.map(t => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeTab === t.key
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-white text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-ink-secondary'
             }`}
           >
             {t.label}
@@ -138,7 +138,7 @@ export default function DataToolsPage() {
       </div>
 
       {/* Content */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
 
         {/* Excel Bulk Import tab */}
         {activeTab === 'excel' && (
@@ -152,7 +152,7 @@ export default function DataToolsPage() {
           <div className="p-6 space-y-6">
             {/* Module selector */}
             <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Data Module</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Data Module</p>
               <div className="flex flex-wrap gap-2">
                 {MODULES.map(mod => (
                   <button
@@ -161,7 +161,7 @@ export default function DataToolsPage() {
                     className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
                       selectedModule === mod.key
                         ? 'bg-gray-900 text-emerald-400 border-gray-900'
-                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-400'
+                        : 'bg-muted text-ink-secondary border-border hover:border-gray-400'
                     }`}
                   >
                     {mod.label}
@@ -173,10 +173,10 @@ export default function DataToolsPage() {
             {/* EXPORT */}
             {activeTab === 'export' && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="flex items-center justify-between p-4 bg-muted rounded-xl border border-border">
                   <div>
-                    <p className="text-xs text-gray-400 font-semibold">Records available</p>
-                    <p className="text-3xl font-black text-gray-900">{currentModuleData.length}</p>
+                    <p className="text-xs text-muted-foreground font-semibold">Records available</p>
+                    <p className="text-3xl font-black text-foreground">{currentModuleData.length}</p>
                   </div>
                   <div className="flex gap-2">
                     {['csv', 'json'].map(fmt => (
@@ -186,7 +186,7 @@ export default function DataToolsPage() {
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
                           exportFormat === fmt
                             ? 'bg-gray-900 text-emerald-400 border-gray-900'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                            : 'bg-white text-ink-secondary border-border hover:border-gray-400'
                         }`}
                       >
                         {fmt === 'csv' ? <FileSpreadsheet size={13} /> : <FileJson size={13} />}

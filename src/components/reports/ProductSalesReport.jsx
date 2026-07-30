@@ -283,7 +283,7 @@ const ProductSalesReport = () => {
 
       {!selectedProduct && !prodLoading && (
         <div className="py-20 text-center text-sm text-muted-foreground bg-card rounded-[10px] border border-border/60 shadow-sm">
-          <Package size={32} className="mx-auto mb-3 text-gray-300" />
+          <Package size={32} className="mx-auto mb-3 text-muted-foreground" />
           Select a product above to view its sale ledger
         </div>
       )}

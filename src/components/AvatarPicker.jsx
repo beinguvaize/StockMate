@@ -109,7 +109,7 @@ export default function AvatarPicker({ onClose }) {
                   <img src={preview} alt="avatar preview" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                    <span className="text-4xl font-black text-gray-300">
+                    <span className="text-4xl font-black text-muted-foreground">
                       {currentUser?.name?.charAt(0)?.toUpperCase() || '?'}
                     </span>
                   </div>
@@ -165,7 +165,7 @@ export default function AvatarPicker({ onClose }) {
 
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-black/5" />
-            <span className="text-[11px] font-bold text-gray-400">OR</span>
+            <span className="text-[11px] font-bold text-muted-foreground">OR</span>
             <div className="flex-1 h-px bg-black/5" />
           </div>
 
@@ -175,11 +175,11 @@ export default function AvatarPicker({ onClose }) {
             className="flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed border-black/10 hover:border-ink-primary/30 hover:bg-canvas/50 cursor-pointer transition-all group"
           >
             <div className="w-10 h-10 rounded-xl bg-canvas flex items-center justify-center group-hover:bg-accent-signature/20 transition-colors">
-              <Upload size={18} className="text-gray-500 group-hover:text-ink-primary" />
+              <Upload size={18} className="text-muted-foreground group-hover:text-ink-primary" />
             </div>
             <div>
               <p className="text-sm font-bold text-ink-primary">Upload a photo</p>
-              <p className="text-[11px] text-gray-500">JPG, PNG or GIF — max 5 MB</p>
+              <p className="text-[11px] text-muted-foreground">JPG, PNG or GIF — max 5 MB</p>
             </div>
           </div>
 

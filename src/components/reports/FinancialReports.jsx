@@ -151,7 +151,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
  <div className="flex justify-between items-center mb-10">
  <div>
  <h3 className="text-3xl font-semibold text-foreground leading-none mb-2">P&L Statement.</h3>
- <p className="text-[10px] font-semibold text-gray-700">Revenue vs Expenditure Performance</p>
+ <p className="text-[10px] font-semibold text-ink-secondary">Revenue vs Expenditure Performance</p>
  </div>
  <button 
  onClick={() => downloadCSV(plData, 'profit_loss_statement', businessProfile.name)}
@@ -269,7 +269,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
  <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem] flex flex-col justify-between">
  <div>
  <h3 className="text-xl font-semibold text-foreground mb-2">Revenue Insights.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">Key performance milestones</p>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">Key performance milestones</p>
  </div>
 
  <div className="grid grid-cols-1 gap-4">

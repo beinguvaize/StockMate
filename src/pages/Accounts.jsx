@@ -75,25 +75,25 @@ const Accounts = () => {
       <div className="flex items-center gap-3">
         <div>
           <h1 className="text-xl font-semibold text-ink-primary leading-none">Cash &amp; bank</h1>
-          <p className="text-[12px] text-gray-400 mt-1">Accounts, balances and money movement</p>
+          <p className="text-[12px] text-muted-foreground mt-1">Accounts, balances and money movement</p>
         </div>
         <div className="ml-auto flex gap-2">
-          <button onClick={() => setModal('transfer')} className="px-3 py-2 rounded-lg text-[12px] font-semibold border border-black/10 text-gray-600 hover:bg-black/5 transition-colors"><ArrowRightLeft size={14} className="inline -mt-0.5 mr-1.5" />Transfer</button>
+          <button onClick={() => setModal('transfer')} className="px-3 py-2 rounded-lg text-[12px] font-semibold border border-black/10 text-ink-secondary hover:bg-black/5 transition-colors"><ArrowRightLeft size={14} className="inline -mt-0.5 mr-1.5" />Transfer</button>
           <button onClick={() => setModal('add')} className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity"><Plus size={14} className="inline -mt-0.5 mr-1" />Add account</button>
         </div>
       </div>
 
       <div className="bg-white rounded-xl border border-black/8 shadow-sm p-4 flex items-baseline gap-3">
-        <span className="text-[11px] uppercase tracking-wide text-gray-400 font-medium">Total balance</span>
-        <span className="text-2xl font-semibold font-mono text-ink-primary ml-auto tabular-nums">{inr(totalBalance)}</span>
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total balance</span>
+        <span className="text-2xl font-semibold text-ink-primary ml-auto tabular-nums">{inr(totalBalance)}</span>
       </div>
 
       {loading ? (
-        <div className="text-center py-16 text-gray-400 text-sm font-medium animate-pulse">Loading accounts…</div>
+        <div className="text-center py-16 text-muted-foreground text-sm font-medium animate-pulse">Loading accounts…</div>
       ) : accounts.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-muted-foreground">
           <Wallet size={28} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-semibold text-gray-500">No accounts yet.</p>
+          <p className="text-sm font-semibold text-muted-foreground">No accounts yet.</p>
           <p className="text-[12px] mt-1">Add a Cash, Bank or Loan account to track money.</p>
         </div>
       ) : (
@@ -114,24 +114,24 @@ const Accounts = () => {
                       {a.is_default && !isLoan && (
                         <span className="text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-accent-signature/10 text-accent-signature border border-accent-signature/20">Default</span>
                       )}
-                      <span className="text-[9px] font-bold uppercase tracking-wide text-gray-400">{a.type}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{a.type}</span>
                     </div>
                   </div>
                   {isLoan ? (
                     <>
-                      <div className="mt-3 text-[10px] uppercase tracking-wide text-gray-400 font-medium">Outstanding</div>
-                      <div className="font-mono font-semibold text-xl text-rose-600 tabular-nums">{inr(ls.outstanding)}</div>
-                      <div className="text-[11px] text-gray-500 mt-1">EMI {inr(ls.emi)} · {ls.paid}/{ls.total} paid · {a.loan_rate}% p.a.</div>
+                      <div className="mt-3 text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Outstanding</div>
+                      <div className="font-semibold text-xl text-rose-600 tabular-nums">{inr(ls.outstanding)}</div>
+                      <div className="text-[11px] text-muted-foreground mt-1">EMI {inr(ls.emi)} · {ls.paid}/{ls.total} paid · {a.loan_rate}% p.a.</div>
                     </>
                   ) : (
                     <>
-                      <div className="mt-3 font-mono font-semibold text-xl text-ink-primary tabular-nums">{inr(mergedBalance(a.id))}</div>
-                      {a.bank_name && <div className="text-[11px] text-gray-400 mt-0.5">{a.bank_name} {a.account_no ? `· ${a.account_no}` : ''}</div>}
-                      {a.upi_id && !a.bank_name && <div className="text-[11px] text-gray-400 mt-0.5">{a.upi_id}</div>}
+                      <div className="mt-3 font-semibold text-xl text-ink-primary tabular-nums">{inr(mergedBalance(a.id))}</div>
+                      {a.bank_name && <div className="text-[11px] text-muted-foreground mt-0.5">{a.bank_name} {a.account_no ? `· ${a.account_no}` : ''}</div>}
+                      {a.upi_id && !a.bank_name && <div className="text-[11px] text-muted-foreground mt-0.5">{a.upi_id}</div>}
                       {linkedUpi?.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {linkedUpi.map((h) => (
-                            <span key={h} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-canvas border border-black/8 text-gray-500">{h}</span>
+                            <span key={h} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-canvas border border-black/8 text-muted-foreground">{h}</span>
                           ))}
                         </div>
                       )}
@@ -150,14 +150,14 @@ const Accounts = () => {
                           if (error) addNotification('Failed: ' + error.message, 'error');
                           else addNotification(`${a.name} set as default ${a.type.toLowerCase()}`, 'success');
                         }}
-                        className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-black/10 text-gray-500 hover:bg-black/5 transition-colors"
+                        className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-black/10 text-muted-foreground hover:bg-black/5 transition-colors"
                       >
                         Set as default
                       </button>
                     )}
                     <button
                       onClick={() => setEditAcc(a)}
-                      className={`${a.is_default ? 'flex-1' : ''} px-3 py-1.5 rounded-lg border border-black/10 text-gray-500 hover:bg-black/5 transition-colors flex items-center justify-center gap-1.5`}
+                      className={`${a.is_default ? 'flex-1' : ''} px-3 py-1.5 rounded-lg border border-black/10 text-muted-foreground hover:bg-black/5 transition-colors flex items-center justify-center gap-1.5`}
                       title="Edit account"
                     >
                       <Pencil size={13} />
@@ -176,7 +176,7 @@ const Accounts = () => {
         <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-black/5">
             <div className="font-black text-[13px] text-ink-primary">{activeAcc?.name} · {activeLoan ? 'repayment history' : 'ledger'}</div>
-            <span className="ml-auto font-mono font-black text-[15px]">{activeLoan ? inr(activeLoan.outstanding) : inr(mergedBalance(active))}</span>
+            <span className="ml-auto tabular-nums font-black text-[15px]">{activeLoan ? inr(activeLoan.outstanding) : inr(mergedBalance(active))}</span>
             {!activeLoan && <button onClick={() => setModal('txn')} className="ml-3 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-black/10 hover:bg-black/5"><Plus size={12} className="inline -mt-0.5 mr-1" />Entry</button>}
             {activeLoan && activeLoan.outstanding > 0 && <button onClick={() => setEmiFor(activeAcc)} className="ml-3 px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-accent-signature text-white">Pay</button>}
             <button onClick={() => setActive(null)} className="p-1.5 rounded-lg hover:bg-black/5"><X size={15} /></button>
@@ -184,22 +184,22 @@ const Accounts = () => {
           {activeLoan ? (
             <>
               <div className="grid grid-cols-3 gap-px bg-black/[0.06] border-b border-black/[0.06] text-center">
-                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-gray-400">EMI</div><div className="font-mono font-bold text-[13px]">{inr(activeLoan.emi)}</div></div>
-                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-gray-400">Interest paid</div><div className="font-mono font-bold text-[13px] text-accent-signature-hover">{inr(activeLoan.interestPaid)}</div></div>
-                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-gray-400">Paid</div><div className="font-mono font-bold text-[13px]">{activeLoan.paid}/{activeLoan.total}</div></div>
+                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-muted-foreground">EMI</div><div className="tabular-nums font-bold text-[13px]">{inr(activeLoan.emi)}</div></div>
+                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-muted-foreground">Interest paid</div><div className="tabular-nums font-bold text-[13px] text-accent-signature-hover">{inr(activeLoan.interestPaid)}</div></div>
+                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-muted-foreground">Paid</div><div className="tabular-nums font-bold text-[13px]">{activeLoan.paid}/{activeLoan.total}</div></div>
               </div>
-              <div className="grid grid-cols-[80px_1fr_90px_90px_100px] gap-2 px-4 py-2 text-[10px] uppercase tracking-wider text-gray-400 border-b border-black/5">
+              <div className="grid grid-cols-[80px_1fr_90px_90px_100px] gap-2 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-black/5">
                 <div>Date</div><div>#</div><div className="text-right">Interest</div><div className="text-right">Principal</div><div className="text-right">Balance</div>
               </div>
               <div className="divide-y divide-black/5 max-h-72 overflow-auto">
-                {activeLoan.rows.length === 0 && <div className="p-4 text-[12px] text-gray-400">No repayments yet.</div>}
+                {activeLoan.rows.length === 0 && <div className="p-4 text-[12px] text-muted-foreground">No repayments yet.</div>}
                 {activeLoan.rows.map((p, i) => (
                   <div key={p.id} className="grid grid-cols-[80px_1fr_90px_90px_100px] gap-2 px-4 py-2.5 items-center text-[12px]">
-                    <div className="font-mono text-gray-500">{p.date}</div>
-                    <div className="font-mono font-bold">{inr(p.amount)} <span className="text-[10px] text-gray-400">#{i + 1}</span></div>
-                    <div className="text-right font-mono text-accent-signature-hover">{inr(p.interest)}</div>
-                    <div className="text-right font-mono text-emerald-700">{inr(p.principal)}</div>
-                    <div className="text-right font-mono text-gray-500">{inr(p.balanceAfter)}</div>
+                    <div className="tabular-nums text-muted-foreground">{p.date}</div>
+                    <div className="tabular-nums font-bold">{inr(p.amount)} <span className="text-[10px] text-muted-foreground">#{i + 1}</span></div>
+                    <div className="text-right tabular-nums text-accent-signature-hover">{inr(p.interest)}</div>
+                    <div className="text-right tabular-nums text-emerald-700">{inr(p.principal)}</div>
+                    <div className="text-right tabular-nums text-muted-foreground">{inr(p.balanceAfter)}</div>
                   </div>
                 ))}
               </div>
@@ -210,14 +210,14 @@ const Accounts = () => {
               <div className="flex gap-1.5 px-4 pt-3 pb-1">
                 {[['ALL', 'All'], ['UPI', 'UPI only'], ['DIRECT', 'Bank/other']].map(([k, label]) => (
                   <button key={k} onClick={() => setLedgerFilter(k)}
-                    className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${ledgerFilter === k ? 'bg-ink-primary text-white border-ink-primary' : 'border-black/10 text-gray-500 hover:bg-black/5'}`}>
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${ledgerFilter === k ? 'bg-ink-primary text-white border-ink-primary' : 'border-black/10 text-muted-foreground hover:bg-black/5'}`}>
                     {label}
                   </button>
                 ))}
               </div>
             )}
             <div className="divide-y divide-black/5 max-h-80 overflow-auto">
-              {activeTxns.length === 0 && <div className="p-4 text-[12px] text-gray-400">No transactions yet.</div>}
+              {activeTxns.length === 0 && <div className="p-4 text-[12px] text-muted-foreground">No transactions yet.</div>}
               {activeTxns.map((t) => (
                 <div key={t.id} className="flex items-center gap-3 px-4 py-2.5">
                   <div className={`w-7 h-7 rounded-lg grid place-items-center ${t.direction === 'IN' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
@@ -226,11 +226,11 @@ const Accounts = () => {
                   <div className="leading-tight">
                     <div className="text-[12px] font-bold text-ink-primary flex items-center gap-1.5">
                       {t.note || t.ref_type}
-                      {isUpiTxn(t) && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-canvas border border-black/8 text-gray-500">UPI</span>}
+                      {isUpiTxn(t) && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-canvas border border-black/8 text-muted-foreground">UPI</span>}
                     </div>
-                    <div className="text-[10px] text-gray-400">{t.date} · {t.ref_type}</div>
+                    <div className="text-[10px] text-muted-foreground">{t.date} · {t.ref_type}</div>
                   </div>
-                  <div className={`ml-auto font-mono font-bold text-[13px] ${t.direction === 'IN' ? 'text-emerald-700' : 'text-rose-600'}`}>
+                  <div className={`ml-auto tabular-nums font-bold text-[13px] ${t.direction === 'IN' ? 'text-emerald-700' : 'text-rose-600'}`}>
                     {t.direction === 'IN' ? '+' : '−'}{inr(t.amount)}
                   </div>
                 </div>
@@ -291,9 +291,9 @@ const PayEMIModal = ({ loan, accounts, stats, onClose, onSave }) => {
   return (
     <Shell title={`Loan payment · ${loan.name}`} onClose={onClose}>
       <div className="grid grid-cols-2 gap-2 text-[12px] mb-3">
-        <div><div className="text-gray-400">EMI</div><div className="font-mono font-bold">{inr(stats.emi)}</div></div>
-        <div><div className="text-gray-400">Outstanding</div><div className="font-mono font-bold text-rose-600">{inr(stats.outstanding)}</div></div>
-        <div className="col-span-2 text-[11px] text-gray-500">{stats.paid}/{stats.total} paid · interest paid {inr(stats.interestPaid)}</div>
+        <div><div className="text-muted-foreground">EMI</div><div className="tabular-nums font-bold">{inr(stats.emi)}</div></div>
+        <div><div className="text-muted-foreground">Outstanding</div><div className="tabular-nums font-bold text-rose-600">{inr(stats.outstanding)}</div></div>
+        <div className="col-span-2 text-[11px] text-muted-foreground">{stats.paid}/{stats.total} paid · interest paid {inr(stats.interestPaid)}</div>
       </div>
       <label className={lbl}>Amount (EMI or custom / prepay)</label>
       <input type="number" className={inp} value={amount} onChange={(e) => setAmount(e.target.value)} />
@@ -301,7 +301,7 @@ const PayEMIModal = ({ loan, accounts, stats, onClose, onSave }) => {
         <button onClick={() => setAmount(String(stats.emi))} className="text-[11px] font-bold px-2 py-1 rounded border border-black/10">EMI</button>
         <button onClick={() => setAmount(String(stats.outstanding + interest))} className="text-[11px] font-bold px-2 py-1 rounded border border-black/10">Foreclose</button>
       </div>
-      {amt > 0 && <div className="text-[11px] text-gray-500 mt-2">Interest {inr(interest)} · Principal {inr(principal)}</div>}
+      {amt > 0 && <div className="text-[11px] text-muted-foreground mt-2">Interest {inr(interest)} · Principal {inr(principal)}</div>}
       <label className={`${lbl} mt-3`}>Pay from</label>
       <select className={inp} value={from} onChange={(e) => setFrom(e.target.value)}>
         {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -318,13 +318,13 @@ const Shell = ({ title, onClose, children }) => {
   return (
   <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
     <div role="dialog" aria-modal="true" aria-label={title} className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-      <div className="flex items-center mb-4"><div className="font-black text-[15px] text-ink-primary">{title}</div><button onClick={onClose} className="ml-auto"><X size={18} className="text-gray-400" /></button></div>
+      <div className="flex items-center mb-4"><div className="font-black text-[15px] text-ink-primary">{title}</div><button onClick={onClose} className="ml-auto"><X size={18} className="text-muted-foreground" /></button></div>
       {children}
     </div>
   </div>
   );
 };
-const lbl = 'text-[10px] uppercase tracking-widest text-gray-400 mb-1 block';
+const lbl = 'text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block';
 const inp = 'w-full text-[14px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40';
 const primary = 'w-full mt-4 py-2.5 rounded-xl text-[13px] font-black bg-accent-signature text-white hover:opacity-90 disabled:opacity-40';
 
@@ -341,7 +341,7 @@ const AddAccountModal = ({ onClose, onSave, accounts = [] }) => {
       <div className="flex gap-1.5 flex-wrap">
         {TYPES.map((t) => (
           <button key={t.id} onClick={() => setF({ ...f, type: t.id })}
-            className={`px-3 py-1.5 rounded-lg text-[12px] font-bold border ${f.type === t.id ? 'bg-accent-signature text-white border-accent-signature' : 'border-black/10 text-gray-500'}`}>{t.label}</button>
+            className={`px-3 py-1.5 rounded-lg text-[12px] font-bold border ${f.type === t.id ? 'bg-accent-signature text-white border-accent-signature' : 'border-black/10 text-muted-foreground'}`}>{t.label}</button>
         ))}
       </div>
       {(f.type === 'BANK') && (
@@ -352,7 +352,7 @@ const AddAccountModal = ({ onClose, onSave, accounts = [] }) => {
       )}
       {(f.type === 'UPI' || f.type === 'BANK') && (
         <div className="mt-3">
-          <label className={lbl}>UPI ID / Handle <span className="text-gray-300 normal-case tracking-normal">(e.g. shop@upi)</span></label>
+          <label className={lbl}>UPI ID / Handle <span className="text-muted-foreground normal-case tracking-normal">(e.g. shop@upi)</span></label>
           <input className={inp} value={f.upi_id} onChange={(e) => setF({ ...f, upi_id: e.target.value })} placeholder="e.g. 9876543210@okicici" />
         </div>
       )}
@@ -395,7 +395,7 @@ const TxnModal = ({ accountName, onClose, onSave }) => {
       <div className="flex gap-2">
         {['IN', 'OUT'].map((d) => (
           <button key={d} onClick={() => setF({ ...f, direction: d })}
-            className={`flex-1 py-2 rounded-lg text-[12px] font-black border ${f.direction === d ? (d === 'IN' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-rose-600 text-white border-rose-600') : 'border-black/10 text-gray-500'}`}>
+            className={`flex-1 py-2 rounded-lg text-[12px] font-black border ${f.direction === d ? (d === 'IN' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-rose-600 text-white border-rose-600') : 'border-black/10 text-muted-foreground'}`}>
             {d === 'IN' ? 'Money in' : 'Money out'}</button>
         ))}
       </div>
@@ -449,13 +449,13 @@ const EditAccountModal = ({ account, accounts, onClose, onSave, onDelete }) => {
       )}
       {(isUpi || isBank) && (
         <div className="mt-3">
-          <label className={lbl}>UPI ID / Handle <span className="text-gray-300 normal-case tracking-normal">(e.g. shop@upi)</span></label>
+          <label className={lbl}>UPI ID / Handle <span className="text-muted-foreground normal-case tracking-normal">(e.g. shop@upi)</span></label>
           <input className={inp} value={f.upi_id} onChange={(e) => setF({ ...f, upi_id: e.target.value })} placeholder="e.g. 9876543210@okicici" />
         </div>
       )}
       {isUpi && (
         <div className="mt-3">
-          <label className={lbl}>Settles to bank account <span className="text-gray-300 normal-case tracking-normal">(where UPI money actually lands)</span></label>
+          <label className={lbl}>Settles to bank account <span className="text-muted-foreground normal-case tracking-normal">(where UPI money actually lands)</span></label>
           <select className={inp} value={f.linked_bank_account_id} onChange={(e) => setF({ ...f, linked_bank_account_id: e.target.value })}>
             <option value="">— Auto (first bank) —</option>
             {bankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.bank_name ? ` · ${a.bank_name}` : ''}</option>)}
@@ -463,9 +463,9 @@ const EditAccountModal = ({ account, accounts, onClose, onSave, onDelete }) => {
           {bankAccounts.length === 0 && <p className="text-[10px] text-accent-signature mt-1">No bank accounts yet — add one first to link this UPI ID.</p>}
         </div>
       )}
-      <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400 bg-canvas rounded-lg px-3 py-2">
+      <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground bg-canvas rounded-lg px-3 py-2">
         <span>Opening balance</span>
-        <span className="font-mono font-semibold text-gray-500">{inr(account.opening_balance)}</span>
+        <span className="tabular-nums font-semibold text-muted-foreground">{inr(account.opening_balance)}</span>
       </div>
       <button disabled={!f.name.trim()} className={primary} onClick={() => onSave(f)}>Save changes</button>
 
@@ -474,7 +474,7 @@ const EditAccountModal = ({ account, accounts, onClose, onSave, onDelete }) => {
           <div className="mt-3 border border-rose-200 bg-rose-50 rounded-lg p-3">
             <p className="text-[11px] text-rose-700 font-medium mb-2">Delete "{account.name}"? Transaction history stays, but the account is removed from the list.</p>
             <div className="flex gap-2">
-              <button onClick={() => setConfirmDelete(false)} className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-black/10 text-gray-600 hover:bg-black/5">Cancel</button>
+              <button onClick={() => setConfirmDelete(false)} className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-black/10 text-ink-secondary hover:bg-black/5">Cancel</button>
               <button onClick={onDelete} className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold bg-rose-600 text-white hover:opacity-90">Delete account</button>
             </div>
           </div>

@@ -120,7 +120,7 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOw
            </div>
          </div>
          <h2 className="text-3xl font-bold text-ink-primary mb-2 leading-none font-sora">Upgrade Required</h2>
-         <p className="text-sm font-semibold text-gray-600 opacity-80 mb-8 leading-relaxed">
+         <p className="text-sm font-semibold text-ink-secondary opacity-80 mb-8 leading-relaxed">
            The <span className="text-ink-primary font-bold capitalize">{path}</span> module requires the{' '}
            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${planConfig?.color || 'bg-blue-50 text-blue-600'}`}>
              {planConfig?.label || requiredPlan}
@@ -131,7 +131,7 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOw
            <p className="text-[10px] uppercase tracking-widest text-accent-signature font-bold mb-3">What you get with {planConfig?.label}</p>
            <div className="grid grid-cols-2 gap-2">
              {planConfig?.modules?.filter(m => !['dashboard'].includes(m)).map(m => (
-               <div key={m} className="text-xs font-medium text-gray-700 capitalize flex items-center gap-2">
+               <div key={m} className="text-xs font-medium text-ink-secondary capitalize flex items-center gap-2">
                  <div className="w-1.5 h-1.5 rounded-full bg-accent-signature"></div>
                  {m.replace('daybook', 'Day Book')}
                </div>

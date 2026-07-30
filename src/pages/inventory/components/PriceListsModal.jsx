@@ -150,7 +150,7 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
         <div className="flex flex-col gap-4">
 
           {/* Add form */}
-          <div className="bg-gray-50 rounded-2xl p-4 border border-border/60">
+          <div className="bg-muted rounded-2xl p-4 border border-border/60">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Add / Update Price Break</p>
             <div className="grid grid-cols-12 gap-2 items-end">
               {/* Product */}
@@ -236,10 +236,10 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
                     {/* Product header row */}
                     <button
                       onClick={() => setExpandedId(isOpen ? null : productId)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center">
                           <Tag size={14} className="text-muted-foreground" />
                         </div>
                         <div className="text-left">
@@ -263,7 +263,7 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
                     {isOpen && (
                       <div className="border-t border-border/60 divide-y divide-black/5">
                         {entries.map(entry => (
-                          <div key={`${entry.product_id}-${entry.min_qty}`} className="flex items-center justify-between px-4 py-3 bg-gray-50/50">
+                          <div key={`${entry.product_id}-${entry.min_qty}`} className="flex items-center justify-between px-4 py-3 bg-muted/50">
                             <div className="flex items-center gap-4">
                               <span className="text-xs font-semibold text-muted-foreground w-16">{entry.min_qty}+ units</span>
                               <span className="text-sm font-semibold text-foreground tabular-nums">

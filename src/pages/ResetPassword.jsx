@@ -42,19 +42,19 @@ export default function ResetPassword() {
       <div className="w-full max-w-sm bg-white border border-black/5 rounded-2xl shadow-sm p-7">
         <h1 className="text-xl font-extrabold text-ink-primary">Reset password<span className="text-accent-signature">.</span></h1>
         {!ready ? (
-          <p className="mt-4 text-[13px] text-gray-500 font-medium">
+          <p className="mt-4 text-[13px] text-muted-foreground font-medium">
             Open the reset link from your email to set a new password. If you arrived here directly,
             request a fresh link from the <button onClick={() => navigate('/login')} className="text-accent-signature underline">sign-in page</button>.
           </p>
         ) : (
           <form onSubmit={submit} className="mt-5 space-y-3">
             <label className="block">
-              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">New password</span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">New password</span>
               <input type="password" value={pw} onChange={e => setPw(e.target.value)} minLength={8} required autoFocus
                 className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[14px] outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/20" />
             </label>
             <label className="block">
-              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Confirm password</span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Confirm password</span>
               <input type="password" value={pw2} onChange={e => setPw2(e.target.value)} minLength={8} required
                 className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[14px] outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/20" />
             </label>

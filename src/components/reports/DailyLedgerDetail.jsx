@@ -180,7 +180,7 @@ const DailyLedgerDetail = ({
                   <tr key={tx.id || idx} className="hover:bg-canvas/40 transition-colors">
                     <td className="py-3.5 px-5">
                       <div className="flex items-center gap-1.5">
-                        <Clock size={10} className="text-gray-300" />
+                        <Clock size={10} className="text-muted-foreground" />
                         <span className="text-[10px] font-semibold text-foreground tabular-nums">{tx.time}</span>
                       </div>
                     </td>
@@ -279,7 +279,7 @@ const DailyLedgerDetail = ({
         </div>
         <table className="w-full text-left border-collapse border border-black mb-10">
           <thead>
-            <tr className="bg-gray-100">
+            <tr className="bg-muted">
               {['Time','Activity','Method','In (+)','Out (−)','Balance'].map(h => (
                 <th key={h} className="border border-black p-2 text-[9px] font-semibold uppercase">{h}</th>
               ))}

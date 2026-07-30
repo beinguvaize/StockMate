@@ -71,10 +71,10 @@ const ReportIssueButton = () => {
                 </div>
                 <div>
                   <h2 className="text-base font-black text-ink-primary leading-none">Report an Issue</h2>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Sent to support</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Sent to support</p>
                 </div>
               </div>
-              <button onClick={close} className="text-gray-400 hover:text-ink-primary">
+              <button onClick={close} className="text-muted-foreground hover:text-ink-primary">
                 <X size={18} />
               </button>
             </div>
@@ -83,7 +83,7 @@ const ReportIssueButton = () => {
               <div className="px-6 py-10 flex flex-col items-center gap-3 text-center">
                 <CheckCircle2 size={40} className="text-emerald-500" />
                 <div className="text-sm font-black text-ink-primary">Report submitted</div>
-                <div className="text-xs text-gray-500">Our team has been notified.</div>
+                <div className="text-xs text-muted-foreground">Our team has been notified.</div>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="p-5 space-y-4">
@@ -96,7 +96,7 @@ const ReportIssueButton = () => {
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Short summary"
-                    className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3.5 py-3 text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all"
+                    className="w-full bg-white border border-border shadow-sm rounded-xl px-3.5 py-3 text-xs font-bold text-ink-primary placeholder:text-muted-foreground outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all"
                   />
                 </div>
 
@@ -109,7 +109,7 @@ const ReportIssueButton = () => {
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Steps to reproduce, what you expected, what actually happened"
-                    className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3.5 py-3 text-xs font-medium text-ink-primary placeholder:text-gray-400 outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all resize-none"
+                    className="w-full bg-white border border-border shadow-sm rounded-xl px-3.5 py-3 text-xs font-medium text-ink-primary placeholder:text-muted-foreground outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all resize-none"
                   />
                 </div>
 
@@ -124,11 +124,11 @@ const ReportIssueButton = () => {
                         className={`text-left px-3 py-2 rounded-xl border transition-all ${
                           severity === s.id
                             ? 'bg-ink-primary text-white border-ink-primary shadow-md'
-                            : 'bg-white border-gray-300 text-ink-primary hover:border-accent-signature/40'
+                            : 'bg-white border-border text-ink-primary hover:border-accent-signature/40'
                         }`}
                       >
                         <div className="text-[11px] font-black uppercase tracking-wider">{s.label}</div>
-                        <div className={`text-[10px] mt-0.5 ${severity === s.id ? 'text-white/70' : 'text-gray-500'}`}>{s.desc}</div>
+                        <div className={`text-[10px] mt-0.5 ${severity === s.id ? 'text-white/70' : 'text-muted-foreground'}`}>{s.desc}</div>
                       </button>
                     ))}
                   </div>

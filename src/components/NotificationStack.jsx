@@ -28,17 +28,17 @@ const NotificationStack = () => {
  {n.message}
  </p>
  </div>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">
+ <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-6 uppercase">
  {n.type === 'success' ? 'Sale Recorded' : 
  n.type === 'expense' ? 'Expense Logged' : 'System Update'}
  </p>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">
+ <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-6 uppercase">
  Just now
  </p>
  </div>
 
  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
- <X size={14} className="text-gray-700 cursor-pointer" />
+ <X size={14} className="text-ink-secondary cursor-pointer" />
  </div>
  </div>
  ))}

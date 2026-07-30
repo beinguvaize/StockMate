@@ -36,7 +36,7 @@ const QuickCreateProductModal = ({ barcode, initialName, onSave, onCancel, loadi
     });
   };
 
-  const inp = 'w-full bg-card border border-gray-300 shadow-sm rounded-xl p-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20';
+  const inp = 'w-full bg-card border border-border shadow-sm rounded-xl p-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20';
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-canvas animate-fade-in">

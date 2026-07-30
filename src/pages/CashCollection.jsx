@@ -90,7 +90,7 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
         </div>
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-widest text-ink-primary/40">Outstanding</p>
-          <p className="font-mono tabular-nums text-base font-bold text-rose-600">
+          <p className="tabular-nums text-base font-bold text-rose-600">
             {formatCurrency(client.outstanding_balance)}
           </p>
         </div>
@@ -102,7 +102,7 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
           Amount
         </label>
         <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-base font-bold text-ink-primary/40">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 tabular-nums text-base font-bold text-ink-primary/40">
             {currencySymbol}
           </span>
           <input
@@ -111,7 +111,7 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
             value={amount}
             onChange={e => setAmount(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleReview(); }}
-            className="w-full rounded-xl border border-black/10 bg-canvas py-2.5 pl-9 pr-3 font-mono tabular-nums text-lg font-bold text-ink-primary outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/25"
+            className="w-full rounded-xl border border-black/10 bg-canvas py-2.5 pl-9 pr-3 tabular-nums text-lg font-bold text-ink-primary outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/25"
             placeholder="0"
           />
         </div>
@@ -217,7 +217,7 @@ function DueRow({ client, onExpand }) {
         <p className="truncate text-sm font-bold text-ink-primary">{client.name}</p>
         {client.phone && <p className="truncate text-xs text-ink-primary/40">{client.phone}</p>}
       </div>
-      <p className="font-mono tabular-nums text-sm font-bold text-rose-600">
+      <p className="tabular-nums text-sm font-bold text-rose-600">
         {formatCurrency(client.outstanding_balance)}
       </p>
       <button type="button" onClick={() => onExpand(client.id)}
@@ -234,7 +234,7 @@ function CollectedRow({ entry }) {
     <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3 opacity-80">
       <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-500" />
       <p className="min-w-0 flex-1 truncate text-sm font-semibold text-emerald-900">{entry.name}</p>
-      <p className="font-mono tabular-nums text-sm font-bold text-emerald-700">
+      <p className="tabular-nums text-sm font-bold text-emerald-700">
         {formatCurrency(entry.amount)}<span className="ml-1 text-xs font-medium text-emerald-600/70">collected</span>
       </p>
     </div>
@@ -340,7 +340,7 @@ export default function CashCollection() {
               sessionCount > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-black/5 text-ink-primary/50'
             }`}>
               <CheckCircle2 className="h-4 w-4" />
-              <span className="font-mono tabular-nums">{formatCurrency(sessionTotal)}</span>
+              <span className="tabular-nums">{formatCurrency(sessionTotal)}</span>
               <span className="opacity-70">from {sessionCount} {sessionCount === 1 ? 'client' : 'clients'}</span>
             </div>
           </div>
