@@ -210,8 +210,6 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #B45309;
   --color-button-text: #FFFFFF;
   --bg-color: #FFFFFF;
-  --accent-lime: #D97706;
-  --accent-lime-hover: #B45309;
   --border-color: rgba(0,0,0,0.08);
 }
 
@@ -263,8 +261,6 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #B45309;
   --color-button-text: #FFFFFF;
   --bg-color: #F0F4FF;
-  --accent-lime: #D97706;
-  --accent-lime-hover: #2563EB;
 }
 
 [data-theme="rose"] {
@@ -277,8 +273,6 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #B45309;
   --color-button-text: #FFFFFF;
   --bg-color: #FFF5F7;
-  --accent-lime: #D97706;
-  --accent-lime-hover: #E11D48;
 }
 
 [data-theme="amber"] {
@@ -291,8 +285,6 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #B45309;
   --color-button-text: #FFFFFF;
   --bg-color: #FFFBF0;
-  --accent-lime: #F59E0B;
-  --accent-lime-hover: #D97706;
 }
 
 [data-theme="slate"] {
@@ -305,8 +297,6 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #B45309;
   --color-button-text: #FFFFFF;
   --bg-color: #F1F5F9;
-  --accent-lime: #6366F1;
-  --accent-lime-hover: #4F46E5;
 }
 
 /* Zinc — shadcn/ui design language: zinc neutrals, near-black primary,
@@ -323,8 +313,6 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #27272A;
   --color-button-text: #FFFFFF;
   --bg-color: #FAFAFA;
-  --accent-lime: #18181B;
-  --accent-lime-hover: #27272A;
   --border-color: #E4E4E7;
   --shadow-premium: 0 1px 2px rgba(16, 24, 40, 0.05);
   --shadow-hover: 0 1px 3px rgba(16, 24, 40, 0.08);
@@ -352,8 +340,6 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #D97706;
   --color-button-text: #111111;
   --bg-color: #0F0F0F;
-  --accent-lime: #F59E0B;
-  --accent-lime-hover: #4F46E5;
   --text-main: #F5F5F0;
   --surface: #1A1A1A;
   --border-color: rgba(255,255,255,0.08);
@@ -436,8 +422,6 @@ table.report-table tbody td.numeric {
   /* Legacy explicit CSS vars — kept in sync with the Indigo @theme. */
   --bg-color: #F8F9FC;
   --bg-gradient: linear-gradient(135deg, #F8F9FC 0%, #EEF0F7 100%);
-  --accent-lime: #D97706;       /* legacy name, now amber */
-  --accent-lime-hover: #B45309;
   --text-main: #1E1B2E;
   --text-muted: #4B5563;
   --surface: #FFFFFF;
