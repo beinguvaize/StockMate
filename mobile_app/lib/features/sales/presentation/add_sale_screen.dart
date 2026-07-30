@@ -535,7 +535,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                           children: [
                             Row(
                               children: [
-                                GestureDetector(
+                                AppTappable(
+                                  ripple: false,
                                   onTap: () => Navigator.pop(context),
                                   child: Container(
                                     padding: const EdgeInsets.all(8),
@@ -589,7 +590,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                     ],
                                   ),
                                 ),
-                                GestureDetector(
+                                AppTappable(
+                                  ripple: false,
                                   onTap: () => _showClientPicker(),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -673,7 +675,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                   final isActive = isAll
                                       ? _selectedCategory == null
                                       : _selectedCategory == cat;
-                                  return GestureDetector(
+                                  return AppTappable(
+                                    ripple: false,
                                     onTap: () => setState(
                                         () => _selectedCategory = isAll ? null : cat),
                                     child: AnimatedContainer(
@@ -801,7 +804,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                             ],
                           ),
                         ),
-                        GestureDetector(
+                        AppTappable(
+                          ripple: false,
                           onTap: _openCheckout,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
@@ -876,7 +880,8 @@ class _ProductCard extends StatelessWidget {
     final isLow = product.stock > 0 && product.stock <= 10;
     final isOut = product.stock <= 0;
 
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: isOut ? null : onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -1044,7 +1049,8 @@ class _ProductCard extends StatelessWidget {
                 ),
                 // Qty quick controls
                 if (qty == 0)
-                  GestureDetector(
+                  AppTappable(
+                    ripple: false,
                     onTap: isOut ? null : onTap,
                     child: Container(
                       width: 30,
@@ -1065,7 +1071,8 @@ class _ProductCard extends StatelessWidget {
                 else
                   Row(
                     children: [
-                      GestureDetector(
+                      AppTappable(
+                        ripple: false,
                         onTap: onRemove,
                         child: Container(
                           width: 26,
@@ -1078,7 +1085,8 @@ class _ProductCard extends StatelessWidget {
                               size: 13, color: AppColors.inkSecondary),
                         ),
                       ),
-                      GestureDetector(
+                      AppTappable(
+                        ripple: false,
                         onTap: onTap,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1092,7 +1100,8 @@ class _ProductCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      GestureDetector(
+                      AppTappable(
+                        ripple: false,
                         onTap: onAdd,
                         child: Container(
                           width: 26,
@@ -1263,7 +1272,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
 
               Row(
                 children: [
-                  GestureDetector(
+                  AppTappable(
+                    ripple: false,
                     onTap: () => Navigator.pop(context),
                     child: Container(
                       padding: const EdgeInsets.all(8),
@@ -1445,7 +1455,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         if (_hasAlt)
                           Padding(
                             padding: const EdgeInsets.only(top: 6),
-                            child: GestureDetector(
+                            child: AppTappable(
+                              ripple: false,
                               onTap: _toggleAlt,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -2041,7 +2052,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                GestureDetector(
+                                AppTappable(
+                                  ripple: false,
                                   onTap: () => _removeItem(item),
                                   child: Container(
                                     width: 24,
@@ -2313,7 +2325,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   // ₹ / % toggle chip for the discount input.
   Widget _discountModeChip(String mode, String label) {
     final active = _discountMode == mode;
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: () => setState(() => _discountMode = mode),
       child: Container(
         width: 30,
@@ -2400,7 +2413,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
 
   Widget _buildPaymentOption(_PayMethod m) {
     final isActive = _paymentMethod == m.key;
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: () {
         setState(() => _paymentMethod = m.key);
         if (m.type == 'UPI') _showUpiPreview();
@@ -2619,7 +2633,8 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                           ),
                         ),
                       ),
-                      GestureDetector(
+                      AppTappable(
+                        ripple: false,
                         onTap: _openAddClient,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -2696,7 +2711,8 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                         if (index == 0) {
                           // Walk-in option
                           final isSelected = widget.selectedClient == null;
-                          return GestureDetector(
+                          return AppTappable(
+                            ripple: false,
                             onTap: () => widget.onSelected(null),
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -2769,7 +2785,8 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                         final avatarColor =
                             palette[(client.name ?? 'C').codeUnitAt(0) % palette.length];
 
-                        return GestureDetector(
+                        return AppTappable(
+                          ripple: false,
                           onTap: () => widget.onSelected(client),
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 8),
@@ -3281,7 +3298,8 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                           const SizedBox(width: 8),
                           ...['CASH', 'UPI', 'BANK'].map((m) => Padding(
                             padding: const EdgeInsets.only(left: 4),
-                            child: GestureDetector(
+                            child: AppTappable(
+                              ripple: false,
                               onTap: () => setState(() => _collectMethod = m),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 120),
