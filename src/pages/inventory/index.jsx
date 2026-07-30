@@ -106,13 +106,37 @@ const Inventory = () => {
   };
 
   const kpis = useMemo(() => {
-    const stockValue   = products.reduce((s, p) => s + (p.costPrice || 0) * (p.stock || 0), 0);
-    const retailValue  = products.reduce((s, p) => s + (p.sellingPrice || 0) * (p.stock || 0), 0);
+    // Raw materials are held to be manufactured with, not sold, so they
+    // legitimately carry no selling price. Summing retail across everything
+    // therefore counted their cost against zero revenue: three RAW items
+    // (210ml side wall, AP BOTTOM, 150ML CUP WALL — 740 units, ₹83,994) dragged
+    // the headline margin to 0.6% on a business trading at roughly 23%.
+    //
+    // Retail is now measured over sellable stock only, and the raw material is
+    // shown as its own figure rather than hidden — it is real money, just not
+    // money that has a retail price.
+    // Normalised the same way the type filter above does — a lowercase 'raw'
+    // from an import would otherwise slip through and be counted as sellable.
+    const isRaw    = p => (p.product_type || 'STANDARD').toUpperCase() === 'RAW';
+    const sellable = products.filter(p => !isRaw(p));
+    const raw      = products.filter(isRaw);
+
+    const val = (list, field) => list.reduce((s, p) => s + (p[field] || 0) * (p.stock || 0), 0);
+
+    const stockValue    = val(products, 'costPrice');      // everything on hand, at cost
+    const sellableCost  = val(sellable, 'costPrice');
+    const retailValue   = val(sellable, 'sellingPrice');   // only what can actually be sold
+    const rawValue      = val(raw, 'costPrice');
+    const marginValue   = retailValue - sellableCost;
+
     const lowStock     = products.filter(p => (p.stock || 0) > 0 && (p.stock || 0) <= 5).length;
     const outOfStock   = products.filter(p => (p.stock || 0) === 0).length;
     const totalUnits   = products.reduce((s, p) => s + (p.stock || 0), 0);
     const uniqueCats   = new Set(products.map(p => p.category).filter(Boolean)).size;
-    return { stockValue, retailValue, lowStock, outOfStock, totalUnits, uniqueCats };
+    return {
+      stockValue, retailValue, rawValue, marginValue, sellableCost,
+      rawCount: raw.length, lowStock, outOfStock, totalUnits, uniqueCats,
+    };
   }, [products]);
 
   const openAddModal = () => {
@@ -183,8 +207,17 @@ const Inventory = () => {
         {[
           { label: 'Total Products', value: products.length, suffix: 'items', icon: <PackagePlus size={14} />, money: false },
           { label: 'Total Units',    value: kpis.totalUnits.toLocaleString('en-IN'), suffix: 'pcs', icon: <ShoppingBag size={14} />, money: false },
-          { label: 'Stock Value',    value: Math.round(kpis.stockValue).toLocaleString('en-IN'),  icon: <DollarSign size={14} />, money: true },
-          { label: 'Retail Value',   value: Math.round(kpis.retailValue).toLocaleString('en-IN'), icon: <TrendingUp size={14} />, money: true },
+          { label: 'Stock Value',    value: Math.round(kpis.stockValue).toLocaleString('en-IN'),  icon: <DollarSign size={14} />, money: true,
+            // Say what is inside the number. Raw material is real money on the
+            // shelf, it just has no retail price, and burying it made the
+            // margin below look impossible.
+            hint: kpis.rawValue > 0
+              ? `incl. ₹${Math.round(kpis.rawValue).toLocaleString('en-IN')} raw material`
+              : null },
+          { label: 'Retail Value',   value: Math.round(kpis.retailValue).toLocaleString('en-IN'), icon: <TrendingUp size={14} />, money: true,
+            hint: kpis.marginValue !== 0
+              ? `sellable stock · ${kpis.marginValue >= 0 ? '+' : '−'}₹${Math.abs(Math.round(kpis.marginValue)).toLocaleString('en-IN')} margin`
+              : 'sellable stock' },
           { label: 'Low Stock',      value: kpis.lowStock,   suffix: 'SKUs', icon: <AlertCircle size={14} />, warn: kpis.lowStock > 0 ? 'low' : null },
           { label: 'Out of Stock',   value: kpis.outOfStock, suffix: 'SKUs', icon: <BarChart3 size={14} />,   warn: kpis.outOfStock > 0 ? 'out' : null },
         ].map((m, i) => (
@@ -197,6 +230,7 @@ const Inventory = () => {
               {m.money && <span className="text-muted-foreground text-sm mr-0.5">₹</span>}{m.value}
               {m.suffix && <span className="text-[11px] font-normal text-muted-foreground ml-1">{m.suffix}</span>}
             </div>
+            {m.hint && <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{m.hint}</div>}
           </div>
         ))}
       </div>

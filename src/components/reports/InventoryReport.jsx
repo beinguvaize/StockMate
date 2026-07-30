@@ -32,8 +32,16 @@ const InventoryReport = () => {
     if (!products.length) return { totalCost: 0, totalPotential: 0, lowStock: 0, chartData: [], kpis: [] };
 
     const totalCost = products.reduce((acc, p) => acc + ((p.stock || 0) * (p.costPrice || 0)), 0);
-    const totalPotential = products.reduce((acc, p) => acc + ((p.stock || 0) * (p.sellingPrice || 0)), 0);
-    const totalProfit = totalPotential - totalCost;
+    // Raw materials are manufactured with, not sold, so they carry no selling
+    // price. Counting their cost against zero revenue made projected profit
+    // read as a loss — three RAW items held Rs 83,994 against Rs 0 of retail.
+    // Potential and profit are measured over sellable stock only; totalCost
+    // still covers everything on hand.
+    const isRaw = (p) => (p.product_type || 'STANDARD').toUpperCase() === 'RAW';
+    const sellable = products.filter(p => !isRaw(p));
+    const sellableCost = sellable.reduce((acc, p) => acc + ((p.stock || 0) * (p.costPrice || 0)), 0);
+    const totalPotential = sellable.reduce((acc, p) => acc + ((p.stock || 0) * (p.sellingPrice || 0)), 0);
+    const totalProfit = totalPotential - sellableCost;
     const lowStockItems = products.filter(p => (p.stock || 0) <= (p.lowStockThreshold || 5));
     const lowStockCount = lowStockItems.length;
 
