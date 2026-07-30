@@ -50,6 +50,14 @@ const BillWiseProfitReport = () => {
   const { data: consumption } = useReportData({
     table: 'sale_batch_consumption', select: 'sale_id, qty_taken, unit_cost',
   });
+  // Returns credit the customer AND give the sale's cost back — process_sales_return
+  // reduces sales.totalCogs by the exact cost the sale booked. Revenue has to be
+  // netted the same way or a part-returned bill reads as more profitable than it
+  // was: full revenue against reduced cost. get_pl_ranged already nets returns,
+  // so this also brings bill-level agreement with the P&L.
+  const { data: returns } = useReportData({
+    table: 'sales_returns', select: 'sale_id, total_amount',
+  });
 
   const applyPreset = (id) => {
     setPreset(id);
@@ -70,12 +78,21 @@ const BillWiseProfitReport = () => {
       const v = Number(c.qty_taken || 0) * Number(c.unit_cost || 0);
       fifoBySale[c.sale_id] = (fifoBySale[c.sale_id] || 0) + v;
     });
+    // sale_id → value returned against that bill.
+    const returnedBySale = {};
+    (returns || []).forEach(r => {
+      if (!r.sale_id) return;   // credit note with no originating sale
+      returnedBySale[r.sale_id] = (returnedBySale[r.sale_id] || 0) + Number(r.total_amount || 0);
+    });
+
     const rows = sales.map(s => {
       const items   = Array.isArray(s.items) ? s.items : [];
       // totalAmount is the post-discount amount actually billed — summing
       // qty×rate overstated revenue (and profit) by every bill discount.
-      const revenue = Number(s.totalAmount)
+      const billed  = Number(s.totalAmount)
         || items.reduce((acc, it) => acc + calcItemRevenue(it), 0);
+      const returned = returnedBySale[s.id] || 0;
+      const revenue = billed - returned;   // what the customer actually kept
       // sales.totalCogs is the source of truth (process_sale computes it,
       // including the cost-price fallback for unbatched stock). The batch
       // rows alone undercount when only part of a sale had batch coverage.
@@ -89,7 +106,7 @@ const BillWiseProfitReport = () => {
       const margin  = revenue > 0 ? (profit / revenue) * 100 : 0;
       const customer = s.customerInfo?.name || 'Walk-in';
       const ref      = (s.id || '').toUpperCase(); // id already SAL-prefixed — no double wrap / truncation
-      return { date: s.date || '', ref, customer, revenue, cost, profit, margin };
+      return { date: s.date || '', ref, customer, revenue, cost, profit, margin, returned };
     }).sort((a, b) => b.date.localeCompare(a.date));
 
     return { allRows: rows };
