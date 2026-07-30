@@ -144,4 +144,19 @@ void main() {
     expect(rows.first['origin'], 'OPENING');
     expect(rows.first['cost_basis'], 'ESTIMATED');
   });
+
+  test('a ledger built from cache is flagged, an online one is not', () async {
+    // The banner and the withheld Close Day button both hang off this flag. If
+    // it is not set, an offline day renders as a legitimate day of zero trade.
+    final offline = DayBookLedger(
+      date: '2026-07-29', openingBal: 0, closingBal: 0,
+      isLocked: false, hasOpening: true, fromCache: true,
+    );
+    final online = DayBookLedger(
+      date: '2026-07-29', openingBal: 0, closingBal: 0,
+      isLocked: false, hasOpening: true,
+    );
+    expect(offline.fromCache, isTrue);
+    expect(online.fromCache, isFalse, reason: 'must default off, or every day warns');
+  });
 }

@@ -44,6 +44,7 @@ class DaybookRepository {
 
     // Fetch all transactions for this date in parallel.
     List<Map<String, dynamic>> sales, expenses, collections, purchases;
+    var servedFromCache = false;
     try {
       final results = await Future.wait([
         _client.from('sales').select('id, totalAmount, paymentMethod, customerInfo, items, created_at')
@@ -62,6 +63,7 @@ class DaybookRepository {
     } catch (e) {
       if (_db == null) rethrow;
       debugPrint('[daybook] ledger online failed, using Drift cache: $e');
+      servedFromCache = true;
       // Only client_payments gained a cache in v6; sales, expenses and purchases
       // were already cached but without a date column to filter on, so they are
       // filtered here. An empty list is honest — it means nothing was cached for
@@ -191,6 +193,7 @@ class DaybookRepository {
     }
 
     return DayBookLedger(
+      fromCache: servedFromCache,
       date: date,
       openingBal: openingBal,
       cashSales: cashSales, bankSales: bankSales, creditSales: creditSales,
