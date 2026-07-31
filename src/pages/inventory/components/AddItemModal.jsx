@@ -27,6 +27,21 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     duration_min: '',   // service catalog
     track_serial: false,   // serialized stock (IMEI / serial per unit)
   });
+  // Base units in one packet (0.25 KG for a 250 g pack). 0 when the product
+  // is not sold by an alternate unit.
+  const packConv = (() => {
+    const c = parseFloat(formData.conversion_factor);
+    return (formData.secondary_unit && c > 0) ? c : 0;
+  })();
+  // Text of the per-packet price box, kept separate so typing "3" on the
+  // way to "30" is not rewritten under the cursor.
+  const [packSell, setPackSell] = useState('');
+  const packSellRef = React.useRef(false);
+  React.useEffect(() => {
+    if (packSellRef.current) { packSellRef.current = false; return; }  // user typed here
+    const base = parseFloat(formData.sellingPrice);
+    setPackSell(packConv > 0 && base > 0 ? String(Number((base * packConv).toFixed(2))) : '');
+  }, [formData.sellingPrice, packConv]);
 
   // A SERVICE product (labor / repair, no stock) gets the service UX in ANY
   // business mode — lets a retail shop keep products and add services together.
@@ -450,6 +465,58 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 </div>
               )}
             </div>
+
+            {/* Per-packet pricing.
+                Cost and price are stored PER BASE UNIT, because stock, COGS and
+                the below-cost guard all work in the base unit. But a shop selling
+                250 g packets thinks "₹30 a packet", not "₹120 a kilo", and was
+                left dividing by hand. This is the same numbers seen from the
+                packet end, and the packet price is editable: type 30 and the
+                per-KG price becomes 120. Nothing extra is stored. */}
+            {!isService && packConv > 0 && (
+              <div className="mt-3 rounded-xl border border-accent-signature/25 bg-accent-signature/[0.04] p-3.5">
+                <div className="text-[10px] font-bold text-accent-signature-hover uppercase tracking-wider mb-2.5">
+                  Per {formData.secondary_unit} · 1 {formData.secondary_unit} = {Number(packConv.toFixed(4))} {formData.unit}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Costs you</div>
+                    <div className="text-[15px] font-bold tabular-nums text-foreground h-9 flex items-center">
+                      ₹{((parseFloat(formData.costPrice) || 0) * packConv).toFixed(2)}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                      Sell at (₹ / {formData.secondary_unit})
+                    </label>
+                    <input type="number" step="0.01" placeholder="0.00"
+                      className="w-full h-9 px-2.5 rounded-lg border border-border bg-card text-[14px] font-bold tabular-nums outline-none focus:border-accent-signature/50"
+                      value={packSell}
+                      onChange={e => {
+                        const v = e.target.value;
+                        packSellRef.current = true;
+                        setPackSell(v);
+                        const n = parseFloat(v);
+                        // Blank clears rather than writing 0 — an empty box must
+                        // not silently make the product free.
+                        setFormData(f => ({
+                          ...f,
+                          sellingPrice: v === '' ? '' : (n > 0 ? String(Number((n / packConv).toFixed(4))) : f.sellingPrice),
+                        }));
+                      }} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Margin</div>
+                    <div className={`text-[15px] font-bold tabular-nums h-9 flex items-center ${marginColor}`}>
+                      {showMargin ? `${margin.toFixed(1)}%` : '—'}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-2">
+                  Margin is the same per {formData.unit} or per {formData.secondary_unit} — it is a ratio.
+                </div>
+              </div>
+            )}
 
             {!isService && (
               <div className="mt-3">
