@@ -882,8 +882,22 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
 
           // Details grid
           _DetailRow(label: 'Category', value: p.category ?? 'N/A'),
-          _DetailRow(label: 'Cost Price', value: '₹${p.costPrice.toStringAsFixed(2)}'),
-          _DetailRow(label: 'Selling Price', value: '₹${p.sellingPrice.toStringAsFixed(2)}'),
+          // Cost and price are held per base unit. A product bought by weight
+          // and sold in packets is judged per packet, so show that too rather
+          // than making the shopkeeper divide in their head. Margin is a ratio,
+          // so it reads the same either way and is not duplicated.
+          _DetailRow(
+            label: 'Cost Price',
+            value: _packSuffix(p) == null
+                ? '₹${p.costPrice.toStringAsFixed(2)}'
+                : '₹${p.costPrice.toStringAsFixed(2)}  ·  ₹${(p.costPrice * p.conversionFactor!).toStringAsFixed(2)}/${p.secondaryUnit}',
+          ),
+          _DetailRow(
+            label: 'Selling Price',
+            value: _packSuffix(p) == null
+                ? '₹${p.sellingPrice.toStringAsFixed(2)}'
+                : '₹${p.sellingPrice.toStringAsFixed(2)}  ·  ₹${(p.sellingPrice * p.conversionFactor!).toStringAsFixed(2)}/${p.secondaryUnit}',
+          ),
           _DetailRow(
             label: 'Margin',
             value: p.sellingPrice > 0
@@ -977,6 +991,12 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
 }
 
 // ── Helper widgets ───────────────────────────────────────────────────────────
+
+String? _packSuffix(dynamic p) {
+  final c = p.conversionFactor as double?;
+  final u = p.secondaryUnit as String?;
+  return (u != null && u.isNotEmpty && c != null && c > 0) ? u : null;
+}
 
 class _DetailRow extends StatelessWidget {
   final String label;

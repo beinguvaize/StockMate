@@ -181,7 +181,14 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _ProductDetailSheet(
         product: p,
-        initialQty: currentItem?.quantity ?? qtyStepButton(p.unit),
+        // A product bought by weight and sold in packets opens at ONE PACKET.
+        // Without this a new line started at one whole base unit — a kilo, or
+        // four 250 g packets — and the cashier had to correct it every time.
+        // Editing an existing line keeps whatever it already holds.
+        initialQty: currentItem?.quantity
+            ?? (((p.secondaryUnit ?? '').isNotEmpty && (p.conversionFactor ?? 0) > 0)
+                ? p.conversionFactor!
+                : qtyStepButton(p.unit)),
         initialPrice: currentItem?.unitPrice ?? p.sellingPrice,
         onConfirm: (qty, price) => _setCartItem(p, qty, price),
         isOwner: ref.read(tenantContextProvider).valueOrNull?.isOwner ?? false,
@@ -1157,6 +1164,9 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
   // unit throughout — only the fields display and accept the packet view, so
   // stock, cost and the below-cost guard never see packets. conv = base units
   // per one alt unit (e.g. 0.25 KG per packet).
+  // Defaults ON for a product that has an alternate unit: if it is sold in
+  // packets, the packet view is the one the cashier wants first. Set in
+  // initState because it depends on the widget.
   bool _alt = false;
   double get _conv => widget.product.conversionFactor ?? 0;
   bool get _hasAlt => (widget.product.secondaryUnit ?? '').isNotEmpty && _conv > 0;
@@ -1169,7 +1179,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
     super.initState();
     _qty = widget.initialQty;
     _price = widget.initialPrice;
-    _priceController = TextEditingController(text: _price.toStringAsFixed(2));
+    _alt = _hasAlt;
+    _priceController = TextEditingController(text: _dispPrice.toStringAsFixed(2));
     _priceController.addListener(() {
       final v = double.tryParse(_priceController.text);
       if (v == null) return;
@@ -1177,7 +1188,10 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
       // price we store.
       setState(() => _price = _alt ? v / _conv : v);
     });
-    _qtyController = TextEditingController(text: formatQty(_qty, widget.product.unit));
+    // Seed the field in whatever unit it is about to display. Seeding it with
+    // the base value showed "0.25" on a line that reads in packets.
+    _qtyController = TextEditingController(
+      text: _alt ? _dispQty.toStringAsFixed(3) : formatQty(_qty, widget.product.unit));
     _qtyController.addListener(() {
       // double, not int: typing 0.25 used to be ignored outright, so the field
       // showed a decimal while the cart silently kept the old whole number.
