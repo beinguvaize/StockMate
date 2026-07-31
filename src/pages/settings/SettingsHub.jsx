@@ -2,9 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   User, Building, Printer, Users as UsersIcon, CreditCard,
   LifeBuoy, ChevronRight, Check, BellRing, Zap, Tag, Database,
-  FileText, RotateCcw, ShieldCheck, Palette,
-} from 'lucide-react';
-import ThemePicker from '../../components/ThemePicker';
+  FileText, RotateCcw, ShieldCheck, } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { supabase, uploadProductImage } from '../../lib/supabase';
@@ -44,7 +42,6 @@ const NAV_GROUPS = [
   { caption: 'General', items: [
     { id: 'account',  label: 'Account',     icon: <User size={15} /> },
     { id: 'business', label: 'Business',    icon: <Building size={15} /> },
-    { id: 'appearance', label: 'Appearance', icon: <Palette size={15} /> },
   ]},
   { caption: 'Catalog', items: [
     { id: 'categories', label: 'Categories', icon: <Tag size={15} /> },
@@ -771,9 +768,6 @@ const SettingsHub = () => {
           {CLASSIC_SECTIONS[active] && (
             <Settings embedded section={CLASSIC_SECTIONS[active]} key={active} />
           )}
-          {active === 'appearance' && (isOwner
-            ? <EmbedSkin><ThemePicker /></EmbedSkin>
-            : <div className="text-sm font-semibold text-muted-foreground p-6">Only the owner can change the workspace theme.</div>)}
           {active === 'print'    && <PrintPanel tenantId={currentTenantId} />}
           {active === 'users'    && <EmbedSkin><Users embedded /></EmbedSkin>}
           {active === 'reminders' && <RemindersPanel tenantId={currentTenantId} />}

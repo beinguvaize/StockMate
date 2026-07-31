@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import ThemePicker from '../components/ThemePicker';
 import { usePlanLimits } from '../hooks/usePlanLimits';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -924,8 +923,6 @@ const Settings = ({ embedded = false, section = null }) => {
  </div>
  </div>
 
- {/* Theme Picker — owner only */}
- {isOwner && <ThemePicker />}
 
  {/* ── Cash Bill / POS Receipt Layout ─────────────────────────────── */}
  <div id="tab-billing" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
