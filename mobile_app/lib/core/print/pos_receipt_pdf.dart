@@ -224,6 +224,13 @@ Future<Uint8List> buildPosReceiptPdf(
                   children: [
                     pw.Text(it.name,
                         style: pw.TextStyle(fontSize: 8, color: ink)),
+                    // Name the unit when it is not plain pieces. The quantity
+                    // column prints a bare number, so a packet sale read as
+                    // "2" with nothing saying two of what — and 2 packets and
+                    // 2 pieces are different purchases at the same price.
+                    if (it.unit.isNotEmpty && it.unit.toUpperCase() != 'PCS')
+                      pw.Text('per ${it.unit}',
+                          style: pw.TextStyle(fontSize: 7, color: subtle)),
                     if (it.taxRate > 0)
                       pw.Text('GST ${it.taxRate.toStringAsFixed(0)}%',
                           style: pw.TextStyle(fontSize: 7, color: subtle)),
