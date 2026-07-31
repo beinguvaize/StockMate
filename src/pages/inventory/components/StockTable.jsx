@@ -36,6 +36,14 @@ const qtyCls = (s) => s === 'crit' ? 'text-red-600' : s === 'low' ? 'text-accent
 // Current margin on the LATEST prices — sell vs weighted-average cost
 // (products.costPrice, kept fresh from open batches). Null when no sell price,
 // so a serviceless/priceless row shows "—" rather than a bogus 0%.
+// Base units in one packet (e.g. 0.25 KG). 0 when the product is not sold by
+// an alternate unit. Margin % is identical either way — it is a ratio — so only
+// the rupee figures need converting.
+const packConv = (p) => {
+  const c = Number(p?.conversion_factor);
+  return (p?.secondary_unit && c > 0) ? c : 0;
+};
+
 const marginPct = (p) => {
   const sell = toNum(p.sellingPrice);
   const cost = toNum(p.costPrice);
@@ -229,14 +237,34 @@ const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit,
                         </>)}
                       </td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">{isService ? '' : (reorder > 0 ? reorder : '—')}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">{isService ? '' : `${currencySymbol}${toNum(product.costPrice).toFixed(2)}`}</td>
+                      {/* Cost is held per base unit (per KG). A product bought by
+                          weight and sold in packets is priced and judged per
+                          packet, so show that underneath rather than making the
+                          shopkeeper divide in their head. */}
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">
+                        {isService ? '' : <>
+                          {currencySymbol}{toNum(product.costPrice).toFixed(2)}
+                          {packConv(product) > 0 && (
+                            <div className="text-[10px] text-muted-foreground/70">
+                              {currencySymbol}{(toNum(product.costPrice) * packConv(product)).toFixed(2)}/{product.secondary_unit}
+                            </div>
+                          )}
+                        </>}
+                      </td>
                       {/* Last buy — newest batch rate. Tinted vs avg cost so a
                           rising restock price stands out: red above avg, green
                           below, muted when equal or unknown. */}
                       <td className={`px-3 py-2.5 text-right tabular-nums text-[12px] whitespace-nowrap ${lastBuyCls(lastBuy[product.id], product.costPrice)}`}>
                         {isService ? '' : (lastBuy[product.id] == null ? '—' : `${currencySymbol}${toNum(lastBuy[product.id]).toFixed(2)}`)}
                       </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-[12px] font-semibold whitespace-nowrap"><span className="text-accent-signature/70">{currencySymbol}</span>{sell.toFixed(2)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[12px] font-semibold whitespace-nowrap">
+                        <span className="text-accent-signature/70">{currencySymbol}</span>{sell.toFixed(2)}
+                        {packConv(product) > 0 && (
+                          <div className="text-[10px] font-normal text-muted-foreground/70">
+                            {currencySymbol}{(sell * packConv(product)).toFixed(2)}/{product.secondary_unit}
+                          </div>
+                        )}
+                      </td>
                       <td className={`px-3 py-2.5 text-right tabular-nums text-[12px] font-semibold whitespace-nowrap ${marginCls(margin)}`}>{isService ? '' : (margin == null ? '—' : `${margin.toFixed(1)}%`)}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-[13px] font-semibold whitespace-nowrap">{isService ? '' : <><span className="text-accent-signature/70">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
                       <td className="px-3 py-2.5 text-center">{isService ? null : <span className={`inline-block w-2 h-2 rounded-full ${dotCls(st)}`} />}</td>

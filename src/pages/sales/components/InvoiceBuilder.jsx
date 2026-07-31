@@ -470,8 +470,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           addNotification(`Only ${available} units in stock`, 'error');
           return prev;
         }
+        const bump = (existing.sellUnit === 'ALT' && Number(product.conversion_factor) > 0)
+          ? Number(product.conversion_factor)   // one more packet, not one more kilo
+          : 1;
         return prev.map(item => item.uid === uid
-          ? { ...item, quantity: item.quantity + 1 }
+          ? { ...item, quantity: item.quantity + bump }
           : item
         );
       }
@@ -479,13 +482,21 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         addNotification(`${product.name} is out of stock`, 'error');
         return prev;
       }
+      // A product that is bought by weight and SOLD in packets should open the
+      // line in packets — otherwise every packet sale started as "1 KG" and
+      // needed a manual toggle, and one tap on + added a whole kilo (four
+      // packets) instead of one. The line is still stored in the base unit;
+      // only the entry unit and the opening quantity change.
+      const conv = Number(product.conversion_factor);
+      const packs = !!(product.secondary_unit && conv > 0);
       return [...prev, {
         uid,
         productId: product.id,
         name: product.name,
         basePrice: base,
         price: (Number(base) || 0) + addPrice,
-        quantity: 1,
+        sellUnit: packs ? 'ALT' : 'BASE',
+        quantity: packs ? conv : 1,
         taxRate: product.taxRate || 0,
         cess: Number(product.cess_rate ?? product.cess ?? 0),
         hsn_code: product.hsn_code || product.hsn || '',
