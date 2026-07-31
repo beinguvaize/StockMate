@@ -42,6 +42,18 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   // leaving them to guess a weight and check the margin afterwards.
   const [wantPrice, setWantPrice] = useState('');
   const [wantMargin, setWantMargin] = useState('25');
+  // Pack size typed in grams / millilitres. The stored conversion is in the base
+  // unit (0.25 KG), but nobody says "nought point two five of a kilo" — they say
+  // 250 grams. This is the same number in the unit people actually speak.
+  const [packSize, setPackSize] = useState('');
+  const packSizeRef = React.useRef(false);
+  const baseUnitUC = String(formData.unit || '').toUpperCase();
+  const subUnit = baseUnitUC === 'KG' ? 'g' : baseUnitUC === 'LITRE' ? 'ml' : null;
+  React.useEffect(() => {
+    if (packSizeRef.current) { packSizeRef.current = false; return; }
+    const c = parseFloat(formData.conversion_factor);
+    setPackSize(subUnit && c > 0 ? String(Number((c * 1000).toFixed(3))) : '');
+  }, [formData.conversion_factor, subUnit]);
   React.useEffect(() => {
     if (packSellRef.current) { packSellRef.current = false; return; }  // user typed here
     const base = parseFloat(formData.sellingPrice);
@@ -483,7 +495,29 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 <div className="text-[10px] font-bold text-accent-signature-hover uppercase tracking-wider mb-2.5">
                   Per {formData.secondary_unit} · 1 {formData.secondary_unit} = {Number(packConv.toFixed(4))} {formData.unit}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className={`grid grid-cols-1 ${subUnit ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-3`}>
+                  {subUnit && (
+                    <div>
+                      <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                        Pack size ({subUnit})
+                      </label>
+                      <input type="number" step="1" min="0" placeholder="250"
+                        className="w-full h-9 px-2.5 rounded-lg border border-border bg-card text-[14px] font-bold tabular-nums outline-none focus:border-accent-signature/50"
+                        value={packSize}
+                        onChange={e => {
+                          const v = e.target.value;
+                          packSizeRef.current = true;
+                          setPackSize(v);
+                          const n = parseFloat(v);
+                          // Blank clears the conversion rather than writing 0,
+                          // which would make one packet equal nothing.
+                          setFormData(f => ({
+                            ...f,
+                            conversion_factor: v === '' ? '' : (n > 0 ? String(Number((n / 1000).toFixed(6))) : f.conversion_factor),
+                          }));
+                        }} />
+                    </div>
+                  )}
                   <div>
                     <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Costs you</div>
                     <div className="text-[15px] font-bold tabular-nums text-foreground h-9 flex items-center">
@@ -569,6 +603,8 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                                 }));
                                 packSellRef.current = true;
                                 setPackSell(String(Number(price.toFixed(2))));
+                                packSizeRef.current = true;
+                                setPackSize(subUnit ? String(Math.round(size * 1000)) : '');
                               }}
                               className="h-8 px-3 rounded-lg bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-bold transition-colors">
                               Use this
@@ -648,6 +684,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   return (
                     <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
                       1 {formData.secondary_unit} = <span className="font-semibold text-foreground">{tidy(f)} {formData.unit}</span>
+                      {subUnit && <span className="font-semibold text-foreground"> ({tidy(f * 1000)} {subUnit})</span>}
                       <span className="mx-1.5 opacity-40">·</span>
                       {tidy(1 / f)} {formData.secondary_unit} = 1 {formData.unit}
                     </div>
