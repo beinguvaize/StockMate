@@ -36,20 +36,35 @@ List<PdfLineItem> parsePdfItems(Invoice invoice) {
   if (raw == null || raw.isEmpty) return [];
   return raw.map((item) {
     final m = item as Map<String, dynamic>? ?? {};
+
+    final baseQty = double.tryParse((m['quantity'] ?? m['qty'])?.toString() ?? '1') ?? 1;
+    // Web saves `rate`; old sales saved `price`. Also fall back to unitPrice/sellingPrice.
+    final basePrice = double.tryParse(
+          (m['rate'] ?? m['price'] ?? m['unitPrice'] ?? m['unit_price'] ?? m['sellingPrice'])
+              ?.toString() ?? '0',
+        ) ??
+        0.0;
+
+    // A line sold by the packet carries a snapshot of that view. Print what the
+    // customer actually bought — "2 PACK @ 30" — rather than the base units the
+    // line is stored in, which read as "0.5 KG @ 120" and look like a different
+    // sale. Falls back to base whenever the snapshot is absent, so older sales
+    // and non-packet goods are unaffected.
+    final sellUnitName = m['sellUnitName']?.toString();
+    final sellQty = double.tryParse(m['sellQty']?.toString() ?? '');
+    final sellUnitPrice = double.tryParse(m['sellUnitPrice']?.toString() ?? '');
+    final usePack = sellUnitName != null && sellUnitName.isNotEmpty &&
+        sellQty != null && sellQty > 0 && sellUnitPrice != null && sellUnitPrice > 0;
+
     return PdfLineItem(
       name: m['name']?.toString() ?? m['productName']?.toString() ?? m['product_name']?.toString() ?? 'Item',
       sku: m['sku']?.toString() ?? '',
-      unit: m['unit']?.toString() ?? 'PCS',
+      unit: usePack ? sellUnitName : (m['unit']?.toString() ?? 'PCS'),
       // Was int.tryParse(...) ?? 1 — a stored 0.25 failed the parse and fell
       // back to 1, so lineTotal (qty * price) printed 4x the real amount on
       // the customer's receipt.
-      qty: double.tryParse((m['quantity'] ?? m['qty'])?.toString() ?? '1') ?? 1,
-      // Web saves `rate`; old sales saved `price`. Also fall back to unitPrice/sellingPrice.
-      price: double.tryParse(
-            (m['rate'] ?? m['price'] ?? m['unitPrice'] ?? m['unit_price'] ?? m['sellingPrice'])
-                ?.toString() ?? '0',
-          ) ??
-          0.0,
+      qty: usePack ? sellQty : baseQty,
+      price: usePack ? sellUnitPrice : basePrice,
       taxRate: double.tryParse(m['taxRate']?.toString() ?? '0') ?? 0.0,
     );
   }).toList();

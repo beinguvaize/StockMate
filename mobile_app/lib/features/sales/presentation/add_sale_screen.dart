@@ -273,14 +273,28 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       // Items format mirrors web: { id, quantity, name, rate, taxRate }
       // taxRate snapshot at sale-time so invoice GST stays correct even
       // if the product master is edited later.
-      final payloadItems = _cart.map((c) => {
-        'id':       c.product.id,
-        'quantity': c.quantity,
-        'name':     c.product.name,
-        'rate':     c.unitPrice,
-        'taxRate':  c.product.taxRate,
-        'cess':     c.product.cessRate,
-        'hsn':      c.product.hsnCode,
+      final payloadItems = _cart.map((c) {
+        final m = <String, dynamic>{
+          'id':       c.product.id,
+          'quantity': c.quantity,
+          'name':     c.product.name,
+          'rate':     c.unitPrice,
+          'taxRate':  c.product.taxRate,
+          'cess':     c.product.cessRate,
+          'hsn':      c.product.hsnCode,
+        };
+        // Snapshot the packet view, exactly as the web does. quantity and rate
+        // stay in the BASE unit so stock, COGS and the money are untouched —
+        // these three fields exist only so a receipt can say "2 PACK @ Rs 30"
+        // instead of "0.5 KG @ Rs 120", which is what the customer was handed.
+        final conv = c.product.conversionFactor ?? 0;
+        final sec = c.product.secondaryUnit ?? '';
+        if (sec.isNotEmpty && conv > 0) {
+          m['sellUnitName']  = sec;
+          m['sellQty']       = double.parse((c.quantity / conv).toStringAsFixed(3));
+          m['sellUnitPrice'] = double.parse((c.unitPrice * conv).toStringAsFixed(2));
+        }
+        return m;
       }).toList();
 
       final now = DateTime.now();
