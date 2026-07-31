@@ -37,6 +37,11 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   // way to "30" is not rewritten under the cursor.
   const [packSell, setPackSell] = useState('');
   const packSellRef = React.useRef(false);
+  // Pack-size solver: the shop starts from a shelf price and a margin, not from
+  // a weight. Given both, the pack size is fixed — this works it out instead of
+  // leaving them to guess a weight and check the margin afterwards.
+  const [wantPrice, setWantPrice] = useState('');
+  const [wantMargin, setWantMargin] = useState('25');
   React.useEffect(() => {
     if (packSellRef.current) { packSellRef.current = false; return; }  // user typed here
     const base = parseFloat(formData.sellingPrice);
@@ -515,6 +520,70 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 <div className="text-[10px] text-muted-foreground mt-2">
                   Margin is the same per {formData.unit} or per {formData.secondary_unit} — it is a ratio.
                 </div>
+
+                {/* Work the pack size out from the shelf price.
+                    A shop decides "I want to sell at Rs 30 and keep 25%" long
+                    before it decides on a weight — and given a cost per base
+                    unit, those two answers FIX the weight. Solving it here beats
+                    guessing a weight and checking the margin afterwards. */}
+                {(parseFloat(formData.costPrice) > 0) && (() => {
+                  const price  = parseFloat(wantPrice);
+                  const marginPc = parseFloat(wantMargin);
+                  const cost   = parseFloat(formData.costPrice);
+                  const ok = price > 0 && marginPc >= 0 && marginPc < 100;
+                  // cost per pack = price × (1 − margin);  size = that ÷ cost per base unit
+                  const size = ok ? (price * (1 - marginPc / 100)) / cost : null;
+                  const isWeight = ['KG', 'LITRE'].includes(String(formData.unit || '').toUpperCase());
+                  return (
+                    <div className="mt-3 pt-3 border-t border-accent-signature/20">
+                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                        Not sure of the pack size? Enter what you want to charge
+                      </div>
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div className="w-28">
+                          <label className="block text-[9px] font-semibold text-muted-foreground uppercase mb-1">Sell at ₹</label>
+                          <input type="number" step="0.01" placeholder="30" value={wantPrice}
+                            onChange={e => setWantPrice(e.target.value)}
+                            className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[13px] font-semibold tabular-nums outline-none focus:border-accent-signature/50" />
+                        </div>
+                        <div className="w-24">
+                          <label className="block text-[9px] font-semibold text-muted-foreground uppercase mb-1">Margin %</label>
+                          <input type="number" step="1" placeholder="25" value={wantMargin}
+                            onChange={e => setWantMargin(e.target.value)}
+                            className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[13px] font-semibold tabular-nums outline-none focus:border-accent-signature/50" />
+                        </div>
+                        {size > 0 && (
+                          <>
+                            <div className="text-[13px] font-bold tabular-nums text-foreground pb-1.5">
+                              = {isWeight ? `${Math.round(size * 1000)} g` : `${Number(size.toFixed(4))} ${formData.unit}`}
+                              <span className="text-[11px] font-semibold text-muted-foreground ml-1.5">
+                                ({Number(size.toFixed(4))} {formData.unit}) per {formData.secondary_unit}
+                              </span>
+                            </div>
+                            <button type="button"
+                              onClick={() => {
+                                setFormData(f => ({
+                                  ...f,
+                                  conversion_factor: String(Number(size.toFixed(4))),
+                                  sellingPrice: String(Number((price / size).toFixed(4))),
+                                }));
+                                packSellRef.current = true;
+                                setPackSell(String(Number(price.toFixed(2))));
+                              }}
+                              className="h-8 px-3 rounded-lg bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-bold transition-colors">
+                              Use this
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      {size > 0 && (
+                        <div className="text-[10px] text-muted-foreground mt-1.5 tabular-nums">
+                          That pack costs ₹{(size * cost).toFixed(2)} and sells at ₹{price.toFixed(2)} — ₹{(price / size).toFixed(2)} per {formData.unit}.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
