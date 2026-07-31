@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
 import { Smartphone, CheckCircle2, Package } from 'lucide-react';
@@ -14,7 +15,9 @@ const IMEISerialReport = () => {
     select: 'id, product_id, serial, status, sale_id, purchase_id, created_at',
   });
   const { data: products } = useReportData({ table: 'products', select: 'id, name, sku' });
-  const { data: sales } = useReportData({ table: 'sales', select: 'id, "shopId", date' });
+  const { data: salesRaw } = useReportData({ table: 'sales', select: 'id, "shopId", date, voided_at, status, paymentStatus' });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
   const { data: clients } = useReportData({ table: 'clients', select: 'id, name, phone' });
 
   const rows = useMemo(() => {

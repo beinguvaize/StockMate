@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
@@ -20,7 +21,9 @@ const CashFlowReport = () => {
   // Financial year to date by default. These queries were previously
   // unfiltered and read the whole table on every load.
   const win = useDateWindow('YEAR');
-  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, paymentMethod, date', dateColumn: 'date', filters: win.filters });
+  const { data: salesRaw, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, paymentMethod, date, voided_at, status, paymentStatus', dateColumn: 'date', filters: win.filters });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
   const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date', filters: win.filters });
   const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: 'amount, processed_at', dateColumn: 'processed_at', filters: win.filters });
   const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, payment_type', dateColumn: 'date', filters: win.filters });

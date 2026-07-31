@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
 import { useTenant } from '../../context/TenantContext';
 import useDateWindow from './useDateWindow';
@@ -81,7 +82,9 @@ const BudgetVsActualReport = () => {
   const [migrated, setMigrated] = useState(false);
 
   // --- Pull actuals ---
-  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: 'totalAmount, date',      dateColumn: 'date', filters: win.filters });
+  const { data: salesRaw,    loading: l1 } = useReportData({ table: 'sales',    select: 'totalAmount, date, voided_at, status, paymentStatus',      dateColumn: 'date', filters: win.filters });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
   const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date', filters: win.filters });
   const { data: payroll,  loading: l3 } = useReportData({ table: 'payroll',  select: 'amount, processed_at',   dateColumn: 'processed_at', filters: win.filters });
 

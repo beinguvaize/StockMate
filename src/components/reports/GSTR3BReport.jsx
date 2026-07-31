@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { isCountableSale } from './reportUtils';
 import { useTenant } from '../../context/TenantContext';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
@@ -34,7 +35,9 @@ const GSTR3BReport = () => {
   const period = useReportPeriod('THIS_MONTH');
   const dateRange = { start: period.range.from, end: period.range.to };
 
-  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters: { dateRange } });
+  const { data: salesRaw,    loading: l1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters: { dateRange } });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
   const { data: clients,  loading: l2 } = useReportData({ table: 'clients',  select: '*', nullFilters: { deleted_at: null } });
   const { data: purchases,loading: l3 } = useReportData({ table: 'purchases',select: '*', dateColumn: 'date', filters: { dateRange } });
   const { data: expenses, loading: l4 } = useReportData({ table: 'expenses', select: '*', dateColumn: 'date', filters: { dateRange } });

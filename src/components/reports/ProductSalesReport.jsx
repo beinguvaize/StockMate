@@ -12,7 +12,7 @@ import {
 import useReportData from './useReportData';
 import ReportHeader from './ReportHeader';
 import { SectionHead } from './ReportBits'; // local KPI variant kept (truncate)
-import { presetRange } from './reportUtils';
+import { presetRange, isCountableSale } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
 
 const KPI = ({ label, value, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
@@ -42,11 +42,13 @@ const ProductSalesReport = () => {
   const { data: products, loading: prodLoading } = useReportData({
     table: 'products', select: 'id, name, sku, unit, sellingPrice, costPrice',
   });
-  const { data: sales, loading: salesLoading } = useReportData({
+  const { data: salesRaw, loading: salesLoading } = useReportData({
     table: 'sales',
-    select: 'id, date, items, status, customerInfo, shopId, totalAmount',
+    select: 'id, date, items, status, customerInfo, shopId, totalAmount, voided_at, paymentStatus',
     dateColumn: 'date', filters: dateFilters,
   });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
   const { data: clients } = useReportData({
     table: 'clients', select: 'id, name',
   });

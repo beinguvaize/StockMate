@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
@@ -12,11 +13,13 @@ const LogisticsReport = () => {
   // unfiltered and read the whole table on every load.
   const win = useDateWindow('YEAR');
   // 1. Fetch Logistics Master Data
-  const { data: sales, loading: salesLoading } = useReportData({
+  const { data: salesRaw, loading: salesLoading } = useReportData({
     table: 'sales',
-    select: 'totalAmount, vehicleId, routeId',
+    select: 'totalAmount, vehicleId, routeId, voided_at, status, paymentStatus',
     dateColumn: 'date', filters: win.filters
   });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
 
   const { data: vehicles, loading: vehiclesLoading } = useReportData({
     table: 'vehicles',

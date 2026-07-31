@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { isCountableSale } from './reportUtils';
 import { useTenant } from '../../context/TenantContext';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
@@ -149,7 +150,9 @@ const GSTR1Report = () => {
   const period = useReportPeriod('THIS_MONTH');
   const dateRange = { start: period.range.from, end: period.range.to };
 
-  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters: { dateRange } });
+  const { data: salesRaw,    loading: l1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters: { dateRange } });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
   const { data: clients,  loading: l2 } = useReportData({ table: 'clients',  select: '*', nullFilters: { deleted_at: null } });
   // Invoices have pre-computed cgst_amount/sgst_amount/igst_amount — use as primary source
   const { data: invoices, loading: l3 } = useReportData({

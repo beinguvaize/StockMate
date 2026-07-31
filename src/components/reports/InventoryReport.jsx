@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
@@ -19,11 +20,13 @@ const InventoryReport = () => {
     dateColumn: 'created_at', filters: win.filters
   });
 
-  const { data: sales, loading: salesLoading } = useReportData({
+  const { data: salesRaw, loading: salesLoading } = useReportData({
     table: 'sales',
-    select: 'date, items',
+    select: 'date, items, voided_at, status, paymentStatus',
     dateColumn: 'date', filters: win.filters
   });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
 
   const loading = productsLoading || salesLoading;
 

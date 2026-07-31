@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import useReportData from './useReportData';
 import useDateWindow from './useDateWindow';
 import ReportShell from './ReportShell';
-import { PRESETS } from './reportUtils';
+import { PRESETS, isCountableSale } from './reportUtils';
 import {
   TrendingUp, Award, Package, BarChart2, ShoppingBag,
 } from 'lucide-react';
@@ -47,12 +47,14 @@ const statusBadge = (status) => {
 const SalesReport = () => {
   // Financial year to date by default; the query was previously unfiltered.
   const win = useDateWindow('YEAR');
-  const { data: sales, loading } = useReportData({
+  const { data: salesRaw, loading } = useReportData({
     table: 'sales',
     select: '*',
     dateColumn: 'date',
     filters: win.filters,
   });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
 
   const { data: clients } = useReportData({
     table: 'clients',

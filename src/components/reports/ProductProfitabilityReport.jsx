@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
 import useDateWindow from './useDateWindow';
 import PLTieOut from './PLTieOut';
@@ -51,11 +52,13 @@ const ProductProfitabilityReport = () => {
     // window still have sales inside it, and would lose their cost basis.
   });
 
-  const { data: sales, loading: salesLoading } = useReportData({
+  const { data: salesRaw, loading: salesLoading } = useReportData({
     table: 'sales',
-    select: 'id, date, items, status',
+    select: 'id, date, items, status, voided_at, paymentStatus',
     dateColumn: 'date', filters: win.filters,
   });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
 
   // FIFO truth: what each sale actually consumed, at the batch cost of that
   // moment. Using today's costPrice as COGS misstated every margin whenever

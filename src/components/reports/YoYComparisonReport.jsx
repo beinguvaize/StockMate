@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
 import {
@@ -64,7 +65,9 @@ const YoYComparisonReport = () => {
   );
   const yoyFilters = useMemo(() => ({ dateRange: yoyRange }), [yoyRange]);
 
-  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: 'totalAmount, date',      dateColumn: 'date',         filters: yoyFilters });
+  const { data: salesRaw,    loading: l1 } = useReportData({ table: 'sales',    select: 'totalAmount, date, voided_at, status, paymentStatus',      dateColumn: 'date',         filters: yoyFilters });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
   const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date',         filters: yoyFilters });
   const { data: payroll,  loading: l3 } = useReportData({ table: 'payroll',  select: 'amount, processed_at',   dateColumn: 'processed_at', filters: yoyFilters });
   const { data: purchases,loading: l4 } = useReportData({ table: 'purchases',select: 'total_amount, date',     dateColumn: 'date',         filters: yoyFilters });

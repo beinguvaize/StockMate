@@ -11,6 +11,7 @@
  *                (zero sales in the window).
  */
 import React, { useMemo, useState } from 'react';
+import { isCountableSale } from './reportUtils';
 import {
   TrendingUp, TrendingDown, Package, DollarSign, Download, Zap, Turtle,
 } from 'lucide-react';
@@ -68,12 +69,14 @@ const ProductMovementReport = () => {
     return d.toISOString().slice(0, 10);
   }, [windowDays]);
 
-  const { data: sales, loading: sLoading } = useReportData({
+  const { data: salesRaw, loading: sLoading } = useReportData({
     table: 'sales',
-    select: 'id, items, date, paymentStatus',
+    select: 'id, items, date, paymentStatus, voided_at, status',
     filters: { dateRange: { start: fromDate } },
     nullFilters: { deleted_at: null },
   });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
   const { data: products, loading: pLoading } = useReportData({
     table: 'products',
     select: 'id, name, sku, category, costPrice, sellingPrice, stock',
