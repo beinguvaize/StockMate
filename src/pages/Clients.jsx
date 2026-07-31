@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { useSales } from '../hooks/useSales';
-import { useFinance } from '../hooks/useFinance';
 import { formatDate } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 
@@ -16,9 +15,7 @@ import {
   TrendingUp, AlertCircle, Users, BarChart3, Receipt, History,
   ChevronLeft, Building2, Tag, Hash, Loader2
 } from 'lucide-react';
-import ClientDirectory from '../components/clients/ClientDirectory';
-import ClientAging from '../components/clients/ClientAging';
-import ClientPayments from '../components/clients/ClientPayments';
+import ClientWorkspace from '../components/clients/ClientWorkspace';
 
 const Clients = () => {
   const { hasPermission } = useAuth();
@@ -52,7 +49,6 @@ const Clients = () => {
       .in('delivery_status', ['PENDING', 'IN_TRANSIT'])
       .then(({ data }) => { if (data) setClientDeliveries(data); });
   }, [currentTenantId]);
- const [activeTab, setActiveTab] = useState('DIRECTORY'); // DIRECTORY, AGING, PAYMENTS, STATEMENTS
  const [searchTerm, setSearchTerm] = useState('');
  const [statusFilter, setStatusFilter] = useState('ALL');
  const [dueFilter, setDueFilter] = useState('ALL'); // ALL | DUE | CLEARED
@@ -231,70 +227,20 @@ const Clients = () => {
  </button>
  </div>
 
- {/* Tab Navigation */}
- <div className="flex bg-white border border-border shadow-sm rounded-lg p-1 shadow-sm overflow-x-auto no-scrollbar">
- {[
- { id: 'DIRECTORY', label: 'Directory', icon: <Users size={14} />},
- { id: 'AGING', label: 'Aging Report', icon: <History size={14} />},
- { id: 'PAYMENTS', label: 'Payment History', icon: <CreditCard size={14} />},
- ].map(tab => (
- <button
- key={tab.id}
- onClick={() => setActiveTab(tab.id)}
- className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-semibold transition-all whitespace-nowrap ${
- activeTab === tab.id 
- ? 'bg-ink-primary text-accent-signature shadow-premium' 
- : 'text-ink-secondary hover:bg-black/5'
-}`}
- >
- {tab.icon}
- {tab.label}
- </button>
- ))}
- </div>
+ {/* Bulk import moved into the workspace toolbar. */}
  </div>
 
- {/* Sub-Module Content */}
- <div className="min-h-[500px]">
-  {activeTab === 'DIRECTORY' && (
-    <ClientDirectory
-      filteredClients={filteredClients}
-      clientStats={clientStats}
-      topMetrics={topMetrics}
-      businessProfile={businessProfile}
-      searchTerm={searchTerm}
-      setSearchTerm={setSearchTerm}
-      statusFilter={statusFilter}
-      setStatusFilter={setStatusFilter}
-      dueFilter={dueFilter}
-      setDueFilter={setDueFilter}
-      openAdd={openAdd}
-      openEdit={openEdit}
-      toggleStatus={toggleStatus}
-      handleDelete={handleDelete}
-      hasPermission={hasPermission}
-      clientDeliveries={clientDeliveries}
-    />
-  )}
-
- {activeTab === 'AGING' && (
- <ClientAging 
- clients={clients}
- sales={sales}
- clientPayments={clientPayments}
- businessProfile={businessProfile}
+ <ClientWorkspace
+   clients={filteredClients}
+   clientStats={clientStats}
+   sales={sales}
+   clientPayments={clientPayments}
+   businessProfile={businessProfile}
+   openAdd={openAdd}
+   openEdit={openEdit}
+   handleDelete={handleDelete}
+   hasPermission={hasPermission}
  />
- )}
-
- {activeTab === 'PAYMENTS' && (
- <ClientPayments 
- clientPayments={clientPayments}
- clients={clients}
- businessProfile={businessProfile}
- />
- )}
-
- </div>
  </div>
 
  {/* Client Form — Full-page portal */}

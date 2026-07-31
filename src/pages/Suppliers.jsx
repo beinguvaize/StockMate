@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { usePurchases } from '../hooks/usePurchases';
+import SupplierWorkspace from '../components/suppliers/SupplierWorkspace';
 import { useInventory } from '../hooks/useInventory';
 import { 
   Plus, Search, Phone, Mail, MapPin, Building2, 
@@ -133,14 +134,12 @@ const Suppliers = () => {
     suppliers, addSupplier, updateSupplier, deleteSupplier 
   } = usePeople(currentTenantId);
   const { purchases, supplierPayments = [] } = usePurchases(currentTenantId, { withReturns: false });
-  const [tab, setTab] = useState('SUPPLIERS'); // SUPPLIERS | PAYMENTS
 
   const isViewOnly = () => false;
   const addNotification = (msg, type) => console.log(msg, type);
 
   const navigate = useNavigate();
   const { tenantSlug } = useParams();
-  const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
@@ -160,11 +159,6 @@ const Suppliers = () => {
    return (w[0][0] + (w[1]?.[0] || '')).toUpperCase();
  };
 
- const filteredSuppliers = useMemo(() => {
- return suppliers.filter(s =>  s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
- );
-}, [suppliers, searchTerm]);
 
  const getSupplierStats = (supplierId) => {
  const supplier = suppliers.find(s => s.id === supplierId);
@@ -265,20 +259,14 @@ const Suppliers = () => {
      <span className="text-[11px] font-semibold text-muted-foreground hidden sm:block">Suppliers & purchase payments</span>
    </div>
    <div className="flex items-center gap-2">
-     <div className="inline-flex p-1 bg-black/[0.06] rounded-xl">
-       <button onClick={() => setTab('SUPPLIERS')}
-         className={`px-3.5 py-1.5 rounded-lg text-[12px] font-bold ${tab === 'SUPPLIERS' ? 'bg-white shadow-sm' : 'text-muted-foreground'}`}>Suppliers</button>
-       <button onClick={() => setTab('PAYMENTS')}
-         className={`px-3.5 py-1.5 rounded-lg text-[12px] font-bold ${tab === 'PAYMENTS' ? 'bg-white shadow-sm' : 'text-muted-foreground'}`}>Payments</button>
-     </div>
-     {!isViewOnly() && tab === 'SUPPLIERS' && (
+     {!isViewOnly() && (
        <button
          className="h-10 px-4 rounded-xl bg-white border border-black/10 text-ink-primary text-[13px] font-bold flex items-center gap-2 hover:bg-black/[0.03] transition-all"
          onClick={() => { window.location.href = '/bulk-add?type=suppliers'; }}>
          Bulk Import
        </button>
      )}
-     {!isViewOnly() && tab === 'SUPPLIERS' && (
+     {!isViewOnly() && (
        <button data-testid="onboard-partner-btn"
          className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all"
          onClick={() => setIsAdding(true)}>
@@ -288,138 +276,22 @@ const Suppliers = () => {
    </div>
  </div>
 
-  {/* KPI strip — compact mono/amber */}
-  <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-black/[0.07] shadow-sm">
-    {[
-      { label: 'Suppliers', value: suppliers.length, suffix: 'total' },
-      { label: 'Total Purchased', value: Math.round(purchases.reduce((s, p) => s + Number(p.total_amount ?? p.total_cost ?? 0), 0)).toLocaleString('en-IN'), money: true },
-      { label: 'Purchase Orders', value: purchases.length, suffix: 'total' },
-      { label: 'You Owe', value: Math.round(purchases.filter(p => ['CREDIT','UDHAAR','POST-CAPITAL'].includes(String(p.payment_type||'').toUpperCase())).reduce((s, p) => s + Math.max(0, Number(p.total_amount ?? p.total_cost ?? 0) - Number(p.paid_amount || 0)), 0)).toLocaleString('en-IN'), money: true, danger: true },
-    ].map((m, i) => (
-      <div key={i} className="bg-white px-4 py-3.5">
-        <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{m.label}</div>
-        <div className={` text-xl font-bold tabular-nums leading-none mt-1 ${m.danger ? 'text-red-600' : 'text-ink-primary'}`}>
-          {m.money && <span className={`text-sm mr-0.5 ${m.danger ? 'text-red-400' : 'text-accent-signature/70'}`}>{businessProfile?.currencySymbol || '₹'}</span>}{m.value}
-          {m.suffix && <span className="text-[10px] font-bold text-muted-foreground ml-1 lowercase">{m.suffix}</span>}
-        </div>
-      </div>
-    ))}
-  </div>
-
-  {/* Search & List */}
-  <div className="flex flex-col gap-4">
-  {tab === 'SUPPLIERS' && (
-  <div className="relative w-full max-w-md">
-  <Search size={16} strokeWidth={2.5} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-  <input
-  data-testid="search-suppliers-input"
-  type="text"
-  className="w-full h-10 pl-10 pr-4 bg-white border border-black/10 rounded-xl text-[13px] font-semibold text-ink-primary outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/20 transition-all placeholder:text-muted-foreground"
-  placeholder="Search suppliers or contacts…"
-  value={searchTerm}
-  onChange={e => setSearchTerm(e.target.value)}
+  <SupplierWorkspace
+    suppliers={suppliers}
+    purchases={purchases}
+    supplierPayments={supplierPayments}
+    businessProfile={businessProfile}
+    openAdd={() => setIsAdding(true)}
+    openEdit={(sup) => { setEditingSupplier(sup); setFormData({
+      name: sup.name || '', contact_person: sup.contact_person || '', phone: sup.phone || '',
+      email: sup.email || '', address: sup.address || '', notes: sup.notes || '',
+    }); setIsAdding(true); }}
+    handleDelete={(sup) => deleteSupplier(sup.id)}
+    hasPermission={hasPermission}
   />
-  </div>
-  )}
-
-  {tab === 'PAYMENTS' ? (
-   <PaymentsView payments={supplierPayments} suppliers={suppliers} purchases={purchases} cur={businessProfile?.currencySymbol || '₹'} />
-  ) : (
- /* Dense supplier ledger list */
- <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
- {/* Column header */}
- <div className="hidden md:grid grid-cols-[1fr_7rem_7rem_6rem_5rem] gap-4 px-5 py-2.5 text-[10px] uppercase tracking-wider font-bold text-muted-foreground border-b border-black/5">
- <div>Supplier</div>
- <div className="text-right">Procured</div>
- <div className="text-right">You Owe</div>
- <div className="text-right">Last Supply</div>
- <div className="text-right">Actions</div>
  </div>
 
- {filteredSuppliers.length === 0 && (
- <div className="px-5 py-16 text-center text-sm font-semibold text-muted-foreground">
- No suppliers found.
- </div>
- )}
-
- <div className="divide-y divide-black/5">
- {filteredSuppliers.map(s => {
- const stats = getSupplierStats(s.id);
- const cur = businessProfile?.currencySymbol || '₹';
- const goLedger = () => navigate(`/${tenantSlug}/suppliers/ledger/${s.id}`);
- return (
- <div
- key={s.id}
- data-testid="supplier-row"
- onClick={goLedger}
- className="grid grid-cols-2 md:grid-cols-[1fr_7rem_7rem_6rem_5rem] gap-x-4 gap-y-2 px-5 py-3 items-center hover:bg-accent-signature/5 transition-colors cursor-pointer group"
- >
- {/* Supplier identity */}
- <div className="flex items-center gap-3 min-w-0 col-span-2 md:col-span-1">
- <div className="w-9 h-9 shrink-0 rounded-lg bg-accent-signature/10 border border-accent-signature/25 text-accent-signature flex items-center justify-center tabular-nums font-bold text-[12px]">
- {initialsOf(s.name)}
- </div>
- <div className="min-w-0">
- <div className="font-bold text-[13px] text-ink-primary truncate">{s.name}</div>
- <div className="text-[11px] text-muted-foreground truncate">
- {[s.contact_person, s.phone].filter(Boolean).join(' · ') || 'No contact'}
- </div>
- </div>
- </div>
-
- {/* Procured */}
- <div className="text-left md:text-right">
- <span className="md:hidden text-[9px] uppercase tracking-wider font-bold text-muted-foreground mr-1">Procured</span>
- <span className="tabular-nums text-[13px] font-bold text-ink-primary">{cur}{stats.totalProcured.toLocaleString()}</span>
- </div>
-
- {/* You owe */}
- <div className="text-left md:text-right">
- <span className="md:hidden text-[9px] uppercase tracking-wider font-bold text-muted-foreground mr-1">You owe</span>
- <span className={` tabular-nums text-[13px] font-bold ${stats.creditDue > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{cur}{stats.creditDue.toLocaleString()}</span>
- </div>
-
- {/* Last supply */}
- <div className="text-left md:text-right">
- <span className="md:hidden text-[9px] uppercase tracking-wider font-bold text-muted-foreground mr-1">Last</span>
- <span className="text-[12px] font-semibold text-ink-secondary">{stats.lastPurchase ? new Date(stats.lastPurchase).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : 'Never'}</span>
- </div>
-
- {/* Actions */}
- <div className="flex items-center justify-end gap-1 col-span-2 md:col-span-1" onClick={e => e.stopPropagation()}>
- <button
- data-testid="edit-supplier-btn"
- onClick={() => openEditModal(s)}
- title="Edit"
- className="p-1.5 rounded-lg hover:bg-black/5 text-muted-foreground hover:text-ink-primary transition-colors"
- >
- <Edit3 size={14} />
- </button>
- {!isViewOnly() && (
- <button
- data-testid="delete-supplier-btn"
- onClick={() => handleDelete(s.id)}
- title="Delete"
- className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
- >
- <Trash2 size={14} />
- </button>
- )}
- <button onClick={goLedger} title="View transactions" className="p-1.5 rounded-lg hover:bg-accent-signature/10 text-accent-signature transition-colors">
- <ArrowUpRight size={15} />
- </button>
- </div>
- </div>
- );
-})}
- </div>
- </div>
- )}
- </div>
- </div>
-
- {/* Add Supplier Modal */}
- {isAdding && (
+  {isAdding && (
  <div className="modal-overlay">
  <div className="glass-modal !max-w-xl">
  <div className="flex justify-between items-start mb-3 border-b border-black/5 pb-3">
