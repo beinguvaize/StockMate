@@ -564,9 +564,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   const price  = parseFloat(wantPrice);
                   const marginPc = parseFloat(wantMargin);
                   const cost   = parseFloat(formData.costPrice);
-                  const ok = price > 0 && marginPc >= 0 && marginPc < 100;
-                  // cost per pack = price × (1 − margin);  size = that ÷ cost per base unit
-                  const size = ok ? (price * (1 - marginPc / 100)) / cost : null;
+                  // Use the SAME definition of margin as the rest of this screen:
+                  // (sell − cost) / COST, i.e. markup on cost. The first version
+                  // used the accounting margin (÷ sell), so the two boxes on one
+                  // screen meant different things by the same word — and at 100
+                  // it divided to zero and silently rendered nothing.
+                  //   sell = cost × size × (1 + m/100)  ⇒  size = sell ÷ (cost × (1 + m/100))
+                  const ok = price > 0 && marginPc >= 0;
+                  const size = ok ? price / (cost * (1 + marginPc / 100)) : null;
                   const isWeight = ['KG', 'LITRE'].includes(String(formData.unit || '').toUpperCase());
                   return (
                     <div className="mt-3 pt-3 border-t border-accent-signature/20">
@@ -581,11 +586,18 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                             className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[13px] font-semibold tabular-nums outline-none focus:border-accent-signature/50" />
                         </div>
                         <div className="w-24">
-                          <label className="block text-[9px] font-semibold text-muted-foreground uppercase mb-1">Margin %</label>
+                          <label className="block text-[9px] font-semibold text-muted-foreground uppercase mb-1">Margin % on cost</label>
                           <input type="number" step="1" placeholder="25" value={wantMargin}
                             onChange={e => setWantMargin(e.target.value)}
                             className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[13px] font-semibold tabular-nums outline-none focus:border-accent-signature/50" />
                         </div>
+                        {!(size > 0) && (wantPrice !== '' || wantMargin !== '') && (
+                          <div className="text-[11px] font-semibold text-muted-foreground pb-1.5">
+                            {!(price > 0)
+                              ? 'Enter the price you want to charge.'
+                              : 'Margin cannot be negative.'}
+                          </div>
+                        )}
                         {size > 0 && (
                           <>
                             <div className="text-[13px] font-bold tabular-nums text-foreground pb-1.5">
