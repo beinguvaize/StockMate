@@ -438,6 +438,12 @@ const SupplierLedger = () => {
                       const qty = Number(p.quantity ?? 0);
                       const unit = qty > 0 ? amount / qty : 0;
                       const credit = isCredit(p.payment_type);
+                      // Status must follow what is actually owed, not how the
+                      // bill was raised. A credit bill that has since been paid
+                      // was still labelled "Payable (Credit)" while the badge
+                      // beside it read PAID — the same row contradicting itself.
+                      const billPaid = Number(p.paid_amount ?? 0);
+                      const billDue = Math.max(0, amount - billPaid);
                       const expanded = expandedRow === p.id;
                       return (
                         <React.Fragment key={p.id}>
@@ -504,8 +510,12 @@ const SupplierLedger = () => {
                                   </div>
                                   <div>
                                     <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Status</div>
-                                    <div className={`font-semibold ${credit ? 'text-accent-signature' : 'text-emerald-600'}`}>
-                                      {credit ? 'Payable (Credit)' : 'Settled (Cash Paid)'}
+                                    <div className={`font-semibold ${billDue > 0.01 ? 'text-accent-signature' : 'text-emerald-600'}`}>
+                                      {billDue > 0.01
+                                        ? (billPaid > 0
+                                            ? `Part-paid · ${businessProfile?.currencySymbol || '₹'}${billDue.toLocaleString('en-IN', { maximumFractionDigits: 2 })} still due`
+                                            : 'Payable (Credit)')
+                                        : (credit ? 'Settled (paid later)' : 'Settled (cash paid)')}
                                     </div>
                                   </div>
                                   <div className="col-span-2 md:col-span-4">
