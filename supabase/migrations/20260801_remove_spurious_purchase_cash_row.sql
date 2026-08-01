@@ -1,0 +1,24 @@
+-- DATA REPAIR. Applied once. Snapshot: snap.spurious_purchase_cash_row_20260801.
+--
+-- ATX-MRZ0JJ1N443: Rs 6,900 cash OUT posted 24 Jul 14:06:02, four seconds after
+-- PUR-JGBHRX was created — so the purchase form wrote it at creation. But that
+-- bill is CREDIT, and a credit bill by definition is not paid at the counter.
+--
+-- The bill was then settled on 27 Jul with its own cash row (ATX-MS2S4IH2438,
+-- ref PUR-JGBHRX). Two outflows of Rs 6,900 for one Rs 6,900 bill.
+--
+-- The arithmetic decides it. If both had been real the supplier would be holding
+-- Rs 6,900 of the shop's money and his book would show a credit balance. The
+-- shop confirms SAJJAD's balance is zero, and that only Rs 6,900 left the till
+-- on 27 Jul. So this row is money that never moved.
+--
+-- Checked before deleting: this is the ONLY case in the tenant of a purchase
+-- cash row matching a credit bill, so it is a one-off rather than the form
+-- misbehaving for every credit purchase.
+--
+-- The 7 Jul reconciliation is unaffected — this row is dated after it, so the
+-- opening balance derived from that count still ties exactly to 88,390.45.
+--
+--   Company Cash  Rs 1,39,769.69 -> Rs 1,46,669.69
+
+DELETE FROM public.account_transactions WHERE id = 'ATX-MRZ0JJ1N443';
