@@ -52,3 +52,15 @@ BEGIN
   END IF;
   EXECUTE v_new;
 END $mig$;
+
+-- Dev carried an older process_purchase with no p_bill_no parameter, so the
+-- patch above found nothing to replace and correctly refused rather than
+-- guessing. Dev was brought to prod's definition instead — and because the two
+-- signatures differ by one argument, CREATE OR REPLACE created a SECOND
+-- overload rather than replacing. Both had to exist momentarily; the stale one
+-- is dropped so an 11-argument call cannot become ambiguous.
+--
+-- Included here so the same drift is handled if this is ever replayed onto an
+-- environment that is behind.
+DROP FUNCTION IF EXISTS public.process_purchase(
+  text, text, numeric, numeric, text, text, text, text, text, uuid, uuid);
