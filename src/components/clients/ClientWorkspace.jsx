@@ -150,7 +150,7 @@ const ClientWorkspace = ({
           not a third visual dialect. Receivable leads because that is the job. */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-border">
-          <Kpi label="Receivable" value={formatCurrency(kpis.receivable, cur)}
+          <Kpi label="Owed to you" value={formatCurrency(kpis.receivable, cur)}
                sub={`${kpis.owingCount} of ${clients.length} clients`} />
           <Kpi label="Overdue 30+ days" value={formatCurrency(kpis.overdue, cur)}
                tone={kpis.overdue > 0 ? 'text-red-600' : undefined}
@@ -198,7 +198,7 @@ const ClientWorkspace = ({
                   <tr className="border-b border-border text-left">
                     <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Client</th>
                     <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Last activity</th>
-                    <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Outstanding</th>
+                    <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Due</th>
                     <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Age</th>
                     <th className="px-4 py-2.5" />
                   </tr>
@@ -269,7 +269,7 @@ const ClientWorkspace = ({
             </div>
 
             <div className="rounded-xl bg-muted p-3 mt-3">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Outstanding</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Owes you</div>
               <div className="text-[24px] font-extrabold tabular-nums text-foreground leading-none mt-1">
                 {formatCurrency(selected._out, cur)}
               </div>

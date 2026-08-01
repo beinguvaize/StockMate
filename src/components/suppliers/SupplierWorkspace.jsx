@@ -52,7 +52,7 @@ const SupplierWorkspace = ({
   const facts = useMemo(() => {
     const by = {};
     (suppliers || []).forEach(s => {
-      by[s.id] = { bills: [], payments: [], payable: 0, billCount: 0, lastBill: null, oldestUnpaid: null, purchased: 0 };
+      by[s.id] = { bills: [], payments: [], payable: 0, advance: 0, billCount: 0, lastBill: null, oldestUnpaid: null, purchased: 0 };
     });
 
     (purchases || []).forEach(p => {
@@ -61,10 +61,16 @@ const SupplierWorkspace = ({
       if (!sup) return;
       const f = by[sup.id];
       const total = amtOf(p);
-      const due = Math.max(0, total - paidOf(p));
+      const raw = total - paidOf(p);
+      const due = Math.max(0, raw);
       f.bills.push({ ...p, _total: total, _due: due });
       f.billCount += 1;
       f.payable += due;
+      // Overpaying one bill leaves money sitting with that supplier. Flooring
+      // every bill at zero hid it: PUR-JGBHRX was paid twice, so Rs 6,900 of
+      // the shop's cash was with SAJJAD and the screen still said the full
+      // amount was owed. Track it, net it, and say so.
+      if (raw < 0) f.advance += -raw;
       f.purchased += total;
       if (!f.lastBill || String(p.date) > String(f.lastBill)) f.lastBill = p.date;
       if (due > 0.01 && (!f.oldestUnpaid || String(p.date) < String(f.oldestUnpaid))) f.oldestUnpaid = p.date;
@@ -85,7 +91,15 @@ const SupplierWorkspace = ({
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (suppliers || [])
-      .map(s => ({ ...s, _f: facts[s.id] || {}, _payable: facts[s.id]?.payable || 0 }))
+      .map(s => {
+        const f = facts[s.id] || {};
+        const advance = f.advance || 0;
+        return {
+          ...s, _f: f, _advance: advance,
+          // What is actually still owed, after money already sitting with them.
+          _payable: Math.max(0, (f.payable || 0) - advance),
+        };
+      })
       .filter(s => {
         if (filter === 'OWING' && s._payable <= 0.01) return false;
         if (!term) return true;
@@ -96,8 +110,13 @@ const SupplierWorkspace = ({
   }, [suppliers, facts, q, filter]);
 
   const kpis = useMemo(() => {
-    let payable = 0, owing = 0;
-    Object.values(facts).forEach(f => { payable += f.payable; if (f.payable > 0.01) owing += 1; });
+    let payable = 0, owing = 0, advance = 0;
+    Object.values(facts).forEach(f => {
+      const net = Math.max(0, (f.payable || 0) - (f.advance || 0));
+      payable += net;
+      advance += f.advance || 0;
+      if (net > 0.01) owing += 1;
+    });
 
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
     const paidThisMonth = (supplierPayments || [])
@@ -116,7 +135,7 @@ const SupplierWorkspace = ({
       if (age != null && (oldest == null || age > oldest)) { oldest = age; oldestName = s.name; }
     });
 
-    return { payable, owing, paidThisMonth, purchasedThisMonth, billsThisMonth, oldest, oldestName };
+    return { payable, owing, advance, paidThisMonth, purchasedThisMonth, billsThisMonth, oldest, oldestName };
   }, [facts, suppliers, purchases, supplierPayments]);
 
   const selected = rows.find(r => r.id === selectedId) || rows[0] || null;
@@ -125,9 +144,11 @@ const SupplierWorkspace = ({
     <div className="space-y-4">
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-border">
-          <Kpi label="Payable" value={formatCurrency(kpis.payable, cur)}
+          <Kpi label="You owe" value={formatCurrency(kpis.payable, cur)}
                tone={kpis.payable > 0 ? 'text-red-600' : undefined}
-               sub={`${kpis.owing} of ${suppliers.length} suppliers`} />
+               sub={kpis.advance > 0.01
+                 ? `${kpis.owing} of ${suppliers.length} · after ${formatCurrency(kpis.advance, cur)} paid in advance`
+                 : `${kpis.owing} of ${suppliers.length} suppliers`} />
           <Kpi label="Oldest unpaid"
                value={kpis.oldest != null ? <>{kpis.oldest} <span className="text-[12px] font-semibold text-muted-foreground">days</span></> : '—'}
                sub={kpis.oldestName || 'nothing outstanding'} />
@@ -168,7 +189,7 @@ const SupplierWorkspace = ({
                   <tr className="border-b border-border text-left">
                     <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Supplier</th>
                     <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Last bill</th>
-                    <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Payable</th>
+                    <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Due</th>
                     <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Bills</th>
                     <th className="px-4 py-2.5" />
                   </tr>
@@ -233,7 +254,7 @@ const SupplierWorkspace = ({
             </div>
 
             <div className="rounded-xl bg-muted p-3 mt-3">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Payable</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">You owe</div>
               <div className="text-[24px] font-extrabold tabular-nums text-foreground leading-none mt-1">
                 {formatCurrency(selected._payable, cur)}
               </div>
@@ -242,6 +263,11 @@ const SupplierWorkspace = ({
                 {selected._f.oldestUnpaid && ` · oldest ${new Date(selected._f.oldestUnpaid).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}`}
                 {Number(selected.credit_days) > 0 && ` · ${selected.credit_days}d terms`}
               </div>
+              {selected._advance > 0.01 && (
+                <div className="text-[11px] font-semibold text-emerald-600 mt-1">
+                  {formatCurrency(selected._advance, cur)} already paid in advance — netted off above
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2 mt-3">
