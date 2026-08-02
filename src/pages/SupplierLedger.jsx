@@ -20,7 +20,9 @@ const SupplierLedger = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { suppliers, loading: peoLoading } = usePeople(currentTenantId);
-  const { purchases, purchaseReturns, supplierPayments, paySupplier, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, supplierPayments, paySupplier, payPurchase, offsetCreditNote, loading: purLoading } = usePurchases(currentTenantId);
+  const [offsetting, setOffsetting] = useState(null);   // return id in flight
+  const [offsetMsg, setOffsetMsg]   = useState(null);
   const { products, loading: invLoading } = useInventory(currentTenantId);
   const { accounts: ledgerAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
   // Post a supplier payment OUT to the method's Cash/Bank account (non-blocking).
@@ -282,6 +284,28 @@ const SupplierLedger = () => {
   // Closing is always the balance across ALL history, never just the window —
   // what the supplier is owed today does not change because you looked at a
   // narrower period.
+  // A credit note is money the supplier owes back, not a smaller payable. How
+  // much of each has been offset is derived from the CREDIT_NOTE payment rows
+  // themselves rather than a flag, so the two can never drift apart.
+  const creditNotes = useMemo(() => supplierReturns.map(r => {
+    const used = payments
+      .filter(p => p.note === `Credit note ${r.id}` && !p.deleted_at)
+      .reduce((s, p) => s + Number(p.amount || 0), 0);
+    const total = Number(r.total_amount || 0);
+    return { ...r, used, open: Math.max(0, total - used), total };
+  }), [supplierReturns, payments]);
+
+  const openCredit = creditNotes.reduce((s, c) => s + c.open, 0);
+
+  const runOffset = async (returnId) => {
+    setOffsetting(returnId); setOffsetMsg(null);
+    const { success, applied, error } = await offsetCreditNote(returnId);
+    setOffsetting(null);
+    setOffsetMsg(success
+      ? { ok: true,  text: `${cur}${Math.round(applied).toLocaleString('en-IN')} offset against open bills.` }
+      : { ok: false, text: error?.message || 'Could not offset this credit note.' });
+  };
+
   const closing = ledgerRows.length ? ledgerRows[ledgerRows.length - 1].balance : 0;
   // Debit/credit columns total the visible period — a statement's totals should
   // add up to the lines printed beneath them. The balance beside them stays
@@ -428,6 +452,67 @@ const SupplierLedger = () => {
               </button>
             )}
           </div>
+
+          {/* Credit notes — money the supplier owes back.
+              Not netted off Amount Due on purpose. MADEENA's Rs 2,100 note is
+              against a cash bill already paid in full, so whether it offsets
+              their next bill or comes back as cash is their call, not the
+              app's. Visible, and applied only when told to. */}
+          {openCredit > 0.01 && (
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Credit notes</span>
+                  <div className="tabular-nums text-xl font-bold mt-0.5 text-blue-700">
+                    <span className="text-sm opacity-60 mr-0.5">{cur}</span>{openCredit.toLocaleString('en-IN')}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">owed to you, not yet applied</div>
+                </div>
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {creditNotes.filter(c => c.open > 0.01).map(c => (
+                  <div key={c.id} className="flex items-center justify-between gap-2 bg-white/70 rounded-xl px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold text-ink-primary truncate">
+                        {c.product_name || 'Return'} · {formatDate(c.date)}
+                      </div>
+                      <div className="text-[9px] text-muted-foreground tabular-nums">
+                        #{(c.id || '').slice(-8).toUpperCase()}
+                        {c.used > 0.01 && <> · {cur}{Math.round(c.used).toLocaleString('en-IN')} already applied</>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="tabular-nums text-[12px] font-bold text-blue-700">
+                        {cur}{Math.round(c.open).toLocaleString('en-IN')}
+                      </span>
+                      {metrics.payable > 0.01 && hasPermission('purchases', 'edit') !== false && (
+                        <button
+                          onClick={() => runOffset(c.id)}
+                          disabled={offsetting === c.id}
+                          title="Apply this credit against the supplier's open bills"
+                          className="no-print text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-ink-primary text-white hover:bg-black disabled:opacity-50 transition-all"
+                        >
+                          {offsetting === c.id ? '…' : 'Offset'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {metrics.payable <= 0.01 && (
+                <div className="text-[10px] text-muted-foreground mt-2">
+                  Nothing outstanding to offset against — collect this as cash or hold it for the next bill.
+                </div>
+              )}
+              {offsetMsg && (
+                <div className={`text-[10px] font-semibold mt-2 ${offsetMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {offsetMsg.text}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Total purchased — dark hero */}
           <div className="rounded-2xl bg-ink-primary p-5 relative overflow-hidden">

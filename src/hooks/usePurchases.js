@@ -298,6 +298,27 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     return { success: true, id };
   };
 
+  /**
+   * Apply a purchase return against the supplier's open bills.
+   *
+   * Deliberately manual. A credit note is a claim on the supplier, not a
+   * reduction of a payable: MADEENA's Rs 2,100 note is against a cash bill they
+   * had already paid in full, so whether it offsets the next bill or comes back
+   * as cash is a conversation with them. Nothing nets automatically.
+   *
+   * No money moves — the RPC books it as a CREDIT_NOTE payment row, which
+   * raises the bill's paid_amount without touching any cash or bank account.
+   */
+  const offsetCreditNote = async (returnId) => {
+    if (!returnId) return { error: new Error('returnId required') };
+    const { data: applied, error } = await restRpc('offset_supplier_credit_note', {
+      p_tenant_id: tenantId, p_return_id: returnId,
+    });
+    if (error) return { error };
+    await fetchPurchases();
+    return { success: true, applied: Number(applied) || 0 };
+  };
+
   return {
     data,
     purchases: data,
@@ -315,5 +336,6 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     addReturn,
     paySupplier,
     payPurchase,
+    offsetCreditNote,
   };
 };
