@@ -50,7 +50,9 @@ const SupplierLedger = () => {
 
   // payTarget: a specific purchase to pay, or null = pay supplier (auto-allocate).
   const [payTarget, setPayTarget] = useState(null);
-  const [showPayHist, setShowPayHist] = useState(true);
+  // Collapsed by default now that every payment appears in the ledger itself.
+  // Expanded it repeated the same five rows a few inches to the right.
+  const [showPayHist, setShowPayHist] = useState(false);
   const openPay = (purchase = null, prefill = '') => {
     setPayTarget(purchase);
     setPayAmount(prefill ? String(Math.round(prefill)) : ''); setPayMethod('CASH'); setPayRef(''); setPayNote('');
@@ -263,8 +265,13 @@ const SupplierLedger = () => {
     const total = supplierPurchases.reduce((s, p) => s + amt(p), 0);
     const cashPaid = supplierPurchases.filter(p => isCash(p.payment_type)).reduce((s, p) => s + amt(p), 0);
     const creditTotal = supplierPurchases.filter(p => isCredit(p.payment_type)).reduce((s, p) => s + amt(p), 0);
-    const count = supplierPurchases.length;
+    // Count bills, not purchases rows. A five-product bill is one purchase to
+    // the shopkeeper, and the ledger beside this now says so — leaving these
+    // on row counts made the card read "5 purchases" against 4 ledger lines,
+    // and pulled the average down to a per-product figure nobody buys at.
+    const count = bills.length;
     const avg = count > 0 ? total / count : 0;
+    const lineCount = supplierPurchases.length;
     const last = supplierPurchases[0]?.date;
     const totalReturns = supplierReturns.reduce((s, r) => s + Number(r.total_amount || 0), 0);
     const net = total - totalReturns;
@@ -276,8 +283,8 @@ const SupplierLedger = () => {
       .filter(p => isCredit(p.payment_type))
       .reduce((s, p) => s + Math.max(0, amt(p) - Number(p.paid_amount || 0)), 0);
 
-    return { total, count, avg, last, payable, cashPaid, creditTotal, totalReturns, net, totalPaid };
-  }, [supplierPurchases, supplierReturns, payments, supplier]);
+    return { total, count, avg, last, payable, cashPaid, creditTotal, totalReturns, net, totalPaid, lineCount };
+  }, [supplierPurchases, supplierReturns, payments, bills]);
 
   if (loading) return <PageSkeleton cards={3} rows={8} />;
 
@@ -398,7 +405,10 @@ const SupplierLedger = () => {
             <div className="tabular-nums text-3xl font-bold text-white leading-none mt-1.5">
               <span className="text-lg text-accent-signature/70 mr-1">{businessProfile?.currencySymbol || '₹'}</span>{metrics.total.toLocaleString()}
             </div>
-            <span className="inline-block mt-3 text-[10px] font-bold text-accent-signature/70 uppercase tracking-wider">{metrics.count} {metrics.count === 1 ? 'purchase' : 'purchases'}</span>
+            <span className="inline-block mt-3 text-[10px] font-bold text-accent-signature/70 uppercase tracking-wider">
+              {metrics.count} {metrics.count === 1 ? 'bill' : 'bills'}
+              {metrics.lineCount > metrics.count && <> · {metrics.lineCount} products</>}
+            </span>
           </div>
 
           {/* Stat breakdown */}
@@ -566,6 +576,15 @@ const SupplierLedger = () => {
                                     due {cur}{Math.round(b.due).toLocaleString('en-IN')}
                                   </span>
                                 )}
+                                {/* Single-product bill: pay it right here. Multi
+                                    product bills pay per line inside the detail,
+                                    since the money lands on different rows. */}
+                                {!multi && b.due > 0.01 && hasPermission('purchases', 'edit') !== false && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); openPay(b.rows[0], b.due); }}
+                                    className="no-print text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-ink-primary text-white hover:bg-black transition-all"
+                                  >Pay</button>
+                                )}
                               </div>
                               {names.length > 0 && (
                                 <div className={`text-[10px] text-muted-foreground truncate max-w-[260px] ${multi ? 'ml-[18px]' : ''}`}>
@@ -628,17 +647,6 @@ const SupplierLedger = () => {
                             </tr>
                           )}
 
-                          {/* A single-product bill still needs its Pay button. */}
-                          {!multi && b.due > 0.01 && hasPermission('purchases', 'edit') !== false && (
-                            <tr className="bg-canvas/30">
-                              <td colSpan="6" className="px-5 py-2 text-right">
-                                <button
-                                  onClick={() => openPay(b.rows[0], b.due)}
-                                  className="no-print text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg bg-ink-primary text-white hover:bg-black transition-all"
-                                >Pay {cur}{Math.round(b.due).toLocaleString('en-IN')}</button>
-                              </td>
-                            </tr>
-                          )}
                         </React.Fragment>
                       );
                     }
@@ -726,21 +734,10 @@ const SupplierLedger = () => {
               </table>
             </div>
 
-            {/* Slim summary footer */}
-            <div className="border-t border-black/5 bg-canvas/60 px-5 py-3 flex items-center justify-between gap-4">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <TrendingUp size={13} className="text-accent-signature" /> Total purchased
-              </span>
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Avg</span>
-                  <span className="tabular-nums text-[13px] font-bold text-ink-primary">{businessProfile?.currencySymbol || '₹'}{Math.round(metrics.avg).toLocaleString()}</span>
-                </div>
-                <div className="tabular-nums text-xl font-bold text-ink-primary">
-                  <span className="text-sm text-accent-signature mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{metrics.total.toLocaleString()}
-                </div>
-              </div>
-            </div>
+            {/* The old "Total purchased / Avg" strip lived here. Both figures
+                are already on the dark card and the stat list, and the table
+                now ends in a closing balance — the number this page exists to
+                answer. Three repeats of the same total buried it. */}
           </div>
         </div>
       </div>
