@@ -9,10 +9,8 @@ import { useInventory } from '../hooks/useInventory';
 import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { PageSkeleton } from '../components/ui/States';
 import {
-  ArrowLeft, Building2, Phone, Mail, MapPin,
-  History, Box, TrendingUp, Calendar, Search,
-  ArrowUpRight, CreditCard, Clock, FileText, ChevronRight,
-  TrendingDown, Percent, Info, ShieldCheck, User2
+  ArrowLeft, Phone, Mail, MapPin, Box, Search,
+  ArrowUpRight, CreditCard, ChevronRight, Info, ShieldCheck, User2
 } from 'lucide-react';
 import { formatDate } from '../lib/utils';
 
@@ -55,9 +53,6 @@ const SupplierLedger = () => {
 
   // payTarget: a specific purchase to pay, or null = pay supplier (auto-allocate).
   const [payTarget, setPayTarget] = useState(null);
-  // Collapsed by default now that every payment appears in the ledger itself.
-  // Expanded it repeated the same five rows a few inches to the right.
-  const [showPayHist, setShowPayHist] = useState(false);
   const openPay = (purchase = null, prefill = '') => {
     setPayTarget(purchase);
     setPayAmount(prefill ? String(Math.round(prefill)) : ''); setPayMethod('CASH'); setPayRef(''); setPayNote('');
@@ -131,23 +126,11 @@ const SupplierLedger = () => {
   // Payments not tied to a specific order — shown as ledger rows. Order-linked
   // payments are reflected in each purchase's Paid/Due instead (no double-show).
   const onAccountPayments = useMemo(() => payments.filter(p => !p.purchase_id), [payments]);
-  // Full payment history = credit settlements (supplier_payments) + cash
-  // purchases (paid at purchase, so no settlement row exists). Both are money
-  // actually paid to this supplier.
-  const paymentHistory = useMemo(() => {
-    const settlements = payments.map(p => ({
-      id: p.id, date: p.date, amount: Number(p.amount || 0),
-      method: p.payment_method, purchase_id: p.purchase_id, source: 'payment',
-    }));
-    const cashBuys = supplierPurchases
-      .filter(p => !isCredit(p.payment_type) && Number(p.total_amount ?? p.total_cost ?? 0) > 0)
-      .map(p => ({
-        id: `CP-${p.id}`, date: p.date, amount: Number(p.total_amount ?? p.total_cost ?? 0),
-        method: p.payment_type || 'CASH', purchase_id: p.id, source: 'purchase',
-      }));
-    return [...settlements, ...cashBuys].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
-  }, [payments, supplierPurchases]);
-  const paymentHistoryTotal = useMemo(() => paymentHistory.reduce((s, p) => s + p.amount, 0), [paymentHistory]);
+  // The sidebar's Payment history panel used to live here — settlements plus
+  // cash purchases, listed newest first. The ledger now carries every one of
+  // those as a dated credit row with a running balance beside it, so the panel
+  // was the same money a second time, a few inches to the left.
+  //
   // ── Bills ────────────────────────────────────────────────────────────────
   // One physical bill is stored as one `purchases` row PER PRODUCT — the
   // multi-product form writes them in a burst. RENO JOHN's 17 Jul bill is two
@@ -479,49 +462,6 @@ const SupplierLedger = () => {
             ))}
           </div>
 
-          {/* Payment history — every payment made to this supplier, newest first */}
-          <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
-            <button onClick={() => setShowPayHist(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.015] transition-colors">
-              <span className="flex items-center gap-2">
-                <History size={14} className="text-accent-signature" />
-                <span className="text-[12px] font-bold text-ink-primary">Payment history</span>
-                <span className="text-[11px] font-semibold text-muted-foreground">{paymentHistory.length}</span>
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="tabular-nums text-[12px] font-bold text-emerald-600">{businessProfile?.currencySymbol || '₹'}{Math.round(paymentHistoryTotal).toLocaleString()}</span>
-                <ChevronRight size={15} className={`text-muted-foreground transition-transform ${showPayHist ? 'rotate-90' : ''}`} />
-              </span>
-            </button>
-            {showPayHist && (
-              <div className="border-t border-black/5 max-h-80 overflow-y-auto custom-scrollbar">
-                {paymentHistory.length === 0 && (
-                  <div className="px-4 py-8 text-center text-[12px] font-semibold text-muted-foreground">No payments yet.</div>
-                )}
-                {paymentHistory.map(p => {
-                  const ord = p.purchase_id
-                    ? (supplierPurchases.find(x => x.id === p.purchase_id)?.invoice_no || `#${String(p.purchase_id).slice(-6).toUpperCase()}`)
-                    : null;
-                  return (
-                    <div key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-black/[0.04] last:border-0">
-                      <div className="min-w-0">
-                        <div className="text-[12px] font-semibold text-ink-primary">{formatDate(p.date)}</div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground bg-black/[0.05] px-1.5 py-0.5 rounded">{p.method || 'CASH'}</span>
-                          {p.source === 'purchase'
-                            ? <span className="tabular-nums text-[9px] font-bold text-accent-signature-hover">{ord} · cash buy</span>
-                            : ord
-                              ? <span className="tabular-nums text-[9px] font-bold text-accent-signature-hover">{ord}</span>
-                              : <span className="text-[9px] font-semibold text-muted-foreground uppercase">On account</span>}
-                        </div>
-                      </div>
-                      <span className="tabular-nums text-[13px] font-bold text-emerald-600 shrink-0">{businessProfile?.currencySymbol || '₹'}{Number(p.amount || 0).toLocaleString()}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Right Column: Detailed Purchase History */}
