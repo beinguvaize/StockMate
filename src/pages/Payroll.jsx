@@ -762,11 +762,44 @@ const Payroll = () => {
                 value={empForm.dailyRate} onChange={e => setEmpForm({...empForm, dailyRate: e.target.value})} />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1">Days worked (this cycle)</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1">
+                {empForm.payType === 'DAILY' ? 'Days worked (this cycle)' : 'Hours worked (this cycle)'}
+              </label>
               <input type="number" placeholder="0"
                 className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
                 value={empForm.daysWorked} onChange={e => setEmpForm({...empForm, daysWorked: e.target.value})} />
             </div>
+            {/* The wage is rate × units, worked out silently at save time. You
+                were typing two numbers and only finding out what got stored
+                afterwards — show it as it is typed. */}
+            {(() => {
+              const sym  = businessProfile?.currencySymbol || '₹';
+              const rate = parseFloat(empForm.dailyRate) || 0;
+              const unit = parseFloat(empForm.daysWorked) || 0;
+              const noun = empForm.payType === 'DAILY' ? 'day' : 'hour';
+              if (!(rate > 0)) return null;
+              return (
+                <div className="col-span-2 -mt-1">
+                  {unit > 0 ? (
+                    <div className="flex items-baseline justify-between rounded-lg bg-canvas border border-black/8 px-3 py-2">
+                      <span className="text-[11px] font-medium text-ink-secondary">
+                        Wage this cycle
+                        <span className="text-muted-foreground ml-1.5 tabular-nums">
+                          {sym}{rate.toLocaleString('en-IN')} × {unit.toLocaleString('en-IN')} {noun}{unit === 1 ? '' : 's'}
+                        </span>
+                      </span>
+                      <span className="text-sm font-bold tabular-nums text-ink-primary">
+                        {sym}{(rate * unit).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-muted-foreground">
+                      {sym}{rate.toLocaleString('en-IN')} per {noun}. Add {noun}s worked to record a wage for this cycle — attendance drives the actual pay run.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
         <div className="grid grid-cols-2 gap-3 mt-3">
