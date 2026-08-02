@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePayroll } from '../hooks/usePayroll';
@@ -51,7 +52,39 @@ const Payroll = () => {
   const [pendingAtt, setPendingAtt] = useState({});
   const [attSaving, setAttSaving] = useState(false);
   const [attSaveError, setAttSaveError] = useState(null);
-  const [attPicker, setAttPicker] = useState(null); // { empId, day } — open cell
+  const [attPicker, setAttPicker] = useState(null); // { empId, day, dayNum, rate } — open cell
+  // The picker is rendered through a portal, because its cell sits inside an
+  // overflow-hidden card AND an overflow-x-auto scroller — an absolutely
+  // positioned popover is clipped by both. Same reason ProductPicker in
+  // MultiPurchaseForm.jsx portals its list.
+  const attAnchorRef = useRef(null);
+  const [attRect, setAttRect] = useState(null);
+  const [attRateDraft, setAttRateDraft] = useState({});   // { [empId]: '900' }
+  const [attApplyNote, setAttApplyNote] = useState(null); // { empId, text }
+
+  useLayoutEffect(() => {
+    if (!attPicker) { setAttRect(null); return undefined; }
+    const measure = () => {
+      const el = attAnchorRef.current;
+      if (el) setAttRect(el.getBoundingClientRect());
+    };
+    measure();
+    // Capture phase, so the grid's own horizontal scroll moves it too — not
+    // just the window's.
+    window.addEventListener('scroll', measure, true);
+    window.addEventListener('resize', measure);
+    return () => {
+      window.removeEventListener('scroll', measure, true);
+      window.removeEventListener('resize', measure);
+    };
+  }, [attPicker]);
+
+  useEffect(() => {
+    if (!attPicker) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setAttPicker(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [attPicker]);
   const [attLoading, setAttLoading] = useState(false);
 
   const attYear  = useMemo(() => parseInt(payRunMonth.split('-')[0]), [payRunMonth]);
@@ -169,7 +202,46 @@ const Payroll = () => {
     stageAtt(empId, day, { status: current.status, custom_rate: Number.isNaN(rate) ? null : rate });
   };
 
-  const discardAtt = () => { setPendingAtt({}); setAttSaveError(null); setAttPicker(null); };
+  /**
+   * Put one rate on every Present day of the visible month for an employee.
+   *
+   * Setting a month at a non-default rate meant opening ~26 pickers. This does
+   * it once, but only fills days that carry no rate yet — a bulk action that
+   * silently overwrote a deliberate per-day exception would be worse than the
+   * tedium it saves. It reports both counts so the skipped days are visible
+   * rather than looking like a partial failure.
+   *
+   * Half-days are excluded on purpose: STATUS_WEIGHT already halves them, so
+   * writing a full day's rate there would apply the halving twice.
+   */
+  const applyRateToPresentDays = (empId, value) => {
+    const rate = parseFloat(value);
+    if (!(rate > 0)) { setAttSaveError('Enter a rate above zero to apply.'); return; }
+
+    const days = attendance[empId] || {};
+    let set = 0, skipped = 0;
+    const staged = { ...(pendingAtt[empId] || {}) };
+
+    for (const [day, a] of Object.entries(days)) {
+      if (a.status !== 'PRESENT') continue;
+      if (a.custom_rate != null) { skipped += 1; continue; }
+      staged[day] = { status: 'PRESENT', custom_rate: rate };
+      set += 1;
+    }
+
+    if (!set) {
+      setAttSaveError(skipped
+        ? `Every present day already has its own rate (${skipped}).`
+        : 'No days marked Present this month yet.');
+      return;
+    }
+
+    setAttSaveError(null);
+    setPendingAtt(prev => ({ ...prev, [empId]: staged }));
+    setAttApplyNote({ empId, text: `${set} day${set === 1 ? '' : 's'} set${skipped ? ` · ${skipped} kept their own rate` : ''}` });
+  };
+
+  const discardAtt = () => { setPendingAtt({}); setAttSaveError(null); setAttPicker(null); setAttApplyNote(null); };
 
   const saveAttendance = async () => {
     if (!pendingCount || attSaving) return;
@@ -619,9 +691,34 @@ const Payroll = () => {
                     const wage = Math.round(computeWage(emp.id, emp.daily_rate || 0));
                     return (
                       <tr key={emp.id} className="hover:bg-canvas/50">
-                        <td className="px-4 py-2 sticky left-0 bg-white z-10">
+                        <td className="px-4 py-2 sticky left-0 bg-white z-10 align-top">
                           <div className="text-xs font-semibold text-ink-primary leading-none truncate max-w-[120px]">{emp.name}</div>
                           <div className="text-[8px] text-muted-foreground font-semibold mt-0.5">{sym}{(emp.daily_rate || 0).toLocaleString('en-IN')}/day</div>
+                          {/* One rate across the month's present days, instead of
+                              opening a picker on each of ~26 cells. Fills only
+                              days with no rate of their own. */}
+                          <div className="flex items-center gap-1 mt-1.5">
+                            <input
+                              type="number"
+                              className="w-14 text-[9px] px-1.5 py-1 rounded border border-black/10 outline-none focus:ring-1 focus:ring-accent-signature/30 tabular-nums"
+                              placeholder={String(emp.daily_rate || 0)}
+                              value={attRateDraft[emp.id] ?? ''}
+                              onChange={e => setAttRateDraft(prev => ({ ...prev, [emp.id]: e.target.value }))}
+                              onKeyDown={e => {
+                                if (e.key !== 'Enter') return;
+                                applyRateToPresentDays(emp.id, attRateDraft[emp.id] ?? emp.daily_rate);
+                              }}
+                            />
+                            <button
+                              onClick={() => applyRateToPresentDays(emp.id, attRateDraft[emp.id] ?? emp.daily_rate)}
+                              title="Apply this rate to every day marked Present this month that has no rate yet"
+                              className="px-1.5 py-1 rounded border border-black/10 text-[9px] font-bold text-ink-secondary hover:text-ink-primary hover:bg-black/5 transition-all whitespace-nowrap">
+                              Apply
+                            </button>
+                          </div>
+                          {attApplyNote?.empId === emp.id && (
+                            <div className="text-[8px] text-emerald-600 font-semibold mt-1 leading-tight">{attApplyNote.text}</div>
+                          )}
                         </td>
                         {attDays.map(d => {
                           const dateStr = `${attYear}-${padZ(attMonth)}-${padZ(d)}`;
@@ -635,66 +732,27 @@ const Payroll = () => {
                           const rateShown = hasCustomRate ? attEntry.custom_rate : null;
                           return (
                             <td key={d} className={`p-0.5 text-center align-top ${isWeekend ? 'bg-orange-50/60' : ''}`}>
-                              <div className="relative inline-block">
-                                <button
-                                  onClick={() => setAttPicker(isOpen ? null : { empId: emp.id, day: dateStr })}
-                                  className={`w-8 rounded text-[10px] font-bold transition-all cursor-pointer leading-none py-1 ${statusStyle(status)} ${
-                                    hasCustomRate ? 'ring-1 ring-blue-400' : ''
-                                  } ${isDirty ? 'outline outline-2 outline-offset-1 outline-accent-signature' : ''} ${isOpen ? 'ring-2 ring-ink-primary' : ''}`}
-                                  title={dateStr}
-                                >
-                                  <span className="block">{statusLabel(status)}</span>
-                                  {/* The day's rate, on the cell. It used to live
-                                      in a title tooltip and a hover-only input,
-                                      so a wage you had set was invisible. */}
-                                  {rateShown != null && (
-                                    <span className="block text-[7px] font-semibold tabular-nums text-blue-600 mt-0.5">
-                                      {Math.round(rateShown)}
-                                    </span>
-                                  )}
-                                </button>
-
-                                {isOpen && (
-                                  <>
-                                    <div className="fixed inset-0 z-30" onClick={() => setAttPicker(null)} />
-                                    <div className="absolute z-40 top-full left-1/2 -translate-x-1/2 mt-1 w-40 bg-white border border-black/10 rounded-xl shadow-lg p-2 text-left">
-                                      <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-1 pb-1.5">
-                                        {new Date(attYear, attMonth - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                      </div>
-                                      {[['PRESENT','Present','✓'],['ABSENT','Absent','✗'],['HALF_DAY','Half day','½']].map(([val, label, icon]) => (
-                                        <button key={val}
-                                          onClick={() => { setAttStatus(emp.id, dateStr, val); setAttPicker(null); }}
-                                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
-                                            status === val ? 'bg-ink-primary text-white' : 'text-ink-primary hover:bg-black/5'
-                                          }`}>
-                                          <span className="w-4 text-center">{icon}</span>{label}
-                                        </button>
-                                      ))}
-                                      {status && (
-                                        <>
-                                          <div className="border-t border-black/5 my-1.5" />
-                                          <label className="block text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-1 mb-1">
-                                            Rate for this day
-                                          </label>
-                                          <input
-                                            type="number" autoFocus
-                                            className="w-full text-[11px] px-2 py-1.5 rounded-lg border border-black/10 outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
-                                            placeholder={`${sym}${emp.daily_rate || 0} default`}
-                                            value={attEntry?.custom_rate ?? ''}
-                                            onChange={e => setCustomRate(emp.id, dateStr, e.target.value)}
-                                            onKeyDown={e => { if (e.key === 'Enter') setAttPicker(null); }}
-                                          />
-                                          <button
-                                            onClick={() => { clearAtt(emp.id, dateStr); setAttPicker(null); }}
-                                            className="w-full mt-1.5 px-2 py-1.5 rounded-lg text-[11px] font-semibold text-red-600 hover:bg-red-50 transition-all text-left">
-                                            Clear this day
-                                          </button>
-                                        </>
-                                      )}
-                                    </div>
-                                  </>
+                              <button
+                                onClick={(e) => {
+                                  if (isOpen) { setAttPicker(null); return; }
+                                  attAnchorRef.current = e.currentTarget;
+                                  setAttPicker({ empId: emp.id, day: dateStr, dayNum: d, rate: emp.daily_rate || 0 });
+                                }}
+                                className={`w-8 rounded text-[10px] font-bold transition-all cursor-pointer leading-none py-1 ${statusStyle(status)} ${
+                                  hasCustomRate ? 'ring-1 ring-blue-400' : ''
+                                } ${isDirty ? 'outline outline-2 outline-offset-1 outline-accent-signature' : ''} ${isOpen ? 'ring-2 ring-ink-primary' : ''}`}
+                                title={dateStr}
+                              >
+                                <span className="block">{statusLabel(status)}</span>
+                                {/* The day's rate, on the cell. It used to live
+                                    in a title tooltip and a hover-only input,
+                                    so a wage you had set was invisible. */}
+                                {rateShown != null && (
+                                  <span className="block text-[7px] font-semibold tabular-nums text-blue-600 mt-0.5">
+                                    {Math.round(rateShown)}
+                                  </span>
                                 )}
-                              </div>
+                              </button>
                             </td>
                           );
                         })}
@@ -754,6 +812,67 @@ const Payroll = () => {
             </button>
           </div>
         )}
+
+        {/* ── Day picker ──────────────────────────────────────────────────
+            One instance for the whole grid, portalled to <body> so neither the
+            card's overflow-hidden nor the table's horizontal scroller can clip
+            it. Positioned from the anchor cell's measured rect, flipped up and
+            clamped sideways when it would otherwise leave the viewport — day 31
+            sits at the right edge and the last row at the bottom of the page. */}
+        {attPicker && attRect && createPortal((() => {
+          const W = 168, H = attendance[attPicker.empId]?.[attPicker.day]?.status ? 240 : 120;
+          const flipUp = attRect.bottom + H > window.innerHeight - 8;
+          const left = Math.min(
+            Math.max(8, attRect.left + attRect.width / 2 - W / 2),
+            window.innerWidth - W - 8
+          );
+          const top = flipUp ? Math.max(8, attRect.top - H - 6) : attRect.bottom + 6;
+          const entry = attendance[attPicker.empId]?.[attPicker.day];
+          const st = entry?.status;
+          return (
+            <>
+              <div className="fixed inset-0 z-[90]" onClick={() => setAttPicker(null)} />
+              <div
+                className="fixed z-[100] bg-white border border-black/10 rounded-xl shadow-xl p-2 text-left"
+                style={{ left, top, width: W }}
+              >
+                <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-1 pb-1.5">
+                  {new Date(attYear, attMonth - 1, attPicker.dayNum).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                </div>
+                {[['PRESENT','Present','✓'],['ABSENT','Absent','✗'],['HALF_DAY','Half day','½']].map(([val, label, icon]) => (
+                  <button key={val}
+                    onClick={() => { setAttStatus(attPicker.empId, attPicker.day, val); setAttPicker(null); }}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                      st === val ? 'bg-ink-primary text-white' : 'text-ink-primary hover:bg-black/5'
+                    }`}>
+                    <span className="w-4 text-center">{icon}</span>{label}
+                  </button>
+                ))}
+                {st && (
+                  <>
+                    <div className="border-t border-black/5 my-1.5" />
+                    <label className="block text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-1 mb-1">
+                      Rate for this day
+                    </label>
+                    <input
+                      type="number" autoFocus
+                      className="w-full text-[11px] px-2 py-1.5 rounded-lg border border-black/10 outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                      placeholder={`${sym}${attPicker.rate} default`}
+                      value={entry?.custom_rate ?? ''}
+                      onChange={e => setCustomRate(attPicker.empId, attPicker.day, e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') setAttPicker(null); }}
+                    />
+                    <button
+                      onClick={() => { clearAtt(attPicker.empId, attPicker.day); setAttPicker(null); }}
+                      className="w-full mt-1.5 px-2 py-1.5 rounded-lg text-[11px] font-semibold text-red-600 hover:bg-red-50 transition-all text-left">
+                      Clear this day
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          );
+        })(), document.body)}
       </div>
     );
   })()}
