@@ -170,34 +170,92 @@ export const usePayroll = (tenantId) => {
   };
 
   // ── Attendance ────────────────────────────────────────────────────────
+  //
+  // These read and wrote `date` and `ot_hours`. The table has neither: the
+  // column is `day`, there is no ot_hours at all, and the unique key is
+  // (tenant_id, employee_id, day). So the select returned nothing and every
+  // write errored — and both only console.error'd, so a total failure stayed
+  // invisible. Prod holds 2 attendance rows against weeks of use, and both
+  // were written by the mobile app, which had it right all along
+  // (hr_screen.dart:1686). This now matches mobile.
   const loadAttendance = useCallback(async (year, month) => {
     if (!tenantId) return {};
     const pad = (n) => String(n).padStart(2, '0');
     const lastDay = new Date(year, month, 0).getDate();
     const { data, error } = await supabase
       .from('attendance')
-      .select('employee_id, date, status, ot_hours, custom_rate')
+      .select('employee_id, day, status, custom_rate')
       .eq('tenant_id', tenantId)
-      .gte('date', `${year}-${pad(month)}-01`)
-      .lte('date', `${year}-${pad(month)}-${pad(lastDay)}`);
-    if (error) { console.error('loadAttendance:', error); return {}; }
+      .is('deleted_at', null)
+      .gte('day', `${year}-${pad(month)}-01`)
+      .lte('day', `${year}-${pad(month)}-${pad(lastDay)}`);
+    if (error) { console.error('loadAttendance:', error); return { error }; }
     const map = {};
     for (const row of data || []) {
       if (!map[row.employee_id]) map[row.employee_id] = {};
-      map[row.employee_id][row.date] = { status: row.status, ot_hours: row.ot_hours || 0, custom_rate: row.custom_rate ?? null };
+      map[row.employee_id][row.day] = { status: row.status, custom_rate: row.custom_rate ?? null };
     }
     return map;
   }, [tenantId]);
 
-  const markAttendance = useCallback(async (employeeId, date, status, otHours = 0, customRate = null) => {
+  const markAttendance = useCallback(async (employeeId, day, status, customRate = null) => {
     const { error } = await supabase
       .from('attendance')
       .upsert(
-        { tenant_id: tenantId, employee_id: employeeId, date, status, ot_hours: otHours, custom_rate: customRate },
-        { onConflict: 'tenant_id,employee_id,date' }
+        {
+          tenant_id: tenantId, employee_id: employeeId, day, status,
+          custom_rate: customRate,
+          // Re-marking a cleared day must revive its row: the unique key still
+          // holds it, so a plain insert would collide.
+          deleted_at: null,
+        },
+        { onConflict: 'tenant_id,employee_id,day' }
       );
     if (error) console.error('markAttendance:', error);
-    return { success: !error };
+    // Return the error, not just a boolean. A caller that cannot say WHY a save
+    // failed ends up showing "failed to save" and hiding the cause — which is
+    // how a schema mismatch survived this long.
+    return { success: !error, error };
+  }, [tenantId]);
+
+  /**
+   * Commit a screenful of attendance edits.
+   *
+   * `marks` are upserted in one round trip and `clears` soft-deleted in
+   * another — two calls regardless of how many cells changed. The old path
+   * wrote once per cell, and once per keystroke while typing a rate.
+   */
+  const saveAttendanceBatch = useCallback(async (marks = [], clears = []) => {
+    if (!tenantId) return { success: false, error: { message: 'No tenant' } };
+
+    if (marks.length) {
+      const rows = marks.map(m => ({
+        tenant_id: tenantId,
+        employee_id: m.employeeId,
+        day: m.day,
+        status: m.status,
+        custom_rate: m.customRate ?? null,
+        deleted_at: null,
+      }));
+      const { error } = await supabase
+        .from('attendance')
+        .upsert(rows, { onConflict: 'tenant_id,employee_id,day' });
+      if (error) { console.error('saveAttendanceBatch (marks):', error); return { success: false, error }; }
+    }
+
+    // Soft delete, so clearing a day and marking it again reuses the row rather
+    // than fighting the unique key.
+    for (const c of clears) {
+      const { error } = await supabase
+        .from('attendance')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('tenant_id', tenantId)
+        .eq('employee_id', c.employeeId)
+        .eq('day', c.day);
+      if (error) { console.error('saveAttendanceBatch (clear):', error); return { success: false, error }; }
+    }
+
+    return { success: true, error: null };
   }, [tenantId]);
 
   return {
@@ -214,5 +272,6 @@ export const usePayroll = (tenantId) => {
     resetEmployeesDailyData,
     loadAttendance,
     markAttendance,
+    saveAttendanceBatch,
   };
 };

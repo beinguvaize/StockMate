@@ -21,7 +21,7 @@ const Payroll = () => {
   const {
     employees, addEmployee, updateEmployee, deleteEmployee,
     payrollRecords, processPayroll, deletePayrollRecord, resetEmployeesDailyData,
-    loadAttendance, markAttendance,
+    loadAttendance, saveAttendanceBatch,
     loading: payLoading
   } = usePayroll(currentTenantId);
 
@@ -45,7 +45,13 @@ const Payroll = () => {
   });
 
   // ── Attendance state ─────────────────────────────────────────────────
-  const [attendance, setAttendance] = useState({});  // { [empId]: { [dateStr]: { status } } }
+  // What is actually in the database for the visible month.
+  const [savedAtt, setSavedAtt] = useState({});   // { [empId]: { [day]: { status, custom_rate } } }
+  // Edits not yet written. A day mapped to null means "clear this one".
+  const [pendingAtt, setPendingAtt] = useState({});
+  const [attSaving, setAttSaving] = useState(false);
+  const [attSaveError, setAttSaveError] = useState(null);
+  const [attPicker, setAttPicker] = useState(null); // { empId, day } — open cell
   const [attLoading, setAttLoading] = useState(false);
 
   const attYear  = useMemo(() => parseInt(payRunMonth.split('-')[0]), [payRunMonth]);
@@ -63,8 +69,30 @@ const Payroll = () => {
     [employees]
   );
 
-  const ATTENDANCE_CYCLE = { PRESENT: 'ABSENT', ABSENT: 'HALF_DAY', HALF_DAY: 'PRESENT' };
   const STATUS_WEIGHT    = { PRESENT: 1, HALF_DAY: 0.5, OT: 1, ABSENT: 0 };
+
+  // Saved rows with unsaved edits laid over them. Everything downstream —
+  // computeDays, computeWage, the wage column, the payout footer — reads this
+  // one map, so buffered edits show their effect on pay before being written
+  // and none of those helpers needed changing.
+  const attendance = useMemo(() => {
+    if (!Object.keys(pendingAtt).length) return savedAtt;
+    const merged = { ...savedAtt };
+    for (const [empId, days] of Object.entries(pendingAtt)) {
+      const row = { ...(merged[empId] || {}) };
+      for (const [day, val] of Object.entries(days)) {
+        if (val === null) delete row[day];   // cleared
+        else row[day] = val;
+      }
+      merged[empId] = row;
+    }
+    return merged;
+  }, [savedAtt, pendingAtt]);
+
+  const pendingCount = useMemo(
+    () => Object.values(pendingAtt).reduce((n, days) => n + Object.keys(days).length, 0),
+    [pendingAtt]
+  );
 
   const weekEnd = useMemo(() => {
     const d = new Date(weekStart);
@@ -102,33 +130,99 @@ const Payroll = () => {
     [attendance]
   );
 
-  const toggleAttendance = async (empId, dateStr) => {
-    const current = attendance[empId]?.[dateStr]?.status;
-    const next = ATTENDANCE_CYCLE[current] || 'PRESENT';
-    const existingCustomRate = attendance[empId]?.[dateStr]?.custom_rate ?? null;
-    setAttendance(prev => ({
-      ...prev,
-      [empId]: { ...(prev[empId] || {}), [dateStr]: { status: next, ot_hours: 0, custom_rate: existingCustomRate } },
-    }));
-    await markAttendance(empId, dateStr, next, 0, existingCustomRate);
+  // ── Editing ──────────────────────────────────────────────────────────────
+  // These used to write to the database on every interaction — and, in the case
+  // of a rate, on every keystroke, so typing 900 wrote 9 then 90 then 900. They
+  // now only move the buffer; saveAttendance commits it.
+  const stageAtt = (empId, day, value) => {
+    setAttSaveError(null);
+    setPendingAtt(prev => ({ ...prev, [empId]: { ...(prev[empId] || {}), [day]: value } }));
   };
 
-  const setCustomRate = (empId, dateStr, value) => {
-    const rate = value === '' ? null : parseFloat(value);
-    const current = attendance[empId]?.[dateStr];
-    if (!current) return;
-    setAttendance(prev => ({
-      ...prev,
-      [empId]: { ...prev[empId], [dateStr]: { ...current, custom_rate: rate } },
-    }));
-    markAttendance(empId, dateStr, current.status, current.ot_hours || 0, isNaN(rate) ? null : rate);
+  const setAttStatus = (empId, day, status) => {
+    const existingRate = attendance[empId]?.[day]?.custom_rate ?? null;
+    stageAtt(empId, day, { status, custom_rate: existingRate });
   };
+
+  // Removing a mark was impossible before: the cycle ran
+  // PRESENT → ABSENT → HALF_DAY → PRESENT and never returned to blank, so a day
+  // marked by accident stayed marked forever.
+  const clearAtt = (empId, day) => {
+    // Never saved in the first place — just drop it from the buffer.
+    if (!savedAtt[empId]?.[day]) {
+      setPendingAtt(prev => {
+        const days = { ...(prev[empId] || {}) };
+        delete days[day];
+        const next = { ...prev };
+        if (Object.keys(days).length) next[empId] = days; else delete next[empId];
+        return next;
+      });
+      return;
+    }
+    stageAtt(empId, day, null);
+  };
+
+  const setCustomRate = (empId, day, value) => {
+    const current = attendance[empId]?.[day];
+    if (!current) return;                       // a rate needs a day marked first
+    const rate = value === '' ? null : parseFloat(value);
+    stageAtt(empId, day, { status: current.status, custom_rate: Number.isNaN(rate) ? null : rate });
+  };
+
+  const discardAtt = () => { setPendingAtt({}); setAttSaveError(null); setAttPicker(null); };
+
+  const saveAttendance = async () => {
+    if (!pendingCount || attSaving) return;
+    setAttSaving(true);
+    setAttSaveError(null);
+
+    const marks = [];
+    const clears = [];
+    for (const [empId, days] of Object.entries(pendingAtt)) {
+      for (const [day, val] of Object.entries(days)) {
+        if (val === null) clears.push({ employeeId: empId, day });
+        else marks.push({ employeeId: empId, day, status: val.status, customRate: val.custom_rate });
+      }
+    }
+
+    const { success, error } = await saveAttendanceBatch(marks, clears);
+    setAttSaving(false);
+    if (!success) {
+      // Say what actually went wrong. A bare "failed to save" is how the schema
+      // mismatch behind all of this went unnoticed for weeks.
+      setAttSaveError(error?.message || 'Could not save attendance');
+      return;
+    }
+
+    // Fold the saved edits into the baseline rather than refetching — the
+    // server now holds exactly what was just sent.
+    setSavedAtt(prev => {
+      const next = { ...prev };
+      for (const [empId, days] of Object.entries(pendingAtt)) {
+        const row = { ...(next[empId] || {}) };
+        for (const [day, val] of Object.entries(days)) {
+          if (val === null) delete row[day]; else row[day] = val;
+        }
+        next[empId] = row;
+      }
+      return next;
+    });
+    setPendingAtt({});
+    setAttPicker(null);
+  };
+
+  // Changing month reloads the grid, which would throw away anything unsaved.
+  const confirmLeaveMonth = () =>
+    !pendingCount ||
+    window.confirm(`${pendingCount} unsaved attendance ${pendingCount === 1 ? 'change' : 'changes'} will be lost. Continue?`);
 
   const goPrevMonth = () => {
+    if (!confirmLeaveMonth()) return;
     const d = new Date(attYear, attMonth - 2, 1);
     setPayRunMonth(`${d.getFullYear()}-${padZ(d.getMonth() + 1)}`);
   };
   const goNextMonth = () => {
+    if (!confirmLeaveMonth()) return;
     const d = new Date(attYear, attMonth, 1);
     setPayRunMonth(`${d.getFullYear()}-${padZ(d.getMonth() + 1)}`);
   };
@@ -348,10 +442,21 @@ const Payroll = () => {
     if (!currentTenantId) return;
     setAttLoading(true);
     loadAttendance(attYear, attMonth).then(map => {
-      setAttendance(map);
+      if (map?.error) { setAttSaveError(map.error.message || 'Could not load attendance'); setSavedAtt({}); }
+      else setSavedAtt(map);
+      setPendingAtt({});
+      setAttPicker(null);
       setAttLoading(false);
     });
   }, [attYear, attMonth, currentTenantId]);
+
+  // Buffered work that disappears without a word is worse than no buffer.
+  useEffect(() => {
+    if (!pendingCount) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [pendingCount]);
 
   return (
   <>
@@ -444,9 +549,42 @@ const Payroll = () => {
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-emerald-100 text-emerald-700 flex items-center justify-center text-[9px] font-bold">✓</span> Present</span>
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-red-50 text-red-500 flex items-center justify-center text-[9px] font-bold">✗</span> Absent</span>
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-accent-signature/10 text-accent-signature flex items-center justify-center text-[9px] font-bold">½</span> Half Day</span>
-          <span className="text-muted-foreground italic">Click cell to cycle status · Hover to set custom rate</span>
+          <span className="text-muted-foreground italic">Click a day to mark it, clear it, or set that day&apos;s rate</span>
           {attLoading && <span className="text-muted-foreground animate-pulse">Loading…</span>}
         </div>
+
+        {/* Save bar. Nothing in this grid is written until this is pressed. */}
+        {(pendingCount > 0 || attSaveError) && (
+          <div className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-2.5 ${
+            attSaveError ? 'bg-red-50 border-red-200' : 'bg-accent-signature/10 border-accent-signature/25'
+          }`}>
+            <div className="min-w-0">
+              {attSaveError ? (
+                <>
+                  <span className="text-[12px] font-bold text-red-700">Not saved</span>
+                  <span className="text-[11px] text-red-600 ml-2">{attSaveError}</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-[12px] font-bold text-accent-signature-hover">
+                    {pendingCount} unsaved {pendingCount === 1 ? 'change' : 'changes'}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground ml-2">Wages and totals below already reflect them.</span>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={discardAtt} disabled={attSaving}
+                className="px-3 py-1.5 rounded-lg border border-black/10 bg-white text-[11px] font-bold text-ink-secondary hover:text-ink-primary disabled:opacity-50 transition-all">
+                Discard
+              </button>
+              <button onClick={saveAttendance} disabled={attSaving || !pendingCount}
+                className="px-4 py-1.5 rounded-lg bg-ink-primary text-white text-[11px] font-bold hover:bg-black disabled:opacity-50 transition-all">
+                {attSaving ? 'Saving…' : `Save ${pendingCount || ''}`.trim()}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Daily wage grid */}
         {dailyWageEmps.length > 0 && (
@@ -492,25 +630,69 @@ const Payroll = () => {
                           const attEntry = attendance[emp.id]?.[dateStr];
                           const status  = attEntry?.status;
                           const hasCustomRate = attEntry?.custom_rate != null;
+                          const isDirty = pendingAtt[emp.id] && dateStr in pendingAtt[emp.id];
+                          const isOpen  = attPicker?.empId === emp.id && attPicker?.day === dateStr;
+                          const rateShown = hasCustomRate ? attEntry.custom_rate : null;
                           return (
-                            <td key={d} className={`p-0.5 text-center ${isWeekend ? 'bg-orange-50/60' : ''}`}>
-                              <div className="relative group inline-block">
+                            <td key={d} className={`p-0.5 text-center align-top ${isWeekend ? 'bg-orange-50/60' : ''}`}>
+                              <div className="relative inline-block">
                                 <button
-                                  onClick={() => toggleAttendance(emp.id, dateStr)}
-                                  className={`w-7 h-7 rounded text-[10px] font-bold transition-all cursor-pointer ${statusStyle(status)} ${hasCustomRate ? 'ring-1 ring-blue-400' : ''}`}
-                                  title={hasCustomRate ? `Custom rate: ${sym}${attEntry.custom_rate}` : dateStr}
+                                  onClick={() => setAttPicker(isOpen ? null : { empId: emp.id, day: dateStr })}
+                                  className={`w-8 rounded text-[10px] font-bold transition-all cursor-pointer leading-none py-1 ${statusStyle(status)} ${
+                                    hasCustomRate ? 'ring-1 ring-blue-400' : ''
+                                  } ${isDirty ? 'outline outline-2 outline-offset-1 outline-accent-signature' : ''} ${isOpen ? 'ring-2 ring-ink-primary' : ''}`}
+                                  title={dateStr}
                                 >
-                                  {statusLabel(status)}
+                                  <span className="block">{statusLabel(status)}</span>
+                                  {/* The day's rate, on the cell. It used to live
+                                      in a title tooltip and a hover-only input,
+                                      so a wage you had set was invisible. */}
+                                  {rateShown != null && (
+                                    <span className="block text-[7px] font-semibold tabular-nums text-blue-600 mt-0.5">
+                                      {Math.round(rateShown)}
+                                    </span>
+                                  )}
                                 </button>
-                                {status && status !== 'ABSENT' && (
-                                  <input
-                                    type="number"
-                                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-14 text-[9px] text-center bg-white border border-black/15 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity outline-none focus:opacity-100 focus:ring-1 focus:ring-blue-400 z-20 px-1 py-0.5"
-                                    placeholder={String(emp.daily_rate || '')}
-                                    value={attEntry?.custom_rate ?? ''}
-                                    onClick={e => e.stopPropagation()}
-                                    onChange={e => setCustomRate(emp.id, dateStr, e.target.value)}
-                                  />
+
+                                {isOpen && (
+                                  <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setAttPicker(null)} />
+                                    <div className="absolute z-40 top-full left-1/2 -translate-x-1/2 mt-1 w-40 bg-white border border-black/10 rounded-xl shadow-lg p-2 text-left">
+                                      <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-1 pb-1.5">
+                                        {new Date(attYear, attMonth - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                      </div>
+                                      {[['PRESENT','Present','✓'],['ABSENT','Absent','✗'],['HALF_DAY','Half day','½']].map(([val, label, icon]) => (
+                                        <button key={val}
+                                          onClick={() => { setAttStatus(emp.id, dateStr, val); setAttPicker(null); }}
+                                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                                            status === val ? 'bg-ink-primary text-white' : 'text-ink-primary hover:bg-black/5'
+                                          }`}>
+                                          <span className="w-4 text-center">{icon}</span>{label}
+                                        </button>
+                                      ))}
+                                      {status && (
+                                        <>
+                                          <div className="border-t border-black/5 my-1.5" />
+                                          <label className="block text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-1 mb-1">
+                                            Rate for this day
+                                          </label>
+                                          <input
+                                            type="number" autoFocus
+                                            className="w-full text-[11px] px-2 py-1.5 rounded-lg border border-black/10 outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                                            placeholder={`${sym}${emp.daily_rate || 0} default`}
+                                            value={attEntry?.custom_rate ?? ''}
+                                            onChange={e => setCustomRate(emp.id, dateStr, e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') setAttPicker(null); }}
+                                          />
+                                          <button
+                                            onClick={() => { clearAtt(emp.id, dateStr); setAttPicker(null); }}
+                                            className="w-full mt-1.5 px-2 py-1.5 rounded-lg text-[11px] font-semibold text-red-600 hover:bg-red-50 transition-all text-left">
+                                            Clear this day
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </>
                                 )}
                               </div>
                             </td>
