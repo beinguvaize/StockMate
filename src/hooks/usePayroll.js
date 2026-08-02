@@ -136,25 +136,48 @@ export const usePayroll = (tenantId) => {
     const { data, error } = await supabase.from('payroll').insert([row]).select().single();
     if (error) { console.error('processPayroll insert error:', error); return { success: false, error }; }
     setPayrollRecords(prev => [toPayrollRecord(data), ...prev]);
-    // Post one salary expense per employee → DayBook + P&L see it automatically
-    // period is either YYYY-MM (monthly) or YYYY-MM-DD/YYYY-MM-DD (weekly)
-    const isWeekly = record.period.includes('/');
-    const expDate = isWeekly
-      ? record.period.split('/')[1] // end of week = pay date
+
+    // One salary expense per employee. That expense is what puts the payroll in
+    // DayBook and the P&L, and trg_expenses_post_ledger turns it into a money-OUT
+    // on the matching Cash/UPI/Bank account — so this insert is the whole reason
+    // the money shows up anywhere outside the payroll table.
+    //
+    // It used to be fired without await and with the error swallowed into
+    // console. A failure left a payroll record standing with nothing in DayBook
+    // and no way to know. Insert as one batch, and hand the error back.
+    //
+    // period is YYYY-MM (monthly) or YYYY-MM-DD/YYYY-MM-DD (a date range)
+    const isRange = record.period.includes('/');
+    const expDate = isRange
+      ? record.period.split('/')[1]   // last day of the range = the pay date
       : (() => { const [yr, mo] = record.period.split('-').map(Number); return new Date(yr, mo, 0).toISOString().slice(0, 10); })();
-    for (const item of (record.items || [])) {
-      if (!item.netPay || item.netPay <= 0) continue;
-      supabase.from('expenses').insert({
+
+    const expenseRows = (record.items || [])
+      .filter(item => Number(item.netPay) > 0)
+      .map(item => ({
         id: crypto.randomUUID(),
         tenant_id: tenantId,
         category: 'Salary',
         amount: item.netPay,
         note: `Payroll ${record.period} — ${item.employeeName}`,
         date: expDate,
-        payment_method: 'CASH',
-      }).catch(e => console.error('salary expense insert error:', e));
+        payment_method: record.paymentMethod || 'CASH',
+      }));
+
+    if (expenseRows.length) {
+      const { error: expError } = await supabase.from('expenses').insert(expenseRows);
+      if (expError) {
+        console.error('salary expense insert error:', expError);
+        // The run itself is saved; say plainly that the money side is not, so it
+        // can be entered by hand rather than quietly going missing from DayBook.
+        return {
+          success: true,
+          expenseError: expError,
+          message: `Payroll saved, but the ${expenseRows.length} salary expense${expenseRows.length === 1 ? '' : 's'} could not be posted: ${expError.message}. DayBook and the cash account will not show this payout until that is fixed.`,
+        };
+      }
     }
-    return { success: true };
+    return { success: true, expensesPosted: expenseRows.length };
   };
 
   const deletePayrollRecord = async (id) => {

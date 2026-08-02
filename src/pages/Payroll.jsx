@@ -36,7 +36,11 @@ const Payroll = () => {
   const [showPayRunModal, setShowPayRunModal] = useState(false);
   const [payRunMonth, setPayRunMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [payRunItems, setPayRunItems] = useState([]);
-  const [payPeriodType, setPayPeriodType] = useState('MONTHLY'); // 'MONTHLY' | 'WEEKLY'
+  // MONTHLY | WEEKLY | CUSTOM. CUSTOM exists because neither of the other two
+  // matches how wages are actually paid here: 28 salary payouts so far, at gaps
+  // of 2, 2, 2, 2, 3, 3, 4 days. A fixed 7-day week cannot express that, so the
+  // Payroll module went unused and every payout was typed into Expenses by hand.
+  const [payPeriodType, setPayPeriodType] = useState('MONTHLY');
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date();
     const day = d.getDay();
@@ -44,6 +48,8 @@ const Payroll = () => {
     d.setDate(d.getDate() + diff);
     return d.toISOString().slice(0, 10);
   });
+  const [customEnd, setCustomEnd] = useState(() => new Date().toISOString().slice(0, 10));
+  const [payMethod2, setPayMethod2] = useState('CASH'); // how this run is paid out
 
   // ── Attendance state ─────────────────────────────────────────────────
   // What is actually in the database for the visible month.
@@ -132,6 +138,13 @@ const Payroll = () => {
     d.setDate(d.getDate() + 6);
     return d.toISOString().slice(0, 10);
   }, [weekStart]);
+
+  // The window a ranged run actually covers. WEEKLY is start + 6 days; CUSTOM
+  // is whatever two dates were picked, which is what a payout every second day
+  // needs.
+  const rangeEnd = payPeriodType === 'CUSTOM' ? customEnd : weekEnd;
+  const isRangeRun = payPeriodType === 'WEEKLY' || payPeriodType === 'CUSTOM';
+  const rangeInvalid = payPeriodType === 'CUSTOM' && customEnd < weekStart;
 
   const computeDays = useCallback(
     (empId) => Object.values(attendance[empId] || {}).reduce((s, a) => s + (STATUS_WEIGHT[a.status] || 0), 0),
@@ -402,17 +415,18 @@ const Payroll = () => {
 };
 
   // ===== PAYROLL RUN LOGIC =====
-  const openPayRun = () => {
+  const buildPayRunItems = useCallback(() => {
     const activeEmployees = employees.filter(e => e.status === 'ACTIVE');
-    const isWeekly = payPeriodType === 'WEEKLY';
-    const items = activeEmployees.map(emp => {
+    // Weekly and custom both cost a date window; only the end date differs.
+    const ranged = isRangeRun;
+    return activeEmployees.map(emp => {
       const isDW  = ['DAILY', 'HOURLY'].includes(emp.pay_type);
       const days  = isDW
-        ? (isWeekly ? computeDaysForRange(emp.id, weekStart, weekEnd) : computeDays(emp.id))
+        ? (ranged ? computeDaysForRange(emp.id, weekStart, rangeEnd) : computeDays(emp.id))
         : null;
       const base  = isDW
-        ? Math.round(isWeekly
-            ? computeWageForRange(emp.id, emp.daily_rate || 0, weekStart, weekEnd)
+        ? Math.round(ranged
+            ? computeWageForRange(emp.id, emp.daily_rate || 0, weekStart, rangeEnd)
             : computeWage(emp.id, emp.daily_rate || 0))
         : (Number(emp.salary) || Number(emp.basePay) || 0);
       return {
@@ -431,9 +445,24 @@ const Payroll = () => {
         netPay:       base,
       };
     });
-    setPayRunItems(items);
+  }, [employees, isRangeRun, weekStart, rangeEnd, computeDays, computeDaysForRange, computeWage, computeWageForRange]);
+
+  const openPayRun = () => {
+    setPayRunItems(buildPayRunItems());
     setShowPayRunModal(true);
   };
+
+  // Changing the period inside the modal has to recost the run. Without this,
+  // switching Monthly → Custom or moving a date left every base pay showing the
+  // old window's figure while the header claimed the new one.
+  //
+  // Manual bonus/commission/deduction entries are deliberately reset with it: a
+  // different period is a different payout, and silently carrying an amount
+  // typed for one window into another is how someone gets paid twice.
+  useEffect(() => {
+    if (!showPayRunModal) return;
+    setPayRunItems(buildPayRunItems());
+  }, [showPayRunModal, payPeriodType, weekStart, rangeEnd, payRunMonth, buildPayRunItems]);
 
   const updatePayRunItem = (empId, field, value) => {
   const numVal = parseFloat(value) || 0;
@@ -470,7 +499,11 @@ const Payroll = () => {
   const totalDeductions = payRunItems.reduce((sum, i) => sum + i.deductions, 0);
 
   const record = {
-  period: payPeriodType === 'WEEKLY' ? `${weekStart}/${weekEnd}` : payRunMonth,
+  period: isRangeRun ? `${weekStart}/${rangeEnd}` : payRunMonth,
+  // Decides which account the salary expense lands on: the ledger trigger maps
+  // CASH/UPI/BANK to the matching account. It was hardcoded to CASH, and at
+  // least one advance here was actually paid by UPI.
+  paymentMethod: payMethod2,
   items: payRunItems,
   totalBase,
   totalNet,
@@ -483,6 +516,10 @@ const Payroll = () => {
 
   const result = await processPayroll(record);
   if (result?.success) {
+    // The run can save while the salary expenses behind it fail. That gap is
+    // exactly what puts the payout in DayBook, so it must be said out loud
+    // rather than closing the modal as though everything went through.
+    if (result.expenseError) alert(result.message);
     setShowPayRunModal(false);
   } else {
     alert('Failed to save payroll: ' + (result?.error?.message || 'Unknown error'));
@@ -1178,8 +1215,11 @@ const Payroll = () => {
   {showPayRunModal && (() => {
     const sym = businessProfile?.currencySymbol || '₹';
     const [prY, prM] = payRunMonth.split('-').map(Number);
-    const periodLabel = payPeriodType === 'WEEKLY'
-      ? `${new Date(weekStart + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(weekEnd + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+    const dayLabel = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    const periodLabel = isRangeRun
+      ? (weekStart === rangeEnd
+          ? `${dayLabel(weekStart)} — single day`
+          : `${dayLabel(weekStart)} – ${new Date(rangeEnd + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`)
       : new Date(prY, prM - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
     const totalNet = payRunItems.reduce((s, i) => s + i.netPay, 0);
     const inputCls = 'w-full bg-canvas border border-black/8 rounded-lg px-2.5 py-2 text-right text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums';
@@ -1193,25 +1233,49 @@ const Payroll = () => {
         <h2 className="text-base font-semibold text-ink-primary">Process Payroll</h2>
         <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2">
           <span>{periodLabel}</span>
-          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-pill uppercase ${payPeriodType === 'WEEKLY' ? 'bg-blue-50 text-blue-600' : 'bg-muted text-muted-foreground'}`}>{payPeriodType === 'WEEKLY' ? 'Weekly' : 'Monthly'}</span>
+          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-pill uppercase ${isRangeRun ? 'bg-blue-50 text-blue-600' : 'bg-muted text-muted-foreground'}`}>{payPeriodType.toLowerCase()}</span>
         </p>
       </div>
       <div className="flex items-center gap-3">
         {/* Period type toggle */}
         <div className="flex bg-canvas rounded-lg border border-black/8 p-0.5 gap-0.5">
-          {['MONTHLY', 'WEEKLY'].map(t => (
+          {[['MONTHLY','Monthly'], ['WEEKLY','Weekly'], ['CUSTOM','Custom']].map(([t, label]) => (
             <button key={t} type="button" onClick={() => setPayPeriodType(t)}
               className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${payPeriodType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
-              {t === 'MONTHLY' ? 'Monthly' : 'Weekly'}
+              {label}
             </button>
           ))}
         </div>
         {payPeriodType === 'MONTHLY' ? (
           <input type="month" className="bg-canvas border border-black/8 rounded-lg px-3 py-2 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20" value={payRunMonth} onChange={e => setPayRunMonth(e.target.value)} />
         ) : (
-          <div className="flex flex-col gap-0.5">
-            <label className="text-[9px] font-semibold text-muted-foreground uppercase px-1">Week start (Mon)</label>
-            <input type="date" className="bg-canvas border border-black/8 rounded-lg px-3 py-2 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20" value={weekStart} onChange={e => setWeekStart(e.target.value)} />
+          <div className="flex items-end gap-2">
+            <div className="flex flex-col gap-0.5">
+              <label className="text-[9px] font-semibold text-muted-foreground uppercase px-1">
+                {payPeriodType === 'WEEKLY' ? 'Week start (Mon)' : 'From'}
+              </label>
+              <input type="date" className="bg-canvas border border-black/8 rounded-lg px-3 py-2 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20" value={weekStart} onChange={e => setWeekStart(e.target.value)} />
+            </div>
+            {/* Custom lets the window be any length, including a single day.
+                Wages here are paid every two or three days, which neither a
+                calendar month nor a fixed week can express. */}
+            {payPeriodType === 'CUSTOM' && (
+              <div className="flex flex-col gap-0.5">
+                <label className="text-[9px] font-semibold text-muted-foreground uppercase px-1">To</label>
+                <input type="date" min={weekStart}
+                  className={`bg-canvas border rounded-lg px-3 py-2 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 ${rangeInvalid ? 'border-red-300' : 'border-black/8'}`}
+                  value={customEnd} onChange={e => setCustomEnd(e.target.value)} />
+              </div>
+            )}
+            <div className="flex flex-col gap-0.5">
+              <label className="text-[9px] font-semibold text-muted-foreground uppercase px-1">Paid by</label>
+              <select className="bg-canvas border border-black/8 rounded-lg px-3 py-2 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 cursor-pointer"
+                value={payMethod2} onChange={e => setPayMethod2(e.target.value)}>
+                <option value="CASH">Cash</option>
+                <option value="UPI">UPI</option>
+                <option value="BANK">Bank</option>
+              </select>
+            </div>
           </div>
         )}
         <button onClick={() => setShowPayRunModal(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary">
@@ -1295,9 +1359,11 @@ const Payroll = () => {
           <div className="text-sm font-semibold text-white">{periodLabel}</div>
         </div>
       </div>
-      <button className="btn-signature !h-12 !px-8 !text-sm flex items-center gap-2.5" onClick={handleProcessPayroll} disabled={isSaving}>
+      <button className="btn-signature !h-12 !px-8 !text-sm flex items-center gap-2.5"
+        onClick={handleProcessPayroll} disabled={isSaving || rangeInvalid || totalNet <= 0}
+        title={rangeInvalid ? 'The end date is before the start date' : (totalNet <= 0 ? 'Nothing to pay for this period' : undefined)}>
         <Check size={16} />
-        {isSaving ? 'Processing…' : 'Confirm & Process'}
+        {isSaving ? 'Processing…' : rangeInvalid ? 'Check the dates' : 'Confirm & Process'}
       </button>
     </div>
 
