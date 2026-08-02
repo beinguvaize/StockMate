@@ -1097,6 +1097,41 @@ body {
     margin: 14mm 10mm;
     size: A4;
   }
+
+  /* --- Supplier ledger: print as a statement of account ---
+     Export PDF is a plain window.print(), so without this the "statement" a
+     supplier receives carries the nav, the search box, the filter pills and a
+     column of Pay buttons. Marked up with .no-print where the element is only
+     ever chrome; the rules below handle the layout the class cannot. */
+  .supplier-ledger-print {
+    /* The two-column grid stacks on paper: the profile and totals belong at the
+       top of the statement, then the ledger runs full width. */
+    display: block !important;
+  }
+  .supplier-ledger-print .ledger-panel {
+    width: 100% !important;
+    margin-top: 8mm;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+  .supplier-ledger-print .ledger-panel .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  /* Sticky headers repeat per page via thead{display:table-header-group},
+     but a sticky position leaves a gap at each break. */
+  .supplier-ledger-print thead {
+    position: static !important;
+  }
+  /* The closing balance is the point of the document — never orphan it. */
+  .supplier-ledger-print tfoot tr {
+    page-break-inside: avoid;
+    border-top: 2px solid #000 !important;
+  }
+  /* Expanded product detail prints alongside its bill rather than dangling. */
+  .supplier-ledger-print .bill-detail {
+    page-break-before: avoid;
+  }
 }
 
 /* Dark auth pages: stop Chrome autofill from painting inputs white */

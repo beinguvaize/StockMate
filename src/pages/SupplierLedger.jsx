@@ -92,6 +92,7 @@ const SupplierLedger = () => {
 
   const isCredit = (pt) => ['CREDIT','UDHAAR','POST-CAPITAL'].includes(String(pt || '').toUpperCase());
   const isCash = (pt) => ['CASH','PAID'].includes(String(pt || '').toUpperCase());
+  const cur = businessProfile?.currencySymbol || '₹';
 
   // 1. Resolve Supplier
   const supplier = useMemo(() => 
@@ -140,26 +141,122 @@ const SupplierLedger = () => {
     return [...settlements, ...cashBuys].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
   }, [payments, supplierPurchases]);
   const paymentHistoryTotal = useMemo(() => paymentHistory.reduce((s, p) => s + p.amount, 0), [paymentHistory]);
-  // Paid-to-date per purchase id (from linked payments).
-  const paidByPurchase = useMemo(() => {
-    const m = {};
-    payments.forEach(p => { if (p.purchase_id) m[p.purchase_id] = (m[p.purchase_id] || 0) + Number(p.amount || 0); });
-    return m;
-  }, [payments]);
+  // ── Bills ────────────────────────────────────────────────────────────────
+  // One physical bill is stored as one `purchases` row PER PRODUCT — the
+  // multi-product form writes them in a burst. RENO JOHN's 17 Jul bill is two
+  // rows created 1.7s apart. Showing them as separate lines inflated this
+  // tenant's ledger from 52 real bills to 135 rows.
+  //
+  // Key: supplier + date + payment_type, and rows only chain while consecutive
+  // created_at gaps stay inside BURST_MS. Both parts are load-bearing:
+  //   · payment_type — SAJJAD 24 Jul has two rows 59s apart, one CREDIT and one
+  //     CASH. Different bills; merging them would re-blur the pair behind the
+  //     duplicate ₹6,900 payment.
+  //   · the burst guard — MADEENA 9 May has 4 rows spanning 2.9 hours. Separate
+  //     trips, and a supplier+date key alone would fuse them into one bill.
+  //
+  // Presentation only. No row is merged in the database and no id changes.
+  const bills = useMemo(() => {
+    const amt = (p) => Number(p.total_amount ?? p.total_cost ?? 0);
+    const at  = (p) => new Date(p.created_at || p.date).getTime();
+    const BURST_MS = 10 * 60 * 1000;
 
-  const filteredPurchases = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    return supplierPurchases.filter(p => {
-      const matchSearch =
-        (p.id || '').toLowerCase().includes(q) ||
-        (p.notes || '').toLowerCase().includes(q);
-      const matchPay =
-        paymentFilter === 'ALL' ||
-        (paymentFilter === 'CASH' && isCash(p.payment_type)) ||
-        (paymentFilter === 'CREDIT' && isCredit(p.payment_type));
-      return matchSearch && matchPay;
+    const byKey = {};
+    supplierPurchases.forEach(p => {
+      const key = [p.supplier_id || p.supplier_name, p.date, String(p.payment_type || '').toUpperCase()].join('|');
+      (byKey[key] = byKey[key] || []).push(p);
     });
-  }, [supplierPurchases, searchTerm, paymentFilter]);
+
+    const groups = [];
+    Object.values(byKey).forEach(rows => {
+      rows.sort((a, b) => at(a) - at(b));
+      let chunk = [];
+      rows.forEach(r => {
+        const prev = chunk[chunk.length - 1];
+        if (prev && Math.abs(at(r) - at(prev)) > BURST_MS) { groups.push(chunk); chunk = []; }
+        chunk.push(r);
+      });
+      if (chunk.length) groups.push(chunk);
+    });
+
+    return groups.map(rows => {
+      const total = rows.reduce((s, r) => s + amt(r), 0);
+      // paid_amount is the single source of truth — the same column the
+      // sidebar's payable uses. The old row badge read supplier_payments
+      // instead, so a bill settled by writing paid_amount alone still showed
+      // as owing.
+      const paid  = rows.reduce((s, r) => s + Number(r.paid_amount || 0), 0);
+      return {
+        id: rows[0].id, rows, date: rows[0].date,
+        payment_type: rows[0].payment_type,
+        credit: isCredit(rows[0].payment_type),
+        total, paid, due: Math.max(0, total - paid),
+      };
+    });
+  }, [supplierPurchases]);
+
+  // ── The ledger ───────────────────────────────────────────────────────────
+  // One chronological debit/credit list with a running balance, mirroring
+  // ClientStatementReport.jsx. Previously this rendered as three stacked
+  // blocks — every bill, then every return, then every payment — so a June
+  // debit note sat below a July bill and nothing accumulated.
+  const ledgerRows = useMemo(() => {
+    const rows = [];
+
+    bills.forEach(b => {
+      rows.push({ kind: 'BILL', date: b.date, bill: b, debit: b.total, credit: 0 });
+
+      // Credit the money once. Payments linked to any member row carry their
+      // own date; whatever paid_amount holds beyond them was paid at the
+      // counter when the bill was raised. Crediting both would double-count
+      // and the closing balance would stop matching Amount Due.
+      const linked = payments.filter(p => b.rows.some(r => r.id === p.purchase_id));
+      const linkedSum = linked.reduce((s, p) => s + Number(p.amount || 0), 0);
+      const atBill = b.paid - linkedSum;
+      if (atBill > 0.01) {
+        rows.push({ kind: 'PAY', date: b.date, bill: b, atBill: true, debit: 0, credit: atBill });
+      }
+      linked.forEach(p => rows.push({ kind: 'PAY', date: p.date, bill: b, pay: p, debit: 0, credit: Number(p.amount || 0) }));
+    });
+
+    supplierReturns.forEach(r => rows.push({
+      kind: 'RETURN', date: r.date, ret: r, debit: 0, credit: Number(r.total_amount || 0),
+    }));
+
+    onAccountPayments.forEach(p => rows.push({
+      kind: 'PAY', date: p.date, pay: p, onAccount: true, debit: 0, credit: Number(p.amount || 0),
+    }));
+
+    rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+    let balance = 0;
+    rows.forEach(r => { balance += r.debit - r.credit; r.balance = balance; });
+    return rows;
+  }, [bills, payments, supplierReturns, onAccountPayments]);
+
+  // The filter now covers every row type. It used to be ALL/CASH/CREDIT and
+  // applied to bills only, so picking CASH still showed every return and
+  // payment — and the count beside it only ever counted purchases.
+  const filteredRows = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return ledgerRows.filter(r => {
+      if (paymentFilter !== 'ALL' && r.kind !== paymentFilter) return false;
+      if (!q) return true;
+      const hay = [
+        r.bill?.id, r.ret?.id, r.pay?.id, r.pay?.reference_no, r.pay?.note,
+        ...(r.bill?.rows || []).map(x => x.id),
+        ...(r.bill?.rows || []).map(x => x.notes),
+        ...(r.bill?.rows || []).map(x => (products || []).find(pr => pr.id === x.linked_product_id)?.name),
+      ];
+      return hay.some(v => String(v || '').toLowerCase().includes(q));
+    });
+  }, [ledgerRows, searchTerm, paymentFilter, products]);
+
+  const closing = ledgerRows.length ? ledgerRows[ledgerRows.length - 1].balance : 0;
+  const ledgerTotals = useMemo(() => ({
+    debit:  ledgerRows.reduce((s, r) => s + r.debit, 0),
+    credit: ledgerRows.reduce((s, r) => s + r.credit, 0),
+  }), [ledgerRows]);
 
   const metrics = useMemo(() => {
     const amt = (p) => Number(p.total_amount ?? p.total_cost ?? 0);
@@ -206,7 +303,7 @@ const SupplierLedger = () => {
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => navigate(-1)}
-            className="w-10 h-10 shrink-0 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary group bg-white"
+            className="no-print w-10 h-10 shrink-0 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary group bg-white"
           >
             <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
           </button>
@@ -226,14 +323,14 @@ const SupplierLedger = () => {
           </span>
           <button
             onClick={() => window.print()}
-            className="h-10 px-4 rounded-xl bg-ink-primary text-white text-[11px] font-bold hover:bg-ink-primary/90 transition-all flex items-center gap-2"
+            className="no-print h-10 px-4 rounded-xl bg-ink-primary text-white text-[11px] font-bold hover:bg-ink-primary/90 transition-all flex items-center gap-2"
           >
             Export PDF <ArrowUpRight size={14} className="text-accent-signature/70" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="supplier-ledger-print grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Supplier Statistics & Profile */}
         <div className="lg:col-span-4 space-y-5">
           {/* Profile Card */}
@@ -287,7 +384,7 @@ const SupplierLedger = () => {
             {metrics.payable > 0 && hasPermission('purchases', 'edit') !== false && (
               <button
                 onClick={() => openPay()}
-                className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-ink-primary text-white text-[12px] font-bold hover:bg-ink-primary/90 transition-all"
+                className="no-print w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-ink-primary text-white text-[12px] font-bold hover:bg-ink-primary/90 transition-all"
               >
                 <CreditCard size={14} className="text-accent-signature/70" /> Record payment
               </button>
@@ -371,9 +468,9 @@ const SupplierLedger = () => {
 
         {/* Right Column: Detailed Purchase History */}
         <div className="lg:col-span-8 flex flex-col min-h-[600px]">
-          <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden flex flex-col flex-1">
+          <div className="ledger-panel bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden flex flex-col flex-1">
             {/* Table Header Utility Bar */}
-            <div className="p-4 border-b border-black/5 flex flex-col md:flex-row justify-between items-center gap-3">
+            <div className="no-print p-4 border-b border-black/5 flex flex-col md:flex-row justify-between items-center gap-3">
               <div className="relative group flex-1 w-full md:max-w-xs">
                 <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent-signature transition-colors" />
                 <input
@@ -387,22 +484,22 @@ const SupplierLedger = () => {
 
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
-                  {['ALL','CASH','CREDIT'].map(opt => (
+                  {[['ALL','All'],['BILL','Bills'],['PAY','Payments'],['RETURN','Returns']].map(([val, label]) => (
                     <button
-                      key={opt}
-                      onClick={() => setPaymentFilter(opt)}
+                      key={val}
+                      onClick={() => { setPaymentFilter(val); setExpandedRow(null); }}
                       className={`px-3 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-                        paymentFilter === opt
+                        paymentFilter === val
                           ? 'bg-accent-signature text-white shadow-sm'
                           : 'text-muted-foreground hover:text-ink-primary'
                       }`}
                     >
-                      {opt}
+                      {label}
                     </button>
                   ))}
                 </div>
                 <span className="text-[11px] font-bold text-muted-foreground">
-                  {filteredPurchases.length} {filteredPurchases.length === 1 ? 'record' : 'records'}
+                  {filteredRows.length} {filteredRows.length === 1 ? 'row' : 'rows'}
                 </span>
               </div>
             </div>
@@ -412,219 +509,220 @@ const SupplierLedger = () => {
               <table className="w-full text-left border-collapse">
                 <thead className="bg-canvas/70 sticky top-0 z-10 border-b border-black/5">
                   <tr>
-                    <th className="py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-wider w-10"></th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date</th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Reference</th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Product</th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-center">Qty</th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Payment</th>
-                    <th className="py-4 px-6 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Amount</th>
+                    <th className="py-3.5 px-5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date</th>
+                    <th className="py-3.5 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Type</th>
+                    <th className="py-3.5 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Reference</th>
+                    <th className="py-3.5 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Debit</th>
+                    <th className="py-3.5 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Credit</th>
+                    <th className="py-3.5 px-5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Balance</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
-                  {filteredPurchases.length === 0 && supplierReturns.length === 0 ? (
+                  {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="py-24 text-center">
+                      <td colSpan="6" className="py-24 text-center">
                         <div className="opacity-10 mb-4 flex justify-center"><Box size={72} strokeWidth={1} /></div>
                         <h4 className="text-xl font-bold text-ink-primary mb-1">No transactions</h4>
-                        <p className="text-xs text-muted-foreground">This supplier has no recorded purchases yet.</p>
+                        <p className="text-xs text-muted-foreground">
+                          {ledgerRows.length === 0
+                            ? 'This supplier has no recorded purchases yet.'
+                            : 'Nothing matches this filter.'}
+                        </p>
                       </td>
                     </tr>
-                  ) : (
-                    <>
-                    {filteredPurchases.map((p) => {
-                      const product = (products || []).find(prod => prod.id === p.linked_product_id);
-                      const amount = Number(p.total_amount ?? p.total_cost ?? 0);
-                      const qty = Number(p.quantity ?? 0);
-                      const unit = qty > 0 ? amount / qty : 0;
-                      const credit = isCredit(p.payment_type);
-                      // Status must follow what is actually owed, not how the
-                      // bill was raised. A credit bill that has since been paid
-                      // was still labelled "Payable (Credit)" while the badge
-                      // beside it read PAID — the same row contradicting itself.
-                      const billPaid = Number(p.paid_amount ?? 0);
-                      const billDue = Math.max(0, amount - billPaid);
-                      const expanded = expandedRow === p.id;
+                  ) : filteredRows.map((r, i) => {
+                    const key = `${r.kind}-${r.bill?.id || r.ret?.id || r.pay?.id}-${i}`;
+                    const money = (n) => `${cur}${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                    // ── Bill ──────────────────────────────────────────────
+                    if (r.kind === 'BILL') {
+                      const b = r.bill;
+                      const multi = b.rows.length > 1;
+                      const expanded = expandedRow === b.id;
+                      const names = b.rows
+                        .map(x => (products || []).find(pr => pr.id === x.linked_product_id)?.name)
+                        .filter(Boolean);
                       return (
-                        <React.Fragment key={p.id}>
+                        <React.Fragment key={key}>
                           <tr
-                            className={`cursor-pointer transition-colors ${expanded ? 'bg-canvas' : 'hover:bg-canvas/60'}`}
-                            onClick={() => setExpandedRow(expanded ? null : p.id)}
+                            className={`transition-colors ${multi ? 'cursor-pointer' : ''} ${expanded ? 'bg-canvas' : 'hover:bg-canvas/60'}`}
+                            onClick={() => multi && setExpandedRow(expanded ? null : b.id)}
                           >
-                            <td className="py-4 px-6 text-muted-foreground">
-                              <ChevronRight size={14} className={`transition-transform ${expanded ? 'rotate-90 text-accent-signature' : ''}`} />
+                            <td className="py-3.5 px-5 text-xs font-semibold text-ink-primary tabular-nums whitespace-nowrap">{formatDate(b.date)}</td>
+                            <td className="py-3.5 px-3">
+                              <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-accent-signature/10 text-accent-signature-hover">Bill</span>
                             </td>
-                            <td className="py-4 px-4">
-                              <div className="text-xs font-semibold text-ink-primary">{formatDate(p.date)}</div>
-                            </td>
-                            <td className="py-4 px-4">
-                              <div className="text-xs tabular-nums text-ink-secondary">#{(p.id || '').slice(-8).toUpperCase()}</div>
-                            </td>
-                            <td className="py-4 px-4">
-                              <div className="text-xs font-semibold text-ink-primary truncate max-w-[180px]">{product?.name || '—'}</div>
-                            </td>
-                            <td className="py-4 px-4 text-center">
-                              <span className="text-xs font-semibold text-emerald-600 tabular-nums">+{qty}</span>
-                            </td>
-                            <td className="py-4 px-4">
-                              {(() => {
-                                const paid = paidByPurchase[p.id] || 0;
-                                const orderDue = credit ? Math.max(0, amount - paid) : 0;
-                                if (!credit) return <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">Cash</span>;
-                                if (orderDue <= 0.5) return <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">Paid</span>;
-                                return (
-                                  <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                                    <span className="inline-flex flex-col leading-tight">
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-accent-signature-hover">{paid > 0 ? 'Partial' : 'Credit'}</span>
-                                      <span className="tabular-nums text-[10px] text-red-500">due {businessProfile?.currencySymbol || '₹'}{Math.round(orderDue).toLocaleString()}</span>
-                                    </span>
-                                    {hasPermission('purchases', 'edit') !== false && (
-                                      <button onClick={() => openPay(p, orderDue)}
-                                        className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-ink-primary text-white hover:bg-black transition-all">Pay</button>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                            </td>
-                            <td className="py-4 px-6 text-right">
-                              <div className="text-sm font-bold tabular-nums text-ink-primary">
-                                {businessProfile?.currencySymbol || '₹'}{amount.toLocaleString()}
+                            <td className="py-3.5 px-3">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {multi && (
+                                  <ChevronRight size={12} className={`text-muted-foreground transition-transform ${expanded ? 'rotate-90 text-accent-signature' : ''}`} />
+                                )}
+                                <span className="text-xs tabular-nums font-semibold text-ink-primary">#{(b.id || '').slice(-8).toUpperCase()}</span>
+                                {multi && (
+                                  <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-black/[0.05] text-ink-secondary">{b.rows.length} items</span>
+                                )}
+                                {b.due > 0.01 && (
+                                  <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-50 text-red-600 border border-red-100 tabular-nums">
+                                    due {cur}{Math.round(b.due).toLocaleString('en-IN')}
+                                  </span>
+                                )}
                               </div>
+                              {names.length > 0 && (
+                                <div className={`text-[10px] text-muted-foreground truncate max-w-[260px] ${multi ? 'ml-[18px]' : ''}`}>
+                                  {names.slice(0, 3).join(', ')}{names.length > 3 ? ` +${names.length - 3}` : ''}
+                                </div>
+                              )}
                             </td>
+                            <td className="py-3.5 px-3 text-right text-xs font-bold tabular-nums text-ink-primary">{money(r.debit)}</td>
+                            <td className="py-3.5 px-3 text-right text-xs tabular-nums text-muted-foreground">—</td>
+                            <td className={`py-3.5 px-5 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>{money(r.balance)}</td>
                           </tr>
+
                           {expanded && (
                             <tr className="bg-canvas/40">
-                              <td colSpan="7" className="px-6 py-5">
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
-                                  <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Full Reference</div>
-                                    <div className="tabular-nums text-ink-primary break-all">{p.id}</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Unit Cost</div>
-                                    <div className="font-semibold text-ink-primary tabular-nums">{businessProfile?.currencySymbol || '₹'}{unit.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Product SKU</div>
-                                    <div className="tabular-nums text-ink-primary">{product?.sku || '—'}</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Status</div>
-                                    <div className={`font-semibold ${billDue > 0.01 ? 'text-accent-signature' : 'text-emerald-600'}`}>
-                                      {billDue > 0.01
-                                        ? (billPaid > 0
-                                            ? `Part-paid · ${businessProfile?.currencySymbol || '₹'}${billDue.toLocaleString('en-IN', { maximumFractionDigits: 2 })} still due`
-                                            : 'Payable (Credit)')
-                                        : (credit ? 'Settled (paid later)' : 'Settled (cash paid)')}
-                                    </div>
-                                  </div>
-                                  <div className="col-span-2 md:col-span-4">
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Notes</div>
-                                    <div className="text-ink-primary">{p.notes || <span className="text-muted-foreground italic">No notes</span>}</div>
-                                  </div>
+                              <td colSpan="6" className="bill-detail px-5 py-4 border-l-[3px] border-accent-signature">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                                  Products on this bill{b.due > 0.01 ? ' — pay the lines still open' : ''}
                                 </div>
+                                <table className="w-full">
+                                  <tbody className="divide-y divide-black/5">
+                                    {b.rows.map(x => {
+                                      const prod = (products || []).find(pr => pr.id === x.linked_product_id);
+                                      const lineAmt = Number(x.total_amount ?? x.total_cost ?? 0);
+                                      const lineQty = Number(x.quantity ?? 0);
+                                      const lineDue = Math.max(0, lineAmt - Number(x.paid_amount || 0));
+                                      return (
+                                        <tr key={x.id}>
+                                          <td className="py-2 text-xs font-semibold text-ink-primary">{prod?.name || x.notes || '—'}</td>
+                                          <td className="py-2 text-right text-xs tabular-nums text-muted-foreground whitespace-nowrap">
+                                            {lineQty} × {cur}{(lineQty > 0 ? lineAmt / lineQty : 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                                          </td>
+                                          <td className="py-2 text-right text-xs font-semibold tabular-nums text-ink-primary whitespace-nowrap">{money(lineAmt)}</td>
+                                          <td className="py-2 pl-4 text-right whitespace-nowrap">
+                                            {lineDue > 0.01 ? (
+                                              <span className="inline-flex items-center gap-2">
+                                                <span className="text-[10px] font-bold tabular-nums text-red-600">due {cur}{Math.round(lineDue).toLocaleString('en-IN')}</span>
+                                                {hasPermission('purchases', 'edit') !== false && (
+                                                  <button
+                                                    onClick={(e) => { e.stopPropagation(); openPay(x, lineDue); }}
+                                                    className="no-print text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-ink-primary text-white hover:bg-black transition-all"
+                                                  >Pay</button>
+                                                )}
+                                              </span>
+                                            ) : (
+                                              <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700 uppercase tracking-wider">Settled</span>
+                                            )}
+                                          </td>
+                                          <td className="py-2 pl-4 text-right text-[9px] tabular-nums text-muted-foreground whitespace-nowrap">#{(x.id || '').slice(-8).toUpperCase()}</td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                                {b.rows.some(x => x.notes) && (
+                                  <div className="mt-3 text-[11px] text-muted-foreground">
+                                    {b.rows.filter(x => x.notes).map(x => x.notes).join(' · ')}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+
+                          {/* A single-product bill still needs its Pay button. */}
+                          {!multi && b.due > 0.01 && hasPermission('purchases', 'edit') !== false && (
+                            <tr className="bg-canvas/30">
+                              <td colSpan="6" className="px-5 py-2 text-right">
+                                <button
+                                  onClick={() => openPay(b.rows[0], b.due)}
+                                  className="no-print text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg bg-ink-primary text-white hover:bg-black transition-all"
+                                >Pay {cur}{Math.round(b.due).toLocaleString('en-IN')}</button>
                               </td>
                             </tr>
                           )}
                         </React.Fragment>
                       );
-                    })}
-                    {/* ── Return rows ── */}
-                    {supplierReturns.map((r) => {
-                      const product = (products || []).find(prod => prod.id === r.product_id);
-                      const expanded = expandedRow === r.id;
+                    }
+
+                    // ── Payment ───────────────────────────────────────────
+                    if (r.kind === 'PAY') {
+                      const ref = r.onAccount
+                        ? 'On account'
+                        : `#${(r.bill?.id || '').slice(-8).toUpperCase()}`;
+                      const sub = r.atBill
+                        ? `${r.bill?.payment_type || 'CASH'} at bill`
+                        : (r.pay?.payment_method || 'CASH') + (r.onAccount ? '' : ' · settlement');
                       return (
-                        <React.Fragment key={r.id}>
-                          <tr
-                            className={`cursor-pointer transition-colors ${expanded ? 'bg-rose-50/60' : 'hover:bg-rose-50/40'}`}
-                            onClick={() => setExpandedRow(expanded ? null : r.id)}
-                          >
-                            <td className="py-4 px-6 text-rose-300">
-                              <ChevronRight size={14} className={`transition-transform ${expanded ? 'rotate-90 text-rose-500' : ''}`} />
-                            </td>
-                            <td className="py-4 px-4">
-                              <div className="text-xs font-semibold text-ink-primary">{formatDate(r.date)}</div>
-                            </td>
-                            <td className="py-4 px-4">
-                              <div className="text-xs tabular-nums text-rose-600">#{(r.id || '').slice(-8).toUpperCase()}</div>
-                              <div className="text-[9px] font-bold text-rose-400 uppercase tracking-wider">Debit Note</div>
-                            </td>
-                            <td className="py-4 px-4">
-                              <div className="text-xs font-semibold text-ink-primary truncate max-w-[180px]">{product?.name || r.product_name || '—'}</div>
-                            </td>
-                            <td className="py-4 px-4 text-center">
-                              <span className="text-xs font-semibold text-rose-500 tabular-nums">−{Number(r.quantity)}</span>
-                            </td>
-                            <td className="py-4 px-4">
-                              <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700">
-                                Return
-                              </span>
-                            </td>
-                            <td className="py-4 px-6 text-right">
-                              <div className="text-sm font-bold tabular-nums text-rose-600">
-                                −{businessProfile?.currencySymbol || '₹'}{Number(r.total_amount).toLocaleString()}
-                              </div>
-                            </td>
-                          </tr>
-                          {expanded && (
-                            <tr className="bg-rose-50/30">
-                              <td colSpan="7" className="px-6 py-5">
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
-                                  <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Full Reference</div>
-                                    <div className="tabular-nums text-ink-primary break-all">{r.id}</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Qty Returned</div>
-                                    <div className="font-semibold text-rose-600 tabular-nums">{Number(r.quantity)}</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Unit Price</div>
-                                    <div className="font-semibold text-ink-primary tabular-nums">{businessProfile?.currencySymbol || '₹'}{Number(r.unit_price || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Linked Purchase</div>
-                                    <div className="tabular-nums text-ink-primary text-[10px]">{r.purchase_id || '—'}</div>
-                                  </div>
-                                  <div className="col-span-2 md:col-span-4">
-                                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Reason</div>
-                                    <div className="text-ink-primary">{r.reason || <span className="text-muted-foreground italic">No reason given</span>}</div>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
+                        <tr key={key} className="hover:bg-emerald-50/30 transition-colors">
+                          <td className="py-3.5 px-5 text-xs font-semibold text-ink-primary tabular-nums whitespace-nowrap">{formatDate(r.date)}</td>
+                          <td className="py-3.5 px-3">
+                            <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">
+                              {r.atBill ? 'Paid' : 'Payment'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="text-xs tabular-nums font-semibold text-ink-primary">{ref}</div>
+                            <div className="text-[10px] text-muted-foreground lowercase">{sub}</div>
+                          </td>
+                          <td className="py-3.5 px-3 text-right text-xs tabular-nums text-muted-foreground">—</td>
+                          <td className="py-3.5 px-3 text-right text-xs font-bold tabular-nums text-emerald-600">{money(r.credit)}</td>
+                          <td className={`py-3.5 px-5 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>{money(r.balance)}</td>
+                        </tr>
                       );
-                    })}
-                    {/* ── On-account payment rows (not tied to one order) ── */}
-                    {onAccountPayments.map((p) => (
-                      <tr key={p.id} className="hover:bg-emerald-50/40 transition-colors">
-                        <td className="py-4 px-6 text-emerald-300"><CreditCard size={14} /></td>
-                        <td className="py-4 px-4"><div className="text-xs font-semibold text-ink-primary">{formatDate(p.date)}</div></td>
-                        <td className="py-4 px-4">
-                          <div className="text-xs tabular-nums text-emerald-600">#{(p.id || '').slice(-8).toUpperCase()}</div>
-                          <div className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider">Payment</div>
+                    }
+
+                    // ── Return / debit note ───────────────────────────────
+                    const ret = r.ret;
+                    const rprod = (products || []).find(pr => pr.id === ret.product_id);
+                    return (
+                      <tr key={key} className="hover:bg-rose-50/30 transition-colors">
+                        <td className="py-3.5 px-5 text-xs font-semibold text-ink-primary tabular-nums whitespace-nowrap">{formatDate(r.date)}</td>
+                        <td className="py-3.5 px-3">
+                          <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700">Return</span>
                         </td>
-                        <td className="py-4 px-4">
-                          <div className="text-xs font-semibold text-ink-primary truncate max-w-[180px]">{p.note || (p.reference_no ? `Ref ${p.reference_no}` : '—')}</div>
-                        </td>
-                        <td className="py-4 px-4 text-center text-muted-foreground">—</td>
-                        <td className="py-4 px-4">
-                          <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">
-                            {p.payment_method || 'PAID'}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-right">
-                          <div className="text-sm font-bold tabular-nums text-emerald-600">
-                            −{businessProfile?.currencySymbol || '₹'}{Number(p.amount).toLocaleString()}
+                        <td className="py-3.5 px-3">
+                          <div className="text-xs tabular-nums font-semibold text-rose-600">#{(ret.id || '').slice(-8).toUpperCase()}</div>
+                          <div className="text-[10px] text-muted-foreground truncate max-w-[260px]">
+                            {rprod?.name || ret.product_name || 'Debit note'}
+                            {ret.quantity ? ` · ${Number(ret.quantity)} units` : ''}
+                            {ret.reason ? ` · ${ret.reason}` : ''}
                           </div>
                         </td>
+                        <td className="py-3.5 px-3 text-right text-xs tabular-nums text-muted-foreground">—</td>
+                        <td className="py-3.5 px-3 text-right text-xs font-bold tabular-nums text-rose-600">{money(r.credit)}</td>
+                        <td className={`py-3.5 px-5 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>{money(r.balance)}</td>
                       </tr>
-                    ))}
-                    </>
-                  )}
+                    );
+                  })}
                 </tbody>
+                {ledgerRows.length > 0 && paymentFilter === 'ALL' && !searchTerm.trim() && (
+                  <tfoot>
+                    <tr className="bg-canvas border-t-2 border-black/10">
+                      <td colSpan="3" className="py-3.5 px-5 text-[10px] font-black uppercase tracking-wider text-ink-primary">Closing balance</td>
+                      <td className="py-3.5 px-3 text-right text-[11px] font-bold tabular-nums text-muted-foreground">
+                        {cur}{ledgerTotals.debit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-3.5 px-3 text-right text-[11px] font-bold tabular-nums text-muted-foreground">
+                        {cur}{ledgerTotals.credit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className={`py-3.5 px-5 text-right text-sm font-black tabular-nums ${closing > 0.01 ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {cur}{closing.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                    {/* The sidebar's Amount Due sums unpaid bills only. The ledger
+                        also credits debit notes and on-account advances, so the two
+                        legitimately differ — say why rather than let a reader find
+                        two numbers on one screen and trust neither. */}
+                    {Math.abs(closing - metrics.payable) > 0.01 && (
+                      <tr className="bg-canvas">
+                        <td colSpan="6" className="px-5 pb-3 text-[10px] text-muted-foreground text-right">
+                          Amount due on unpaid bills is {cur}{Math.round(metrics.payable).toLocaleString('en-IN')}
+                          {metrics.totalReturns > 0.01 && <> · less {cur}{Math.round(metrics.totalReturns).toLocaleString('en-IN')} in debit notes</>}
+                          {onAccountPayments.length > 0 && <> · less {cur}{Math.round(onAccountPayments.reduce((s, p) => s + Number(p.amount || 0), 0)).toLocaleString('en-IN')} paid on account</>}
+                        </td>
+                      </tr>
+                    )}
+                  </tfoot>
+                )}
               </table>
             </div>
 
@@ -660,7 +758,7 @@ const SupplierLedger = () => {
                 </h2>
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
                   {payTarget
-                    ? `Order due: ${businessProfile?.currencySymbol}${Math.round(Math.max(0, Number(payTarget.total_amount ?? payTarget.total_cost ?? 0) - (paidByPurchase[payTarget.id] || 0))).toLocaleString()}`
+                    ? `Line due: ${cur}${Math.round(Math.max(0, Number(payTarget.total_amount ?? payTarget.total_cost ?? 0) - Number(payTarget.paid_amount || 0))).toLocaleString('en-IN')}`
                     : `Outstanding: ${businessProfile?.currencySymbol}${Math.round(metrics.payable).toLocaleString()} · spreads across oldest credit orders`}
                 </p>
               </div>
