@@ -34,8 +34,13 @@ const SupplierLedger = () => {
 
   const loading = peoLoading || purLoading || invLoading;
   const [searchTerm, setSearchTerm] = useState('');
-  const [paymentFilter, setPaymentFilter] = useState('ALL'); // ALL | CASH | CREDIT
+  const [paymentFilter, setPaymentFilter] = useState('ALL'); // ALL | BILL | PAY | RETURN
   const [expandedRow, setExpandedRow] = useState(null);
+  // A busy supplier runs ~6 bills a month, so three years is ~400 ledger rows.
+  // Default to a window rather than the whole history; the brought-forward row
+  // below keeps the running balance honest when history is hidden.
+  const [range, setRange] = useState('3M');       // 1M | 3M | FY | ALL
+  const [newestFirst, setNewestFirst] = useState(false);
 
   // Pay-supplier modal state
   const [payOpen, setPayOpen]       = useState(false);
@@ -236,12 +241,44 @@ const SupplierLedger = () => {
     return rows;
   }, [bills, payments, supplierReturns, onAccountPayments]);
 
+  // ── Period ───────────────────────────────────────────────────────────────
+  // Start of the visible window, or null for the whole history.
+  const rangeStart = useMemo(() => {
+    if (range === 'ALL') return null;
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    if (range === '1M') return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+    if (range === '3M') { const d = new Date(now); d.setMonth(d.getMonth() - 3); return fmt(d); }
+    // Indian financial year — 1 April to 31 March. Matters here because this is
+    // the window a GST filing or an audit is reconciled against.
+    const fy = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    return `${fy}-04-01`;
+  }, [range]);
+
+  // Balance carried into the window. A running balance depends on everything
+  // before it, so a period view that started from zero would put a wrong
+  // number on every visible line — the reason a statement of account always
+  // opens with a brought-forward figure.
+  const opening = useMemo(() => {
+    if (!rangeStart) return 0;
+    let bal = 0;
+    ledgerRows.forEach(r => { if (String(r.date) < rangeStart) bal = r.balance; });
+    return bal;
+  }, [ledgerRows, rangeStart]);
+
+  const inRange = useMemo(
+    () => (rangeStart ? ledgerRows.filter(r => String(r.date) >= rangeStart) : ledgerRows),
+    [ledgerRows, rangeStart]
+  );
+  const hiddenBefore = ledgerRows.length - inRange.length;
+
   // The filter now covers every row type. It used to be ALL/CASH/CREDIT and
   // applied to bills only, so picking CASH still showed every return and
   // payment — and the count beside it only ever counted purchases.
   const filteredRows = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    return ledgerRows.filter(r => {
+    return inRange.filter(r => {
       if (paymentFilter !== 'ALL' && r.kind !== paymentFilter) return false;
       if (!q) return true;
       const hay = [
@@ -252,13 +289,24 @@ const SupplierLedger = () => {
       ];
       return hay.some(v => String(v || '').toLowerCase().includes(q));
     });
-  }, [ledgerRows, searchTerm, paymentFilter, products]);
+  }, [inRange, searchTerm, paymentFilter, products]);
 
+  const displayRows = useMemo(
+    () => (newestFirst ? [...filteredRows].reverse() : filteredRows),
+    [filteredRows, newestFirst]
+  );
+
+  // Closing is always the balance across ALL history, never just the window —
+  // what the supplier is owed today does not change because you looked at a
+  // narrower period.
   const closing = ledgerRows.length ? ledgerRows[ledgerRows.length - 1].balance : 0;
+  // Debit/credit columns total the visible period — a statement's totals should
+  // add up to the lines printed beneath them. The balance beside them stays
+  // all-time, which is why the carried-forward row has to be on screen.
   const ledgerTotals = useMemo(() => ({
-    debit:  ledgerRows.reduce((s, r) => s + r.debit, 0),
-    credit: ledgerRows.reduce((s, r) => s + r.credit, 0),
-  }), [ledgerRows]);
+    debit:  inRange.reduce((s, r) => s + r.debit, 0),
+    credit: inRange.reduce((s, r) => s + r.credit, 0),
+  }), [inRange]);
 
   const metrics = useMemo(() => {
     const amt = (p) => Number(p.total_amount ?? p.total_cost ?? 0);
@@ -494,11 +542,26 @@ const SupplierLedger = () => {
 
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
+                  {[['1M','Month'],['3M','3 months'],['FY','This FY'],['ALL','All']].map(([val, label]) => (
+                    <button
+                      key={val}
+                      onClick={() => { setRange(val); setExpandedRow(null); }}
+                      className={`px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                        range === val
+                          ? 'bg-ink-primary text-white shadow-sm'
+                          : 'text-muted-foreground hover:text-ink-primary'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
                   {[['ALL','All'],['BILL','Bills'],['PAY','Payments'],['RETURN','Returns']].map(([val, label]) => (
                     <button
                       key={val}
                       onClick={() => { setPaymentFilter(val); setExpandedRow(null); }}
-                      className={`px-3 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      className={`px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
                         paymentFilter === val
                           ? 'bg-accent-signature text-white shadow-sm'
                           : 'text-muted-foreground hover:text-ink-primary'
@@ -508,6 +571,15 @@ const SupplierLedger = () => {
                     </button>
                   ))}
                 </div>
+                {/* A shopkeeper wants today at the top; an accountant reading a
+                    statement wants it to run forwards. Neither is wrong. */}
+                <button
+                  onClick={() => setNewestFirst(v => !v)}
+                  title={newestFirst ? 'Showing newest first' : 'Showing oldest first'}
+                  className="h-7 px-2.5 rounded-lg border border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-ink-primary transition-all"
+                >
+                  {newestFirst ? 'Newest ↑' : 'Oldest ↓'}
+                </button>
                 <span className="text-[11px] font-bold text-muted-foreground">
                   {filteredRows.length} {filteredRows.length === 1 ? 'row' : 'rows'}
                 </span>
@@ -528,7 +600,22 @@ const SupplierLedger = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
-                  {filteredRows.length === 0 ? (
+                  {/* Balance carried into the window. Without it every figure in
+                      the Balance column would be understated by whatever the
+                      hidden history left behind. */}
+                  {hiddenBefore > 0 && !newestFirst && (
+                    <tr className="bg-canvas/60">
+                      <td className="py-3 px-5 text-[11px] font-bold text-muted-foreground tabular-nums whitespace-nowrap">{formatDate(rangeStart)}</td>
+                      <td colSpan="4" className="py-3 px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Balance brought forward
+                        <span className="ml-2 normal-case font-semibold text-muted-foreground/70">{hiddenBefore} earlier {hiddenBefore === 1 ? 'entry' : 'entries'} not shown</span>
+                      </td>
+                      <td className="py-3 px-5 text-right text-xs font-bold tabular-nums text-ink-primary">
+                        {cur}{opening.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  )}
+                  {displayRows.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="py-24 text-center">
                         <div className="opacity-10 mb-4 flex justify-center"><Box size={72} strokeWidth={1} /></div>
@@ -536,11 +623,13 @@ const SupplierLedger = () => {
                         <p className="text-xs text-muted-foreground">
                           {ledgerRows.length === 0
                             ? 'This supplier has no recorded purchases yet.'
-                            : 'Nothing matches this filter.'}
+                            : hiddenBefore === ledgerRows.length
+                              ? 'Nothing in this period — try a wider range.'
+                              : 'Nothing matches this filter.'}
                         </p>
                       </td>
                     </tr>
-                  ) : filteredRows.map((r, i) => {
+                  ) : displayRows.map((r, i) => {
                     const key = `${r.kind}-${r.bill?.id || r.ret?.id || r.pay?.id}-${i}`;
                     const money = (n) => `${cur}${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -701,11 +790,32 @@ const SupplierLedger = () => {
                       </tr>
                     );
                   })}
+                  {/* Newest-first puts the oldest line last, so the carried
+                      balance belongs at the foot of the list, not the head. */}
+                  {hiddenBefore > 0 && newestFirst && displayRows.length > 0 && (
+                    <tr className="bg-canvas/60">
+                      <td className="py-3 px-5 text-[11px] font-bold text-muted-foreground tabular-nums whitespace-nowrap">{formatDate(rangeStart)}</td>
+                      <td colSpan="4" className="py-3 px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Balance brought forward
+                        <span className="ml-2 normal-case font-semibold text-muted-foreground/70">{hiddenBefore} earlier {hiddenBefore === 1 ? 'entry' : 'entries'} not shown</span>
+                      </td>
+                      <td className="py-3 px-5 text-right text-xs font-bold tabular-nums text-ink-primary">
+                        {cur}{opening.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
                 {ledgerRows.length > 0 && paymentFilter === 'ALL' && !searchTerm.trim() && (
                   <tfoot>
                     <tr className="bg-canvas border-t-2 border-black/10">
-                      <td colSpan="3" className="py-3.5 px-5 text-[10px] font-black uppercase tracking-wider text-ink-primary">Closing balance</td>
+                      <td colSpan="3" className="py-3.5 px-5 text-[10px] font-black uppercase tracking-wider text-ink-primary">
+                        Closing balance
+                        {hiddenBefore > 0 && (
+                          <span className="ml-2 normal-case font-semibold text-muted-foreground">
+                            · debit/credit cover {formatDate(rangeStart)} onwards
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3.5 px-3 text-right text-[11px] font-bold tabular-nums text-muted-foreground">
                         {cur}{ledgerTotals.debit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
