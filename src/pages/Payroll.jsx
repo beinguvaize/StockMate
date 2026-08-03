@@ -743,11 +743,11 @@ const Payroll = () => {
                               onChange={e => setAttRateDraft(prev => ({ ...prev, [emp.id]: e.target.value }))}
                               onKeyDown={e => {
                                 if (e.key !== 'Enter') return;
-                                applyRateToPresentDays(emp.id, attRateDraft[emp.id] ?? emp.daily_rate);
+                                applyRateToPresentDays(emp.id, attRateDraft[emp.id] || emp.daily_rate);
                               }}
                             />
                             <button
-                              onClick={() => applyRateToPresentDays(emp.id, attRateDraft[emp.id] ?? emp.daily_rate)}
+                              onClick={() => applyRateToPresentDays(emp.id, attRateDraft[emp.id] || emp.daily_rate)}
                               title="Apply this rate to every day marked Present this month that has no rate yet"
                               className="px-1.5 py-1 rounded border border-black/10 text-[9px] font-bold text-ink-secondary hover:text-ink-primary hover:bg-black/5 transition-all whitespace-nowrap">
                               Apply
