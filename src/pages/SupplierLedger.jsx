@@ -122,6 +122,11 @@ const SupplierLedger = () => {
   const payments = useMemo(() => {
     if (!supplier) return [];
     return (supplierPayments || [])
+      // Spent advances are soft-deleted and replaced by allocation rows. The
+      // fetch filters them, but it renders from the offline cache first, which
+      // can still hold a row from before it was spent — and counting both would
+      // credit the same money twice.
+      .filter(p => !p.deleted_at)
       .filter(p => p.supplier_id === supplier.id || p.supplier_name === supplier.name)
       .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
   }, [supplier, supplierPayments]);

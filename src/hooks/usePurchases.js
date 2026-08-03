@@ -61,7 +61,14 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
       if (withPayments) {
         readCacheThenRevalidate(
           'supplier_payments',
-          () => supabase.from('supplier_payments').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          // deleted_at matters here now: apply_supplier_advances soft-deletes an
+          // advance once it has been spent across bills, replacing it with
+          // allocation rows. Without this filter the spent advance kept
+          // rendering as an on-account credit alongside the allocations that
+          // replaced it — HASSAN's consumed Rs 2,390 was counted twice, showing
+          // a closing balance of Rs 3,420 against a real Rs 5,810.
+          // Every sibling fetch above already filters it; this one did not.
+          () => supabase.from('supplier_payments').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
           (rows) => setSupplierPayments(rows),
         ).then(cached => setSupplierPayments(cached));
       }
