@@ -6,7 +6,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Calendar } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Calendar, ChevronRight } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
@@ -41,6 +41,7 @@ const PurchasesPage = () => {
   const [sortBy, setSortBy]   = useState('DATE_DESC'); // DATE_DESC | DATE_ASC | AMT_DESC | AMT_ASC
   const [onlyUnpaid, setOnlyUnpaid] = useState(false); // quick chip: credit purchases still owing
   const [groupBy, setGroupBy] = useState('DATE'); // NONE | SUPPLIER | DATE
+  const [expandedBill, setExpandedBill] = useState(null); // bill id whose products are open
 
   // ── Pay / Duplicate / Print targets ─────────────────────────────────────────
   const [payTarget, setPayTarget] = useState(null);
@@ -59,11 +60,14 @@ const PurchasesPage = () => {
   };
 
   const _credit = (pt) => ['CREDIT', 'UDHAAR', 'POST-CAPITAL'].includes(String(pt || '').toUpperCase());
-  // Cash/bank purchases are paid at the counter (paid_amount often left 0 in the
-  // data) — only credit purchases carry a real balance due.
-  const dueOf = (p) => _credit(p.payment_type)
-    ? Math.max(0, Number(p.total_amount || 0) - Number(p.paid_amount || 0))
-    : 0;
+  const paidOf = (p) => Number(p.paid_amount || 0);
+  // Due comes from paid_amount for every payment type now. It used to force
+  // non-credit bills to zero, because cash bills were left with paid_amount 0
+  // and would otherwise have looked unpaid. process_purchase now writes it and
+  // the old rows were backfilled, so the special case is obsolete — and it
+  // would hide a part-paid cash bill, which is exactly the case being asked
+  // about here.
+  const dueOf = (p) => Math.max(0, Number(p.total_amount || 0) - paidOf(p));
 
   // Header summary — this-month spend, count, total payable, derived ITC.
   const summary = useMemo(() => {
@@ -112,10 +116,61 @@ const PurchasesPage = () => {
     return rows;
   }, [purchases, search, fSupplier, fPay, fStatus, sortBy, onlyUnpaid, productNameById]);
 
-  // Count for the Unpaid chip badge — credit purchases still carrying a balance.
+  // ── Bills ────────────────────────────────────────────────────────────────
+  // One physical bill is stored as one `purchases` row PER PRODUCT — the
+  // multi-product form writes them in a burst. This list showed each of those
+  // as its own entry, so a five-product delivery read as five purchases and
+  // this tenant's 53 bills appeared as 135 rows.
+  //
+  // Same rule as the supplier ledger: supplier + date + payment_type, chained
+  // only while consecutive created_at gaps stay inside ten minutes. Both parts
+  // matter — payment_type keeps a CASH and a CREDIT bill on the same day apart,
+  // and the burst guard stops separate trips on one day fusing into one bill.
+  //
+  // Derived at render time; no rows are merged in the database.
+  const billsOf = (rows) => {
+    const at = (p) => new Date(p.created_at || p.date).getTime();
+    const BURST_MS = 10 * 60 * 1000;
+    const byKey = {};
+    rows.forEach(p => {
+      const key = [p.supplier_id || p.supplier_name, p.date, String(p.payment_type || '').toUpperCase()].join('|');
+      (byKey[key] = byKey[key] || []).push(p);
+    });
+    const groups = [];
+    Object.values(byKey).forEach(list => {
+      list.sort((a, b) => at(a) - at(b));
+      let chunk = [];
+      list.forEach(r => {
+        const prev = chunk[chunk.length - 1];
+        if (prev && Math.abs(at(r) - at(prev)) > BURST_MS) { groups.push(chunk); chunk = []; }
+        chunk.push(r);
+      });
+      if (chunk.length) groups.push(chunk);
+    });
+    return groups.map(list => {
+      const total = list.reduce((s, r) => s + Number(r.total_amount || 0), 0);
+      const paid  = list.reduce((s, r) => s + paidOf(r), 0);
+      return {
+        __bill: true,
+        id: list[0].id,
+        lines: list,
+        date: list[0].date,
+        bill_no: list[0].bill_no,
+        supplier_id: list[0].supplier_id,
+        supplier_name: list[0].supplier_name,
+        payment_type: list[0].payment_type,
+        status: list[0].status,
+        notes: list.map(r => r.notes).filter(Boolean).join(' · '),
+        total, paid,
+        due: Math.max(0, total - paid),
+      };
+    });
+  };
+
+  // Count for the Unpaid chip badge — bills still carrying a balance.
   const unpaidCount = useMemo(
-    () => (purchases || []).filter(p => dueOf(p) > 0.5).length,
-    [purchases]);
+    () => billsOf(purchases || []).filter(b => b.due > 0.5).length,
+    [purchases]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Age of a bill in days, and whether an unpaid credit purchase is overdue
   // (>30 days). Turns the list into a light ageing view.
@@ -131,22 +186,30 @@ const PurchasesPage = () => {
   // marker rows so the shared Table can render headers and rows in one pass.
   // Date groups keep filteredPurchases' order, so the active sort (newest /
   // oldest) decides which day leads.
+  // Product rows collapsed into the bills they came from, keeping the sort the
+  // filter produced (the first line of a bill carries its position).
+  const filteredBills = useMemo(() => {
+    const order = new Map(filteredPurchases.map((p, i) => [p.id, i]));
+    return billsOf(filteredPurchases)
+      .sort((a, b) => (order.get(a.lines[0].id) ?? 0) - (order.get(b.lines[0].id) ?? 0));
+  }, [filteredPurchases]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const displayRows = useMemo(() => {
-    if (groupBy === 'NONE') return filteredPurchases;
+    if (groupBy === 'NONE') return filteredBills;
     const byDate = groupBy === 'DATE';
     const map = new Map();
-    filteredPurchases.forEach(p => {
-      const key = byDate ? (p.date || '—') : (p.supplier_id || p.supplier_name || '—');
+    filteredBills.forEach(b => {
+      const key = byDate ? (b.date || '—') : (b.supplier_id || b.supplier_name || '—');
       if (!map.has(key)) {
         map.set(key, {
-          name: byDate ? (p.date || 'No date') : (p.supplier_name || 'Unknown supplier'),
+          name: byDate ? (b.date || 'No date') : (b.supplier_name || 'Unknown supplier'),
           isDate: byDate, rows: [], total: 0, due: 0,
         });
       }
       const g = map.get(key);
-      g.rows.push(p);
-      g.total += Number(p.total_amount) || 0;
-      g.due += dueOf(p);
+      g.rows.push(b);
+      g.total += b.total;
+      g.due += b.due;
     });
     const out = [];
     for (const [key, g] of map) {
@@ -154,7 +217,7 @@ const PurchasesPage = () => {
       g.rows.forEach(r => out.push(r));
     }
     return out;
-  }, [filteredPurchases, groupBy]);
+  }, [filteredBills, groupBy]);
 
   // Professional, self-contained printable purchase voucher (own CSS — the
   // print window has none of the app's styles).
@@ -520,66 +583,85 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
 
   const renderRow = (row) => {
     if (row.__group) return renderGroupHeader(row);
-    const pur = row;
-    const product = products.find(p => p.id === pur.linked_product_id);
-    const supplier = suppliers.find(s => s.id === pur.supplier_id);
-    const credit = _credit(pur.payment_type);
-    const due = dueOf(pur);
-    const overdue = isOverdue(pur);
+    const bill = row;
+    const supplier = suppliers.find(s => s.id === bill.supplier_id);
+    const credit = _credit(bill.payment_type);
+    const due = bill.due;
+    const paid = bill.paid;
+    const multi = bill.lines.length > 1;
+    const expanded = expandedBill === bill.id;
+    const overdue = due > 0.5 && ageDays(bill) > 30;
+    const names = bill.lines.map(l => productNameById[l.linked_product_id]).filter(Boolean);
+    const qtyTotal = bill.lines.reduce((s, l) => s + Number(l.quantity || 0), 0);
 
     return (
-      <tr key={pur.id}
-        className="hover:bg-canvas transition-colors"
+      <React.Fragment key={bill.id}>
+      <tr
+        className={`transition-colors ${multi ? 'cursor-pointer' : ''} ${expanded ? 'bg-canvas' : 'hover:bg-canvas'}`}
+        onClick={() => multi && setExpandedBill(expanded ? null : bill.id)}
         style={overdue ? { boxShadow: 'inset 2px 0 0 0 var(--color-neg)' } : undefined}>
         {/* Ref · bill no · date */}
         <td className="px-4 py-3 align-top">
-          <div className="tabular-nums text-[12px] text-foreground">{pur.id.split('-').pop()}</div>
+          <div className="flex items-center gap-1.5">
+            {multi && <ChevronRight size={12} className={`text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`} />}
+            <span className="tabular-nums text-[12px] text-foreground">{bill.id.split('-').pop()}</span>
+          </div>
           <div className="text-[10px] text-muted-foreground mt-1">
-            {pur.bill_no ? `bill ${pur.bill_no}` : 'no bill'} · {shortDate(pur.date)}
+            {bill.bill_no ? `bill ${bill.bill_no}` : 'no bill'} · {shortDate(bill.date)}
           </div>
         </td>
-        {/* Avatar + product + supplier */}
+        {/* Avatar + what was bought + supplier */}
         <td className="px-4 py-3 max-w-[280px]">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-7 h-7 rounded-md bg-canvas border border-border/60 flex items-center justify-center text-[10px] font-semibold text-muted-foreground shrink-0">
-              {initialsOf(supplier?.name || pur.supplier_name)}
+              {initialsOf(supplier?.name || bill.supplier_name)}
             </div>
             <div className="min-w-0">
-              <div className="text-[13px] font-medium text-foreground truncate" title={product?.name || ''}>
-                {product?.name || 'Unknown Product'}
+              <div className="text-[13px] font-medium text-foreground truncate flex items-center gap-1.5" title={names.join(', ')}>
+                <span className="truncate">{names[0] || 'Unknown Product'}</span>
+                {multi && (
+                  <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-black/[0.06] text-ink-secondary">
+                    +{bill.lines.length - 1}
+                  </span>
+                )}
               </div>
               <div className="text-[11px] text-muted-foreground truncate mt-0.5"
-                   title={supplier?.name || pur.supplier_name || ''}>
-                {supplier?.name || pur.supplier_name || '—'}
+                   title={supplier?.name || bill.supplier_name || ''}>
+                {supplier?.name || bill.supplier_name || '—'}
               </div>
             </div>
           </div>
         </td>
-        {/* Qty + unit */}
+        {/* Qty across the bill */}
         <td className="px-4 py-3 text-center whitespace-nowrap">
-          <span className="tabular-nums text-[13px] text-foreground">{pur.quantity}</span>
-          <span className="text-[9px] text-muted-foreground uppercase ml-0.5">{product?.unit || 'pcs'}</span>
+          <span className="tabular-nums text-[13px] text-foreground">{qtyTotal}</span>
+          {multi && <span className="text-[9px] text-muted-foreground ml-0.5">in {bill.lines.length}</span>}
         </td>
-        {/* Payment — dot + label, due underneath, overdue age tag */}
+        {/* Payment — how much has been paid, and what is left */}
         <td className="px-4 py-3">
           {(() => {
-            const dot = !credit ? 'var(--color-ink-tertiary)'
-              : due <= 0.5 ? 'var(--color-pos)'
+            const dot = due <= 0.5 ? 'var(--color-pos)'
               : overdue ? 'var(--color-neg)' : '#B45309';
-            const label = !credit ? (pur.payment_type || 'Cash')
-              : due <= 0.5 ? 'Paid'
-              : (Number(pur.paid_amount || 0) > 0 ? 'Partial' : 'Credit');
+            const label = due <= 0.5 ? (credit ? 'Paid' : (bill.payment_type || 'Cash'))
+              : (paid > 0.5 ? 'Part paid' : (credit ? 'Credit' : 'Unpaid'));
             return (
               <div className="flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: dot }} />
                 <div className="min-w-0">
                   <div className="text-[12px] text-muted-foreground">
                     {label}
-                    {credit && due > 0.5 && overdue && (
-                      <span className="text-[color:var(--color-neg)] text-[10px]"> · {ageDays(pur)}d</span>
+                    {due > 0.5 && overdue && (
+                      <span className="text-[color:var(--color-neg)] text-[10px]"> · {ageDays(bill)}d</span>
                     )}
                   </div>
-                  {credit && due > 0.5 && (
+                  {/* The question this screen could not answer: how much of a
+                      part-paid bill has actually been handed over. */}
+                  {paid > 0.5 && due > 0.5 && (
+                    <div className="tabular-nums text-[11px] text-[color:var(--color-pos)] mt-0.5">
+                      paid {formatCurrency(paid)}
+                    </div>
+                  )}
+                  {due > 0.5 && (
                     <div className="tabular-nums text-[11px] text-[color:var(--color-neg)] mt-0.5">due {formatCurrency(due)}</div>
                   )}
                 </div>
@@ -588,16 +670,16 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
           })()}
         </td>
         {/* Total */}
-        <td className="px-4 py-3 text-right tabular-nums text-[14px] font-semibold text-foreground">{formatCurrency(pur.total_amount)}</td>
-        {/* Status select */}
-        <td className="px-4 py-3 text-center">
+        <td className="px-4 py-3 text-right tabular-nums text-[14px] font-semibold text-foreground">{formatCurrency(bill.total)}</td>
+        {/* Status select — drives every line of the bill together */}
+        <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
           {(() => {
-            const st = (pur.status || 'RECEIVED').toUpperCase();
+            const st = (bill.status || 'RECEIVED').toUpperCase();
             const s = _STATUS_STYLES[st] || _STATUS_STYLES.RECEIVED;
             return (
               <select
                 value={st}
-                onChange={(e) => updatePurchaseStatus(pur.id, e.target.value)}
+                onChange={(e) => bill.lines.forEach(l => updatePurchaseStatus(l.id, e.target.value))}
                 className={`text-[10px] font-medium px-2.5 py-1 rounded-pill border outline-none cursor-pointer ${s.bg} ${s.text} ${s.border}`}
               >
                 <option value="PENDING">Pending</option>
@@ -609,19 +691,31 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
           })()}
         </td>
         {/* Actions */}
-        <td className="px-4 py-3 text-right">
+        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-1.5 justify-end">
-            {credit && due > 0.5 && (
+            {/* Paying is per line, because the money lands on separate purchase
+                rows. A single-line bill is the common case and behaves as
+                before; a multi-line one opens to pay each line. */}
+            {due > 0.5 && !multi && (
               <button
-                onClick={() => { setPayTarget(pur); setPayAmount(String(due)); setPayMethod('CASH'); }}
+                onClick={() => { setPayTarget(bill.lines[0]); setPayAmount(String(due)); setPayMethod('CASH'); }}
                 title={`Due ${formatCurrency(due)}`}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
               >
                 <Banknote size={12} /> Pay
               </button>
             )}
+            {due > 0.5 && multi && (
+              <button
+                onClick={() => setExpandedBill(expanded ? null : bill.id)}
+                title="Open the bill to pay a line"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
+              >
+                <Banknote size={12} /> Pay lines
+              </button>
+            )}
             <button
-              onClick={(e) => openMenu(e, pur)}
+              onClick={(e) => openMenu(e, bill.lines[0])}
               title="More"
               className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
             >
@@ -630,6 +724,56 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
           </div>
         </td>
       </tr>
+
+      {expanded && (
+        <tr className="bg-canvas/60">
+          <td colSpan={7} className="px-4 py-3 border-l-2 border-accent-signature">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Products on this bill
+            </div>
+            <table className="w-full">
+              <tbody className="divide-y divide-border/60">
+                {bill.lines.map(l => {
+                  const prod = products.find(x => x.id === l.linked_product_id);
+                  const lineAmt = Number(l.total_amount || 0);
+                  const lineQty = Number(l.quantity || 0);
+                  const lineDue = Math.max(0, lineAmt - paidOf(l));
+                  return (
+                    <tr key={l.id}>
+                      <td className="py-2 text-[12px] font-medium text-foreground">{prod?.name || l.notes || '—'}</td>
+                      <td className="py-2 text-right text-[12px] tabular-nums text-muted-foreground whitespace-nowrap">
+                        {lineQty} {prod?.unit || 'pcs'} × {formatCurrency(lineQty > 0 ? lineAmt / lineQty : 0)}
+                      </td>
+                      <td className="py-2 text-right text-[12px] font-semibold tabular-nums text-foreground whitespace-nowrap">
+                        {formatCurrency(lineAmt)}
+                      </td>
+                      <td className="py-2 pl-4 text-right whitespace-nowrap">
+                        {lineDue > 0.5 ? (
+                          <span className="inline-flex items-center gap-2">
+                            <span className="text-[10px] font-semibold tabular-nums text-[color:var(--color-neg)]">
+                              due {formatCurrency(lineDue)}
+                            </span>
+                            <button
+                              onClick={() => { setPayTarget(l); setPayAmount(String(lineDue)); setPayMethod('CASH'); }}
+                              className="px-2 py-0.5 rounded-md text-[10px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
+                            >Pay</button>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-medium text-[color:var(--color-pos)]">Settled</span>
+                        )}
+                      </td>
+                      <td className="py-2 pl-4 text-right text-[9px] tabular-nums text-muted-foreground whitespace-nowrap">
+                        {l.id.split('-').pop()}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      )}
+      </React.Fragment>
     );
   };
 
