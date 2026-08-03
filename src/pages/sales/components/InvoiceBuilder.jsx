@@ -1707,13 +1707,41 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       <div className="text-sm font-semibold text-foreground truncate">{client.name}</div>
                       {client.phone && <div className="text-[10px] text-muted-foreground font-medium">{client.phone}</div>}
                     </div>
-                    {Number(client.outstanding_balance) > 0 && (
-                      <span className="shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full bg-red-50 text-red-500 whitespace-nowrap">
-                        Due {formatCurrency(client.outstanding_balance)}
-                      </span>
-                    )}
                   </div>
                 ) : null;
+              })()}
+
+              {/* What this customer already owes, and what this bill makes it.
+                  Whether to extend more credit is decided by the total
+                  exposure, not by this bill alone — and the old chip showed
+                  only the existing due, so the cashier still had to add it up
+                  in their head at the counter. */}
+              {selectedClientId !== 'WALKIN' && (() => {
+                const client = allClients.find(c => c.id === selectedClientId);
+                const due = Number(client?.outstanding_balance) || 0;
+                if (due <= 0.01) return null;
+                return (
+                  <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-red-400">
+                          Already owes
+                        </div>
+                        <div className="text-xl font-bold tabular-nums text-red-600 mt-0.5">
+                          {formatCurrency(due)}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          With this bill
+                        </div>
+                        <div className="text-base font-bold tabular-nums text-foreground mt-0.5">
+                          {formatCurrency(due + total)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
               })()}
             </div>
 

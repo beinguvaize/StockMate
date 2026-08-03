@@ -2025,6 +2025,82 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
 
                     const SizedBox(height: 24),
 
+                    // ── What this customer already owes ───────────
+                    // Shown before the basket, because whether to extend more
+                    // credit is decided by the total exposure, not by this
+                    // bill alone. The cashier could previously only see it by
+                    // leaving checkout and opening the client.
+                    if (widget.selectedClient != null &&
+                        (widget.selectedClient!.outstandingBalance ?? 0) > 0.01) ...[
+                      Builder(builder: (_) {
+                        final due = widget.selectedClient!.outstandingBalance ?? 0.0;
+                        // _netTotal, so the figure follows any discount applied.
+                        final after = due + _netTotal;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFFECACA)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(LucideIcons.alertCircle,
+                                  size: 18, color: Color(0xFFDC2626)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${widget.selectedClient!.name ?? "Customer"} already owes',
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.inkSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '₹${due.toStringAsFixed(2)}',
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFFDC2626),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    'With this bill',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.inkSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '₹${after.toStringAsFixed(2)}',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.inkPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 20),
+                    ],
+
                     // ── Basket summary ────────────────────────────
                     Text(
                       'Basket Summary',
