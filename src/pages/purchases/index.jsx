@@ -12,6 +12,7 @@ import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
 import { PageSkeleton } from '../../components/ui/States';
 import { formatCurrency, formatDate, generateRef } from '../../lib/utils';
+import { groupPurchasesIntoBills, paidOf, dueOf as billDueOf, isCreditType } from '../../lib/bills';
 import PurchaseForm from './components/PurchaseForm';
 import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
@@ -59,15 +60,10 @@ const PurchasesPage = () => {
     setMenuRow(pur);
   };
 
-  const _credit = (pt) => ['CREDIT', 'UDHAAR', 'POST-CAPITAL'].includes(String(pt || '').toUpperCase());
-  const paidOf = (p) => Number(p.paid_amount || 0);
-  // Due comes from paid_amount for every payment type now. It used to force
-  // non-credit bills to zero, because cash bills were left with paid_amount 0
-  // and would otherwise have looked unpaid. process_purchase now writes it and
-  // the old rows were backfilled, so the special case is obsolete — and it
-  // would hide a part-paid cash bill, which is exactly the case being asked
-  // about here.
-  const dueOf = (p) => Math.max(0, Number(p.total_amount || 0) - paidOf(p));
+  // Credit terms, paid and due all come from src/lib/bills.js so this screen and
+  // the supplier ledger cannot disagree about what is owed.
+  const _credit = isCreditType;
+  const dueOf = billDueOf;
 
   // Header summary — this-month spend, count, total payable, derived ITC.
   const summary = useMemo(() => {
@@ -116,56 +112,13 @@ const PurchasesPage = () => {
     return rows;
   }, [purchases, search, fSupplier, fPay, fStatus, sortBy, onlyUnpaid, productNameById]);
 
-  // ── Bills ────────────────────────────────────────────────────────────────
-  // One physical bill is stored as one `purchases` row PER PRODUCT — the
-  // multi-product form writes them in a burst. This list showed each of those
-  // as its own entry, so a five-product delivery read as five purchases and
-  // this tenant's 53 bills appeared as 135 rows.
-  //
-  // Same rule as the supplier ledger: supplier + date + payment_type, chained
-  // only while consecutive created_at gaps stay inside ten minutes. Both parts
-  // matter — payment_type keeps a CASH and a CREDIT bill on the same day apart,
-  // and the burst guard stops separate trips on one day fusing into one bill.
-  //
-  // Derived at render time; no rows are merged in the database.
-  const billsOf = (rows) => {
-    const at = (p) => new Date(p.created_at || p.date).getTime();
-    const BURST_MS = 10 * 60 * 1000;
-    const byKey = {};
-    rows.forEach(p => {
-      const key = [p.supplier_id || p.supplier_name, p.date, String(p.payment_type || '').toUpperCase()].join('|');
-      (byKey[key] = byKey[key] || []).push(p);
-    });
-    const groups = [];
-    Object.values(byKey).forEach(list => {
-      list.sort((a, b) => at(a) - at(b));
-      let chunk = [];
-      list.forEach(r => {
-        const prev = chunk[chunk.length - 1];
-        if (prev && Math.abs(at(r) - at(prev)) > BURST_MS) { groups.push(chunk); chunk = []; }
-        chunk.push(r);
-      });
-      if (chunk.length) groups.push(chunk);
-    });
-    return groups.map(list => {
-      const total = list.reduce((s, r) => s + Number(r.total_amount || 0), 0);
-      const paid  = list.reduce((s, r) => s + paidOf(r), 0);
-      return {
-        __bill: true,
-        id: list[0].id,
-        lines: list,
-        date: list[0].date,
-        bill_no: list[0].bill_no,
-        supplier_id: list[0].supplier_id,
-        supplier_name: list[0].supplier_name,
-        payment_type: list[0].payment_type,
-        status: list[0].status,
-        notes: list.map(r => r.notes).filter(Boolean).join(' · '),
-        total, paid,
-        due: Math.max(0, total - paid),
-      };
-    });
-  };
+  // Bills come from the shared rule; this only adds the two fields the list
+  // needs on top of it.
+  const billsOf = (rows) => groupPurchasesIntoBills(rows).map(b => ({
+    ...b,
+    __bill: true,
+    notes: b.lines.map(l => l.notes).filter(Boolean).join(' · '),
+  }));
 
   // Count for the Unpaid chip badge — bills still carrying a balance.
   const unpaidCount = useMemo(

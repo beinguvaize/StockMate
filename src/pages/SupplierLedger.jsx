@@ -13,6 +13,7 @@ import {
   ArrowUpRight, CreditCard, ChevronRight, Info, ShieldCheck, User2
 } from 'lucide-react';
 import { formatDate } from '../lib/utils';
+import { groupPurchasesIntoBills } from '../lib/bills';
 
 const SupplierLedger = () => {
   const { id } = useParams();
@@ -153,44 +154,12 @@ const SupplierLedger = () => {
   //     trips, and a supplier+date key alone would fuse them into one bill.
   //
   // Presentation only. No row is merged in the database and no id changes.
-  const bills = useMemo(() => {
-    const amt = (p) => Number(p.total_amount ?? p.total_cost ?? 0);
-    const at  = (p) => new Date(p.created_at || p.date).getTime();
-    const BURST_MS = 10 * 60 * 1000;
-
-    const byKey = {};
-    supplierPurchases.forEach(p => {
-      const key = [p.supplier_id || p.supplier_name, p.date, String(p.payment_type || '').toUpperCase()].join('|');
-      (byKey[key] = byKey[key] || []).push(p);
-    });
-
-    const groups = [];
-    Object.values(byKey).forEach(rows => {
-      rows.sort((a, b) => at(a) - at(b));
-      let chunk = [];
-      rows.forEach(r => {
-        const prev = chunk[chunk.length - 1];
-        if (prev && Math.abs(at(r) - at(prev)) > BURST_MS) { groups.push(chunk); chunk = []; }
-        chunk.push(r);
-      });
-      if (chunk.length) groups.push(chunk);
-    });
-
-    return groups.map(rows => {
-      const total = rows.reduce((s, r) => s + amt(r), 0);
-      // paid_amount is the single source of truth — the same column the
-      // sidebar's payable uses. The old row badge read supplier_payments
-      // instead, so a bill settled by writing paid_amount alone still showed
-      // as owing.
-      const paid  = rows.reduce((s, r) => s + Number(r.paid_amount || 0), 0);
-      return {
-        id: rows[0].id, rows, date: rows[0].date,
-        payment_type: rows[0].payment_type,
-        credit: isCredit(rows[0].payment_type),
-        total, paid, due: Math.max(0, total - paid),
-      };
-    });
-  }, [supplierPurchases]);
+  // Bills come from src/lib/bills.js — the same rule the purchases list uses.
+  // It lived in both files until the second copy was written, which is one
+  // edit away from the two screens disagreeing about what a supplier billed.
+  const bills = useMemo(
+    () => groupPurchasesIntoBills(supplierPurchases),
+    [supplierPurchases]);
 
   // ── The ledger ───────────────────────────────────────────────────────────
   // One chronological debit/credit list with a running balance, mirroring

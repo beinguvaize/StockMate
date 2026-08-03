@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "prebuild": "npm run lint:crash",
+    "prebuild": "npm run lint:crash && npm run test:unit",
     "build": "vite build",
     "lint": "eslint .",
     "lint:crash": "eslint --config eslint.crash.config.js src",
@@ -21,7 +21,9 @@
     "electron:build": "vite build --base=./ && electron-builder",
     "electron:build:win": "vite build --base=./ && electron-builder --win",
     "electron:build:mac": "vite build --base=./ && electron-builder --mac",
-    "electron:publish": "vite build --base=./ && electron-builder --publish always"
+    "electron:publish": "vite build --base=./ && electron-builder --publish always",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
@@ -63,9 +65,10 @@
     "tailwindcss": "^4.2.1",
     "vite": "^7.3.1",
     "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.10",
     "wait-on": "^9.0.10"
   },
-  "description": "StockMate — inventory, sales and logistics management.",
+  "description": "StockMate \u2014 inventory, sales and logistics management.",
   "main": "electron/main.cjs",
   "keywords": [],
   "author": "",
