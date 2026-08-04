@@ -12,7 +12,7 @@ import {
   Wallet, CreditCard, Smartphone, Landmark, History, BookOpen,
   TrendingUp, TrendingDown, Phone, MapPin, Trash2, ChevronDown, Eye
 } from 'lucide-react';
-import { todayISOInAppTZ, formatDate, formatDateTime, formatCurrency } from '../lib/utils';
+import { todayISOInAppTZ, formatDate, formatCurrency } from '../lib/utils';
 
 const METHOD_ICON = {
   CASH: Wallet, CARD: CreditCard, UPI: Smartphone,
@@ -51,7 +51,14 @@ const ClientSettlement = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState([]);
-  const [bottomTab, setBottomTab] = useState('HISTORY'); // HISTORY | STATEMENT
+  // ── Ledger view, matching the supplier ledger ───────────────────────────
+  // The statement was a tab at the bottom of a third column. It is the thing
+  // this page is about, so it now leads — same controls, same columns and the
+  // same running balance the supplier side uses, so one screen teaches both.
+  const [rightView, setRightView] = useState('LEDGER'); // LEDGER | SETTLE
+  const [range, setRange] = useState('3M');             // 1M | 3M | FY | ALL
+  const [rowKind, setRowKind] = useState('ALL');        // ALL | SALE | PAYMENT
+  const [newestFirst, setNewestFirst] = useState(false);
 
   // Fetch payment history + resolve collector names separately (no FK on recorded_by).
   useEffect(() => {
@@ -201,6 +208,57 @@ const ClientSettlement = () => {
       return { ...r, balance };
     });
   }, [client, sales, invoices, paymentHistory]);
+
+  // ── Period window ────────────────────────────────────────────────────────
+  // Same shape as the supplier ledger: a window, plus a brought-forward row so
+  // the running balance stays true when history is hidden. Without that the
+  // first visible row would start from zero and every balance under it would be
+  // wrong.
+  const rangeStart = useMemo(() => {
+    if (range === 'ALL') return null;
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    if (range === '1M') return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+    if (range === '3M') { const d = new Date(now); d.setMonth(d.getMonth() - 3); return fmt(d); }
+    // Indian financial year — the window a GST filing is reconciled against.
+    const fy = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    return `${fy}-04-01`;
+  }, [range]);
+
+  const ledgerOpening = useMemo(() => {
+    if (!rangeStart) return 0;
+    let bal = 0;
+    statementRows.forEach(r => { if (String(r.date || '') < rangeStart) bal = r.balance; });
+    return bal;
+  }, [statementRows, rangeStart]);
+
+  const ledgerInRange = useMemo(
+    () => (rangeStart ? statementRows.filter(r => String(r.date || '') >= rangeStart) : statementRows),
+    [statementRows, rangeStart]);
+  const ledgerHiddenBefore = statementRows.length - ledgerInRange.length;
+
+  const ledgerFiltered = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return ledgerInRange.filter(r => {
+      if (rowKind === 'SALE'    && r.type === 'PAYMENT') return false;
+      if (rowKind === 'PAYMENT' && r.type !== 'PAYMENT') return false;
+      if (!q) return true;
+      return `${r.description} ${r.id}`.toLowerCase().includes(q);
+    });
+  }, [ledgerInRange, rowKind, searchTerm]);
+
+  const ledgerRowsView = useMemo(
+    () => (newestFirst ? [...ledgerFiltered].reverse() : ledgerFiltered),
+    [ledgerFiltered, newestFirst]);
+
+  // Closing is always across all history — what the client owes today does not
+  // change because a narrower period was chosen.
+  const ledgerClosing = statementRows.length ? statementRows[statementRows.length - 1].balance : 0;
+  const ledgerTotals = useMemo(() => ({
+    debit:  ledgerInRange.reduce((s, r) => s + (r.debit || 0), 0),
+    credit: ledgerInRange.reduce((s, r) => s + (r.credit || 0), 0),
+  }), [ledgerInRange]);
 
   const clientInvoices = useMemo(() => {
     if (!client) return [];
@@ -385,7 +443,7 @@ const ClientSettlement = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 p-3">
 
         {/* ── LEFT: Client info + Payment form ── */}
-        <aside className="lg:col-span-3 order-1 flex flex-col gap-3">
+        <aside className="lg:col-span-4 order-1 flex flex-col gap-3">
 
           {/* Client card */}
           <div className="bg-white rounded-2xl border border-black/5 p-4">
@@ -493,9 +551,176 @@ const ClientSettlement = () => {
           </div>
         </aside>
 
-        {/* ── CENTER: Unpaid invoices (internal scroll) ── */}
-        <section className={`lg:col-span-5 order-2 min-w-0 flex flex-col bg-white rounded-2xl border border-black/5 overflow-hidden ${colH}`}>
+        {/* ── RIGHT: the ledger, in the supplier's shape ──────────────── */}
+        <section className={`lg:col-span-8 order-2 min-w-0 flex flex-col bg-white rounded-2xl border border-black/5 overflow-hidden ${colH}`}>
 
+          {/* Controls. Same set as the supplier ledger so the two screens are
+              one thing to learn: a period, a row type, a sort, a count. */}
+          <div className="no-print p-3 border-b border-black/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl shrink-0">
+                {[['LEDGER', 'Ledger'], ['SETTLE', 'Settle bills']].map(([v, label]) => (
+                  <button key={v} onClick={() => setRightView(v)}
+                    className={`px-3 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      rightView === v ? 'bg-ink-primary text-white shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="relative flex-1 min-w-0 max-w-[220px]">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Search…"
+                  className="w-full h-8 pl-9 pr-3 rounded-lg bg-white border border-border text-[12px] font-semibold outline-none focus:border-accent-signature" />
+              </div>
+            </div>
+
+            {rightView === 'LEDGER' && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
+                  {[['1M','Month'],['3M','3 months'],['FY','This FY'],['ALL','All']].map(([v,label]) => (
+                    <button key={v} onClick={() => setRange(v)}
+                      className={`px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                        range === v ? 'bg-ink-primary text-white shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
+                  {[['ALL','All'],['SALE','Bills'],['PAYMENT','Payments']].map(([v,label]) => (
+                    <button key={v} onClick={() => setRowKind(v)}
+                      className={`px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                        rowKind === v ? 'bg-accent-signature text-white shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setNewestFirst(v => !v)}
+                  className="h-7 px-2.5 rounded-lg border border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-ink-primary transition-all">
+                  {newestFirst ? 'Newest ↑' : 'Oldest ↓'}
+                </button>
+                <span className="text-[11px] font-bold text-muted-foreground">
+                  {ledgerRowsView.length} {ledgerRowsView.length === 1 ? 'row' : 'rows'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {rightView === 'LEDGER' ? (
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-canvas/70 sticky top-0 z-10 border-b border-black/5">
+                  <tr>
+                    <th className="py-3 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date</th>
+                    <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Type</th>
+                    <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Reference</th>
+                    <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Debit</th>
+                    <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Credit</th>
+                    <th className="py-3 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Balance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black/5">
+                  {/* Balance carried in, so the figures below are not understated
+                      by whatever the hidden history left behind. */}
+                  {ledgerHiddenBefore > 0 && !newestFirst && (
+                    <tr className="bg-canvas/60">
+                      <td className="py-2.5 px-4 text-[11px] font-bold text-muted-foreground tabular-nums whitespace-nowrap">{formatDate(rangeStart)}</td>
+                      <td colSpan="4" className="py-2.5 px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Balance brought forward
+                        <span className="ml-2 normal-case font-semibold text-muted-foreground/70">{ledgerHiddenBefore} earlier {ledgerHiddenBefore === 1 ? 'entry' : 'entries'} not shown</span>
+                      </td>
+                      <td className="py-2.5 px-4 text-right text-xs font-bold tabular-nums text-ink-primary">{formatCurrency(ledgerOpening)}</td>
+                    </tr>
+                  )}
+
+                  {ledgerRowsView.length === 0 ? (
+                    <tr><td colSpan="6" className="py-20 text-center">
+                      <div className="text-sm font-bold text-ink-primary mb-1">Nothing to show</div>
+                      <div className="text-xs text-muted-foreground">
+                        {statementRows.length === 0 ? 'No bills or payments recorded yet.' : 'Try a wider period or another filter.'}
+                      </div>
+                    </td></tr>
+                  ) : ledgerRowsView.map(r => {
+                    const isPay = r.type === 'PAYMENT';
+                    return (
+                      <tr key={r.id} className={isPay ? 'hover:bg-emerald-50/30' : 'hover:bg-canvas/60'}>
+                        <td className="py-3 px-4 text-xs font-semibold text-ink-primary tabular-nums whitespace-nowrap">{formatDate(r.date)}</td>
+                        <td className="py-3 px-3">
+                          <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            isPay ? 'bg-emerald-100 text-emerald-700' : 'bg-accent-signature/10 text-accent-signature-hover'}`}>
+                            {isPay ? 'Payment' : r.type === 'INVOICE' ? 'Invoice' : 'Sale'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-semibold text-ink-primary truncate max-w-[240px]">{r.description}</span>
+                            {/* Deleting a mistaken receipt lived on the old
+                                History tab. Only real client_payments rows can
+                                go — the synthetic credits derived from a sale's
+                                paidAmount have no row of their own. */}
+                            {isPay && paymentHistory.some(h => h.id === r.id) && hasPermission('clients', 'edit') !== false && (
+                              <button
+                                onClick={() => handleDeletePayment(r.id)}
+                                disabled={deletingPaymentId === r.id}
+                                title="Delete this payment"
+                                className="no-print shrink-0 text-muted-foreground hover:text-red-600 disabled:opacity-40 transition-colors"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-right text-xs font-bold tabular-nums text-ink-primary">
+                          {r.debit > 0 ? formatCurrency(r.debit) : '—'}
+                        </td>
+                        <td className="py-3 px-3 text-right text-xs font-bold tabular-nums text-emerald-600">
+                          {r.credit > 0 ? formatCurrency(r.credit) : '—'}
+                        </td>
+                        <td className={`py-3 px-4 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>
+                          {formatCurrency(r.balance)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {ledgerHiddenBefore > 0 && newestFirst && ledgerRowsView.length > 0 && (
+                    <tr className="bg-canvas/60">
+                      <td className="py-2.5 px-4 text-[11px] font-bold text-muted-foreground tabular-nums whitespace-nowrap">{formatDate(rangeStart)}</td>
+                      <td colSpan="4" className="py-2.5 px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Balance brought forward
+                        <span className="ml-2 normal-case font-semibold text-muted-foreground/70">{ledgerHiddenBefore} earlier {ledgerHiddenBefore === 1 ? 'entry' : 'entries'} not shown</span>
+                      </td>
+                      <td className="py-2.5 px-4 text-right text-xs font-bold tabular-nums text-ink-primary">{formatCurrency(ledgerOpening)}</td>
+                    </tr>
+                  )}
+                </tbody>
+
+                {statementRows.length > 0 && rowKind === 'ALL' && !searchTerm.trim() && (
+                  <tfoot>
+                    <tr className="bg-canvas border-t-2 border-black/10">
+                      <td colSpan="3" className="py-3 px-4 text-[10px] font-black uppercase tracking-wider text-ink-primary">
+                        Closing balance
+                        {ledgerHiddenBefore > 0 && (
+                          <span className="ml-2 normal-case font-semibold text-muted-foreground">
+                            · debit/credit cover {formatDate(rangeStart)} onwards
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-right text-[11px] font-bold tabular-nums text-muted-foreground">{formatCurrency(ledgerTotals.debit)}</td>
+                      <td className="py-3 px-3 text-right text-[11px] font-bold tabular-nums text-muted-foreground">{formatCurrency(ledgerTotals.credit)}</td>
+                      <td className={`py-3 px-4 text-right text-sm font-black tabular-nums ${ledgerClosing > 0.01 ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {formatCurrency(ledgerClosing)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          ) : (
+            /* Settling against specific bills — kept intact, because choosing
+               which invoices a payment clears is the job this page exists for
+               and the supplier side has no equivalent. */
+            <>
           {/* Toolbar — fixed */}
           <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-black/5 bg-white">
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Unpaid Bills</span>
@@ -657,170 +882,9 @@ const ClientSettlement = () => {
               </div>
             </div>
           </div>
-        </section>
 
-        {/* ── RIGHT: History / Statement tabs (same eye-level as invoices) ── */}
-        <section className={`lg:col-span-4 order-3 min-w-0 flex flex-col bg-white rounded-2xl border border-black/5 overflow-hidden ${colH}`}>
-
-          {/* Tab bar — fixed */}
-          <div className="shrink-0 flex border-b border-black/5">
-            {[
-              { id: 'HISTORY',   label: 'History',   icon: History },
-              { id: 'STATEMENT', label: 'Statement',  icon: BookOpen },
-            ].map(({ id: tid, label, icon: Icon }) => (
-              <button key={tid} onClick={() => setBottomTab(tid)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${
-                  bottomTab === tid
-                    ? 'border-accent-signature text-ink-primary'
-                    : 'border-transparent text-muted-foreground hover:text-ink-primary hover:bg-canvas/50'
-                }`}>
-                <Icon size={11} />{label}
-              </button>
-            ))}
-          </div>
-          <div className="shrink-0 px-4 py-1.5 border-b border-black/5 bg-canvas/40">
-            <span className="text-[9px] font-semibold text-muted-foreground">
-              {bottomTab === 'HISTORY'
-                ? `${paymentHistory.length} payment${paymentHistory.length !== 1 ? 's' : ''}`
-                : `${statementRows.length} entries`}
-            </span>
-          </div>
-
-          {/* Tab content — scrolls */}
-          <div className="flex-1 min-h-0 overflow-y-auto">
-
-            {/* Payment History */}
-            {bottomTab === 'HISTORY' && (
-              paymentHistory.length === 0 ? (
-                <div className="h-full flex items-center justify-center">
-                  <div className="text-center py-10">
-                    <Clock size={28} className="mx-auto mb-2 text-gray-200" />
-                    <p className="text-xs font-semibold text-muted-foreground">No payments yet</p>
-                  </div>
-                </div>
-              ) : (
-                <table className="w-full text-left border-collapse">
-                  <thead className="sticky top-0 bg-white z-10 shadow-[inset_0_-1px_0_rgba(0,0,0,0.06)]">
-                    <tr>
-                      <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Date</th>
-                      <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Method</th>
-                      <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">Amount</th>
-                      <th className="py-2.5 px-2 w-6" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-black/5">
-                    {paymentHistory.map(p => {
-                      const Icon = METHOD_ICON[p.payment_method] || Wallet;
-                      return (
-                        <tr key={p.id} className="hover:bg-canvas/40 transition-colors">
-                          <td className="py-2.5 px-4">
-                            <div className="text-xs font-semibold text-ink-primary">{formatDate(p.date)}</div>
-                            {p.notes && <div className="text-[9px] text-muted-foreground truncate max-w-[100px] mt-0.5">{p.notes}</div>}
-                          </td>
-                          <td className="py-2.5 px-4">
-                            <div className="flex items-center gap-1.5">
-                              <Icon size={11} className="text-muted-foreground shrink-0" />
-                              <span className="text-[10px] font-semibold text-ink-primary">{METHOD_LABEL[p.payment_method] || p.payment_method}</span>
-                            </div>
-                            {p.collector?.name && <div className="text-[9px] text-muted-foreground mt-0.5">{p.collector.name}</div>}
-                          </td>
-                          <td className="py-2.5 px-4 text-right">
-                            <span className="text-xs font-black text-emerald-600 tabular-nums">{formatCurrency(p.amount)}</span>
-                          </td>
-                          <td className="py-2.5 px-2 text-center">
-                            <button onClick={() => handleDeletePayment(p.id)} disabled={deletingPaymentId === p.id}
-                              className="text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-40" title="Delete">
-                              <Trash2 size={12} />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot className="border-t-2 border-black/10">
-                    <tr className="bg-canvas/50">
-                      <td colSpan="2" className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Total Collected</td>
-                      <td className="py-2.5 px-4 text-right">
-                        <span className="text-xs font-black text-emerald-600 tabular-nums">
-                          {formatCurrency(paymentHistory.reduce((s, p) => s + Number(p.amount), 0))}
-                        </span>
-                      </td>
-                      <td />
-                    </tr>
-                  </tfoot>
-                </table>
-              )
-            )}
-
-            {/* Statement Ledger */}
-            {bottomTab === 'STATEMENT' && (
-              statementRows.length === 0 ? (
-                <div className="h-full flex items-center justify-center">
-                  <div className="text-center py-10">
-                    <BookOpen size={28} className="mx-auto mb-2 text-gray-200" />
-                    <p className="text-xs font-semibold text-muted-foreground">No transactions yet</p>
-                  </div>
-                </div>
-              ) : (
-                <table className="w-full text-left border-collapse">
-                  <thead className="sticky top-0 bg-white z-10 shadow-[inset_0_-1px_0_rgba(0,0,0,0.06)]">
-                    <tr>
-                      <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Date</th>
-                      <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Description</th>
-                      <th className="py-2.5 px-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">Dr</th>
-                      <th className="py-2.5 px-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">Cr</th>
-                      <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-black/5">
-                    {statementRows.map(row => (
-                      <tr key={row.id} className="hover:bg-canvas/40 transition-colors">
-                        <td className="py-2.5 px-4 text-xs font-semibold text-ink-primary whitespace-nowrap">{formatDate(row.date)}</td>
-                        <td className="py-2.5 px-4 max-w-[130px]">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${row.type === 'PAYMENT' ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                            <span className="text-[10px] font-semibold text-ink-primary truncate">{row.description}</span>
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-3 text-right text-[10px] font-semibold tabular-nums text-red-500">
-                          {row.debit > 0 ? formatCurrency(row.debit) : '—'}
-                        </td>
-                        <td className="py-2.5 px-3 text-right text-[10px] font-semibold tabular-nums text-emerald-600">
-                          {row.credit > 0 ? formatCurrency(row.credit) : '—'}
-                        </td>
-                        <td className="py-2.5 px-4 text-right">
-                          <span className={`text-xs font-black tabular-nums ${row.balance > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
-                            {formatCurrency(Math.abs(row.balance))}{row.balance > 0 ? ' Dr' : row.balance < 0 ? ' Cr' : ''}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="border-t-2 border-black/10 bg-ink-primary">
-                    <tr>
-                      <td colSpan="2" className="py-2.5 px-4 text-[9px] font-black text-white/60 uppercase tracking-widest">Closing Balance</td>
-                      <td className="py-2.5 px-3 text-right text-[10px] font-black text-red-300 tabular-nums">
-                        {formatCurrency(statementRows.reduce((s, r) => s + r.debit, 0))}
-                      </td>
-                      <td className="py-2.5 px-3 text-right text-[10px] font-black text-emerald-300 tabular-nums">
-                        {formatCurrency(statementRows.reduce((s, r) => s + r.credit, 0))}
-                      </td>
-                      <td className="py-2.5 px-4 text-right">
-                        {(() => {
-                          const last = statementRows[statementRows.length - 1];
-                          return (
-                            <span className={`text-xs font-black tabular-nums ${last.balance > 0 ? 'text-red-300' : 'text-emerald-300'}`}>
-                              {formatCurrency(Math.abs(last.balance))} {last.balance > 0 ? 'Dr' : 'Cr'}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              )
-            )}
-          </div>
+            </>
+          )}
         </section>
       </div>
     </div>
