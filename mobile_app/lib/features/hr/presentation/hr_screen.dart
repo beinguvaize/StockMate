@@ -8,6 +8,7 @@ import 'package:mobile_app/features/hr/data/models/employee.dart';
 import 'package:mobile_app/features/hr/presentation/providers/hr_provider.dart';
 import 'package:mobile_app/features/hr/presentation/add_employee_screen.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:uuid/uuid.dart';
 
 class HRScreen extends ConsumerWidget {
   const HRScreen({super.key});
@@ -604,6 +605,14 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
       final monthStr =
           '$_year-${_month.toString().padLeft(2, '0')}';
       final lastDay = DateTime(_year, _month + 1, 0).day;
+      final payDate = '$monthStr-${lastDay.toString().padLeft(2, '0')}';
+
+      // The table is `payroll`, not `payroll_records`, and it holds one row per
+      // run with the employee lines in `items` -- the shape web writes. The old
+      // insert named a table that does not exist, so running payroll on mobile
+      // always threw and nothing was ever recorded.
+      final items = <Map<String, dynamic>>[];
+      double totalBase = 0, totalBonus = 0, totalDeductions = 0, totalNet = 0;
 
       for (final entry in _entries) {
         final emp = entry.employee;
@@ -612,20 +621,55 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
         final deductions = double.tryParse(entry.deductionsCtrl.text) ?? 0;
         final netPay = basePay + bonus - deductions;
 
-        await supabase.from('payroll_records').insert({
-          'id': 'PR-${now.millisecondsSinceEpoch}-${emp.id.substring(0, 6)}',
-          'tenant_id': tenantId,
-          'employee_id': emp.id,
-          'employee_name': emp.name,
-          'pay_period_start': '$monthStr-01',
-          'pay_period_end': '$monthStr-$lastDay',
-          'base_pay': basePay,
+        totalBase += basePay;
+        totalBonus += bonus;
+        totalDeductions += deductions;
+        totalNet += netPay;
+
+        items.add({
+          'employeeId': emp.id,
+          'employeeName': emp.name,
+          'basePay': basePay,
+          'overtime': 0,
+          'commission': 0,
           'bonus': bonus,
           'deductions': deductions,
-          'net_pay': netPay,
-          'status': 'PAID',
-          'paid_at': now.toIso8601String(),
+          'netPay': netPay,
         });
+      }
+
+      await supabase.from('payroll').insert({
+        'id': const Uuid().v4(),
+        'tenant_id': tenantId,
+        'period': monthStr,
+        'items': items,
+        'total_base': totalBase,
+        'total_net': totalNet,
+        'total_overtime': 0,
+        'total_commission': 0,
+        'total_bonus': totalBonus,
+        'total_deductions': totalDeductions,
+        'processed_at': now.toIso8601String(),
+      });
+
+      // One salary expense per employee. That expense is what puts the payout in
+      // DayBook and the P&L -- the payroll row alone shows up nowhere else. Web
+      // does the same; without it mobile runs would be silently missing from
+      // every money report.
+      final expenseRows = items
+          .where((i) => (i['netPay'] as double) > 0)
+          .map((i) => {
+                'id': const Uuid().v4(),
+                'tenant_id': tenantId,
+                'category': 'Salary',
+                'amount': i['netPay'],
+                'note': 'Payroll $monthStr — ${i['employeeName']}',
+                'date': payDate,
+                'payment_method': 'CASH',
+              })
+          .toList();
+      if (expenseRows.isNotEmpty) {
+        await supabase.from('expenses').insert(expenseRows);
       }
 
       ref.invalidate(payrollRecordsProvider);
@@ -1291,9 +1335,11 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
 
     setState(() => _isPaying = true);
     try {
+      // The column is amount_paid. paid_amount does not exist on employees, so
+      // this update always failed and marking a salary paid never worked.
       await supabase
           .from('employees')
-          .update({'paid_amount': salary}).eq('id', emp.id);
+          .update({'amount_paid': salary}).eq('id', emp.id);
       if (!mounted) return;
       ref.invalidate(employeesProvider);
       Navigator.pop(context); // close sheet — list will refresh
