@@ -7,10 +7,9 @@ import { useSales } from '../hooks/useSales';
 import { supabase } from '../lib/supabase';
 import { PageSkeleton } from '../components/ui/States';
 import {
-  ArrowLeft, Calendar, FileText,
-  CheckCircle2, AlertCircle, Search, Clock, Receipt,
-  Wallet, CreditCard, Smartphone, Landmark, History, BookOpen,
-  TrendingUp, TrendingDown, Phone, MapPin, Trash2, ChevronDown, Eye
+  ArrowLeft, CheckCircle2, AlertCircle, Search,
+  Wallet, CreditCard, Smartphone, Landmark,
+  Phone, MapPin, Trash2
 } from 'lucide-react';
 import { todayISOInAppTZ, formatDate, formatCurrency } from '../lib/utils';
 
@@ -44,18 +43,16 @@ const ClientSettlement = () => {
     notes: '',
     paymentMethod: 'CASH'
   });
-  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([]);
-  const [expandedInvoiceId, setExpandedInvoiceId] = useState(null);
   const [paymentError, setPaymentError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState([]);
+  const [expandedRow, setExpandedRow] = useState(null); // ledger row showing its products
   // ── Ledger view, matching the supplier ledger ───────────────────────────
   // The statement was a tab at the bottom of a third column. It is the thing
   // this page is about, so it now leads — same controls, same columns and the
   // same running balance the supplier side uses, so one screen teaches both.
-  const [rightView, setRightView] = useState('LEDGER'); // LEDGER | SETTLE
   // Opens on this month. Older entries are not lost — the brought-forward
   // row carries their balance in, so the running figures stay true.
   const [range, setRange] = useState('1M');             // 1M | 3M | FY | ALL
@@ -87,6 +84,15 @@ const ClientSettlement = () => {
       });
   }, [id, currentTenantId, success]); // refetch after successful payment
 
+  // Sales and invoices both store their lines the same way: {id, name, rate,
+  // quantity}. Either can arrive as a JSON string depending on the path that
+  // wrote it, so parse defensively rather than assuming an array.
+  const parseItems = (v) => {
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'string') { try { return JSON.parse(v) || []; } catch { return []; } }
+    return [];
+  };
+
   // Full statement ledger: credit sales + invoices + payments, sorted by date, with running balance
   const statementRows = useMemo(() => {
     if (!client) return [];
@@ -114,6 +120,7 @@ const ClientSettlement = () => {
         debit: Number(s.totalAmount) || 0,
         credit: 0,
         type: 'SALE',
+        items: parseItems(s.items),
       }));
 
     // Invoices — debit row only. Skip PAID+paid_amount=0: those are cash-at-POS
@@ -134,6 +141,7 @@ const ClientSettlement = () => {
           debit: Number(inv.grand_total) || 0,
           credit: 0,
           type: 'INVOICE',
+          items: parseItems(inv.items),
         });
         // Orphan cash payment: sale is non-CREDIT with paid_amount > 0 but no
         // client_payment row — add synthetic credit to balance the statement.
@@ -173,6 +181,7 @@ const ClientSettlement = () => {
           debit: total,
           credit: 0,
           type: 'SALE',
+          items: parseItems(s.items),
         });
         if (paid > 0) {
           rows.push({
@@ -298,29 +307,6 @@ const ClientSettlement = () => {
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }, [client, invoices, sales, searchTerm]);
 
-  const toggleInvoice = (inv) => {
-    const isSelected = selectedInvoiceIds.includes(inv.id);
-    const newSelection = isSelected
-      ? selectedInvoiceIds.filter(x => x !== inv.id)
-      : [...selectedInvoiceIds, inv.id];
-    const due = Math.max(0, (Number(inv.grand_total) || 0) - (Number(inv.paid_amount) || 0));
-    const newAmt = isSelected
-      ? Math.max(0, Math.round(((parseFloat(paymentData.amount) || 0) - due) * 100) / 100)
-      : Math.round(((parseFloat(paymentData.amount) || 0) + due) * 100) / 100;
-    setSelectedInvoiceIds(newSelection);
-    setPaymentData({ ...paymentData, amount: newAmt > 0 ? newAmt.toString() : '' });
-  };
-
-  const toggleAll = () => {
-    if (selectedInvoiceIds.length === clientInvoices.length) {
-      setSelectedInvoiceIds([]);
-      setPaymentData({ ...paymentData, amount: '0' });
-    } else {
-      setSelectedInvoiceIds(clientInvoices.map(i => i.id));
-      setPaymentData({ ...paymentData, amount: clientInvoices.reduce((s, i) => s + Math.max(0, (Number(i.grand_total) || 0) - (Number(i.paid_amount) || 0)), 0).toString() });
-    }
-  };
-
   const [deletingPaymentId, setDeletingPaymentId] = useState(null);
   const handleDeletePayment = async (paymentId) => {
     if (!window.confirm('Delete this payment? Outstanding balance will be recalculated.')) return;
@@ -357,7 +343,10 @@ const ClientSettlement = () => {
     if (!window.confirm(`Record ${cur}${amt.toLocaleString('en-IN')} received from ${client.name} (${paymentData.paymentMethod})?`)) return;
     setIsSubmitting(true);
     try {
-      const res = await recordClientPayment(client.id, amt, paymentData.date, paymentData.notes, selectedInvoiceIds, paymentData.paymentMethod);
+      // No invoice ids: settle_client_payment allocates FIFO across the oldest
+      // unpaid bills server-side. Picking invoices by hand was removed, and the
+      // allocation was always the database's job anyway.
+      const res = await recordClientPayment(client.id, amt, paymentData.date, paymentData.notes, [], paymentData.paymentMethod);
       if (res?.success === false) {
         setPaymentError(res.error || 'Payment failed. Try again.');
       } else {
@@ -388,16 +377,6 @@ const ClientSettlement = () => {
       </div>
     );
   }
-
-  // Remaining due on an invoice = grand total minus what's already paid.
-  // The screen previously used the gross grand_total, so a partial payment
-  // never reduced the displayed due / outstanding.
-  const invoiceDue = (i) =>
-    Math.max(0, (Number(i.grand_total) || 0) - (Number(i.paid_amount) || 0));
-
-  const selectedTotal = clientInvoices
-    .filter(i => selectedInvoiceIds.includes(i.id))
-    .reduce((s, i) => s + invoiceDue(i), 0);
 
   // Use DB-maintained outstanding_balance (kept accurate by triggers) so this
   // card matches the client list. Invoice-computed value misses CASH partial
@@ -517,11 +496,6 @@ const ClientSettlement = () => {
                     value={paymentData.amount}
                     onChange={e => setPaymentData({ ...paymentData, amount: e.target.value })} />
                 </div>
-                {selectedTotal > 0 && (
-                  <div className="text-[9px] text-accent-signature font-bold mt-1">
-                    {selectedInvoiceIds.length} invoice{selectedInvoiceIds.length !== 1 ? 's' : ''} selected · {formatCurrency(selectedTotal)}
-                  </div>
-                )}
               </div>
               <div>
                 <label className="block text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Method</label>
@@ -560,15 +534,6 @@ const ClientSettlement = () => {
               one thing to learn: a period, a row type, a sort, a count. */}
           <div className="no-print p-3 border-b border-black/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl shrink-0">
-                {[['LEDGER', 'Ledger'], ['SETTLE', 'Settle bills']].map(([v, label]) => (
-                  <button key={v} onClick={() => setRightView(v)}
-                    className={`px-3 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-                      rightView === v ? 'bg-ink-primary text-white shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
               <div className="relative flex-1 min-w-0 max-w-[220px]">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
@@ -577,7 +542,7 @@ const ClientSettlement = () => {
               </div>
             </div>
 
-            {rightView === 'LEDGER' && (
+            {(
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
                   {[['1M','Month'],['3M','3 months'],['FY','This FY'],['ALL','All']].map(([v,label]) => (
@@ -608,7 +573,7 @@ const ClientSettlement = () => {
             )}
           </div>
 
-          {rightView === 'LEDGER' ? (
+          {(
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               <table className="w-full text-left border-collapse">
                 <thead className="bg-canvas/70 sticky top-0 z-10 border-b border-black/5">
@@ -644,8 +609,14 @@ const ClientSettlement = () => {
                     </td></tr>
                   ) : ledgerRowsView.map(r => {
                     const isPay = r.type === 'PAYMENT';
+                    const items = r.items || [];
+                    const canOpen = !isPay && items.length > 0;
+                    const open = expandedRow === r.id;
                     return (
-                      <tr key={r.id} className={isPay ? 'hover:bg-emerald-50/30' : 'hover:bg-canvas/60'}>
+                      <React.Fragment key={r.id}>
+                      <tr
+                        className={`${isPay ? 'hover:bg-emerald-50/30' : 'hover:bg-canvas/60'} ${canOpen ? 'cursor-pointer' : ''} ${open ? 'bg-canvas' : ''}`}
+                        onClick={() => canOpen && setExpandedRow(open ? null : r.id)}>
                         <td className="py-3 px-4 text-xs font-semibold text-ink-primary tabular-nums whitespace-nowrap">{formatDate(r.date)}</td>
                         <td className="py-3 px-3">
                           <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
@@ -655,7 +626,15 @@ const ClientSettlement = () => {
                         </td>
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-xs font-semibold text-ink-primary truncate max-w-[240px]">{r.description}</span>
+                            {canOpen && (
+                              <span className={`text-[10px] shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
+                            )}
+                            <span className="text-xs font-semibold text-ink-primary truncate max-w-[220px]">{r.description}</span>
+                            {items.length > 0 && (
+                              <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-black/[0.06] text-ink-secondary">
+                                {items.length} item{items.length === 1 ? '' : 's'}
+                              </span>
+                            )}
                             {/* Deleting a mistaken receipt lived on the old
                                 History tab. Only real client_payments rows can
                                 go — the synthetic credits derived from a sale's
@@ -682,6 +661,39 @@ const ClientSettlement = () => {
                           {formatCurrency(r.balance)}
                         </td>
                       </tr>
+
+                      {/* What the customer actually bought on this bill — the
+                          same detail the supplier ledger opens on a purchase.
+                          It was only reachable from the removed invoice list. */}
+                      {open && (
+                        <tr className="bg-canvas/60">
+                          <td colSpan="6" className="px-5 py-3 border-l-2 border-accent-signature">
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                              Products on this bill
+                            </div>
+                            <table className="w-full">
+                              <tbody className="divide-y divide-black/5">
+                                {items.map((it, i) => {
+                                  const qty  = Number(it.quantity) || 0;
+                                  const rate = Number(it.rate) || 0;
+                                  return (
+                                    <tr key={`${r.id}-${it.id || i}`}>
+                                      <td className="py-2 text-[12px] font-semibold text-ink-primary">{it.name || '—'}</td>
+                                      <td className="py-2 text-right text-[12px] tabular-nums text-muted-foreground whitespace-nowrap">
+                                        {qty} × {formatCurrency(rate)}
+                                      </td>
+                                      <td className="py-2 text-right text-[12px] font-semibold tabular-nums text-ink-primary whitespace-nowrap">
+                                        {formatCurrency(qty * rate)}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
                   })}
 
@@ -718,170 +730,6 @@ const ClientSettlement = () => {
                 )}
               </table>
             </div>
-          ) : (
-            /* Settling against specific bills — kept intact, because choosing
-               which invoices a payment clears is the job this page exists for
-               and the supplier side has no equivalent. */
-            <>
-          {/* Toolbar — fixed */}
-          <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-black/5 bg-white">
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Unpaid Bills</span>
-            <span className="text-[10px] font-semibold text-muted-foreground">({clientInvoices.length})</span>
-            <div className="flex-1" />
-            {/* Search lives once, in the controls bar above. This column used to
-                carry its own, and after the two views were merged both rendered
-                side by side bound to the same state. */}
-            <button onClick={toggleAll}
-              className="shrink-0 px-3 py-1.5 rounded-lg bg-ink-primary text-white text-[10px] font-black hover:opacity-90 transition-opacity">
-              {selectedInvoiceIds.length === clientInvoices.length && clientInvoices.length > 0 ? 'Deselect All' : 'Select All'}
-            </button>
-          </div>
-
-          {/* Invoice list — scrolls */}
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            {clientInvoices.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center py-16 text-center">
-                <CheckCircle2 size={36} className="mb-3 text-emerald-400 opacity-40" />
-                <p className="text-sm font-bold text-muted-foreground">No outstanding bills</p>
-                <p className="text-xs text-muted-foreground mt-1">This client has no pending payments.</p>
-              </div>
-            ) : (
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-white z-10 shadow-[inset_0_-1px_0_rgba(0,0,0,0.06)]">
-                  <tr>
-                    <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest w-7">#</th>
-                    <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Invoice</th>
-                    <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Date</th>
-                    <th className="py-2.5 px-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">Due</th>
-                    <th className="py-2.5 px-4 w-8" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black/5">
-                  {clientInvoices.map((inv, idx) => {
-                    const isSelected = selectedInvoiceIds.includes(inv.id);
-                    const isExpanded = expandedInvoiceId === inv.id;
-                    const items = Array.isArray(inv.items) ? inv.items : [];
-                    return (
-                      <React.Fragment key={inv.id}>
-                        <tr onClick={() => toggleInvoice(inv)}
-                          className={`cursor-pointer transition-colors ${isSelected ? 'bg-accent-signature/5' : 'hover:bg-canvas/60'}`}>
-                          <td className="py-3 px-4 text-[10px] font-semibold text-muted-foreground">{idx + 1}</td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2.5">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isSelected ? 'bg-ink-primary text-accent-signature' : 'bg-white border border-border shadow-sm text-muted-foreground'}`}>
-                                <Receipt size={13} />
-                              </div>
-                              <div>
-                                <div className="text-xs font-bold text-ink-primary">#{String(inv.invoice_number || '').replace(/^#+/, '')}</div>
-                                <div className="text-[9px] text-muted-foreground font-semibold mt-0.5">
-                                  {inv.isSale ? 'Cash sale · ' : ''}{inv.payment_status === 'PARTIAL' ? 'Partial' : 'Unpaid'}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="text-xs font-semibold text-ink-primary">{formatDate(inv.invoice_date || inv.created_at)}</div>
-                            <div className="text-[9px] text-muted-foreground mt-0.5 flex items-center gap-1">
-                              <Clock size={9} />{new Date(inv.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <div className={`text-xs font-black tabular-nums ${isSelected ? 'text-ink-primary' : 'text-ink-secondary'}`}>
-                              {formatCurrency(invoiceDue(inv))}
-                            </div>
-                            {inv.paid_amount > 0 && (
-                              <div className="text-[9px] text-emerald-600 font-semibold mt-0.5">
-                                Paid: {formatCurrency(inv.paid_amount)} of {formatCurrency(inv.grand_total)}
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2 justify-end">
-                              {/* Open the actual printable bill — invoice page for
-                                  an invoiced sale, receipt for a cash POS sale. */}
-                              <button
-                                type="button"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  const url = inv.isSale
-                                    ? `/embed/receipt/${inv.id.slice(5)}`
-                                    : `/embed/invoice/${inv.id}`;
-                                  window.open(url, '_blank', 'noopener');
-                                }}
-                                className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-black/5 hover:text-ink-primary transition-colors"
-                                title="View bill"
-                              >
-                                <Eye size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={e => { e.stopPropagation(); setExpandedInvoiceId(isExpanded ? null : inv.id); }}
-                                className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-black/5 hover:text-ink-primary transition-colors"
-                                title="View items"
-                              >
-                                <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                              </button>
-                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-accent-signature border-accent-signature' : 'border-black/10 bg-white'}`}>
-                                {isSelected && <CheckCircle2 size={11} className="text-ink-primary" />}
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr className="bg-canvas/40">
-                            <td colSpan={5} className="px-4 pb-3 pt-0">
-                              <div className="rounded-xl border border-black/5 bg-white overflow-hidden">
-                                {items.length === 0 ? (
-                                  <div className="px-4 py-3 text-[10px] font-semibold text-muted-foreground">No item details on this invoice.</div>
-                                ) : (
-                                  <table className="w-full text-left">
-                                    <thead>
-                                      <tr className="border-b border-black/5">
-                                        <th className="py-2 px-3 text-[8px] font-black text-muted-foreground uppercase tracking-widest">Product</th>
-                                        <th className="py-2 px-3 text-[8px] font-black text-muted-foreground uppercase tracking-widest text-right">Qty</th>
-                                        <th className="py-2 px-3 text-[8px] font-black text-muted-foreground uppercase tracking-widest text-right">Rate</th>
-                                        <th className="py-2 px-3 text-[8px] font-black text-muted-foreground uppercase tracking-widest text-right">Amount</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-black/[0.04]">
-                                      {items.map((it, i) => (
-                                        <tr key={i}>
-                                          <td className="py-2 px-3 text-[11px] font-bold text-ink-primary">{it.name}</td>
-                                          <td className="py-2 px-3 text-[11px] font-semibold text-ink-secondary text-right tabular-nums">{it.quantity ?? it.qty}</td>
-                                          <td className="py-2 px-3 text-[11px] font-semibold text-ink-secondary text-right tabular-nums">{formatCurrency(it.rate ?? it.price)}</td>
-                                          <td className="py-2 px-3 text-[11px] font-black text-ink-primary text-right tabular-nums">{formatCurrency((Number(it.quantity ?? it.qty) || 0) * (Number(it.rate ?? it.price) || 0))}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          {/* Selection footer — pinned to bottom of this column */}
-          <div className="shrink-0 border-t border-black/5 bg-ink-primary px-5 py-3 rounded-b-2xl flex items-center justify-between">
-            <div>
-              <div className="text-[9px] font-bold text-white/50 uppercase tracking-widest">Selected Total</div>
-              <div className="text-lg font-black text-white tabular-nums">{formatCurrency(selectedTotal)}</div>
-            </div>
-            <div className="text-right">
-              <div className="text-[9px] font-bold text-white/50 uppercase tracking-widest">Remaining After</div>
-              <div className="text-base font-black text-accent-signature tabular-nums">
-                {formatCurrency(Math.max(0, outstanding - selectedTotal))}
-              </div>
-            </div>
-          </div>
-
-            </>
           )}
         </section>
       </div>
