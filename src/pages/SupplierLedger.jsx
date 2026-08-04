@@ -40,7 +40,9 @@ const SupplierLedger = () => {
   // A busy supplier runs ~6 bills a month, so three years is ~400 ledger rows.
   // Default to a window rather than the whole history; the brought-forward row
   // below keeps the running balance honest when history is hidden.
-  const [range, setRange] = useState('3M');       // 1M | 3M | FY | ALL
+  // Opens on this month. Older entries are not lost — the brought-forward
+  // row carries their balance in, so the running figures stay true.
+  const [range, setRange] = useState('1M');       // 1M | 3M | FY | ALL
   const [newestFirst, setNewestFirst] = useState(false);
 
   // Pay-supplier modal state

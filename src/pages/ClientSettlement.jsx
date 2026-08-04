@@ -56,7 +56,9 @@ const ClientSettlement = () => {
   // this page is about, so it now leads — same controls, same columns and the
   // same running balance the supplier side uses, so one screen teaches both.
   const [rightView, setRightView] = useState('LEDGER'); // LEDGER | SETTLE
-  const [range, setRange] = useState('3M');             // 1M | 3M | FY | ALL
+  // Opens on this month. Older entries are not lost — the brought-forward
+  // row carries their balance in, so the running figures stay true.
+  const [range, setRange] = useState('1M');             // 1M | 3M | FY | ALL
   const [rowKind, setRowKind] = useState('ALL');        // ALL | SALE | PAYMENT
   const [newestFirst, setNewestFirst] = useState(false);
 
