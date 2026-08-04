@@ -13,7 +13,7 @@ import {
   ArrowUpRight, CreditCard, ChevronRight, Info, ShieldCheck, User2
 } from 'lucide-react';
 import { formatDate } from '../lib/utils';
-import { groupPurchasesIntoBills } from '../lib/bills';
+import { groupPurchasesIntoBills, buildSupplierLedger } from '../lib/bills';
 
 const SupplierLedger = () => {
   const { id } = useParams();
@@ -166,39 +166,17 @@ const SupplierLedger = () => {
   // ClientStatementReport.jsx. Previously this rendered as three stacked
   // blocks — every bill, then every return, then every payment — so a June
   // debit note sat below a July bill and nothing accumulated.
-  const ledgerRows = useMemo(() => {
-    const rows = [];
-
-    bills.forEach(b => {
-      rows.push({ kind: 'BILL', date: b.date, bill: b, debit: b.total, credit: 0 });
-
-      // Credit the money once. Payments linked to any member row carry their
-      // own date; whatever paid_amount holds beyond them was paid at the
-      // counter when the bill was raised. Crediting both would double-count
-      // and the closing balance would stop matching Amount Due.
-      const linked = payments.filter(p => b.rows.some(r => r.id === p.purchase_id));
-      const linkedSum = linked.reduce((s, p) => s + Number(p.amount || 0), 0);
-      const atBill = b.paid - linkedSum;
-      if (atBill > 0.01) {
-        rows.push({ kind: 'PAY', date: b.date, bill: b, atBill: true, debit: 0, credit: atBill });
-      }
-      linked.forEach(p => rows.push({ kind: 'PAY', date: p.date, bill: b, pay: p, debit: 0, credit: Number(p.amount || 0) }));
-    });
-
-    supplierReturns.forEach(r => rows.push({
-      kind: 'RETURN', date: r.date, ret: r, debit: 0, credit: Number(r.total_amount || 0),
-    }));
-
-    onAccountPayments.forEach(p => rows.push({
-      kind: 'PAY', date: p.date, pay: p, onAccount: true, debit: 0, credit: Number(p.amount || 0),
-    }));
-
-    rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
-
-    let balance = 0;
-    rows.forEach(r => { balance += r.debit - r.credit; r.balance = balance; });
-    return rows;
-  }, [bills, payments, supplierReturns, onAccountPayments]);
+  // Built by src/lib/bills.js so the rule that decides what appears on a
+  // statement — and the one that stops the same money being credited twice —
+  // is covered by tests rather than living only here.
+  const ledgerRows = useMemo(
+    () => buildSupplierLedger({
+      bills,
+      payments,
+      returns: supplierReturns,
+      onAccountPayments,
+    }),
+    [bills, payments, supplierReturns, onAccountPayments]);
 
   // ── Period ───────────────────────────────────────────────────────────────
   // Start of the visible window, or null for the whole history.
@@ -242,9 +220,9 @@ const SupplierLedger = () => {
       if (!q) return true;
       const hay = [
         r.bill?.id, r.ret?.id, r.pay?.id, r.pay?.reference_no, r.pay?.note,
-        ...(r.bill?.rows || []).map(x => x.id),
-        ...(r.bill?.rows || []).map(x => x.notes),
-        ...(r.bill?.rows || []).map(x => (products || []).find(pr => pr.id === x.linked_product_id)?.name),
+        ...(r.bill?.lines || []).map(x => x.id),
+        ...(r.bill?.lines || []).map(x => x.notes),
+        ...(r.bill?.lines || []).map(x => (products || []).find(pr => pr.id === x.linked_product_id)?.name),
       ];
       return hay.some(v => String(v || '').toLowerCase().includes(q));
     });
@@ -635,9 +613,9 @@ const SupplierLedger = () => {
                     // ── Bill ──────────────────────────────────────────────
                     if (r.kind === 'BILL') {
                       const b = r.bill;
-                      const multi = b.rows.length > 1;
+                      const multi = b.lines.length > 1;
                       const expanded = expandedRow === b.id;
-                      const names = b.rows
+                      const names = b.lines
                         .map(x => (products || []).find(pr => pr.id === x.linked_product_id)?.name)
                         .filter(Boolean);
                       return (
@@ -657,7 +635,7 @@ const SupplierLedger = () => {
                                 )}
                                 <span className="text-xs tabular-nums font-semibold text-ink-primary">#{(b.id || '').slice(-8).toUpperCase()}</span>
                                 {multi && (
-                                  <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-black/[0.05] text-ink-secondary">{b.rows.length} items</span>
+                                  <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-black/[0.05] text-ink-secondary">{b.lines.length} items</span>
                                 )}
                                 {b.due > 0.01 && (
                                   <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-50 text-red-600 border border-red-100 tabular-nums">
@@ -669,7 +647,7 @@ const SupplierLedger = () => {
                                     since the money lands on different rows. */}
                                 {!multi && b.due > 0.01 && hasPermission('purchases', 'edit') !== false && (
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); openPay(b.rows[0], b.due); }}
+                                    onClick={(e) => { e.stopPropagation(); openPay(b.lines[0], b.due); }}
                                     className="no-print text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-ink-primary text-white hover:bg-black transition-all"
                                   >Pay</button>
                                 )}
@@ -693,7 +671,7 @@ const SupplierLedger = () => {
                                 </div>
                                 <table className="w-full">
                                   <tbody className="divide-y divide-black/5">
-                                    {b.rows.map(x => {
+                                    {b.lines.map(x => {
                                       const prod = (products || []).find(pr => pr.id === x.linked_product_id);
                                       const lineAmt = Number(x.total_amount ?? x.total_cost ?? 0);
                                       const lineQty = Number(x.quantity ?? 0);
@@ -726,9 +704,9 @@ const SupplierLedger = () => {
                                     })}
                                   </tbody>
                                 </table>
-                                {b.rows.some(x => x.notes) && (
+                                {b.lines.some(x => x.notes) && (
                                   <div className="mt-3 text-[11px] text-muted-foreground">
-                                    {b.rows.filter(x => x.notes).map(x => x.notes).join(' · ')}
+                                    {b.lines.filter(x => x.notes).map(x => x.notes).join(' · ')}
                                   </div>
                                 )}
                               </td>

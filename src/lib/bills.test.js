@@ -7,7 +7,7 @@
 // mis-bill rather than surfacing weeks later as a wrong payable.
 
 import { describe, it, expect } from 'vitest';
-import { groupPurchasesIntoBills, filterBills, dueOf, paidOf, isCreditType } from './bills';
+import { groupPurchasesIntoBills, filterBills, buildSupplierLedger, dueOf, paidOf, isCreditType } from './bills';
 
 const row = (o) => ({
   id: o.id,
@@ -169,6 +169,76 @@ describe('filtering whole bills', () => {
   it('returns everything when nothing is asked of it', () => {
     expect(filterBills(sajjad(), {})).toHaveLength(1);
     expect(filterBills(sajjad())).toHaveLength(1);
+  });
+});
+
+describe('the supplier ledger', () => {
+  // RENO JOHN, as the screen shows him: four bills, three paid at the counter,
+  // one credit bill part-settled the next day.
+  const reno = () => {
+    const bills = groupPurchasesIntoBills([
+      row({ id: 'PUR-66RDMX', date: '2026-06-02', at: '2026-06-02T12:28:50Z', total: 33120, paid: 33120 }),
+      row({ id: 'PUR-RLQXIA', date: '2026-07-17', at: '2026-07-17T08:38:40Z', total: 35501.76, paid: 35501.76 }),
+      row({ id: 'PUR-RNAZT0', date: '2026-07-17', at: '2026-07-17T08:38:42Z', total: 720, paid: 720 }),
+      row({ id: 'PUR-W8VUB4', date: '2026-07-31', type: 'CREDIT', at: '2026-07-31T05:49:43Z', total: 29960, paid: 10000 }),
+    ]);
+    const payments = [{ id: 'SUPP-1', date: '2026-08-01', amount: 10000, purchase_id: 'PUR-W8VUB4' }];
+    return buildSupplierLedger({ bills, payments });
+  };
+
+  it('closes on what is still owed', () => {
+    const rows = reno();
+    expect(rows[rows.length - 1].balance).toBeCloseTo(19960, 2);
+  });
+
+  it('credits money paid at the counter and money settled later, each once', () => {
+    // The bill carries paid 10,000 AND a linked payment row of 10,000. Crediting
+    // both would close at 9,960 instead of 19,960.
+    const credits = reno().filter(r => r.kind === 'PAY').reduce((s, r) => s + r.credit, 0);
+    expect(credits).toBeCloseTo(33120 + 36221.76 + 10000, 2);
+  });
+
+  it('puts a debit note in date order, not in a block at the end', () => {
+    // The defect this pins: returns were rendered after every bill regardless
+    // of when they happened, and a genuine one went missing from the ledger.
+    const bills = groupPurchasesIntoBills([
+      row({ id: 'B1', date: '2026-05-09', at: '2026-05-09T10:00:00Z', type: 'CREDIT', total: 10660 }),
+      row({ id: 'B2', date: '2026-05-30', at: '2026-05-30T10:00:00Z', type: 'CREDIT', total: 9425 }),
+    ]);
+    const rows = buildSupplierLedger({
+      bills,
+      returns: [{ id: 'PRN-1', date: '2026-05-12', total_amount: 2100, product_name: 'Straw Small' }],
+    });
+
+    const kinds = rows.map(r => r.kind);
+    expect(kinds).toEqual(['BILL', 'RETURN', 'BILL']);      // 9 May, 12 May, 30 May
+    expect(rows[rows.length - 1].balance).toBeCloseTo(10660 - 2100 + 9425, 2);
+  });
+
+  it('includes a return even when it is the only entry', () => {
+    const rows = buildSupplierLedger({
+      returns: [{ id: 'PRN-1', date: '2026-05-12', total_amount: 2100 }],
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].kind).toBe('RETURN');
+    expect(rows[0].balance).toBeCloseTo(-2100, 2);
+  });
+
+  it('credits an on-account advance', () => {
+    const bills = groupPurchasesIntoBills([
+      row({ id: 'B1', date: '2026-07-18', type: 'CREDIT', at: '2026-07-18T10:00:00Z', total: 8200 }),
+    ]);
+    const rows = buildSupplierLedger({
+      bills,
+      onAccountPayments: [{ id: 'ADV', date: '2026-06-29', amount: 2390 }],
+    });
+    expect(rows[0].kind).toBe('PAY');                        // 29 Jun precedes the bill
+    expect(rows[rows.length - 1].balance).toBeCloseTo(5810, 2);
+  });
+
+  it('has nothing to show for a supplier with no activity', () => {
+    expect(buildSupplierLedger({})).toEqual([]);
+    expect(buildSupplierLedger()).toEqual([]);
   });
 });
 

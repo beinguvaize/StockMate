@@ -39,6 +39,49 @@ export const dueOf = (p) => Math.max(0, amountOf(p) - paidOf(p));
  * Derived at render time. Nothing is merged in the database and no id changes.
  */
 /**
+ * A supplier's ledger: bills as debits, everything that reduces them as
+ * credits, in date order with a running balance.
+ *
+ * The one rule that is easy to get wrong is crediting the same money twice.
+ * A bill's paid_amount already contains anything settled through a linked
+ * payment row, so only the remainder — what was handed over at the counter when
+ * the bill was raised — may be credited alongside those rows. Credit both in
+ * full and the closing balance stops matching what is actually owed.
+ */
+export function buildSupplierLedger({
+  bills = [], payments = [], returns = [], onAccountPayments = [],
+} = {}) {
+  const rows = [];
+
+  bills.forEach((b) => {
+    rows.push({ kind: 'BILL', date: b.date, bill: b, debit: b.total, credit: 0 });
+
+    const linked = payments.filter((p) => b.lines.some((l) => l.id === p.purchase_id));
+    const linkedSum = linked.reduce((s, p) => s + num(p.amount), 0);
+    const atBill = b.paid - linkedSum;
+    if (atBill > 0.01) {
+      rows.push({ kind: 'PAY', date: b.date, bill: b, atBill: true, debit: 0, credit: atBill });
+    }
+    linked.forEach((p) =>
+      rows.push({ kind: 'PAY', date: p.date, bill: b, pay: p, debit: 0, credit: num(p.amount) }));
+  });
+
+  // A debit note reduces what is owed, and belongs in date order among the
+  // bills rather than in a block of its own at the end.
+  returns.forEach((r) =>
+    rows.push({ kind: 'RETURN', date: r.date, ret: r, debit: 0, credit: num(r.total_amount) }));
+
+  onAccountPayments.forEach((p) =>
+    rows.push({ kind: 'PAY', date: p.date, pay: p, onAccount: true, debit: 0, credit: num(p.amount) }));
+
+  rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  let balance = 0;
+  rows.forEach((r) => { balance += r.debit - r.credit; r.balance = balance; });
+  return rows;
+}
+
+/**
  * Filter whole bills.
  *
  * Order matters, and getting it wrong is not a cosmetic bug. Filter the product
