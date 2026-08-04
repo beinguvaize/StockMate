@@ -726,13 +726,9 @@ const ClientSettlement = () => {
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Unpaid Bills</span>
             <span className="text-[10px] font-semibold text-muted-foreground">({clientInvoices.length})</span>
             <div className="flex-1" />
-            <div className="relative">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input type="text" placeholder="Search…"
-                className="bg-canvas rounded-lg py-1.5 pl-7 pr-3 border border-black/5 text-xs font-medium outline-none focus:ring-2 focus:ring-accent-signature/20 w-28"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)} />
-            </div>
+            {/* Search lives once, in the controls bar above. This column used to
+                carry its own, and after the two views were merged both rendered
+                side by side bound to the same state. */}
             <button onClick={toggleAll}
               className="shrink-0 px-3 py-1.5 rounded-lg bg-ink-primary text-white text-[10px] font-black hover:opacity-90 transition-opacity">
               {selectedInvoiceIds.length === clientInvoices.length && clientInvoices.length > 0 ? 'Deselect All' : 'Select All'}
