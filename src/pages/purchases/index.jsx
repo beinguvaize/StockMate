@@ -267,7 +267,23 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
     const supplierName = suppliers.find(s => s.id === header.supplier_id)?.name || '';
     let failed = 0;
     let firstError = '';
+
+    // A part payment has to be spread across the bill's lines, because each
+    // product becomes its own purchases row. Fill the lines in order until the
+    // money runs out, rather than pro-rating: it keeps every figure a whole
+    // rupee and leaves a clear boundary between what is settled and what is not.
+    const billTotal = items.reduce((s2, i) => s2 + (Number(i.total_amount) || 0), 0);
+    const paidNow   = parseFloat(header.paid_now);
+    const partial   = Number.isFinite(paidNow) && paidNow > 0 && paidNow < billTotal - 0.005;
+    let paidLeft    = partial ? paidNow : 0;
+
     for (const item of items) {
+      // Blank field: the payment type decides, exactly as before.
+      let linePaid;
+      if (partial) {
+        linePaid = Math.min(paidLeft, Number(item.total_amount) || 0);
+        paidLeft = Math.round((paidLeft - linePaid) * 100) / 100;
+      }
       const payload = {
         id:                generateRef('PUR'),
         linked_product_id: item.linked_product_id,
@@ -276,7 +292,10 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
         quantity:          item.quantity,
         unit_cost:         item.unit_price,
         total_amount:      item.total_amount,
-        payment_type:      header.payment_type,
+        // Part-paid means credit terms with money down. Marking it CASH would
+        // keep it out of payables and out of reach of the supplier's Pay flow.
+        payment_type:      partial ? 'CREDIT' : header.payment_type,
+        paid_amount:       partial ? linePaid : undefined,
         date:              header.date,
         notes:             header.notes,
         bill_no:           header.bill_no || null,

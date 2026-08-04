@@ -128,6 +128,10 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
       p_tenant_id: tenantId,
       // Supplier's bill/invoice number — needed for invoice-level GSTR-2B match.
       p_bill_no: purchase.bill_no || null,
+      // Part payment: money down with the rest on credit. Undefined when the
+      // caller says nothing, and process_purchase then falls back to deciding
+      // from payment_type exactly as it always did.
+      p_paid_amount: purchase.paid_amount ?? null,
     };
     // Desktop offline-first: queue the RPC immediately, never wait on network.
     if (isElectron()) {
@@ -142,6 +146,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
           supplier_id: purchase.supplier_id || null,
           supplier_name: purchase.supplier_name || null,
           payment_type: purchase.payment_type,
+          paid_amount: purchase.paid_amount ?? null,
           date: purchase.date,
           notes: purchase.notes || null,
           status: 'PENDING',
@@ -169,6 +174,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
           supplier_id: purchase.supplier_id || null,
           supplier_name: purchase.supplier_name || null,
           payment_type: purchase.payment_type,
+          paid_amount: purchase.paid_amount ?? null,
           date: purchase.date,
           notes: purchase.notes || null,
           status: 'PENDING',

@@ -121,6 +121,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
     supplier_id:  '',
     location_id:  '',   // target warehouse
     payment_type: 'CASH',
+    paid_now: '',   // blank = the payment type decides, as before
     date:         todayISOInAppTZ(),
     bill_no:      '',   // supplier's invoice no — for GSTR-2B invoice-level match
     notes:        '',
@@ -265,6 +266,32 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
               <option value="CREDIT">Credit (pay later)</option>
               <option value="BANK">Bank / UPI</option>
             </select>
+          </div>
+          {/* Part payment. A bill is often settled with some cash now and the
+              rest on credit, which the two payment types alone cannot say. */}
+          <div>
+            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Paid now
+            </label>
+            <input type="number" step="0.01" min="0"
+              className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+              placeholder={header.payment_type === 'CREDIT'
+                ? 'Nothing paid yet'
+                : grandTotal.toFixed(2)}
+              value={header.paid_now}
+              onChange={e => setHeader(h => ({ ...h, paid_now: e.target.value }))} />
+            {(() => {
+              const paid = parseFloat(header.paid_now);
+              if (!(paid > 0) || grandTotal <= 0) return null;
+              const due = Math.max(0, grandTotal - paid);
+              return (
+                <div className="text-[10px] font-semibold mt-1.5 tabular-nums">
+                  {due > 0.005
+                    ? <span className="text-[color:var(--color-neg)]">₹{due.toLocaleString('en-IN', { minimumFractionDigits: 2 })} on credit</span>
+                    : <span className="text-[color:var(--color-pos)]">Paid in full</span>}
+                </div>
+              );
+            })()}
           </div>
           <div>
             <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Date</label>
