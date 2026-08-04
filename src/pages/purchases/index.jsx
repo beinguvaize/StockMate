@@ -12,7 +12,7 @@ import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
 import { PageSkeleton } from '../../components/ui/States';
 import { formatCurrency, formatDate, generateRef } from '../../lib/utils';
-import { groupPurchasesIntoBills, paidOf, dueOf as billDueOf, isCreditType } from '../../lib/bills';
+import { groupPurchasesIntoBills, filterBills, paidOf, dueOf as billDueOf, isCreditType } from '../../lib/bills';
 import PurchaseForm from './components/PurchaseForm';
 import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
@@ -87,65 +87,49 @@ const PurchasesPage = () => {
     return m;
   }, [products]);
 
-  const filteredPurchases = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    let rows = (purchases || []).filter(p => {
-      const prodName = productNameById[p.linked_product_id] || '';
-      if (q && !(`${p.id} ${p.supplier_name || ''} ${p.notes || ''} ${prodName}`.toLowerCase().includes(q))) return false;
-      if (fSupplier !== 'ALL' && p.supplier_id !== fSupplier) return false;
-      if (fPay === 'CASH' && _credit(p.payment_type)) return false;
-      if (fPay === 'CREDIT' && !_credit(p.payment_type)) return false;
-      if (fStatus !== 'ALL' && (p.status || 'RECEIVED').toUpperCase() !== fStatus) return false;
-      if (onlyUnpaid && dueOf(p) <= 0.5) return false;
-      return true;
+  // Bills first, then filter whole bills.
+  //
+  // Filtering the product rows first and grouping after left a bill missing any
+  // line the filter rejected: ticking "Unpaid" showed SAJJAD's 1 Aug bill as
+  // Rs 10,260 with Rs 3,260 paid, because its three settled lines were gone
+  // before the total was added up. It is Rs 28,770 with Rs 21,770 paid.
+  const allBills = useMemo(
+    () => groupPurchasesIntoBills(purchases || []).map(b => ({
+      ...b,
+      __bill: true,
+      notes: b.lines.map(l => l.notes).filter(Boolean).join(' · '),
+    })),
+    [purchases]);
+
+  const filteredBills = useMemo(() => {
+    const rows = filterBills(allBills, {
+      q: search,
+      supplierId: fSupplier,
+      pay: fPay,
+      status: fStatus,
+      onlyUnpaid,
+      productNameOf: (id) => productNameById[id] || '',
     });
-    const amt = (p) => Number(p.total_amount || 0);
-    const qty = (p) => Number(p.quantity || 0);
-    rows = [...rows].sort((a, b) => {
-      if (sortBy === 'AMT_DESC') return amt(b) - amt(a);
-      if (sortBy === 'AMT_ASC')  return amt(a) - amt(b);
-      if (sortBy === 'QTY_DESC') return qty(b) - qty(a);
-      if (sortBy === 'QTY_ASC')  return qty(a) - qty(b);
+    const qtyOf = (b) => b.lines.reduce((s2, l) => s2 + Number(l.quantity || 0), 0);
+    return [...rows].sort((a, b) => {
+      if (sortBy === 'AMT_DESC') return b.total - a.total;
+      if (sortBy === 'AMT_ASC')  return a.total - b.total;
+      if (sortBy === 'QTY_DESC') return qtyOf(b) - qtyOf(a);
+      if (sortBy === 'QTY_ASC')  return qtyOf(a) - qtyOf(b);
       if (sortBy === 'DATE_ASC') return String(a.date).localeCompare(String(b.date));
       return String(b.date).localeCompare(String(a.date)); // DATE_DESC
     });
-    return rows;
-  }, [purchases, search, fSupplier, fPay, fStatus, sortBy, onlyUnpaid, productNameById]);
-
-  // Bills come from the shared rule; this only adds the two fields the list
-  // needs on top of it.
-  const billsOf = (rows) => groupPurchasesIntoBills(rows).map(b => ({
-    ...b,
-    __bill: true,
-    notes: b.lines.map(l => l.notes).filter(Boolean).join(' · '),
-  }));
+  }, [allBills, search, fSupplier, fPay, fStatus, sortBy, onlyUnpaid, productNameById]);
 
   // Count for the Unpaid chip badge — bills still carrying a balance.
-  const unpaidCount = useMemo(
-    () => billsOf(purchases || []).filter(b => b.due > 0.5).length,
-    [purchases]); // eslint-disable-line react-hooks/exhaustive-deps
+  const unpaidCount = useMemo(() => allBills.filter(b => b.due > 0.5).length, [allBills]);
 
-  // Age of a bill in days, and whether an unpaid credit purchase is overdue
-  // (>30 days). Turns the list into a light ageing view.
+  // Age of a bill in days, and whether one still owing is overdue (>30 days).
   const ageDays = (p) => {
     const d = new Date(p.date);
     if (isNaN(d)) return 0;
     return Math.floor((Date.now() - d.getTime()) / 86400000);
   };
-  const isOverdue = (p) => dueOf(p) > 0.5 && ageDays(p) > 30;
-
-  // Group the filtered rows by supplier OR by date, each group carrying its
-  // spend + outstanding subtotal. Flattened into one array with {__group}
-  // marker rows so the shared Table can render headers and rows in one pass.
-  // Date groups keep filteredPurchases' order, so the active sort (newest /
-  // oldest) decides which day leads.
-  // Product rows collapsed into the bills they came from, keeping the sort the
-  // filter produced (the first line of a bill carries its position).
-  const filteredBills = useMemo(() => {
-    const order = new Map(filteredPurchases.map((p, i) => [p.id, i]));
-    return billsOf(filteredPurchases)
-      .sort((a, b) => (order.get(a.lines[0].id) ?? 0) - (order.get(b.lines[0].id) ?? 0));
-  }, [filteredPurchases]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const displayRows = useMemo(() => {
     if (groupBy === 'NONE') return filteredBills;
@@ -835,7 +819,8 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
             <option value="SUPPLIER">Group by supplier</option>
             <option value="NONE">No grouping</option>
           </select>
-          <span className="text-[11px] font-semibold text-muted-foreground ml-auto">{filteredPurchases.length} of {purchases.length}</span>
+          {/* Counted in bills, which is what the rows now are. */}
+          <span className="text-[11px] font-semibold text-muted-foreground ml-auto">{filteredBills.length} of {allBills.length} bills</span>
         </div>
       )}
 

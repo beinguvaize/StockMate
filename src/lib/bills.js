@@ -38,6 +38,43 @@ export const dueOf = (p) => Math.max(0, amountOf(p) - paidOf(p));
  *
  * Derived at render time. Nothing is merged in the database and no id changes.
  */
+/**
+ * Filter whole bills.
+ *
+ * Order matters, and getting it wrong is not a cosmetic bug. Filter the product
+ * rows first and a bill whose lines only partly match comes back missing the
+ * rest: tick "Unpaid" and SAJJAD's 1 Aug bill reads Rs 10,260 with Rs 3,260
+ * paid, because its three settled lines were dropped before the total was
+ * added up. The bill is Rs 28,770 with Rs 21,770 paid.
+ *
+ * So: group everything, then decide whether each whole bill belongs. A bill
+ * matches a text search if ANY of its lines does, but keeps ALL of them.
+ */
+export function filterBills(bills = [], opts = {}) {
+  const {
+    q = '', supplierId = 'ALL', pay = 'ALL', status = 'ALL',
+    onlyUnpaid = false, productNameOf = () => '',
+  } = opts;
+  const needle = String(q).trim().toLowerCase();
+
+  return bills.filter((b) => {
+    if (supplierId !== 'ALL' && b.supplier_id !== supplierId) return false;
+    if (pay === 'CASH' && b.credit) return false;
+    if (pay === 'CREDIT' && !b.credit) return false;
+    if (status !== 'ALL' && String(b.status || 'RECEIVED').toUpperCase() !== status) return false;
+    if (onlyUnpaid && b.due <= 0.5) return false;
+    if (!needle) return true;
+
+    const hay = [
+      b.id, b.bill_no, b.supplier_name,
+      ...b.lines.map((l) => l.id),
+      ...b.lines.map((l) => l.notes),
+      ...b.lines.map((l) => productNameOf(l.linked_product_id)),
+    ];
+    return hay.some((v) => String(v || '').toLowerCase().includes(needle));
+  });
+}
+
 export function groupPurchasesIntoBills(rows = []) {
   const byKey = {};
   rows.forEach((p) => {

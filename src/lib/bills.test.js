@@ -7,7 +7,7 @@
 // mis-bill rather than surfacing weeks later as a wrong payable.
 
 import { describe, it, expect } from 'vitest';
-import { groupPurchasesIntoBills, dueOf, paidOf, isCreditType } from './bills';
+import { groupPurchasesIntoBills, filterBills, dueOf, paidOf, isCreditType } from './bills';
 
 const row = (o) => ({
   id: o.id,
@@ -119,6 +119,56 @@ describe('what a bill has been paid', () => {
   it('treats a missing paid_amount as nothing paid', () => {
     expect(paidOf(row({ id: 'X', total: 100 }))).toBe(0);
     expect(dueOf(row({ id: 'X', total: 100 }))).toBe(100);
+  });
+});
+
+describe('filtering whole bills', () => {
+  // SAJJAD, 1 Aug: three lines settled, one Rs 100 short, one untouched.
+  const sajjad = () => groupPurchasesIntoBills([
+    row({ id: 'L1', date: '2026-08-01', type: 'CREDIT', at: '2026-08-01T12:44:47Z', total: 6750, paid: 6750, prod: 'P1' }),
+    row({ id: 'L2', date: '2026-08-01', type: 'CREDIT', at: '2026-08-01T12:44:48Z', total: 8400, paid: 8400, prod: 'P2' }),
+    row({ id: 'L3', date: '2026-08-01', type: 'CREDIT', at: '2026-08-01T12:44:51Z', total: 3360, paid: 3360, prod: 'P3' }),
+    row({ id: 'L4', date: '2026-08-01', type: 'CREDIT', at: '2026-08-01T12:44:53Z', total: 3360, paid: 3260, prod: 'P4' }),
+    row({ id: 'L5', date: '2026-08-01', type: 'CREDIT', at: '2026-08-01T12:44:54Z', total: 6900, paid: 0,    prod: 'P5' }),
+  ]);
+
+  it('keeps every line of an unpaid bill, not just the unpaid ones', () => {
+    // The bug this exists for: filtering the rows before grouping dropped the
+    // three settled lines, so the bill read Rs 10,260 with Rs 3,260 paid.
+    const [bill] = filterBills(sajjad(), { onlyUnpaid: true });
+    expect(bill.lines).toHaveLength(5);
+    expect(bill.total).toBe(28770);
+    expect(bill.paid).toBe(21770);
+    expect(bill.due).toBe(7000);
+  });
+
+  it('matches on one line but returns the whole bill', () => {
+    const names = { P4: 'HM Cover 1"' };
+    const [bill] = filterBills(sajjad(), { q: 'HM Cover', productNameOf: (id) => names[id] || '' });
+    expect(bill.lines).toHaveLength(5);
+    expect(bill.total).toBe(28770);
+  });
+
+  it('drops a settled bill under the unpaid filter', () => {
+    const settled = groupPurchasesIntoBills([
+      row({ id: 'S1', at: '2026-07-01T10:00:00Z', total: 500, paid: 500 }),
+    ]);
+    expect(filterBills(settled, { onlyUnpaid: true })).toHaveLength(0);
+  });
+
+  it('separates cash from credit', () => {
+    const bills = groupPurchasesIntoBills([
+      row({ id: 'C1', type: 'CREDIT', at: '2026-07-01T10:00:00Z', total: 100 }),
+      row({ id: 'K1', type: 'CASH',   at: '2026-07-02T10:00:00Z', total: 200 }),
+    ]);
+    expect(filterBills(bills, { pay: 'CREDIT' })).toHaveLength(1);
+    expect(filterBills(bills, { pay: 'CASH' })).toHaveLength(1);
+    expect(filterBills(bills, { pay: 'ALL' })).toHaveLength(2);
+  });
+
+  it('returns everything when nothing is asked of it', () => {
+    expect(filterBills(sajjad(), {})).toHaveLength(1);
+    expect(filterBills(sajjad())).toHaveLength(1);
   });
 });
 
