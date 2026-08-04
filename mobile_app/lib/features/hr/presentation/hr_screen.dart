@@ -9,6 +9,7 @@ import 'package:mobile_app/features/hr/presentation/providers/hr_provider.dart';
 import 'package:mobile_app/features/hr/presentation/add_employee_screen.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:uuid/uuid.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 class HRScreen extends ConsumerWidget {
   const HRScreen({super.key});
@@ -596,6 +597,10 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
 
   Future<void> _runPayroll() async {
     setState(() => _isRunning = true);
+    // Grab this before Navigator.pop -- after the sheet closes this State's
+    // context is defunct and ScaffoldMessenger.of(context) would throw, losing
+    // the very message that explains what failed.
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final ctx = await ref.read(tenantContextProvider.future);
       if (ctx == null) throw Exception('Not authenticated');
@@ -668,8 +673,17 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                 'payment_method': 'CASH',
               })
           .toList();
+      // The run is saved at this point. If the expenses fail, the run must NOT
+      // be reported as a plain error -- that reads as "nothing happened" and
+      // invites a re-run, which would write a second payroll row for the same
+      // period. Catch it separately and say exactly what did and did not save.
+      String? expenseFailure;
       if (expenseRows.isNotEmpty) {
-        await supabase.from('expenses').insert(expenseRows);
+        try {
+          await supabase.from('expenses').insert(expenseRows);
+        } catch (e) {
+          expenseFailure = _reason(e);
+        }
       }
 
       ref.invalidate(payrollRecordsProvider);
@@ -677,33 +691,72 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
 
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Payroll processed for ${_entries.length} employees',
-            style: GoogleFonts.manrope(color: AppColors.inkPrimary),
-          ),
-          backgroundColor: AppColors.primaryContainer,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+
+      if (expenseFailure != null) {
+        _snack(
+          messenger,
+          'Payroll saved, but the ${expenseRows.length} salary '
+          '${expenseRows.length == 1 ? 'expense' : 'expenses'} '
+          '(₹${totalNet.toStringAsFixed(0)}) could not be posted: '
+          '$expenseFailure\n\n'
+          'DayBook, the P&L and the cash account will not show this payout '
+          'until it is entered. Do not run payroll again for this period — '
+          'the run itself is already recorded.',
+          error: true,
+          long: true,
+        );
+      } else {
+        _snack(messenger, 'Payroll processed for ${_entries.length} employees');
+      }
     } catch (e) {
+      // Nothing was written -- the payroll insert itself failed.
       if (mounted) {
         setState(() => _isRunning = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e',
-                style: GoogleFonts.manrope(color: Colors.white)),
-            backgroundColor: AppColors.danger,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        _snack(messenger, 'Payroll not saved: ${_reason(e)}',
+            error: true, long: true);
       }
     }
+  }
+
+  /// The real reason, not `Instance of 'PostgrestException'`. A bare message
+  /// like "3 failed to save" is how a days-long outage stayed invisible.
+  String _reason(Object e) {
+    if (e is PostgrestException) {
+      final parts = [
+        e.message,
+        if (e.details != null && '${e.details}'.isNotEmpty) '${e.details}',
+        if (e.hint != null && e.hint!.isNotEmpty) e.hint!,
+        if (e.code != null && e.code!.isNotEmpty) '(${e.code})',
+      ];
+      return parts.join(' — ');
+    }
+    return e.toString();
+  }
+
+  void _snack(ScaffoldMessengerState messenger, String msg,
+      {bool error = false, bool long = false}) {
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          msg,
+          style: GoogleFonts.manrope(
+            color: error ? Colors.white : AppColors.inkPrimary,
+          ),
+        ),
+        backgroundColor: error ? AppColors.danger : AppColors.primaryContainer,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: long ? 20 : 4),
+        action: long
+            ? SnackBarAction(
+                label: 'DISMISS',
+                textColor: Colors.white,
+                onPressed: messenger.hideCurrentSnackBar,
+              )
+            : null,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
