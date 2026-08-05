@@ -835,9 +835,14 @@ const SupplierLedger = () => {
       {payOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink-primary/10 backdrop-blur-md"
           onClick={() => { setPayOpen(false); setPayTarget(null); }}>
+          {/* The panel had overflow-hidden and no height cap, inside a centring
+              flex parent. On a short window the form was taller than the
+              viewport, so it was centred and then clipped -- the Save button
+              could not be reached or even seen. Cap the height and let the body
+              scroll; the header and the action stay put. */}
           <div onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-white rounded-2xl border border-black/[0.06] shadow-[0_24px_70px_-20px_rgba(0,0,0,0.35)] overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
+            className="w-full max-w-md bg-white rounded-2xl border border-black/[0.06] shadow-[0_24px_70px_-20px_rgba(0,0,0,0.35)] overflow-hidden flex flex-col max-h-[calc(100dvh-2rem)]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
               <div>
                 <h2 className="text-base font-black text-ink-primary leading-none">
                   {payTarget ? `Pay order #${(payTarget.id || '').slice(-6).toUpperCase()}` : `Pay ${supplier?.name || 'Supplier'}`}
@@ -851,7 +856,7 @@ const SupplierLedger = () => {
               <button onClick={() => { setPayOpen(false); setPayTarget(null); }} className="text-muted-foreground hover:text-ink-primary text-2xl leading-none">×</button>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Amount</label>
                 <input type="number" min="0" step="0.01" autoFocus

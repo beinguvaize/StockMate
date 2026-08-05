@@ -13,6 +13,8 @@ import Table from '../../shared/Table';
 import { PageSkeleton } from '../../components/ui/States';
 import { formatCurrency, formatDate, generateRef } from '../../lib/utils';
 import { groupPurchasesIntoBills, filterBills, paidOf, dueOf as billDueOf, isCreditType } from '../../lib/bills';
+import { buildVoucherModel } from './lib/voucher';
+import { voucherHtml } from './lib/voucherHtml';
 import PurchaseForm from './components/PurchaseForm';
 import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
@@ -133,6 +135,19 @@ const PurchasesPage = () => {
     return m;
   }, [products]);
 
+  // A voucher covers the bill a line belongs to. Printing from a product row
+  // must produce the whole document, not that row's share of it.
+  const billOfLine = (line) =>
+    (allBills || []).find(b => b.lines.some(l => l.id === line?.id)) || null;
+
+  // The voucher needs the whole product, not just its name — hsn_code, unit and
+  // taxRate all appear on the printed document.
+  const productById = useMemo(() => {
+    const m = {};
+    (products || []).forEach(x => { m[x.id] = x; });
+    return m;
+  }, [products]);
+
   // Bills first, then filter whole bills.
   //
   // Filtering the product rows first and grouping after left a bill missing any
@@ -204,70 +219,30 @@ const PurchasesPage = () => {
 
   // Professional, self-contained printable purchase voucher (own CSS — the
   // print window has none of the app's styles).
-  const printVoucher = (p) => {
-    const prod = products.find(x => x.id === p.linked_product_id);
-    const cur = businessProfile?.currencySymbol || '₹';
-    const due = dueOf(p);
-    const paid = Number(p.paid_amount || 0);
-    const fmt = (n) => `${cur}${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    const ref = `#${p.id.split('-').pop()}`;
-    const credit = _credit(p.payment_type);
-    // Hex on purpose: this feeds a standalone print window (document.write),
-    // where the app's CSS variables don't exist.
-    const statusColor = credit ? (due <= 0.5 ? '#059669' : '#D97706') : '#059669';
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Purchase ${ref}</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
-body{background:#f5f5f4;color:#1c1917;padding:32px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.card{max-width:640px;margin:0 auto;background:#fff;border:1px solid #e7e5e4;border-radius:16px;overflow:hidden}
-.hd{display:flex;justify-content:space-between;align-items:flex-start;padding:24px 28px;border-bottom:1px solid #f0efed}
-.biz{font-size:20px;font-weight:800;letter-spacing:-.01em}
-.sub{font-size:11px;color:#a8a29e;margin-top:2px;text-transform:uppercase;letter-spacing:.12em}
-.badge{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;padding:5px 12px;border-radius:9999px;color:#fff;background:${statusColor}}
-.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;padding:20px 28px;font-size:13px}
-.meta .k{color:#a8a29e;font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700}
-.meta .v{font-weight:700;margin-top:2px}
-table{width:100%;border-collapse:collapse;margin:0}
-thead th{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#a8a29e;text-align:left;padding:10px 28px;background:#fafaf9;border-top:1px solid #f0efed;border-bottom:1px solid #f0efed}
-thead th.r{text-align:right}thead th.c{text-align:center}
-tbody td{padding:14px 28px;font-size:13px;border-bottom:1px solid #f5f4f2}
-td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{text-align:center;font-variant-numeric:tabular-nums}
-.tot{padding:16px 28px}
-.row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:#57534e}
-.row .amt{font-variant-numeric:tabular-nums;font-weight:600;color:#1c1917}
-.grand{display:flex;justify-content:space-between;align-items:center;padding-top:12px;margin-top:6px;border-top:2px solid #1c1917}
-.grand .l{font-size:15px;font-weight:800}.grand .v{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;color:#D97706}
-.due{color:#dc2626}.paid{color:#059669}
-.ft{padding:16px 28px;border-top:1px solid #f0efed;font-size:11px;color:#a8a29e;text-align:center}
-@media print{body{background:#fff;padding:0}.card{border:none}}
-</style></head><body>
-<div class="card">
-  <div class="hd">
-    <div><div class="biz">${(businessProfile?.name || 'Purchase Voucher')}</div><div class="sub">Purchase Voucher · ${ref}</div></div>
-    <div class="badge">${credit ? (due <= 0.5 ? 'Paid' : (paid > 0 ? 'Partial' : 'Credit')) : (p.payment_type || 'Cash')}</div>
-  </div>
-  <div class="meta">
-    <div><div class="k">Supplier</div><div class="v">${p.supplier_name || '—'}</div></div>
-    <div><div class="k">Date</div><div class="v">${formatDate(p.date)}</div></div>
-    <div><div class="k">Payment</div><div class="v">${p.payment_type || 'CASH'}</div></div>
-    <div><div class="k">Status</div><div class="v">${p.status || 'RECEIVED'}</div></div>
-  </div>
-  <table>
-    <thead><tr><th>Item</th><th class="c">Qty</th><th class="r">Amount</th></tr></thead>
-    <tbody><tr><td>${prod?.name || 'Item'}</td><td class="c">${p.quantity}</td><td class="r">${fmt(p.total_amount)}</td></tr></tbody>
-  </table>
-  <div class="tot">
-    <div class="grand"><span class="l">Total</span><span class="v">${fmt(p.total_amount)}</span></div>
-    ${paid > 0 ? `<div class="row" style="margin-top:10px"><span>Paid</span><span class="amt paid">${fmt(paid)}</span></div>` : ''}
-    ${due > 0.5 ? `<div class="row"><span>Balance due</span><span class="amt due">${fmt(due)}</span></div>` : ''}
-  </div>
-  <div class="ft">Thank you · ${(businessProfile?.name || '')}</div>
-</div>
-<script>window.onload=function(){window.print()}</script>
-</body></html>`;
+  // Print the whole bill, not one row of it.
+  //
+  // This used to take a single `purchases` row, so a two-product bill printed
+  // as two half-vouchers that each showed part of the money and neither of
+  // which added up to what the supplier was handed.
+  //
+  // The model and the document live in ./lib/voucher and ./lib/voucherHtml so
+  // the arithmetic -- tax split, totals, amount in words -- is unit tested
+  // rather than trusted because it looked right on screen once.
+  const printVoucher = (bill) => {
+    if (!bill) return;
+    const model = buildVoucherModel({
+      bill,
+      supplier: {
+        ...(suppliers || []).find(s => s.id === bill.supplier_id),
+        name: (suppliers || []).find(s => s.id === bill.supplier_id)?.name || bill.supplier_name,
+        __homeStateCode: String(businessProfile?.gst_no || '').slice(0, 2),
+      },
+      productById,
+    });
     const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write(html); w.document.close();
+    if (!w) { addNotification('Allow pop-ups to print the voucher', 'error'); return; }
+    w.document.write(voucherHtml(model, businessProfile || {}));
+    w.document.close();
   };
 
   const submitPay = async () => {
@@ -938,7 +913,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setMenuRow(null)} />
           <div className="fixed z-[9999] w-44 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left }}>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground"><Printer size={13} /> Print</button>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground"><Printer size={13} /> Voucher</button>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground"><Copy size={13} /> Duplicate</button>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setEditTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-blue-600"><Pencil size={13} /> Edit</button>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setReturnTarget({ purchase: p, product: products.find(x => x.id === p.linked_product_id), supplier: suppliers.find(s => s.id === p.supplier_id) }); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-rose-600"><RotateCcw size={13} /> Return</button>
@@ -1015,29 +990,82 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
       </Modal>
 
       {/* View / Print voucher */}
-      <Modal isOpen={!!printTarget} onClose={() => setPrintTarget(null)} title="Purchase Voucher" subtitle={printTarget ? `#${printTarget.id.split('-').pop()}` : ''}>
+      <Modal isOpen={!!printTarget} onClose={() => setPrintTarget(null)} title="Purchase Voucher"
+        subtitle={printTarget ? buildVoucherModel({ bill: printTarget, supplier: (suppliers || []).find(x => x.id === printTarget.supplier_id), productById }).voucherNo : ''}>
         {printTarget && (() => {
-          const prod = products.find(p => p.id === printTarget.linked_product_id);
+          const supplier = {
+            ...(suppliers || []).find(x => x.id === printTarget.supplier_id),
+            name: (suppliers || []).find(x => x.id === printTarget.supplier_id)?.name || printTarget.supplier_name,
+            __homeStateCode: String(businessProfile?.gst_no || '').slice(0, 2),
+          };
+          const m = buildVoucherModel({ bill: printTarget, supplier, productById });
           return (
-            <div>
-              <div id="purchase-voucher" className="bg-card p-4 text-[13px]">
-                <div className="text-lg font-extrabold text-foreground">{businessProfile?.name || 'Purchase Voucher'}</div>
-                <div className="text-[11px] text-muted-foreground mb-3">Purchase Voucher · #{printTarget.id.split('-').pop()}</div>
-                <div className="grid grid-cols-2 gap-1 mb-3">
-                  <div><span className="text-muted-foreground">Supplier:</span> <b>{printTarget.supplier_name || '—'}</b></div>
-                  <div><span className="text-muted-foreground">Date:</span> <b>{formatDate(printTarget.date)}</b></div>
-                  <div><span className="text-muted-foreground">Payment:</span> <b>{printTarget.payment_type || 'CASH'}</b></div>
-                  <div><span className="text-muted-foreground">Status:</span> <b>{printTarget.status || 'RECEIVED'}</b></div>
+            <div className="text-[13px]">
+              <div className="flex justify-between items-start gap-4">
+                <div>
+                  <div className="font-semibold text-foreground">{m.supplierName}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {m.gstin ? `GSTIN ${m.gstin}` : 'No GSTIN on file'} · {formatDate(m.date)} · {m.paymentType}
+                  </div>
                 </div>
-                <table className="w-full border-t border-b border-border my-2">
-                  <thead><tr className="text-[10px] uppercase text-muted-foreground"><th className="text-left py-1">Item</th><th className="text-center">Qty</th><th className="text-right">Amount</th></tr></thead>
-                  <tbody><tr><td className="py-1">{prod?.name || 'Item'}</td><td className="text-center tabular-nums">{printTarget.quantity}</td><td className="text-right tabular-nums">{formatCurrency(printTarget.total_amount)}</td></tr></tbody>
-                </table>
-                <div className="flex justify-between font-semibold mt-2"><span>Total</span><span className="tabular-nums">{formatCurrency(printTarget.total_amount)}</span></div>
-                {Number(printTarget.paid_amount || 0) > 0 && <div className="flex justify-between text-[12px] text-emerald-600"><span>Paid</span><span className="tabular-nums">{formatCurrency(printTarget.paid_amount)}</span></div>}
+                <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-pill ${m.settled ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                  {m.settled ? 'Paid' : 'Part paid'}
+                </span>
               </div>
+
+              <table className="w-full mt-3 border-t border-border">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <th className="text-left py-1.5 font-medium">Item</th>
+                    <th className="text-left font-medium">HSN</th>
+                    <th className="text-center font-medium">Qty</th>
+                    <th className="text-right font-medium">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {m.items.map(it => (
+                    <tr key={it.id}>
+                      <td className="py-1.5">{it.name}</td>
+                      <td className={it.hsn ? 'text-muted-foreground text-[11px]' : 'text-muted-foreground/60 text-[11px]'}>{it.hsn || '—'}</td>
+                      <td className="text-center tabular-nums">{it.qty} {it.unit}</td>
+                      <td className="text-right tabular-nums">{formatCurrency(it.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="mt-3 pt-2 border-t border-border space-y-1">
+                {m.registered && (
+                  <>
+                    <div className="flex justify-between text-muted-foreground"><span>Taxable</span><span className="tabular-nums">{formatCurrency(m.taxable)}</span></div>
+                    {m.interstate
+                      ? <div className="flex justify-between text-muted-foreground"><span>IGST</span><span className="tabular-nums">{formatCurrency(m.igst)}</span></div>
+                      : <div className="flex justify-between text-muted-foreground"><span>CGST + SGST</span><span className="tabular-nums">{formatCurrency(m.cgst + m.sgst)}</span></div>}
+                  </>
+                )}
+                <div className="flex justify-between font-semibold text-foreground"><span>Total</span><span className="tabular-nums">{formatCurrency(m.total)}</span></div>
+                {m.paid > 0 && <div className="flex justify-between text-emerald-600"><span>Paid</span><span className="tabular-nums">{formatCurrency(m.paid)}</span></div>}
+                {m.due > 0.005 && <div className="flex justify-between text-[color:var(--color-neg)]"><span>Balance due</span><span className="tabular-nums">{formatCurrency(m.due)}</span></div>}
+              </div>
+
+              <p className="text-[11px] text-muted-foreground mt-2">{m.words}</p>
+
+              {/* Both are worth knowing BEFORE the paper is handed over, not after. */}
+              {!m.registered && (
+                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mt-2 leading-relaxed">
+                  No GSTIN on file for this supplier, so the voucher shows no tax split and no ITC can be claimed against it.
+                </p>
+              )}
+              {m.missingHsn > 0 && (
+                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mt-2 leading-relaxed">
+                  {m.missingHsn} of {m.items.length} {m.missingHsn === 1 ? 'product has' : 'products have'} no HSN code — it will print blank and is required for GSTR-1.
+                </p>
+              )}
+
               <button onClick={() => printVoucher(printTarget)}
-                className="mt-3 w-full h-11 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2"><Printer size={15} /> Print</button>
+                className="mt-3 w-full h-11 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2">
+                <Printer size={15} /> Print voucher
+              </button>
             </div>
           );
         })()}
