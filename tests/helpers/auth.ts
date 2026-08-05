@@ -9,6 +9,19 @@ import * as path from 'path';
 export const TEST_EMAIL = requireEnv('E2E_EMAIL');
 export const TEST_PASSWORD = requireEnv('E2E_PASSWORD');
 
+/**
+ * Which tenant the suite runs against.
+ *
+ * Setup used to take whichever tenant rendered first in the admin panel, which
+ * on this account is a live customer. These tests create and modify records, so
+ * that meant writing into a real business's books. Defaults to the demo tenant
+ * and has to be overridden deliberately.
+ */
+export const TEST_TENANT_SLUG = process.env.E2E_TENANT_SLUG || 'demo-kirana-store';
+
+/** Tenants the suite must never write to, whatever the environment says. */
+export const PROTECTED_SLUGS = ['future-dispo-industries'];
+
 function requireEnv(name: string): string {
   const v = process.env[name];
   if (!v) {
