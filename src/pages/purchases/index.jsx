@@ -65,20 +65,66 @@ const PurchasesPage = () => {
   const _credit = isCreditType;
   const dueOf = billDueOf;
 
-  // Header summary — this-month spend, count, total payable, derived ITC.
+  // Header summary — this-month spend, count, total payable, claimable ITC.
+  //
+  // ITC used to be `amt - amt / 1.18` on every purchase, which assumed 18% no
+  // matter what the product is actually taxed at. It now uses each product's
+  // own rate, so a 0-rated item contributes nothing instead of phantom credit.
+  //
+  // Registration is reported, not assumed. Credit can only be claimed against a
+  // registered supplier's tax invoice, but a blank GSTIN here means "never
+  // entered" rather than "unregistered" — 12 of 13 suppliers are blank, and the
+  // one that is set is a placeholder. Excluding blanks outright would understate
+  // the claim and cost money at filing, so they are counted into a separate
+  // "pending" figure that names how many suppliers need a GSTIN on file.
   const summary = useMemo(() => {
     const ym = new Date().toISOString().slice(0, 7); // YYYY-MM
-    let month = 0, itc = 0, payable = 0;
+
+    const gstinOf = new Map(
+      (suppliers || []).map(s => [s.id, String(s.gstin || '').trim()])
+    );
+    const rateOf = new Map(
+      (products || []).map(p => [p.id, Number(p.taxRate)])
+    );
+
+    let month = 0, itc = 0, payable = 0, itcUnverified = 0, missingGstinCount = 0;
+    const missingGstinSuppliers = new Set();
+
     (purchases || []).forEach((p) => {
       const amt = Number(p.total_amount) || 0;
       payable += dueOf(p);
-      if (String(p.date || '').slice(0, 7) === ym) {
-        month += amt;
-        itc += amt - amt / 1.18; // 18% default back-out (matches purchase register)
+      if (String(p.date || '').slice(0, 7) !== ym) return;
+
+      month += amt;
+
+      // The product's own rate. A product taxed at 0 earns no credit, rather
+      // than an assumed 18%.
+      const rate = Number(rateOf.get(p.linked_product_id));
+      if (!Number.isFinite(rate) || rate <= 0) return;
+
+      // total_amount is GST-inclusive.
+      const credit = amt - amt / (1 + rate / 100);
+
+      // A blank GSTIN means "not recorded", NOT "unregistered". Almost no
+      // supplier here has one filled in, so treating blank as unregistered
+      // would understate the claim — which costs real money at filing time,
+      // the opposite error to the one being fixed. Count it separately and
+      // say so, instead of folding an unknown into either extreme.
+      if (gstinOf.get(p.supplier_id)) {
+        itc += credit;
+      } else {
+        itcUnverified += credit;
+        missingGstinCount += 1;
+        if (p.supplier_id) missingGstinSuppliers.add(p.supplier_id);
       }
     });
-    return { month, count: (purchases || []).length, payable, itc };
-  }, [purchases]);
+
+    return {
+      month, count: (purchases || []).length, payable, itc,
+      itcUnverified, missingGstinCount,
+      missingGstinSuppliers: missingGstinSuppliers.size,
+    };
+  }, [purchases, suppliers, products, dueOf]);
 
 
   const productNameById = useMemo(() => {
@@ -770,11 +816,23 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
             { label: 'This month', value: formatCurrency(summary.month) },
             { label: 'Purchases', value: summary.count },
             { label: 'Payable', value: formatCurrency(summary.payable), cls: summary.payable > 0 ? 'text-[color:var(--color-neg)]' : 'text-foreground' },
-            { label: 'ITC this month', value: formatCurrency(summary.itc), cls: 'text-[color:var(--color-pos)]' },
+            {
+              label: 'ITC this month',
+              value: formatCurrency(summary.itc),
+              cls: 'text-[color:var(--color-pos)]',
+              // Say why the figure is lower than the month's spend suggests,
+              // rather than leaving it looking like data went missing.
+              note: summary.itcUnverified > 0
+                ? `+${formatCurrency(summary.itcUnverified)} pending — ${summary.missingGstinSuppliers} supplier${summary.missingGstinSuppliers === 1 ? '' : 's'} have no GSTIN on file`
+                : null,
+            },
           ].map((m, i) => (
             <div key={i} className="bg-card px-4 py-3">
               <div className="text-[11px] font-medium text-muted-foreground">{m.label}</div>
               <div className={`text-[19px] font-semibold tabular-nums tracking-tight mt-0.5 ${m.cls || 'text-foreground'}`}>{m.value}</div>
+              {m.note && (
+                <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{m.note}</div>
+              )}
             </div>
           ))}
         </div>

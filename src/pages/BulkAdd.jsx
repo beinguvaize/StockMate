@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, RotateCcw, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../context/TenantContext';
+import { normalizeHsn } from '../lib/hsn';
 
 // Bulk Add — in-app spreadsheet (myBillBook-style). Type directly or paste
 // straight from Excel / Google Sheets (TSV clipboard): no file needed.
@@ -115,6 +116,8 @@ const BulkAdd = () => {
     setStatus('saving');
     let inserted = 0, failed = 0;
 
+    // HSN values dropped for not being a legal code — reported, never silent.
+    const badHsn = [];
     const payloads = validRows.map(({ row }) => {
       if (type === 'clients') return {
         id: genId('CLI'), tenant_id: currentTenantId,
@@ -146,7 +149,12 @@ const BulkAdd = () => {
         stock: Number(row.stock) || 0,
         taxRate: Number(row.taxRate) || 0,
         unit: row.unit?.trim() || 'pcs',
-        hsn_code: row.hsn?.trim() || null,
+        // Same rule as the importer: a SKU is not a tax code.
+        hsn_code: (() => {
+          const h = normalizeHsn(row.hsn);
+          if (h.status === 'invalid') badHsn.push(`${row.name?.trim() || '?'} (${h.raw})`);
+          return h.code;
+        })(),
         barcode: row.barcode?.trim() || null,
       };
     });
@@ -163,7 +171,7 @@ const BulkAdd = () => {
         e2 ? failed++ : inserted++;
       }
     }
-    setResult({ inserted, failed });
+    setResult({ inserted, failed, badHsn });
     setStatus('done');
   };
 
@@ -208,10 +216,21 @@ const BulkAdd = () => {
       )}
 
       {status === 'done' && result && (
-        <div className="mb-3 px-3.5 py-2.5 rounded-md bg-emerald-50 border border-emerald-200 text-[12.5px] text-emerald-700 font-medium flex items-center gap-2">
-          <CheckCircle2 size={15} />
-          {result.inserted} added{result.failed > 0 ? ` · ${result.failed} failed` : ''}.
-          <button onClick={reset} className="underline ml-1">Add more</button>
+        <div className="mb-3 px-3.5 py-2.5 rounded-md bg-emerald-50 border border-emerald-200 text-[12.5px] text-emerald-700 font-medium">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={15} />
+            {result.inserted} added{result.failed > 0 ? ` · ${result.failed} failed` : ''}.
+            <button onClick={reset} className="underline ml-1">Add more</button>
+          </div>
+          {/* The row still saved; only the bad HSN was dropped. Say which, so it
+              can be corrected now rather than at filing time. */}
+          {result.badHsn?.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-emerald-200 text-amber-700 font-normal">
+              {result.badHsn.length} HSN {result.badHsn.length === 1 ? 'code was' : 'codes were'} not valid (must be 4, 6 or 8 digits) and left blank:{' '}
+              {result.badHsn.slice(0, 6).join(', ')}
+              {result.badHsn.length > 6 ? ` and ${result.badHsn.length - 6} more` : ''}.
+            </div>
+          )}
         </div>
       )}
 

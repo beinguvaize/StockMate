@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { useTenant } from '../context/TenantContext';
 import { supabase, restInsert } from '../lib/supabase';
+import { normalizeHsn } from '../lib/hsn';
 import {
   Upload, Download, CheckCircle2, XCircle, AlertCircle,
   Users, Package, Truck, Loader2, FileSpreadsheet, ChevronRight,
@@ -225,6 +226,8 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
     if (!validRows.length) return;
     setStatus('importing');
     let inserted = 0, failed = 0;
+    // HSN values dropped for not being a legal code — reported, never silent.
+    const badHsn = [];
 
     for (const { row } of validRows) {
       const id = generateId();
@@ -274,7 +277,14 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           stock: Number(row.stock) || 0,
           taxRate: Number(row.taxRate) || 0,
           unit: String(row.unit || '').trim() || null,
-          hsn_code: String(row.hsn || '').trim() || null,
+          // Only a real 4/6/8-digit code. A SKU in the HSN column used to be
+          // written through verbatim and then printed on invoices and filed in
+          // the GSTR-1 HSN summary.
+          hsn_code: (() => {
+            const h = normalizeHsn(row.hsn);
+            if (h.status === 'invalid') badHsn.push(`${String(row.name || '').trim()} (${h.raw})`);
+            return h.code;
+          })(),
           barcode: String(row.barcode || '').trim() || null,
         };
         const { error } = await restInsert('products', payload);
@@ -283,7 +293,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
       }
     }
 
-    setResult({ inserted, failed });
+    setResult({ inserted, failed, badHsn });
     setStatus('done');
     if (inserted > 0) onDone?.();
   };
@@ -406,6 +416,20 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
                 </div>
               )}
             </div>
+            {/* The product still imported; only the bad HSN was dropped. Name
+                the products so they can be corrected, rather than letting the
+                gap surface months later in a GSTR-1 filing. */}
+            {result.badHsn?.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-emerald-200">
+                <p className="text-xs font-semibold text-amber-700">
+                  {result.badHsn.length} HSN {result.badHsn.length === 1 ? 'code was' : 'codes were'} not valid and left blank
+                </p>
+                <p className="text-[11px] text-amber-600 mt-0.5 leading-relaxed">
+                  An HSN must be 4, 6 or 8 digits. {result.badHsn.slice(0, 6).join(', ')}
+                  {result.badHsn.length > 6 ? ` and ${result.badHsn.length - 6} more` : ''}.
+                </p>
+              </div>
+            )}
           </div>
           <button
             onClick={reset}
