@@ -24,7 +24,7 @@ test.describe('17 · Security & Vulnerability Tests', () => {
     const isRestricted = await page.locator('text=/restricted|no access/i').count() > 0;
 
     if (!isUpgradeWall && !isRestricted) {
-      console.warn('CONFIRMED BUG-001: uvaize@hotmail.com bypasses ALL RBAC — can access settings without plan check');
+      console.warn('CONFIRMED BUG-001: the test account bypasses ALL RBAC — can access settings without plan check');
     }
     // Document as a known security issue regardless
     expect(true).toBe(true);

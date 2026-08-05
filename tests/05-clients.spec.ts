@@ -14,7 +14,7 @@ test.describe('05 · Clients', () => {
 
   test('clients page loads without errors', async ({ page }) => {
     await expect(page.locator('body')).not.toContainText('Something went wrong');
-    await expect(page.locator('h1')).toContainText('CLIENTS');
+    await expect(page.locator('h1')).toContainText(/clients/i);
   });
 
   test('client list renders with table or empty state', async ({ page }) => {
@@ -66,7 +66,7 @@ test.describe('05 · Clients', () => {
     const addBtn = page.locator('button:has-text("ADD CLIENT"), button:has-text("Add Client"), button:has-text("New Client")').first();
     if (await addBtn.count() === 0) { test.skip(); return; }
     await addBtn.click();
-    const modal = page.locator('.modal-overlay, [class*="modal-overlay"]').first();
+    const modal = page.locator('form, .fixed.inset-0, [role="dialog"]').first();
     await expect(modal).toBeVisible({ timeout: 5000 });
   });
 
@@ -74,7 +74,7 @@ test.describe('05 · Clients', () => {
     const addBtn = page.locator('button:has-text("ADD CLIENT"), button:has-text("Add Client")').first();
     if (await addBtn.count() === 0) { test.skip(); return; }
     await addBtn.click();
-    const modal = page.locator('.modal-overlay, [class*="modal-overlay"]').first();
+    const modal = page.locator('form, .fixed.inset-0, [role="dialog"]').first();
     await expect(modal).toBeVisible({ timeout: 5000 });
 
     // Submit with no input
@@ -89,7 +89,7 @@ test.describe('05 · Clients', () => {
     const addBtn = page.locator('button:has-text("ADD CLIENT"), button:has-text("Add Client")').first();
     if (await addBtn.count() === 0) { test.skip(); return; }
     await addBtn.click();
-    const modal = page.locator('.modal-overlay, [class*="modal-overlay"]').first();
+    const modal = page.locator('form, .fixed.inset-0, [role="dialog"]').first();
     await expect(modal).toBeVisible({ timeout: 5000 });
 
     const nameInput = page.locator('input[placeholder*="name" i], input[placeholder*="business" i]').first();
@@ -107,7 +107,7 @@ test.describe('05 · Clients', () => {
     const addBtn = page.locator('button:has-text("ADD CLIENT"), button:has-text("Add Client")').first();
     if (await addBtn.count() === 0) { test.skip(); return; }
     await addBtn.click();
-    const modal = page.locator('.modal-overlay, [class*="modal-overlay"]').first();
+    const modal = page.locator('form, .fixed.inset-0, [role="dialog"]').first();
     await expect(modal).toBeVisible({ timeout: 5000 });
 
     const testName = `Test Client ${Date.now()}`;
@@ -134,7 +134,7 @@ test.describe('05 · Clients', () => {
     const addBtn = page.locator('button:has-text("ADD CLIENT"), button:has-text("Add Client")').first();
     if (await addBtn.count() === 0) { test.skip(); return; }
     await addBtn.click();
-    const modal = page.locator('.modal-overlay, [class*="modal-overlay"]').first();
+    const modal = page.locator('form, .fixed.inset-0, [role="dialog"]').first();
     await expect(modal).toBeVisible({ timeout: 5000 });
 
     await page.locator('button:has-text("Cancel")').first().click();

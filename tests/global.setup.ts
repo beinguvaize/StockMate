@@ -1,6 +1,7 @@
 import { test as setup, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { TEST_EMAIL, TEST_PASSWORD } from './helpers/auth';
 
 const authFile = 'playwright/.auth/user.json';
 
@@ -8,8 +9,8 @@ setup('authenticate and save session', async ({ page }) => {
   await page.goto('http://localhost:5173/login');
   await page.waitForLoadState('networkidle');
 
-  await page.locator('input[type="email"]').fill('uvaize@hotmail.com');
-  await page.locator('input[type="password"]').fill('Aishu@145725');
+  await page.locator('input[type="email"]').fill(TEST_EMAIL);
+  await page.locator('input[type="password"]').fill(TEST_PASSWORD);
   await page.locator('button[type="submit"]').click();
 
   // Wait for redirect away from login

@@ -59,7 +59,7 @@ test.describe('03 · Inventory', () => {
     }
 
     await addBtn.click();
-    const modal = page.locator('[class*="modal"], [role="dialog"]').first();
+    const modal = page.locator('form, .fixed.inset-0, [role="dialog"]').first();
     await expect(modal).toBeVisible({ timeout: 5000 });
 
     // Fill product name
@@ -89,7 +89,7 @@ test.describe('03 · Inventory', () => {
     const adjustBtn = page.locator('button:has-text("Adjust"), [title*="adjust" i]').first();
     if (await adjustBtn.count() > 0) {
       await adjustBtn.click();
-      const modal = page.locator('[class*="modal"], [role="dialog"]').first();
+      const modal = page.locator('form, .fixed.inset-0, [role="dialog"]').first();
       await expect(modal).toBeVisible({ timeout: 5000 });
     }
   });
@@ -97,12 +97,16 @@ test.describe('03 · Inventory', () => {
   test('delete product shows confirmation', async ({ page }) => {
     const deleteBtn = page.locator('button:has-text("Delete"), [title*="delete" i], [aria-label*="delete" i]').first();
     if (await deleteBtn.count() > 0) {
+      // App uses native window.confirm() for delete — verify it fires, then dismiss.
+      let dialogSeen = false;
+      page.once('dialog', async (dialog) => {
+        dialogSeen = true;
+        expect(dialog.message().toLowerCase()).toMatch(/delete|sure/);
+        await dialog.dismiss();
+      });
       await deleteBtn.click();
-      // Confirmation dialog should appear
-      const confirm = page.locator('[class*="confirm"], [role="alertdialog"], text=/confirm|are you sure/i').first();
-      if (await confirm.count() > 0) {
-        await expect(confirm).toBeVisible({ timeout: 3000 });
-      }
+      await page.waitForTimeout(1000);
+      expect(dialogSeen).toBe(true);
     }
   });
 });

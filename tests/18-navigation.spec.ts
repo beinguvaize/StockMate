@@ -15,7 +15,7 @@ test.describe('18 · Navigation & Routing', () => {
     const modules = ['dashboard', 'inventory', 'sales', 'clients', 'expenses'];
     for (const mod of modules) {
       await page.goto(`/${slug}/${mod}`);
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
       expect(page.url()).toContain(`/${mod}`);
       await expect(page.locator('body')).not.toContainText('Something went wrong');

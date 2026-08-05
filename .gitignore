@@ -1,4 +1,18 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+playwright/.auth/
+
+# Playwright output
 node_modules/
 test-results/
 playwright-report/
-playwright/.auth/
+blob-report/
+
+# Local agent/editor scratch
+.claude/
+.mcp.json
+
+# macOS
+.DS_Store

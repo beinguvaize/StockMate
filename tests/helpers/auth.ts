@@ -2,8 +2,23 @@ import { Page, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-export const TEST_EMAIL = 'uvaize@hotmail.com';
-export const TEST_PASSWORD = 'Aishu@145725';
+// Credentials come from the environment. They were hardcoded here and reached
+// a PUBLIC repository, so anyone could read a working login to a live tenant.
+// No fallback value on purpose: a default would let the suite pass quietly with
+// the wrong account, and would tempt someone to paste a real password back in.
+export const TEST_EMAIL = requireEnv('E2E_EMAIL');
+export const TEST_PASSWORD = requireEnv('E2E_PASSWORD');
+
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) {
+    throw new Error(
+      `${name} is not set. Copy .env.example to .env and fill it in, or export ` +
+      `${name} before running Playwright. Credentials are never committed.`
+    );
+  }
+  return v;
+}
 
 /**
  * Read the tenant slug saved by global.setup.ts.
