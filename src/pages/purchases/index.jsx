@@ -670,9 +670,15 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
                 <Banknote size={12} /> Pay lines
               </button>
             )}
+            {/* Edit, Return and Delete act on a single purchase row, but a bill
+                can hold several. Firing them at lines[0] silently targeted the
+                first product and left the rest unreachable -- a Return would
+                open on the wrong item and move real stock. So the menu only
+                sits on the header when the bill IS one line; otherwise it opens
+                the bill, where each line carries its own menu. */}
             <button
-              onClick={(e) => openMenu(e, bill.lines[0])}
-              title="More"
+              onClick={(e) => multi ? setExpandedBill(expanded ? null : bill.id) : openMenu(e, bill.lines[0])}
+              title={multi ? 'Open the bill to edit or return a product' : 'More'}
               className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
             >
               <MoreVertical size={16} />
@@ -720,6 +726,15 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
                       </td>
                       <td className="py-2 pl-4 text-right text-[9px] tabular-nums text-muted-foreground whitespace-nowrap">
                         {l.id.split('-').pop()}
+                      </td>
+                      <td className="py-2 pl-2 text-right whitespace-nowrap">
+                        <button
+                          onClick={(e) => openMenu(e, l)}
+                          title={`Edit, return or delete ${prod?.name || 'this product'}`}
+                          className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
+                        >
+                          <MoreVertical size={14} />
+                        </button>
                       </td>
                     </tr>
                   );
