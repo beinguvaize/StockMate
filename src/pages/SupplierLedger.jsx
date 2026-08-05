@@ -736,7 +736,16 @@ const SupplierLedger = () => {
                             </span>
                           </td>
                           <td className="py-3.5 px-3">
-                            <div className="text-xs tabular-nums font-semibold text-ink-primary">{ref}</div>
+                            <div className="text-xs tabular-nums font-semibold text-ink-primary">
+                              {ref}
+                              {/* Which line took the money. Without it, two
+                                  payments against one multi-line bill show the
+                                  same reference on the same day and read as a
+                                  duplicate. */}
+                              {r.lineRef && (
+                                <span className="ml-1.5 font-medium text-muted-foreground">· {r.lineRef}</span>
+                              )}
+                            </div>
                             <div className="text-[10px] text-muted-foreground lowercase">{sub}</div>
                           </td>
                           <td className="py-3.5 px-3 text-right text-xs tabular-nums text-muted-foreground">—</td>

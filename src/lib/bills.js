@@ -62,8 +62,23 @@ export function buildSupplierLedger({
     if (atBill > 0.01) {
       rows.push({ kind: 'PAY', date: b.date, bill: b, atBill: true, debit: 0, credit: atBill });
     }
-    linked.forEach((p) =>
-      rows.push({ kind: 'PAY', date: p.date, bill: b, pay: p, debit: 0, credit: num(p.amount) }));
+    // Which line the money actually hit.
+    //
+    // A bill is several `purchases` rows, and every payment against any of them
+    // is labelled with the bill's reference. On a multi-line bill that produces
+    // two same-day rows carrying one reference for different amounts, which
+    // reads as a duplicate — HASSAN's Rs 14,400 and Rs 9,790 on 5 Aug both
+    // showed #R-U04UUB. Both were correct; only the label was ambiguous, and
+    // that exact appearance is what set off the duplicate-payment hunt before.
+    //
+    // Only when it adds something: a single-line bill, or a payment against the
+    // line the bill is named after, needs no extra reference.
+    linked.forEach((p) => {
+      const lineRef = (b.lines.length > 1 && p.purchase_id && p.purchase_id !== b.id)
+        ? String(p.purchase_id).split('-').pop()
+        : null;
+      rows.push({ kind: 'PAY', date: p.date, bill: b, pay: p, lineRef, debit: 0, credit: num(p.amount) });
+    });
   });
 
   // A debit note reduces what is owed, and belongs in date order among the

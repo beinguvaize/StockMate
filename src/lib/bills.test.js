@@ -215,6 +215,44 @@ describe('the supplier ledger', () => {
     expect(rows[rows.length - 1].balance).toBeCloseTo(10660 - 2100 + 9425, 2);
   });
 
+  it('names the line a payment hit when the bill has more than one', () => {
+    // HASSAN, 5 Aug: one Rs 30,000 payment split FIFO across four bills. The
+    // 3 Aug bill is two lines (U04UUB + U27SJH), so Rs 14,400 and Rs 9,790 both
+    // rendered as #R-U04UUB — two same-day rows, one reference, different
+    // amounts, which reads as a duplicate. Both were correct; the label was not.
+    const bills = groupPurchasesIntoBills([
+      row({ id: 'PUR-U04UUB', date: '2026-08-03', at: '2026-08-03T10:00:00Z', type: 'CREDIT', total: 14400, paid: 14400 }),
+      row({ id: 'PUR-U27SJH', date: '2026-08-03', at: '2026-08-03T10:00:05Z', type: 'CREDIT', total: 13800, paid: 9790 }),
+    ]);
+    expect(bills).toHaveLength(1);          // one bill, two lines
+
+    const rows = buildSupplierLedger({
+      bills,
+      payments: [
+        { id: 'SUPP-A',   date: '2026-08-05', amount: 14400, purchase_id: 'PUR-U04UUB' },
+        { id: 'SUPP-A-1', date: '2026-08-05', amount: 9790,  purchase_id: 'PUR-U27SJH' },
+      ],
+    });
+
+    const pays = rows.filter(r => r.kind === 'PAY');
+    expect(pays).toHaveLength(2);
+    // The line the bill is named after needs no extra reference; the other does.
+    expect(pays.find(r => r.credit === 14400).lineRef).toBeNull();
+    expect(pays.find(r => r.credit === 9790).lineRef).toBe('U27SJH');
+    expect(rows[rows.length - 1].balance).toBeCloseTo(4010, 2);
+  });
+
+  it('does not add a line reference on a single-line bill', () => {
+    const bills = groupPurchasesIntoBills([
+      row({ id: 'PUR-SOLO', date: '2026-08-03', at: '2026-08-03T10:00:00Z', type: 'CREDIT', total: 500, paid: 500 }),
+    ]);
+    const rows = buildSupplierLedger({
+      bills,
+      payments: [{ id: 'SUPP-B', date: '2026-08-04', amount: 500, purchase_id: 'PUR-SOLO' }],
+    });
+    expect(rows.find(r => r.kind === 'PAY').lineRef).toBeNull();
+  });
+
   it('includes a return even when it is the only entry', () => {
     const rows = buildSupplierLedger({
       returns: [{ id: 'PRN-1', date: '2026-05-12', total_amount: 2100 }],
