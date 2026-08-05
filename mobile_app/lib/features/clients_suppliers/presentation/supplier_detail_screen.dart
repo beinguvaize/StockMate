@@ -113,7 +113,10 @@ class SupplierDetailScreen extends ConsumerWidget {
     );
     final avatarColor = _avatarColor(supplier.name);
     final avatarBg = avatarColor.withValues(alpha: 0.12);
-    final balance = supplier.balance ?? 0;
+    // Derived from the bills. suppliers.balance is a cached aggregate that has
+    // drifted from the transactions before, and the web app never trusted it.
+    final balance = supplierOutstanding(
+        supplier, ref.watch(supplierOutstandingProvider).valueOrNull);
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -152,6 +155,7 @@ class SupplierDetailScreen extends ConsumerWidget {
                     ),
                   ).then((_) {
                     ref.invalidate(suppliersProvider);
+                    ref.invalidate(supplierOutstandingProvider);
                     ref.invalidate(supplierTransactionsProvider('${supplier.id}|${supplier.name ?? ''}'));
                   }),
                   child: Container(

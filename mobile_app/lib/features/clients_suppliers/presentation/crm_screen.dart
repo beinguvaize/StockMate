@@ -114,6 +114,7 @@ class _CRMScreenState extends ConsumerState<CRMScreen>
     ).then((_) {
       ref.invalidate(clientsProvider);
       ref.invalidate(suppliersProvider);
+      ref.invalidate(supplierOutstandingProvider);
     });
   }
 
@@ -147,12 +148,14 @@ class _CRMScreenState extends ConsumerState<CRMScreen>
       if (sl  > topBuyerAmt)  { topBuyerAmt  = sl;  topBuyerName  = c.name ?? '—'; }
     }
 
-    // Supplier KPIs
+    // Supplier KPIs -- derived from the bills, not suppliers.balance, which has
+    // drifted from the transactions before.
+    final derivedOut = ref.watch(supplierOutstandingProvider).valueOrNull;
     double totalPayable = 0;
     String topPayableName = '—';
     double topPayableAmt  = 0;
     for (final s in suppliers) {
-      final bal = s.balance ?? 0;
+      final bal = supplierOutstanding(s, derivedOut);
       totalPayable += bal;
       if (bal > topPayableAmt) { topPayableAmt = bal; topPayableName = s.name ?? '—'; }
     }
@@ -1122,7 +1125,9 @@ class _SuppliersTab extends ConsumerWidget {
         }
         final sortedKeys = grouped.keys.toList()..sort();
 
-        final totalPayable = filtered.fold(0.0, (s, sup) => s + (sup.balance ?? 0));
+        final derivedOut = ref.watch(supplierOutstandingProvider).valueOrNull;
+        final totalPayable = filtered.fold(
+            0.0, (s, sup) => s + supplierOutstanding(sup, derivedOut));
 
         return Column(
           children: [
@@ -1191,10 +1196,15 @@ class _SuppliersTab extends ConsumerWidget {
                       return Column(children: [
                         _SupplierRow(
                           supplier: supplier,
+                          outstanding:
+                              supplierOutstanding(supplier, derivedOut),
                           onTap: () => Navigator.push(
                             ctx,
                             MaterialPageRoute(builder: (_) => SupplierDetailScreen(supplier: supplier)),
-                          ).then((_) => ref.invalidate(suppliersProvider)),
+                          ).then((_) {
+                            ref.invalidate(suppliersProvider);
+                            ref.invalidate(supplierOutstandingProvider);
+                          }),
                         ),
                         if (globalIndex - cursor < items.length - 1)
                           const Divider(height: 1, indent: 52),
@@ -1218,12 +1228,16 @@ class _SuppliersTab extends ConsumerWidget {
 // ─── Supplier row (flat list item) ────────────────────────────────────────────
 class _SupplierRow extends StatelessWidget {
   final Supplier supplier;
+  final double outstanding;
   final VoidCallback onTap;
-  const _SupplierRow({required this.supplier, required this.onTap});
+  const _SupplierRow(
+      {required this.supplier, required this.outstanding, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final balance = supplier.balance ?? 0;
+    // Passed in already derived from the bills -- supplier.balance is the
+    // cached column and is not read here.
+    final balance = outstanding;
 
     return InkWell(
       onTap: onTap,

@@ -77,6 +77,72 @@ final suppliersProvider = FutureProvider<List<Supplier>>((ref) async {
   }
 });
 
+/// What each supplier is still owed, derived from the bills.
+///
+/// `suppliers.balance` is a cached aggregate and it has drifted from the
+/// transactions before: HASSAN KOUSER read Rs 36,400 against Rs 34,010 of
+/// actual open bills, because a payment larger than the amount owed was clamped
+/// at zero and the surplus thrown away. The web app has always derived this
+/// figure from the bills; mobile reading the column is why the two surfaces
+/// showed different numbers for the same supplier.
+///
+///   outstanding = SUM(max(total - paid, 0)) - money paid but not yet on a bill
+///
+/// which is the same invariant the database now maintains.
+///
+/// Returns null when it cannot be computed (offline, or the query failed).
+/// Callers fall back to the stored column in that case -- it is the best thing
+/// available without a network, and `supplier_payments` is not cached locally
+/// so advances cannot be subtracted offline.
+final supplierOutstandingProvider =
+    FutureProvider<Map<String, double>?>((ref) async {
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return null;
+
+  try {
+    final out = <String, double>{};
+
+    final bills = await supabase
+        .from('purchases')
+        .select('supplier_id, total_amount, paid_amount')
+        .eq('tenant_id', ctx.tenantId)
+        .isFilter('deleted_at', null)
+        .limit(10000);
+    for (final row in (bills as List)) {
+      final sid = row['supplier_id'] as String?;
+      if (sid == null) continue;
+      final due = ((row['total_amount'] as num?)?.toDouble() ?? 0) -
+                  ((row['paid_amount'] as num?)?.toDouble() ?? 0);
+      if (due > 0) out[sid] = (out[sid] ?? 0) + due;
+    }
+
+    // Money already paid that is not tied to a bill reduces what is owed.
+    final advances = await supabase
+        .from('supplier_payments')
+        .select('supplier_id, amount')
+        .eq('tenant_id', ctx.tenantId)
+        .isFilter('deleted_at', null)
+        .isFilter('purchase_id', null)
+        .limit(10000);
+    for (final row in (advances as List)) {
+      final sid = row['supplier_id'] as String?;
+      if (sid == null) continue;
+      out[sid] = (out[sid] ?? 0) - ((row['amount'] as num?)?.toDouble() ?? 0);
+    }
+
+    return out;
+  } catch (e) {
+    debugPrint('[supplierOutstanding] falling back to suppliers.balance: $e');
+    return null;
+  }
+});
+
+/// Outstanding for one supplier. Derived when available; the stored column only
+/// as the offline fallback. A supplier absent from a loaded map genuinely owes
+/// nothing -- do not read the column in that case, that is the stale path.
+double supplierOutstanding(Supplier s, Map<String, double>? derived) =>
+    derived == null ? (s.balance ?? 0) : (derived[s.id] ?? 0);
+
 final clientPaymentsProvider = FutureProvider<List<ClientPayment>>((ref) async {
   final ctx = await ref.watch(tenantContextProvider.future);
   if (ctx == null) return [];
