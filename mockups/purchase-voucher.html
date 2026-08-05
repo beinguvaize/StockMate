@@ -109,6 +109,8 @@
   .item-name{font-weight:550}
   .item-sub{font-size:10.5px;color:var(--ink-3);margin-top:2px}
   .hsn{font-size:11px;color:var(--ink-2)}
+  /* A blank HSN is visibly incomplete rather than looking deliberate. */
+  .hsn-missing{color:var(--ink-3)}
 
   /* totals */
   .foot{display:grid;grid-template-columns:1fr 300px;gap:28px;margin-top:16px}
@@ -181,12 +183,13 @@
     <p>Built on the real 28 Jul bill (SANTHOSH KOTTARAKKARA, ₹6,600, refs ENIJIE + EPKTSL) so the figures are checkable, not invented. Nothing is implemented yet.</p>
     <ul>
       <li><b>Both products are on one voucher.</b> Today’s print modal takes a single <code>purchases</code> row, so this bill prints as two separate half-vouchers.</li>
-      <li><b>Two variants below</b> — the supplier is unregistered, which changes what a voucher may legally show. Variant B is the registered case.</li>
+      <li><b>Two variants below</b> — variant A has no supplier GSTIN on file, which changes what the voucher may state; variant B is a registered supplier with the tax split. 12 of your 13 suppliers have no GSTIN recorded.</li>
+      <li><b>Tissue small shows no HSN</b> — its code was the SKU <code>TES</code>, cleared on 5 Aug. This is what a product with no HSN prints as, which is the state 38 of your products are in today.</li>
       <li>Print preview (Cmd-P) gives one A4 voucher per sheet, no page chrome.</li>
     </ul>
   </div>
 
-  <div class="caption print-hide">A — this bill · unregistered supplier · paid in full</div>
+  <div class="caption print-hide">A — this bill · no supplier GSTIN on file · paid in full</div>
 
   <!-- ══════════════ VOUCHER A ══════════════ -->
   <div class="voucher">
@@ -213,7 +216,7 @@
         <p class="party-name">SANTHOSH KOTTARAKKARA</p>
         <div class="party-meta">
           Phone 9846396540<br>
-          GSTIN — <i>not registered</i>
+          GSTIN — <i>not on file</i>
         </div>
       </div>
       <div>
@@ -245,7 +248,7 @@
             <div class="item-name">Tissue small</div>
             <div class="item-sub">Ref ENIJIE</div>
           </td>
-          <td class="hsn">TES</td>
+          <td class="hsn hsn-missing" title="No HSN on file for this product">—</td>
           <td class="ctr">500 PCS</td>
           <td class="num">5.00</td>
           <td class="num">2,500.00</td>
@@ -269,8 +272,10 @@
         <p class="lbl">Amount in words</p>
         <p>Six Thousand Six Hundred Rupees Only</p>
         <div class="callout">
-          Supplier is not GST registered — no tax invoice, so <b>no input tax credit</b>
-          may be claimed on this purchase. No CGST/SGST is shown for that reason.
+          No GSTIN on file for this supplier, so no tax split is shown and
+          <b>input tax credit cannot be claimed</b> against this voucher yet.
+          Add their GSTIN if they are registered — this is a missing record,
+          not a statement that they are unregistered.
         </div>
       </div>
       <div class="sums">
