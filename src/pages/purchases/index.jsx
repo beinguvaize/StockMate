@@ -620,7 +620,7 @@ const PurchasesPage = () => {
               <div className="text-[13.5px] font-semibold text-foreground truncate flex items-center gap-1.5" title={names.join(', ')}>
                 {multi
                   ? <ChevronRight size={12} className={`shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`} />
-                  : <span className="w-3 shrink-0" />}
+                  : <span className="w-3 h-3 shrink-0" aria-hidden />}
                 <span className="truncate">{names[0] || 'Unknown Product'}</span>
                 {multi && (
                   <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-black/[0.06] text-ink-secondary">
@@ -738,63 +738,79 @@ const PurchasesPage = () => {
         </td>
       </tr>
 
-      {expanded && (
-        <tr className="bg-canvas/60">
-          <td colSpan={PUR_COLS} className="px-4 py-3 border-l-2 border-accent-signature">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-              Products on this bill
-            </div>
-            <table className="w-full">
-              <tbody className="divide-y divide-border/60">
-                {bill.lines.map(l => {
-                  const prod = products.find(x => x.id === l.linked_product_id);
-                  const lineAmt = Number(l.total_amount || 0);
-                  const lineQty = Number(l.quantity || 0);
-                  const lineDue = Math.max(0, lineAmt - paidOf(l));
-                  return (
-                    <tr key={l.id}>
-                      <td className="py-2 text-[12px] font-medium text-foreground">{prod?.name || l.notes || '—'}</td>
-                      <td className="py-2 text-right text-[12px] tabular-nums text-muted-foreground whitespace-nowrap">
-                        {lineQty} {prod?.unit || 'pcs'} × {formatCurrency(lineQty > 0 ? lineAmt / lineQty : 0)}
-                      </td>
-                      <td className="py-2 text-right text-[12px] font-semibold tabular-nums text-foreground whitespace-nowrap">
-                        {formatCurrency(lineAmt)}
-                      </td>
-                      <td className="py-2 pl-4 text-right whitespace-nowrap">
-                        {lineDue > 0.5 ? (
-                          <span className="inline-flex items-center gap-2">
-                            <span className="text-[10px] font-semibold tabular-nums text-[color:var(--color-neg)]">
-                              due {formatCurrency(lineDue)}
-                            </span>
-                            <button
-                              onClick={() => { setPayTarget(l); setPayAmount(String(lineDue)); setPayMethod('CASH'); }}
-                              className="px-2 py-0.5 rounded-md text-[10px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
-                            >Pay</button>
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-medium text-[color:var(--color-pos)]">Settled</span>
-                        )}
-                      </td>
-                      <td className="py-2 pl-4 text-right text-[9px] tabular-nums text-muted-foreground whitespace-nowrap">
-                        {l.id.split('-').pop()}
-                      </td>
-                      <td className="py-2 pl-2 text-right whitespace-nowrap">
-                        <button
-                          onClick={(e) => openMenu(e, l)}
-                          title={`Edit, return or delete ${prod?.name || 'this product'}`}
-                          className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
-                        >
-                          <MoreVertical size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </td>
-        </tr>
-      )}
+      {/* The bill's lines, as real rows of THIS table.
+          They were a nested <table> inside one full-width cell, so their
+          columns were independent of the parent's: product names started at the
+          far left while the bill's product sat 260px in, and the amounts landed
+          in a different place to the Amount column above them. Emitting them as
+          siblings makes every column line up by construction rather than by
+          matching widths twice. */}
+      {expanded && bill.lines.map((l, i) => {
+        const prod = products.find(x => x.id === l.linked_product_id);
+        const lineAmt = Number(l.total_amount || 0);
+        const lineQty = Number(l.quantity || 0);
+        const lineDue = Math.max(0, lineAmt - paidOf(l));
+        const last = i === bill.lines.length - 1;
+        return (
+          <tr key={l.id} className="bg-canvas/60">
+            {/* Gutter carries the grouping rule instead of a box around the set */}
+            <td className={`${pad} border-l-2 border-accent-signature`}>
+              {i === 0 && (
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {bill.lines.length} items
+                </span>
+              )}
+            </td>
+            {/* Indented to start where the parent's product text starts:
+                28px avatar + 10px gap. */}
+            <td className={`${pad} max-w-[280px]`}>
+              <div className="pl-[38px] min-w-0">
+                <div className="text-[12.5px] font-medium text-foreground truncate">
+                  {prod?.name || l.notes || '—'}
+                </div>
+                <div className="text-[11px] text-muted-foreground truncate">
+                  {lineQty} {prod?.unit || 'pcs'} × {formatCurrency(lineQty > 0 ? lineAmt / lineQty : 0)}
+                  {' · '}<span className="tabular-nums text-[10px] opacity-70">{l.id.split('-').pop()}</span>
+                </div>
+              </div>
+            </td>
+            <td className={pad}>
+              {lineDue > 0.5 ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold tabular-nums text-[color:var(--color-neg)]">
+                    {formatCurrency(lineDue)} due
+                  </span>
+                  <button
+                    onClick={() => { setPayTarget(l); setPayAmount(String(lineDue)); setPayMethod('CASH'); }}
+                    className="px-2 py-0.5 rounded-md text-[10px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
+                  >Pay</button>
+                </div>
+              ) : (
+                <span className="text-[11px] font-medium text-[color:var(--color-pos)]">Settled</span>
+              )}
+            </td>
+            <td className={`${pad} text-right tabular-nums text-[12.5px] font-semibold text-foreground whitespace-nowrap`}>
+              {formatCurrency(lineAmt)}
+            </td>
+            <td className={`${pad} text-center`}>
+              {last && (
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                  bill {formatCurrency(bill.total)}
+                </span>
+              )}
+            </td>
+            <td className={`${pad} text-right`} onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={(e) => openMenu(e, l)}
+                title={`Edit, return or delete ${prod?.name || 'this product'}`}
+                className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
+              >
+                <MoreVertical size={14} />
+              </button>
+            </td>
+          </tr>
+        );
+      })}
       </React.Fragment>
     );
   };
