@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Purchases — UI directions</title>
+<style>
+  /* Same language as the reports and the voucher: system sans, hairline rules,
+     tabular numerals, one accent. A third visual dialect would be worse than a
+     plain page, so nothing new is invented here -- what changes is the
+     information design, not the paint. */
+  :root{
+    --ink:#14161a; --ink-2:#454b54; --ink-3:#767d87; --ink-4:#a4abb4;
+    --line:#e5e7eb; --line-2:#f2f3f5; --paper:#fff; --desk:#f4f2ef;
+    --accent:#b45309; --accent-bg:#fffbeb; --accent-line:#fde68a;
+    --pos:#15803d; --pos-bg:#f0fdf4;
+    --neg:#b91c1c; --neg-bg:#fef2f2;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ink:#e9eaec; --ink-2:#b3b8bf; --ink-3:#868d96; --ink-4:#5f666e;
+      --line:#2a2e34; --line-2:#212429; --paper:#16181c; --desk:#0f1113;
+      --accent:#f0b429; --accent-bg:#2a2113; --accent-line:#4a3a17;
+      --pos:#4ade80; --pos-bg:#12251a; --neg:#f87171; --neg-bg:#2a1616;
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--desk); color:var(--ink);
+    font:400 13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1160px;margin:0 auto;padding:28px 20px 80px}
+
+  .note{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:26px}
+  .note h1{font-size:15px;font-weight:600;margin-bottom:4px}
+  .note p{font-size:12px;color:var(--ink-2)}
+  .note ul{margin-top:8px;padding-left:18px;font-size:12px;color:var(--ink-2)}
+  .note li{margin:3px 0}
+  .caption{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin:34px 0 10px}
+  .caption span{color:var(--ink-4);font-weight:500;text-transform:none;letter-spacing:0}
+
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+
+  /* ── summary strip ─────────────────────────────────────────────────── */
+  .strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line)}
+  .cell{background:var(--paper);padding:13px 16px}
+  .cell .k{font-size:10.5px;color:var(--ink-3);font-weight:500}
+  .cell .v{font-size:19px;font-weight:600;letter-spacing:-.02em;margin-top:2px}
+  .cell .sub{font-size:10.5px;color:var(--ink-3);margin-top:1px}
+  .v.due{color:var(--neg)}
+  .v.pos{color:var(--pos)}
+
+  /* ── toolbar ───────────────────────────────────────────────────────── */
+  .bar{display:flex;align-items:center;gap:8px;padding:11px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+  .search{flex:1;min-width:180px;display:flex;align-items:center;gap:7px;background:var(--line-2);
+          border:1px solid transparent;border-radius:8px;padding:7px 10px;color:var(--ink-3);font-size:12.5px}
+  .chip{font-size:11.5px;padding:6px 11px;border-radius:7px;border:1px solid var(--line);
+        background:var(--paper);color:var(--ink-2);cursor:default;white-space:nowrap}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .chip .n{opacity:.75;margin-left:5px}
+
+  /* ── direction A: payment-first ledger ─────────────────────────────── */
+  .row{display:grid;grid-template-columns:64px 1fr 190px 150px 96px;gap:14px;align-items:center;
+       padding:11px 14px;border-top:1px solid var(--line-2)}
+  .row:hover{background:var(--line-2)}
+  .daycol{font-size:11px;color:var(--ink-3);line-height:1.3}
+  .daycol b{display:block;font-size:13px;font-weight:600;color:var(--ink)}
+  .daycol.dim{visibility:hidden}       /* repeat dates print once */
+
+  .party{display:flex;align-items:center;gap:10px;min-width:0}
+  .ini{width:28px;height:28px;border-radius:7px;background:var(--line-2);color:var(--ink-2);
+       display:grid;place-items:center;font-size:10.5px;font-weight:650;flex:none}
+  .pname{font-size:13px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pmeta{font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ref{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:var(--ink-4)}
+
+  /* the meter: paid vs due, readable before any number is */
+  .meter{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-bottom:5px}
+  .meter i{display:block;height:100%;background:var(--pos)}
+  .payline{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3)}
+  .payline b{font-weight:600;color:var(--neg)}
+  .payline.settled b{color:var(--pos)}
+
+  .money{text-align:right}
+  .money .t{font-size:14px;font-weight:600;letter-spacing:-.01em}
+  .money .d{font-size:11px;color:var(--neg);margin-top:1px}
+  .money .d.ok{color:var(--ink-3)}
+
+  .acts{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+  .btn{font-size:11.5px;font-weight:600;padding:6px 11px;border-radius:7px;border:1px solid var(--accent);
+       color:var(--accent);background:var(--accent-bg);white-space:nowrap}
+  .kebab{width:26px;height:26px;display:grid;place-items:center;color:var(--ink-4);border-radius:6px}
+  .row:hover .kebab{background:var(--line)}
+  .tick{font-size:11px;color:var(--pos);font-weight:600}
+
+  .head{display:grid;grid-template-columns:64px 1fr 190px 150px 96px;gap:14px;padding:9px 14px;
+        border-top:1px solid var(--line);background:var(--line-2)}
+  .head span{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+  .head .r{text-align:right}
+
+  /* ── direction B: exposure by supplier ─────────────────────────────── */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:12px;padding:14px}
+  .card{border:1px solid var(--line);border-radius:10px;padding:13px 14px;background:var(--paper)}
+  .card.settled{opacity:.62}
+  .ctop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:9px}
+  .cname{font-size:13px;font-weight:600;line-height:1.25}
+  .cmeta{font-size:10.5px;color:var(--ink-3);margin-top:2px}
+  .cdue{font-size:17px;font-weight:650;letter-spacing:-.02em;color:var(--neg);text-align:right;white-space:nowrap}
+  .cdue.ok{color:var(--pos);font-size:12px;font-weight:600}
+  .cbills{border-top:1px solid var(--line-2);margin-top:10px;padding-top:9px;display:flex;flex-direction:column;gap:6px}
+  .cbill{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-2);gap:8px}
+  .cbill .amt{font-weight:600;color:var(--ink);white-space:nowrap}
+  .cbill .od{color:var(--neg);font-size:10px}
+  .cfoot{margin-top:11px;display:flex;gap:6px}
+  .cfoot .btn{flex:1;text-align:center}
+
+  .foot-note{font-size:11px;color:var(--ink-3);padding:11px 14px;border-top:1px solid var(--line)}
+
+  @media (max-width:820px){
+    .strip{grid-template-columns:repeat(2,1fr)}
+    .row,.head{grid-template-columns:56px 1fr 120px;gap:10px}
+    .row > .money,.head > .r:nth-child(4){display:none}
+    .head span:nth-child(5),.row > .acts{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="note">
+    <h1>Purchases — two UI directions</h1>
+    <p>Real bills from FUTURE DISPO, 30 Jul – 4 Aug. The five unpaid ones total ₹29,290, which is what the supplier balances add up to — so the figures are checkable.</p>
+    <ul>
+      <li><b>A — payment-first ledger.</b> Same chronological list, restructured so “what is still owed” is the thing you see first.</li>
+      <li><b>B — exposure by supplier.</b> Answers a different question: not <i>what did I buy</i> but <i>who am I into, and for how much</i>.</li>
+      <li>Both drop the full-width date header rows. With 55 bills those cost ~30 rows of pure scrolling; the date now sits in a gutter and prints once per day.</li>
+    </ul>
+  </div>
+
+  <!-- ══════════════ A ══════════════ -->
+  <div class="caption">A — payment-first ledger <span>· chronological, dense, due-led</span></div>
+
+  <div class="panel">
+    <div class="strip">
+      <div class="cell"><div class="k">This month</div><div class="v">₹60,890</div><div class="sub">3 bills</div></div>
+      <div class="cell"><div class="k">Owed now</div><div class="v due">₹29,290</div><div class="sub">5 bills across 5 suppliers</div></div>
+      <div class="cell"><div class="k">Paid this month</div><div class="v pos">₹45,960</div><div class="sub">75% of billed</div></div>
+      <div class="cell"><div class="k">ITC claimable</div><div class="v">₹598</div><div class="sub">+₹6,494 pending GSTIN</div></div>
+    </div>
+
+    <div class="bar">
+      <div class="search">⌕ Search product, ref, supplier…</div>
+      <div class="chip on">Unpaid <span class="n">5</span></div>
+      <div class="chip">All suppliers</div>
+      <div class="chip">Any payment</div>
+      <div class="chip">Newest</div>
+    </div>
+
+    <div class="head">
+      <span>Date</span><span>Supplier / items</span><span>Settlement</span>
+      <span class="r">Amount</span><span class="r">&nbsp;</span>
+    </div>
+
+    <div class="row">
+      <div class="daycol"><b>4 Aug</b>2026</div>
+      <div class="party">
+        <div class="ini">SA</div>
+        <div style="min-width:0">
+          <div class="pname">S A TRADING</div>
+          <div class="pmeta">Tissue Big ×280 · <span class="ref">P4KOBT</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="meter"><i style="width:0%"></i></div>
+        <div class="payline"><span>Credit · nothing paid</span><b>₹3,920 due</b></div>
+      </div>
+      <div class="money"><div class="t">₹3,920.00</div><div class="d">all outstanding</div></div>
+      <div class="acts"><div class="btn">Pay</div><div class="kebab">⋮</div></div>
+    </div>
+
+    <div class="row">
+      <div class="daycol"><b>3 Aug</b>2026</div>
+      <div class="party">
+        <div class="ini">HK</div>
+        <div style="min-width:0">
+          <div class="pname">HASSAN KOUSER SIVAKASI</div>
+          <div class="pmeta">2 items · 16*20 KG NICE +1 · <span class="ref">U04UUB</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="meter"><i style="width:85.8%"></i></div>
+        <div class="payline"><span>₹24,190 paid</span><b>₹4,010 due</b></div>
+      </div>
+      <div class="money"><div class="t">₹28,200.00</div><div class="d">86% settled</div></div>
+      <div class="acts"><div class="btn">Pay</div><div class="kebab">⋮</div></div>
+    </div>
+
+    <div class="row">
+      <div class="daycol"><b>1 Aug</b>2026</div>
+      <div class="party">
+        <div class="ini">SA</div>
+        <div style="min-width:0">
+          <div class="pname">SAJJAD ALAMCODU</div>
+          <div class="pmeta">5 items · 13*16 Pkt Cover +4 · <span class="ref">5VHR39</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="meter"><i style="width:75.7%"></i></div>
+        <div class="payline"><span>₹21,770 paid</span><b>₹7,000 due</b></div>
+      </div>
+      <div class="money"><div class="t">₹28,770.00</div><div class="d">76% settled</div></div>
+      <div class="acts"><div class="btn">Pay</div><div class="kebab">⋮</div></div>
+    </div>
+
+    <div class="row">
+      <div class="daycol"><b>31 Jul</b>2026</div>
+      <div class="party">
+        <div class="ini">RJ</div>
+        <div style="min-width:0">
+          <div class="pname">RENO JOHN</div>
+          <div class="pmeta">Frootty plate 12" ×280 · <span class="ref">W8VUB4</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="meter"><i style="width:75.1%"></i></div>
+        <div class="payline"><span>₹22,500 paid</span><b>₹7,460 due</b></div>
+      </div>
+      <div class="money"><div class="t">₹29,960.00</div><div class="d">75% settled</div></div>
+      <div class="acts"><div class="btn">Pay</div><div class="kebab">⋮</div></div>
+    </div>
+
+    <div class="row">
+      <div class="daycol dim"><b>31 Jul</b>2026</div>
+      <div class="party">
+        <div class="ini">MA</div>
+        <div style="min-width:0">
+          <div class="pname">MADEENA AGENCY KOLLAM</div>
+          <div class="pmeta">2 items · HM Cover 00" +1 · <span class="ref">XLOXRB</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="meter"><i style="width:0%"></i></div>
+        <div class="payline"><span>Credit · nothing paid</span><b>₹6,900 due</b></div>
+      </div>
+      <div class="money"><div class="t">₹6,900.00</div><div class="d">all outstanding</div></div>
+      <div class="acts"><div class="btn">Pay</div><div class="kebab">⋮</div></div>
+    </div>
+
+    <div class="foot-note">5 of 55 bills · filtered to unpaid · ₹29,290 outstanding</div>
+  </div>
+
+  <!-- ══════════════ B ══════════════ -->
+  <div class="caption">B — exposure by supplier <span>· who am I into, and for how much</span></div>
+
+  <div class="panel">
+    <div class="bar">
+      <div class="search">⌕ Search supplier…</div>
+      <div class="chip on">Owing <span class="n">5</span></div>
+      <div class="chip">Settled <span class="n">8</span></div>
+      <div class="chip">By amount</div>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="ctop">
+          <div><div class="cname">RENO JOHN</div><div class="cmeta">1 open bill · oldest 5 days</div></div>
+          <div class="cdue">₹7,460</div>
+        </div>
+        <div class="cbills">
+          <div class="cbill"><span>31 Jul · Frootty plate ×280</span><span class="amt">₹7,460 <span class="od">5d</span></span></div>
+        </div>
+        <div class="cfoot"><div class="btn">Pay ₹7,460</div><div class="chip">Ledger</div></div>
+      </div>
+
+      <div class="card">
+        <div class="ctop">
+          <div><div class="cname">SAJJAD ALAMCODU</div><div class="cmeta">1 open bill · oldest 4 days</div></div>
+          <div class="cdue">₹7,000</div>
+        </div>
+        <div class="cbills">
+          <div class="cbill"><span>1 Aug · 5 items</span><span class="amt">₹7,000 <span class="od">4d</span></span></div>
+        </div>
+        <div class="cfoot"><div class="btn">Pay ₹7,000</div><div class="chip">Ledger</div></div>
+      </div>
+
+      <div class="card">
+        <div class="ctop">
+          <div><div class="cname">MADEENA AGENCY KOLLAM</div><div class="cmeta">1 open bill · oldest 5 days</div></div>
+          <div class="cdue">₹6,900</div>
+        </div>
+        <div class="cbills">
+          <div class="cbill"><span>31 Jul · 2 items</span><span class="amt">₹6,900 <span class="od">5d</span></span></div>
+        </div>
+        <div class="cfoot"><div class="btn">Pay ₹6,900</div><div class="chip">Ledger</div></div>
+      </div>
+
+      <div class="card">
+        <div class="ctop">
+          <div><div class="cname">HASSAN KOUSER SIVAKASI</div><div class="cmeta">1 open bill · part paid today</div></div>
+          <div class="cdue">₹4,010</div>
+        </div>
+        <div class="cbills">
+          <div class="cbill"><span>3 Aug · 2 items</span><span class="amt">₹4,010 <span class="od">2d</span></span></div>
+        </div>
+        <div class="cfoot"><div class="btn">Pay ₹4,010</div><div class="chip">Ledger</div></div>
+      </div>
+
+      <div class="card">
+        <div class="ctop">
+          <div><div class="cname">S A TRADING</div><div class="cmeta">1 open bill · bill 116</div></div>
+          <div class="cdue">₹3,920</div>
+        </div>
+        <div class="cbills">
+          <div class="cbill"><span>4 Aug · Tissue Big ×280</span><span class="amt">₹3,920 <span class="od">1d</span></span></div>
+        </div>
+        <div class="cfoot"><div class="btn">Pay ₹3,920</div><div class="chip">Ledger</div></div>
+      </div>
+
+      <div class="card settled">
+        <div class="ctop">
+          <div><div class="cname">GPS PAPER CUP</div><div class="cmeta">5 bills · all settled</div></div>
+          <div class="cdue ok">Settled</div>
+        </div>
+        <div class="cbills">
+          <div class="cbill"><span>Last: 17 Jul</span><span class="amt">₹98,904 lifetime</span></div>
+        </div>
+        <div class="cfoot"><div class="chip">Ledger</div></div>
+      </div>
+    </div>
+
+    <div class="foot-note">₹29,290 owed across 5 suppliers · 8 suppliers settled</div>
+  </div>
+
+</div>
+</body>
+</html>
