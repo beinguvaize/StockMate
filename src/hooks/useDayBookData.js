@@ -7,6 +7,7 @@
 // payload is a single day, not 500 rows. The day_book table itself is small and
 // fetched in full (needed for opening-balance lookups + previous-day closing).
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { fetchWithCache } from '../lib/offline/hookAdapter';
 import { supabase } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
@@ -43,18 +44,30 @@ export function useDayBookData(tenantId, selectedDate) {
     if (!tenantId || !selectedDate) { setLoading(false); return; }
     if (firstLoad.current) setLoading(true); // later date-changes refresh silently
     try {
+      // Reads go through the offline cache on desktop. Without this the DayBook
+      // was blank with no network -- the same gap that showed Cash Balance as
+      // zero: writes queued, reads did not.
+      //
+      // The cache holds whole tables, so the filters the query applied
+      // server-side have to be applied again to whatever comes back. Getting
+      // this wrong would show another day's takings under today's date.
+      const forDay = (rows) => (rows || []).filter(r =>
+        r && r.tenant_id === tenantId
+          && String(r.date || '').slice(0, 10) === selectedDate
+          && !r.deleted_at);
+
       const [sRes, eRes, pRes, cpRes, spRes] = await Promise.all([
-        supabase.from('sales').select(SEL_SALES).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null),
-        supabase.from('expenses').select(SEL_EXPENSE).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate),
-        supabase.from('purchases').select(SEL_PURCHASE).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null),
-        supabase.from('client_payments').select(SEL_CLIENTPAY).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate),
-        supabase.from('supplier_payments').select(SEL_SUPPLIERPAY).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null),
+        fetchWithCache('sales', () => supabase.from('sales').select(SEL_SALES).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate)),
+        fetchWithCache('expenses', () => supabase.from('expenses').select(SEL_EXPENSE).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate)),
+        fetchWithCache('purchases', () => supabase.from('purchases').select(SEL_PURCHASE).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate)),
+        fetchWithCache('client_payments', () => supabase.from('client_payments').select(SEL_CLIENTPAY).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate)),
+        fetchWithCache('supplier_payments', () => supabase.from('supplier_payments').select(SEL_SUPPLIERPAY).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null)),
       ]);
-      setSales(sRes.data || []);
-      setExpenses(eRes.data || []);
-      setPurchases(pRes.data || []);
-      setClientPayments(cpRes.data || []);
-      setSupplierPayments(spRes.data || []);
+      setSales(forDay(sRes.data));
+      setExpenses(forDay(eRes.data));
+      setPurchases(forDay(pRes.data));
+      setClientPayments(forDay(cpRes.data));
+      setSupplierPayments(forDay(spRes.data));
       await fetchDayBookRecords();
     } catch (err) {
       console.error('useDayBookData error:', err);

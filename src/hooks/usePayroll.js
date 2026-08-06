@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { fetchWithCache } from '../lib/offline/hookAdapter';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
@@ -59,19 +60,28 @@ export const usePayroll = (tenantId) => {
     }
     if (!initialLoadDone.current) setLoading(true);
     try {
-      const [
-        { data: empData, error: empErr },
-        { data: payData, error: payErr }
-      ] = await Promise.all([
-        supabase.from('employees').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
-        supabase.from('payroll').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('created_at', { ascending: false })
+      // Reads go through the offline cache on desktop; the staff list and pay
+      // history were empty with no network because only the writes were queued.
+      // The cache holds whole tables, so re-apply what the query filtered and
+      // ordered server-side.
+      const mine = (rows) => (rows || []).filter(r => r && r.tenant_id === tenantId && !r.deleted_at);
+
+      const [empRes, payRes] = await Promise.all([
+        fetchWithCache('employees', () =>
+          supabase.from('employees').select('*').is('deleted_at', null)
+            .eq('tenant_id', tenantId).order('name')),
+        fetchWithCache('payroll', () =>
+          supabase.from('payroll').select('*').is('deleted_at', null)
+            .eq('tenant_id', tenantId).order('created_at', { ascending: false })),
       ]);
 
-      if (empErr) throw empErr;
-      if (payErr) throw payErr;
+      const empData = mine(empRes.data)
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+      const payData = mine(payRes.data)
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
 
       setEmployees(normalizeNumericRows(empData, EMPLOYEE_NUMERIC));
-      setPayrollRecords((payData || []).map(toPayrollRecord));
+      setPayrollRecords(payData.map(toPayrollRecord));
     } catch (err) {
       console.error("usePayroll Fetch Error:", err);
       setError(err.message);

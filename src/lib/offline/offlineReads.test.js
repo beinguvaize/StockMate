@@ -32,13 +32,15 @@ const OFFLINE_READY = [
   'usePeople.js',     // clients, suppliers, receipts
   'useFinance.js',
   'useEstimates.js',
+  'useDayBookData.js', // day's takings
+  'usePayroll.js',     // staff and pay history
 ];
 
 // Known to read online-only. Listed so the gap is visible and countable rather
 // than rediscovered from a screenshot. Moving one up to OFFLINE_READY is the
 // fix; this list should only ever shrink.
 const KNOWN_ONLINE_ONLY = [
-  'useDayBookData.js', 'usePayroll.js', 'useOrders.js', 'useOperations.js',
+  'useOrders.js', 'useOperations.js',
   'useManufacturing.js', 'useTables.js', 'useKOT.js', 'useAppointments.js',
   'useBugReports.js', 'useBilling.js', 'usePlanLimits.js',
 ];
