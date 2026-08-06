@@ -71,8 +71,13 @@
   .party{display:flex;align-items:center;gap:10px;min-width:0}
   .ini{width:28px;height:28px;border-radius:7px;background:var(--line-2);color:var(--ink-2);
        display:grid;place-items:center;font-size:10.5px;font-weight:650;flex:none}
-  .pname{font-size:13px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .pmeta{font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pname{font-size:13.5px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* +N carries real information -- how many other products are on this bill --
+     so it is a chip rather than grey text tacked onto the name. */
+  .more{display:inline-block;font-size:10px;font-weight:600;padding:1px 5px;border-radius:5px;
+        background:var(--line-2);color:var(--ink-3);margin-left:6px;vertical-align:1px}
+  .pmeta{font-size:11.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+  .pmeta .sup{font-weight:500}
   .ref{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:var(--ink-4)}
 
   /* the meter: paid vs due, readable before any number is */
@@ -129,17 +134,16 @@
 <div class="wrap">
 
   <div class="note">
-    <h1>Purchases — two UI directions</h1>
-    <p>Real bills from FUTURE DISPO, 30 Jul – 4 Aug. The five unpaid ones total ₹29,290, which is what the supplier balances add up to — so the figures are checkable.</p>
+    <h1>Purchases — product-first ledger</h1>
+    <p>Direction A, revised: the product leads each row and the supplier sits beneath it. Real bills from FUTURE DISPO, 30 Jul – 4 Aug; the five unpaid ones total ₹29,290, matching the supplier balances.</p>
     <ul>
-      <li><b>A — payment-first ledger.</b> Same chronological list, restructured so “what is still owed” is the thing you see first.</li>
-      <li><b>B — exposure by supplier.</b> Answers a different question: not <i>what did I buy</i> but <i>who am I into, and for how much</i>.</li>
-      <li>Both drop the full-width date header rows. With 55 bills those cost ~30 rows of pure scrolling; the date now sits in a gutter and prints once per day.</li>
+      <li><b>Product is the identity.</b> It is what you recognise a bill by, so it carries the weight; the supplier is the second line, and the ref is quietest.</li>
+      <li><b>Settlement stays led by what is owed</b> — a meter reads paid against due before any number does.</li>
+      <li><b>No date header rows.</b> At 55 bills those cost ~30 rows of scrolling; the date sits in a gutter and prints once per day.</li>
     </ul>
   </div>
 
-  <!-- ══════════════ A ══════════════ -->
-  <div class="caption">A — payment-first ledger <span>· chronological, dense, due-led</span></div>
+  <div class="caption">Product-first ledger <span>· product leads, supplier second, due-led settlement</span></div>
 
   <div class="panel">
     <div class="strip">
@@ -158,7 +162,7 @@
     </div>
 
     <div class="head">
-      <span>Date</span><span>Supplier / items</span><span>Settlement</span>
+      <span>Date</span><span>Product / supplier</span><span>Settlement</span>
       <span class="r">Amount</span><span class="r">&nbsp;</span>
     </div>
 
@@ -167,8 +171,8 @@
       <div class="party">
         <div class="ini">SA</div>
         <div style="min-width:0">
-          <div class="pname">S A TRADING</div>
-          <div class="pmeta">Tissue Big ×280 · <span class="ref">P4KOBT</span></div>
+          <div class="pname">Tissue Big</div>
+          <div class="pmeta"><span class="sup">S A TRADING</span> · 280 PCS · <span class="ref">P4KOBT</span></div>
         </div>
       </div>
       <div>
@@ -184,8 +188,8 @@
       <div class="party">
         <div class="ini">HK</div>
         <div style="min-width:0">
-          <div class="pname">HASSAN KOUSER SIVAKASI</div>
-          <div class="pmeta">2 items · 16*20 KG NICE +1 · <span class="ref">U04UUB</span></div>
+          <div class="pname">16*20 KG NICE<span class="more">+1</span></div>
+          <div class="pmeta"><span class="sup">HASSAN KOUSER SIVAKASI</span> · 300 in 2 · <span class="ref">U04UUB</span></div>
         </div>
       </div>
       <div>
@@ -201,8 +205,8 @@
       <div class="party">
         <div class="ini">SA</div>
         <div style="min-width:0">
-          <div class="pname">SAJJAD ALAMCODU</div>
-          <div class="pmeta">5 items · 13*16 Pkt Cover +4 · <span class="ref">5VHR39</span></div>
+          <div class="pname">13*16 Pkt Cover<span class="more">+4</span></div>
+          <div class="pmeta"><span class="sup">SAJJAD ALAMCODU</span> · 970 in 5 · <span class="ref">5VHR39</span></div>
         </div>
       </div>
       <div>
@@ -218,8 +222,8 @@
       <div class="party">
         <div class="ini">RJ</div>
         <div style="min-width:0">
-          <div class="pname">RENO JOHN</div>
-          <div class="pmeta">Frootty plate 12" ×280 · <span class="ref">W8VUB4</span></div>
+          <div class="pname">Frootty plate 12"</div>
+          <div class="pmeta"><span class="sup">RENO JOHN</span> · 280 PCS · <span class="ref">W8VUB4</span></div>
         </div>
       </div>
       <div>
@@ -235,8 +239,8 @@
       <div class="party">
         <div class="ini">MA</div>
         <div style="min-width:0">
-          <div class="pname">MADEENA AGENCY KOLLAM</div>
-          <div class="pmeta">2 items · HM Cover 00" +1 · <span class="ref">XLOXRB</span></div>
+          <div class="pname">HM Cover 00"<span class="more">+1</span></div>
+          <div class="pmeta"><span class="sup">MADEENA AGENCY KOLLAM</span> · 60 in 2 · <span class="ref">XLOXRB</span></div>
         </div>
       </div>
       <div>
@@ -248,88 +252,6 @@
     </div>
 
     <div class="foot-note">5 of 55 bills · filtered to unpaid · ₹29,290 outstanding</div>
-  </div>
-
-  <!-- ══════════════ B ══════════════ -->
-  <div class="caption">B — exposure by supplier <span>· who am I into, and for how much</span></div>
-
-  <div class="panel">
-    <div class="bar">
-      <div class="search">⌕ Search supplier…</div>
-      <div class="chip on">Owing <span class="n">5</span></div>
-      <div class="chip">Settled <span class="n">8</span></div>
-      <div class="chip">By amount</div>
-    </div>
-
-    <div class="cards">
-      <div class="card">
-        <div class="ctop">
-          <div><div class="cname">RENO JOHN</div><div class="cmeta">1 open bill · oldest 5 days</div></div>
-          <div class="cdue">₹7,460</div>
-        </div>
-        <div class="cbills">
-          <div class="cbill"><span>31 Jul · Frootty plate ×280</span><span class="amt">₹7,460 <span class="od">5d</span></span></div>
-        </div>
-        <div class="cfoot"><div class="btn">Pay ₹7,460</div><div class="chip">Ledger</div></div>
-      </div>
-
-      <div class="card">
-        <div class="ctop">
-          <div><div class="cname">SAJJAD ALAMCODU</div><div class="cmeta">1 open bill · oldest 4 days</div></div>
-          <div class="cdue">₹7,000</div>
-        </div>
-        <div class="cbills">
-          <div class="cbill"><span>1 Aug · 5 items</span><span class="amt">₹7,000 <span class="od">4d</span></span></div>
-        </div>
-        <div class="cfoot"><div class="btn">Pay ₹7,000</div><div class="chip">Ledger</div></div>
-      </div>
-
-      <div class="card">
-        <div class="ctop">
-          <div><div class="cname">MADEENA AGENCY KOLLAM</div><div class="cmeta">1 open bill · oldest 5 days</div></div>
-          <div class="cdue">₹6,900</div>
-        </div>
-        <div class="cbills">
-          <div class="cbill"><span>31 Jul · 2 items</span><span class="amt">₹6,900 <span class="od">5d</span></span></div>
-        </div>
-        <div class="cfoot"><div class="btn">Pay ₹6,900</div><div class="chip">Ledger</div></div>
-      </div>
-
-      <div class="card">
-        <div class="ctop">
-          <div><div class="cname">HASSAN KOUSER SIVAKASI</div><div class="cmeta">1 open bill · part paid today</div></div>
-          <div class="cdue">₹4,010</div>
-        </div>
-        <div class="cbills">
-          <div class="cbill"><span>3 Aug · 2 items</span><span class="amt">₹4,010 <span class="od">2d</span></span></div>
-        </div>
-        <div class="cfoot"><div class="btn">Pay ₹4,010</div><div class="chip">Ledger</div></div>
-      </div>
-
-      <div class="card">
-        <div class="ctop">
-          <div><div class="cname">S A TRADING</div><div class="cmeta">1 open bill · bill 116</div></div>
-          <div class="cdue">₹3,920</div>
-        </div>
-        <div class="cbills">
-          <div class="cbill"><span>4 Aug · Tissue Big ×280</span><span class="amt">₹3,920 <span class="od">1d</span></span></div>
-        </div>
-        <div class="cfoot"><div class="btn">Pay ₹3,920</div><div class="chip">Ledger</div></div>
-      </div>
-
-      <div class="card settled">
-        <div class="ctop">
-          <div><div class="cname">GPS PAPER CUP</div><div class="cmeta">5 bills · all settled</div></div>
-          <div class="cdue ok">Settled</div>
-        </div>
-        <div class="cbills">
-          <div class="cbill"><span>Last: 17 Jul</span><span class="amt">₹98,904 lifetime</span></div>
-        </div>
-        <div class="cfoot"><div class="chip">Ledger</div></div>
-      </div>
-    </div>
-
-    <div class="foot-note">₹29,290 owed across 5 suppliers · 8 suppliers settled</div>
   </div>
 
 </div>
