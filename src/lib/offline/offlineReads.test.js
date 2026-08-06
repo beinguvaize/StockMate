@@ -34,15 +34,29 @@ const OFFLINE_READY = [
   'useEstimates.js',
   'useDayBookData.js', // day's takings
   'usePayroll.js',     // staff and pay history
+  'useOperations.js',  // routes, vehicles, deliveries
+  'useOrders.js',
+  'useManufacturing.js',
 ];
 
-// Known to read online-only. Listed so the gap is visible and countable rather
-// than rediscovered from a screenshot. Moving one up to OFFLINE_READY is the
-// fix; this list should only ever shrink.
+// Online-only, each for a stated reason. Two kinds: blocked, and deliberate.
+// Anything blocked should eventually move up; the deliberate ones should not.
 const KNOWN_ONLINE_ONLY = [
-  'useOrders.js', 'useOperations.js',
-  'useManufacturing.js', 'useTables.js', 'useKOT.js', 'useAppointments.js',
-  'useBugReports.js', 'useBilling.js', 'usePlanLimits.js',
+  // BLOCKED — their tables have no updated_at, and pullOne filters on it, so
+  // adding them to SYNCED_TABLES would skip them with a warning and cache
+  // nothing. Wrapping these now would turn a visible failure into an empty
+  // screen that looks like real data. Needs a migration first.
+  'useTables.js',        // restaurant_tables, table_orders
+  'useKOT.js',           // kot_tickets
+  'useAppointments.js',  // appointments
+
+  // DELIBERATE — should not read from a cache.
+  'useBilling.js',       // subscription state is an entitlement: a lapsed plan
+                         // must not look active because the cache is stale
+  'useBugReports.js',    // filing one needs the network anyway
+  'usePlanLimits.js',    // counts via head/count queries, which return no rows
+                         // for a row cache to answer; a stale permissive count
+                         // is not better than none
 ];
 
 const CACHED_READ = /fetchWithCache|readCacheThenRevalidate/;

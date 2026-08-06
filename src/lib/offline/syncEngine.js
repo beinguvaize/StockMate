@@ -57,6 +57,16 @@ export const SYNCED_TABLES = [
   'attendance',
   'supplier_payments',
   'sales_returns',
+  // Orders and manufacturing. All carry tenant_id and updated_at, which
+  // pullOne requires -- it filters on updated_at, so a table without one is
+  // skipped with a warning and silently never syncs.
+  'orders',
+  'price_lists',
+  'bom',
+  'bom_components',
+  'production_orders',
+  'production_order_materials',
+  'production_costs',
 ];
 
 // Default off. UI toggles auto-sync via startSync({ intervalMs }).
