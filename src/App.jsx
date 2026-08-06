@@ -269,6 +269,18 @@ const FloatingChrome = () => {
 // Desktop Troubleshoot menu (Electron menu bar) → in-app actions.
 function TroubleshootListener() {
   const navigate = useNavigate();
+  // This component sits outside the providers, so it cannot reach the
+  // notification context. It carries its own toast rather than being moved --
+  // and rather than calling alert(), which on the desktop build opens an OS
+  // dialog titled "cashbook" that has to be dismissed before anything else can
+  // be done. A sync finishing is not worth blocking the app for.
+  const [toast, setToast] = React.useState(null);
+  React.useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), toast.tone === 'error' ? 8000 : 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   React.useEffect(() => {
     const api = typeof window !== 'undefined' ? window.electron?.troubleshoot : null;
     if (!api?.onAction) return;
@@ -277,7 +289,7 @@ function TroubleshootListener() {
         if (action === 'sync-now') {
           const { syncNow } = await import('./lib/offline/syncEngine.js');
           await syncNow();
-          alert('Sync complete.');
+          setToast({ msg: 'Sync complete.', tone: 'ok' });
         } else if (action === 'diagnostics') {
           navigate('/sync-diagnostics');
         } else if (action === 'reset-cache') {
@@ -293,12 +305,23 @@ function TroubleshootListener() {
           window.location.reload();
         }
       } catch (err) {
-        alert('Troubleshoot action failed: ' + (err?.message || err));
+        setToast({ msg: 'Troubleshoot action failed: ' + (err?.message || err), tone: 'error' });
       }
     });
     return off;
   }, [navigate]);
-  return null;
+
+  if (!toast) return null;
+  return (
+    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none">
+      <div className={`px-4 py-2.5 rounded-xl text-[13px] font-medium shadow-lg border ${
+        toast.tone === 'error'
+          ? 'bg-[color:var(--color-neg)] text-white border-black/10'
+          : 'bg-ink-primary text-white border-black/10'}`}>
+        {toast.msg}
+      </div>
+    </div>
+  );
 }
 
 function App() {

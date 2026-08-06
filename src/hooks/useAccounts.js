@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, restInsert, restUpdate } from '../lib/supabase';
-import { isElectron, queueMutation, upsertCachedRow } from '../lib/offline/hookAdapter';
+import { isElectron, queueMutation, upsertCachedRow, fetchWithCache } from '../lib/offline/hookAdapter';
 
 // Resolve which account a payment lands in.
 // Pass an account ID directly (from dynamic POS buttons) → returns it as-is
@@ -70,17 +70,42 @@ export function useAccounts(tenantId) {
   const [accounts, setAccounts] = useState([]);
   const [txns, setTxns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Reads go through the offline cache on desktop.
+  //
+  // Writes here already queued offline, but the reads went straight to
+  // Supabase. With no network the queries returned nothing, both lists came
+  // back empty, and every balance derived from them read zero -- the desktop
+  // app showed "Cash Balance ₹0" while the money was sitting in the local
+  // cache the whole time. Cached-read, not cached-write, was the gap.
+  //
+  // fetchWithCache is a no-op on web, so the browser behaves exactly as before.
   const fetchAll = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
     setLoading(true);
-    const [{ data: acc }, { data: tx }] = await Promise.all([
-      supabase.from('accounts').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('created_at'),
-      supabase.from('account_transactions').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }),
-    ]);
-    setAccounts(acc || []);
-    setTxns(tx || []);
-    setLoading(false);
+    // finally, not a trailing call: a rejected fetch used to leave `loading`
+    // true forever, which is why the desktop app sat on "Loading accounts…"
+    // indefinitely instead of showing an empty state or an error.
+    try {
+      const [accRes, txRes] = await Promise.all([
+        fetchWithCache('accounts', () =>
+          supabase.from('accounts').select('*').is('deleted_at', null)
+            .eq('tenant_id', tenantId).order('created_at')),
+        fetchWithCache('account_transactions', () =>
+          supabase.from('account_transactions').select('*')
+            .eq('tenant_id', tenantId).order('date', { ascending: false })),
+      ]);
+      // Cached rows are whole-table, so re-apply what the query would have done.
+      setAccounts((accRes.data || []).filter(a => a.tenant_id === tenantId && !a.deleted_at));
+      setTxns((txRes.data || []).filter(t => t.tenant_id === tenantId));
+      setError(null);
+    } catch (e) {
+      console.error('accounts fetch failed:', e);
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
   }, [tenantId]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -242,5 +267,5 @@ export function useAccounts(tenantId) {
     return { error: null };
   };
 
-  return { accounts, txns, balances, loading, refetch: fetchAll, createAccount, updateAccount, removeAccount, setDefaultAccount, addTxn, transfer, loanPayments, payEMI };
+  return { accounts, txns, balances, loading, error, refetch: fetchAll, createAccount, updateAccount, removeAccount, setDefaultAccount, addTxn, transfer, loanPayments, payEMI };
 }

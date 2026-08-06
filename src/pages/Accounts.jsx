@@ -21,7 +21,7 @@ const iconFor = (t) => (TYPES.find((x) => x.id === t) || TYPES[1]).icon;
 const Accounts = () => {
   const { currentTenantId } = useTenant();
   const { addNotification } = useNotifications();
-  const { accounts, txns, balances, loading, createAccount, updateAccount, removeAccount, setDefaultAccount, addTxn, transfer, loanPayments, payEMI } = useAccounts(currentTenantId);
+  const { accounts, txns, balances, loading, error, refetch, createAccount, updateAccount, removeAccount, setDefaultAccount, addTxn, transfer, loanPayments, payEMI } = useAccounts(currentTenantId);
   const [emiFor, setEmiFor] = useState(null); // loan account → pay-EMI modal
   const [editAcc, setEditAcc] = useState(null); // account being edited
 
@@ -88,7 +88,19 @@ const Accounts = () => {
         <span className="text-2xl font-semibold text-ink-primary ml-auto tabular-nums">{inr(totalBalance)}</span>
       </div>
 
-      {loading ? (
+      {/* An error must not read as "still loading". The desktop app sat on
+          "Loading accounts…" forever when the fetch failed, so the one state
+          that needed saying was the one never shown. */}
+      {error && !loading ? (
+        <div className="text-center py-16">
+          <p className="text-sm font-medium text-[color:var(--color-neg)]">Could not load accounts</p>
+          <p className="text-xs text-muted-foreground mt-1">{error.message || String(error)}</p>
+          <button onClick={refetch}
+            className="mt-3 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground">
+            Try again
+          </button>
+        </div>
+      ) : loading ? (
         <div className="text-center py-16 text-muted-foreground text-sm font-medium animate-pulse">Loading accounts…</div>
       ) : accounts.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">

@@ -193,7 +193,7 @@ const Navbar = () => {
  <>
  <header className="sticky top-0 z-50 bg-canvas/80 backdrop-blur-md border-b border-black/5">
  <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12">
- <div className="flex items-center justify-between h-16 md:h-20">
+ <div className="flex items-center justify-between h-16 md:h-20 gap-3 min-w-0">
  {/* Mobile Hamburger */}
  <button 
  onClick={() => setIsMobileMenuOpen(true)} 
@@ -202,8 +202,9 @@ const Navbar = () => {
  <Menu size={20} />
  </button>
 
- {/* Branding */}
- <div className="flex items-center gap-4">
+ {/* Branding — min-w-0 so a long tenant name truncates instead of widening
+      the header past the window. */}
+ <div className="flex items-center gap-4 min-w-0">
  <div className="flex items-center animate-in fade-in duration-700">
    <img src={brandLogo()} alt="bookledger" className="h-8 w-auto max-w-[150px] object-contain shrink-0 block" />
  </div>

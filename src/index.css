@@ -467,6 +467,16 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  /* Nothing may scroll the whole page sideways.
+     A single over-wide element -- the header row at a narrow desktop window --
+     shifted the entire app right, cutting the logo off the left edge and
+     leaving a document-level scrollbar. Wide content that legitimately needs
+     to scroll (tables, charts) already carries its own overflow-x container.
+
+     `clip`, not `hidden`: hidden makes body a scroll container, which breaks
+     every `position: sticky` in the app, including the header itself and the
+     table headers. clip cuts the overflow without creating a scrollport. */
+  overflow-x: clip;
   position: relative;
 }
 
