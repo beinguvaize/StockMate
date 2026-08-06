@@ -43,8 +43,14 @@ const PurchasesPage = () => {
   const [fStatus, setFStatus] = useState('ALL');   // ALL | PENDING | ORDERED | RECEIVED | CANCELLED
   const [sortBy, setSortBy]   = useState('DATE_DESC'); // DATE_DESC | DATE_ASC | AMT_DESC | AMT_ASC
   const [onlyUnpaid, setOnlyUnpaid] = useState(false); // quick chip: credit purchases still owing
-  const [groupBy, setGroupBy] = useState('DATE'); // NONE | SUPPLIER | DATE
+  // Date now lives in the row gutter, so grouping by it as well would say the
+  // same thing twice and cost a row each time.
+  const [groupBy, setGroupBy] = useState('NONE'); // NONE | SUPPLIER | DATE
   const [expandedBill, setExpandedBill] = useState(null); // bill id whose products are open
+  // Row density. 52-56px is the readable default for an enterprise table and
+  // 40-44px the compact one; compact drops the supplier line and the settlement
+  // caption, which is what actually sets the height floor.
+  const [dense, setDense] = useState(false);
 
   // ── Pay / Duplicate / Print targets ─────────────────────────────────────────
   const [payTarget, setPayTarget] = useState(null);
@@ -193,7 +199,19 @@ const PurchasesPage = () => {
   };
 
   const displayRows = useMemo(() => {
-    if (groupBy === 'NONE') return filteredBills;
+    // Mark the first bill of each date so the gutter prints the date once and
+    // the rest of that day's bills read as a block. This is what replaces the
+    // full-width date header rows.
+    const withDayMarks = (rows) => {
+      let last = null;
+      return rows.map((b) => {
+        const first = b.date !== last;
+        last = b.date;
+        return first ? { ...b, __firstOfDay: true } : b;
+      });
+    };
+
+    if (groupBy === 'NONE') return withDayMarks(filteredBills);
     const byDate = groupBy === 'DATE';
     const map = new Map();
     filteredBills.forEach(b => {
@@ -212,7 +230,7 @@ const PurchasesPage = () => {
     const out = [];
     for (const [key, g] of map) {
       out.push({ __group: true, key, name: g.name, isDate: g.isDate, count: g.rows.length, total: g.total, due: g.due });
-      g.rows.forEach(r => out.push(r));
+      withDayMarks(g.rows).forEach(r => out.push(r));
     }
     return out;
   }, [filteredBills, groupBy]);
@@ -466,16 +484,20 @@ const PurchasesPage = () => {
   };
 
   // ── Purchases table ──────────────────────────────────────────────────────────
+  // Date moves to a gutter that prints once per day, so the full-width date
+  // header rows can go -- at 55 bills those cost about 30 rows of pure
+  // scrolling. Qty and ref fold into the line under the product, which leaves
+  // room for settlement to be shown as paid-against-due rather than three
+  // stacked strings.
   const headers = [
-    { label: 'Ref · bill' },
+    { label: 'Date' },
     { label: 'Product / supplier' },
-    { label: 'Qty', className: 'text-center' },
-    { label: 'Payment' },
-    { label: 'Total', className: 'text-right' },
+    { label: 'Settlement' },
+    { label: 'Amount', className: 'text-right' },
     { label: 'Status', className: 'text-center' },
     { label: '', className: 'text-right' },
   ];
-  const PUR_COLS = 7;
+  const PUR_COLS = 6;
 
   // Two-letter supplier initials for the neutral avatar.
   const initialsOf = (name) => (name || '?')
@@ -570,6 +592,9 @@ const PurchasesPage = () => {
     const overdue = due > 0.5 && ageDays(bill) > 30;
     const names = bill.lines.map(l => productNameById[l.linked_product_id]).filter(Boolean);
     const qtyTotal = bill.lines.reduce((s, l) => s + Number(l.quantity || 0), 0);
+    // Comfortable lands ~54px, compact ~42px — the readable and dense ends of
+    // the range for a table this long.
+    const pad = dense ? 'px-4 py-1.5' : 'px-4 py-2.5';
 
     return (
       <React.Fragment key={bill.id}>
@@ -577,24 +602,25 @@ const PurchasesPage = () => {
         className={`transition-colors ${multi ? 'cursor-pointer' : ''} ${expanded ? 'bg-canvas' : 'hover:bg-canvas'}`}
         onClick={() => multi && setExpandedBill(expanded ? null : bill.id)}
         style={overdue ? { boxShadow: 'inset 2px 0 0 0 var(--color-neg)' } : undefined}>
-        {/* Ref · bill no · date */}
-        <td className="px-4 py-3 align-top">
-          <div className="flex items-center gap-1.5">
-            {multi && <ChevronRight size={12} className={`text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`} />}
-            <span className="tabular-nums text-[12px] text-foreground">{bill.id.split('-').pop()}</span>
-          </div>
-          <div className="text-[10px] text-muted-foreground mt-1">
-            {bill.bill_no ? `bill ${bill.bill_no}` : 'no bill'} · {shortDate(bill.date)}
+        {/* Date gutter — printed once per day, so a run of bills on one date
+            reads as a block without a header row costing a whole row of height. */}
+        <td className={`${pad} align-middle whitespace-nowrap`}>
+          <div className={row.__firstOfDay ? '' : 'invisible'}>
+            <div className="text-[12.5px] font-semibold text-foreground leading-tight">{shortDate(bill.date)}</div>
+            {!dense && <div className="text-[10.5px] text-muted-foreground">{String(bill.date).slice(0, 4)}</div>}
           </div>
         </td>
         {/* Avatar + what was bought + supplier */}
-        <td className="px-4 py-3 max-w-[280px]">
+        <td className={`${pad} max-w-[280px]`}>
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-7 h-7 rounded-md bg-canvas border border-border/60 flex items-center justify-center text-[10px] font-semibold text-muted-foreground shrink-0">
               {initialsOf(supplier?.name || bill.supplier_name)}
             </div>
             <div className="min-w-0">
-              <div className="text-[13px] font-medium text-foreground truncate flex items-center gap-1.5" title={names.join(', ')}>
+              <div className="text-[13.5px] font-semibold text-foreground truncate flex items-center gap-1.5" title={names.join(', ')}>
+                {multi
+                  ? <ChevronRight size={12} className={`shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`} />
+                  : <span className="w-3 shrink-0" />}
                 <span className="truncate">{names[0] || 'Unknown Product'}</span>
                 {multi && (
                   <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-black/[0.06] text-ink-secondary">
@@ -602,54 +628,58 @@ const PurchasesPage = () => {
                   </span>
                 )}
               </div>
-              <div className="text-[11px] text-muted-foreground truncate mt-0.5"
-                   title={supplier?.name || bill.supplier_name || ''}>
-                {supplier?.name || bill.supplier_name || '—'}
-              </div>
+              {/* Supplier, quantity and ref on one quiet line. They were three
+                  separate columns; none of them is what you scan for. */}
+              {!dense && (
+                <div className="text-[11.5px] text-muted-foreground truncate mt-0.5"
+                     title={supplier?.name || bill.supplier_name || ''}>
+                  <span className="text-ink-secondary">{supplier?.name || bill.supplier_name || '—'}</span>
+                  {' · '}{qtyTotal}{multi ? ` in ${bill.lines.length}` : ''}
+                  {' · '}<span className="tabular-nums text-[10px] opacity-70">{bill.id.split('-').pop()}</span>
+                  {bill.bill_no ? <span className="opacity-70"> · bill {bill.bill_no}</span> : null}
+                </div>
+              )}
             </div>
           </div>
         </td>
-        {/* Qty across the bill */}
-        <td className="px-4 py-3 text-center whitespace-nowrap">
-          <span className="tabular-nums text-[13px] text-foreground">{qtyTotal}</span>
-          {multi && <span className="text-[9px] text-muted-foreground ml-0.5">in {bill.lines.length}</span>}
-        </td>
-        {/* Payment — how much has been paid, and what is left */}
-        <td className="px-4 py-3">
+        {/* Settlement — a meter reads paid against due before any number does.
+            This was three stacked strings (label, paid, due) in a narrow cell;
+            the proportion is the thing you actually want at a glance. */}
+        <td className={pad}>
           {(() => {
-            const dot = due <= 0.5 ? 'var(--color-pos)'
-              : overdue ? 'var(--color-neg)' : '#B45309';
-            const label = due <= 0.5 ? (credit ? 'Paid' : (bill.payment_type || 'Cash'))
-              : (paid > 0.5 ? 'Part paid' : (credit ? 'Credit' : 'Unpaid'));
+            const pct = bill.total > 0 ? Math.max(0, Math.min(100, (paid / bill.total) * 100)) : 0;
+            const settled = due <= 0.5;
+            const label = settled ? (credit ? 'Paid' : (bill.payment_type || 'Cash'))
+              : (paid > 0.5 ? `${formatCurrency(paid)} paid` : (credit ? 'Credit · nothing paid' : 'Unpaid'));
             return (
-              <div className="flex items-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: dot }} />
-                <div className="min-w-0">
-                  <div className="text-[12px] text-muted-foreground">
-                    {label}
-                    {due > 0.5 && overdue && (
-                      <span className="text-[color:var(--color-neg)] text-[10px]"> · {ageDays(bill)}d</span>
-                    )}
-                  </div>
-                  {/* The question this screen could not answer: how much of a
-                      part-paid bill has actually been handed over. */}
-                  {paid > 0.5 && due > 0.5 && (
-                    <div className="tabular-nums text-[11px] text-[color:var(--color-pos)] mt-0.5">
-                      paid {formatCurrency(paid)}
-                    </div>
-                  )}
-                  {due > 0.5 && (
-                    <div className="tabular-nums text-[11px] text-[color:var(--color-neg)] mt-0.5">due {formatCurrency(due)}</div>
-                  )}
+              <div className="min-w-[150px]">
+                <div className="h-[5px] rounded-full bg-black/[0.07] overflow-hidden">
+                  <div className="h-full rounded-full transition-all"
+                       style={{ width: `${pct}%`, background: 'var(--color-pos)' }} />
+                </div>
+                <div className={`flex items-center justify-between gap-2 ${dense ? 'sr-only' : 'mt-1'}`}>
+                  <span className="text-[11px] text-muted-foreground truncate">{label}</span>
+                  {settled
+                    ? <span className="text-[11px] font-semibold text-[color:var(--color-pos)]">Settled</span>
+                    : <span className="text-[11px] font-semibold text-[color:var(--color-neg)] whitespace-nowrap">
+                        {formatCurrency(due)} due{overdue ? ` · ${ageDays(bill)}d` : ''}
+                      </span>}
                 </div>
               </div>
             );
           })()}
         </td>
         {/* Total */}
-        <td className="px-4 py-3 text-right tabular-nums text-[14px] font-semibold text-foreground">{formatCurrency(bill.total)}</td>
+        <td className={`${pad} text-right whitespace-nowrap`}>
+          <div className="tabular-nums text-[14px] font-semibold text-foreground">{formatCurrency(bill.total)}</div>
+          {!dense && due > 0.5 && (
+            <div className="text-[10.5px] text-muted-foreground mt-0.5">
+              {paid > 0.5 ? `${Math.round((paid / bill.total) * 100)}% settled` : 'all outstanding'}
+            </div>
+          )}
+        </td>
         {/* Status select — drives every line of the bill together */}
-        <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+        <td className={`${pad} text-center`} onClick={(e) => e.stopPropagation()}>
           {(() => {
             const st = (bill.status || 'RECEIVED').toUpperCase();
             const s = _STATUS_STYLES[st] || _STATUS_STYLES.RECEIVED;
@@ -668,7 +698,7 @@ const PurchasesPage = () => {
           })()}
         </td>
         {/* Actions */}
-        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+        <td className={`${pad} text-right`} onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-1.5 justify-end">
             {/* Paying is per line, because the money lands on separate purchase
                 rows. A single-line bill is the common case and behaves as
@@ -710,7 +740,7 @@ const PurchasesPage = () => {
 
       {expanded && (
         <tr className="bg-canvas/60">
-          <td colSpan={7} className="px-4 py-3 border-l-2 border-accent-signature">
+          <td colSpan={PUR_COLS} className="px-4 py-3 border-l-2 border-accent-signature">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
               Products on this bill
             </div>
@@ -876,7 +906,19 @@ const PurchasesPage = () => {
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${onlyUnpaid ? 'bg-[color:var(--color-neg)]/15' : 'bg-black/5'}`}>{unpaidCount}</span>
             )}
           </button>
-          {/* Group control — by date (default) or supplier, or a flat list. */}
+          {/* Density — a documented personalisation for long tables. Compact
+              drops the supplier line and the settlement caption, which is what
+              sets the height floor, not the padding. */}
+          <button
+            onClick={() => setDense(v => !v)}
+            title={dense ? 'Comfortable rows' : 'Compact rows — more per screen'}
+            className={`h-9 px-3 rounded-lg text-[12px] font-semibold border transition-colors ${
+              dense ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
+                    : 'border-border text-muted-foreground hover:text-foreground'}`}
+          >
+            {dense ? 'Comfortable' : 'Compact'}
+          </button>
+          {/* Group control — flat by default, or by supplier. */}
           <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
             title="Group the list"
             className={`h-9 px-2 border rounded-lg text-[12px] font-semibold ${
