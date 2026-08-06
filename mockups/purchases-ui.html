@@ -61,8 +61,22 @@
   .chip .n{opacity:.75;margin-left:5px}
 
   /* ── direction A: payment-first ledger ─────────────────────────────── */
+  /* Row height follows the enterprise-table guidance: 48-56px standard,
+     40-44px compact. Default sits at 52; compact drops padding and the second
+     meta line, which is what actually buys the height back. */
   .row{display:grid;grid-template-columns:64px 1fr 190px 150px 96px;gap:14px;align-items:center;
-       padding:11px 14px;border-top:1px solid var(--line-2)}
+       padding:8px 14px;border-top:1px solid var(--line-2);min-height:52px}
+  body.compact .row{padding:4px 14px;min-height:42px}
+  body.compact .pmeta{display:none}
+  body.compact .daycol{font-size:10.5px}
+  body.compact .daycol b{font-size:12px;display:inline;margin-right:4px}
+  /* The settlement block sets the floor on row height: the meter plus its own
+     caption line is taller than the text beside it. In compact the meter alone
+     carries the message and the words go. */
+  body.compact .meter{margin-bottom:0}
+  body.compact .payline span{display:none}
+  body.compact .money .d{display:none}
+  body.compact .ini{width:22px;height:22px;font-size:9px}
   .row:hover{background:var(--line-2)}
   .daycol{font-size:11px;color:var(--ink-3);line-height:1.3}
   .daycol b{display:block;font-size:13px;font-weight:600;color:var(--ink)}
@@ -100,7 +114,8 @@
   .tick{font-size:11px;color:var(--pos);font-weight:600}
 
   .head{display:grid;grid-template-columns:64px 1fr 190px 150px 96px;gap:14px;padding:9px 14px;
-        border-top:1px solid var(--line);background:var(--line-2)}
+        border-top:1px solid var(--line);background:var(--line-2);
+        position:sticky;top:0;z-index:2}
   .head span{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
   .head .r{text-align:right}
 
@@ -193,6 +208,7 @@
       <div class="chip">All suppliers</div>
       <div class="chip">Any payment</div>
       <div class="chip">Newest</div>
+      <div class="chip" id="dense" onclick="document.body.classList.toggle('compact');this.textContent=document.body.classList.contains('compact')?'Comfortable':'Compact'">Compact</div>
     </div>
 
     <div class="head">
