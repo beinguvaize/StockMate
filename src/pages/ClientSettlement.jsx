@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { buildClientStatement } from '../lib/clientStatement';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -17,11 +18,6 @@ const METHOD_ICON = {
   CASH: Wallet, CARD: CreditCard, UPI: Smartphone,
   BANK: Landmark, CHEQUE: Landmark,
 };
-const METHOD_LABEL = {
-  CASH: 'Cash', CARD: 'Card', UPI: 'UPI',
-  BANK: 'Bank Transfer', CHEQUE: 'Cheque',
-};
-
 const ClientSettlement = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -87,138 +83,13 @@ const ClientSettlement = () => {
   // Sales and invoices both store their lines the same way: {id, name, rate,
   // quantity}. Either can arrive as a JSON string depending on the path that
   // wrote it, so parse defensively rather than assuming an array.
-  const parseItems = (v) => {
-    if (Array.isArray(v)) return v;
-    if (typeof v === 'string') { try { return JSON.parse(v) || []; } catch { return []; } }
-    return [];
-  };
-
-  // Full statement ledger: credit sales + invoices + payments, sorted by date, with running balance
-  const statementRows = useMemo(() => {
-    if (!client) return [];
-    const rows = [];
-
-    // Build sale method map + set of sale_ids already covered by an invoice.
-    const saleMethodMap = {};
-    (sales || []).forEach(s => { saleMethodMap[s.id] = (s.paymentMethod || '').toUpperCase(); });
-    const invoicedSaleIds = new Set(
-      (invoices || [])
-        .filter(inv => String(inv.client_id) === String(client.id) && inv.deleted_at == null)
-        .map(inv => inv.sale_id)
-        .filter(Boolean)
-    );
-
-    // Credit POS sales NOT covered by an invoice (invoice-based sales show below).
-    (sales || [])
-      .filter(s => String(s.clientId) === String(client.id) && s.paymentMethod === 'CREDIT')
-      .filter(s => !invoicedSaleIds.has(s.id))
-      .forEach(s => rows.push({
-        id: s.id,
-        date: s.date || s.created_at?.slice(0, 10),
-        created_at: s.created_at,
-        description: `Credit Sale #${String(s.id).split('-').pop()}`,
-        debit: Number(s.totalAmount) || 0,
-        credit: 0,
-        type: 'SALE',
-        items: parseItems(s.items),
-      }));
-
-    // Invoices — debit row only. Skip PAID+paid_amount=0: those are cash-at-POS
-    // sales settled at checkout, not part of the credit ledger.
-    // For CASH sales with orphan paid_amount (no client_payment row covers them),
-    // emit a synthetic credit so the closing balance matches outstanding.
-    (invoices || [])
-      .filter(inv => String(inv.client_id) === String(client.id))
-      .filter(inv => !(inv.payment_status === 'PAID' && (Number(inv.paid_amount) || 0) === 0))
-      .forEach(inv => {
-        const num = String(inv.invoice_number || '').replace(/^#+/, '');
-        const invDate = inv.invoice_date || inv.created_at?.slice(0, 10);
-        rows.push({
-          id: inv.id,
-          date: invDate,
-          created_at: inv.created_at,
-          description: `Invoice #${num}`,
-          debit: Number(inv.grand_total) || 0,
-          credit: 0,
-          type: 'INVOICE',
-          items: parseItems(inv.items),
-        });
-        // Orphan cash payment: sale is non-CREDIT with paid_amount > 0 but no
-        // client_payment row — add synthetic credit to balance the statement.
-        const saleMethod = saleMethodMap[inv.sale_id] || '';
-        const orphanPaid = Number(inv.paid_amount) || 0;
-        if (orphanPaid > 0 && saleMethod !== 'CREDIT' && saleMethod !== '') {
-          rows.push({
-            id: `${inv.id}-orphan`,
-            date: invDate,
-            created_at: inv.created_at,
-            description: `Payment (Cash) — Invoice #${num}`,
-            debit: 0,
-            credit: orphanPaid,
-            type: 'PAYMENT',
-          });
-        }
-      });
-
-    // CASH partial sales with no invoice — not captured above but contribute
-    // to outstanding_balance. Show debit (full amount) + synthetic credit
-    // (amount already paid) so the closing balance reflects the remaining due.
-    (sales || [])
-      .filter(s => String(s.shopId) === String(client.id) || String(s.clientId) === String(client.id))
-      .filter(s => (s.paymentMethod || '').toUpperCase() !== 'CREDIT')
-      .filter(s => ['PARTIAL', 'UNPAID', 'PENDING'].includes((s.paymentStatus || s.status || '').toUpperCase()))
-      .filter(s => !invoicedSaleIds.has(s.id))
-      .filter(s => !s.deleted_at)
-      .forEach(s => {
-        const saleDate = s.date || s.created_at?.slice(0, 10);
-        const total = Number(s.totalAmount) || 0;
-        const paid = Number(s.paidAmount) || 0;
-        rows.push({
-          id: `${s.id}-cash-debit`,
-          date: saleDate,
-          created_at: s.created_at,
-          description: `Cash Sale #${String(s.id).split('-').pop()}`,
-          debit: total,
-          credit: 0,
-          type: 'SALE',
-          items: parseItems(s.items),
-        });
-        if (paid > 0) {
-          rows.push({
-            id: `${s.id}-cash-credit`,
-            date: saleDate,
-            created_at: s.created_at,
-            description: `Payment (Cash) — Sale #${String(s.id).split('-').pop()}`,
-            debit: 0,
-            credit: paid,
-            type: 'PAYMENT',
-          });
-        }
-      });
-
-    // Payments from client_payments table.
-    paymentHistory.forEach(p => rows.push({
-      id: p.id,
-      date: p.date,
-      created_at: p.created_at,
-      description: `Payment (${METHOD_LABEL[p.payment_method] || p.payment_method})${p.notes ? ' — ' + p.notes : ''}`,
-      debit: 0,
-      credit: Number(p.amount) || 0,
-      type: 'PAYMENT',
-    }));
-
-    rows.sort((a, b) => {
-      const da = a.date || a.created_at || '';
-      const db = b.date || b.created_at || '';
-      return da < db ? -1 : da > db ? 1 : 0;
-    });
-
-    let balance = 0;
-    return rows.map(r => {
-      balance += r.debit - r.credit;
-      return { ...r, balance };
-    });
-  }, [client, sales, invoices, paymentHistory]);
+  // Full statement ledger. The arithmetic lives in src/lib/clientStatement.js
+  // so it can be tested without opening this page -- the double-credit rule
+  // here (a credit sale's money arrives as a receipt; a cash sale's does not)
+  // is the same class of mistake that reached production on the supplier side.
+  const statementRows = useMemo(
+    () => buildClientStatement({ client, sales, invoices, paymentHistory }),
+    [client, sales, invoices, paymentHistory]);
 
   // ── Period window ────────────────────────────────────────────────────────
   // Same shape as the supplier ledger: a window, plus a brought-forward row so
