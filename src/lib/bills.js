@@ -48,36 +48,67 @@ export const dueOf = (p) => Math.max(0, amountOf(p) - paidOf(p));
  * the bill was raised — may be credited alongside those rows. Credit both in
  * full and the closing balance stops matching what is actually owed.
  */
+/**
+ * Root id of a payment.
+ *
+ * settle_supplier_payment writes one row per bill it allocates to, named
+ * SUPP-X, SUPP-X-1, SUPP-X-2 ... and apply_supplier_advances appends -APPn.
+ * They are slices of a single handover, so they share a root.
+ */
+export function paymentRoot(id) {
+  return String(id || '').replace(/-APP\d+$/, '').replace(/-\d+$/, '');
+}
+
 export function buildSupplierLedger({
   bills = [], payments = [], returns = [], onAccountPayments = [],
 } = {}) {
   const rows = [];
+  const linkedByRoot = new Map();
 
   bills.forEach((b) => {
-    rows.push({ kind: 'BILL', date: b.date, bill: b, debit: b.total, credit: 0 });
-
     const linked = payments.filter((p) => b.lines.some((l) => l.id === p.purchase_id));
     const linkedSum = linked.reduce((s, p) => s + num(p.amount), 0);
     const atBill = b.paid - linkedSum;
-    if (atBill > 0.01) {
-      rows.push({ kind: 'PAY', date: b.date, bill: b, atBill: true, debit: 0, credit: atBill });
-    }
-    // Which line the money actually hit.
-    //
-    // A bill is several `purchases` rows, and every payment against any of them
-    // is labelled with the bill's reference. On a multi-line bill that produces
-    // two same-day rows carrying one reference for different amounts, which
-    // reads as a duplicate — HASSAN's Rs 14,400 and Rs 9,790 on 5 Aug both
-    // showed #R-U04UUB. Both were correct; only the label was ambiguous, and
-    // that exact appearance is what set off the duplicate-payment hunt before.
-    //
-    // Only when it adds something: a single-line bill, or a payment against the
-    // line the bill is named after, needs no extra reference.
+
+    // Money handed over at the counter is part of the bill, not a second event.
+    // It used to get its own credit row, so a cash bill read as a debit and a
+    // credit that cancel -- two lines, one transaction, and a ledger twice as
+    // long as the trade it records. MADEENA's page was almost entirely this.
+    rows.push({
+      kind: 'BILL', date: b.date, bill: b,
+      debit: b.total,
+      credit: atBill > 0.01 ? atBill : 0,
+      atBill: atBill > 0.01 ? atBill : 0,
+    });
+
+    // Later payments are real events and keep their own rows -- but one
+    // handover split across several bills is still ONE payment. Collect them
+    // by root and emit them together below.
     linked.forEach((p) => {
-      const lineRef = (b.lines.length > 1 && p.purchase_id && p.purchase_id !== b.id)
-        ? String(p.purchase_id).split('-').pop()
-        : null;
-      rows.push({ kind: 'PAY', date: p.date, bill: b, pay: p, lineRef, debit: 0, credit: num(p.amount) });
+      const root = paymentRoot(p.id);
+      if (!linkedByRoot.has(root)) {
+        linkedByRoot.set(root, { root, date: p.date, pay: p, credit: 0, allocations: [] });
+      }
+      const g = linkedByRoot.get(root);
+      g.credit += num(p.amount);
+      g.allocations.push({ bill: b, purchaseId: p.purchase_id, amount: num(p.amount) });
+      // Oldest date wins, so a payment sorts where it was actually made.
+      if (String(p.date) < String(g.date)) g.date = p.date;
+    });
+  });
+
+  linkedByRoot.forEach((g) => {
+    const single = g.allocations.length === 1;
+    const only = g.allocations[0];
+    rows.push({
+      kind: 'PAY', date: g.date, pay: g.pay, debit: 0, credit: g.credit,
+      allocations: g.allocations,
+      // One allocation still names its bill and line, as before.
+      bill: single ? only.bill : null,
+      lineRef: single && only.bill && only.bill.lines.length > 1
+               && only.purchaseId && only.purchaseId !== only.bill.id
+        ? String(only.purchaseId).split('-').pop()
+        : null,
     });
   });
 

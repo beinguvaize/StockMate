@@ -659,9 +659,20 @@ const SupplierLedger = () => {
                                   {names.slice(0, 3).join(', ')}{names.length > 3 ? ` +${names.length - 3}` : ''}
                                 </div>
                               )}
+                              {r.atBill > 0.01 && (
+                                <div className={`text-[10px] text-emerald-600 font-semibold ${multi ? 'ml-[18px]' : ''}`}>
+                                  {money(r.atBill)} paid at bill · {b.payment_type || 'CASH'}
+                                </div>
+                              )}
                             </td>
                             <td className="py-3.5 px-3 text-right text-xs font-bold tabular-nums text-ink-primary">{money(r.debit)}</td>
-                            <td className="py-3.5 px-3 text-right text-xs tabular-nums text-muted-foreground">—</td>
+                            {/* Money handed over at the counter belongs to the
+                                bill, not to a second row that cancels it. */}
+                            <td className="py-3.5 px-3 text-right text-xs tabular-nums">
+                              {r.credit > 0.01
+                                ? <span className="font-bold text-emerald-600">{money(r.credit)}</span>
+                                : <span className="text-muted-foreground">—</span>}
+                            </td>
                             <td className={`py-3.5 px-5 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>{money(r.balance)}</td>
                           </tr>
 
@@ -721,12 +732,18 @@ const SupplierLedger = () => {
 
                     // ── Payment ───────────────────────────────────────────
                     if (r.kind === 'PAY') {
+                      // One handover can settle several bills. It is still one
+                      // payment: naming each slice separately read as a
+                      // duplicate. Show the total, and what it covered.
+                      const many = (r.allocations?.length || 0) > 1;
                       const ref = r.onAccount
                         ? 'On account'
-                        : `#${(r.bill?.id || '').slice(-8).toUpperCase()}`;
-                      const sub = r.atBill
-                        ? `${r.bill?.payment_type || 'CASH'} at bill`
-                        : (r.pay?.payment_method || 'CASH') + (r.onAccount ? '' : ' · settlement');
+                        : many
+                          ? `${r.allocations.length} bills`
+                          : `#${(r.bill?.id || '').slice(-8).toUpperCase()}`;
+                      const sub = r.onAccount
+                        ? (r.pay?.payment_method || 'CASH')
+                        : `${r.pay?.payment_method || 'CASH'} · settlement`;
                       return (
                         <tr key={key} className="hover:bg-emerald-50/30 transition-colors">
                           <td className="py-3.5 px-5 text-xs font-semibold text-ink-primary tabular-nums whitespace-nowrap">{formatDate(r.date)}</td>
@@ -738,14 +755,22 @@ const SupplierLedger = () => {
                           <td className="py-3.5 px-3">
                             <div className="text-xs tabular-nums font-semibold text-ink-primary">
                               {ref}
-                              {/* Which line took the money. Without it, two
-                                  payments against one multi-line bill show the
-                                  same reference on the same day and read as a
-                                  duplicate. */}
+                              {/* Which line took the money, when it is one bill
+                                  of several lines and not the one it is named
+                                  after. */}
                               {r.lineRef && (
                                 <span className="ml-1.5 font-medium text-muted-foreground">· {r.lineRef}</span>
                               )}
                             </div>
+                            {/* What a combined payment was spread across, so
+                                the total stays checkable against the bills. */}
+                            {many && (
+                              <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+                                {r.allocations.map(a =>
+                                  `#${String(a.purchaseId || '').slice(-6).toUpperCase()} ${money(a.amount)}`
+                                ).join(' · ')}
+                              </div>
+                            )}
                             <div className="text-[10px] text-muted-foreground lowercase">{sub}</div>
                           </td>
                           <td className="py-3.5 px-3 text-right text-xs tabular-nums text-muted-foreground">—</td>

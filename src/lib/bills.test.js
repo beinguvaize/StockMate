@@ -194,8 +194,24 @@ describe('the supplier ledger', () => {
   it('credits money paid at the counter and money settled later, each once', () => {
     // The bill carries paid 10,000 AND a linked payment row of 10,000. Crediting
     // both would close at 9,960 instead of 19,960.
-    const credits = reno().filter(r => r.kind === 'PAY').reduce((s, r) => s + r.credit, 0);
+    //
+    // Counter money now sits on the bill row rather than a row of its own, so
+    // the guard counts credits across every row -- the double-credit risk is
+    // unchanged, only where the credit is written.
+    const credits = reno().reduce((s, r) => s + r.credit, 0);
     expect(credits).toBeCloseTo(33120 + 36221.76 + 10000, 2);
+  });
+
+  it('does not give money paid at the counter a row of its own', () => {
+    // A cash bill was a debit and a credit that cancel: two lines for one
+    // transaction, and a ledger twice as long as the trade it records.
+    const rows = reno();
+    const cash = rows.find(r => r.kind === 'BILL' && r.bill.id === 'PUR-66RDMX');
+    expect(cash.debit).toBeCloseTo(33120, 2);
+    expect(cash.credit).toBeCloseTo(33120, 2);   // settled on the same row
+    expect(cash.atBill).toBeCloseTo(33120, 2);
+    expect(cash.balance).toBeCloseTo(0, 2);      // and it nets to nothing
+    expect(rows.filter(r => r.kind === 'PAY' && r.atBill)).toHaveLength(0);
   });
 
   it('puts a debit note in date order, not in a block at the end', () => {
@@ -234,11 +250,16 @@ describe('the supplier ledger', () => {
       ],
     });
 
+    // One handover of Rs 24,190 across two lines of the same bill is ONE
+    // payment. It used to render as two same-day rows carrying one reference
+    // for different amounts, which reads as a duplicate -- the exact appearance
+    // that set off the duplicate-payment hunt.
     const pays = rows.filter(r => r.kind === 'PAY');
-    expect(pays).toHaveLength(2);
-    // The line the bill is named after needs no extra reference; the other does.
-    expect(pays.find(r => r.credit === 14400).lineRef).toBeNull();
-    expect(pays.find(r => r.credit === 9790).lineRef).toBe('U27SJH');
+    expect(pays).toHaveLength(1);
+    expect(pays[0].credit).toBeCloseTo(24190, 2);
+    expect(pays[0].allocations).toHaveLength(2);
+    expect(pays[0].allocations.map(a => a.amount).sort((x, y) => x - y))
+      .toEqual([9790, 14400]);
     expect(rows[rows.length - 1].balance).toBeCloseTo(4010, 2);
   });
 
