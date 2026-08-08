@@ -10,7 +10,7 @@ import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { PageSkeleton } from '../components/ui/States';
 import {
   ArrowLeft, Phone, Mail, MapPin, Box, Search,
-  ArrowUpRight, CreditCard, ChevronRight, Info, ShieldCheck, User2, Trash2 } from 'lucide-react';
+  ArrowUpRight, CreditCard, ChevronRight, Info, ShieldCheck, User2, Trash2, Pencil } from 'lucide-react';
 import { formatDate } from '../lib/utils';
 import { groupPurchasesIntoBills, buildSupplierLedger } from '../lib/bills';
 
@@ -20,7 +20,7 @@ const SupplierLedger = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { suppliers, loading: peoLoading } = usePeople(currentTenantId);
-  const { purchases, purchaseReturns, supplierPayments, paySupplier, payPurchase, offsetCreditNote, deleteSupplierPayment, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, supplierPayments, paySupplier, payPurchase, offsetCreditNote, deleteSupplierPayment, editSupplierPayment, loading: purLoading } = usePurchases(currentTenantId);
   const [offsetting, setOffsetting] = useState(null);   // return id in flight
   const [offsetMsg, setOffsetMsg]   = useState(null);
   const { products, loading: invLoading } = useInventory(currentTenantId);
@@ -51,6 +51,10 @@ const SupplierLedger = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [editTarget, setEditTarget] = useState(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
 
   const [payOpen, setPayOpen]       = useState(false);
   useDialogClose(() => { setPayOpen(false); setPayTarget(null); }, { enabled: payOpen });
@@ -789,6 +793,19 @@ const SupplierLedger = () => {
                                   editing that bill, not by deleting a row here. */}
                               {r.pay?.id && (
                                 <button
+                                  onClick={() => {
+                                    setEditAmount(String(Math.round(r.credit)));
+                                    setEditError('');
+                                    setEditTarget({ id: r.pay.id, amount: r.credit, date: r.date });
+                                  }}
+                                  title="Edit this payment"
+                                  className="opacity-0 group-hover/pay:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-accent-signature-hover"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                              )}
+                              {r.pay?.id && (
+                                <button
                                   onClick={() => setDeleteTarget({
                                     id: r.pay.id, amount: r.credit,
                                     date: r.date, many: r.allocations?.length || 1,
@@ -891,6 +908,43 @@ const SupplierLedger = () => {
       </div>
 
       {/* Pay Supplier Modal */}
+      {/* Editing re-allocates the new amount across open bills by the same rule
+          that placed the original, so the ledger cannot drift from the bills. */}
+      {editTarget && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink-primary/10 backdrop-blur-md"
+          onClick={() => !editSaving && setEditTarget(null)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm bg-white rounded-2xl border border-black/[0.06] shadow-[0_24px_70px_-20px_rgba(0,0,0,0.35)] p-5">
+            <h2 className="text-base font-black text-ink-primary">Edit payment</h2>
+            <p className="text-[12px] text-muted-foreground mt-1">
+              Paid {formatDate(editTarget.date)} · currently {cur}{Math.round(editTarget.amount).toLocaleString('en-IN')}
+            </p>
+            <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mt-4 mb-2">New amount</label>
+            <input type="number" inputMode="decimal" value={editAmount} autoFocus
+              onChange={(e) => setEditAmount(e.target.value)}
+              className="w-full bg-white border border-border shadow-sm rounded-xl px-3.5 py-3 text-sm font-black text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 tabular-nums" />
+            {editError && (
+              <div className="mt-3 text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{editError}</div>
+            )}
+            <div className="flex gap-2 mt-4">
+              <button disabled={editSaving || !(Number(editAmount) > 0)}
+                onClick={async () => {
+                  setEditSaving(true); setEditError('');
+                  const res = await editSupplierPayment(editTarget.id, { amount: Number(editAmount) });
+                  setEditSaving(false);
+                  if (res?.success) setEditTarget(null);
+                  else setEditError(res?.error?.message || 'Could not save the change.');
+                }}
+                className="flex-1 h-10 rounded-xl bg-ink-primary text-white text-[13px] font-bold disabled:opacity-60">
+                {editSaving ? 'Saving…' : 'Save'}
+              </button>
+              <button disabled={editSaving} onClick={() => setEditTarget(null)}
+                className="h-10 px-4 rounded-xl border border-black/10 text-[13px] font-bold text-muted-foreground">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Deleting a payment changes what a supplier is owed, so it states the
           amount and what it will do before doing it. */}
       {deleteTarget && (

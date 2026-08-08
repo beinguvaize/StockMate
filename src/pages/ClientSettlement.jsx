@@ -10,7 +10,7 @@ import { PageSkeleton } from '../components/ui/States';
 import {
   ArrowLeft, CheckCircle2, AlertCircle, Search,
   Wallet, CreditCard, Smartphone, Landmark,
-  Phone, MapPin, Trash2
+  Phone, MapPin, Trash2, Pencil
 } from 'lucide-react';
 import { todayISOInAppTZ, formatDate, formatCurrency } from '../lib/utils';
 
@@ -23,7 +23,7 @@ const ClientSettlement = () => {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
-  const { clients, recordClientPayment, deleteClientPayment, loading: peoLoading } = usePeople(currentTenantId);
+  const { clients, recordClientPayment, deleteClientPayment, editClientPayment, loading: peoLoading } = usePeople(currentTenantId);
   const { invoices, sales, loading: salesLoading } = useSales(currentTenantId);
 
   const loading = peoLoading || salesLoading;
@@ -179,6 +179,10 @@ const ClientSettlement = () => {
   }, [client, invoices, sales, searchTerm]);
 
   const [deletingPaymentId, setDeletingPaymentId] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
   const handleDeletePayment = async (paymentId) => {
     if (!window.confirm('Delete this payment? Outstanding balance will be recalculated.')) return;
     setDeletingPaymentId(paymentId);
@@ -512,6 +516,19 @@ const ClientSettlement = () => {
                                 paidAmount have no row of their own. */}
                             {isPay && paymentHistory.some(h => h.id === r.id) && hasPermission('clients', 'edit') !== false && (
                               <button
+                                onClick={() => {
+                                  setEditAmount(String(Math.round(r.credit)));
+                                  setEditError('');
+                                  setEditTarget({ id: r.id, amount: r.credit, date: r.date });
+                                }}
+                                title="Edit this payment"
+                                className="no-print shrink-0 text-muted-foreground hover:text-accent-signature-hover transition-colors"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                            )}
+                            {isPay && paymentHistory.some(h => h.id === r.id) && hasPermission('clients', 'edit') !== false && (
+                              <button
                                 onClick={() => handleDeletePayment(r.id)}
                                 disabled={deletingPaymentId === r.id}
                                 title="Delete this payment"
@@ -604,6 +621,44 @@ const ClientSettlement = () => {
           )}
         </section>
       </div>
+
+      {/* Editing a receipt updates it in place and replays the client's
+          allocations, so the outstanding balance follows without the receipt
+          disappearing from the statement. */}
+      {editTarget && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink-primary/10 backdrop-blur-md no-print"
+          onClick={() => !editSaving && setEditTarget(null)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm bg-white rounded-2xl border border-black/[0.06] shadow-[0_24px_70px_-20px_rgba(0,0,0,0.35)] p-5">
+            <h2 className="text-base font-black text-ink-primary">Edit payment</h2>
+            <p className="text-[12px] text-muted-foreground mt-1">
+              Received {formatDate(editTarget.date)} · currently {formatCurrency(editTarget.amount)}
+            </p>
+            <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mt-4 mb-2">New amount</label>
+            <input type="number" inputMode="decimal" value={editAmount} autoFocus
+              onChange={(e) => setEditAmount(e.target.value)}
+              className="w-full bg-white border border-border shadow-sm rounded-xl px-3.5 py-3 text-sm font-black text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 tabular-nums" />
+            {editError && (
+              <div className="mt-3 text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{editError}</div>
+            )}
+            <div className="flex gap-2 mt-4">
+              <button disabled={editSaving || !(Number(editAmount) > 0)}
+                onClick={async () => {
+                  setEditSaving(true); setEditError('');
+                  const res = await editClientPayment(editTarget.id, { amount: Number(editAmount) });
+                  setEditSaving(false);
+                  if (res?.success) setEditTarget(null);
+                  else setEditError(res?.error?.message || 'Could not save the change.');
+                }}
+                className="flex-1 h-10 rounded-xl bg-ink-primary text-white text-[13px] font-bold disabled:opacity-60">
+                {editSaving ? 'Saving…' : 'Save'}
+              </button>
+              <button disabled={editSaving} onClick={() => setEditTarget(null)}
+                className="h-10 px-4 rounded-xl border border-black/10 text-[13px] font-bold text-muted-foreground">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

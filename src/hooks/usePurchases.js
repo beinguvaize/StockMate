@@ -340,6 +340,26 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     return { success: true, reversed: Number(data) || 0 };
   };
 
+  // Edit is reverse-then-reapply on the server, so the new amount is allocated
+  // across open bills by the same FIFO rule that placed the original.
+  const editSupplierPayment = async (paymentId, { amount, method, date, reference_no, note } = {}) => {
+    const { data, error } = await supabase.rpc('edit_supplier_payment', {
+      p_tenant_id: tenantId,
+      p_payment_id: paymentId,
+      p_amount: Number(amount),
+      p_method: method ?? null,
+      p_date: date ?? null,
+      p_reference_no: reference_no ?? null,
+      p_note: note ?? null,
+    });
+    if (error) {
+      console.error('editSupplierPayment error:', error);
+      return { success: false, error };
+    }
+    await fetchPurchases();
+    return { success: true, newId: data };
+  };
+
   const offsetCreditNote = async (returnId) => {
     if (!returnId) return { error: new Error('returnId required') };
     const { data: applied, error } = await restRpc('offset_supplier_credit_note', {
@@ -367,5 +387,5 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     addReturn,
     paySupplier,
     payPurchase,
-    offsetCreditNote, deleteSupplierPayment };
+    offsetCreditNote, deleteSupplierPayment, editSupplierPayment };
 };

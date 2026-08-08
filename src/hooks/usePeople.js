@@ -429,6 +429,27 @@ export const usePeople = (tenantId) => {
 
     // Soft-delete a client payment and recompute all credit sales FIFO so
     // outstanding stays accurate after the reversal.
+    // Edits the receipt in place and replays the client's allocations. NOT
+    // reverse-and-re-settle: settle_client_payment only writes a receipt row
+    // for the part not absorbed by a cash sale, so re-settling could apply the
+    // money and leave no record of the receipt.
+    editClientPayment: async (paymentId, { amount, method, date, notes } = {}) => {
+      const { data, error } = await supabase.rpc('edit_client_payment', {
+        p_tenant_id: tenantId,
+        p_payment_id: paymentId,
+        p_amount: Number(amount),
+        p_method: method ?? null,
+        p_date: date ?? null,
+        p_notes: notes ?? null,
+      });
+      if (error) {
+        console.error('editClientPayment error:', error);
+        return { success: false, error };
+      }
+      await fetchPeopleData();
+      return { success: true, amount: Number(data) || 0 };
+    },
+
     deleteClientPayment: async (paymentId) => {
       // One statement on the server. This used to soft-delete the receipt, then
       // re-read, recompute and write each affected sale in a loop from here --
