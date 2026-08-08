@@ -77,7 +77,7 @@ const SalesPage = () => {
     addNotification(`KOT #${data.ticket_no} sent to kitchen`, 'success');
     return true;
   };
-  const { sales, clients, invoices, salesReturns, placeSale, editSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, reverseSalesReturn, convertSaleToInvoice, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
+  const { sales, clients, invoices, salesReturns, placeSale, editSale, dispatchSale, createInvoice, updateInvoiceDelivery, deleteSale: removeSale, settleSale, processSalesReturn, reverseSalesReturn, convertSaleToInvoice, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
 
   const handleReverseReturn = async (returnId) => {
     const { error } = await reverseSalesReturn(returnId);
@@ -103,14 +103,45 @@ const SalesPage = () => {
     const isDelivery = saleData.fulfillmentType === 'DELIVERY';
     const hasClient  = saleData.clientId && saleData.clientId !== 'WALKIN';
 
-    // Build invoice items (shared for credit + delivery paths)
-    const needsInvoice = (isCredit && hasClient) || isDelivery;
+    // process_sale ALREADY writes the invoice when there is a named client and
+    // money outstanding -- id 'INV-' || sale id. Creating another one here gave
+    // every credit sale two invoices: the server's, correct, and this one with
+    // its own id, so the ON CONFLICT (id) guard in process_sale never fired.
+    // Six sales carried duplicates before this was caught, and a client
+    // statement billed both.
+    //
+    // So only create when the server did not: a delivery that was paid in full
+    // leaves nothing outstanding and therefore has no server invoice. When the
+    // server did create one, add the delivery details to THAT row instead of
+    // writing a second document.
+    const totalAmount   = Number(saleData.totalAmount ?? result?.totalAmount ?? 0);
+    const paidAmount    = Number(saleData.paidAmount ?? (isCredit ? 0 : totalAmount));
+    const serverInvoiced = Boolean(hasClient) && (totalAmount - paidAmount) > 0.005;
+
+    const needsInvoice = ((isCredit && hasClient) || isDelivery) && !serverInvoiced;
+
+    if (serverInvoiced && isDelivery) {
+      await updateInvoiceDelivery(`INV-${result.id}`, {
+        delivery_required: true,
+        delivery_status:   'PENDING',
+        delivery_address:  saleData.deliveryAddress || null,
+        delivery_zone:     saleData.deliveryZone    || null,
+        delivery_date:     saleData.deliveryDate    || null,
+        delivery_notes:    saleData.deliveryNotes   || null,
+        delivery_fee:      saleData.deliveryFee     || 0,
+      });
+    }
+
     if (needsInvoice) {
       const client = clients.find(c => c.id === saleData.clientId);
       const draftItems = (saleData.items || []).map(i => ({
         name:     i.name,
         qty:      i.quantity,
-        rate:     i.price,
+        // POS prices INCLUDE GST -- the same convention process_sale and the ITC
+        // back-out use. computeLineTax treats rate as exclusive and adds tax on
+        // top, which is how the duplicate invoices came out at exactly 1.18x the
+        // sale. Hand it the exclusive rate so the invoice total matches the sale.
+        rate:     (Number(i.price) || 0) / (1 + ((Number(i.taxRate) || 0) / 100)),
         taxRate:  i.taxRate || 0,
         cess:     Number(i.cess ?? i.cess_rate ?? 0),
         sku:      i.sku || '',

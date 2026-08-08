@@ -1,0 +1,20 @@
+-- Applied via apply_migration; recorded here for history.
+--
+-- Six sales carried two invoices each. process_sale writes the invoice for a
+-- credit sale itself ('INV-' || sale_id) and guards a second with
+-- ON CONFLICT (id) DO NOTHING -- but a client-side path added in April created
+-- one with its OWN generated id, so the ids never collided and the guard never
+-- fired.
+--
+-- The client-side copy was also 1.18x the sale: it fed POS prices, which
+-- already include GST, to a calculator that treats them as exclusive and adds
+-- 18% on top. Client statements bill every invoice, so those clients were shown
+-- more than they owe. Outstanding derives from sales and stayed correct.
+--
+-- Soft-deleted, never hard: if one was printed and handed to a customer, the
+-- row is the only record of what they were given. Snapshot in
+-- snap.duplicate_invoices_20260808.
+--
+-- Removed: INV/2026-27/0022 (5109), 0023 (384), 0024 (159), 0025 (302),
+--          0026 (643), 0027 (885). Sales still double-invoiced afterwards: 0.
+-- Madeena Store then ties: 12,402 invoiced - 8,025 paid = 4,377 outstanding.

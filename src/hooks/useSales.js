@@ -383,6 +383,20 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
     // and drop anything else (amount_in_words, notes, paymentMethod, etc.)
     // so the insert doesn't fail on unknown columns.
     invoices,
+    // Delivery details for an invoice process_sale already wrote. Updating that
+    // row is what keeps a credit delivery to ONE invoice -- writing a second
+    // document just to carry the address is how the duplicates started.
+    updateInvoiceDelivery: async (invoiceId, fields) => {
+      if (!tenantId) return { error: new Error('updateInvoiceDelivery: no tenant') };
+      const { error } = await restUpdate('invoices', fields, { id: invoiceId, tenant_id: tenantId });
+      if (error) {
+        console.error('updateInvoiceDelivery error:', error);
+        return { error };
+      }
+      setInvoices(prev => prev.map(i => (i.id === invoiceId ? { ...i, ...fields } : i)));
+      return { success: true };
+    },
+
     createInvoice: async (draft) => {
       if (!tenantId) return { error: new Error('createInvoice: no tenant') };
 
