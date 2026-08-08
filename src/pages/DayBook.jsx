@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { receivedOnDay } from '../lib/dayBook';
 import { useDialogClose } from '../hooks/useDialogClose';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -126,16 +127,10 @@ const DayBook = () => {
     // Amount actually collected for a sale.
     // CASH/BANK with no explicit paidAmount → assume fully received (old sales
     // recorded before paidAmount was tracked). CREDIT always uses explicit value.
-    const recv = (s) => {
-      const t = Number(s.totalAmount) || 0;
-      const st = (s.paymentStatus ?? s.status ?? '').toUpperCase();
-      if (st === 'PAID' || st === 'COMPLETED') return t;
-      const rawPaid = s.paidAmount ?? s.paid_amount;
-      const method  = (s.paymentMethod || '').toUpperCase();
-      // paidAmount not recorded + non-credit → assume full (implicit cash payment)
-      if (rawPaid == null && method !== 'CREDIT') return t;
-      return Math.min(Number(rawPaid) || 0, t);
-    };
+    // receivedOnDay lives in src/lib/dayBook.js so the rule that separates
+    // counter cash from a later settlement can be tested without opening this
+    // page. It was the reason closed days grew after the fact.
+    const recv = receivedOnDay;
     const isBank = isBankMethod;
     const cashSales   = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CASH')
                                 .reduce((t, s) => t + recv(s), 0);

@@ -14,7 +14,10 @@ import useRefetchOnFocus from './useRefetchOnFocus';
 const ALL_STORES = '00000000-0000-0000-0000-000000000000';
 
 // Narrow column lists — only what DayBook's ledger reads.
-const SEL_SALES    = 'id, date, totalAmount, paidAmount, paymentStatus, paymentMethod, location_id, created_at, customerInfo, items';
+// updated_at is needed to tell money taken at the counter from money a later
+// settlement wrote back onto the sale. Without it the DayBook credits a
+// settlement to the day of the sale rather than the day it was received.
+const SEL_SALES    = 'id, date, totalAmount, paidAmount, paymentStatus, paymentMethod, location_id, created_at, updated_at, customerInfo, items';
 const SEL_EXPENSE  = 'id, date, amount, payment_method, category, note, created_at, location_id';
 const SEL_PURCHASE = 'id, date, total_amount, paid_amount, payment_type, created_at';
 const SEL_CLIENTPAY = 'id, date, amount, payment_method, notes, created_at';
