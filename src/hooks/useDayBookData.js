@@ -17,11 +17,11 @@ const ALL_STORES = '00000000-0000-0000-0000-000000000000';
 // updated_at is needed to tell money taken at the counter from money a later
 // settlement wrote back onto the sale. Without it the DayBook credits a
 // settlement to the day of the sale rather than the day it was received.
-const SEL_SALES    = 'id, date, totalAmount, paidAmount, paymentStatus, paymentMethod, location_id, created_at, updated_at, customerInfo, items';
-const SEL_EXPENSE  = 'id, date, amount, payment_method, category, note, created_at, location_id';
-const SEL_PURCHASE = 'id, date, total_amount, paid_amount, payment_type, created_at';
-const SEL_CLIENTPAY = 'id, date, amount, payment_method, notes, created_at';
-const SEL_SUPPLIERPAY = 'id, date, amount, payment_method, purchase_id, supplier_name, supplier_id, created_at';
+const SEL_SALES    = 'id, tenant_id, deleted_at, date, totalAmount, paidAmount, paymentStatus, paymentMethod, location_id, created_at, updated_at, customerInfo, items';
+const SEL_EXPENSE  = 'id, tenant_id, deleted_at, date, amount, payment_method, category, note, created_at, location_id';
+const SEL_PURCHASE = 'id, tenant_id, deleted_at, date, total_amount, paid_amount, payment_type, created_at';
+const SEL_CLIENTPAY = 'id, tenant_id, deleted_at, date, amount, payment_method, notes, created_at';
+const SEL_SUPPLIERPAY = 'id, tenant_id, deleted_at, date, amount, payment_method, purchase_id, supplier_name, supplier_id, created_at';
 
 export function useDayBookData(tenantId, selectedDate) {
   const [sales, setSales]                     = useState([]);
@@ -54,6 +54,11 @@ export function useDayBookData(tenantId, selectedDate) {
       // The cache holds whole tables, so the filters the query applied
       // server-side have to be applied again to whatever comes back. Getting
       // this wrong would show another day's takings under today's date.
+      // Every SEL_ above must carry tenant_id and deleted_at, because this
+      // filters on them. When they were missing the comparison was against
+      // undefined, every row was discarded, and the DayBook showed "no
+      // transactions" on days that had them -- 7 Aug had 2 sales and 3 supplier
+      // payments and rendered empty. Guarded by a test.
       const forDay = (rows) => (rows || []).filter(r =>
         r && r.tenant_id === tenantId
           && String(r.date || '').slice(0, 10) === selectedDate
