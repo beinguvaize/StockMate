@@ -10,8 +10,7 @@ import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { PageSkeleton } from '../components/ui/States';
 import {
   ArrowLeft, Phone, Mail, MapPin, Box, Search,
-  ArrowUpRight, CreditCard, ChevronRight, Info, ShieldCheck, User2
-} from 'lucide-react';
+  ArrowUpRight, CreditCard, ChevronRight, Info, ShieldCheck, User2, Trash2 } from 'lucide-react';
 import { formatDate } from '../lib/utils';
 import { groupPurchasesIntoBills, buildSupplierLedger } from '../lib/bills';
 
@@ -21,7 +20,7 @@ const SupplierLedger = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { suppliers, loading: peoLoading } = usePeople(currentTenantId);
-  const { purchases, purchaseReturns, supplierPayments, paySupplier, payPurchase, offsetCreditNote, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, supplierPayments, paySupplier, payPurchase, offsetCreditNote, deleteSupplierPayment, loading: purLoading } = usePurchases(currentTenantId);
   const [offsetting, setOffsetting] = useState(null);   // return id in flight
   const [offsetMsg, setOffsetMsg]   = useState(null);
   const { products, loading: invLoading } = useInventory(currentTenantId);
@@ -46,6 +45,13 @@ const SupplierLedger = () => {
   const [newestFirst, setNewestFirst] = useState(false);
 
   // Pay-supplier modal state
+  // Deleting a payment is irreversible from the user's side, so it asks first
+  // and names the amount -- the ledger is money, and an accidental click here
+  // silently changes what a supplier is owed.
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
   const [payOpen, setPayOpen]       = useState(false);
   useDialogClose(() => { setPayOpen(false); setPayTarget(null); }, { enabled: payOpen });
   const [payAmount, setPayAmount]   = useState('');
@@ -745,7 +751,7 @@ const SupplierLedger = () => {
                         ? (r.pay?.payment_method || 'CASH')
                         : `${r.pay?.payment_method || 'CASH'} · settlement`;
                       return (
-                        <tr key={key} className="hover:bg-emerald-50/30 transition-colors">
+                        <tr key={key} className="group/pay hover:bg-emerald-50/30 transition-colors">
                           <td className="py-3.5 px-5 text-xs font-semibold text-ink-primary tabular-nums whitespace-nowrap">{formatDate(r.date)}</td>
                           <td className="py-3.5 px-3">
                             <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">
@@ -775,7 +781,26 @@ const SupplierLedger = () => {
                           </td>
                           <td className="py-3.5 px-3 text-right text-xs tabular-nums text-muted-foreground">—</td>
                           <td className="py-3.5 px-3 text-right text-xs font-bold tabular-nums text-emerald-600">{money(r.credit)}</td>
-                          <td className={`py-3.5 px-5 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>{money(r.balance)}</td>
+                          <td className={`py-3.5 px-5 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>
+                            <span className="inline-flex items-center gap-2 justify-end">
+                              {money(r.balance)}
+                              {/* Only a real receipt can be removed. Money paid at
+                                  the counter belongs to its bill and is undone by
+                                  editing that bill, not by deleting a row here. */}
+                              {r.pay?.id && (
+                                <button
+                                  onClick={() => setDeleteTarget({
+                                    id: r.pay.id, amount: r.credit,
+                                    date: r.date, many: r.allocations?.length || 1,
+                                  })}
+                                  title="Delete this payment"
+                                  className="opacity-0 group-hover/pay:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-[color:var(--color-neg)]"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              )}
+                            </span>
+                          </td>
                         </tr>
                       );
                     }
@@ -866,6 +891,45 @@ const SupplierLedger = () => {
       </div>
 
       {/* Pay Supplier Modal */}
+      {/* Deleting a payment changes what a supplier is owed, so it states the
+          amount and what it will do before doing it. */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink-primary/10 backdrop-blur-md"
+          onClick={() => !deleting && setDeleteTarget(null)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm bg-white rounded-2xl border border-black/[0.06] shadow-[0_24px_70px_-20px_rgba(0,0,0,0.35)] p-5">
+            <h2 className="text-base font-black text-ink-primary">Delete this payment?</h2>
+            <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed">
+              {cur}{Math.round(deleteTarget.amount).toLocaleString('en-IN')} paid on {formatDate(deleteTarget.date)} will be removed
+              {deleteTarget.many > 1 ? ` from the ${deleteTarget.many} bills it settled` : ' from the bill it settled'},
+              and {supplier?.name || 'this supplier'} will be owed that much again.
+            </p>
+            {deleteError && (
+              <div className="mt-3 text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                {deleteError}
+              </div>
+            )}
+            <div className="flex gap-2 mt-4">
+              <button disabled={deleting}
+                onClick={async () => {
+                  setDeleting(true); setDeleteError('');
+                  const res = await deleteSupplierPayment(deleteTarget.id);
+                  setDeleting(false);
+                  if (res?.success) setDeleteTarget(null);
+                  else setDeleteError(res?.error?.message || 'Could not delete the payment.');
+                }}
+                className="flex-1 h-10 rounded-xl bg-[color:var(--color-neg)] text-white text-[13px] font-bold disabled:opacity-60">
+                {deleting ? 'Deleting…' : 'Delete payment'}
+              </button>
+              <button disabled={deleting} onClick={() => setDeleteTarget(null)}
+                className="h-10 px-4 rounded-xl border border-black/10 text-[13px] font-bold text-muted-foreground">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {payOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink-primary/10 backdrop-blur-md"
           onClick={() => { setPayOpen(false); setPayTarget(null); }}>

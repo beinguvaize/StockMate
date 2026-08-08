@@ -182,7 +182,7 @@ const ClientSettlement = () => {
   const handleDeletePayment = async (paymentId) => {
     if (!window.confirm('Delete this payment? Outstanding balance will be recalculated.')) return;
     setDeletingPaymentId(paymentId);
-    const res = await deleteClientPayment(paymentId, client.id);
+    const res = await deleteClientPayment(paymentId);
     setDeletingPaymentId(null);
     if (res?.error) { alert(`Delete failed: ${res.error.message || res.error}`); return; }
     // Refetch payment history after delete.

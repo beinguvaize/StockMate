@@ -322,6 +322,24 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
    * No money moves — the RPC books it as a CREDIT_NOTE payment row, which
    * raises the bill's paid_amount without touching any cash or bank account.
    */
+  // Reversing a payment is money logic, so it runs in one statement on the
+  // server: the receipt goes, the bill gets its debt back, and the supplier
+  // balance rises by the same amount. Doing it here would be three writes with
+  // no transaction, and a failure halfway leaves a bill part-settled against a
+  // balance that matches nothing.
+  const deleteSupplierPayment = async (paymentId) => {
+    const { data, error } = await supabase.rpc('delete_supplier_payment', {
+      p_tenant_id: tenantId,
+      p_payment_id: paymentId,
+    });
+    if (error) {
+      console.error('deleteSupplierPayment error:', error);
+      return { success: false, error };
+    }
+    await fetchPurchases();
+    return { success: true, reversed: Number(data) || 0 };
+  };
+
   const offsetCreditNote = async (returnId) => {
     if (!returnId) return { error: new Error('returnId required') };
     const { data: applied, error } = await restRpc('offset_supplier_credit_note', {
@@ -349,6 +367,5 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     addReturn,
     paySupplier,
     payPurchase,
-    offsetCreditNote,
-  };
+    offsetCreditNote, deleteSupplierPayment };
 };
