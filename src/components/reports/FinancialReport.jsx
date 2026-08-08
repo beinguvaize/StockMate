@@ -6,11 +6,11 @@ import {
 import { formatCurrency } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../context/TenantContext';
+import { iso, compareRange, shortDate, COMPARE } from '../../lib/reportPeriods';
 
 const EXP_COLORS = ['#534AB7', '#1D9E75', '#D85A30', '#EF9F27', '#D4537E', '#888780', '#378ADD', '#A32D2D'];
 
 // Date-range presets. Indian financial year runs Apr 1 → Mar 31.
-const iso = (d) => d.toISOString().slice(0, 10);
 const buildPresets = () => {
   const now = new Date();
   const y = now.getFullYear(), m = now.getMonth();
@@ -30,15 +30,6 @@ const buildPresets = () => {
   ];
 };
 
-// The equal-length period immediately before [from, to].
-const priorRange = (from, to) => {
-  const f = new Date(from), t = new Date(to);
-  const days = Math.round((t - f) / 86400000) + 1;
-  const pTo = new Date(f); pTo.setDate(pTo.getDate() - 1);
-  const pFrom = new Date(pTo); pFrom.setDate(pFrom.getDate() - days + 1);
-  return { from: iso(pFrom), to: iso(pTo) };
-};
-
 const Cell = ({ children, align = 'right', cls = '' }) => (
   <td style={{ padding: '9px 16px', textAlign: align }} className={cls}>{children}</td>
 );
@@ -54,6 +45,7 @@ const FinancialReport = () => {
   });
   const [pl, setPl] = useState(null);
   const [prior, setPrior] = useState(null);
+  const [basis, setBasis] = useState('PREV');
   const [expCats, setExpCats] = useState([]);
   const [monthly, setMonthly] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +61,7 @@ const FinancialReport = () => {
     const run = async () => {
       if (!currentTenantId) return;
       setLoading(true);
-      const pr = priorRange(range.from, range.to);
+      const pr = compareRange(range.from, range.to, basis);
       const [curRes, priorRes, expRes] = await Promise.all([
         supabase.rpc('get_pl_ranged', { p_tenant_id: currentTenantId, p_from: range.from, p_to: range.to }),
         supabase.rpc('get_pl_ranged', { p_tenant_id: currentTenantId, p_from: pr.from, p_to: pr.to }),
@@ -113,7 +105,7 @@ const FinancialReport = () => {
     };
     run();
     return () => { cancelled = true; };
-  }, [currentTenantId, range.from, range.to]);
+  }, [currentTenantId, range.from, range.to, basis]);
 
   const m = {
     revenue: Number(pl?.revenue_net || 0), cogs: Number(pl?.cogs || 0),
@@ -145,6 +137,11 @@ const FinancialReport = () => {
     return <span style={{ color }}>{d > 0 ? '+' : ''}{d.toFixed(1)}%</span>;
   };
 
+  // Name the window the Prior column is actually showing. Without it "Prior"
+  // is three different periods depending on a dropdown elsewhere on the page.
+  const cmp = compareRange(range.from, range.to, basis);
+  const cmpLabel = `${shortDate(cmp.from)} – ${shortDate(cmp.to)}`;
+
   const ratioCards = [
     { label: 'Gross margin', value: `${grossMargin.toFixed(1)}%`, good: grossMargin >= 0 },
     { label: 'Net margin', value: `${netMargin.toFixed(1)}%`, good: netMargin >= 0 },
@@ -165,6 +162,12 @@ const FinancialReport = () => {
           ))}
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Compare to</label>
+          <select value={basis} onChange={e => setBasis(e.target.value)}
+            className="bg-card border border-black/10 rounded-lg px-2 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40">
+            {COMPARE.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+          <span className="w-px h-5 bg-black/10 mx-1" />
           <input type="date" value={range.from} onChange={e => { setPreset(''); setRange(r => ({ ...r, from: e.target.value })); }}
             className="bg-card border border-black/10 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40" />
           <span className="text-xs text-muted-foreground">→</span>
@@ -196,7 +199,10 @@ const FinancialReport = () => {
                 <th style={{ textAlign: 'left', padding: '10px 16px', fontWeight: 700 }}>Line item</th>
                 <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>Amount</th>
                 <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>% of rev</th>
-                <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>Prior</th>
+                <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>
+                  Prior
+                  <span className="block normal-case tracking-normal font-medium text-[9px] opacity-70">{cmpLabel}</span>
+                </th>
                 <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>Δ</th>
               </tr>
             </thead>
@@ -314,7 +320,7 @@ const FinancialReport = () => {
         </div>
       </div>
 
-      <p className="text-[10px] text-muted-foreground px-1">Prior column = the equal-length period immediately before. Δ green = favourable, amber/red = watch. Ties to the ledger.</p>
+      <p className="text-[10px] text-muted-foreground px-1">Prior column = {COMPARE.find(c => c.id === basis)?.shortLabel} ({cmpLabel}), always the same number of days as the selected range. Δ green = favourable, amber/red = watch. Ties to the ledger.</p>
     </div>
   );
 };
