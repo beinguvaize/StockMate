@@ -3,6 +3,7 @@ import { useDialogClose } from '../../../hooks/useDialogClose';
 import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
 import Button from '../../../shared/Button';
 import { allowsFraction, qtyStep, qtyMin, qtyStepButton, clampQty, formatQty, formatQtyWithUnit, subQtyLabel, exceedsStock } from '../../../lib/units';
+import { checkoutMoney } from '../lib/checkoutMoney';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { tierPrice } from '../../../lib/priceResolver';
 import { useAccounts, accountForMethod, buildPaymentMethods } from '../../../hooks/useAccounts';
@@ -611,6 +612,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   // Flat order discount, clamped to [0, grossTotal].
   const discountAmt = Math.min(Math.max(parseFloat(discount) || 0, 0), grossTotal);
   const total = grossTotal - discountAmt;
+
+  // The one figure the cashier acts on, and what it is called right now.
+  // Logic and its tests live in ../lib/checkoutMoney.
+  const money = checkoutMoney(total, amountReceived, paymentMethod, formatCurrency);
 
   // Park the current cart (hold sale) and start fresh.
   const holdSale = () => {
@@ -1748,6 +1753,33 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             {/* Right: Fulfillment + Payment */}
             <div className="space-y-4">
 
+              {/* The figure the cashier acts on — deliberately the largest
+                  thing in the panel, and it renames itself as the sale
+                  progresses (due → change → still to collect). See
+                  `checkoutMoney`. */}
+              {(() => {
+                const tone = {
+                  due:    'bg-ink-primary text-white',
+                  credit: 'bg-ink-primary text-white',
+                  change: 'bg-emerald-600 text-white',
+                  exact:  'bg-emerald-600 text-white',
+                  short:  'bg-amber-500 text-white',
+                }[money.tone];
+                return (
+                  <div className={`rounded-2xl px-5 py-4 ${tone}`}>
+                    <div className="text-[10px] font-semibold uppercase tracking-widest text-white/60">
+                      {money.label}
+                    </div>
+                    <div className="text-[34px] leading-[1.1] font-bold tabular-nums tracking-tight mt-0.5">
+                      {formatCurrency(money.value)}
+                    </div>
+                    {money.sub && (
+                      <div className="text-[11px] font-medium text-white/70 mt-1">{money.sub}</div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Fulfillment */}
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Fulfillment</p>
@@ -2038,19 +2070,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   onChange={(e) => setAmountReceived(e.target.value)}
                   className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
                 />
-                {amountReceived.trim() !== '' && (() => {
-                  const paid = Math.max(0, parseFloat(amountReceived) || 0);
-                  const diff = paid - total;
-                  if (diff === 0) return null;
-                  const isChange = diff > 0;
-                  const color = isChange ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200';
-                  return (
-                    <div className={`mt-2 px-3 py-2 rounded-xl border text-xs font-semibold tabular-nums flex items-center justify-between ${color}`}>
-                      <span>{isChange ? 'Change due' : 'Balance to credit'}</span>
-                      <span>{formatCurrency(Math.abs(diff))}</span>
-                    </div>
-                  );
-                })()}
+                {/* The change / balance chip that used to sit here is gone: the
+                    block at the top of this panel now carries it at a size that
+                    can be read across a counter. Repeating it small underneath
+                    would just be a second place to look. */}
               </div>
 
               {/* Confirm */}
@@ -2060,7 +2083,14 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 className="w-full !h-14 !rounded-2xl !text-sm"
                 icon={Check}
               >
-                {isSubmitting ? 'Processing…' : `Confirm & Pay ${formatCurrency(total)}`}
+                {/* Say what pressing this does, not just the bill amount. When
+                    there is change to hand back, that is the cashier's next
+                    physical action and it belongs on the button. */}
+                {isSubmitting
+                  ? 'Processing…'
+                  : money.tone === 'change'
+                    ? `Complete · return ${formatCurrency(money.value)}`
+                    : `Confirm & Pay ${formatCurrency(total)}`}
               </Button>
             </div>
           </div>
