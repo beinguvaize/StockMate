@@ -826,7 +826,12 @@ const Payroll = () => {
                           const rateShown = hasCustomRate ? attEntry.custom_rate : null;
                           const paidRun = dayInPaidWindow(emp.id, dateStr);
                           return (
-                            <td key={d} className={`p-0.5 text-center align-top ${isWeekend ? 'bg-orange-50/60' : ''} ${paidRun ? 'bg-emerald-50/70' : ''}`}>
+                            // Paid and weekend are both a background on this cell,
+                            // so emitting both leaves the winner to Tailwind's
+                            // stylesheet order — which shaded paid weekdays green
+                            // and left Sa 1 and Sa 8 orange inside the same paid
+                            // window. Pick one: paid is the more important fact.
+                            <td key={d} className={`p-0.5 text-center align-top ${paidRun ? 'bg-emerald-50/70' : isWeekend ? 'bg-orange-50/60' : ''}`}>
                               <button
                                 onClick={(e) => {
                                   if (isOpen) { setAttPicker(null); return; }
