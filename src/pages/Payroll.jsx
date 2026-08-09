@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePayroll } from '../hooks/usePayroll';
-import { findOverlapping, describePeriod, monthIsPaid } from '../lib/payrollPeriods';
+import { findOverlapping, describePeriod, monthIsPaid, paidByEmployeeInMonth } from '../lib/payrollPeriods';
 import { usePeople } from '../hooks/usePeople';
 import { DollarSign, Trash2, X, Check, CreditCard, UserPlus, Lock, Receipt, Link2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -564,6 +564,21 @@ const Payroll = () => {
     () => monthIsPaid(attYear, attMonth, payrollRecords),
     [attYear, attMonth, payrollRecords]);
 
+  // What each employee has already been paid for the month on screen, and the
+  // windows that money covered. The grid used to show only a month-to-date
+  // wage, so a month already paid still read as the full amount owing — that
+  // figure under a PROCESS button is what invited a second payout.
+  const paidThisMonth = useMemo(
+    () => paidByEmployeeInMonth(attYear, attMonth, payrollRecords),
+    [attYear, attMonth, payrollRecords]);
+
+  // Whether a given day sits inside a window this employee was paid for. Runs
+  // record daysWorked, not which days, so this marks the window and never
+  // claims a specific cell was paid.
+  const dayInPaidWindow = useCallback((empId, dateStr) =>
+    (paidThisMonth.get(empId)?.runs || []).find(r => r.window && dateStr >= r.window.from && dateStr <= r.window.to) || null,
+    [paidThisMonth]);
+
   // Employees whose rate resolves to zero: the day is marked, counted in DAYS,
   // and worth nothing. All three employees here carry daily_rate = 0, so this
   // is one forgotten per-day rate away from a day that pays nothing.
@@ -692,6 +707,12 @@ const Payroll = () => {
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-emerald-100 text-emerald-700 flex items-center justify-center text-[9px] font-bold">✓</span> Present</span>
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-red-50 text-red-500 flex items-center justify-center text-[9px] font-bold">✗</span> Absent</span>
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-accent-signature/10 text-accent-signature flex items-center justify-center text-[9px] font-bold">½</span> Half Day</span>
+          {paidThisMonth.size > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-4 h-4 rounded bg-emerald-50 border border-emerald-200 inline-block" />
+              <span className="font-semibold text-ink-secondary">Already paid</span>
+            </span>
+          )}
           <span className="text-muted-foreground italic">Click a day to mark it, clear it, or set that day&apos;s rate</span>
           {attLoading && <span className="text-muted-foreground animate-pulse">Loading…</span>}
         </div>
@@ -753,13 +774,15 @@ const Payroll = () => {
                       );
                     })}
                     <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-14">Days</th>
-                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-24">Wage</th>
+                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-24">Still due</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
                   {dailyWageEmps.map(emp => {
                     const days = computeDays(emp.id);
                     const wage = Math.round(computeWage(emp.id, emp.daily_rate || 0));
+                    const paid = Math.round(paidThisMonth.get(emp.id)?.amount || 0);
+                    const due  = Math.max(0, wage - paid);
                     return (
                       <tr key={emp.id} className="hover:bg-canvas/50">
                         <td className="px-4 py-2 sticky left-0 bg-white z-10 align-top">
@@ -801,8 +824,9 @@ const Payroll = () => {
                           const isDirty = pendingAtt[emp.id] && dateStr in pendingAtt[emp.id];
                           const isOpen  = attPicker?.empId === emp.id && attPicker?.day === dateStr;
                           const rateShown = hasCustomRate ? attEntry.custom_rate : null;
+                          const paidRun = dayInPaidWindow(emp.id, dateStr);
                           return (
-                            <td key={d} className={`p-0.5 text-center align-top ${isWeekend ? 'bg-orange-50/60' : ''}`}>
+                            <td key={d} className={`p-0.5 text-center align-top ${isWeekend ? 'bg-orange-50/60' : ''} ${paidRun ? 'bg-emerald-50/70' : ''}`}>
                               <button
                                 onClick={(e) => {
                                   if (isOpen) { setAttPicker(null); return; }
@@ -812,7 +836,9 @@ const Payroll = () => {
                                 className={`w-8 rounded text-[10px] font-bold transition-all cursor-pointer leading-none py-1 ${statusStyle(status)} ${
                                   hasCustomRate ? 'ring-1 ring-blue-400' : ''
                                 } ${isDirty ? 'outline outline-2 outline-offset-1 outline-accent-signature' : ''} ${isOpen ? 'ring-2 ring-ink-primary' : ''}`}
-                                title={dateStr}
+                                title={paidRun
+                                  ? `${dateStr} — inside the ${describePeriod(paidRun.period)} run, paid ${sym}${Number(paidRun.amount).toLocaleString('en-IN')}${paidRun.processed_at ? ' on ' + new Date(paidRun.processed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}`
+                                  : dateStr}
                               >
                                 <span className="block">{statusLabel(status)}</span>
                                 {/* The day's rate, on the cell. It used to live
@@ -828,20 +854,50 @@ const Payroll = () => {
                           );
                         })}
                         <td className="px-3 py-2 text-right text-xs font-bold text-ink-primary tabular-nums">{days}</td>
-                        <td className="px-3 py-2 text-right text-xs font-bold text-emerald-600 tabular-nums">{sym}{wage.toLocaleString('en-IN')}</td>
+                        <td className="px-3 py-2 text-right align-top tabular-nums">
+                          {/* Wage earned, then what is actually still owed. Showing
+                              only the first is what made an already-paid month look
+                              unpaid. */}
+                          <div className={`text-xs font-bold ${due > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                            {sym}{due.toLocaleString('en-IN')}
+                          </div>
+                          {paid > 0 && (
+                            <div className="text-[8px] font-semibold text-muted-foreground leading-tight mt-0.5 whitespace-nowrap">
+                              {sym}{wage.toLocaleString('en-IN')} earned<br />
+                              <span className="text-emerald-700">{sym}{paid.toLocaleString('en-IN')} paid</span>
+                            </div>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-ink-primary text-surface">
-                    <td className="px-4 py-3 text-[10px] font-semibold sticky left-0 bg-ink-primary z-10" colSpan={attDays.length + 1}>
-                      Total Daily Wage Payout
-                    </td>
-                    <td className="px-3 py-3 text-right text-sm font-bold tabular-nums" colSpan={2}>
-                      {sym}{dailyWageEmps.reduce((sum, e) => sum + Math.round(computeWage(e.id, e.daily_rate || 0)), 0).toLocaleString('en-IN')}
-                    </td>
-                  </tr>
+                  {(() => {
+                    // This single figure was the trap: it read ₹7,200 for a month
+                    // whose ₹7,200 had already been paid, directly above a button
+                    // offering to pay it.
+                    const earned = dailyWageEmps.reduce((s, e) => s + Math.round(computeWage(e.id, e.daily_rate || 0)), 0);
+                    const paid   = dailyWageEmps.reduce((s, e) => s + Math.round(paidThisMonth.get(e.id)?.amount || 0), 0);
+                    const due    = Math.max(0, earned - paid);
+                    return (
+                      <tr className="bg-ink-primary text-surface">
+                        <td className="px-4 py-3 sticky left-0 bg-ink-primary z-10" colSpan={attDays.length + 1}>
+                          <div className="text-[10px] font-semibold">
+                            {paid > 0 ? 'Still to pay this month' : 'Total Daily Wage Payout'}
+                          </div>
+                          {paid > 0 && (
+                            <div className="text-[9px] font-semibold text-white/50 mt-0.5">
+                              {sym}{earned.toLocaleString('en-IN')} earned · {sym}{paid.toLocaleString('en-IN')} already paid
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-right text-sm font-bold tabular-nums" colSpan={2}>
+                          {sym}{(paid > 0 ? due : earned).toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                    );
+                  })()}
                 </tfoot>
               </table>
             </div>

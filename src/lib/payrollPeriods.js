@@ -86,6 +86,54 @@ export function describePeriod(period) {
   return p.from === p.to ? fmt(p.from) : `${fmt(p.from)} – ${fmt(p.to)}`;
 }
 
+/**
+ * The runs whose payout landed in this month.
+ *
+ * Attributed by the period's END date, which is exactly where `processPayroll`
+ * dates the salary expense — so what the grid calls "already paid this month"
+ * is the same money the month's P&L shows under Salary. Attributing by start,
+ * or by any overlap, would let a run spanning a month boundary be counted in
+ * two months at once.
+ */
+export function runsPaidInMonth(year, month1to12, records = []) {
+  const key = `${year}-${String(month1to12).padStart(2, '0')}`;
+  return (records || [])
+    .filter(r => r && !r.deleted_at)
+    .filter(r => {
+      const p = parsePeriod(r.period);
+      return p ? p.to.slice(0, 7) === key : false;
+    });
+}
+
+/**
+ * How much each employee has already been paid for this month → Map id → info.
+ *
+ * The grid showed a month-to-date wage and nothing else, so a month already
+ * paid still read as ₹7,200 owing. This is what makes the difference visible.
+ *
+ * Days are NOT tracked per run — an item records `daysWorked`, not which days —
+ * so this reports amounts and the windows they covered, and never claims a
+ * particular cell was paid. If days were added inside a window after it was
+ * paid, the wage will exceed the amount and the remainder shows as due, which
+ * is the truthful answer.
+ */
+export function paidByEmployeeInMonth(year, month1to12, records = []) {
+  const out = new Map();
+  for (const r of runsPaidInMonth(year, month1to12, records)) {
+    const window = parsePeriod(r.period);
+    for (const item of r.items || []) {
+      const id = item.employeeId;
+      const net = Number(item.netPay || 0);
+      if (!id || net <= 0) continue;   // a zero item is not a payment
+      const prev = out.get(id) || { amount: 0, runs: [] };
+      prev.amount += net;
+      prev.runs.push({ id: r.id, period: r.period, window, amount: net, processed_at: r.processed_at });
+      out.set(id, prev);
+    }
+  }
+  return out;
+}
+
 /** Is every day of the given month covered by one already-processed run? */
 export function monthIsPaid(year, month1to12, records = []) {
   const target = parsePeriod(`${year}-${String(month1to12).padStart(2, '0')}`);

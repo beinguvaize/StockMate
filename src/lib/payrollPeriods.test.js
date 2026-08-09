@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid,
+  runsPaidInMonth, paidByEmployeeInMonth,
 } from './payrollPeriods';
 
 /**
@@ -111,6 +112,62 @@ describe('monthIsPaid — whether the grid should show a processed state', () =>
 
   it('ignores a reversed run', () => {
     expect(monthIsPaid(2026, 8, [run({ period: '2026-08', deleted_at: 'x' })])).toBeNull();
+  });
+});
+
+describe('paidByEmployeeInMonth — what the grid shows as already paid', () => {
+  // The live FUTURE DISPO run, item shape included.
+  const AKBAR = 'f221935c-738d-4130-b2b9-7975ba3ca301';
+  const NADIRSHA = '424170c2-4395-465e-8df0-66e337b2a455';
+  const PARTHIPAN = 'e934daf8-cc0c-4025-a468-463eb9429a2e';
+  const august = [{
+    id: '2f16ed07', period: '2026-08-01/2026-08-08', total_net: 7200,
+    processed_at: '2026-08-08T11:55:20.063Z', deleted_at: null,
+    items: [
+      { employeeId: AKBAR, employeeName: 'Akbar', netPay: 3600, daysWorked: 4 },
+      { employeeId: NADIRSHA, employeeName: 'Nadirsha', netPay: 3600, daysWorked: 4 },
+      { employeeId: PARTHIPAN, employeeName: 'Parthipan', netPay: 0, daysWorked: 0 },
+    ],
+  }];
+
+  it('reports what each employee was actually paid', () => {
+    const paid = paidByEmployeeInMonth(2026, 8, august);
+    expect(paid.get(AKBAR).amount).toBe(3600);
+    expect(paid.get(NADIRSHA).amount).toBe(3600);
+  });
+
+  it('does not count a zero item as a payment', () => {
+    // Parthipan was in the run and received nothing; showing him as paid would
+    // hide a real debt.
+    expect(paidByEmployeeInMonth(2026, 8, august).has(PARTHIPAN)).toBe(false);
+  });
+
+  it('carries the window so the grid can shade the days it covered', () => {
+    const [run] = paidByEmployeeInMonth(2026, 8, august).get(AKBAR).runs;
+    expect(run.window).toEqual({ from: '2026-08-01', to: '2026-08-08' });
+  });
+
+  it('ignores a reversed run', () => {
+    const deleted = [{ ...august[0], deleted_at: '2026-08-09T00:00:00Z' }];
+    expect(paidByEmployeeInMonth(2026, 8, deleted).size).toBe(0);
+  });
+
+  it('reports nothing for a month with no runs', () => {
+    expect(paidByEmployeeInMonth(2026, 9, august).size).toBe(0);
+  });
+
+  it('attributes a run spanning two months to the one it was paid in, once', () => {
+    // Matched to where processPayroll dates the salary expense — the period's
+    // end. Counting any overlap would show the same money in both months.
+    const spanning = [{ ...august[0], period: '2026-07-28/2026-08-03' }];
+    expect(runsPaidInMonth(2026, 7, spanning)).toHaveLength(0);
+    expect(runsPaidInMonth(2026, 8, spanning)).toHaveLength(1);
+  });
+
+  it('sums two runs in the same month', () => {
+    const second = { ...august[0], id: 'r2', period: '2026-08-09/2026-08-15',
+      items: [{ employeeId: AKBAR, employeeName: 'Akbar', netPay: 1800, daysWorked: 2 }] };
+    expect(paidByEmployeeInMonth(2026, 8, [...august, second]).get(AKBAR).amount).toBe(5400);
   });
 });
 
