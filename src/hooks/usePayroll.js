@@ -172,6 +172,9 @@ export const usePayroll = (tenantId) => {
         note: `Payroll ${record.period} — ${item.employeeName}`,
         date: expDate,
         payment_method: record.paymentMethod || 'CASH',
+        // Which run made this. Deleting a run used to leave its expenses in the
+        // P&L because the only link was the note text above.
+        payroll_id: row.id,
       }));
 
     if (expenseRows.length) {
@@ -190,10 +193,54 @@ export const usePayroll = (tenantId) => {
     return { success: true, expensesPosted: expenseRows.length };
   };
 
+  /**
+   * Reverse a pay run: the record AND the salary expenses it created.
+   *
+   * This used to soft-delete the payroll row alone. The expenses stayed, so the
+   * run vanished from Pay History while its money sat on in DayBook, the P&L
+   * and the cash account — the books drifting from the run history with nothing
+   * to show why. That made it the wrong tool for the thing it would most often
+   * be reached for: undoing a payout entered twice.
+   *
+   * Expenses go first. If that half fails the run is left standing, which is
+   * recoverable — the alternative order can delete a run and strand its money
+   * with the link gone.
+   */
   const deletePayrollRecord = async (id) => {
-    const { error } = await supabase.from('payroll').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
-    if (!error) setPayrollRecords(prev => prev.filter(p => p.id !== id));
-    return { success: !error, error };
+    const now = new Date().toISOString();
+
+    const { data: reversed, error: expError } = await supabase
+      .from('expenses')
+      .update({ deleted_at: now })
+      .eq('payroll_id', id).eq('tenant_id', tenantId).is('deleted_at', null)
+      .select('id, amount');
+
+    if (expError) {
+      console.error('deletePayrollRecord: salary expense reversal failed:', expError);
+      // Say what did not happen. A bare "failed" here once hid a days-long
+      // outage; the run is still intact, so name that too.
+      return {
+        success: false,
+        error: expError,
+        message: `The salary expenses for this run could not be reversed: ${expError.message}. Nothing was deleted — DayBook and the P&L are unchanged.`,
+      };
+    }
+
+    const { error } = await supabase.from('payroll')
+      .update({ deleted_at: now }).eq('id', id).eq('tenant_id', tenantId);
+
+    if (error) {
+      console.error('deletePayrollRecord: payroll row delete failed:', error);
+      return {
+        success: false,
+        error,
+        message: `${reversed?.length || 0} salary expense${reversed?.length === 1 ? '' : 's'} were reversed, but the payroll record itself could not be deleted: ${error.message}. Pay History and the P&L now disagree — try again.`,
+      };
+    }
+
+    setPayrollRecords(prev => prev.filter(p => p.id !== id));
+    const total = (reversed || []).reduce((s, r) => s + Number(r.amount || 0), 0);
+    return { success: true, expensesReversed: reversed?.length || 0, amountReversed: total };
   };
 
   const resetEmployeesDailyData = async () => {

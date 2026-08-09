@@ -19,7 +19,26 @@ const periodType = (period) => {
 
 const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollRecord }) => {
   const [expandedRecord, setExpandedRecord] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
   const sym = currencySymbol || '₹';
+
+  // Deleting a run now also reverses its salary expenses, so this takes money
+  // out of DayBook and the P&L. Name the amount before doing it — silently
+  // pulling ₹7,200 out of a closed month is its own kind of surprise.
+  const confirmDelete = async (record) => {
+    const amount = `${sym}${Number(record.totalNet || 0).toLocaleString('en-IN')}`;
+    const ok = window.confirm(
+      `Delete the pay run for ${formatPeriod(record.period)}?\n\n` +
+      `This also reverses ${amount} of salary expenses, so DayBook, the P&L and the cash account will all drop by that much.`
+    );
+    if (!ok) return;
+
+    setDeleting(record.id); setDeleteError('');
+    const res = await deletePayrollRecord(record.id);
+    setDeleting(null);
+    if (res && res.success === false) setDeleteError(res.message || res.error?.message || 'The pay run could not be deleted.');
+  };
 
   if (payrollRecords.length === 0) {
     return (
@@ -40,6 +59,12 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Pay Runs</span>
         <span className="text-[10px] font-semibold text-muted-foreground">{payrollRecords.length} record{payrollRecords.length !== 1 ? 's' : ''}</span>
       </div>
+
+      {deleteError && (
+        <div className="mx-5 mt-3 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-[11px] font-semibold text-rose-700">
+          {deleteError}
+        </div>
+      )}
 
       <div className="divide-y divide-black/5">
         {payrollRecords.map(record => {
@@ -118,9 +143,10 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                     <div className="px-4 py-2.5 border-b border-black/5 flex items-center justify-between">
                       <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Staff breakdown</span>
                       <button
-                        className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors"
-                        title="Delete record"
-                        onClick={e => { e.stopPropagation(); deletePayrollRecord(record.id); }}
+                        className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors disabled:opacity-40"
+                        title="Delete this run and reverse its salary expenses"
+                        disabled={deleting === record.id}
+                        onClick={e => { e.stopPropagation(); confirmDelete(record); }}
                       >
                         <Trash2 size={12} />
                       </button>

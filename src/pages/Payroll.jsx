@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePayroll } from '../hooks/usePayroll';
+import { findOverlapping, describePeriod, monthIsPaid } from '../lib/payrollPeriods';
 import { usePeople } from '../hooks/usePeople';
 import { DollarSign, Trash2, X, Check, CreditCard, UserPlus, Lock, Receipt, Link2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -489,6 +490,10 @@ const Payroll = () => {
 
   const handleProcessPayroll = async () => {
   if (isSaving) return;
+  // An overlapping period can still be paid — a genuine second payout in the
+  // same window (an advance, a correction) has to stay possible — but not
+  // without being seen first.
+  if (overlappingRuns.length > 0 && !overlapAcknowledged) return;
   setIsSaving(true);
   try {
   const totalBase = payRunItems.reduce((sum, i) => sum + i.basePay, 0);
@@ -536,6 +541,35 @@ const Payroll = () => {
   const activeEmployeesCount = useMemo(() => employees.filter(e => e.status === 'ACTIVE').length, [employees]);
   const totalMonthlyPayroll = useMemo(() => employees.filter(e => e.status === 'ACTIVE').reduce((sum, emp) => sum + (Number(emp.salary) || Number(emp.basePay) || 0), 0), [employees]);
   const lastPayRun = useMemo(() => payrollRecords.length > 0 ? payrollRecords[0] : null, [payrollRecords]);
+
+  // ── Has this period already been paid? ──────────────────────────────────
+  //
+  // Nothing used to ask. August 2026 was processed for 1-8 Aug at ₹7,200 and
+  // the grid still offered PROCESS AUGUST PAYROLL with the full amount showing,
+  // so a second press would have posted another ₹7,200 to DayBook, the P&L and
+  // the cash account.
+  const pendingPeriod = isRangeRun ? `${weekStart}/${rangeEnd}` : payRunMonth;
+  const overlappingRuns = useMemo(
+    () => findOverlapping(pendingPeriod, payrollRecords),
+    [pendingPeriod, payrollRecords]);
+
+  // The warning is acknowledged per period: changing the dates must re-arm it,
+  // or a confirm given for one window silently licenses another.
+  const [overlapAckFor, setOverlapAckFor] = useState(null);
+  const overlapAcknowledged = overlapAckFor === pendingPeriod;
+
+  // Whether the month the grid is showing is fully covered by a run. Seeing it
+  // on the grid is what prevents the mistake; the modal warning is the backstop.
+  const paidRunForMonth = useMemo(
+    () => monthIsPaid(attYear, attMonth, payrollRecords),
+    [attYear, attMonth, payrollRecords]);
+
+  // Employees whose rate resolves to zero: the day is marked, counted in DAYS,
+  // and worth nothing. All three employees here carry daily_rate = 0, so this
+  // is one forgotten per-day rate away from a day that pays nothing.
+  const zeroRateNames = useMemo(
+    () => payRunItems.filter(i => i.payType === 'DAILY' && i.basePay <= 0).map(i => i.employeeName),
+    [payRunItems]);
 
   useEffect(() => {
     if (showForm || showPayRunModal || showSalaryModal || deleteConfirm) {
@@ -842,9 +876,23 @@ const Payroll = () => {
 
         {/* Process payroll CTA */}
         {employees.filter(e => e.status === 'ACTIVE').length > 0 && (
-          <div className="flex justify-end pt-2">
-            <button onClick={openPayRun} className="btn-signature !h-14 !px-10 !text-sm flex items-center gap-3">
-              PROCESS {new Date(attYear, attMonth - 1).toLocaleString('default', { month: 'long' }).toUpperCase()} PAYROLL
+          <div className="flex flex-col items-end gap-2 pt-2">
+            {/* A month already paid must not present itself as unpaid. The grid
+                keeps showing the full month-to-date wage, which is what invited
+                a second run: ₹7,200 on screen under a button offering to pay it. */}
+            {paidRunForMonth && (
+              <div className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5">
+                {describePeriod(paidRunForMonth.period)} already processed —{' '}
+                {businessProfile?.currencySymbol || '₹'}
+                {Number(paidRunForMonth.totalNet || 0).toLocaleString('en-IN')}
+                {paidRunForMonth.processed_at
+                  ? ` on ${new Date(paidRunForMonth.processed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                  : ''}
+              </div>
+            )}
+            <button onClick={openPayRun}
+              className={`!h-14 !px-10 !text-sm flex items-center gap-3 ${paidRunForMonth ? 'rounded-pill border border-black/10 bg-canvas text-ink-secondary font-semibold' : 'btn-signature'}`}>
+              {paidRunForMonth ? 'PAY AGAIN' : `PROCESS ${new Date(attYear, attMonth - 1).toLocaleString('default', { month: 'long' }).toUpperCase()} PAYROLL`}
               <div className="icon-nest !w-8 !h-8 ml-2"><Check size={16} /></div>
             </button>
           </div>
@@ -1344,7 +1392,38 @@ const Payroll = () => {
     </div>
 
     {/* Footer */}
-    <div className="px-6 py-4 border-t border-black/8 flex items-center justify-between shrink-0 bg-ink-primary">
+    <div className="px-6 py-4 border-t border-black/8 flex flex-col gap-3 shrink-0 bg-ink-primary">
+      {/* Already paid? Say what, when and how much, then let it through on a
+          confirm — a second payout in the same window is legitimate, being
+          unaware of the first is not. */}
+      {overlappingRuns.length > 0 && (
+        <div className="rounded-xl border border-amber-300/60 bg-amber-400/10 px-4 py-3">
+          <div className="text-[12px] font-bold text-amber-200">
+            {overlappingRuns.length === 1 ? 'These dates have already been paid' : 'These dates overlap payments already made'}
+          </div>
+          <ul className="mt-1 text-[11px] text-amber-100/90 font-medium space-y-0.5">
+            {overlappingRuns.map(r => (
+              <li key={r.id}>
+                {describePeriod(r.period)} — {sym}{Number(r.totalNet || 0).toLocaleString('en-IN')}
+                {r.processed_at ? `, processed ${new Date(r.processed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}
+              </li>
+            ))}
+          </ul>
+          <label className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-amber-200 cursor-pointer">
+            <input type="checkbox" checked={overlapAcknowledged}
+              onChange={e => setOverlapAckFor(e.target.checked ? pendingPeriod : null)} />
+            Pay these dates again anyway
+          </label>
+        </div>
+      )}
+
+      {zeroRateNames.length > 0 && (
+        <div className="text-[11px] font-semibold text-amber-200/90">
+          No daily rate set for {zeroRateNames.join(', ')} — those days pay {sym}0.
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
       <div className="flex items-center gap-10">
         <div>
           <div className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mb-1">Total Payout</div>
@@ -1360,11 +1439,15 @@ const Payroll = () => {
         </div>
       </div>
       <button className="btn-signature !h-12 !px-8 !text-sm flex items-center gap-2.5"
-        onClick={handleProcessPayroll} disabled={isSaving || rangeInvalid || totalNet <= 0}
-        title={rangeInvalid ? 'The end date is before the start date' : (totalNet <= 0 ? 'Nothing to pay for this period' : undefined)}>
+        onClick={handleProcessPayroll}
+        disabled={isSaving || rangeInvalid || totalNet <= 0 || (overlappingRuns.length > 0 && !overlapAcknowledged)}
+        title={rangeInvalid ? 'The end date is before the start date'
+          : (totalNet <= 0 ? 'Nothing to pay for this period'
+          : (overlappingRuns.length > 0 && !overlapAcknowledged ? 'These dates have already been paid — confirm above to pay them again' : undefined))}>
         <Check size={16} />
         {isSaving ? 'Processing…' : rangeInvalid ? 'Check the dates' : 'Confirm & Process'}
       </button>
+      </div>
     </div>
 
   </div>
