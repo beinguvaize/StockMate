@@ -16,6 +16,7 @@ import { groupPurchasesIntoBills, filterBills, paidOf, dueOf as billDueOf, isCre
 import { buildVoucherModel } from './lib/voucher';
 import { voucherHtml } from './lib/voucherHtml';
 import PurchaseForm from './components/PurchaseForm';
+import BillEditForm from './components/BillEditForm';
 import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
 
@@ -23,7 +24,7 @@ const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { purchases, purchaseReturns, suppliers, add: addPurchase, editPurchase, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, suppliers, add: addPurchase, editPurchase, editPurchaseBill, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
   const { accounts: payAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
   const { products, inventoryLocations, loading: prodLoading, updateProduct, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
@@ -31,6 +32,9 @@ const PurchasesPage = () => {
   const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' | 'returns'
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);   // purchase being edited
+  const [editBillTarget, setEditBillTarget] = useState(null); // whole bill being edited
+  const [menuBill, setMenuBill] = useState(null);       // bill whose header menu is open
+  const [billSaving, setBillSaving] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [returnTarget, setReturnTarget] = useState(null); // purchase being returned
   const [returnLoading, setReturnLoading] = useState(false);
@@ -728,8 +732,16 @@ const PurchasesPage = () => {
                 sits on the header when the bill IS one line; otherwise it opens
                 the bill, where each line carries its own menu. */}
             <button
-              onClick={(e) => multi ? setExpandedBill(expanded ? null : bill.id) : openMenu(e, bill.lines[0])}
-              title={multi ? 'Open the bill to edit or return a product' : 'More'}
+              onClick={(e) => {
+                if (!multi) { openMenu(e, bill.lines[0]); return; }
+                // A multi-line bill gets its OWN menu. Firing the line actions at
+                // lines[0] is what silently targeted the first product before, so
+                // this menu offers only what is meaningful for a whole bill.
+                e.stopPropagation();
+                const r = e.currentTarget.getBoundingClientRect();
+                setMenuBill({ bill, x: r.right, y: r.bottom });
+              }}
+              title={multi ? 'Bill actions' : 'More'}
               className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
             >
               <MoreVertical size={16} />
@@ -981,6 +993,66 @@ const PurchasesPage = () => {
         </>,
         document.body
       )}
+
+      {/* Bill ⋯ menu — only the actions that mean something for a WHOLE bill.
+          Return and Delete stay on the lines: they move stock for one product,
+          and a bill-level version of either would have to pick a line. */}
+      {menuBill && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setMenuBill(null)} />
+          <div className="fixed z-[9999] w-52 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold"
+            style={{ top: menuBill.y + 4, left: Math.max(8, menuBill.x - 208) }}>
+            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {menuBill.bill.lines.length} lines · {formatCurrency(menuBill.bill.total)}
+            </div>
+            <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setEditBillTarget(b); }}
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-blue-600">
+              <Pencil size={13} /> Edit whole bill
+            </button>
+            <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setPrintTarget(b); }}
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground">
+              <Printer size={13} /> Voucher
+            </button>
+            <div className="h-px bg-black/5 my-1" />
+            <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setExpandedBill(b.id); }}
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-muted-foreground">
+              Open lines — to return or delete one
+            </button>
+          </div>
+        </>,
+        document.body
+      )}
+
+      {/* Edit whole bill */}
+      <Modal isOpen={!!editBillTarget} onClose={() => setEditBillTarget(null)}
+        title="Edit Bill" subtitle="Header applies to every line · saved in one transaction">
+        {editBillTarget && (
+          <BillEditForm
+            bill={editBillTarget}
+            suppliers={suppliers}
+            productNameById={productNameById}
+            saving={billSaving}
+            onCancel={() => setEditBillTarget(null)}
+            onSave={async (payload) => {
+              setBillSaving(true);
+              try {
+                const { error } = await withTimeout(editPurchaseBill({
+                  ...payload,
+                  userId: currentUser?.id,
+                  accountId: accountForMethod(payAccounts, payload.paymentType),
+                }), 20000, 'Save bill');
+                if (error) throw error;
+                addNotification(`Bill updated — ${payload.lines.length} lines`, 'success');
+                setEditBillTarget(null);
+              } catch (e) {
+                // The RPC is one transaction, so a failure moved nothing. Say so:
+                // the old message left people wondering what had half-applied.
+                addNotification('Could not save the bill: ' + (e?.message || e) + ' — nothing was changed.', 'error');
+              } finally { setBillSaving(false); }
+            }}
+          />
+        )}
+      </Modal>
 
       {/* Add Purchase Modal — multi-line */}
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Purchase" subtitle="One supplier · multiple products · single submit">

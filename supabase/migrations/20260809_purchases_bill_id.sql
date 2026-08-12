@@ -1,0 +1,14 @@
+-- Applied via apply_migration; recorded here for history.
+-- 1) purchases.bill_id + partial index, backfilled with the exact grouping
+--    bills.js used (supplier+date+payment_type, 10-minute burst). Guarded to
+--    abort unless FUTURE DISPO still comes to 57 bills. Verified: 57/143.
+-- 2) trg_purchases_assign_bill_id — BEFORE INSERT, joins the open burst or
+--    starts a new bill. Chosen over a p_bill_id parameter on process_purchase,
+--    which would have created a second overload of a money function used by
+--    four call sites and the offline replay queue.
+-- 3) edit_purchase_bill(...) — header + every line in ONE transaction, calling
+--    edit_purchase per line so batch/stock/ledger/COGS guards are not
+--    duplicated. Refuses a partial payload: all lines or none.
+--    Add/remove line is deliberately NOT here; removing one must reverse
+--    received stock, which is what process_purchase_return is for.
+-- Full statements are in the migration history.

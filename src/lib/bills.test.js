@@ -312,3 +312,71 @@ describe('credit terms', () => {
       expect(isCreditType(t)).toBe(false));
   });
 });
+
+describe('groupPurchasesIntoBills — bill_id is the bill', () => {
+  const row = (o) => ({
+    id: 'P1', supplier_id: 'S1', date: '2026-08-01', payment_type: 'CASH',
+    total_amount: 100, created_at: '2026-08-01T10:00:00Z', ...o,
+  });
+
+  it('groups by bill_id, not by the old key', () => {
+    // Same bill, different dates — which is exactly what a bill-level date edit
+    // produces mid-flight. The old key would have split these into two bills.
+    const bills = groupPurchasesIntoBills([
+      row({ id: 'A', bill_id: 'B1' }),
+      row({ id: 'B', bill_id: 'B1', date: '2026-08-05' }),
+    ]);
+    expect(bills).toHaveLength(1);
+    expect(bills[0].lines.map(l => l.id).sort()).toEqual(['A', 'B']);
+    expect(bills[0].bill_id).toBe('B1');
+  });
+
+  it('keeps different bill_ids apart even when every other field matches', () => {
+    // The SAJJAD / NISHAD case: same supplier and day, genuinely two bills.
+    const bills = groupPurchasesIntoBills([
+      row({ id: 'A', bill_id: 'B1' }),
+      row({ id: 'B', bill_id: 'B2' }),
+    ]);
+    expect(bills).toHaveLength(2);
+  });
+
+  it('falls back to the old heuristic for rows with no bill_id', () => {
+    // Written before the column existed, or queued offline by an older client.
+    // They must still group, not scatter into one bill each.
+    const bills = groupPurchasesIntoBills([
+      row({ id: 'A', created_at: '2026-08-01T10:00:00Z' }),
+      row({ id: 'B', created_at: '2026-08-01T10:00:30Z' }),
+    ]);
+    expect(bills).toHaveLength(1);
+    expect(bills[0].bill_id).toBe('A');
+  });
+
+  it('still splits a legacy burst more than 10 minutes apart', () => {
+    const bills = groupPurchasesIntoBills([
+      row({ id: 'A', created_at: '2026-08-01T10:00:00Z' }),
+      row({ id: 'B', created_at: '2026-08-01T12:00:00Z' }),
+    ]);
+    expect(bills).toHaveLength(2);
+  });
+
+  it('handles a mix of stamped and legacy rows without merging them', () => {
+    const bills = groupPurchasesIntoBills([
+      row({ id: 'A', bill_id: 'B1' }),
+      row({ id: 'B', bill_id: 'B1' }),
+      row({ id: 'C', created_at: '2026-08-01T18:00:00Z' }),
+    ]);
+    expect(bills).toHaveLength(2);
+    expect(bills.find(b => b.bill_id === 'B1').lines).toHaveLength(2);
+    expect(bills.find(b => b.bill_id === 'C').lines).toHaveLength(1);
+  });
+
+  it('totals the bill from its lines', () => {
+    const bills = groupPurchasesIntoBills([
+      row({ id: 'A', bill_id: 'B1', total_amount: 4876 }),
+      row({ id: 'B', bill_id: 'B1', total_amount: 11684 }),
+      row({ id: 'C', bill_id: 'B1', total_amount: 19125 }),
+    ]);
+    // The live HASSAN bill: 3 lines, Rs 35,685.
+    expect(bills[0].total).toBeCloseTo(35685, 2);
+  });
+});

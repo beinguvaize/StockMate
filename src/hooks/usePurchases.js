@@ -225,6 +225,45 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     return { error };
   };
 
+  /**
+   * Edit a whole bill — the shared header on every line, plus each line — in one
+   * transaction.
+   *
+   * A bill is several `purchases` rows, and date / supplier / payment type are
+   * shared by definition. Applying them line by line is N transactions: a
+   * failure halfway leaves a bill dated two different days, split across two
+   * suppliers, with the balance moved for some lines and not others. Before
+   * `bill_id` existed it was worse — changing a date on one line silently moved
+   * that line out of the bill, which is why the bill-level menu was disabled
+   * instead of made to work.
+   *
+   * The RPC refuses a partial payload: every line of the bill must be sent, or
+   * none of it.
+   */
+  const editPurchaseBill = async ({ billId, supplierId, paymentType, date, billNo,
+                                    lines, userId, accountId }) => {
+    const { error } = await restRpc('edit_purchase_bill', {
+      p_tenant_id:    tenantId,
+      p_bill_id:      billId,
+      p_supplier_id:  supplierId,
+      p_payment_type: paymentType,
+      p_date:         date,
+      p_bill_no:      billNo || null,
+      p_lines:        (lines || []).map(l => ({
+        id:           l.id,
+        product_id:   l.linked_product_id,
+        quantity:     Number(l.quantity) || 0,
+        total_amount: Number(l.total_amount) || 0,
+        unit_cost:    l.unit_cost != null && l.unit_cost !== '' ? Number(l.unit_cost) : null,
+        notes:        l.notes || null,
+      })),
+      p_user_id:      userId || null,
+      p_account_id:   accountId || null,
+    });
+    if (!error) await fetchPurchases();
+    return { error };
+  };
+
   const remove = async (id) => {
     const { error } = await restUpdate('purchases', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
     if (!error) await fetchPurchases();
@@ -382,6 +421,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     add,
     update,
     editPurchase,
+    editPurchaseBill,
     updateStatus,
     remove,
     addReturn,

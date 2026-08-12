@@ -164,9 +164,32 @@ export function filterBills(bills = [], opts = {}) {
   });
 }
 
+/**
+ * A bill is `purchases.bill_id` when the row carries one.
+ *
+ * It used to be derived every render from supplier + date + payment_type inside
+ * a 10-minute burst. That worked for display and was hopeless for editing: those
+ * three fields ARE the key, so correcting a bill's date on one line silently
+ * moved that line into a bill of its own. There was nothing stable to edit, and
+ * the bill-level menu was disabled rather than made to work.
+ *
+ * The heuristic stays as a fallback for rows written before the column existed
+ * or queued offline against an older client, so a missing bill_id degrades to
+ * the old behaviour instead of scattering every line into its own bill.
+ */
 export function groupPurchasesIntoBills(rows = []) {
-  const byKey = {};
+  const byBillId = {};
+  const legacy = [];
   rows.forEach((p) => {
+    if (p.bill_id) (byBillId[p.bill_id] = byBillId[p.bill_id] || []).push(p);
+    else legacy.push(p);
+  });
+
+  const groups = Object.values(byBillId).map((list) =>
+    [...list].sort((a, b) => at(a) - at(b)));
+
+  const byKey = {};
+  legacy.forEach((p) => {
     const key = [
       p.supplier_id || p.supplier_name,
       p.date,
@@ -175,7 +198,6 @@ export function groupPurchasesIntoBills(rows = []) {
     (byKey[key] = byKey[key] || []).push(p);
   });
 
-  const groups = [];
   Object.values(byKey).forEach((list) => {
     const sorted = [...list].sort((a, b) => at(a) - at(b));
     let chunk = [];
@@ -198,6 +220,9 @@ export function groupPurchasesIntoBills(rows = []) {
     const paid = lines.reduce((s, r) => s + paidOf(r), 0);
     return {
       id: lines[0].id,
+      // What a bill-level write targets. Falls back to the group's first id for
+      // legacy rows, which is exactly what the backfill used, so the two agree.
+      bill_id: lines[0].bill_id || lines[0].id,
       lines,
       date: lines[0].date,
       bill_no: lines[0].bill_no,
