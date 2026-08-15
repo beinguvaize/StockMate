@@ -29,6 +29,9 @@ const saleToInvoice = (sale) => {
     id:             sale.id,
     invoice_number: sale.id?.split('-').pop() || sale.id,
     invoice_date:   sale.date,
+    // The receipt prints the time from here. invoice_date is date-only, and the
+    // mapper used to drop this, so a printed slip could not say when.
+    created_at:     sale.created_at || null,
     items,
     taxable_amount: taxableAmt,
     tax_total:      totalTax,

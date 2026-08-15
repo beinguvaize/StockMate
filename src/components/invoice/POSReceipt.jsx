@@ -4,7 +4,7 @@ import { useDialogClose } from '../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import { X, Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { formatDate } from '../../lib/utils';
+import { formatDate, formatTime } from '../../lib/utils';
 
 const LINE  = '--------------------------------';
 const DLINE = '================================';
@@ -171,7 +171,13 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
         {(s.show_bill_no || s.show_date) && (
           <div className="text-[10px] flex justify-between">
             <span>{s.show_bill_no ? `#${invoice.invoice_number || invoice.id?.split('-').pop()}` : ''}</span>
-            <span>{s.show_date ? formatDate(invoice.invoice_date || invoice.date) : ''}</span>
+            {/* invoice_date is date-only; the time it was rung up is on
+                created_at. Two bills to the same customer on one day are
+                otherwise indistinguishable — which is when a customer asks. */}
+            <span>{s.show_date ? [
+              formatDate(invoice.invoice_date || invoice.date),
+              formatTime(invoice.created_at),
+            ].filter(Boolean).join(' · ') : ''}</span>
           </div>
         )}
 
