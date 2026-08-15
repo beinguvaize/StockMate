@@ -13,10 +13,14 @@ import { formatCurrency } from '../../../lib/utils';
  * Everything is saved by one RPC in one transaction, which refuses a partial
  * payload. So this form always submits every line, including untouched ones.
  *
- * Products are NOT changeable here. Swapping the product on a line rewrites
- * which batch stock came from, and the single-line Edit already does that with
- * its own guard against products that have already been sold. Offering it in a
- * bulk save would hide that guard behind four other fields.
+ * Used for EVERY purchase bill, one line or ten. A one-line bill is a bill; it
+ * had its own form and its own write path anyway, which is two writers for the
+ * same data and how a line came to leave its own bill in the first place.
+ *
+ * The product on a line can be changed. resync_purchase_batch refuses it once
+ * units have been sold, naming how many and telling the user to correct the
+ * sales first — a better message than any check made here, and one fewer thing
+ * to keep true in two places.
  */
 const PAY_TYPES = ['CASH', 'CREDIT', 'BANK', 'UPI'];
 
