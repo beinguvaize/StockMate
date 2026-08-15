@@ -28,6 +28,39 @@ const InventoryReport = () => {
   // Voided and cancelled sales are not revenue and were being counted here.
   const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
 
+  // How much of the valuation rests on a supplier bill, and how much on a guess.
+  //
+  // Value is stock x costPrice, which says nothing about where that cost came
+  // from. Rs 113,370 of Rs 483,717 here does not come from a bill: a reconcile
+  // on 15 July created OPENING batches for stock the system held with no cost
+  // behind it and estimated a rate, and adjustments carry the last known cost
+  // rather than a paid one. HM Cover 10 is the clearest -- 149 units,
+  // Rs 16,688, never purchased and never sold, sitting in the table looking
+  // exactly like the variants beside it that were genuinely bought.
+  //
+  // It matters past this page: an estimated cost becomes COGS the moment those
+  // units sell, so the margin inherits the guess. The batches record it in
+  // cost_basis; nothing surfaced it.
+  const { data: batchRows } = useReportData({
+    table: 'product_batches',
+    select: 'product_id, qty_remaining, unit_cost, cost_basis',
+    dateColumn: 'received_date',
+  });
+
+  const evidence = useMemo(() => {
+    // Only stock still on hand: a consumed batch's basis no longer affects it.
+    const live = (batchRows || []).filter(b => Number(b.qty_remaining) > 0);
+    if (!live.length) return null;
+    let billed = 0, estimated = 0;
+    live.forEach(b => {
+      const v = Number(b.qty_remaining || 0) * Number(b.unit_cost || 0);
+      if (String(b.cost_basis || '').toUpperCase() === 'SUPPLIER_BILL') billed += v;
+      else estimated += v;
+    });
+    const total = billed + estimated;
+    return { billed, estimated, total, pct: total > 0 ? (estimated / total) * 100 : 0 };
+  }, [batchRows]);
+
   const loading = productsLoading || salesLoading;
 
   // 2. Process Valuation Metrics
@@ -188,7 +221,42 @@ const InventoryReport = () => {
     ]
   };
 
-  return <PremiumReportView dateWindow={win} title="Inventory Report" tabs={[valuationTab, deadStockTab]} />;
+  const money = (n) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* A cost from a supplier bill and a cost somebody estimated look
+          identical in the table below. This says which is which. */}
+      {evidence && evidence.estimated > 0 && (
+        <div className="rounded-[10px] border border-border/60 bg-card p-4">
+          <div className="flex items-baseline justify-between mb-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              What this value rests on
+            </span>
+            <span className="text-[11px] font-semibold text-amber-700">
+              {evidence.pct.toFixed(0)}% not from a supplier bill
+            </span>
+          </div>
+          <div className="flex h-2 rounded-full overflow-hidden bg-muted mb-2">
+            <div className="bg-emerald-600" style={{ width: `${100 - evidence.pct}%` }} />
+            <div className="bg-amber-500" style={{ width: `${evidence.pct}%` }} />
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-[12px]">
+            <span><b className="tabular-nums">{money(evidence.billed)}</b>{' '}
+              <span className="text-muted-foreground">from supplier bills</span></span>
+            <span><b className="tabular-nums text-amber-700">{money(evidence.estimated)}</b>{' '}
+              <span className="text-muted-foreground">estimated or last-known</span></span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Estimated cost becomes cost of goods sold as soon as those units sell, so the
+            margin carries the same uncertainty. Counting the shelf on the largest of them
+            is what turns a guess into a figure.
+          </p>
+        </div>
+      )}
+      <PremiumReportView dateWindow={win} title="Inventory Report" tabs={[valuationTab, deadStockTab]} />
+    </div>
+  );
 };
 
 export default InventoryReport;
