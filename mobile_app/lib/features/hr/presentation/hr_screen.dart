@@ -8,6 +8,7 @@ import 'package:mobile_app/features/hr/data/models/employee.dart';
 import 'package:mobile_app/features/hr/presentation/providers/hr_provider.dart';
 import 'package:mobile_app/features/hr/presentation/add_employee_screen.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/core/utils/payroll_periods.dart';
 import 'package:uuid/uuid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
@@ -595,6 +596,77 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
     return base + bonus - deductions;
   }
 
+  /// Has this month already been paid?
+  ///
+  /// Read straight from the server rather than from whatever the provider last
+  /// cached: the phone is the surface most likely to be offline, or to be a
+  /// second device running payroll minutes after the desktop did. A stale list
+  /// would wave through the exact duplicate this is here to stop.
+  ///
+  /// The window comparison lives in core/utils/payroll_periods.dart, mirroring
+  /// the web rule, because mobile writes 'YYYY-MM' while the desktop also
+  /// writes ranges -- a desktop run of 1-8 Aug must block an August run here,
+  /// and the two strings share no prefix a comparison would catch.
+  Future<List<Map<String, dynamic>>> _alreadyPaid(String tenantId, String period) async {
+    final rows = await supabase
+        .from('payroll')
+        .select('id, period, total_net, processed_at, deleted_at')
+        .eq('tenant_id', tenantId)
+        .isFilter('deleted_at', null);
+    return findOverlappingRuns(period, List<Map<String, dynamic>>.from(rows));
+  }
+
+  /// Name what was already paid, then let it through on an explicit choice.
+  ///
+  /// Deliberately not a bare "are you sure": the cashier needs the amount and
+  /// the date to tell a real second payout from a mistaken re-run.
+  Future<bool?> _confirmDuplicate(List<Map<String, dynamic>> runs) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(
+          runs.length == 1
+              ? 'This month has already been paid'
+              : 'This month overlaps payments already made',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final r in runs)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '${describePeriod(r['period'] as String?)} — '
+                  '₹${(double.tryParse('${r['total_net'] ?? 0}') ?? 0).toStringAsFixed(0)}'
+                  '${r['processed_at'] != null ? ', processed ${'${r['processed_at']}'.substring(0, 10)}' : ''}',
+                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            const SizedBox(height: 6),
+            Text(
+              'Paying again adds a second set of salary expenses, so DayBook, '
+              'the P&L and the cash account will all drop again.',
+              style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkSecondary),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, true),
+            child: Text('Pay again anyway',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _runPayroll() async {
     setState(() => _isRunning = true);
     // Grab this before Navigator.pop -- after the sheet closes this State's
@@ -611,6 +683,21 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
           '$_year-${_month.toString().padLeft(2, '0')}';
       final lastDay = DateTime(_year, _month + 1, 0).day;
       final payDate = '$monthStr-${lastDay.toString().padLeft(2, '0')}';
+
+      // Nothing used to ask. Each run posts one Salary expense per employee and
+      // trg_expenses_post_ledger turns each into a money-OUT, so a second run
+      // pushes a payout that never happened into DayBook, the P&L and the cash
+      // account. It warns rather than blocks: a genuine second payout in the
+      // same month -- an advance, a correction -- has to stay possible.
+      final clashes = await _alreadyPaid(tenantId, monthStr);
+      if (clashes.isNotEmpty) {
+        if (!mounted) return;
+        final proceed = await _confirmDuplicate(clashes);
+        if (proceed != true) {
+          setState(() => _isRunning = false);
+          return;
+        }
+      }
 
       // The table is `payroll`, not `payroll_records`, and it holds one row per
       // run with the employee lines in `items` -- the shape web writes. The old
@@ -643,8 +730,13 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
         });
       }
 
+      // The run's own id, held so its salary expenses can point back at it.
+      // Without that link, deleting the run leaves its money in DayBook and the
+      // P&L -- the web side hit exactly this and now stamps expenses.payroll_id.
+      final payrollId = const Uuid().v4();
+
       await supabase.from('payroll').insert({
-        'id': const Uuid().v4(),
+        'id': payrollId,
         'tenant_id': tenantId,
         'period': monthStr,
         'items': items,
@@ -671,6 +763,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                 'note': 'Payroll $monthStr — ${i['employeeName']}',
                 'date': payDate,
                 'payment_method': 'CASH',
+                'payroll_id': payrollId,
               })
           .toList();
       // The run is saved at this point. If the expenses fail, the run must NOT
