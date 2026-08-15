@@ -11,6 +11,46 @@ const InventoryValuationReport = () => {
     dateColumn: 'created_at' // Primary date for inventory records
   });
 
+  // How much of the valuation rests on a supplier bill, and how much on a guess.
+  //
+  // The value above is stock x costPrice, which says nothing about where that
+  // cost came from. Roughly a fifth of it does not come from a bill at all: a
+  // reconcile on 15 July created OPENING batches for stock the system held with
+  // no cost behind it and estimated a rate, and stock adjustments carry the last
+  // known cost rather than a paid one. HM Cover 10 is the clearest case -- 149
+  // units, Rs 16,688 of value, never purchased.
+  //
+  // That matters beyond the stock page: an estimated cost flows into COGS the
+  // moment those units sell, so the margin inherits the guess. The batches
+  // record it honestly in cost_basis; nothing surfaced it.
+  const { data: batchRows } = useReportData({
+    table: 'product_batches',
+    select: 'product_id, qty_remaining, unit_cost, origin, cost_basis',
+    dateColumn: 'received_date',
+  });
+
+  const evidence = useMemo(() => {
+    const live = (batchRows || []).filter(b => Number(b.qty_remaining) > 0);
+    if (!live.length) return null;
+    let billed = 0, estimated = 0;
+    const shakyProducts = {};
+    live.forEach(b => {
+      const v = Number(b.qty_remaining || 0) * Number(b.unit_cost || 0);
+      if (String(b.cost_basis || '').toUpperCase() === 'SUPPLIER_BILL') {
+        billed += v;
+      } else {
+        estimated += v;
+        shakyProducts[b.product_id] = (shakyProducts[b.product_id] || 0) + v;
+      }
+    });
+    const total = billed + estimated;
+    return {
+      billed, estimated, total,
+      pct: total > 0 ? (estimated / total) * 100 : 0,
+      worst: Object.entries(shakyProducts).sort((a, b) => b[1] - a[1]).slice(0, 3),
+    };
+  }, [batchRows]);
+
   // 2. Process Inventory Metrics (Rule 4)
   const metrics = useMemo(() => {
     if (!rawData.length) return { totalCost: 0, totalPotential: 0, lowStock: 0, chartData: [], kpis: [] };
@@ -147,7 +187,44 @@ const InventoryValuationReport = () => {
     ]
   };
 
-  return <ReportShell tabs={[inventoryTab]} />;
+  const money = (n) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* What the valuation is actually built on. A cost that came from a
+          supplier bill and a cost somebody estimated look identical in the
+          table below, and the estimated part flows into COGS the moment those
+          units sell. */}
+      {evidence && evidence.estimated > 0 && (
+        <div className="rounded-[10px] border border-border/60 bg-card p-4">
+          <div className="flex items-baseline justify-between mb-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              What this value rests on
+            </span>
+            <span className="text-[11px] font-semibold text-amber-700">
+              {evidence.pct.toFixed(0)}% not from a supplier bill
+            </span>
+          </div>
+          <div className="flex h-2 rounded-full overflow-hidden bg-muted mb-2">
+            <div className="bg-emerald-600" style={{ width: `${100 - evidence.pct}%` }} />
+            <div className="bg-amber-500" style={{ width: `${evidence.pct}%` }} />
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-[12px]">
+            <span><b className="tabular-nums">{money(evidence.billed)}</b>{' '}
+              <span className="text-muted-foreground">from supplier bills</span></span>
+            <span><b className="tabular-nums text-amber-700">{money(evidence.estimated)}</b>{' '}
+              <span className="text-muted-foreground">estimated or last-known</span></span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Estimated cost becomes cost of goods sold as soon as those units sell, so the
+            margin carries the same uncertainty. Counting the shelf on the largest of them
+            is what turns a guess into a figure.
+          </p>
+        </div>
+      )}
+      <ReportShell tabs={[inventoryTab]} />
+    </div>
+  );
 };
 
 export default InventoryValuationReport;
