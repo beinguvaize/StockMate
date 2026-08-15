@@ -1040,6 +1040,7 @@ const PurchasesPage = () => {
             bill={editBillTarget}
             suppliers={suppliers}
             productNameById={productNameById}
+            payments={supplierPayments}
             saving={billSaving}
             onCancel={() => setEditBillTarget(null)}
             onSave={async (payload) => {
@@ -1051,7 +1052,35 @@ const PurchasesPage = () => {
                   accountId: accountForMethod(payAccounts, payload.paymentType),
                 }), 20000, 'Save bill');
                 if (error) throw error;
-                addNotification(`Bill updated — ${payload.lines.length} lines`, 'success');
+
+                // A part payment is recorded AFTER the bill saves, and as a real
+                // payment via settle_purchase_payment -- never by writing
+                // paid_amount, which would leave the bill and the supplier's
+                // balance disagreeing. Allocated oldest line first, the same way
+                // the entry form and mobile do it.
+                let payNote = '';
+                if (payload.paidNow > 0) {
+                  let left = payload.paidNow;
+                  for (const l of payload.lines) {
+                    if (left <= 0.005) break;
+                    const line = editBillTarget.lines.find(x => x.id === l.id);
+                    const lineDue = Math.max(0, Number(l.total_amount || 0) - Number(line?.paid_amount || 0));
+                    if (lineDue <= 0.005) continue;
+                    const take = Math.round(Math.min(left, lineDue) * 100) / 100;
+                    const { error: payErr } = await payPurchase({
+                      supplierId: payload.supplierId, purchaseId: l.id, amount: take,
+                      method: 'CASH', date: payload.date,
+                    });
+                    // The bill itself is already saved. Say which part failed
+                    // rather than implying the whole edit was lost.
+                    if (payErr) throw new Error(
+                      `The bill saved, but the payment could not be recorded: ${payErr.message}`);
+                    left = Math.round((left - take) * 100) / 100;
+                  }
+                  payNote = ` · ${formatCurrency(payload.paidNow)} paid`;
+                }
+
+                addNotification(`Bill updated — ${payload.lines.length} lines${payNote}`, 'success');
                 setEditBillTarget(null);
               } catch (e) {
                 // The RPC is one transaction, so a failure moved nothing. Say so:

@@ -20,11 +20,17 @@ import { formatCurrency } from '../../../lib/utils';
  */
 const PAY_TYPES = ['CASH', 'CREDIT', 'BANK', 'UPI'];
 
-const BillEditForm = ({ bill, suppliers = [], productNameById = {}, onSave, onCancel, saving }) => {
+const BillEditForm = ({ bill, suppliers = [], productNameById = {}, payments = [],
+                       onSave, onCancel, saving }) => {
   const [date, setDate]         = useState(bill.date || '');
   const [supplierId, setSupId]  = useState(bill.supplier_id || '');
   const [payType, setPayType]   = useState((bill.payment_type || 'CASH').toUpperCase());
   const [billNo, setBillNo]     = useState(bill.bill_no || '');
+  // Money handed over now, recorded as a real payment rather than written onto
+  // paid_amount. paid_amount is one half of a pair -- the payment row is the
+  // other, and the supplier balance derives from both -- so setting the number
+  // here would leave the bill saying one thing and the ledger another.
+  const [paidNow, setPaidNow]   = useState('');
   const [lines, setLines]       = useState(() => (bill.lines || []).map(l => ({
     id: l.id,
     linked_product_id: l.linked_product_id,
@@ -45,8 +51,21 @@ const BillEditForm = ({ bill, suppliers = [], productNameById = {}, onSave, onCa
   const originalTotal = (bill.lines || []).reduce((s, l) => s + (Number(l.total_amount) || 0), 0);
   const delta = total - originalTotal;
 
+  // What has already been settled against this bill's lines.
+  const lineIds = new Set((bill.lines || []).map(l => l.id));
+  const alreadyPaid = (payments || [])
+    .filter(p => !p.deleted_at && p.purchase_id && lineIds.has(p.purchase_id))
+    .reduce((s2, p) => s2 + (Number(p.amount) || 0), 0);
+  const stillDue = Math.max(0, total - alreadyPaid);
+  const payNum = parseFloat(paidNow) || 0;
+
+  const isCredit = ['CREDIT', 'UDHAAR', 'POST-CAPITAL'].includes(payType);
+  // Paying more than the bill still owes is not a part payment; it is an
+  // on-account advance, and that belongs on the supplier, not on this bill.
+  const payTooMuch = payNum > stillDue + 0.005;
+
   const invalid = lines.some(l => !(parseFloat(l.quantity) > 0) || !(parseFloat(l.total_amount) >= 0))
-    || !date || !supplierId;
+    || !date || !supplierId || payTooMuch;
 
   const submit = (e) => {
     e.preventDefault();
@@ -54,6 +73,8 @@ const BillEditForm = ({ bill, suppliers = [], productNameById = {}, onSave, onCa
     onSave({
       billId: bill.bill_id || bill.id,
       supplierId, paymentType: payType, date, billNo,
+      // Recorded after the bill saves, as a payment against the bill's lines.
+      paidNow: isCredit && payNum > 0 ? payNum : 0,
       lines: lines.map(l => ({
         id: l.id,
         linked_product_id: l.linked_product_id,
@@ -130,7 +151,46 @@ const BillEditForm = ({ bill, suppliers = [], productNameById = {}, onSave, onCa
           <span className="text-[11px] font-semibold text-muted-foreground">Bill total</span>
           <span className="text-sm font-bold tabular-nums">
             {formatCurrency(total)}
-            {Math.abs(delta) > 0.005 && (
+            {/* Part payment. Only for credit terms: a cash or bank bill is paid in
+          full at entry, so "paid now" there would contradict the payment type. */}
+      {isCredit && (
+        <div className="rounded-xl border border-black/8 p-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between text-[11px] font-semibold">
+            <span className="text-muted-foreground">Already paid</span>
+            <span className="tabular-nums text-emerald-700">{formatCurrency(alreadyPaid)}</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] font-semibold">
+            <span className="text-muted-foreground">Still due</span>
+            <span className={`tabular-nums ${stillDue > 0.005 ? 'text-red-600' : 'text-muted-foreground'}`}>
+              {formatCurrency(stillDue)}
+            </span>
+          </div>
+          <label className="flex flex-col gap-1 mt-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Pay now (optional)
+            </span>
+            <input type="number" step="0.01" min="0" value={paidNow}
+              onChange={e => setPaidNow(e.target.value)}
+              placeholder={stillDue > 0.005 ? `Up to ${formatCurrency(stillDue)}` : 'Nothing left to pay'}
+              disabled={stillDue <= 0.005}
+              className={`${field} text-right tabular-nums disabled:opacity-50`} />
+          </label>
+          {payTooMuch ? (
+            <p className="text-[11px] font-semibold text-red-600">
+              That is more than the {formatCurrency(stillDue)} still owed. Anything beyond the
+              bill is an advance and belongs on the supplier, not here.
+            </p>
+          ) : payNum > 0 ? (
+            <p className="text-[11px] text-muted-foreground">
+              Recorded as a payment against this bill once it saves, leaving{' '}
+              <b>{formatCurrency(stillDue - payNum)}</b> owing — not written onto the bill,
+              so the ledger and the balance move with it.
+            </p>
+          ) : null}
+        </div>
+      )}
+
+      {Math.abs(delta) > 0.005 && (
               <span className={`ml-2 text-[11px] font-semibold ${delta > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
                 {delta > 0 ? '+' : '−'}{formatCurrency(Math.abs(delta))}
               </span>
