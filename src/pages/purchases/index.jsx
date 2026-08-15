@@ -280,9 +280,12 @@ const PurchasesPage = () => {
     const { error } = await payPurchase({ supplierId: payTarget.supplier_id, purchaseId: payTarget.id, amount: amt, method: payMethod, date: payDate });
     setPaySubmitting(false);
     if (error) { addNotification(`Payment failed: ${error.message}`, 'error'); return; }
-    // Money out → post to the method's Cash/Bank account (non-blocking).
-    const acc = accountForMethod(payAccounts, payMethod);
-    if (acc) { try { await addAccountTxn({ account_id: acc, direction: 'OUT', amount: amt, mode: payMethod, ref_type: 'PURCHASE', ref_id: payTarget.id, note: `Supplier payment · ${payTarget.supplier_name || ''}`, date: payDate }); } catch { /* ledger non-blocking */ } }
+    // The Cash/Bank posting is NOT done here any more.
+    // trg_supplier_payments_post_ledger writes it from the payment row itself,
+    // which covers every path that records one -- this button, the supplier
+    // ledger, the bulk FIFO settle, offline replay and mobile. Posting here as
+    // well would book the same money out twice. (Only 11 of 34 payments ever
+    // reached an account, precisely because this was the one path that did it.)
     addNotification('Payment recorded', 'success');
     setPayTarget(null); setPayAmount('');
   };

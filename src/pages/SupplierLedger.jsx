@@ -25,12 +25,12 @@ const SupplierLedger = () => {
   const [offsetMsg, setOffsetMsg]   = useState(null);
   const { products, loading: invLoading } = useInventory(currentTenantId);
   const { accounts: ledgerAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
-  // Post a supplier payment OUT to the method's Cash/Bank account (non-blocking).
-  const postSupplierOut = async (amount, method, date, ref) => {
-    const acc = accountForMethod(ledgerAccounts, method);
-    if (!acc) return;
-    try { await addAccountTxn({ account_id: acc, direction: 'OUT', amount, mode: method, ref_type: 'PURCHASE', ref_id: ref || null, note: `Supplier payment · ${supplier?.name || ''}`, date }); } catch { /* non-blocking */ }
-  };
+  // The Cash/Bank posting is NOT done here any more.
+  // trg_supplier_payments_post_ledger writes it from the payment row itself, so
+  // every path that records a payment posts exactly once. This is kept as a
+  // no-op rather than deleted at each call site, so a missed caller cannot
+  // silently reintroduce the double posting.
+  const postSupplierOut = async () => {};
 
   const loading = peoLoading || purLoading || invLoading;
   const [searchTerm, setSearchTerm] = useState('');
