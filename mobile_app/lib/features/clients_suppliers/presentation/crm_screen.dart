@@ -21,7 +21,6 @@ import 'package:mobile_app/features/clients_suppliers/presentation/client_settle
 const _kHeaderBg = Color(0xFFB35210);
 const _kSupplierGreen = Color(0xFF1A7A3C);
 const _kSupplierGreenBg = Color(0xFFE6F4EC);
-const _kClientOrangeBg = Color(0xFFFEEDE4);
 const _kClientOrange = Color(0xFFA03A0A);
 const _kDanger = Color(0xFFC0320A);
 
@@ -379,7 +378,7 @@ class _Stat {
 
 class _StatTile extends StatelessWidget {
   final _Stat s;
-  const _StatTile(this.s, {super.key});
+  const _StatTile(this.s);
 
   @override
   Widget build(BuildContext context) {
@@ -1375,7 +1374,7 @@ class _ToolbarBtn extends StatelessWidget {
 class _MiniStat extends StatelessWidget {
   final String label;
   final String value;
-  const _MiniStat(this.label, this.value, {super.key});
+  const _MiniStat(this.label, this.value);
 
   @override
   Widget build(BuildContext context) {

@@ -30,6 +30,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The gate that nothing was running. `prebuild` only fires before
+      # `npm run build`; electron:publish is `vite build && electron-builder`,
+      # so npm never invoked it and every release so far shipped without the
+      # crash lint or a single test. It was enforced only by whoever happened to
+      # run a local build first — which is not enforcement.
+      - name: Crash lint and unit tests
+        run: npm run lint:crash && npm run test:unit
+
       - name: Build and publish
         env:
           # GitHub token — auto-provided, used by electron-builder to upload
@@ -79,6 +87,15 @@ jobs:
           keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
           storeFile=upload-keystore.jks
           EOF
+
+      # Same gap on the mobile side: it went straight to an APK with nothing
+      # run against it. `flutter analyze` catches the async-gap and null-safety
+      # classes of mistake that only show at runtime on a phone.
+      - name: Analyze and test
+        working-directory: mobile_app
+        run: |
+          flutter analyze --no-fatal-infos
+          flutter test
 
       - name: Build release APK
         working-directory: mobile_app
