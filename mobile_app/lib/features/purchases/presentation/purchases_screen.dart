@@ -695,6 +695,10 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   DateTime _date = DateTime.now();
   final _notesCtrl = TextEditingController();
   final _billNoCtrl = TextEditingController(); // supplier bill no — GSTR-2B match
+  // Money down on a credit bill. The web form has had this since the start
+  // ('Paid now'); the phone could only record a bill as wholly cash or wholly
+  // credit, so a part payment at the supplier's door had nowhere to go.
+  final _paidNowCtrl = TextEditingController();
 
   // Lines
   final List<_PurchaseLine> _lines = [_PurchaseLine()];
@@ -977,6 +981,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   void dispose() {
     _notesCtrl.dispose();
     _billNoCtrl.dispose();
+    _paidNowCtrl.dispose();
     for (final l in _lines) {
       l.dispose();
     }
@@ -1078,6 +1083,16 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
       // network and falls back to the local queue on transient failure.
       final svc = ref.read(syncServiceProvider);
       int queuedCount = 0;
+
+      // Money down on a credit bill, spread across the lines oldest-first --
+      // the same allocation the web form uses, so a bill entered on either
+      // surface settles identically. Only for CREDIT: a cash or bank bill is
+      // already paid in full at entry.
+      final paidNow = _paymentType == 'CREDIT'
+          ? (double.tryParse(_paidNowCtrl.text.trim()) ?? 0).clamp(0, _grandTotal)
+          : 0.0;
+      double paidLeft = paidNow.toDouble();
+
       for (int i = 0; i < validLines.length; i++) {
         final line = validLines[i];
         final id = 'PUR-${DateTime.now().millisecondsSinceEpoch}-${i.toString().padLeft(2, '0')}';
@@ -1095,6 +1110,14 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
           'p_tenant_id':    widget.tenantId,
           'p_bill_no':      _billNoCtrl.text.trim().isEmpty ? null : _billNoCtrl.text.trim(),
         };
+
+        if (paidNow > 0) {
+          final linePaid = paidLeft < line.totalVal ? paidLeft : line.totalVal;
+          // Round to paise as it goes, so the last line cannot inherit a
+          // floating-point remainder and overpay the bill by a fraction.
+          params['p_paid_amount'] = (linePaid * 100).round() / 100;
+          paidLeft = ((paidLeft - linePaid) * 100).round() / 100;
+        }
         final queued = await svc.rpcOnlineOrQueue('process_purchase', params);
         if (queued) queuedCount++;
 
@@ -1278,6 +1301,37 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                       onTap: () => setState(() => _paymentType = 'BANK')),
                                   ],
                                 ),
+
+                                // Money down on a credit bill. Only meaningful
+                                // for CREDIT: a cash or bank bill is paid in
+                                // full at entry, so a part figure there would
+                                // contradict the payment type.
+                                if (_paymentType == 'CREDIT') ...[
+                                  const SizedBox(height: 12),
+                                  _label('PAID NOW (OPTIONAL)'),
+                                  TextField(
+                                    controller: _paidNowCtrl,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    onChanged: (_) => setState(() {}),
+                                    decoration: InputDecoration(
+                                      hintText: 'Leave blank if nothing paid yet',
+                                      isDense: true,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                  if ((double.tryParse(_paidNowCtrl.text.trim()) ?? 0) > 0)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: Text(
+                                        'Rs ${((_grandTotal) - (double.tryParse(_paidNowCtrl.text.trim()) ?? 0)).clamp(0, double.infinity).toStringAsFixed(2)} stays on credit',
+                                        style: GoogleFonts.inter(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.inkSecondary),
+                                      ),
+                                    ),
+                                ],
                                 const SizedBox(height: 12),
                                 _label('DATE'),
                                 GestureDetector(
