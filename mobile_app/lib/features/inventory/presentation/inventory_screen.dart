@@ -14,7 +14,16 @@ import 'package:mobile_app/features/inventory/presentation/add_product_screen.da
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
-  const InventoryScreen({super.key});
+  /// Whether this screen supplies its own Add button.
+  ///
+  /// False when embedded in the phone shell. That shell draws its bottom nav as
+  /// a Positioned overlay rather than Scaffold.bottomNavigationBar, so Scaffold
+  /// never offsets a FAB above it -- this screen's own button rendered at the
+  /// default position and sat UNDERNEATH the nav bar, invisible. The shell owns
+  /// the offset, so the shell owns the button there.
+  const InventoryScreen({super.key, this.showAddButton = true});
+
+  final bool showAddButton;
 
   @override
   ConsumerState<InventoryScreen> createState() => _InventoryScreenState();
@@ -70,7 +79,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         toolbarHeight: 0,
         actions: const [],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: !widget.showAddButton ? null : FloatingActionButton(
         heroTag: null,
         onPressed: () => Navigator.push(
           context,

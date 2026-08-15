@@ -21,6 +21,8 @@ import 'package:mobile_app/features/finance/presentation/add_expense_screen.dart
 import 'package:mobile_app/features/finance/presentation/finance_screen.dart';
 import 'package:mobile_app/features/hr/presentation/hr_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/inventory_screen.dart';
+import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
+import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/features/logistics/presentation/driver_route_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart';
 import 'package:mobile_app/features/menu/presentation/menu_screen.dart';
@@ -54,7 +56,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   late final List<_NavTab> _allTabs = [
     (feature: 'dashboard', icon: LucideIcons.layoutDashboard, label: 'Dashboard', tab: DashboardHome(onTabSwitch: _switchToFeature)),
     (feature: 'sales',     icon: LucideIcons.shoppingCart,    label: 'Sales',     tab: const SalesScreen()),
-    (feature: 'inventory', icon: LucideIcons.package,         label: 'Inventory', tab: const InventoryScreen()),
+    (feature: 'inventory', icon: LucideIcons.package,         label: 'Inventory', tab: const InventoryScreen(showAddButton: false)),
     (feature: 'logistics', icon: LucideIcons.truck,           label: 'My Route',  tab: const DriverRouteScreen()),
     (feature: '__menu__',  icon: LucideIcons.moreHorizontal,  label: 'More',      tab: const MenuScreen()),
   ];
@@ -93,13 +95,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // ABOVE the "More" tab instead of covering it. The nav bar is a
       // Positioned container (not Scaffold.bottomNavigationBar), so Scaffold
       // never auto-offsets the FAB — we pad it up by the nav height + SafeArea.
-      floatingActionButton: currentFeature == 'sales'
+      // Inventory used to have no visible Add button on the phone. The screen
+      // supplies one, but at the default position -- which is UNDER this nav
+      // bar, since the bar is a Positioned overlay and Scaffold therefore never
+      // offsets a FAB above it. The button was rendering and invisible.
+      // The shell owns the offset, so the shell owns the button.
+      floatingActionButton: (currentFeature == 'sales' || currentFeature == 'inventory')
           ? Padding(
               padding: EdgeInsets.only(
                   bottom: 76 + MediaQuery.of(context).viewPadding.bottom),
               child: FloatingActionButton(
                 heroTag: null,
+                tooltip: currentFeature == 'inventory' ? 'Add product' : 'New sale',
                 onPressed: () {
+                  if (currentFeature == 'inventory') {
+                    // Hold the container now: reaching for `context` inside the
+                    // .then() is across an async gap, by which point this widget
+                    // may be gone.
+                    final container =
+                        ProviderScope.containerOf(context, listen: false);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AddProductScreen()),
+                    ).then((_) => container.invalidate(productsProvider));
+                    return;
+                  }
                   final roles = ProviderScope.containerOf(context, listen: false)
                       .read(tenantContextProvider)
                       .value?.roles ?? [];
