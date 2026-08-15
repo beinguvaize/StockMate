@@ -70,6 +70,26 @@ List<PdfLineItem> parsePdfItems(Invoice invoice) {
   }).toList();
 }
 
+/// The clock time a bill was rung up, or '' when there is none.
+///
+/// invoiceDate is date-only, so the receipt could only ever say which day. Two
+/// bills to the same customer on one day were indistinguishable on paper --
+/// which is exactly when a customer queries one.
+///
+/// Returns '' rather than a dash: the caller joins date and time and drops
+/// empties, so a bill without a timestamp prints the date alone.
+///
+/// toLocal() matters. A timestamp from Supabase is UTC, and printing its raw
+/// hour would put a Kerala shop's 2:57 pm bill at 9:27 am.
+String fmtReceiptTime(DateTime? ts) {
+  if (ts == null) return '';
+  final d = ts.toLocal();
+  final h24 = d.hour;
+  final h = h24 % 12 == 0 ? 12 : h24 % 12;
+  final min = d.minute.toString().padLeft(2, '0');
+  return '$h:$min ${h24 < 12 ? 'am' : 'pm'}';
+}
+
 String fmtReceiptDate(String? iso) {
   if (iso == null) return '—';
   try {
@@ -103,7 +123,10 @@ Future<Uint8List> buildPosReceiptPdf(
   final items = parsePdfItems(invoice);
   final invoiceNo = invoice.displayNumber;
   final custName  = invoice.displayClientName;
-  final dateStr   = fmtReceiptDate(invoice.invoiceDate);
+  final dateStr   = [
+    fmtReceiptDate(invoice.invoiceDate),
+    fmtReceiptTime(invoice.createdAt),
+  ].where((x) => x.isNotEmpty).join(' · ');
 
   final double subtotal   = items.fold(0.0, (s, i) => s + i.lineTotal);
   final double totalTax   = noGst ? 0.0 : items.fold(0.0, (s, i) => s + i.taxAmount);
