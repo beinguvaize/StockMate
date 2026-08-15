@@ -6,6 +6,9 @@ import { isElectron as isDesktopApp, loadBootstrap, isGraceValid, isSubscription
 
 const Login = () => {
   const [credentials, setCredentials] = useState({ email: '', password: ''});
+  // Typing a password blind on a phone keyboard at a counter is how people
+  // get locked out. Default hidden; revealing is the user's choice.
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [btnClicked, setBtnClicked] = useState(false);
   const [markSpin, setMarkSpin] = useState(false);
@@ -269,7 +272,7 @@ const Login = () => {
  </svg>
  </span>
  <input 
- type="password" 
+ type={showPassword ? 'text' : 'password'}
  placeholder="Password" 
  autoComplete="off"
  required
@@ -277,6 +280,30 @@ const Login = () => {
  value={credentials.password}
  onChange={(e) => setCredentials({ ...credentials, password: e.target.value})}
  />
+ {/* type=button so it never submits the form, and aria-pressed so a screen
+     reader says whether the password is currently visible. */}
+ <button
+   type="button"
+   onClick={() => setShowPassword(v => !v)}
+   aria-label={showPassword ? 'Hide password' : 'Show password'}
+   aria-pressed={showPassword}
+   title={showPassword ? 'Hide password' : 'Show password'}
+   className="px-[13px] py-[13px] text-[#747576] hover:text-[#38e0a0] transition-colors shrink-0"
+ >
+   {showPassword ? (
+     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+       <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+       <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+       <line x1="1" y1="1" x2="23" y2="23"/>
+     </svg>
+   ) : (
+     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+       <circle cx="12" cy="12" r="3"/>
+     </svg>
+   )}
+ </button>
  </div>
  <button type="button"
   onClick={() => { setMode('forgot'); setError(''); setInfo(''); }}

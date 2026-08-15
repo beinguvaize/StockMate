@@ -416,6 +416,14 @@ const Payroll = () => {
 };
 
   // ===== PAYROLL RUN LOGIC =====
+  // What each employee has already been paid for the month on screen, and the
+  // windows that money covered. The grid used to show only a month-to-date
+  // wage, so a month already paid still read as the full amount owing — that
+  // figure under a PROCESS button is what invited a second payout.
+  const paidThisMonth = useMemo(
+    () => paidByEmployeeInMonth(attYear, attMonth, payrollRecords),
+    [attYear, attMonth, payrollRecords]);
+
   const buildPayRunItems = useCallback(() => {
     const activeEmployees = employees.filter(e => e.status === 'ACTIVE');
     // Weekly and custom both cost a date window; only the end date differs.
@@ -430,6 +438,12 @@ const Payroll = () => {
             ? computeWageForRange(emp.id, emp.daily_rate || 0, weekStart, rangeEnd)
             : computeWage(emp.id, emp.daily_rate || 0))
         : (Number(emp.salary) || Number(emp.basePay) || 0);
+      // What this employee has ALREADY been paid for a window overlapping this
+      // one. The run used to offer the full earned wage regardless, so paying
+      // 1-8 Aug and then running August handed over the first week twice. The
+      // overlap warning caught the period; it did not correct the amount.
+      const already = Math.round(paidThisMonth.get(emp.id)?.amount || 0);
+      const net = Math.max(0, base - already);
       return {
         employeeId:   emp.id,
         employeeName: emp.name,
@@ -438,15 +452,19 @@ const Payroll = () => {
         daysWorked:   days,
         dailyRate:    emp.daily_rate || 0,
         basePay:      base,
+        // Carried on the item so it reaches the saved run: the record should say
+        // what was earned AND what was outstanding when it was paid, not just a
+        // net figure nobody can explain later.
+        alreadyPaid:  already,
         hoursWorked:  160,
         overtime:     0,
         commission:   0,
         bonus:        0,
         deductions:   0,
-        netPay:       base,
+        netPay:       net,
       };
     });
-  }, [employees, isRangeRun, weekStart, rangeEnd, computeDays, computeDaysForRange, computeWage, computeWageForRange]);
+  }, [employees, isRangeRun, weekStart, rangeEnd, computeDays, computeDaysForRange, computeWage, computeWageForRange, paidThisMonth]);
 
   const openPayRun = () => {
     setPayRunItems(buildPayRunItems());
@@ -479,7 +497,7 @@ const Payroll = () => {
   net = (regularHours * updated.basePay) + (otHours * updated.basePay * 1.5);
   updated.overtime = Math.round(otHours * updated.basePay * 1.5);
 } else {
-  net = updated.basePay + updated.overtime + updated.commission + updated.bonus - updated.deductions;
+  net = updated.basePay + updated.overtime + updated.commission + updated.bonus - updated.deductions - (updated.alreadyPaid || 0);
 }
   return { ...updated, netPay: Math.round(net)};
 }
@@ -562,14 +580,6 @@ const Payroll = () => {
   // on the grid is what prevents the mistake; the modal warning is the backstop.
   const paidRunForMonth = useMemo(
     () => monthIsPaid(attYear, attMonth, payrollRecords),
-    [attYear, attMonth, payrollRecords]);
-
-  // What each employee has already been paid for the month on screen, and the
-  // windows that money covered. The grid used to show only a month-to-date
-  // wage, so a month already paid still read as the full amount owing — that
-  // figure under a PROCESS button is what invited a second payout.
-  const paidThisMonth = useMemo(
-    () => paidByEmployeeInMonth(attYear, attMonth, payrollRecords),
     [attYear, attMonth, payrollRecords]);
 
   // Whether a given day sits inside a window this employee was paid for. Runs
@@ -1426,6 +1436,13 @@ const Payroll = () => {
           </td>
           <td className="px-3 py-4 text-right text-sm font-semibold text-ink-secondary tabular-nums">
             {sym}{Math.round(item.basePay).toLocaleString('en-IN')}
+            {/* A net figure that is smaller than the base has to explain itself,
+                or it reads as the wage being wrong rather than already paid. */}
+            {item.alreadyPaid > 0 && (
+              <div className="text-[10px] font-semibold text-emerald-700 mt-0.5 whitespace-nowrap">
+                −{sym}{item.alreadyPaid.toLocaleString('en-IN')} already paid
+              </div>
+            )}
           </td>
           <td className="px-3 py-4 text-right">
             {item.payType === 'HOURLY' ? (
