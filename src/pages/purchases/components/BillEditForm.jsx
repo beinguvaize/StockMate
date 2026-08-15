@@ -20,7 +20,7 @@ import { formatCurrency } from '../../../lib/utils';
  */
 const PAY_TYPES = ['CASH', 'CREDIT', 'BANK', 'UPI'];
 
-const BillEditForm = ({ bill, suppliers = [], productNameById = {}, payments = [],
+const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {}, payments = [],
                        onSave, onCancel, saving }) => {
   const [date, setDate]         = useState(bill.date || '');
   const [supplierId, setSupId]  = useState(bill.supplier_id || '');
@@ -134,10 +134,23 @@ const BillEditForm = ({ bill, suppliers = [], productNameById = {}, payments = [
         {lines.map(l => (
           <div key={l.id} className="grid grid-cols-[1fr_88px_110px] gap-2 items-center px-3 py-2 border-b border-black/5 last:border-0">
             <div className="min-w-0">
-              <div className="text-[12.5px] font-semibold truncate">
-                {productNameById[l.linked_product_id] || 'Product'}
-              </div>
-              <div className="text-[10px] text-muted-foreground tabular-nums">{l.id.split('-').pop()}</div>
+              {/* Changing the product rewrites which batch the stock came from.
+                  edit_purchase already refuses that once units have been sold,
+                  naming the sales in the way -- so the guard is not repeated
+                  here, and its message reaches the user through the save. */}
+              <select
+                value={l.linked_product_id || ''}
+                onChange={e => setLine(l.id, 'linked_product_id', e.target.value)}
+                className={`${field} !py-1.5 !text-[12.5px] truncate`}
+              >
+                {!products.some(p2 => p2.id === l.linked_product_id) && (
+                  <option value={l.linked_product_id}>
+                    {productNameById[l.linked_product_id] || 'Product'}
+                  </option>
+                )}
+                {products.map(p2 => <option key={p2.id} value={p2.id}>{p2.name}</option>)}
+              </select>
+              <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">{l.id.split('-').pop()}</div>
             </div>
             <input type="number" step="any" min="0" value={l.quantity}
               onChange={e => setLine(l.id, 'quantity', e.target.value)}

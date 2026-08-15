@@ -25,19 +25,17 @@ const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { purchases, purchaseReturns, suppliers, add: addPurchase, editPurchase, editPurchaseBill, supplierPayments, editSupplierPayment, deleteSupplierPayment, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, suppliers, add: addPurchase, editPurchaseBill, supplierPayments, editSupplierPayment, deleteSupplierPayment, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
   const { accounts: payAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
   const { products, inventoryLocations, loading: prodLoading, updateProduct, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
   const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' | 'returns'
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editTarget, setEditTarget] = useState(null);   // purchase being edited
   const [editBillTarget, setEditBillTarget] = useState(null); // whole bill being edited
   const [menuBill, setMenuBill] = useState(null);       // bill whose header menu is open
   const [billSaving, setBillSaving] = useState(false);
   const [paymentsTarget, setPaymentsTarget] = useState(null); // bill whose payments are open
-  const [editLoading, setEditLoading] = useState(false);
   const [returnTarget, setReturnTarget] = useState(null); // purchase being returned
   const [returnLoading, setReturnLoading] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
@@ -425,43 +423,6 @@ const PurchasesPage = () => {
     p,
     new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} timed out — check connection and retry`)), ms)),
   ]);
-
-  const handleEditPurchase = async (data) => {
-    setEditLoading(true);
-    const orig = editTarget;
-    try {
-      // One RPC, one transaction. This used to be five sequential calls, and a
-      // failure at any of them left the edit half-applied — the row already
-      // changed while the batch, stock or ledger still held the old values.
-      // Now it either lands completely or not at all, so a failure needs no
-      // partial-state message: nothing moved.
-      //
-      // It refuses to move a batch to a different product once units have been
-      // sold from it, because that would rewrite COGS on closed periods. The
-      // exception explains which sales are in the way.
-      const { error } = await withTimeout(editPurchase({
-        id:          orig.id,
-        productId:   data.linked_product_id,
-        supplierId:  data.supplier_id,
-        quantity:    data.quantity,
-        totalAmount: data.total_amount,
-        unitCost:    data.unit_cost,
-        paymentType: data.payment_type,
-        date:        data.date,
-        notes:       data.notes,
-        userId:      currentUser?.id,
-        accountId:   accountForMethod(payAccounts, data.payment_type),
-      }), 15000, 'Save');
-      if (error) throw error;
-
-      addNotification('Purchase updated', 'success');
-      setEditTarget(null);
-    } catch (e) {
-      addNotification('Could not save purchase: ' + (e?.message || e), 'error');
-    } finally {
-      setEditLoading(false);
-    }
-  };
 
   const handleDeletePurchase = async (pur) => {
     if (!window.confirm(`Delete purchase #${pur.id.split('-').pop()}? This will NOT reverse inventory.`)) return;
@@ -990,7 +951,11 @@ const PurchasesPage = () => {
           <div className="fixed z-[9999] w-44 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left }}>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground"><Printer size={13} /> Voucher</button>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground"><Copy size={13} /> Duplicate</button>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setEditTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-blue-600"><Pencil size={13} /> Edit</button>
+            {/* A one-line bill IS a bill. Editing it through the same form as a
+                multi-line one means one write path (edit_purchase_bill, one
+                transaction) instead of two that can disagree -- which is how a
+                line came to leave its own bill in the first place. */}
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setEditBillTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-blue-600"><Pencil size={13} /> Edit</button>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setReturnTarget({ purchase: p, product: products.find(x => x.id === p.linked_product_id), supplier: suppliers.find(s => s.id === p.supplier_id) }); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-rose-600"><RotateCcw size={13} /> Return</button>
             <div className="h-px bg-black/5 my-1" />
             <button onClick={() => { const p = menuRow; setMenuRow(null); handleDeletePurchase(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-50 text-red-600"><Trash2 size={13} /> Delete</button>
@@ -1039,6 +1004,7 @@ const PurchasesPage = () => {
           <BillEditForm
             bill={editBillTarget}
             suppliers={suppliers}
+            products={products}
             productNameById={productNameById}
             payments={supplierPayments}
             saving={billSaving}
@@ -1120,18 +1086,6 @@ const PurchasesPage = () => {
         />
       </Modal>
 
-      {/* Edit Purchase Modal */}
-      <Modal isOpen={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Purchase" subtitle="Update purchase details — inventory adjusted for qty change">
-        {editTarget && (
-          <PurchaseForm
-            products={products}
-            suppliers={suppliers}
-            onSave={handleEditPurchase}
-            loading={editLoading}
-            initialData={editTarget}
-          />
-        )}
-      </Modal>
 
       {/* Duplicate Purchase Modal — prefilled single form, saves as new */}
       <Modal isOpen={!!dupTarget} onClose={() => setDupTarget(null)} title="Duplicate Purchase" subtitle="Creates a new purchase from this one">
