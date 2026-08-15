@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { receivedOnDay, receivableOnDay, settledLater } from './dayBook';
+import { receivedOnDay, receivableOnDay, settledLater, carriedOpening } from './dayBook';
 
 /**
  * The defect these pin: paidAmount is a running total, so money a customer
@@ -105,5 +105,72 @@ describe('never reports more received than the sale is worth', () => {
     const s = sale({ paymentMethod: 'CASH', totalAmount: 100, paidAmount: 500,
                      paymentStatus: 'PAID' });
     expect(receivableOnDay(s)).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('carriedOpening — a day nobody opened', () => {
+  // The live shape: 1 Aug closed and counted at 33,564; nothing opened after.
+  const closed1Aug = { date: '2026-08-01', is_closed: true,
+                       closing_balance: 31769, physical_cash: 33564 };
+
+  it('carries from the last COUNTED day, not the computed close', () => {
+    // The count is what was really in the tin. Using closing_balance would
+    // start every later day 1,795 short.
+    const r = carriedOpening('2026-08-02', [closed1Aug], {});
+    expect(r.opening).toBeCloseTo(33564, 2);
+    expect(r.from).toBe('2026-08-01');
+    expect(r.counted).toBe(true);
+  });
+
+  it('replays the days in between, which is the whole point', () => {
+    // 10 Aug on the live tenant: nothing was opened after 1 Aug, but cash moved
+    // on the 2nd, 5th and 7th. Inheriting "yesterday" would miss all of it.
+    const net = {
+      '2026-08-02': -12500,
+      '2026-08-05': -32047,
+      '2026-08-07': -14400,
+    };
+    const r = carriedOpening('2026-08-10', [closed1Aug], net);
+    expect(r.opening).toBeCloseTo(33564 - 12500 - 32047 - 14400, 2);
+  });
+
+  it('excludes the target day itself', () => {
+    // The day being viewed has its own cash-in/out applied on top; counting it
+    // here as well would double it.
+    const r = carriedOpening('2026-08-05', [closed1Aug], { '2026-08-05': -32047 });
+    expect(r.opening).toBeCloseTo(33564, 2);
+  });
+
+  it('ignores days at or before the anchor', () => {
+    const r = carriedOpening('2026-08-03', [closed1Aug], { '2026-08-01': -999 });
+    expect(r.opening).toBeCloseTo(33564, 2);
+  });
+
+  it('ignores days that are still open, however recent', () => {
+    // 3 Aug has a row with closing_balance 0 because it was never closed.
+    // Treating that as the anchor would carry a zero forward.
+    const open3Aug = { date: '2026-08-03', is_closed: false,
+                       closing_balance: 0, physical_cash: null };
+    const r = carriedOpening('2026-08-10', [closed1Aug, open3Aug], {});
+    expect(r.from).toBe('2026-08-01');
+    expect(r.opening).toBeCloseTo(33564, 2);
+  });
+
+  it('falls back to the computed close when a day was closed without a count', () => {
+    const noCount = { date: '2026-06-26', is_closed: true,
+                      closing_balance: 48477.45, physical_cash: null };
+    const r = carriedOpening('2026-06-27', [noCount], {});
+    expect(r.opening).toBeCloseTo(48477.45, 2);
+    expect(r.counted).toBe(false);
+  });
+
+  it('returns null when nothing has ever been closed', () => {
+    // Better to keep the old behaviour than invent a position from nothing.
+    expect(carriedOpening('2026-08-10', [], {})).toBeNull();
+    expect(carriedOpening('2026-08-10', [{ date: '2026-08-01', is_closed: false }], {})).toBeNull();
+  });
+
+  it('returns null on a bad date rather than guessing', () => {
+    expect(carriedOpening('', [closed1Aug], {})).toBeNull();
   });
 });

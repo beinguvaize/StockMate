@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { receivedOnDay } from '../lib/dayBook';
+import { receivedOnDay, carriedOpening } from '../lib/dayBook';
 import { useDialogClose } from '../hooks/useDialogClose';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -122,6 +122,8 @@ const DayBook = () => {
     // the table → business-wide, shown in every store view (like collections).
     const daySupPays    = (supplierPayments || []).filter(p => p.date === selectedDate);
 
+    const isCashM = (m) => (m || 'CASH').toUpperCase() === 'CASH';
+
     // ── Receipts ─────────────────────────────────────────────────────────────
     const paidOf = (s) => Number(s.paidAmount ?? s.paid_amount) || 0;
     // Amount actually collected for a sale.
@@ -179,9 +181,31 @@ const DayBook = () => {
     const totalPayments  = cashOut + bankPurchPaid + bankSupPay + bankExpenses; // full display total
 
     // ── Balances ─────────────────────────────────────────────────────────────
+    // ── Net cash movement per day ────────────────────────────────────────────
+    // Needed to carry a balance across days nobody opened. Same rules as the
+    // selected-day figures above: only what touches the physical drawer.
+    const netByDay = {};
+    const bump = (d, v) => { const k = String(d || '').slice(0, 10); if (k) netByDay[k] = (netByDay[k] || 0) + v; };
+    (sales || []).filter(storeMatch).forEach(s => {
+      const m = (s.paymentMethod || '').toUpperCase();
+      if (m === 'CASH' || m === 'CREDIT') bump(s.date, recv(s));
+    });
+    (clientPayments || []).filter(p => isCashM(p.payment_method)).forEach(p => bump(p.date, Number(p.amount) || 0));
+    (expenses || []).filter(storeMatch).filter(e => isCashM(e.payment_method)).forEach(e => bump(e.date, -(Number(e.amount) || 0)));
+    (purchases || []).filter(p => (p.payment_type || 'CASH').toUpperCase() === 'CASH')
+      .forEach(p => bump(p.date, -(Number(p.total_amount) || 0)));
+    (supplierPayments || []).filter(p => isCashM(p.payment_method))
+      .forEach(p => bump(p.date, -(Number(p.amount) || 0)));
+
     const record      = getDayBookForDate(selectedDate, storeFilter);
     const prevRecord  = getPrevDayBook(selectedDate, storeFilter);
-    const openingBal  = Number(record?.opening_balance) || 0;
+    // A day nobody opened used to begin at ZERO, so its whole cash position was
+    // wrong. Only 2 of 14 days in August had a row, while twelve moved cash.
+    // Carry from the last COUNTED day and replay everything since.
+    const carried     = record?.id ? null : carriedOpening(selectedDate, dayBook || [], netByDay);
+    const openingBal  = record?.id
+      ? (Number(record.opening_balance) || 0)
+      : (carried ? carried.opening : 0);
     // Closing = cash only (bank receipts/payments don't move the cash drawer)
     const closingBal  = openingBal + cashIn - cashOut;
     const isLocked          = !!record?.is_closed;
@@ -264,7 +288,7 @@ const DayBook = () => {
     });
 
     return {
-      openingBal, closingBal, isLocked, closedAt, hasOpening,
+      openingBal, closingBal, isLocked, closedAt, hasOpening, carried,
       savedPhysicalCash, savedVariance,
       cashSales, bankSales, creditSales,
       cashCollect, bankCollect,
@@ -808,6 +832,24 @@ const DayBook = () => {
               </div>
             ) : hasPermission('finance', 'edit') ? (
               <div className="space-y-2">
+                {/* A carried figure must never read as a counted one: only 1 Aug
+                    has a physical count behind it on this tenant, and a variance
+                    measured against a derived number would be meaningless. */}
+                {ledger.carried && !ledger.hasOpening && (
+                  <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-amber-700">
+                      Carried forward
+                    </div>
+                    <div className="text-[11px] font-semibold text-amber-900 mt-0.5">
+                      {cy}{fmt(ledger.openingBal)} — from the {ledger.carried.counted ? 'count' : 'closing'} on{' '}
+                      {displayDate(ledger.carried.from)}, plus every day since.
+                    </div>
+                    <div className="text-[10px] text-amber-800 mt-0.5">
+                      Nobody opened this day. Enter the counted amount to make it a real opening.
+                    </div>
+                  </div>
+                )}
+
                 {/* Carry forward button */}
                 {ledger.prevClosing !== null && !ledger.hasOpening && (
                   <button onClick={handleUseYesterdayClosing} disabled={isSaving}

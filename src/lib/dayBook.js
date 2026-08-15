@@ -61,3 +61,51 @@ export function receivedOnDay(s = {}) {
 export function receivableOnDay(s = {}) {
   return Math.max(0, num(s.totalAmount) - receivedOnDay(s));
 }
+
+/**
+ * The cash a day starts with, when nobody opened it.
+ *
+ * `openingBal` was `Number(record?.opening_balance) || 0`, so a day with no
+ * day_book row began at ZERO. Opening a day is a manual act, and on the live
+ * tenant only 2 of the 14 days in August had a row at all — while twelve of
+ * them moved cash, including ₹30,000 to suppliers on the 5th and ₹35,685 on the
+ * 10th. Every one of those days showed a cash position starting from nothing.
+ *
+ * The previous closing was already known to the page and merely OFFERED as a
+ * suggestion to accept by hand, which is the same manual act again.
+ *
+ * So: carry forward from the last day that was actually CLOSED and counted, then
+ * replay the net cash movement of every day since. Not "yesterday's closing" —
+ * on this data most days have no row, and an open day stores a closing of 0
+ * until it is closed, so inheriting that would carry a zero forward.
+ *
+ * Returns `null` when no closed day exists at all; the caller keeps the old
+ * behaviour rather than inventing a position out of nothing.
+ */
+export function carriedOpening(selectedDate, dayBookRows = [], netByDay = {}) {
+  const target = day(selectedDate);
+  if (!target) return null;
+
+  // The most recent CLOSED day strictly before the one being viewed. A counted
+  // day is the only thing worth trusting as a starting point.
+  const anchor = (dayBookRows || [])
+    .filter(r => r && r.is_closed && day(r.date) && day(r.date) < target)
+    .sort((a, b) => (day(a.date) < day(b.date) ? 1 : -1))[0];
+
+  if (!anchor) return null;
+
+  const from = day(anchor.date);
+  // What was actually counted that night, falling back to the computed close.
+  const start = anchor.physical_cash != null
+    ? num(anchor.physical_cash)
+    : num(anchor.closing_balance);
+
+  // Replay every day AFTER the anchor and BEFORE the target.
+  let bal = start;
+  Object.keys(netByDay || {})
+    .filter(d => d > from && d < target)
+    .sort()
+    .forEach(d => { bal += num(netByDay[d]); });
+
+  return { opening: bal, from, counted: anchor.physical_cash != null };
+}
