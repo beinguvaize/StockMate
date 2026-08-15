@@ -37,8 +37,12 @@ export function useDayBookData(tenantId, selectedDate) {
   // day_book records — small table, fetched in full for opening/closing lookups.
   const fetchDayBookRecords = useCallback(async () => {
     if (!tenantId) return;
+    // day_book has a deleted_at and neither read honoured it, so a deleted day
+    // stayed in the ledger and went on supplying its opening balance — the
+    // delete looked like it worked and changed nothing.
     const { data } = await supabase
       .from('day_book').select('*').eq('tenant_id', tenantId)
+      .is('deleted_at', null)
       .order('date', { ascending: false }).limit(90);
     setDayBook(data || []);
   }, [tenantId]);

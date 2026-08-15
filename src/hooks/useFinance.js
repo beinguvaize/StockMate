@@ -33,7 +33,7 @@ export const useFinance = (tenantId) => {
         ),
         readCacheThenRevalidate(
           'day_book',
-          () => supabase.from('day_book').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(60),
+          () => supabase.from('day_book').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('date', { ascending: false }).limit(60),
           (rows) => setDayBook(normalizeNumericRows(rows, DAYBOOK_NUMERIC)),
         ),
         readCacheThenRevalidate(
