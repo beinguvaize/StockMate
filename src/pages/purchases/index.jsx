@@ -17,6 +17,7 @@ import { buildVoucherModel } from './lib/voucher';
 import { voucherHtml } from './lib/voucherHtml';
 import PurchaseForm from './components/PurchaseForm';
 import BillEditForm from './components/BillEditForm';
+import BillPaymentsModal from './components/BillPaymentsModal';
 import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
 
@@ -24,7 +25,7 @@ const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { purchases, purchaseReturns, suppliers, add: addPurchase, editPurchase, editPurchaseBill, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, suppliers, add: addPurchase, editPurchase, editPurchaseBill, supplierPayments, editSupplierPayment, deleteSupplierPayment, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
   const { accounts: payAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
   const { products, inventoryLocations, loading: prodLoading, updateProduct, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
@@ -35,6 +36,7 @@ const PurchasesPage = () => {
   const [editBillTarget, setEditBillTarget] = useState(null); // whole bill being edited
   const [menuBill, setMenuBill] = useState(null);       // bill whose header menu is open
   const [billSaving, setBillSaving] = useState(false);
+  const [paymentsTarget, setPaymentsTarget] = useState(null); // bill whose payments are open
   const [editLoading, setEditLoading] = useState(false);
   const [returnTarget, setReturnTarget] = useState(null); // purchase being returned
   const [returnLoading, setReturnLoading] = useState(false);
@@ -1009,6 +1011,10 @@ const PurchasesPage = () => {
               className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-blue-600">
               <Pencil size={13} /> Edit whole bill
             </button>
+            <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setPaymentsTarget(b); }}
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground">
+              <Banknote size={13} /> Payments
+            </button>
             <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setPrintTarget(b); }}
               className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground">
               <Printer size={13} /> Voucher
@@ -1050,6 +1056,22 @@ const PurchasesPage = () => {
                 addNotification('Could not save the bill: ' + (e?.message || e) + ' — nothing was changed.', 'error');
               } finally { setBillSaving(false); }
             }}
+          />
+        )}
+      </Modal>
+
+      {/* Part payments against this bill.
+          Correcting one was only possible from the Supplier Ledger, which is
+          not where someone looking at a bill marked "still due" is standing. */}
+      <Modal isOpen={!!paymentsTarget} onClose={() => setPaymentsTarget(null)}
+        title="Payments" subtitle="Part payments recorded against this bill">
+        {paymentsTarget && (
+          <BillPaymentsModal
+            bill={paymentsTarget}
+            payments={supplierPayments}
+            onClose={() => setPaymentsTarget(null)}
+            onEdit={(id, amount) => editSupplierPayment(id, { amount })}
+            onDelete={(id) => deleteSupplierPayment(id)}
           />
         )}
       </Modal>
