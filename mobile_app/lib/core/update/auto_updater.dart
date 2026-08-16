@@ -39,11 +39,16 @@ class AutoUpdater {
   /// app start.
   ///
   /// We don't use /releases/latest because the repo publishes both desktop
-  /// (`desktop-v*`) and mobile (`mobile-v*`) releases. /latest returns
+  /// (`v*` — not `desktop-v*`, despite what this comment said until Aug 2026)
+  /// and mobile (`mobile-v*`) releases. /latest returns
   /// whichever tag was pushed most recently, so a desktop drop would make
   /// the mobile auto-updater pick a release that has only a .dmg asset and
   /// surface "being prepared" forever. Instead we list recent releases and
   /// pick the newest one whose tag matches our platform prefix.
+  ///
+  /// The version is taken FROM THE TAG, which is why this cannot simply follow
+  /// `v*`: desktop and mobile version independently, so a `v1.6.16` release
+  /// would read as a downgrade against an installed 1.7.8.
   Future<_ReleaseInfo?> _fetchLatest() async {
     final res = await http
         .get(Uri.parse('https://api.github.com/repos/$_githubRepo/releases?per_page=20'),
