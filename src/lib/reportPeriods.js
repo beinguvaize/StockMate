@@ -23,6 +23,25 @@ export const iso = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /**
+ * First and last day of the calendar month containing `d`, as 'YYYY-MM-DD'.
+ *
+ * The plan-limit code built this window inline as
+ * `new Date(y, m, 1).toISOString().split('T')[0]`, which is the second trap
+ * named above: east of UTC, local midnight on the 1st is 18:30 on the last day
+ * of the PREVIOUS month, so in IST the window ran 31 Jul – 30 Aug for August.
+ * The invoice cap then counted the previous month's last day and missed the
+ * current month's, blocking a tenant on the 1st and letting one past the cap
+ * on the 31st.
+ */
+export function monthBounds(d = new Date()) {
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  // Day 0 of the next month is the last day of this one, which is also what
+  // keeps February and the 30-day months right without a table of lengths.
+  return { from: iso(new Date(y, m, 1)), to: iso(new Date(y, m + 1, 0)) };
+}
+
+/**
  * Parse 'YYYY-MM-DD' as a LOCAL date, so it round-trips through `iso`.
  *
  * Malformed input returns an Invalid Date rather than a plausible-looking one.

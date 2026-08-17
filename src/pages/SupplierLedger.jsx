@@ -24,7 +24,7 @@ const SupplierLedger = () => {
   const [offsetting, setOffsetting] = useState(null);   // return id in flight
   const [offsetMsg, setOffsetMsg]   = useState(null);
   const { products, loading: invLoading } = useInventory(currentTenantId);
-  const { accounts: ledgerAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
+  const { accounts: ledgerAccounts = [] } = useAccounts(currentTenantId);
   // The Cash/Bank posting is NOT done here any more.
   // trg_supplier_payments_post_ledger writes it from the payment row itself, so
   // every path that records a payment posts exactly once. This is kept as a

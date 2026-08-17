@@ -5,6 +5,7 @@ import { readCacheThenRevalidate, queueMutation, isOfflineError, decrementCached
 import { generateRef, todayISOInAppTZ } from '../lib/utils';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { getPlanLimits } from '../lib/tenancy';
+import { monthBounds } from '../lib/reportPeriods';
 
 // Postgres `numeric` -> JS string over the wire. Coerce on fetch so downstream
 // `reduce(sum + x, 0)` doesn't string-concat and `.toFixed` doesn't throw.
@@ -65,7 +66,7 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
           (fresh) => setInvoices(fresh.map(r => normalizeRow(r, NUMERIC_INVOICE_COLS))),
         ),
         readCacheThenRevalidate('sales_returns',
-          () => supabase.from('sales_returns').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          () => supabase.from('sales_returns').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
           (fresh) => setSalesReturns(fresh),
         ),
       ]);
@@ -404,8 +405,7 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
       const { maxInvoices } = getPlanLimits(plan);
       if (maxInvoices !== -1) {
         const now = new Date();
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-        const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        const { from: monthStart, to: monthEnd } = monthBounds(now);
         const { count } = await supabase
           .from('sales')
           .select('id', { count: 'exact', head: true }).is('deleted_at', null)

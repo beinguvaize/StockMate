@@ -18,6 +18,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getPlanLimits, PLANS } from '../lib/tenancy';
+import { monthBounds } from '../lib/reportPeriods';
 import { useTenant } from '../context/TenantContext';
 
 export const usePlanLimits = () => {
@@ -34,8 +35,7 @@ export const usePlanLimits = () => {
     if (!currentTenantId) { setLoading(false); return; }
 
     const now    = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const { from: monthStart, to: monthEnd } = monthBounds(now);
 
     const [
       { count: inv },

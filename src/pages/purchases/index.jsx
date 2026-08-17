@@ -23,10 +23,11 @@ import PurchaseReturnForm from './components/PurchaseReturnForm';
 
 const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
+  // Kept for editPurchaseBill, which resolves the account for a part payment.
+  const { accounts: payAccounts = [] } = useAccounts(currentTenantId);
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
   const { purchases, purchaseReturns, suppliers, add: addPurchase, editPurchaseBill, supplierPayments, editSupplierPayment, deleteSupplierPayment, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
-  const { accounts: payAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
   const { products, inventoryLocations, loading: prodLoading, updateProduct, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
@@ -375,17 +376,12 @@ const PurchasesPage = () => {
         });
       }
     }
-    // Money out → post the paid total to the default Cash/Bank account
-    // (skip credit purchases; non-blocking).
-    const payAcc = accountForMethod(payAccounts, header.payment_type);
-    if (failed === 0 && payAcc && !_credit(header.payment_type)) {
-      const total = items.reduce((s, it) => s + (Number(it.total_amount) || 0), 0);
-      if (total > 0) {
-        try {
-          await addAccountTxn({ account_id: payAcc, direction: 'OUT', amount: total, mode: header.payment_type, ref_type: 'PURCHASE', note: `Purchase · ${supplierName}` });
-        } catch { /* ledger non-blocking */ }
-      }
-    }
+    // The money-OUT for a non-credit purchase is posted by the database, in
+    // trg_purchases_post_ledger. It used to be posted from here, and that had
+    // three holes: the try/catch swallowed a failed post, editing a bill later
+    // never moved the cash with it, and only this one screen did it at all.
+    // Posting from here as well would now double the money out — the same
+    // mistake the supplier-payment trigger already caused once.
     setAddLoading(false);
     if (failed > 0) alert(`${failed} item(s) failed to save.${firstError ? `\n\nReason: ${firstError}` : ''}`);
     else setShowAddModal(false);

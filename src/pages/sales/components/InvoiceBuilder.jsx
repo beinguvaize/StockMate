@@ -106,7 +106,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [paymentAccountId, setPaymentAccountId] = useState(null); // specific account from dynamic button
 
   // Cash & Bank accounts — money received at checkout posts to one of these.
-  const { accounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
+  const { accounts = [] } = useAccounts(currentTenantId);
   const payMethods = useMemo(() => buildPaymentMethods(accounts), [accounts]);
   // Type-based payment groups — one pill per type, sub-selector for multiple accounts.
   const typeGroups = useMemo(() => {

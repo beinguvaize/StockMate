@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { iso, parseISO, priorRange, shiftMonths, compareRange, shortDate } from './reportPeriods';
+import { iso, parseISO, priorRange, shiftMonths, compareRange, shortDate, monthBounds } from './reportPeriods';
 
 /**
  * These caught two real defects before they shipped, both invisible on the
@@ -96,5 +96,36 @@ describe('shortDate', () => {
 
   it('returns bad input unchanged rather than printing NaN', () => {
     expect(shortDate('')).toBe('');
+  });
+});
+
+describe('monthBounds', () => {
+  // The bug: east of UTC, toISOString() on local midnight returns the previous
+  // day, so August's window ran 31 Jul – 30 Aug. These assert local components
+  // only, which is what makes the result timezone-independent.
+  it('spans the whole calendar month', () => {
+    expect(monthBounds(new Date(2026, 7, 17))).toEqual({ from: '2026-08-01', to: '2026-08-31' });
+  });
+
+  it('is right on the first and last day of the month, where the bug showed', () => {
+    expect(monthBounds(new Date(2026, 7, 1))).toEqual({ from: '2026-08-01', to: '2026-08-31' });
+    expect(monthBounds(new Date(2026, 7, 31))).toEqual({ from: '2026-08-01', to: '2026-08-31' });
+  });
+
+  it('gets the short months right without a lengths table', () => {
+    expect(monthBounds(new Date(2026, 3, 10)).to).toBe('2026-04-30');
+    expect(monthBounds(new Date(2026, 1, 10)).to).toBe('2026-02-28');
+    expect(monthBounds(new Date(2024, 1, 10)).to).toBe('2024-02-29'); // leap year
+  });
+
+  it('does not spill into the neighbouring year in December or January', () => {
+    expect(monthBounds(new Date(2026, 11, 25))).toEqual({ from: '2026-12-01', to: '2026-12-31' });
+    expect(monthBounds(new Date(2026, 0, 1))).toEqual({ from: '2026-01-01', to: '2026-01-31' });
+  });
+
+  it('round-trips through parseISO, so the window is usable as a filter', () => {
+    const { from, to } = monthBounds(new Date(2026, 7, 17));
+    expect(iso(parseISO(from))).toBe(from);
+    expect(iso(parseISO(to))).toBe(to);
   });
 });
