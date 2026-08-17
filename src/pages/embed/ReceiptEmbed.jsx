@@ -14,49 +14,8 @@ import React, { useEffect, useState } from 'react';
 import html2canvas from 'html2canvas-pro';
 import { useParams, useSearchParams } from 'react-router-dom';
 import POSReceipt from '../../components/invoice/POSReceipt';
+import { saleToInvoice } from '../../lib/saleToInvoice';
 import { supabase } from '../../lib/supabase';
-
-const saleToInvoice = (sale) => {
-  const items = (sale.items || []).map(i => {
-    const qty  = parseFloat(i.quantity || i.qty || 1);
-    const rate = parseFloat(i.price || i.sellingPrice || i.rate || 0);
-    const taxRate = parseFloat(i.taxRate ?? 0);
-    const taxAmount = qty * rate * taxRate / 100;
-    return {
-      name:     i.name || i.productName || 'Item',
-      sku:      i.sku || '',
-      hsn_code: i.hsn_code || i.hsn || '---',
-      qty, rate, taxRate, taxAmount,
-      unit:  i.unit || 'PCS',
-      total: qty * rate + taxAmount,
-    };
-  });
-  const taxableAmt = items.reduce((s, i) => s + i.qty * i.rate, 0);
-  const totalTax   = items.reduce((s, i) => s + i.taxAmount, 0);
-  const grandTotal = parseFloat(sale.totalAmount || taxableAmt + totalTax);
-  return {
-    id:             sale.id,
-    invoice_number: sale.id?.split('-').pop() || sale.id,
-    invoice_date:   sale.date,
-    items,
-    taxable_amount: taxableAmt,
-    tax_total:      totalTax,
-    cgst_amount:    totalTax / 2,
-    sgst_amount:    totalTax / 2,
-    grand_total:    grandTotal,
-    paid_amount:    parseFloat(sale.paidAmount || 0),
-    // Actual cash handed over (may exceed the bill). Without this the receipt
-    // couldn't print the "Cash received / Extra paid to account" lines even
-    // though the value was stored on the sale.
-    amount_received: sale.amount_received != null ? parseFloat(sale.amount_received) : null,
-    client_id:       sale.shopId || null,
-    // Pass the real status through. Collapsing everything non-PAID to
-    // UNPAID hid VOIDED, so a voided sale's receipt still printed
-    // "PAYMENT DUE" + a scan-to-pay QR for money that's been cancelled.
-    payment_status: (sale.paymentStatus || 'UNPAID').toUpperCase(),
-    round_off:      0,
-  };
-};
 
 const ReceiptEmbed = () => {
   const { saleId } = useParams();
