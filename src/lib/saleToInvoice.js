@@ -28,9 +28,10 @@ function mapItems(sale) {
     const qty = parseFloat(i.quantity ?? i.qty ?? 1);
     const rate = num(i.price ?? i.sellingPrice ?? i.rate);
     const taxRate = num(i.taxRate);
-    // NOTE: treats rate as tax-exclusive. POSReceipt recomputes taxable and tax
-    // itself from the business's tax_mode and uses grand_total for the total,
-    // so these two fields are advisory; the slip's arithmetic is its own.
+    // Tax-EXCLUSIVE arithmetic, and POS prices are GST-inclusive — so this is
+    // only safe because POSReceipt never reads it. It recomputes taxable and
+    // tax itself from the business's tax_mode. Kept solely to feed the
+    // grand_total fallback below, for a sale with no stored total.
     const taxAmount = (qty * rate * taxRate) / 100;
     return {
       name: i.name || i.productName || 'Item',
@@ -60,12 +61,12 @@ export function saleToInvoice(sale) {
     // receipt can only say which day.
     created_at: sale.created_at || null,
     items,
-    taxable_amount: taxableAmt,
-    tax_total: totalTax,
-    cgst_amount: totalTax / 2,
-    sgst_amount: totalTax / 2,
-    igst_amount: 0,
-    is_interstate: false,
+    // taxable_amount / tax_total / cgst / sgst / igst / is_interstate used to be
+    // emitted here and were read by NOTHING: POSReceipt derives all of them from
+    // the items and the business's tax_mode. Worse, they were computed
+    // tax-exclusively against GST-inclusive POS prices, so they overstated tax
+    // by 18% — wrong numbers waiting for a future caller to trust them. A field
+    // nobody reads cannot be verified, so it is better absent than plausible.
     grand_total: grandTotal,
     paid_amount: num(sale.paidAmount),
     // Cash actually handed over, which may exceed the bill. Without it the
