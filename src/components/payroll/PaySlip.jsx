@@ -18,8 +18,13 @@ import { formatDate } from '../../lib/utils';
  * so there is one way this app puts ink on paper.
  *
  * A5 rather than 80mm: this is filed and signed, not torn off a till roll.
+ *
+ * Takes an ARRAY of items so one slip and a whole run's worth go through the
+ * same path -- a single slip is a batch of one. A second "print them all"
+ * component would be the same document rendered twice, and the two would
+ * drift the way the sale-to-invoice mappers did.
  */
-const PaySlip = ({ run, item, employee, business, onClose }) => {
+const PaySlip = ({ run, items = [], employees = [], business, onClose }) => {
   useEffect(() => {
     const style = document.createElement('style');
     style.id = 'payslip-print-css';
@@ -39,10 +44,18 @@ const PaySlip = ({ run, item, employee, business, onClose }) => {
           padding: 0 !important; margin: 0 !important; height: auto !important;
         }
         #payslip-portal .print-hidden { display: none !important; }
-        #payslip-sheet {
+        .payslip-sheet {
           width: auto !important; max-width: none !important;
           box-shadow: none !important; border: 0 !important;
           margin: 0 !important; border-radius: 0 !important;
+          /* One slip per sheet of paper. Two people's wages on one page is
+             not something either of them can be handed. */
+          break-after: page; page-break-after: always;
+          break-inside: avoid; page-break-inside: avoid;
+        }
+        /* ...but no trailing blank page after the last one. */
+        .payslip-sheet:last-of-type {
+          break-after: auto; page-break-after: auto;
         }
       }
     `;
@@ -50,9 +63,19 @@ const PaySlip = ({ run, item, employee, business, onClose }) => {
     return () => { const el = document.getElementById('payslip-print-css'); if (el) el.remove(); };
   }, []);
 
-  const slip = buildPayslip({ run, item, employee, business });
-  if (!slip) return null;
+  const list = Array.isArray(items) ? items : [items];
+  const slips = list
+    .map(it => ({
+      key: it?.employeeId || it?.employeeName,
+      slip: buildPayslip({
+        run, item: it, business,
+        employee: employees.find(e => e.id === it?.employeeId),
+      }),
+    }))
+    .filter(x => x.slip);
+  if (slips.length === 0) return null;
 
+  const nilCount = slips.filter(x => x.slip.isNil).length;
   const cy = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
   return createPortal(
@@ -63,11 +86,22 @@ const PaySlip = ({ run, item, employee, business, onClose }) => {
       <div className="w-full max-w-[460px]">
         {/* Controls never reach the paper */}
         <div className="print-hidden flex items-center justify-end gap-2 mb-3">
+          {/* Say how many pages this will use before it uses them, and say
+              how many are nil -- a nil slip is a real record, but nobody
+              should discover they printed three of them afterwards. */}
+          <span className="mr-auto text-[11px] font-semibold text-white/90">
+            {slips.length === 1
+              ? slips[0].slip.employeeName
+              : `${slips.length} slips · ${slips.length} page${slips.length === 1 ? '' : 's'}`}
+            {nilCount > 0 && slips.length > 1 && (
+              <span className="font-normal text-white/70"> · {nilCount} nil</span>
+            )}
+          </span>
           <button
             onClick={() => window.print()}
             className="btn-signature !h-9 !px-4 !text-xs flex items-center gap-1.5"
           >
-            <Printer size={13} /> Print
+            <Printer size={13} /> Print{slips.length > 1 ? ` all ${slips.length}` : ''}
           </button>
           <button
             onClick={onClose}
@@ -78,7 +112,8 @@ const PaySlip = ({ run, item, employee, business, onClose }) => {
           </button>
         </div>
 
-        <div id="payslip-sheet" className="bg-white rounded-xl p-7 text-ink-primary">
+        {slips.map(({ key, slip }) => (
+        <div key={key} className="payslip-sheet bg-white rounded-xl p-7 text-ink-primary mb-5 last:mb-0">
           {/* Header */}
           <div className="text-center border-b border-black/15 pb-3">
             <div className="text-[15px] font-bold uppercase tracking-wide">{slip.business.name}</div>
@@ -165,6 +200,7 @@ const PaySlip = ({ run, item, employee, business, onClose }) => {
             Computer-generated salary slip.
           </div>
         </div>
+        ))}
       </div>
     </div>,
     document.body

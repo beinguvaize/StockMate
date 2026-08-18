@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Receipt, ChevronDown, Banknote, Trash2, Calendar, Users, FileText } from 'lucide-react';
+import { Receipt, ChevronDown, Banknote, Trash2, Calendar, Users, FileText, Printer } from 'lucide-react';
 import PaySlip from './PaySlip';
 
 const formatPeriod = (period) => {
@@ -147,6 +147,16 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                   <div className="bg-white rounded-xl border border-black/5 overflow-hidden">
                     <div className="px-4 py-2.5 border-b border-black/5 flex items-center justify-between">
                       <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Staff breakdown</span>
+                      <div className="flex items-center gap-1">
+                      {/* Every slip for this run, one page each. */}
+                      <button
+                        onClick={e => { e.stopPropagation(); setSlipTarget({ run: record, items: record.items || [] }); }}
+                        title={`Print all ${(record.items || []).length} slips for this run`}
+                        disabled={(record.items || []).length === 0}
+                        className="h-6 px-2 rounded flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-ink-primary hover:bg-canvas transition-colors disabled:opacity-40"
+                      >
+                        <Printer size={11} /> Print all
+                      </button>
                       <button
                         className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors disabled:opacity-40"
                         title="Delete this run and reverse its salary expenses"
@@ -155,6 +165,7 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                       >
                         <Trash2 size={12} />
                       </button>
+                      </div>
                     </div>
                     <table className="w-full text-left">
                       <thead>
@@ -181,7 +192,7 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                             <td className="px-4 py-3 text-right">
                               {/* One employee's slip, from what this run froze. */}
                               <button
-                                onClick={e => { e.stopPropagation(); setSlipTarget({ run: record, item }); }}
+                                onClick={e => { e.stopPropagation(); setSlipTarget({ run: record, items: [item] }); }}
                                 title={`Salary slip for ${item.employeeName}`}
                                 className="w-7 h-7 rounded-lg border border-black/10 inline-flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:bg-canvas transition-colors"
                               >
@@ -203,8 +214,8 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
       {slipTarget && (
         <PaySlip
           run={slipTarget.run}
-          item={slipTarget.item}
-          employee={employees.find(e => e.id === slipTarget.item.employeeId)}
+          items={slipTarget.items}
+          employees={employees}
           business={business}
           onClose={() => setSlipTarget(null)}
         />

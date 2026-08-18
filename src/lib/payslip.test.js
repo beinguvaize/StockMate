@@ -111,3 +111,41 @@ describe('buildPayslip', () => {
     expect(buildPayslip({})).toBeNull();
   });
 });
+
+describe('a whole run of slips', () => {
+  // "Print all" maps the run's items through the same buildPayslip. These
+  // assert the batch behaves, using the real 17 Aug run: two paid, one nil.
+  const items = [
+    akbar,
+    { ...akbar, employeeId: 'b2', employeeName: 'Nadirsha', department: 'Delivery' },
+    { ...akbar, employeeId: 'b3', employeeName: 'Parthipan', department: 'Warehouse',
+      dailyRate: 0, daysWorked: 0, basePay: 0, netPay: 0 },
+  ];
+
+  it('builds one slip per employee, in run order', () => {
+    const slips = items.map(item => buildPayslip({ run, item }));
+    expect(slips.map(s => s.employeeName)).toEqual(['Akbar', 'Nadirsha', 'Parthipan']);
+  });
+
+  it('keeps the nil employee as a slip rather than dropping them', () => {
+    // Dropping them would make the printed stack disagree with the run, and
+    // a nil slip is itself the record that nothing was owed.
+    const slips = items.map(item => buildPayslip({ run, item }));
+    expect(slips).toHaveLength(3);
+    expect(slips.filter(s => s.isNil)).toHaveLength(1);
+  });
+
+  it('slips sum to the run total', () => {
+    // The stack handed out must equal what the run says it paid.
+    const total = items
+      .map(item => buildPayslip({ run, item }).netPay)
+      .reduce((a, b) => a + b, 0);
+    expect(total).toBe(1800);
+  });
+
+  it('gives every slip the same period and reference', () => {
+    const slips = items.map(item => buildPayslip({ run, item }));
+    expect(new Set(slips.map(s => s.period)).size).toBe(1);
+    expect(new Set(slips.map(s => s.reference)).size).toBe(1);
+  });
+});
