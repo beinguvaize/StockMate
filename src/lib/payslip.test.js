@@ -1,0 +1,113 @@
+import { describe, it, expect } from 'vitest';
+import { buildPayslip, amountInWords } from './payslip';
+
+/**
+ * A payslip is handed to a person as the record of their wage, so a wrong
+ * figure on it is a wrong figure in someone's hand. These use the real shape
+ * of `payroll.items` as stored by processPayroll.
+ */
+
+const run = {
+  id: '186379e2-515c-40c8-b0f6-a0afca4e2e5f',
+  period: '2026-08-17/2026-08-17',
+  processed_at: '2026-08-17T11:55:00Z',
+};
+
+const akbar = {
+  employeeId: 'f221935c-738d-4130-b2b9-7975ba3ca301',
+  employeeName: 'Akbar', department: 'Management', payType: 'DAILY',
+  dailyRate: 900, daysWorked: 1, hoursWorked: 160,
+  basePay: 900, overtime: 0, commission: 0, bonus: 0, deductions: 0, netPay: 900,
+};
+
+describe('amountInWords', () => {
+  it('uses Indian numbering, not millions', () => {
+    expect(amountInWords(125000)).toBe('One Lakh Twenty Five Thousand Rupees Only');
+    expect(amountInWords(10000000)).toBe('One Crore Rupees Only');
+  });
+
+  it('handles the figures this shop actually pays', () => {
+    expect(amountInWords(900)).toBe('Nine Hundred Rupees Only');
+    expect(amountInWords(1800)).toBe('One Thousand Eight Hundred Rupees Only');
+    expect(amountInWords(25777)).toBe('Twenty Five Thousand Seven Hundred Seventy Seven Rupees Only');
+  });
+
+  it('says zero rather than an empty string', () => {
+    // An empty words line next to a 0 figure reads as a printing fault.
+    expect(amountInWords(0)).toBe('Zero Rupees Only');
+  });
+
+  it('does not invent paise', () => {
+    expect(amountInWords(900.75)).toBe('Nine Hundred Rupees Only');
+  });
+});
+
+describe('buildPayslip', () => {
+  it('prints the run as it was frozen, not as recomputed today', () => {
+    const s = buildPayslip({ run, item: akbar });
+    expect(s.netPay).toBe(900);
+    expect(s.grossEarnings).toBe(900);
+    expect(s.netPayInWords).toBe('Nine Hundred Rupees Only');
+    expect(s.period).toBe('17 Aug');
+  });
+
+  it('shows the arithmetic behind a daily wage', () => {
+    // "1 day x 900" is checkable by the person holding the slip; "900" is not.
+    const s = buildPayslip({ run, item: akbar });
+    expect(s.earnings[0].note).toBe('1 day × ₹900');
+    expect(buildPayslip({ run, item: { ...akbar, daysWorked: 3, basePay: 2700 } })
+      .earnings[0].note).toBe('3 days × ₹900');
+  });
+
+  it('omits earnings lines that are zero', () => {
+    // A slip listing Overtime 0, Commission 0, Bonus 0 buries the one real line.
+    const s = buildPayslip({ run, item: akbar });
+    expect(s.earnings.map(e => e.label)).toEqual(['Basic pay']);
+  });
+
+  it('keeps the extras that are non-zero, and nets deductions off', () => {
+    const s = buildPayslip({ run, item: { ...akbar, overtime: 200, bonus: 100, deductions: 50 } });
+    expect(s.earnings.map(e => e.label)).toEqual(['Basic pay', 'Overtime', 'Bonus']);
+    expect(s.grossEarnings).toBe(1200);
+    expect(s.netPay).toBe(1150);
+  });
+
+  it('never prints hoursWorked, which is the constant 160 on every run', () => {
+    const s = buildPayslip({ run, item: akbar });
+    expect(JSON.stringify(s)).not.toContain('160');
+  });
+
+  it('marks a nil slip and says why, instead of looking like a payment', () => {
+    // Parthipan: marked days but no rate. This is a real stored row.
+    const noRate = { ...akbar, employeeName: 'Parthipan', dailyRate: 0, daysWorked: 2,
+                     basePay: 0, netPay: 0 };
+    const s = buildPayslip({ run, item: noRate });
+    expect(s.isNil).toBe(true);
+    expect(s.nilReason).toMatch(/no daily rate/i);
+
+    const noDays = { ...akbar, dailyRate: 900, daysWorked: 0, basePay: 0, netPay: 0 };
+    expect(buildPayslip({ run, item: noDays }).nilReason).toMatch(/no days/i);
+  });
+
+  it('surfaces a stored net that disagrees with its own lines', () => {
+    // The paper must not silently show one of two conflicting figures.
+    const bad = { ...akbar, netPay: 5000 };
+    const s = buildPayslip({ run, item: bad });
+    expect(s.netPay).toBe(900);
+    expect(s.discrepancy).toBe(5000);
+  });
+
+  it('is quiet when the stored net agrees', () => {
+    expect(buildPayslip({ run, item: akbar }).discrepancy).toBeNull();
+  });
+
+  it('renders a whole-month period as a month, not a range', () => {
+    expect(buildPayslip({ run: { ...run, period: '2026-08' }, item: akbar }).period)
+      .toBe('August 2026');
+  });
+
+  it('returns null rather than a blank slip when there is nothing to print', () => {
+    expect(buildPayslip({ run, item: null })).toBeNull();
+    expect(buildPayslip({})).toBeNull();
+  });
+});

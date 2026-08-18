@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Receipt, ChevronDown, Banknote, Trash2, Calendar, Users } from 'lucide-react';
+import { Receipt, ChevronDown, Banknote, Trash2, Calendar, Users, FileText } from 'lucide-react';
+import PaySlip from './PaySlip';
 
 const formatPeriod = (period) => {
   if (!period) return '—';
@@ -17,8 +18,12 @@ const periodType = (period) => {
   return period.includes('/') ? 'Weekly' : 'Monthly';
 };
 
-const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollRecord }) => {
+const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollRecord,
+                     employees = [], business }) => {
   const [expandedRecord, setExpandedRecord] = useState(null);
+  // The slip to print: one employee of one run. Held here rather than in the
+  // row so closing it does not collapse the run underneath.
+  const [slipTarget, setSlipTarget] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [deleteError, setDeleteError] = useState('');
   const sym = currencySymbol || '₹';
@@ -159,6 +164,7 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                           <th className="px-4 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase">Extras</th>
                           <th className="px-4 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase">Deductions</th>
                           <th className="px-4 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase">Net Pay</th>
+                          <th className="px-4 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase">Slip</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-black/5">
@@ -172,6 +178,16 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                             <td className="px-4 py-3 text-right text-xs font-semibold text-emerald-600 tabular-nums">+{sym}{Math.round((item.overtime || 0) + (item.commission || 0) + (item.bonus || 0)).toLocaleString('en-IN')}</td>
                             <td className="px-4 py-3 text-right text-xs font-semibold text-red-500 tabular-nums">-{sym}{Math.round(item.deductions || 0).toLocaleString('en-IN')}</td>
                             <td className="px-4 py-3 text-right text-sm font-bold text-ink-primary tabular-nums">{sym}{Math.round(item.netPay || 0).toLocaleString('en-IN')}</td>
+                            <td className="px-4 py-3 text-right">
+                              {/* One employee's slip, from what this run froze. */}
+                              <button
+                                onClick={e => { e.stopPropagation(); setSlipTarget({ run: record, item }); }}
+                                title={`Salary slip for ${item.employeeName}`}
+                                className="w-7 h-7 rounded-lg border border-black/10 inline-flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:bg-canvas transition-colors"
+                              >
+                                <FileText size={12} />
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -183,6 +199,16 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
           );
         })}
       </div>
+
+      {slipTarget && (
+        <PaySlip
+          run={slipTarget.run}
+          item={slipTarget.item}
+          employee={employees.find(e => e.id === slipTarget.item.employeeId)}
+          business={business}
+          onClose={() => setSlipTarget(null)}
+        />
+      )}
     </div>
   );
 };

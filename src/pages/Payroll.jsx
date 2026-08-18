@@ -684,6 +684,8 @@ const Payroll = () => {
       currencySymbol={businessProfile?.currencySymbol || ''}
       openPayRun={openPayRun}
       deletePayrollRecord={deletePayrollRecord}
+      employees={employees}
+      business={businessProfile}
     />
   )}
 
