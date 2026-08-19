@@ -78,7 +78,10 @@ export const usePayroll = (tenantId) => {
         // account -- that lives on the salary EXPENSE the run creates, keyed by
         // payroll_id. The slip needs it to say where the money went.
         fetchWithCache('payroll_expenses', () =>
-          supabase.from('expenses').select('payroll_id, payment_method')
+          // tenant_id and deleted_at are selected because fetchWithCache
+          // re-applies these filters to the CACHED rows -- omitting them
+          // discards every row on the offline path.
+          supabase.from('expenses').select('payroll_id, payment_method, tenant_id, deleted_at')
             .is('deleted_at', null).not('payroll_id', 'is', null)
             .eq('tenant_id', tenantId).limit(1000)),
       ]);
