@@ -197,3 +197,44 @@ describe('salaried slips', () => {
     expect(buildPayslip({ run, item: akbar }).earnings[0].label).toBe('Basic pay');
   });
 });
+
+describe('month to date on a daily slip', () => {
+  const AK = 'f221935c-738d-4130-b2b9-7975ba3ca301';
+  const records = [
+    { id: 'r1', period: '2026-08-01/2026-08-08', processed_at: '2026-08-08T11:55:00Z',
+      items: [{ ...akbar, basePay: 3600, netPay: 3600, daysWorked: 4 }] },
+    { id: 'r2', period: '2026-08-10/2026-08-10', processed_at: '2026-08-11T09:00:00Z',
+      items: [akbar] },
+    { id: 'r3', period: '2026-08-13/2026-08-13', processed_at: '2026-08-15T09:00:00Z',
+      items: [akbar] },
+    { id: 'r4', period: '2026-08-15/2026-08-15', processed_at: '2026-08-15T09:00:00Z',
+      items: [akbar] },
+    { id: 'r5', period: '2026-08-17/2026-08-17', processed_at: '2026-08-17T10:00:00Z',
+      items: [akbar] },
+  ];
+
+  it('carries the real August running total', () => {
+    const s = buildPayslip({ run: records[4], item: akbar, records });
+    expect(s.monthToDate.priorAmount).toBe(6300);
+    expect(s.monthToDate.totalAmount).toBe(7200);
+    expect(s.monthToDate.totalDays).toBe(8);
+  });
+
+  it('the slip net is this run only, never the month total', () => {
+    // The figure handed over today must not become the month's running sum.
+    const s = buildPayslip({ run: records[4], item: akbar, records });
+    expect(s.netPay).toBe(900);
+    expect(s.monthToDate.thisAmount).toBe(900);
+  });
+
+  it('is absent when the run history was not supplied', () => {
+    // Printing a month total of zero would be a lie; absent is honest.
+    expect(buildPayslip({ run: records[4], item: akbar }).monthToDate).toBeNull();
+  });
+
+  it('is not computed for salaried staff', () => {
+    // They are paid once for the month; a running total would restate the net.
+    const salaried = { ...akbar, payType: 'MONTHLY', salary: 31000, lopDays: 0, lopAmount: 0 };
+    expect(buildPayslip({ run: records[4], item: salaried, records }).monthToDate).toBeNull();
+  });
+});

@@ -17,7 +17,7 @@
  *    the paper.
  */
 
-import { describePeriod } from './payrollPeriods';
+import { describePeriod, monthToDate } from './payrollPeriods';
 
 const num = (v) => {
   const n = Number(v);
@@ -65,7 +65,7 @@ export function amountInWords(value) {
  * of its items array, `employee` the optional employees row for contact detail
  * the run did not freeze.
  */
-export function buildPayslip({ run, item, employee, business } = {}) {
+export function buildPayslip({ run, item, employee, business, records } = {}) {
   if (!run || !item) return null;
 
   const basePay    = num(item.basePay);
@@ -127,6 +127,12 @@ export function buildPayslip({ run, item, employee, business } = {}) {
     reference: run.id ? String(run.id).split('-')[0].toUpperCase() : null,
 
     earnings,
+    // The month around this slip. Daily wages are paid in many small runs, so
+    // a slip for one day is nearly meaningless alone -- the worker wants to see
+    // what the month has come to. Only computed for daily wages: a salaried
+    // employee is paid once for the month, so a running total would just
+    // restate the net.
+    monthToDate: isDaily && records ? monthToDate({ run, records, employeeId: item.employeeId }) : null,
     // Present only for salaried staff, and only when pay was actually lost.
     lossOfPay: !isDaily && lopAmt > 0
       ? { days: lopDays, amount: lopAmt, salary, periodDays: num(item.periodDays) }

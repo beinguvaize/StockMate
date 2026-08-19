@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid,
-  runsPaidInMonth, paidByEmployeeInMonth,
-} from './payrollPeriods';
+import { parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid, runsPaidInMonth, paidByEmployeeInMonth, monthToDate } from './payrollPeriods';
 
 /**
  * The defect these pin: the same window could be paid twice. FUTURE DISPO's
@@ -186,5 +183,84 @@ describe('describePeriod', () => {
 
   it('returns unreadable input unchanged rather than printing NaN', () => {
     expect(describePeriod('whenever')).toBe('whenever');
+  });
+});
+
+describe('monthToDate', () => {
+  /**
+   * The real August 2026 runs for FUTURE DISPO, verbatim. Daily wages are paid
+   * in many small runs here, so a one-day slip needs the month around it.
+   * Note the TWO runs processed on 15 Aug — the case a date-only sort breaks.
+   */
+  const AK = 'akbar';
+  const runs = [
+    { id: 'r1', period: '2026-08-01/2026-08-08', processed_at: '2026-08-08T11:55:00Z',
+      items: [{ employeeId: AK, netPay: 3600, daysWorked: 4 }] },
+    { id: 'r2', period: '2026-08-10/2026-08-10', processed_at: '2026-08-11T09:00:00Z',
+      items: [{ employeeId: AK, netPay: 900, daysWorked: 1 }] },
+    { id: 'r3', period: '2026-08-13/2026-08-13', processed_at: '2026-08-15T09:00:00Z',
+      items: [{ employeeId: AK, netPay: 900, daysWorked: 1 }] },
+    { id: 'r4', period: '2026-08-15/2026-08-15', processed_at: '2026-08-15T09:00:00Z',
+      items: [{ employeeId: AK, netPay: 900, daysWorked: 1 }] },
+    { id: 'r5', period: '2026-08-17/2026-08-17', processed_at: '2026-08-17T10:00:00Z',
+      items: [{ employeeId: AK, netPay: 900, daysWorked: 1 }] },
+  ];
+  const byId = (id) => runs.find(r => r.id === id);
+
+  it('gives the real month-to-date on the last slip of the month', () => {
+    const m = monthToDate({ run: byId('r5'), records: runs, employeeId: AK });
+    expect(m.priorAmount).toBe(6300);   // 3600 + 900 + 900 + 900
+    expect(m.thisAmount).toBe(900);
+    expect(m.totalAmount).toBe(7200);
+    expect(m.totalDays).toBe(8);
+    expect(m.priorRuns).toBe(4);
+  });
+
+  it('shows nothing prior on the first run of the month', () => {
+    const m = monthToDate({ run: byId('r1'), records: runs, employeeId: AK });
+    expect(m.priorAmount).toBe(0);
+    expect(m.priorRuns).toBe(0);
+    expect(m.thisAmount).toBe(3600);
+    expect(m.totalAmount).toBe(3600);
+  });
+
+  it('separates two runs processed on the SAME day by id', () => {
+    // r3 and r4 both processed 15 Aug. Each must see the other correctly:
+    // r3 (earlier id) has r1+r2 before it; r4 has r1+r2+r3.
+    expect(monthToDate({ run: byId('r3'), records: runs, employeeId: AK }).priorAmount).toBe(4500);
+    expect(monthToDate({ run: byId('r4'), records: runs, employeeId: AK }).priorAmount).toBe(5400);
+  });
+
+  it('never counts the run itself as prior', () => {
+    for (const r of runs) {
+      const m = monthToDate({ run: r, records: runs, employeeId: AK });
+      expect(m.priorAmount + m.thisAmount).toBe(m.totalAmount);
+      expect(m.totalAmount).toBeLessThanOrEqual(7200);
+    }
+  });
+
+  it('ignores other employees', () => {
+    const mixed = runs.map(r => ({ ...r,
+      items: [...r.items, { employeeId: 'other', netPay: 5000, daysWorked: 3 }] }));
+    expect(monthToDate({ run: byId('r5'), records: mixed, employeeId: AK }).totalAmount).toBe(7200);
+  });
+
+  it('does not reach into a neighbouring month', () => {
+    const withJuly = [...runs,
+      { id: 'j1', period: '2026-07-28/2026-07-31', processed_at: '2026-07-31T10:00:00Z',
+        items: [{ employeeId: AK, netPay: 2700, daysWorked: 3 }] }];
+    expect(monthToDate({ run: byId('r5'), records: withJuly, employeeId: AK }).totalAmount).toBe(7200);
+  });
+
+  it('counts a nil employee as zero without crediting a run', () => {
+    const nil = runs.map(r => ({ ...r, items: [{ employeeId: 'p', netPay: 0, daysWorked: 0 }] }));
+    const m = monthToDate({ run: byId('r5'), records: nil, employeeId: 'p' });
+    expect(m.totalAmount).toBe(0);
+    expect(m.priorRuns).toBe(0);   // a zero item is not a payment
+  });
+
+  it('returns null rather than guessing when there is no run', () => {
+    expect(monthToDate({ run: null, records: runs, employeeId: AK })).toBeNull();
+    expect(monthToDate({ run: byId('r5'), records: runs, employeeId: null })).toBeNull();
   });
 });

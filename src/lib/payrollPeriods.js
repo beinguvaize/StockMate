@@ -146,3 +146,68 @@ export function monthIsPaid(year, month1to12, records = []) {
       return p && p.from <= target.from && p.to >= target.to;
     }) || null;
 }
+
+/**
+ * What this employee has been paid so far in the month this run belongs to,
+ * split into what came BEFORE this run and what this run itself pays.
+ *
+ * Daily wages here are paid in many small runs -- August alone holds five, of
+ * one to four days each -- so a slip for a single day is nearly meaningless on
+ * its own. "900" tells the worker nothing; "900 today, 6,300 already this
+ * month, 7,200 for 8 days so far" is the thing they actually want to check.
+ *
+ * "Before" is decided on (processed_at, id), not processed_at alone: two runs
+ * were processed on 15 Aug 2026, and a date-only comparison would either count
+ * both as prior or neither, depending on sort stability. The id is the
+ * tie-break so a slip always agrees with itself.
+ *
+ * This is NOT `alreadyPaid` on the run item. That figure only exists to stop an
+ * OVERLAPPING window being paid twice, and it is null on every run here because
+ * the periods are disjoint. This is the month's running total, overlap or not.
+ */
+export function monthToDate({ run, records = [], employeeId } = {}) {
+  if (!run || !employeeId) return null;
+  const window = parsePeriod(run.period);
+  if (!window) return null;
+
+  // Runs are attributed to the month their period ENDS in, matching where
+  // processPayroll dates the salary expense.
+  const end = parseISO(window.to);
+  const year = end.getFullYear();
+  const month = end.getMonth() + 1;
+
+  const isBefore = (r) => {
+    const a = String(r.processed_at || '');
+    const b = String(run.processed_at || '');
+    if (a !== b) return a < b;
+    return String(r.id || '') < String(run.id || '');
+  };
+
+  const lineFor = (r) => (r.items || []).find(i => i.employeeId === employeeId);
+
+  let priorAmount = 0, priorDays = 0, priorRuns = 0;
+  let thisAmount = 0, thisDays = 0;
+
+  for (const r of runsPaidInMonth(year, month, records)) {
+    const item = lineFor(r);
+    if (!item) continue;
+    const net = Number(item.netPay || 0);
+    const days = Number(item.daysWorked || 0);
+
+    if (String(r.id) === String(run.id)) {
+      thisAmount = net; thisDays = days;
+    } else if (isBefore(r)) {
+      if (net > 0) priorRuns += 1;
+      priorAmount += net;
+      priorDays += days;
+    }
+  }
+
+  return {
+    month: `${year}-${String(month).padStart(2, '0')}`,
+    priorRuns, priorAmount, priorDays,
+    thisAmount, thisDays,
+    totalAmount: priorAmount + thisAmount,
+    totalDays: priorDays + thisDays,
+  };
+}
