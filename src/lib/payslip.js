@@ -87,14 +87,24 @@ export function buildPayslip({ run, item, employee, business } = {}) {
   const dailyRate  = num(item.dailyRate);
   const payType    = String(item.payType || '').toUpperCase();
 
+  // Salaried staff carry the workings of their loss of pay; daily staff carry
+  // the days-times-rate arithmetic. Either way the base figure on the slip has
+  // to be checkable by the person holding it -- a bare number is not.
+  const isDaily  = payType === 'DAILY' || payType === 'HOURLY';
+  const salary   = num(item.salary);
+  const lopDays  = num(item.lopDays);
+  const lopAmt   = num(item.lopAmount);
+
   const earnings = [
-    // A daily-wage base is only meaningful with the arithmetic beside it --
-    // "3 days x 900" is checkable by the person holding the slip; "2700" is not.
     {
-      label: 'Basic pay',
-      note: payType === 'DAILY' && dailyRate > 0
-        ? `${daysWorked} day${daysWorked === 1 ? '' : 's'} × ₹${dailyRate.toLocaleString('en-IN')}`
-        : null,
+      label: isDaily ? 'Basic pay' : 'Salary',
+      note: isDaily
+        ? (dailyRate > 0
+            ? `${daysWorked} day${daysWorked === 1 ? '' : 's'} × ₹${dailyRate.toLocaleString('en-IN')}`
+            : null)
+        : (lopAmt > 0
+            ? `₹${salary.toLocaleString('en-IN')} less ${lopDays} day${lopDays === 1 ? '' : 's'} absent`
+            : null),
       amount: basePay,
     },
     { label: 'Overtime',   note: null, amount: overtime },
@@ -117,6 +127,10 @@ export function buildPayslip({ run, item, employee, business } = {}) {
     reference: run.id ? String(run.id).split('-')[0].toUpperCase() : null,
 
     earnings,
+    // Present only for salaried staff, and only when pay was actually lost.
+    lossOfPay: !isDaily && lopAmt > 0
+      ? { days: lopDays, amount: lopAmt, salary, periodDays: num(item.periodDays) }
+      : null,
     grossEarnings,
     deductions,
     netPay,
@@ -128,8 +142,10 @@ export function buildPayslip({ run, item, employee, business } = {}) {
     // reading that a payment was made.
     isNil: netPay <= 0,
     nilReason: netPay > 0 ? null
-      : daysWorked <= 0 ? 'No days were marked for this period.'
-      : dailyRate <= 0  ? 'No daily rate is set for this employee, so the marked days are worth nothing.'
+      : !isDaily && lopAmt > 0 ? 'The whole period was marked absent, so the salary is fully lost.'
+      : !isDaily              ? 'No salary is set for this employee.'
+      : daysWorked <= 0       ? 'No days were marked for this period.'
+      : dailyRate <= 0        ? 'No daily rate is set for this employee, so the marked days are worth nothing.'
       : 'Nothing was payable for this period.',
 
     business: {

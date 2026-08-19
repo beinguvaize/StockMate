@@ -12,8 +12,20 @@ import PayrollHeader from '../components/payroll/PayrollHeader';
 import EmployeeTable from '../components/payroll/EmployeeTable';
 import PayHistory from '../components/payroll/PayHistory';
 import { todayISOInAppTZ } from '../lib/utils';
+import { monthlyBasePay } from '../lib/monthlyPay';
+import { iso } from '../lib/reportPeriods';
 
-const PAY_TYPES = ['MONTHLY', 'WEEKLY', 'DAILY', 'HOURLY'];
+// HOURLY is gone. It never computed by the hour -- openPayRun paid hourly staff
+// by the DAY off daily_rate, and hoursWorked was the constant 160 everywhere --
+// while updatePayRunItem re-read basePay as an hourly RATE and multiplied it by
+// those 160 hours, so editing any field on an hourly employee multiplied their
+// pay 160-fold and silently dropped deductions and alreadyPaid with it. Nobody
+// had ever created one, so nothing is migrated; a legacy row is treated as DAILY.
+const PAY_TYPES = ['MONTHLY', 'WEEKLY', 'DAILY'];
+
+// A legacy HOURLY row is paid as DAILY -- which is exactly what the old code
+// did before its own hourly branch corrupted the figure.
+const isDailyWage = (t) => ['DAILY', 'HOURLY'].includes(String(t || '').toUpperCase());
 const DEPARTMENTS = ['Operations', 'Sales', 'Warehouse', 'Delivery', 'Management', 'Admin'];
 
 const Payroll = () => {
@@ -101,11 +113,11 @@ const Payroll = () => {
   const padZ     = (n) => String(n).padStart(2, '0');
 
   const dailyWageEmps = useMemo(
-    () => employees.filter(e => e.status === 'ACTIVE' && ['DAILY', 'HOURLY'].includes(e.pay_type)),
+    () => employees.filter(e => e.status === 'ACTIVE' && isDailyWage(e.pay_type)),
     [employees]
   );
   const monthlyEmps = useMemo(
-    () => employees.filter(e => e.status === 'ACTIVE' && !['DAILY', 'HOURLY'].includes(e.pay_type)),
+    () => employees.filter(e => e.status === 'ACTIVE' && !isDailyWage(e.pay_type)),
     [employees]
   );
 
@@ -145,6 +157,11 @@ const Payroll = () => {
   // needs.
   const rangeEnd = payPeriodType === 'CUSTOM' ? customEnd : weekEnd;
   const isRangeRun = payPeriodType === 'WEEKLY' || payPeriodType === 'CUSTOM';
+  // The run's actual calendar window, in both shapes. Loss of pay is measured
+  // against this, so a week run docks a week's worth and a month run a month's.
+  const periodFrom = isRangeRun ? weekStart : `${payRunMonth}-01`;
+  const periodTo   = isRangeRun ? rangeEnd
+    : iso(new Date(parseInt(payRunMonth.split('-')[0]), parseInt(payRunMonth.split('-')[1]), 0));
   const rangeInvalid = payPeriodType === 'CUSTOM' && customEnd < weekStart;
 
   const computeDays = useCallback(
@@ -429,15 +446,23 @@ const Payroll = () => {
     // Weekly and custom both cost a date window; only the end date differs.
     const ranged = isRangeRun;
     return activeEmployees.map(emp => {
-      const isDW  = ['DAILY', 'HOURLY'].includes(emp.pay_type);
+      const isDW  = isDailyWage(emp.pay_type);
       const days  = isDW
         ? (ranged ? computeDaysForRange(emp.id, weekStart, rangeEnd) : computeDays(emp.id))
         : null;
+      // Salaried staff: full salary, less only the days someone actually marked
+      // absent. An unmarked day is paid -- see monthlyPay.js. Reading a blank
+      // grid as absence would pay a manager nothing.
+      const monthly = isDW ? null : monthlyBasePay({
+        salary: Number(emp.salary) || Number(emp.basePay) || 0,
+        from: periodFrom, to: periodTo,
+        days: attendance[emp.id],
+      });
       const base  = isDW
         ? Math.round(ranged
             ? computeWageForRange(emp.id, emp.daily_rate || 0, weekStart, rangeEnd)
             : computeWage(emp.id, emp.daily_rate || 0))
-        : (Number(emp.salary) || Number(emp.basePay) || 0);
+        : monthly.basePay;
       // What this employee has ALREADY been paid for a window overlapping this
       // one. The run used to offer the full earned wage regardless, so paying
       // 1-8 Aug and then running August handed over the first week twice. The
@@ -452,11 +477,16 @@ const Payroll = () => {
         daysWorked:   days,
         dailyRate:    emp.daily_rate || 0,
         basePay:      base,
+        // The workings behind a salaried figure. A slip showing only the net
+        // gives the employee nothing to check.
+        salary:       monthly ? monthly.salary : null,
+        lopDays:      monthly ? monthly.lopDays : null,
+        lopAmount:    monthly ? monthly.lopAmount : null,
+        periodDays:   monthly ? monthly.periodDays : null,
         // Carried on the item so it reaches the saved run: the record should say
         // what was earned AND what was outstanding when it was paid, not just a
         // net figure nobody can explain later.
         alreadyPaid:  already,
-        hoursWorked:  160,
         overtime:     0,
         commission:   0,
         bonus:        0,
@@ -489,16 +519,11 @@ const Payroll = () => {
   if (item.employeeId === empId) {
   const updated = { ...item, [field]: numVal};
   // Recalculate net
-  let net = updated.basePay;
-  if (updated.payType === 'HOURLY') {
-  // Simple hourly: assume basePay is hourly rate
-  const regularHours = Math.min(updated.hoursWorked, 160);
-  const otHours = Math.max(0, updated.hoursWorked - 160);
-  net = (regularHours * updated.basePay) + (otHours * updated.basePay * 1.5);
-  updated.overtime = Math.round(otHours * updated.basePay * 1.5);
-} else {
-  net = updated.basePay + updated.overtime + updated.commission + updated.bonus - updated.deductions - (updated.alreadyPaid || 0);
-}
+  // One formula for every pay type. The hourly branch that used to sit here
+  // multiplied basePay by a hardcoded 160 hours and dropped deductions and
+  // alreadyPaid on the floor; HOURLY no longer exists.
+  const net = updated.basePay + updated.overtime + updated.commission
+            + updated.bonus - updated.deductions - (updated.alreadyPaid || 0);
   return { ...updated, netPay: Math.round(net)};
 }
   return item;
@@ -1201,7 +1226,7 @@ const Payroll = () => {
             <button key={t} type="button"
               onClick={() => setEmpForm({...empForm, payType: t})}
               className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${empForm.payType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
-              {t === 'MONTHLY' ? 'Monthly' : t === 'DAILY' ? 'Daily' : t === 'HOURLY' ? 'Hourly' : 'Weekly'}
+              {t === 'MONTHLY' ? 'Monthly' : t === 'DAILY' ? 'Daily' : 'Weekly'}
             </button>
           ))}
         </div>
@@ -1428,10 +1453,14 @@ const Payroll = () => {
             <div className="text-[10px] text-muted-foreground font-medium mt-0.5">{item.department} · {item.payType}</div>
           </td>
           <td className="px-3 py-4 text-right">
-            {item.payType === 'DAILY' ? (
+            {isDailyWage(item.payType) ? (
               <span className="text-sm font-bold text-ink-primary tabular-nums">{item.daysWorked ?? 0}</span>
-            ) : item.payType === 'HOURLY' ? (
-              <input type="number" className={inputCls + ' !w-20'} value={item.hoursWorked} onChange={e => updatePayRunItem(item.employeeId, 'hoursWorked', e.target.value)} />
+            ) : item.lopDays > 0 ? (
+              /* A salaried employee's figure moved, so say why right here
+                 rather than leaving "Fixed" next to a reduced amount. */
+              <span className="text-xs font-semibold text-amber-700 tabular-nums" title={`${item.lopDays} day(s) marked absent`}>
+                −{item.lopDays}d LOP
+              </span>
             ) : (
               <span className="text-xs text-muted-foreground italic">Fixed</span>
             )}
@@ -1447,11 +1476,7 @@ const Payroll = () => {
             )}
           </td>
           <td className="px-3 py-4 text-right">
-            {item.payType === 'HOURLY' ? (
-              <span className="text-sm font-semibold text-ink-primary tabular-nums">{sym}{Math.round(item.overtime).toLocaleString('en-IN')}</span>
-            ) : (
-              <input type="number" className={inputCls + ' !w-28'} value={item.overtime} onChange={e => updatePayRunItem(item.employeeId, 'overtime', e.target.value)} />
-            )}
+            <input type="number" className={inputCls + ' !w-28'} value={item.overtime} onChange={e => updatePayRunItem(item.employeeId, 'overtime', e.target.value)} />
           </td>
           <td className="px-3 py-4 text-right">
             <input type="number" className={inputCls + ' !w-24 !text-emerald-600'} value={item.commission || 0} onChange={e => updatePayRunItem(item.employeeId, 'commission', e.target.value)} />

@@ -149,3 +149,51 @@ describe('a whole run of slips', () => {
     expect(new Set(slips.map(s => s.reference)).size).toBe(1);
   });
 });
+
+describe('salaried slips', () => {
+  const salaried = {
+    employeeId: 'm1', employeeName: 'Suresh', department: 'Management',
+    payType: 'MONTHLY', dailyRate: 0, daysWorked: null,
+    salary: 31000, periodDays: 31, lopDays: 2, lopAmount: 2000,
+    basePay: 29000, overtime: 0, commission: 0, bonus: 0, deductions: 0, netPay: 29000,
+  };
+  const monthRun = { ...run, period: '2026-08' };
+
+  it('labels the line Salary, not Basic pay', () => {
+    const s = buildPayslip({ run: monthRun, item: salaried });
+    expect(s.earnings[0].label).toBe('Salary');
+  });
+
+  it('shows what was lost, so a reduced salary is not unexplained', () => {
+    const s = buildPayslip({ run: monthRun, item: salaried });
+    expect(s.earnings[0].note).toBe('₹31,000 less 2 days absent');
+    expect(s.lossOfPay).toEqual({ days: 2, amount: 2000, salary: 31000, periodDays: 31 });
+    expect(s.netPay).toBe(29000);
+  });
+
+  it('says nothing about loss of pay when none was lost', () => {
+    // The common case: salaried staff are not on the attendance grid at all.
+    const clean = { ...salaried, lopDays: 0, lopAmount: 0, basePay: 31000, netPay: 31000 };
+    const s = buildPayslip({ run: monthRun, item: clean });
+    expect(s.lossOfPay).toBeNull();
+    expect(s.earnings[0].note).toBeNull();
+    expect(s.netPay).toBe(31000);
+  });
+
+  it('never prints a days × rate line for salaried staff', () => {
+    const s = buildPayslip({ run: monthRun, item: salaried });
+    expect(s.earnings[0].note).not.toMatch(/×\s*₹0/);
+    expect(s.earnings[0].note).not.toMatch(/day[s]? × /);
+  });
+
+  it('explains a fully-absent month rather than just showing zero', () => {
+    const gone = { ...salaried, lopDays: 31, lopAmount: 31000, basePay: 0, netPay: 0 };
+    const s = buildPayslip({ run: monthRun, item: gone });
+    expect(s.isNil).toBe(true);
+    expect(s.nilReason).toMatch(/fully lost/i);
+  });
+
+  it('still shows days × rate for daily staff', () => {
+    expect(buildPayslip({ run, item: akbar }).earnings[0].label).toBe('Basic pay');
+  });
+});
