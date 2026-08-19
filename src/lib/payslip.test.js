@@ -271,3 +271,41 @@ describe('already-paid netting', () => {
     expect(buildPayslip({ run, item: akbar }).deductionLines).toHaveLength(0);
   });
 });
+
+describe('deposit details', () => {
+  it('names how it was paid', () => {
+    const s = buildPayslip({ run, item: akbar, payment: { mode: 'CASH' } });
+    expect(s.deposit.modeLabel).toBe('Paid in cash');
+  });
+
+  it('does not name a company account for a cash payment', () => {
+    // "From Company Cash" adds nothing that "Paid in cash" has not said.
+    const s = buildPayslip({ run, item: akbar, payment: { mode: 'CASH', accountName: 'Company Cash' } });
+    expect(s.deposit.fromAccount).toBeNull();
+  });
+
+  it('does name the account for a bank or UPI payment', () => {
+    const s = buildPayslip({ run, item: akbar, payment: { mode: 'BANK', accountName: 'Company UBI' } });
+    expect(s.deposit.modeLabel).toBe('Paid by bank');
+    expect(s.deposit.fromAccount).toBe('Company UBI');
+  });
+
+  it('masks the employee account — a slip can be lost or photographed', () => {
+    const s = buildPayslip({ run, item: akbar, payment: { mode: 'BANK' },
+                             employee: { bank_account: '685201010050171' } });
+    expect(s.deposit.toAccount).toBe('•••• 0171');
+    expect(JSON.stringify(s)).not.toContain('685201010050171');
+  });
+
+  it('stays absent rather than guessing when nothing is recorded', () => {
+    // Every live run today records the method on its expense, but a slip that
+    // invented "Paid in cash" would be asserting something it does not know.
+    expect(buildPayslip({ run, item: akbar }).deposit).toBeNull();
+  });
+
+  it('still renders the deposit account when the mode is unknown', () => {
+    const s = buildPayslip({ run, item: akbar, employee: { bank_account: '1234567890' } });
+    expect(s.deposit.toAccount).toBe('•••• 7890');
+    expect(s.deposit.modeLabel).toBeNull();
+  });
+});

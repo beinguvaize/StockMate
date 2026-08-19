@@ -79,6 +79,10 @@ const SHEET = `
   .ps-mtd-big{font-weight:500;font-size:9.5px;}
   .ps-mtd-d{font-size:6px;color:var(--ps-ink2);}
   .ps-mtd-n{font-size:5.5px;color:var(--ps-ink3);margin-top:.4mm;line-height:1.3;}
+  .ps-plist{margin-top:.6mm;}
+  .ps-pln{display:flex;justify-content:space-between;gap:4px;font-size:6px;line-height:1.5;
+          color:var(--ps-ink2);}
+  .ps-mtd-tot{border-top:1px solid #dcdfe4;margin-top:.9mm;padding-top:.7mm;}
 
   /* nil */
   .ps-nil{grid-column:2 / span 2;display:flex;flex-direction:column;align-items:center;

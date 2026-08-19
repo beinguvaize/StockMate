@@ -19,7 +19,7 @@ const periodType = (period) => {
 };
 
 const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollRecord,
-                     employees = [], business }) => {
+                     employees = [], business, paymentMethods = {}, accounts = [] }) => {
   const [expandedRecord, setExpandedRecord] = useState(null);
   // The slip to print: one employee of one run. Held here rather than in the
   // row so closing it does not collapse the run underneath.
@@ -217,6 +217,8 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
           items={slipTarget.items}
           employees={employees}
           records={payrollRecords}
+          paymentMethods={paymentMethods}
+          accounts={accounts}
           business={business}
           onClose={() => setSlipTarget(null)}
         />

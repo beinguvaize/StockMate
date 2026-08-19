@@ -264,3 +264,51 @@ describe('monthToDate', () => {
     expect(monthToDate({ run: byId('r5'), records: runs, employeeId: null })).toBeNull();
   });
 });
+
+describe('monthToDate — the prior payments themselves', () => {
+  const AK = 'akbar';
+  const runs = [
+    { id: 'r1', period: '2026-08-01/2026-08-08', processed_at: '2026-08-08T11:55:00Z',
+      items: [{ employeeId: AK, netPay: 3600, daysWorked: 4 }] },
+    { id: 'r2', period: '2026-08-10/2026-08-10', processed_at: '2026-08-11T09:00:00Z',
+      items: [{ employeeId: AK, netPay: 900, daysWorked: 1 }] },
+    { id: 'r3', period: '2026-08-13/2026-08-13', processed_at: '2026-08-15T09:00:00Z',
+      items: [{ employeeId: AK, netPay: 900, daysWorked: 1 }] },
+    { id: 'r4', period: '2026-08-15/2026-08-15', processed_at: '2026-08-15T09:00:00Z',
+      items: [{ employeeId: AK, netPay: 900, daysWorked: 1 }] },
+    { id: 'r5', period: '2026-08-17/2026-08-17', processed_at: '2026-08-17T10:00:00Z',
+      items: [{ employeeId: AK, netPay: 900, daysWorked: 1 }] },
+  ];
+  const m = monthToDate({ run: runs[4], records: runs, employeeId: AK });
+
+  it('lists every earlier payment of the month', () => {
+    expect(m.payments).toHaveLength(4);
+    expect(m.payments.map(p => p.amount)).toEqual([3600, 900, 900, 900]);
+  });
+
+  it('labels each by the period worked, not the day it was keyed in', () => {
+    // Two of these were processed on 15 Aug; the period is what distinguishes
+    // them to the person reading the slip.
+    expect(m.payments.map(p => p.label)).toEqual(['1 Aug – 8 Aug', '10 Aug', '13 Aug', '15 Aug']);
+  });
+
+  it('reads oldest first, down the month', () => {
+    const dates = m.payments.map(p => p.paidOn);
+    expect([...dates].sort()).toEqual(dates);
+  });
+
+  it('the listed payments sum to priorAmount', () => {
+    // If the list and the total ever disagreed, the slip would contradict itself.
+    expect(m.payments.reduce((t, p) => t + p.amount, 0)).toBe(m.priorAmount);
+  });
+
+  it('omits nil runs from the list', () => {
+    const nil = runs.map(r => ({ ...r, items: [{ employeeId: 'p', netPay: 0, daysWorked: 0 }] }));
+    const z = monthToDate({ run: nil[4], records: nil, employeeId: 'p' });
+    expect(z.payments).toHaveLength(0);
+  });
+
+  it('is empty on the first run of the month', () => {
+    expect(monthToDate({ run: runs[0], records: runs, employeeId: AK }).payments).toHaveLength(0);
+  });
+});

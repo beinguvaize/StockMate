@@ -49,6 +49,7 @@ const toEmployeeRow = (emp) => ({
 export const usePayroll = (tenantId) => {
   const [employees, setEmployees] = useState([]);
   const [payrollRecords, setPayrollRecords] = useState([]);
+  const [payrollPaymentMethods, setPayrollPaymentMethods] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const initialLoadDone = useRef(false);
@@ -66,13 +67,20 @@ export const usePayroll = (tenantId) => {
       // ordered server-side.
       const mine = (rows) => (rows || []).filter(r => r && r.tenant_id === tenantId && !r.deleted_at);
 
-      const [empRes, payRes] = await Promise.all([
+      const [empRes, payRes, payExpRes] = await Promise.all([
         fetchWithCache('employees', () =>
           supabase.from('employees').select('*').is('deleted_at', null)
             .eq('tenant_id', tenantId).order('name')),
         fetchWithCache('payroll', () =>
           supabase.from('payroll').select('*').is('deleted_at', null)
             .eq('tenant_id', tenantId).order('created_at', { ascending: false })),
+        // How each run was actually paid. The payroll row records no method or
+        // account -- that lives on the salary EXPENSE the run creates, keyed by
+        // payroll_id. The slip needs it to say where the money went.
+        fetchWithCache('payroll_expenses', () =>
+          supabase.from('expenses').select('payroll_id, payment_method')
+            .is('deleted_at', null).not('payroll_id', 'is', null)
+            .eq('tenant_id', tenantId).limit(1000)),
       ]);
 
       const empData = mine(empRes.data)
@@ -82,6 +90,16 @@ export const usePayroll = (tenantId) => {
 
       setEmployees(normalizeNumericRows(empData, EMPLOYEE_NUMERIC));
       setPayrollRecords(payData.map(toPayrollRecord));
+
+      // payroll_id -> payment method. One method per run: every line of a run
+      // is paid the same way, so the first expense answers for all of them.
+      const methods = {};
+      for (const row of mine(payExpRes.data) || []) {
+        if (row.payroll_id && row.payment_method && !methods[row.payroll_id]) {
+          methods[row.payroll_id] = String(row.payment_method).toUpperCase();
+        }
+      }
+      setPayrollPaymentMethods(methods);
     } catch (err) {
       console.error("usePayroll Fetch Error:", err);
       setError(err.message);
@@ -341,6 +359,7 @@ export const usePayroll = (tenantId) => {
   return {
     employees,
     payrollRecords,
+    payrollPaymentMethods,
     loading,
     error,
     refetch: fetchPayrollData,

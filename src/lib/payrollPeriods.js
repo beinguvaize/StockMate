@@ -185,8 +185,9 @@ export function monthToDate({ run, records = [], employeeId } = {}) {
 
   const lineFor = (r) => (r.items || []).find(i => i.employeeId === employeeId);
 
-  let priorAmount = 0, priorDays = 0, priorRuns = 0;
+  let priorAmount = 0, priorDays = 0;
   let thisAmount = 0, thisDays = 0;
+  const payments = [];
 
   for (const r of runsPaidInMonth(year, month, records)) {
     const item = lineFor(r);
@@ -197,16 +198,32 @@ export function monthToDate({ run, records = [], employeeId } = {}) {
     if (String(r.id) === String(run.id)) {
       thisAmount = net; thisDays = days;
     } else if (isBefore(r)) {
-      if (net > 0) priorRuns += 1;
       priorAmount += net;
       priorDays += days;
+      // A zero line is not a payment and does not belong in a list of them.
+      if (net > 0) {
+        payments.push({
+          id: r.id,
+          period: r.period,
+          // What the money was FOR reads better on a slip than when it was
+          // keyed in -- two of these runs were processed on the same day.
+          label: describePeriod(r.period),
+          paidOn: r.processed_at || null,
+          amount: net,
+          days,
+        });
+      }
     }
   }
 
+  // Oldest first, so the list reads down the month.
+  payments.sort((a, b) => String(a.paidOn || '').localeCompare(String(b.paidOn || '')));
+
   return {
     month: `${year}-${String(month).padStart(2, '0')}`,
-    priorRuns, priorAmount, priorDays,
+    priorRuns: payments.length, priorAmount, priorDays,
     thisAmount, thisDays,
+    payments,
     totalAmount: priorAmount + thisAmount,
     totalDays: priorDays + thisDays,
   };

@@ -5,6 +5,7 @@ import { useTenant } from '../context/TenantContext';
 import { usePayroll } from '../hooks/usePayroll';
 import { findOverlapping, describePeriod, monthIsPaid, paidByEmployeeInMonth } from '../lib/payrollPeriods';
 import { usePeople } from '../hooks/usePeople';
+import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { DollarSign, Trash2, X, Check, CreditCard, UserPlus, Lock, Receipt, Link2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Sub-components
@@ -31,10 +32,12 @@ const DEPARTMENTS = ['Operations', 'Sales', 'Warehouse', 'Delivery', 'Management
 const Payroll = () => {
   const { hasPermission, hasRole } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
+  // Named so a bank or UPI payslip can say which account the money left.
+  const { accounts: payAccounts = [] } = useAccounts(currentTenantId);
   const { users } = usePeople(currentTenantId);
   const {
     employees, addEmployee, updateEmployee, deleteEmployee,
-    payrollRecords, processPayroll, deletePayrollRecord, resetEmployeesDailyData,
+    payrollRecords, payrollPaymentMethods, processPayroll, deletePayrollRecord, resetEmployeesDailyData,
     loadAttendance, saveAttendanceBatch,
     loading: payLoading
   } = usePayroll(currentTenantId);
@@ -711,6 +714,9 @@ const Payroll = () => {
       deletePayrollRecord={deletePayrollRecord}
       employees={employees}
       business={businessProfile}
+      records={payrollRecords}
+      paymentMethods={payrollPaymentMethods}
+      accounts={payAccounts}
     />
   )}
 

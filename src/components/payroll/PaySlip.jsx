@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Printer } from 'lucide-react';
 import { buildPayslip, money } from '../../lib/payslip';
+import { accountForMethod } from '../../hooks/useAccounts';
 import { formatDate } from '../../lib/utils';
 import { SLIP_CSS } from './paySlipStyles';
 
@@ -22,7 +23,8 @@ import { SLIP_CSS } from './paySlipStyles';
  * was paid, and the month around the slip: daily wages are paid in many small
  * runs here, so "900" alone tells the worker nothing.
  */
-const PaySlip = ({ run, items = [], employees = [], business, records = [], onClose }) => {
+const PaySlip = ({ run, items = [], employees = [], business, records = [],
+                   paymentMethods = {}, accounts = [], onClose }) => {
   useEffect(() => {
     const style = document.createElement('style');
     style.id = 'payslip-print-css';
@@ -31,12 +33,20 @@ const PaySlip = ({ run, items = [], employees = [], business, records = [], onCl
     return () => { const el = document.getElementById('payslip-print-css'); if (el) el.remove(); };
   }, []);
 
+  // How this run was paid. The payroll row records nothing about it -- the
+  // method lives on the salary expense the run created -- so it is resolved
+  // here and passed in rather than guessed at inside the mapper.
+  const mode = paymentMethods[run?.id] || null;
+  const payment = mode
+    ? { mode, accountName: accounts.find(a => a.id === accountForMethod(accounts, mode))?.name || null }
+    : null;
+
   const list = Array.isArray(items) ? items : [items];
   const slips = list
     .map(it => ({
       key: it?.employeeId || it?.employeeName,
       slip: buildPayslip({
-        run, item: it, business, records,
+        run, item: it, business, records, payment,
         employee: employees.find(e => e.id === it?.employeeId),
       }),
     }))
@@ -107,6 +117,9 @@ export const Slip = ({ s }) => (
           <dt>Paid on</dt><dd>{s.paidOn ? formatDate(s.paidOn) : '—'}</dd>
           {s.reference && <><dt>Reference</dt><dd className="ps-mono">{s.reference}</dd></>}
           {s.joinedOn && <><dt>Joined</dt><dd>{formatDate(s.joinedOn)}</dd></>}
+          {s.deposit?.modeLabel && <><dt>Paid by</dt><dd>{s.deposit.modeLabel.replace(/^Paid (in|by) /, '')}</dd></>}
+          {s.deposit?.fromAccount && <><dt>From</dt><dd>{s.deposit.fromAccount}</dd></>}
+          {s.deposit?.toAccount && <><dt>Deposited to</dt><dd className="ps-mono">{s.deposit.toAccount}</dd></>}
         </dl>
       </div>
 
@@ -136,16 +149,26 @@ export const Slip = ({ s }) => (
 
             {s.monthToDate && s.monthToDate.totalAmount > 0 && (
               <div className="ps-mtd">
-                <div className="ps-mtd-k">Month to date</div>
-                <div className="ps-mtd-row">
-                  <span className="ps-mtd-big">{money(s.monthToDate.totalAmount)}</span>
-                  <span className="ps-mtd-d">{s.monthToDate.totalDays} days</span>
-                </div>
-                {s.monthToDate.priorAmount > 0 && (
-                  <div className="ps-mtd-n">
-                    Incl. {money(s.monthToDate.priorAmount)} paid earlier
-                  </div>
+                {/* Every earlier payment of the month, not just their sum --
+                    the worker can tie each one to the days it covered. */}
+                {s.monthToDate.payments.length > 0 && (
+                  <>
+                    <div className="ps-mtd-k">Earlier this month</div>
+                    <div className="ps-plist">
+                      {s.monthToDate.payments.map(p => (
+                        <div className="ps-pln" key={p.id}>
+                          <span>{p.label}</span>
+                          <span className="ps-a">{money(p.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
+                <div className="ps-mtd-row ps-mtd-tot">
+                  <span className="ps-mtd-k">Month to date</span>
+                  <span className="ps-mtd-big">{money(s.monthToDate.totalAmount)}</span>
+                </div>
+                <div className="ps-mtd-n">{s.monthToDate.totalDays} days paid in {monthName(s.monthToDate.month)}</div>
               </div>
             )}
 
@@ -183,6 +206,13 @@ export const Slip = ({ s }) => (
     </div>
   </div>
 );
+
+/** '2026-08' -> 'August'. */
+const monthName = (ym) => {
+  const [y, m] = String(ym || '').split('-').map(Number);
+  if (!y || !m) return 'the month';
+  return new Date(y, m - 1, 1).toLocaleString('default', { month: 'long' });
+};
 
 const Fact = ({ k, v, mono }) => (
   <div className="ps-fact">

@@ -69,7 +69,7 @@ export function amountInWords(value) {
  * of its items array, `employee` the optional employees row for contact detail
  * the run did not freeze.
  */
-export function buildPayslip({ run, item, employee, business, records } = {}) {
+export function buildPayslip({ run, item, employee, business, records, payment } = {}) {
   if (!run || !item) return null;
 
   const basePay     = num(item.basePay);
@@ -147,6 +147,13 @@ export function buildPayslip({ run, item, employee, business, records } = {}) {
     paidOn: run.processed_at || null,
     reference: run.id ? String(run.id).split('-')[0].toUpperCase() : null,
 
+    // Where the money went. The pay run itself records none of this -- the
+    // method and the account live on the salary EXPENSE the run creates, which
+    // is why the caller resolves it and passes it in. Rendered only when known:
+    // a slip claiming a payment mode it is guessing at is worse than one that
+    // stays quiet about it.
+    deposit: buildDeposit(payment, employee),
+
     payBasis: isDaily
       ? (dailyRate > 0 ? `Daily · ${money(dailyRate)}` : 'Daily wage')
       : (salary > 0 ? `Monthly · ${money(salary)}` : 'Monthly salary'),
@@ -189,6 +196,37 @@ export function buildPayslip({ run, item, employee, business, records } = {}) {
       gstin: business?.gst_no || business?.gstin || null,
     },
   };
+}
+
+/**
+ * The deposit block. `payment` is { mode, accountName } for the run, resolved
+ * from the linked salary expense; `employee.bank_account` is the account the
+ * money was deposited INTO, when the employee record holds one.
+ */
+function buildDeposit(payment, employee) {
+  const mode = payment?.mode ? String(payment.mode).toUpperCase() : null;
+  const acct = String(employee?.bank_account || '').trim();
+  if (!mode && !acct) return null;
+
+  return {
+    mode,
+    // "Paid in cash" reads better than "Paid by CASH".
+    modeLabel: mode === 'CASH' ? 'Paid in cash'
+      : mode === 'UPI' ? 'Paid by UPI'
+      : mode ? `Paid by ${mode.toLowerCase()}` : null,
+    // The company account the money left. Only meaningful for a bank movement:
+    // naming a cash box adds nothing the mode has not already said.
+    fromAccount: mode && mode !== 'CASH' ? (payment?.accountName || null) : null,
+    // Never print a full account number on a document that leaves the office.
+    toAccount: acct ? maskAccount(acct) : null,
+  };
+}
+
+/** Last four digits only. A payslip can be lost, photographed or filed openly. */
+export function maskAccount(value) {
+  const digits = String(value || '').replace(/\s+/g, '');
+  if (!digits) return null;
+  return digits.length <= 4 ? digits : `•••• ${digits.slice(-4)}`;
 }
 
 export default buildPayslip;
