@@ -54,9 +54,9 @@ describe('buildPayslip', () => {
   it('shows the arithmetic behind a daily wage', () => {
     // "1 day x 900" is checkable by the person holding the slip; "900" is not.
     const s = buildPayslip({ run, item: akbar });
-    expect(s.earnings[0].note).toBe('1 day × ₹900');
+    expect(s.earnings[0].note).toBe('1 day × ₹900.00');
     expect(buildPayslip({ run, item: { ...akbar, daysWorked: 3, basePay: 2700 } })
-      .earnings[0].note).toBe('3 days × ₹900');
+      .earnings[0].note).toBe('3 days × ₹900.00');
   });
 
   it('omits earnings lines that are zero', () => {
@@ -164,26 +164,41 @@ describe('salaried slips', () => {
     expect(s.earnings[0].label).toBe('Salary');
   });
 
-  it('shows what was lost, so a reduced salary is not unexplained', () => {
+  it('keeps gross at the CONTRACT salary and puts the loss in deductions', () => {
+    // The employee's question is "my salary is 31,000, why is this 28,000?".
+    // Both figures must be on the page with the arithmetic between them.
     const s = buildPayslip({ run: monthRun, item: salaried });
-    expect(s.earnings[0].note).toBe('₹31,000 less 2 days absent');
-    expect(s.lossOfPay).toEqual({ days: 2, amount: 2000, salary: 31000, periodDays: 31 });
+    expect(s.earnings[0].amount).toBe(31000);
+    expect(s.grossEarnings).toBe(31000);
+    expect(s.deductionLines.map(l => l.label)).toContain('Loss of pay');
+    expect(s.deductionLines.find(l => l.label === 'Loss of pay').amount).toBe(2000);
     expect(s.netPay).toBe(29000);
   });
 
-  it('says nothing about loss of pay when none was lost', () => {
-    // The common case: salaried staff are not on the attendance grid at all.
+  it('shows the per-day rate the loss was charged at', () => {
+    const s = buildPayslip({ run: monthRun, item: salaried });
+    expect(s.deductionLines.find(l => l.label === 'Loss of pay').note)
+      .toBe('2 days absent × ₹1,000.00');
+  });
+
+  it('has no loss-of-pay line when none was lost', () => {
     const clean = { ...salaried, lopDays: 0, lopAmount: 0, basePay: 31000, netPay: 31000 };
     const s = buildPayslip({ run: monthRun, item: clean });
+    expect(s.deductionLines).toHaveLength(0);
     expect(s.lossOfPay).toBeNull();
-    expect(s.earnings[0].note).toBeNull();
+    expect(s.grossEarnings).toBe(31000);
     expect(s.netPay).toBe(31000);
   });
 
-  it('never prints a days × rate line for salaried staff', () => {
-    const s = buildPayslip({ run: monthRun, item: salaried });
-    expect(s.earnings[0].note).not.toMatch(/×\s*₹0/);
-    expect(s.earnings[0].note).not.toMatch(/day[s]? × /);
+  it('totals always reconcile: gross − deductions = net', () => {
+    // The invariant that makes the slip self-checking, whatever the lines are.
+    for (const item of [salaried,
+                        { ...salaried, overtime: 500, bonus: 250 },
+                        { ...salaried, lopDays: 0, lopAmount: 0 },
+                        akbar]) {
+      const s = buildPayslip({ run: monthRun, item });
+      expect(s.grossEarnings - s.deductions).toBe(s.netPay);
+    }
   });
 
   it('explains a fully-absent month rather than just showing zero', () => {
@@ -236,5 +251,23 @@ describe('month to date on a daily slip', () => {
     // They are paid once for the month; a running total would restate the net.
     const salaried = { ...akbar, payType: 'MONTHLY', salary: 31000, lopDays: 0, lopAmount: 0 };
     expect(buildPayslip({ run: records[4], item: salaried, records }).monthToDate).toBeNull();
+  });
+});
+
+describe('already-paid netting', () => {
+  it('appears as a deduction so the slip still reconciles', () => {
+    // The run nets prior payment off an overlapping window. If the slip did not
+    // show it, gross minus deductions would not reach the printed net.
+    const item = { ...akbar, basePay: 3600, daysWorked: 4, alreadyPaid: 900, netPay: 2700 };
+    const s = buildPayslip({ run, item });
+    expect(s.deductionLines.map(l => l.label)).toContain('Already paid this period');
+    expect(s.grossEarnings).toBe(3600);
+    expect(s.deductions).toBe(900);
+    expect(s.netPay).toBe(2700);
+    expect(s.discrepancy).toBeNull();
+  });
+
+  it('is absent when nothing was paid earlier for this window', () => {
+    expect(buildPayslip({ run, item: akbar }).deductionLines).toHaveLength(0);
   });
 });

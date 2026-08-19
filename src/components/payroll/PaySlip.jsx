@@ -1,64 +1,32 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Printer } from 'lucide-react';
-import { buildPayslip } from '../../lib/payslip';
+import { buildPayslip, money } from '../../lib/payslip';
 import { formatDate } from '../../lib/utils';
+import { SLIP_CSS } from './paySlipStyles';
 
 /**
- * A printable wage slip for one employee for one pay run.
+ * Printable wage slips: A5 landscape, two to an A4 sheet, cut across the middle.
  *
- * It computes nothing. `buildPayslip` turns the stored `payroll.items` entry
- * into the shape printed here, and it is tested; money arithmetic must not gain
- * a second implementation inside a component where nothing can call it. That is
- * how the receipt mapper came to carry tax figures nobody could verify.
+ * It computes nothing. `buildPayslip` turns a stored `payroll.items` entry into
+ * the shape printed here and is tested; money arithmetic must not gain a second
+ * implementation inside a component where nothing can call it. That is how the
+ * receipt mapper came to carry tax figures nobody could verify.
  *
- * The print CSS follows POSReceipt.jsx: a keyed <style> injected on mount and
- * removed on unmount, hiding every sibling of the portal so the page around it
- * (nav, tabs, the pay-run table) does not print. Reused rather than reinvented
- * so there is one way this app puts ink on paper.
+ * Takes an ARRAY of items so one slip and a whole run go through the same path
+ * -- a single slip is a batch of one. A second "print them all" component would
+ * be this same document written twice, and the two would drift the way the
+ * sale-to-invoice mappers did.
  *
- * A5 rather than 80mm: this is filed and signed, not torn off a till roll.
- *
- * Takes an ARRAY of items so one slip and a whole run's worth go through the
- * same path -- a single slip is a batch of one. A second "print them all"
- * component would be the same document rendered twice, and the two would
- * drift the way the sale-to-invoice mappers did.
+ * Layout is detail-left, summary-rail-right. The rail carries net pay, how it
+ * was paid, and the month around the slip: daily wages are paid in many small
+ * runs here, so "900" alone tells the worker nothing.
  */
-const PaySlip = ({ run, items = [], employees = [], business, onClose }) => {
+const PaySlip = ({ run, items = [], employees = [], business, records = [], onClose }) => {
   useEffect(() => {
     const style = document.createElement('style');
     style.id = 'payslip-print-css';
-    style.textContent = `
-      @media print {
-        @page { size: A5 portrait; margin: 10mm; }
-        html, body {
-          background: white !important;
-          margin: 0 !important; padding: 0 !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        body > *:not(#payslip-portal) { display: none !important; }
-        #payslip-portal {
-          position: static !important; background: white !important;
-          overflow: visible !important; display: block !important;
-          padding: 0 !important; margin: 0 !important; height: auto !important;
-        }
-        #payslip-portal .print-hidden { display: none !important; }
-        .payslip-sheet {
-          width: auto !important; max-width: none !important;
-          box-shadow: none !important; border: 0 !important;
-          margin: 0 !important; border-radius: 0 !important;
-          /* One slip per sheet of paper. Two people's wages on one page is
-             not something either of them can be handed. */
-          break-after: page; page-break-after: always;
-          break-inside: avoid; page-break-inside: avoid;
-        }
-        /* ...but no trailing blank page after the last one. */
-        .payslip-sheet:last-of-type {
-          break-after: auto; page-break-after: auto;
-        }
-      }
-    `;
+    style.textContent = SLIP_CSS.print;
     document.head.appendChild(style);
     return () => { const el = document.getElementById('payslip-print-css'); if (el) el.remove(); };
   }, []);
@@ -68,7 +36,7 @@ const PaySlip = ({ run, items = [], employees = [], business, onClose }) => {
     .map(it => ({
       key: it?.employeeId || it?.employeeName,
       slip: buildPayslip({
-        run, item: it, business,
+        run, item: it, business, records,
         employee: employees.find(e => e.id === it?.employeeId),
       }),
     }))
@@ -76,141 +44,169 @@ const PaySlip = ({ run, items = [], employees = [], business, onClose }) => {
   if (slips.length === 0) return null;
 
   const nilCount = slips.filter(x => x.slip.isNil).length;
-  const cy = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
   return createPortal(
-    <div
-      id="payslip-portal"
-      className="fixed inset-0 z-[200] bg-black/50 overflow-auto p-6 flex items-start justify-center"
-    >
-      <div className="w-full max-w-[460px]">
+    <div id="payslip-portal" className="fixed inset-0 z-[200] bg-black/55 overflow-auto p-6">
+      <style>{SLIP_CSS.screen}</style>
+
+      <div className="mx-auto" style={{ maxWidth: '210mm' }}>
         {/* Controls never reach the paper */}
-        <div className="print-hidden flex items-center justify-end gap-2 mb-3">
-          {/* Say how many pages this will use before it uses them, and say
-              how many are nil -- a nil slip is a real record, but nobody
-              should discover they printed three of them afterwards. */}
-          <span className="mr-auto text-[11px] font-semibold text-white/90">
+        <div className="print-hidden flex items-center gap-2 mb-3">
+          <span className="text-[11px] font-semibold text-white/90">
             {slips.length === 1
               ? slips[0].slip.employeeName
-              : `${slips.length} slips · ${slips.length} page${slips.length === 1 ? '' : 's'}`}
+              : `${slips.length} slips · ${Math.ceil(slips.length / 2)} A4 sheet${slips.length > 2 ? 's' : ''}`}
             {nilCount > 0 && slips.length > 1 && (
               <span className="font-normal text-white/70"> · {nilCount} nil</span>
             )}
           </span>
-          <button
-            onClick={() => window.print()}
-            className="btn-signature !h-9 !px-4 !text-xs flex items-center gap-1.5"
-          >
+          <button onClick={() => window.print()}
+            className="btn-signature !h-9 !px-4 !text-xs flex items-center gap-1.5 ml-auto">
             <Printer size={13} /> Print{slips.length > 1 ? ` all ${slips.length}` : ''}
           </button>
-          <button
-            onClick={onClose}
+          <button onClick={onClose}
             className="h-9 w-9 rounded-lg bg-white/90 flex items-center justify-center hover:bg-white"
-            aria-label="Close"
-          >
+            aria-label="Close">
             <X size={15} />
           </button>
         </div>
 
-        {slips.map(({ key, slip }) => (
-        <div key={key} className="payslip-sheet bg-white rounded-xl p-7 text-ink-primary mb-5 last:mb-0">
-          {/* Header */}
-          <div className="text-center border-b border-black/15 pb-3">
-            <div className="text-[15px] font-bold uppercase tracking-wide">{slip.business.name}</div>
-            {slip.business.address && (
-              <div className="text-[10px] text-muted-foreground mt-0.5">{slip.business.address}</div>
-            )}
-            <div className="text-[11px] font-semibold mt-2 tracking-[0.15em] uppercase">Salary Slip</div>
-          </div>
-
-          {/* Who and when */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-3 border-b border-black/10 text-[11px]">
-            <Field label="Employee" value={slip.employeeName} strong />
-            <Field label="Pay period" value={slip.period} strong />
-            {slip.department && <Field label="Department" value={slip.department} />}
-            <Field label="Paid on" value={slip.paidOn ? formatDate(slip.paidOn) : '—'} />
-            {slip.designation && <Field label="Designation" value={slip.designation} />}
-            {slip.reference && <Field label="Reference" value={slip.reference} />}
-          </div>
-
-          {slip.isNil ? (
-            /* A zero slip must read as one, not as an ordinary payment. */
-            <div className="py-6 text-center">
-              <div className="text-[13px] font-bold uppercase tracking-wide">Nil — nothing payable</div>
-              <div className="text-[11px] text-muted-foreground mt-1.5 px-4">{slip.nilReason}</div>
-            </div>
-          ) : (
-            <>
-              {/* Earnings */}
-              <table className="w-full text-[11px] my-3">
-                <thead>
-                  <tr className="border-b border-black/10">
-                    <th className="text-left py-1.5 font-semibold uppercase text-[9px] tracking-wider text-muted-foreground">Earnings</th>
-                    <th className="text-right py-1.5 font-semibold uppercase text-[9px] tracking-wider text-muted-foreground">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {slip.earnings.map(e => (
-                    <tr key={e.label}>
-                      <td className="py-1.5 align-top">
-                        {e.label}
-                        {e.note && <div className="text-[9.5px] text-muted-foreground">{e.note}</div>}
-                      </td>
-                      <td className="py-1.5 text-right tabular-nums align-top">{cy(e.amount)}</td>
-                    </tr>
-                  ))}
-                  <tr className="border-t border-black/10">
-                    <td className="py-1.5 font-semibold">Gross earnings</td>
-                    <td className="py-1.5 text-right tabular-nums font-semibold">{cy(slip.grossEarnings)}</td>
-                  </tr>
-                  {slip.deductions > 0 && (
-                    <tr>
-                      <td className="py-1.5">Less: deductions</td>
-                      <td className="py-1.5 text-right tabular-nums">− {cy(slip.deductions)}</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-
-              {/* Net */}
-              <div className="flex items-center justify-between border-t-2 border-black/70 border-b border-black/15 py-2.5">
-                <span className="text-[12px] font-bold uppercase tracking-wide">Net pay</span>
-                <span className="text-[17px] font-bold tabular-nums">{cy(slip.netPay)}</span>
-              </div>
-              <div className="text-[10px] italic text-muted-foreground pt-1.5">{slip.netPayInWords}</div>
-            </>
-          )}
-
-          {/* A slip whose own lines disagree with the stored total says so. */}
-          {slip.discrepancy != null && (
-            <div className="mt-3 border border-black/25 px-3 py-2 text-[10px]">
-              <b>Check this slip.</b> The lines above total {cy(slip.netPay)}, but the pay run
-              recorded {cy(slip.discrepancy)} for this employee.
-            </div>
-          )}
-
-          {/* Signatures */}
-          <div className="grid grid-cols-2 gap-8 pt-9 text-[10px]">
-            {['Employee signature', 'For ' + slip.business.name].map(l => (
-              <div key={l} className="border-t border-black/40 pt-1 text-center text-muted-foreground">{l}</div>
-            ))}
-          </div>
-
-          <div className="text-center text-[8.5px] text-muted-foreground pt-4">
-            Computer-generated salary slip.
-          </div>
-        </div>
-        ))}
+        {slips.map(({ key, slip }) => <Slip key={key} s={slip} />)}
       </div>
     </div>,
     document.body
   );
 };
 
-const Field = ({ label, value, strong }) => (
-  <div>
-    <div className="text-[8.5px] uppercase tracking-wider text-muted-foreground">{label}</div>
-    <div className={strong ? 'font-semibold' : ''}>{value}</div>
+/** One slip. Presentation only -- every figure arrives already computed. */
+export const Slip = ({ s }) => (
+  <div className="payslip-sheet">
+    {/* masthead */}
+    <div className="ps-mast">
+      <div>
+        <div className="ps-co">{s.business.name}</div>
+        <div className="ps-co-sub">
+          {s.business.address}
+          {s.business.gstin && <><br />GSTIN {s.business.gstin}</>}
+        </div>
+      </div>
+      <div className="ps-doc">
+        <div className="ps-doc-t">Salary Slip</div>
+        <div className="ps-doc-p">{s.period}</div>
+      </div>
+    </div>
+    <div className="ps-hr" />
+
+    {/* identity */}
+    <div className="ps-who">
+      <div>
+        <div className="ps-nm">{s.employeeName}</div>
+        <div className="ps-rl">
+          {[s.designation, s.department,
+            s.joinedOn ? `Since ${formatDate(s.joinedOn)}` : null]
+            .filter(Boolean).join(' · ')}
+        </div>
+      </div>
+      <div className="ps-facts">
+        <Fact k="Pay basis" v={s.payBasis} />
+        <Fact k="Paid on" v={s.paidOn ? formatDate(s.paidOn) : '—'} />
+        {s.reference && <Fact k="Reference" v={s.reference} mono />}
+      </div>
+    </div>
+
+    {s.isNil ? (
+      /* A zero slip must read as one, not as an ordinary payment. */
+      <div className="ps-nil">
+        <div className="ps-nil-h">Nil — nothing payable</div>
+        <p>{s.nilReason}</p>
+      </div>
+    ) : (
+      <div className="ps-body">
+        <div>
+          <Section title="Earnings" lines={s.earnings}
+                   total={['Gross earnings', s.grossEarnings]} />
+          <Section title="Deductions" lines={s.deductionLines}
+                   total={['Total deductions', s.deductions]} emptyLabel="None" />
+        </div>
+
+        <div className="ps-rail">
+          <div className="ps-net">
+            <div className="ps-net-k">Net pay</div>
+            <div className="ps-net-a">{money(s.netPay)}</div>
+            <div className="ps-net-w">{s.netPayInWords}</div>
+          </div>
+
+          {s.monthToDate && s.monthToDate.totalAmount > 0 && (
+            <div className="ps-mtd">
+              <div className="ps-mtd-k">Month to date</div>
+              <div className="ps-mtd-row">
+                <span className="ps-mtd-big">{money(s.monthToDate.totalAmount)}</span>
+                <span className="ps-mtd-d">{s.monthToDate.totalDays} days</span>
+              </div>
+              {s.monthToDate.priorAmount > 0 && (
+                <div className="ps-mtd-n">
+                  Including {money(s.monthToDate.priorAmount)} paid earlier this month
+                </div>
+              )}
+            </div>
+          )}
+
+          {s.attendance && (
+            <div className="ps-mtd">
+              <div className="ps-mtd-k">Attendance</div>
+              <div className="ps-mtd-row">
+                <span className="ps-mtd-big">{s.attendance.paidDays}</span>
+                <span className="ps-mtd-d">of {s.attendance.periodDays} days paid</span>
+              </div>
+              {s.attendance.lopDays > 0 && (
+                <div className="ps-mtd-n">{s.attendance.lopDays} days absent</div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* A slip whose own lines disagree with the stored total says so. */}
+    {s.discrepancy != null && (
+      <div className="ps-warn">
+        <b>Check this slip.</b> The lines total {money(s.netPay)}, but the pay run
+        recorded {money(s.discrepancy)} for this employee.
+      </div>
+    )}
+
+    <div className="ps-foot">
+      <div className="ps-gen">
+        Computer-generated salary slip
+        {s.reference && <> · Ref {s.reference}</>}
+      </div>
+      <div className="ps-sigs">
+        <div>Received by</div>
+        <div>For {s.business.name}</div>
+      </div>
+    </div>
+  </div>
+);
+
+const Fact = ({ k, v, mono }) => (
+  <div className="ps-fact">
+    <div className="ps-fact-k">{k}</div>
+    <div className={`ps-fact-v${mono ? ' ps-mono' : ''}`}>{v}</div>
+  </div>
+);
+
+const Section = ({ title, lines = [], total, emptyLabel }) => (
+  <div className="ps-sec">
+    <div className="ps-sec-h">{title}</div>
+    {lines.length === 0 ? (
+      <div className="ps-ln ps-none"><span>{emptyLabel || 'None'}</span><span className="ps-a">—</span></div>
+    ) : lines.map(l => (
+      <div className="ps-ln" key={l.label}>
+        <span>{l.label}{l.note && <div className="ps-d">{l.note}</div>}</span>
+        <span className="ps-a">{money(l.amount)}</span>
+      </div>
+    ))}
+    <div className="ps-ln ps-sum"><span>{total[0]}</span><span className="ps-a">{money(total[1])}</span></div>
   </div>
 );
 

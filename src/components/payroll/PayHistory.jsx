@@ -216,6 +216,7 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
           run={slipTarget.run}
           items={slipTarget.items}
           employees={employees}
+          records={payrollRecords}
           business={business}
           onClose={() => setSlipTarget(null)}
         />

@@ -19,6 +19,10 @@
 
 import { describePeriod, monthToDate } from './payrollPeriods';
 
+/** Rupees, Indian grouping, always two decimals -- it is a money document. */
+export const money = (v) => `₹${(Number(v) || 0).toLocaleString('en-IN', {
+  minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 const num = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -68,84 +72,108 @@ export function amountInWords(value) {
 export function buildPayslip({ run, item, employee, business, records } = {}) {
   if (!run || !item) return null;
 
-  const basePay    = num(item.basePay);
-  const overtime   = num(item.overtime);
-  const commission = num(item.commission);
-  const bonus      = num(item.bonus);
-  const deductions = num(item.deductions);
-
-  // Recomputed rather than trusting the stored netPay, so a slip can never
-  // print a total that disagrees with the lines above it. They match on every
-  // stored run today; if one ever does not, `discrepancy` says so out loud
-  // instead of the paper quietly showing one of two conflicting figures.
-  const grossEarnings = basePay + overtime + commission + bonus;
-  const netPay        = grossEarnings - deductions;
-  const storedNet     = num(item.netPay);
-  const discrepancy   = Math.abs(netPay - storedNet) > 0.005 ? storedNet : null;
+  const basePay     = num(item.basePay);
+  const overtime    = num(item.overtime);
+  const commission  = num(item.commission);
+  const bonus       = num(item.bonus);
+  const deductions  = num(item.deductions);
+  const alreadyPaid = num(item.alreadyPaid);
 
   const daysWorked = num(item.daysWorked);
   const dailyRate  = num(item.dailyRate);
   const payType    = String(item.payType || '').toUpperCase();
 
-  // Salaried staff carry the workings of their loss of pay; daily staff carry
-  // the days-times-rate arithmetic. Either way the base figure on the slip has
-  // to be checkable by the person holding it -- a bare number is not.
-  const isDaily  = payType === 'DAILY' || payType === 'HOURLY';
-  const salary   = num(item.salary);
-  const lopDays  = num(item.lopDays);
-  const lopAmt   = num(item.lopAmount);
+  const isDaily    = payType === 'DAILY' || payType === 'HOURLY';
+  const salary     = num(item.salary);
+  const lopDays    = num(item.lopDays);
+  const lopAmt     = num(item.lopAmount);
+  const periodLen  = num(item.periodDays);
+  const perDay     = periodLen > 0 ? salary / periodLen : 0;
 
+  // Loss of pay is shown as a DEDUCTION rather than folded into the salary
+  // line, so gross reads the figure on the employee's contract. "Salary 31,000,
+  // less 2,500 lost" is checkable; a bare 28,500 makes them do the subtraction
+  // themselves to find out whether it is right.
   const earnings = [
     {
       label: isDaily ? 'Basic pay' : 'Salary',
+      // The base figure has to be checkable by the person holding the slip.
+      // A bare number is not.
       note: isDaily
-        ? (dailyRate > 0
-            ? `${daysWorked} day${daysWorked === 1 ? '' : 's'} × ₹${dailyRate.toLocaleString('en-IN')}`
-            : null)
-        : (lopAmt > 0
-            ? `₹${salary.toLocaleString('en-IN')} less ${lopDays} day${lopDays === 1 ? '' : 's'} absent`
-            : null),
-      amount: basePay,
+        ? (dailyRate > 0 ? `${daysWorked} day${daysWorked === 1 ? '' : 's'} × ${money(dailyRate)}` : null)
+        : (perDay > 0 ? `${periodLen} days × ${money(perDay)}` : null),
+      amount: isDaily ? basePay : (salary > 0 ? salary : basePay),
     },
     { label: 'Overtime',   note: null, amount: overtime },
     { label: 'Commission', note: null, amount: commission },
     { label: 'Bonus',      note: null, amount: bonus },
   ].filter(l => l.amount > 0);
 
+  const deductionLines = [
+    lopAmt > 0 ? {
+      label: 'Loss of pay',
+      note: perDay > 0
+        ? `${lopDays} day${lopDays === 1 ? '' : 's'} absent × ${money(perDay)}`
+        : `${lopDays} day${lopDays === 1 ? '' : 's'} absent`,
+      amount: lopAmt,
+    } : null,
+    // Money already handed over for a window this run overlaps. The run nets it
+    // off, so it has to appear here too -- otherwise gross minus deductions
+    // does not reach the figure printed at the bottom of the slip.
+    alreadyPaid > 0 ? { label: 'Already paid this period', note: null, amount: alreadyPaid } : null,
+    deductions > 0  ? { label: 'Deductions', note: null, amount: deductions } : null,
+  ].filter(Boolean);
+
+  // Totals come from the printed lines, so the slip can never show a total that
+  // disagrees with what is above it. If the run's own netPay disagrees with
+  // that, `discrepancy` says so out loud rather than quietly picking one.
+  const grossEarnings   = earnings.reduce((t, l) => t + l.amount, 0);
+  const totalDeductions = deductionLines.reduce((t, l) => t + l.amount, 0);
+  const netPay          = grossEarnings - totalDeductions;
+  const storedNet       = num(item.netPay);
+  const discrepancy     = Math.abs(netPay - storedNet) > 0.005 ? storedNet : null;
+
   return {
     employeeName: item.employeeName || 'Employee',
     department: item.department || null,
     payType: item.payType || null,
     phone: employee?.phone || null,
-    designation: employee?.designation || employee?.role || null,
+    designation: employee?.position || employee?.role || null,
+    joinedOn: employee?.joining_date || null,
+    employmentType: employee?.employment_type || null,
 
     period: describePeriod(run.period),
     periodRaw: run.period || null,
     paidOn: run.processed_at || null,
-    // The run id is what ties this paper back to a record, and unlike the
-    // employee uuid it is the thing to quote when querying a slip.
     reference: run.id ? String(run.id).split('-')[0].toUpperCase() : null,
 
+    payBasis: isDaily
+      ? (dailyRate > 0 ? `Daily · ${money(dailyRate)}` : 'Daily wage')
+      : (salary > 0 ? `Monthly · ${money(salary)}` : 'Monthly salary'),
+
     earnings,
-    // The month around this slip. Daily wages are paid in many small runs, so
-    // a slip for one day is nearly meaningless alone -- the worker wants to see
-    // what the month has come to. Only computed for daily wages: a salaried
-    // employee is paid once for the month, so a running total would just
-    // restate the net.
-    monthToDate: isDaily && records ? monthToDate({ run, records, employeeId: item.employeeId }) : null,
-    // Present only for salaried staff, and only when pay was actually lost.
-    lossOfPay: !isDaily && lopAmt > 0
-      ? { days: lopDays, amount: lopAmt, salary, periodDays: num(item.periodDays) }
-      : null,
+    deductionLines,
     grossEarnings,
-    deductions,
+    deductions: totalDeductions,
     netPay,
     netPayInWords: amountInWords(netPay),
     discrepancy,
 
-    // A zero slip is a real outcome (no days marked, or no rate set), and it
-    // must read as one. Printing an ordinary-looking slip for ₹0 invites the
-    // reading that a payment was made.
+    // The month around this slip. Daily wages are paid in many small runs, so a
+    // slip for one day is nearly meaningless alone. Not computed for salaried
+    // staff -- they are paid once for the month, so it would restate the net.
+    monthToDate: isDaily && records ? monthToDate({ run, records, employeeId: item.employeeId }) : null,
+
+    // Attendance is the salaried equivalent of that block: what was paid of
+    // what the period held.
+    attendance: !isDaily && periodLen > 0
+      ? { paidDays: Math.max(0, periodLen - lopDays), periodDays: periodLen, lopDays }
+      : null,
+
+    lossOfPay: !isDaily && lopAmt > 0
+      ? { days: lopDays, amount: lopAmt, salary, periodDays: periodLen }
+      : null,
+
     isNil: netPay <= 0,
     nilReason: netPay > 0 ? null
       : !isDaily && lopAmt > 0 ? 'The whole period was marked absent, so the salary is fully lost.'
@@ -158,7 +186,7 @@ export function buildPayslip({ run, item, employee, business, records } = {}) {
       name: business?.businessName || business?.name || 'Business',
       address: business?.address || null,
       phone: business?.phone || null,
-      gstin: business?.gstin || null,
+      gstin: business?.gst_no || business?.gstin || null,
     },
   };
 }
