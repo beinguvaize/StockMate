@@ -55,7 +55,7 @@ const PaySlip = ({ run, items = [], employees = [], business, records = [], onCl
           <span className="text-[11px] font-semibold text-white/90">
             {slips.length === 1
               ? slips[0].slip.employeeName
-              : `${slips.length} slips · ${Math.ceil(slips.length / 2)} A4 sheet${slips.length > 2 ? 's' : ''}`}
+              : `${slips.length} slips · ${Math.ceil(slips.length / 4)} A4 sheet${slips.length > 4 ? 's' : ''}`}
             {nilCount > 0 && slips.length > 1 && (
               <span className="font-normal text-white/70"> · {nilCount} nil</span>
             )}
@@ -87,7 +87,7 @@ export const Slip = ({ s }) => (
         <div className="ps-co">{s.business.name}</div>
         <div className="ps-co-sub">
           {s.business.address}
-          {s.business.gstin && <><br />GSTIN {s.business.gstin}</>}
+          {s.business.gstin && <> · GSTIN {s.business.gstin}</>}
         </div>
       </div>
       <div className="ps-doc">
@@ -97,89 +97,85 @@ export const Slip = ({ s }) => (
     </div>
     <div className="ps-hr" />
 
-    {/* identity */}
-    <div className="ps-who">
+    <div className="ps-body">
+      {/* who */}
       <div>
         <div className="ps-nm">{s.employeeName}</div>
-        <div className="ps-rl">
-          {[s.designation, s.department,
-            s.joinedOn ? `Since ${formatDate(s.joinedOn)}` : null]
-            .filter(Boolean).join(' · ')}
-        </div>
+        <div className="ps-rl">{[s.designation, s.department].filter(Boolean).join(' · ')}</div>
+        <dl className="ps-ids">
+          <dt>Pay basis</dt><dd>{s.payBasis}</dd>
+          <dt>Paid on</dt><dd>{s.paidOn ? formatDate(s.paidOn) : '—'}</dd>
+          {s.reference && <><dt>Reference</dt><dd className="ps-mono">{s.reference}</dd></>}
+          {s.joinedOn && <><dt>Joined</dt><dd>{formatDate(s.joinedOn)}</dd></>}
+        </dl>
       </div>
-      <div className="ps-facts">
-        <Fact k="Pay basis" v={s.payBasis} />
-        <Fact k="Paid on" v={s.paidOn ? formatDate(s.paidOn) : '—'} />
-        {s.reference && <Fact k="Reference" v={s.reference} mono />}
-      </div>
-    </div>
 
-    {s.isNil ? (
-      /* A zero slip must read as one, not as an ordinary payment. */
-      <div className="ps-nil">
-        <div className="ps-nil-h">Nil — nothing payable</div>
-        <p>{s.nilReason}</p>
-      </div>
-    ) : (
-      <div className="ps-body">
-        <div>
-          <Section title="Earnings" lines={s.earnings}
-                   total={['Gross earnings', s.grossEarnings]} />
-          <Section title="Deductions" lines={s.deductionLines}
-                   total={['Total deductions', s.deductions]} emptyLabel="None" />
+      {s.isNil ? (
+        /* A zero slip must read as one, not as an ordinary payment. */
+        <div className="ps-nil">
+          <div className="ps-nil-h">Nil — nothing payable</div>
+          <p>{s.nilReason}</p>
         </div>
-
-        <div className="ps-rail">
-          <div className="ps-net">
-            <div className="ps-net-k">Net pay</div>
-            <div className="ps-net-a">{money(s.netPay)}</div>
-            <div className="ps-net-w">{s.netPayInWords}</div>
+      ) : (
+        <>
+          {/* the money */}
+          <div className="ps-col-sep">
+            <Section title="Earnings" lines={s.earnings}
+                     total={['Gross earnings', s.grossEarnings]} />
+            <Section title="Deductions" lines={s.deductionLines}
+                     total={['Total deductions', s.deductions]} emptyLabel="None" />
           </div>
 
-          {s.monthToDate && s.monthToDate.totalAmount > 0 && (
-            <div className="ps-mtd">
-              <div className="ps-mtd-k">Month to date</div>
-              <div className="ps-mtd-row">
-                <span className="ps-mtd-big">{money(s.monthToDate.totalAmount)}</span>
-                <span className="ps-mtd-d">{s.monthToDate.totalDays} days</span>
-              </div>
-              {s.monthToDate.priorAmount > 0 && (
-                <div className="ps-mtd-n">
-                  Including {money(s.monthToDate.priorAmount)} paid earlier this month
-                </div>
-              )}
+          {/* totals rail */}
+          <div className="ps-rail ps-col-sep">
+            <div className="ps-net">
+              <div className="ps-net-k">Net pay</div>
+              <div className="ps-net-a">{money(s.netPay)}</div>
+              <div className="ps-net-w">{s.netPayInWords}</div>
             </div>
-          )}
 
-          {s.attendance && (
-            <div className="ps-mtd">
-              <div className="ps-mtd-k">Attendance</div>
-              <div className="ps-mtd-row">
-                <span className="ps-mtd-big">{s.attendance.paidDays}</span>
-                <span className="ps-mtd-d">of {s.attendance.periodDays} days paid</span>
+            {s.monthToDate && s.monthToDate.totalAmount > 0 && (
+              <div className="ps-mtd">
+                <div className="ps-mtd-k">Month to date</div>
+                <div className="ps-mtd-row">
+                  <span className="ps-mtd-big">{money(s.monthToDate.totalAmount)}</span>
+                  <span className="ps-mtd-d">{s.monthToDate.totalDays} days</span>
+                </div>
+                {s.monthToDate.priorAmount > 0 && (
+                  <div className="ps-mtd-n">
+                    Incl. {money(s.monthToDate.priorAmount)} paid earlier
+                  </div>
+                )}
               </div>
-              {s.attendance.lopDays > 0 && (
-                <div className="ps-mtd-n">{s.attendance.lopDays} days absent</div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    )}
+            )}
+
+            {s.attendance && (
+              <div className="ps-mtd">
+                <div className="ps-mtd-k">Attendance</div>
+                <div className="ps-mtd-row">
+                  <span className="ps-mtd-big">{s.attendance.paidDays}</span>
+                  <span className="ps-mtd-d">of {s.attendance.periodDays} days paid</span>
+                </div>
+                {s.attendance.lopDays > 0 && (
+                  <div className="ps-mtd-n">{s.attendance.lopDays} days absent</div>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
 
     {/* A slip whose own lines disagree with the stored total says so. */}
     {s.discrepancy != null && (
       <div className="ps-warn">
-        <b>Check this slip.</b> The lines total {money(s.netPay)}, but the pay run
-        recorded {money(s.discrepancy)} for this employee.
+        <b>Check this slip.</b> The lines total {money(s.netPay)}, but the run
+        recorded {money(s.discrepancy)}.
       </div>
     )}
 
     <div className="ps-foot">
-      <div className="ps-gen">
-        Computer-generated salary slip
-        {s.reference && <> · Ref {s.reference}</>}
-      </div>
+      <div className="ps-gen">Computer-generated salary slip{s.reference && <> · Ref {s.reference}</>}</div>
       <div className="ps-sigs">
         <div>Received by</div>
         <div>For {s.business.name}</div>
