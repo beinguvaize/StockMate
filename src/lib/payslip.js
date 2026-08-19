@@ -139,6 +139,10 @@ export function buildPayslip({ run, item, employee, business, records, payment }
     payType: item.payType || null,
     phone: employee?.phone || null,
     designation: employee?.position || employee?.role || null,
+    // The employee number, which is what a person quotes when querying a slip.
+    // The uuid is not that -- it means nothing to them and does not belong on a
+    // document that leaves the office.
+    employeeCode: employee?.employee_code || null,
     joinedOn: employee?.joining_date || null,
     employmentType: employee?.employment_type || null,
 
@@ -153,6 +157,18 @@ export function buildPayslip({ run, item, employee, business, records, payment }
     // a slip claiming a payment mode it is guessing at is worse than one that
     // stays quiet about it.
     deposit: buildDeposit(payment, employee),
+
+    // Statutory identifiers, each rendered only when the record holds one. A
+    // row of dashes would imply this business operates a PF or ESI scheme it
+    // does not. Aadhaar is deliberately NOT among them: it is on the employee
+    // record, but printing a national identity number on a wage slip that gets
+    // photographed and filed openly is a risk with no payroll purpose.
+    statutory: [
+      ['PAN', employee?.pan],
+      ['PF A/C', employee?.pf_account],
+      ['ESI No', employee?.esi_no],
+    ].filter(([, v]) => String(v || '').trim())
+     .map(([k, v]) => ({ label: k, value: String(v).trim() })),
 
     payBasis: isDaily
       ? (dailyRate > 0 ? `Daily · ${money(dailyRate)}` : 'Daily wage')

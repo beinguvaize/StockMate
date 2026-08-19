@@ -110,8 +110,14 @@ export const Slip = ({ s }) => (
     <div className="ps-body">
       {/* who */}
       <div>
-        <div className="ps-nm">{s.employeeName}</div>
-        <div className="ps-rl">{[s.designation, s.department].filter(Boolean).join(' · ')}</div>
+        <div className="ps-nmrow">
+          <span className="ps-nm">{s.employeeName}</span>
+          {s.employeeCode && <span className="ps-code">{s.employeeCode}</span>}
+        </div>
+        <div className="ps-rl">
+          {[s.designation, s.department, s.employmentType === 'FULL_TIME' ? 'Full time' : null]
+            .filter(Boolean).join(' · ')}
+        </div>
         <dl className="ps-ids">
           <dt>Pay basis</dt><dd>{s.payBasis}</dd>
           <dt>Paid on</dt><dd>{s.paidOn ? formatDate(s.paidOn) : '—'}</dd>
@@ -120,6 +126,11 @@ export const Slip = ({ s }) => (
           {s.deposit?.modeLabel && <><dt>Paid by</dt><dd>{s.deposit.modeLabel.replace(/^Paid (in|by) /, '')}</dd></>}
           {s.deposit?.fromAccount && <><dt>From</dt><dd>{s.deposit.fromAccount}</dd></>}
           {s.deposit?.toAccount && <><dt>Deposited to</dt><dd className="ps-mono">{s.deposit.toAccount}</dd></>}
+          {s.statutory.map(x => (
+            <React.Fragment key={x.label}>
+              <dt>{x.label}</dt><dd className="ps-mono">{x.value}</dd>
+            </React.Fragment>
+          ))}
         </dl>
       </div>
 

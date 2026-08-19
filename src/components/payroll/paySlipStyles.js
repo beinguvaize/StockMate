@@ -49,7 +49,12 @@ const SHEET = `
            padding-top:2.2mm;}
   .ps-col-sep{border-left:1px solid var(--ps-hair);padding-left:5mm;}
 
+  .ps-nmrow{display:flex;align-items:baseline;gap:2.5mm;}
   .ps-nm{font-size:11px;font-weight:600;letter-spacing:-.012em;line-height:1.1;}
+  /* The employee number reads as an identifier, not as part of the name. */
+  .ps-code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:6.5px;
+           letter-spacing:.06em;color:var(--ps-ink2);border:.7px solid var(--ps-hair);
+           padding:.3mm 1.1mm;border-radius:1px;white-space:nowrap;}
   .ps-rl{font-size:6.5px;color:var(--ps-ink2);margin-top:1px;line-height:1.35;}
   .ps-ids{margin-top:1.8mm;display:grid;grid-template-columns:auto 1fr;gap:.6mm 2.5mm;
           font-size:6.5px;line-height:1.3;}

@@ -309,3 +309,36 @@ describe('deposit details', () => {
     expect(s.deposit.modeLabel).toBeNull();
   });
 });
+
+describe('employee identity', () => {
+  it('prints the employee code, not the uuid', () => {
+    const s = buildPayslip({ run, item: akbar,
+      employee: { id: 'f221935c-738d-4130-b2b9-7975ba3ca301', employee_code: 'EMP-001' } });
+    expect(s.employeeCode).toBe('EMP-001');
+    expect(JSON.stringify(s)).not.toContain('f221935c');
+  });
+
+  it('leaves the code out rather than inventing one', () => {
+    expect(buildPayslip({ run, item: akbar }).employeeCode).toBeNull();
+  });
+
+  it('lists only the statutory ids the record actually holds', () => {
+    const s = buildPayslip({ run, item: akbar,
+      employee: { pan: 'ABCDE1234F', pf_account: '', esi_no: '  ' } });
+    expect(s.statutory).toEqual([{ label: 'PAN', value: 'ABCDE1234F' }]);
+  });
+
+  it('is empty when none are set, so no row of dashes implies a PF scheme', () => {
+    // All four live employees are in exactly this state.
+    expect(buildPayslip({ run, item: akbar, employee: {} }).statutory).toEqual([]);
+  });
+
+  it('never prints Aadhaar, even when the record holds one', () => {
+    // A national identity number has no payroll purpose and the slip is
+    // photographed, filed openly and handed across a counter.
+    const s = buildPayslip({ run, item: akbar,
+      employee: { aadhaar: '123412341234', pan: 'ABCDE1234F' } });
+    expect(JSON.stringify(s)).not.toContain('123412341234');
+    expect(s.statutory.map(x => x.label)).not.toContain('Aadhaar');
+  });
+});
