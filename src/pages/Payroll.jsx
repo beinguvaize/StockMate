@@ -13,7 +13,7 @@ import PayrollHeader from '../components/payroll/PayrollHeader';
 import EmployeeTable from '../components/payroll/EmployeeTable';
 import PayHistory from '../components/payroll/PayHistory';
 import { todayISOInAppTZ } from '../lib/utils';
-import { monthlyBasePay } from '../lib/monthlyPay';
+import { salariedBasePay } from '../lib/monthlyPay';
 import { needsOverlapConfirmation } from '../lib/payrollPeriods';
 import { iso } from '../lib/reportPeriods';
 
@@ -457,8 +457,13 @@ const Payroll = () => {
       // Salaried staff: full salary, less only the days someone actually marked
       // absent. An unmarked day is paid -- see monthlyPay.js. Reading a blank
       // grid as absence would pay a manager nothing.
-      const monthly = isDW ? null : monthlyBasePay({
+      const monthly = isDW ? null : salariedBasePay({
         salary: Number(emp.salary) || Number(emp.basePay) || 0,
+        // WEEKLY stores ONE WEEK's pay in the same column MONTHLY uses for a
+        // month's. Without the pay type both were paid flat for whatever window
+        // was run, so a weekly employee processed over August got a single
+        // week's wage for the month.
+        payType: emp.pay_type || emp.payType,
         from: periodFrom, to: periodTo,
         days: attendance[emp.id],
       });
@@ -487,6 +492,7 @@ const Payroll = () => {
         lopDays:      monthly ? monthly.lopDays : null,
         lopAmount:    monthly ? monthly.lopAmount : null,
         periodDays:   monthly ? monthly.periodDays : null,
+        cycleDays:    monthly ? monthly.cycleDays : null,
         // Carried on the item so it reaches the saved run: the record should say
         // what was earned AND what was outstanding when it was paid, not just a
         // net figure nobody can explain later.

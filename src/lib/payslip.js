@@ -90,7 +90,13 @@ export function buildPayslip({ run, item, employee, business, records, payment,
   const lopDays    = num(item.lopDays);
   const lopAmt     = num(item.lopAmount);
   const periodLen  = num(item.periodDays);
-  const perDay     = periodLen > 0 ? salary / periodLen : 0;
+  // Per-day is the salary over the PAY CYCLE -- 7 days for a weekly wage, the
+  // month's length for a monthly one -- not over whatever window was run.
+  // Dividing by the period would print "1,000 a day" for a weekly employee paid
+  // 7,000 across a 31-day run, when the true rate is 1,000 and the period buys
+  // 31 of them, not 7.
+  const cycleLen   = num(item.cycleDays) || periodLen;
+  const perDay     = cycleLen > 0 ? salary / cycleLen : 0;
 
   // Loss of pay is shown as a DEDUCTION rather than folded into the salary
   // line, so gross reads the figure on the employee's contract. "Salary 31,000,
