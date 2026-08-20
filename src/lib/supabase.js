@@ -127,21 +127,34 @@ export const probeConnectivity = async (timeoutMs = 4000) => {
 //      fires and returns a proper "JWT expired" error rather than hanging.
 //   Never calls getSession() — that goes through the auth lock and can
 //   deadlock on long-open Electron sessions.
+/**
+ * The signed-in user's access token, or NULL when there is not one.
+ *
+ * It used to fall back to the ANON KEY. That looks harmless -- the request is
+ * still well-formed -- but an anon-key request is UNAUTHENTICATED, so auth.uid()
+ * is null, current_tenant_id() is null, and every RLS policy matches nothing.
+ * PostgREST then answers a PATCH that touched no rows with 204 No Content, and
+ * the write reported success while doing nothing at all. That is what a customer
+ * saw as "I deleted the client and it came back".
+ *
+ * Returning null instead lets the write fail loudly and tell the user to sign in
+ * again, which is the true state of affairs.
+ */
 const getValidAccessToken = async () => {
-  let token = key;
+  let token = null;
   let expiresAt = 0;
   try {
     const raw = window.localStorage.getItem('sm-auth-token');
     if (raw) {
       const s = JSON.parse(raw);
       const sess = s?.currentSession || s;
-      token = sess?.access_token || key;
+      token = sess?.access_token || null;
       expiresAt = sess?.expires_at || 0; // Unix seconds
     }
   } catch (_) {}
 
   // Fast path: token still valid with 60s buffer — no network call needed.
-  if (token !== key && expiresAt && Date.now() / 1000 < expiresAt - 60) {
+  if (token && expiresAt && Date.now() / 1000 < expiresAt - 60) {
     return token;
   }
 
@@ -160,12 +173,21 @@ const getValidAccessToken = async () => {
   return token;
 };
 
-const restHeaders = async (extra = {}) => ({
-  apikey: key,
-  Authorization: `Bearer ${await getValidAccessToken()}`,
-  'Content-Type': 'application/json',
-  ...extra,
-});
+/** Raised when a write is attempted with no usable session. */
+const SESSION_EXPIRED = () => new Error(
+  'Your session has expired. Sign in again and retry — nothing was saved.');
+
+const restHeaders = async (extra = {}) => {
+  const token = await getValidAccessToken();
+  // Never send the anon key as a user bearer. See getValidAccessToken.
+  if (!token) throw SESSION_EXPIRED();
+  return {
+    apikey: key,
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+    ...extra,
+  };
+};
 
 const parseRestError = async (res, fallback) => {
   let msg = fallback;

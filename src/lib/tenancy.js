@@ -118,20 +118,84 @@ export const TENANT_STATUS = {
   TRIAL: { label: 'Trial', color: 'bg-amber-50 text-amber-600' }
 };
 
+// ── Trial ────────────────────────────────────────────────────────────────────
+//
+// A trial GRANTS access; it is not merely a label. Until this existed, a new
+// signup was written with status='TRIAL' and plan='FREE', so "Start free trial"
+// on the website handed them the Free tier and they never saw a paid feature.
+// Meanwhile nothing enforced the end date, so tenants whose signup happened to
+// pass ENTERPRISE kept everything, for free, indefinitely.
+//
+// 60 days, decided 20 Aug 2026 -- the length the edge function already grants
+// and the one existing trial_end_date values were written against, so nobody's
+// trial is shortened by the decision. The landing copy said 30 and was wrong.
+
+/** Days a trial runs. Must match create-tenant and the pricing page. */
+export const TRIAL_DAYS = 60;
+
+/** What a trial is worth while it lasts. */
+export const TRIAL_PLAN = 'PRO';
+
 /**
- * Returns true if tenant is on trial and the 60-day period has expired.
+ * Days after expiry before access actually drops. Cutting a shop off mid-sale
+ * with no warning reads as an outage, not a billing event; the banner counts
+ * down through this window.
  */
+export const TRIAL_GRACE_DAYS = 7;
+
+const dayDiff = (a, b) => Math.ceil((a - b) / 86400000);
+
+/** Days left before the trial ends. Negative once it has. */
+export const trialDaysLeft = (tenant) => {
+  if (tenant?.status !== 'TRIAL' || !tenant?.trial_end_date) return null;
+  return dayDiff(new Date(tenant.trial_end_date), new Date());
+};
+
+/** True once the trial end date has passed, grace or not. */
 export const isTrialExpired = (tenant) => {
-  if (tenant?.status !== 'TRIAL') return false;
-  if (!tenant?.trial_end_date) return false;
-  return new Date() > new Date(tenant.trial_end_date);
+  const left = trialDaysLeft(tenant);
+  return left !== null && left <= 0;
+};
+
+/** True once even the grace period is used up and access should drop. */
+export const isTrialLapsed = (tenant) => {
+  const left = trialDaysLeft(tenant);
+  return left !== null && left <= -TRIAL_GRACE_DAYS;
 };
 
 /**
- * Returns days remaining in trial (0 if expired or not on trial).
+ * The plan a tenant should actually be gated on, which is not always the plan
+ * stored on the row.
+ *
+ *  · Not on trial -> exactly what they pay for. A paying customer is never
+ *    touched by any of this; FUTURE DISPO is status ACTIVE and unaffected.
+ *  · On trial, still running -> the BETTER of their stored plan and the trial
+ *    grant. Taking the better of the two matters: some early signups were
+ *    written straight to ENTERPRISE, and resolving them down to PRO would be
+ *    taking away access they already have.
+ *  · On trial, lapsed past grace -> FREE. They keep every row of their data;
+ *    only the modules close.
  */
-export const trialDaysLeft = (tenant) => {
-  if (tenant?.status !== 'TRIAL' || !tenant?.trial_end_date) return 0;
-  const diff = new Date(tenant.trial_end_date) - new Date();
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+export const effectivePlan = (tenant) => {
+  const stored = String(tenant?.plan || 'FREE').toUpperCase();
+  const known = PLANS[stored] ? stored : 'FREE';
+  if (tenant?.status !== 'TRIAL' || !tenant?.trial_end_date) return known;
+
+  if (isTrialLapsed(tenant)) return 'FREE';
+
+  return (PLAN_ORDER[TRIAL_PLAN] ?? 0) > (PLAN_ORDER[known] ?? 0) ? TRIAL_PLAN : known;
 };
+
+/**
+ * What the banner should say, or null when there is nothing to say. Returned as
+ * data rather than a string so the wording lives with the UI.
+ */
+export const trialNotice = (tenant) => {
+  const left = trialDaysLeft(tenant);
+  if (left === null) return null;
+  if (isTrialLapsed(tenant)) return { kind: 'LAPSED', daysLeft: left, plan: 'FREE' };
+  if (left <= 0) return { kind: 'GRACE', daysLeft: left, graceLeft: TRIAL_GRACE_DAYS + left };
+  if (left <= 7) return { kind: 'ENDING', daysLeft: left };
+  return { kind: 'ACTIVE', daysLeft: left };
+};
+
