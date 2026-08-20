@@ -244,6 +244,15 @@ table.report-table tbody td.numeric {
 [data-theme="white"] .bg-ink-primary .text-gray-500,
 [data-theme="white"] .bg-ink-primary .text-gray-600 { color: rgba(255,255,255,0.55); }
 [data-theme="white"] .btn-signature { color: #FFFFFF; }
+
+/* A disabled action must read as disabled. Without this the payroll Confirm
+   button stayed fully solid while refusing to respond, and looked broken. */
+.btn-signature:disabled,
+.btn-signature[disabled] {
+  opacity: .45;
+  cursor: not-allowed;
+  filter: grayscale(35%);
+}
 [data-theme="white"] .btn-signature * { color: #FFFFFF; }
 /* Nav bar dark bg */
 [data-theme="white"] nav .text-ink-primary { color: #FFFFFF; }

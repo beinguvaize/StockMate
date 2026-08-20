@@ -14,6 +14,7 @@ import EmployeeTable from '../components/payroll/EmployeeTable';
 import PayHistory from '../components/payroll/PayHistory';
 import { todayISOInAppTZ } from '../lib/utils';
 import { monthlyBasePay } from '../lib/monthlyPay';
+import { needsOverlapConfirmation } from '../lib/payrollPeriods';
 import { iso } from '../lib/reportPeriods';
 
 // HOURLY is gone. It never computed by the hour -- openPayRun paid hourly staff
@@ -539,7 +540,7 @@ const Payroll = () => {
   // An overlapping period can still be paid — a genuine second payout in the
   // same window (an advance, a correction) has to stay possible — but not
   // without being seen first.
-  if (overlappingRuns.length > 0 && !overlapAcknowledged) return;
+  if (mustAckOverlap && !overlapAcknowledged) return;
   setIsSaving(true);
   try {
   const totalBase = payRunItems.reduce((sum, i) => sum + i.basePay, 0);
@@ -602,6 +603,9 @@ const Payroll = () => {
   // The warning is acknowledged per period: changing the dates must re-arm it,
   // or a confirm given for one window silently licenses another.
   const [overlapAckFor, setOverlapAckFor] = useState(null);
+  // Overlap alone does not mean a double payment -- prior pay is netted off each
+  // line. Only ask when a line would actually pay for already-paid days.
+  const mustAckOverlap = needsOverlapConfirmation(payRunItems, overlappingRuns);
   const overlapAcknowledged = overlapAckFor === pendingPeriod;
 
   // Whether the month the grid is showing is fully covered by a run. Seeing it
@@ -1510,7 +1514,9 @@ const Payroll = () => {
       {overlappingRuns.length > 0 && (
         <div className="rounded-xl border border-amber-300/60 bg-amber-400/10 px-4 py-3">
           <div className="text-[12px] font-bold text-amber-200">
-            {overlappingRuns.length === 1 ? 'These dates have already been paid' : 'These dates overlap payments already made'}
+            {mustAckOverlap
+              ? 'These dates have already been paid'
+              : 'Already paid this period — netted off the amounts below'}
           </div>
           <ul className="mt-1 text-[11px] text-amber-100/90 font-medium space-y-0.5">
             {overlappingRuns.map(r => (
@@ -1520,11 +1526,17 @@ const Payroll = () => {
               </li>
             ))}
           </ul>
+          {/* Only when a line would genuinely pay twice. When prior pay has
+              been netted off, the list above is information, not a warning to
+              agree to -- asking the owner to tick "pay again anyway" to collect
+              a remainder he is owed describes the opposite of what happens. */}
+          {mustAckOverlap && (
           <label className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-amber-200 cursor-pointer">
             <input type="checkbox" checked={overlapAcknowledged}
               onChange={e => setOverlapAckFor(e.target.checked ? pendingPeriod : null)} />
             Pay these dates again anyway
           </label>
+          )}
         </div>
       )}
 
@@ -1551,10 +1563,10 @@ const Payroll = () => {
       </div>
       <button className="btn-signature !h-12 !px-8 !text-sm flex items-center gap-2.5"
         onClick={handleProcessPayroll}
-        disabled={isSaving || rangeInvalid || totalNet <= 0 || (overlappingRuns.length > 0 && !overlapAcknowledged)}
+        disabled={isSaving || rangeInvalid || totalNet <= 0 || (mustAckOverlap && !overlapAcknowledged)}
         title={rangeInvalid ? 'The end date is before the start date'
           : (totalNet <= 0 ? 'Nothing to pay for this period'
-          : (overlappingRuns.length > 0 && !overlapAcknowledged ? 'These dates have already been paid — confirm above to pay them again' : undefined))}>
+          : (mustAckOverlap && !overlapAcknowledged ? 'These dates have already been paid — confirm above to pay them again' : undefined))}>
         <Check size={16} />
         {isSaving ? 'Processing…' : rangeInvalid ? 'Check the dates' : 'Confirm & Process'}
       </button>

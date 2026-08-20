@@ -397,3 +397,27 @@ export function monthlyPayItem({ year, month1to12, employeeId, records = [] } = 
     runCount: runs.length,
   };
 }
+
+/**
+ * Does this run need the operator to confirm they mean to pay overlapping days
+ * a SECOND time?
+ *
+ * Overlapping dates alone are not the question. The run already nets prior
+ * payment off each line -- Akbar's August shows 8,100 earned, 7,200 already
+ * paid, 900 to pay -- so a monthly run after a month of weekly ones overlaps
+ * every one of them while paying nobody twice. Blocking that behind a checkbox
+ * reading "pay these dates again anyway" asked the owner to agree to something
+ * he was not doing, to collect a remainder he was owed. It also made the button
+ * look broken, because a disabled button that is not styled as disabled just
+ * does not respond.
+ *
+ * The real question is whether any line would hand over money for days already
+ * paid WITHOUT that payment being netted off. A line that was netted has
+ * alreadyPaid > 0; a re-run of an identical period nets to zero and is stopped
+ * by "nothing to pay" long before this.
+ */
+export function needsOverlapConfirmation(items = [], overlappingRuns = []) {
+  if (!overlappingRuns || overlappingRuns.length === 0) return false;
+  return (items || []).some(i =>
+    Number(i?.netPay || 0) > 0 && !(Number(i?.alreadyPaid || 0) > 0));
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid, runsPaidInMonth, paidByEmployeeInMonth, monthToDate, financialYear, yearToDate, monthlyPayItem } from './payrollPeriods';
+import { parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid, runsPaidInMonth, paidByEmployeeInMonth, monthToDate, financialYear, yearToDate, monthlyPayItem, needsOverlapConfirmation } from './payrollPeriods';
 
 /**
  * The defect these pin: the same window could be paid twice. FUTURE DISPO's
@@ -471,5 +471,32 @@ describe('yearToDate on a monthly slip', () => {
     // The invariant the bug broke.
     const y = yearToDate({ run: m.run, records, employeeId: AK });
     expect(y.totalAmount).toBeGreaterThanOrEqual(m.item.netPay);
+  });
+});
+
+describe('needsOverlapConfirmation', () => {
+  const paid  = { netPay: 900, alreadyPaid: 7200 };   // Akbar's real August line
+  const fresh = { netPay: 900, alreadyPaid: 0 };
+  const nil   = { netPay: 0,   alreadyPaid: 0 };
+  const overlaps = [{ id: 'r1' }];
+
+  it('does not ask when prior payment was netted off', () => {
+    // The case that made the button look broken: a monthly run after four
+    // weekly ones overlaps all of them and pays nobody twice.
+    expect(needsOverlapConfirmation([paid, paid, nil], overlaps)).toBe(false);
+  });
+
+  it('asks when a line would pay overlapping days that were not netted', () => {
+    expect(needsOverlapConfirmation([fresh], overlaps)).toBe(true);
+    expect(needsOverlapConfirmation([paid, fresh], overlaps)).toBe(true);
+  });
+
+  it('never asks when nothing overlaps', () => {
+    expect(needsOverlapConfirmation([fresh, fresh], [])).toBe(false);
+  });
+
+  it('ignores lines that pay nothing', () => {
+    // Parthipan is on every run at zero; he must not trigger a confirmation.
+    expect(needsOverlapConfirmation([nil], overlaps)).toBe(false);
   });
 });
