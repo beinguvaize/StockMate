@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { effectivePlan, trialDaysLeft, isTrialExpired, isTrialLapsed,
-         trialNotice, TRIAL_GRACE_DAYS, PLANS } from './tenancy';
+import { effectivePlan, trialDaysLeft, isTrialExpired, isTrialLapsed, trialNotice, TRIAL_GRACE_DAYS, PLANS, TRIAL_ENFORCEMENT_START } from './tenancy';
 
 /**
  * What a tenant can reach is decided here, so a wrong answer either bills a
@@ -10,6 +9,14 @@ import { effectivePlan, trialDaysLeft, isTrialExpired, isTrialLapsed,
 const daysFromNow = (n) => new Date(Date.now() + n * 86400000).toISOString();
 
 const trial = (plan, days) => ({ plan, status: 'TRIAL', trial_end_date: daysFromNow(days) });
+
+/**
+ * Grace runs from the LATER of the trial end and TRIAL_ENFORCEMENT_START, so a
+ * tenant only lapses once BOTH are more than the grace window behind us.
+ * Expressing it this way keeps the tests true whatever today's date is.
+ */
+const enforcementAnchorPassed = () =>
+  Date.now() > new Date(TRIAL_ENFORCEMENT_START).getTime() + TRIAL_GRACE_DAYS * 86400000;
 
 describe('effectivePlan', () => {
   it('leaves a paying customer entirely alone', () => {
@@ -38,9 +45,12 @@ describe('effectivePlan', () => {
     expect(effectivePlan(trial('FREE', -(TRIAL_GRACE_DAYS - 1)))).toBe('PRO');
   });
 
-  it('drops to FREE once grace is used up', () => {
-    expect(effectivePlan(trial('FREE', -TRIAL_GRACE_DAYS))).toBe('FREE');
-    expect(effectivePlan(trial('ENTERPRISE', -40))).toBe('FREE');   // Aisha Store
+  it('drops to FREE once grace is used up — counted from enforcement, not retroactively', () => {
+    // Aisha Store is 39 days past her trial end, but enforcement only just
+    // began; she keeps ENTERPRISE until the warning window from THAT day runs
+    // out. Cutting her off on deploy day is the thing this prevents.
+    const expected = enforcementAnchorPassed() ? 'FREE' : 'ENTERPRISE';
+    expect(effectivePlan(trial('ENTERPRISE', -40))).toBe(expected);
   });
 
   it('falls back to FREE for a plan name it does not know', () => {
@@ -67,19 +77,59 @@ describe('trial state', () => {
   });
 
   it('separates expired from lapsed', () => {
-    // Expired means the date passed; lapsed means grace is gone too. The gap
-    // between them is the only warning a shop gets.
+    // Expired means the trial date passed; lapsed means the warning window is
+    // gone too. The gap between them is the only notice a shop gets.
     expect(isTrialExpired(trial('FREE', -1))).toBe(true);
     expect(isTrialLapsed(trial('FREE', -1))).toBe(false);
-    expect(isTrialLapsed(trial('FREE', -TRIAL_GRACE_DAYS))).toBe(true);
+    expect(isTrialLapsed(trial('FREE', -TRIAL_GRACE_DAYS)))
+      .toBe(enforcementAnchorPassed());
   });
 
   it('describes what the banner should say', () => {
     expect(trialNotice(trial('FREE', 40)).kind).toBe('ACTIVE');
     expect(trialNotice(trial('FREE', 5)).kind).toBe('ENDING');
     expect(trialNotice(trial('FREE', -2)).kind).toBe('GRACE');
-    expect(trialNotice(trial('FREE', -2)).graceLeft).toBe(TRIAL_GRACE_DAYS - 2);
-    expect(trialNotice(trial('FREE', -TRIAL_GRACE_DAYS)).kind).toBe('LAPSED');
+    expect(trialNotice(trial('FREE', -2)).graceLeft).toBeGreaterThan(0);
+    expect(trialNotice(trial('FREE', -TRIAL_GRACE_DAYS)).kind)
+      .toBe(enforcementAnchorPassed() ? 'LAPSED' : 'GRACE');
     expect(trialNotice({ plan: 'PRO', status: 'ACTIVE' })).toBeNull();
+  });
+});
+
+describe('grace is anchored to when enforcement began', () => {
+  /**
+   * Three tenants were already past their trial end when enforcement shipped:
+   * Aisha Store by 39 days, Shibily stores by 11, MaazMobiles by 3. Counting
+   * grace from their own end dates would have cut two of them off the moment
+   * the deploy landed, with no warning at all.
+   */
+  const longExpired = { plan: 'ENTERPRISE', status: 'TRIAL',
+    trial_end_date: daysFromNow(-39) };
+
+  it('does not lapse a tenant whose trial ended before enforcement existed', () => {
+    // Aisha Store: 39 days past, but enforcement only just began.
+    expect(isTrialLapsed(longExpired)).toBe(false);
+    expect(effectivePlan(longExpired)).toBe('ENTERPRISE');
+  });
+
+  it('still gives them the full warning window', () => {
+    const n = trialNotice(longExpired);
+    expect(n.kind).toBe('GRACE');
+    expect(n.graceLeft).toBeGreaterThan(0);
+    expect(n.graceLeft).toBeLessThanOrEqual(TRIAL_GRACE_DAYS);
+  });
+
+  it('lapses normally once enforcement has been running longer than grace', () => {
+    // Simulated by a tenant whose end date is well past BOTH anchors.
+    const past = { plan: 'FREE', status: 'TRIAL',
+      trial_end_date: new Date('2026-01-01').toISOString() };
+    const enforcementPlusGrace =
+      new Date('2026-08-20').getTime() + TRIAL_GRACE_DAYS * 86400000;
+    if (Date.now() > enforcementPlusGrace) {
+      expect(isTrialLapsed(past)).toBe(true);
+    } else {
+      // Before that day arrives, nobody is cut off — which is the point.
+      expect(isTrialLapsed(past)).toBe(false);
+    }
   });
 });

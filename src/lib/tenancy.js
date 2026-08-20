@@ -143,6 +143,22 @@ export const TRIAL_PLAN = 'PRO';
  */
 export const TRIAL_GRACE_DAYS = 7;
 
+/**
+ * The day trial enforcement began.
+ *
+ * Grace is counted from the LATER of the trial's own end and this date, so a
+ * tenant whose trial lapsed while nothing enforced it still gets the full
+ * warning window from the moment enforcement shipped. Without it, the deploy
+ * that turned enforcement on would have cut Aisha Store (39 days past) and
+ * Shibily stores (11 days past) from their plans to FREE the instant it landed,
+ * with no notice at all -- which is not a billing event to them, it is an
+ * outage.
+ *
+ * It is a fixed date rather than "now" so the window closes on a real day and
+ * does not slide forward on every page load.
+ */
+export const TRIAL_ENFORCEMENT_START = '2026-08-20T00:00:00Z';
+
 const dayDiff = (a, b) => Math.ceil((a - b) / 86400000);
 
 /** Days left before the trial ends. Negative once it has. */
@@ -157,10 +173,15 @@ export const isTrialExpired = (tenant) => {
   return left !== null && left <= 0;
 };
 
-/** True once even the grace period is used up and access should drop. */
+/**
+ * True once even the grace period is used up and access should drop.
+ * Grace runs from the later of the trial end and TRIAL_ENFORCEMENT_START.
+ */
 export const isTrialLapsed = (tenant) => {
-  const left = trialDaysLeft(tenant);
-  return left !== null && left <= -TRIAL_GRACE_DAYS;
+  if (trialDaysLeft(tenant) === null) return false;
+  const ends = new Date(tenant.trial_end_date).getTime();
+  const from = Math.max(ends, new Date(TRIAL_ENFORCEMENT_START).getTime());
+  return Date.now() > from + TRIAL_GRACE_DAYS * 86400000;
 };
 
 /**
@@ -194,7 +215,12 @@ export const trialNotice = (tenant) => {
   const left = trialDaysLeft(tenant);
   if (left === null) return null;
   if (isTrialLapsed(tenant)) return { kind: 'LAPSED', daysLeft: left, plan: 'FREE' };
-  if (left <= 0) return { kind: 'GRACE', daysLeft: left, graceLeft: TRIAL_GRACE_DAYS + left };
+  if (left <= 0) {
+    const ends = new Date(tenant.trial_end_date).getTime();
+    const from = Math.max(ends, new Date(TRIAL_ENFORCEMENT_START).getTime());
+    const graceLeft = Math.ceil((from + TRIAL_GRACE_DAYS * 86400000 - Date.now()) / 86400000);
+    return { kind: 'GRACE', daysLeft: left, graceLeft };
+  }
   if (left <= 7) return { kind: 'ENDING', daysLeft: left };
   return { kind: 'ACTIVE', daysLeft: left };
 };
