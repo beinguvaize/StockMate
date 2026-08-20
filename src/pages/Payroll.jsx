@@ -505,6 +505,56 @@ const Payroll = () => {
     setShowPayRunModal(true);
   };
 
+  /**
+   * Re-run a period that has already been processed.
+   *
+   * A processed run is not edited in place: it wrote salary expenses, and those
+   * posted to the ledger. Correcting it means reversing what was written and
+   * writing it again, which is exactly what deletePayrollRecord already does --
+   * it soft-deletes the run AND its expenses, so DayBook, the P&L and the cash
+   * account all move back. Composing the two verified paths keeps a single
+   * writer for payroll money rather than inventing a second one that edits rows
+   * the first one created.
+   *
+   * The modal reopens on the SAME period so the correction covers the same days
+   * rather than whatever window happened to be selected.
+   */
+  const rerunPayroll = async (record) => {
+    const period = String(record?.period || '');
+    if (!period) return;
+
+    const amount = `${businessProfile?.currencySymbol || '₹'}${Number(record.totalNet || 0).toLocaleString('en-IN')}`;
+    const ok = window.confirm(
+      `Re-run ${describePeriod(period)}?\n\n` +
+      `The existing run of ${amount} is reversed first, so DayBook, the P&L and the cash ` +
+      `account drop by that much before you enter the corrected figures. Nothing is ` +
+      `deleted permanently — the old run stays in the record, marked deleted.`
+    );
+    if (!ok) return;
+
+    const res = await deletePayrollRecord(record.id);
+    if (res && res.success === false) {
+      alert(`That run could not be reversed, so nothing was changed.\n\n${res.message || res.error?.message || 'Unknown error.'}`);
+      return;
+    }
+
+    // Put the modal on the period being corrected.
+    if (period.includes('/')) {
+      const [from, to] = period.split('/');
+      setPayPeriodType('CUSTOM');
+      setWeekStart(from);
+      setCustomEnd(to);
+    } else {
+      setPayPeriodType('MONTHLY');
+      setPayRunMonth(period);
+    }
+    // Costing is left to the recost effect below rather than done here: it
+    // depends on buildPayRunItems, which changes the moment the refetched
+    // payrollRecords arrive without the reversed run. Costing now would read
+    // the stale list and still count this run as already paid.
+    setShowPayRunModal(true);
+  };
+
   // Changing the period inside the modal has to recost the run. Without this,
   // switching Monthly → Custom or moving a date left every base pay showing the
   // old window's figure while the header claimed the new one.
@@ -716,6 +766,7 @@ const Payroll = () => {
       currencySymbol={businessProfile?.currencySymbol || ''}
       openPayRun={openPayRun}
       deletePayrollRecord={deletePayrollRecord}
+      rerunPayroll={rerunPayroll}
       employees={employees}
       business={businessProfile}
       records={payrollRecords}

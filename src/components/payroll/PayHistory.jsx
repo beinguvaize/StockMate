@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Receipt, ChevronDown, Banknote, Trash2, Calendar, Users, FileText, Printer } from 'lucide-react';
+import { Receipt, ChevronDown, Banknote, Trash2, Calendar, Users, FileText, Printer, RotateCcw } from 'lucide-react';
 import PaySlip from './PaySlip';
 
 const formatPeriod = (period) => {
@@ -19,7 +19,8 @@ const periodType = (period) => {
 };
 
 const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollRecord,
-                     employees = [], business, paymentMethods = {}, accounts = [] }) => {
+                     rerunPayroll, employees = [], business, paymentMethods = {},
+                     accounts = [] }) => {
   const [expandedRecord, setExpandedRecord] = useState(null);
   // The slip to print: one employee of one run. Held here rather than in the
   // row so closing it does not collapse the run underneath.
@@ -149,6 +150,18 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                       <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Staff breakdown</span>
                       <div className="flex items-center gap-1">
                       {/* Every slip for this run, one page each. */}
+                      {/* Correcting a processed run means reversing it and
+                          entering it again -- the expenses it wrote have
+                          already reached the ledger. */}
+                      {rerunPayroll && (
+                        <button
+                          onClick={e => { e.stopPropagation(); rerunPayroll(record); }}
+                          title="Reverse this run and enter it again for the same period"
+                          className="h-6 px-2 rounded flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-ink-primary hover:bg-canvas transition-colors"
+                        >
+                          <RotateCcw size={11} /> Re-run
+                        </button>
+                      )}
                       <button
                         onClick={e => { e.stopPropagation(); setSlipTarget({ run: record, items: record.items || [] }); }}
                         title={`Print all ${(record.items || []).length} slips for this run`}
