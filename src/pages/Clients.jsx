@@ -78,6 +78,7 @@ const Clients = () => {
  const EMPTY_FORM = { name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', pin_code: '', status: 'ACTIVE', client_type: 'B2C', price_tier: 'RETAIL', credit_days: 0 };
  const [formData, setFormData] = useState(EMPTY_FORM);
  const [deleteConfirm, setDeleteConfirm] = useState(null);
+ const [deleteError, setDeleteError] = useState('');
  const [saving, setSaving] = useState(false);
  const [formError, setFormError] = useState('');
  
@@ -208,8 +209,15 @@ const Clients = () => {
  updateClient({ ...client, status: newStatus});
 };
 
- const handleDelete = (clientId) => {
- deleteClient(clientId);
+ // The result used to be discarded and the dialog closed regardless, so a
+ // failed delete looked exactly like a successful one -- the client simply
+ // reappeared. Await it, and say what went wrong when it does.
+ const handleDelete = async (clientId) => {
+ const res = await deleteClient(clientId);
+ if (res && res.success === false) {
+ alert(`The client could not be deleted.\n\n${res.error?.message || 'Unknown error.'}`);
+ return;
+ }
  setDeleteConfirm(null);
 };
 

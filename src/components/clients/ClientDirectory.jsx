@@ -298,7 +298,7 @@ const ClientDirectory = ({
                         <Edit3 size={12} />
                       </button>
                       <button
-                        onClick={() => { if (window.confirm('Delete this client permanently?')) handleDelete(client.id); }}
+                        onClick={() => { if (window.confirm('Delete this client?')) handleDelete(client.id); }}
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-all"
                         title="Delete"
                       >

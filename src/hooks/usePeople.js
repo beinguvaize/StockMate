@@ -121,7 +121,15 @@ export const usePeople = (tenantId) => {
   };
 
   const deleteSupplier = async (id) => {
-    const { error } = await restUpdate('suppliers', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
+    const deleted_at = new Date().toISOString();
+    // Same hole as deleteClient: add and edit queued on desktop, delete did not.
+    if (isElectron()) {
+      await queueMutation({ table: 'suppliers', type: 'update', payload: { id, deleted_at } });
+      await upsertCachedRow('suppliers', { id, deleted_at });
+      setSuppliers(prev => prev.filter(x => x.id !== id));
+      return { success: true, error: null, queued: true };
+    }
+    const { error } = await restUpdate('suppliers', { deleted_at }, { id, tenant_id: tenantId }, { expectRow: true });
     if (!error) await fetchPeopleData();
     return { success: !error, error };
   };
@@ -171,7 +179,20 @@ export const usePeople = (tenantId) => {
   };
 
   const deleteClient = async (id) => {
-    const { error } = await restUpdate('clients', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
+    const deleted_at = new Date().toISOString();
+    // Desktop is offline-first: adding and editing a client already queue, but
+    // deleting did not -- it went straight to the network. Off the network the
+    // PATCH failed, the caller discarded the error, and the client stayed on
+    // screen. That is the SKYTECH report: two duplicates that would not delete.
+    if (isElectron()) {
+      await queueMutation({ table: 'clients', type: 'update', payload: { id, deleted_at } });
+      await upsertCachedRow('clients', { id, deleted_at });
+      setClients(prev => prev.filter(c => c.id !== id));
+      return { success: true, error: null, queued: true };
+    }
+    // expectRow: a PATCH matching nothing answers 204 and would otherwise look
+    // like a successful delete.
+    const { error } = await restUpdate('clients', { deleted_at }, { id, tenant_id: tenantId }, { expectRow: true });
     if (!error) fetchPeopleData().catch(e => console.error('deleteClient refetch error:', e));
     return { success: !error, error };
   };

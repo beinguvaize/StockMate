@@ -185,15 +185,34 @@ export const restInsert = async (table, row) => {
 };
 
 // PATCH with eq filters: restUpdate('products', { stock: 5 }, { id, tenant_id }).
-export const restUpdate = async (table, patch, filters = {}) => {
+/**
+ * PATCH rows matching `filters`.
+ *
+ * `expectRow` exists because PostgREST answers a PATCH that matched NOTHING
+ * with 204 No Content -- a success. So an update blocked by RLS, or aimed at a
+ * row that is not there, reported success and the caller carried on believing
+ * the write had landed. For a delete that is the difference between "removed"
+ * and "still on the screen tomorrow". Pass it wherever the caller needs to know
+ * a row actually changed.
+ */
+export const restUpdate = async (table, patch, filters = {}, { expectRow = false } = {}) => {
   if (!url) return { error: new Error('Supabase not configured') };
   try {
     const qs = Object.entries(filters)
       .map(([k, v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
     const res = await timedFetch(`${url}/rest/v1/${table}?${qs}`, {
-      method: 'PATCH', headers: await restHeaders({ Prefer: 'return=minimal' }), body: JSON.stringify(patch),
+      method: 'PATCH',
+      headers: await restHeaders({ Prefer: expectRow ? 'return=representation' : 'return=minimal' }),
+      body: JSON.stringify(patch),
     });
     if (!res.ok) return { error: await parseRestError(res, `Update failed (${res.status})`) };
+    if (expectRow) {
+      let rows = null; try { rows = await res.json(); } catch (_) { rows = null; }
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return { error: new Error(
+          `No matching row was updated in ${table}. It may have been removed already, or you may not have permission to change it.`) };
+      }
+    }
     return { error: null };
   } catch (err) { return { error: err }; }
 };
