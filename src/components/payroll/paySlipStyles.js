@@ -84,6 +84,7 @@ const SHEET = `
   .ps-mtd-big{font-weight:500;font-size:9.5px;}
   .ps-mtd-d{font-size:6px;color:var(--ps-ink2);}
   .ps-mtd-n{font-size:5.5px;color:var(--ps-ink3);margin-top:.4mm;line-height:1.3;}
+  .ps-plist-blk{margin-top:auto;padding-bottom:1.2mm;}
   .ps-plist{margin-top:.6mm;}
   .ps-pln{display:flex;justify-content:space-between;gap:4px;font-size:6px;line-height:1.5;
           color:var(--ps-ink2);}

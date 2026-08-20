@@ -213,62 +213,50 @@ describe('salaried slips', () => {
   });
 });
 
-describe('month to date on a daily slip', () => {
+describe('a monthly slip for a daily wage', () => {
   const AK = 'f221935c-738d-4130-b2b9-7975ba3ca301';
+  const rec = (id, period, at, net, days) => ({ id, period, processed_at: at,
+    items: [{ ...akbar, basePay: net, netPay: net, daysWorked: days }] });
   const records = [
-    { id: 'r1', period: '2026-08-01/2026-08-08', processed_at: '2026-08-08T11:55:00Z',
-      items: [{ ...akbar, basePay: 3600, netPay: 3600, daysWorked: 4 }] },
-    { id: 'r2', period: '2026-08-10/2026-08-10', processed_at: '2026-08-11T09:00:00Z',
-      items: [akbar] },
-    { id: 'r3', period: '2026-08-13/2026-08-13', processed_at: '2026-08-15T09:00:00Z',
-      items: [akbar] },
-    { id: 'r4', period: '2026-08-15/2026-08-15', processed_at: '2026-08-15T09:00:00Z',
-      items: [akbar] },
-    { id: 'r5', period: '2026-08-17/2026-08-17', processed_at: '2026-08-17T10:00:00Z',
-      items: [akbar] },
+    rec('r1', '2026-08-01/2026-08-08', '2026-08-08T11:55:00Z', 3600, 4),
+    rec('r2', '2026-08-10/2026-08-10', '2026-08-11T09:00:00Z', 900, 1),
+    rec('r3', '2026-08-13/2026-08-13', '2026-08-15T09:00:00Z', 900, 1),
+    rec('r4', '2026-08-15/2026-08-15', '2026-08-15T09:00:00Z', 900, 1),
+    rec('r5', '2026-08-17/2026-08-17', '2026-08-17T10:00:00Z', 900, 1),
+  ];
+  // What monthlyPayItem produces: the month collapsed into one item.
+  const monthRun = { id: '2026-08:' + AK, period: '2026-08', processed_at: '2026-08-17T10:00:00Z' };
+  const monthItem = { ...akbar, basePay: 7200, netPay: 7200, daysWorked: 8 };
+  const payments = [
+    { id: 'r1', label: '1 Aug – 8 Aug', amount: 3600, days: 4 },
+    { id: 'r2', label: '10 Aug', amount: 900, days: 1 },
+    { id: 'r3', label: '13 Aug', amount: 900, days: 1 },
+    { id: 'r4', label: '15 Aug', amount: 900, days: 1 },
+    { id: 'r5', label: '17 Aug', amount: 900, days: 1 },
   ];
 
-  it('carries the real August running total', () => {
+  it('states the month, not a single day', () => {
+    const s = buildPayslip({ run: monthRun, item: monthItem, payments });
+    expect(s.period).toBe('August 2026');
+    expect(s.netPay).toBe(7200);
+    expect(s.earnings[0].note).toBe('8 days × ₹900.00');
+  });
+
+  it('lists the payments that made up the month, summing to the net', () => {
+    const s = buildPayslip({ run: monthRun, item: monthItem, payments });
+    expect(s.payments).toHaveLength(5);
+    expect(s.payments.reduce((t, p) => t + p.amount, 0)).toBe(s.netPay);
+  });
+
+  it('carries a financial-year total when the history is supplied', () => {
     const s = buildPayslip({ run: records[4], item: akbar, records });
-    expect(s.monthToDate.priorAmount).toBe(6300);
-    expect(s.monthToDate.totalAmount).toBe(7200);
-    expect(s.monthToDate.totalDays).toBe(8);
+    expect(s.yearToDate.year).toBe('2026-27');
+    expect(s.yearToDate.totalAmount).toBe(7200);
   });
 
-  it('the slip net is this run only, never the month total', () => {
-    // The figure handed over today must not become the month's running sum.
-    const s = buildPayslip({ run: records[4], item: akbar, records });
-    expect(s.netPay).toBe(900);
-    expect(s.monthToDate.thisAmount).toBe(900);
-  });
-
-  it('is absent when the run history was not supplied', () => {
-    // Printing a month total of zero would be a lie; absent is honest.
-    expect(buildPayslip({ run: records[4], item: akbar }).monthToDate).toBeNull();
-  });
-
-  it('is not computed for salaried staff', () => {
-    // They are paid once for the month; a running total would restate the net.
-    const salaried = { ...akbar, payType: 'MONTHLY', salary: 31000, lopDays: 0, lopAmount: 0 };
-    expect(buildPayslip({ run: records[4], item: salaried, records }).monthToDate).toBeNull();
-  });
-});
-
-describe('already-paid netting', () => {
-  it('appears as a deduction so the slip still reconciles', () => {
-    // The run nets prior payment off an overlapping window. If the slip did not
-    // show it, gross minus deductions would not reach the printed net.
-    const item = { ...akbar, basePay: 3600, daysWorked: 4, alreadyPaid: 900, netPay: 2700 };
-    const s = buildPayslip({ run, item });
-    expect(s.deductionLines.map(l => l.label)).toContain('Already paid this period');
-    expect(s.grossEarnings).toBe(3600);
-    expect(s.deductions).toBe(900);
-    expect(s.netPay).toBe(2700);
-    expect(s.discrepancy).toBeNull();
-  });
-
-  it('is absent when nothing was paid earlier for this window', () => {
-    expect(buildPayslip({ run, item: akbar }).deductionLines).toHaveLength(0);
+  it('has no year-to-date when the history was not supplied', () => {
+    // Printing a year total of zero would misstate what someone has earned.
+    expect(buildPayslip({ run: monthRun, item: monthItem }).yearToDate).toBeNull();
   });
 });
 

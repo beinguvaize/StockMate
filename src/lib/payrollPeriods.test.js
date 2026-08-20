@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid, runsPaidInMonth, paidByEmployeeInMonth, monthToDate } from './payrollPeriods';
+import { parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid, runsPaidInMonth, paidByEmployeeInMonth, monthToDate, financialYear, yearToDate, monthlyPayItem } from './payrollPeriods';
 
 /**
  * The defect these pin: the same window could be paid twice. FUTURE DISPO's
@@ -310,5 +310,166 @@ describe('monthToDate — the prior payments themselves', () => {
 
   it('is empty on the first run of the month', () => {
     expect(monthToDate({ run: runs[0], records: runs, employeeId: AK }).payments).toHaveLength(0);
+  });
+});
+
+describe('financialYear', () => {
+  it('runs April to March, not January to December', () => {
+    expect(financialYear('2026-08-17')).toEqual(
+      { from: '2026-04-01', to: '2027-03-31', label: '2026-27' });
+  });
+
+  it('puts Jan–Mar in the year that started the previous April', () => {
+    // The trap: 15 Feb 2027 belongs to FY 2026-27, not 2027-28.
+    expect(financialYear('2027-02-15').label).toBe('2026-27');
+    expect(financialYear('2027-03-31').label).toBe('2026-27');
+    expect(financialYear('2027-04-01').label).toBe('2027-28');
+  });
+
+  it('handles the boundary days exactly', () => {
+    expect(financialYear('2026-03-31').label).toBe('2025-26');
+    expect(financialYear('2026-04-01').label).toBe('2026-27');
+  });
+
+  it('returns null for nonsense rather than a plausible year', () => {
+    expect(financialYear('not a date')).toBeNull();
+  });
+});
+
+describe('yearToDate', () => {
+  const AK = 'akbar';
+  // A run in each of March and April straddles the financial-year boundary.
+  const runs = [
+    { id: 'm1', period: '2026-03-01/2026-03-31', processed_at: '2026-03-31T10:00:00Z',
+      items: [{ employeeId: AK, netPay: 5000, daysWorked: 5, basePay: 5000 }] },
+    { id: 'a1', period: '2026-04-01/2026-04-30', processed_at: '2026-04-30T10:00:00Z',
+      items: [{ employeeId: AK, netPay: 9000, daysWorked: 10, basePay: 9000 }] },
+    { id: 'g1', period: '2026-08-17/2026-08-17', processed_at: '2026-08-17T10:00:00Z',
+      items: [{ employeeId: AK, netPay: 900, daysWorked: 1, basePay: 900 }] },
+  ];
+
+  it('counts from 1 April, excluding the previous financial year', () => {
+    const y = yearToDate({ run: runs[2], records: runs, employeeId: AK });
+    expect(y.year).toBe('2026-27');
+    expect(y.totalAmount).toBe(9900);      // 9000 + 900, NOT the March 5000
+    expect(y.totalDays).toBe(11);
+  });
+
+  it('does not count a run processed after this one', () => {
+    const later = [...runs, { id: 'z9', period: '2026-09-01/2026-09-30',
+      processed_at: '2026-09-30T10:00:00Z',
+      items: [{ employeeId: AK, netPay: 4000, daysWorked: 4, basePay: 4000 }] }];
+    expect(yearToDate({ run: runs[2], records: later, employeeId: AK }).totalAmount).toBe(9900);
+  });
+
+  it('a March run sees only the year that ended', () => {
+    expect(yearToDate({ run: runs[0], records: runs, employeeId: AK }).year).toBe('2025-26');
+    expect(yearToDate({ run: runs[0], records: runs, employeeId: AK }).totalAmount).toBe(5000);
+  });
+
+  it('year-to-date is never less than month-to-date', () => {
+    const y = yearToDate({ run: runs[2], records: runs, employeeId: AK });
+    const m = monthToDate({ run: runs[2], records: runs, employeeId: AK });
+    expect(y.totalAmount).toBeGreaterThanOrEqual(m.totalAmount);
+  });
+});
+
+describe('monthlyPayItem — one slip a month, even on a daily wage', () => {
+  /** The real August 2026 runs for FUTURE DISPO. */
+  const AK = 'ak', PA = 'pa';
+  const line = (id, net, days) => ({ employeeId: id, employeeName: id === AK ? 'Akbar' : 'Parthipan',
+    department: 'Management', payType: 'DAILY', dailyRate: net > 0 ? 900 : 0,
+    daysWorked: days, basePay: net, overtime: 0, commission: 0, bonus: 0,
+    deductions: 0, netPay: net });
+  const records = [
+    { id: 'r1', period: '2026-08-01/2026-08-08', processed_at: '2026-08-08T11:55:00Z',
+      items: [line(AK, 3600, 4), line(PA, 0, 0)] },
+    { id: 'r2', period: '2026-08-10/2026-08-10', processed_at: '2026-08-11T09:00:00Z',
+      items: [line(AK, 900, 1), line(PA, 0, 0)] },
+    { id: 'r3', period: '2026-08-13/2026-08-13', processed_at: '2026-08-15T09:00:00Z',
+      items: [line(AK, 900, 1), line(PA, 0, 0)] },
+    { id: 'r4', period: '2026-08-15/2026-08-15', processed_at: '2026-08-15T09:00:00Z',
+      items: [line(AK, 900, 1), line(PA, 0, 0)] },
+    { id: 'r5', period: '2026-08-17/2026-08-17', processed_at: '2026-08-17T10:00:00Z',
+      items: [line(AK, 900, 1), line(PA, 0, 0)] },
+    // A September run must not leak into August.
+    { id: 's1', period: '2026-09-02/2026-09-02', processed_at: '2026-09-02T10:00:00Z',
+      items: [line(AK, 900, 1)] },
+  ];
+  const aug = monthlyPayItem({ year: 2026, month1to12: 8, employeeId: AK, records });
+
+  it('collapses five runs into one month', () => {
+    expect(aug.runCount).toBe(5);
+    expect(aug.item.netPay).toBe(7200);
+    expect(aug.item.daysWorked).toBe(8);
+    expect(aug.item.basePay).toBe(7200);
+  });
+
+  it('presents the month as the period, in the shape buildPayslip takes', () => {
+    expect(aug.run.period).toBe('2026-08');
+    expect(describePeriod(aug.run.period)).toBe('August 2026');
+    expect(aug.item.employeeName).toBe('Akbar');
+    expect(aug.item.payType).toBe('DAILY');
+  });
+
+  it('lists the individual payments that made up the month', () => {
+    expect(aug.payments.map(p => p.amount)).toEqual([3600, 900, 900, 900, 900]);
+    expect(aug.payments.reduce((t, p) => t + p.amount, 0)).toBe(aug.item.netPay);
+  });
+
+  it('does not reach into a neighbouring month', () => {
+    expect(aug.item.netPay).toBe(7200);   // the 900 of September is excluded
+  });
+
+  it('keys the month per employee, so two slips never collide', () => {
+    const pa = monthlyPayItem({ year: 2026, month1to12: 8, employeeId: PA, records });
+    expect(aug.run.id).not.toBe(pa.run.id);
+  });
+
+  it('keeps a nil employee as a slip, with no payments listed', () => {
+    const pa = monthlyPayItem({ year: 2026, month1to12: 8, employeeId: PA, records });
+    expect(pa.item.netPay).toBe(0);
+    expect(pa.payments).toHaveLength(0);
+  });
+
+  it('drops the daily rate when it changed mid-month', () => {
+    // Printing "8 days x 900" would be a lie if some days were paid at 1,000.
+    const mixed = records.map((r, i) => i === 2
+      ? { ...r, items: [{ ...line(AK, 1000, 1), dailyRate: 1000 }] } : r);
+    expect(monthlyPayItem({ year: 2026, month1to12: 8, employeeId: AK, records: mixed })
+      .item.dailyRate).toBe(0);
+  });
+
+  it('returns null when the employee was not paid that month', () => {
+    expect(monthlyPayItem({ year: 2026, month1to12: 7, employeeId: AK, records })).toBeNull();
+  });
+});
+
+describe('yearToDate on a monthly slip', () => {
+  /**
+   * The monthly slip's run is synthetic: it stands for several real runs and is
+   * not itself in `records`. Getting this wrong made year-to-date come out
+   * LOWER than the month printed beside it — caught by rendering, not by tests,
+   * which is why it is pinned here.
+   */
+  const AK = 'ak';
+  const line = (net, days) => ({ employeeId: AK, netPay: net, daysWorked: days, basePay: net });
+  const records = [
+    { id: 'r1', period: '2026-08-01/2026-08-08', processed_at: '2026-08-08T11:55:00Z', items: [line(3600, 4)] },
+    { id: 'r2', period: '2026-08-10/2026-08-10', processed_at: '2026-08-11T09:00:00Z', items: [line(900, 1)] },
+    { id: 'r5', period: '2026-08-17/2026-08-17', processed_at: '2026-08-17T10:00:00Z', items: [line(900, 1)] },
+  ];
+  const m = monthlyPayItem({ year: 2026, month1to12: 8, employeeId: AK, records });
+
+  it('counts every run the month stands for', () => {
+    const y = yearToDate({ run: m.run, records, employeeId: AK });
+    expect(y.totalAmount).toBe(5400);
+    expect(y.totalDays).toBe(6);
+  });
+
+  it('is never less than the month it is printed on', () => {
+    // The invariant the bug broke.
+    const y = yearToDate({ run: m.run, records, employeeId: AK });
+    expect(y.totalAmount).toBeGreaterThanOrEqual(m.item.netPay);
   });
 });

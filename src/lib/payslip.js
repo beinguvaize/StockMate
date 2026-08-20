@@ -17,7 +17,8 @@
  *    the paper.
  */
 
-import { describePeriod, monthToDate } from './payrollPeriods';
+import { describePeriod, monthToDate, yearToDate } from './payrollPeriods';
+import { statutoryDeductions } from './statutory';
 
 /** Rupees, Indian grouping, always two decimals -- it is a money document. */
 export const money = (v) => `₹${(Number(v) || 0).toLocaleString('en-IN', {
@@ -69,7 +70,8 @@ export function amountInWords(value) {
  * of its items array, `employee` the optional employees row for contact detail
  * the run did not freeze.
  */
-export function buildPayslip({ run, item, employee, business, records, payment } = {}) {
+export function buildPayslip({ run, item, employee, business, records, payment,
+                              payments, statutoryConfig } = {}) {
   if (!run || !item) return null;
 
   const basePay     = num(item.basePay);
@@ -109,7 +111,16 @@ export function buildPayslip({ run, item, employee, business, records, payment }
     { label: 'Bonus',      note: null, amount: bonus },
   ].filter(l => l.amount > 0);
 
+  // Statutory deductions come first: they are the ones the employee is most
+  // likely to be checking, and the ones reported to the department.
+  const statLines = statutoryDeductions({
+    gross: basePay + overtime + commission + bonus,
+    basic: basePay,
+    config: statutoryConfig,
+  });
+
   const deductionLines = [
+    ...statLines,
     lopAmt > 0 ? {
       label: 'Loss of pay',
       note: perDay > 0
@@ -185,7 +196,16 @@ export function buildPayslip({ run, item, employee, business, records, payment }
     // The month around this slip. Daily wages are paid in many small runs, so a
     // slip for one day is nearly meaningless alone. Not computed for salaried
     // staff -- they are paid once for the month, so it would restate the net.
-    monthToDate: isDaily && records ? monthToDate({ run, records, employeeId: item.employeeId }) : null,
+    // The individual payments that made up this month. A monthly slip for a
+    // daily wage is a summary of several handovers, and the worker needs to see
+    // which days each one covered.
+    payments: payments || (isDaily && records
+      ? monthToDate({ run, records, employeeId: item.employeeId })?.payments || null
+      : null),
+
+    // Financial year to date -- April to March, the window every payroll return
+    // is measured against.
+    yearToDate: records ? yearToDate({ run, records, employeeId: item.employeeId }) : null,
 
     // Attendance is the salaried equivalent of that block: what was paid of
     // what the period held.

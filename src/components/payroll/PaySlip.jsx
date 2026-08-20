@@ -158,28 +158,35 @@ export const Slip = ({ s }) => (
               <div className="ps-net-w">{s.netPayInWords}</div>
             </div>
 
-            {s.monthToDate && s.monthToDate.totalAmount > 0 && (
-              <div className="ps-mtd">
-                {/* Every earlier payment of the month, not just their sum --
-                    the worker can tie each one to the days it covered. */}
-                {s.monthToDate.payments.length > 0 && (
-                  <>
-                    <div className="ps-mtd-k">Earlier this month</div>
-                    <div className="ps-plist">
-                      {s.monthToDate.payments.map(p => (
-                        <div className="ps-pln" key={p.id}>
-                          <span>{p.label}</span>
-                          <span className="ps-a">{money(p.amount)}</span>
-                        </div>
-                      ))}
+            {/* The handovers that made up the month. A monthly slip on a daily
+                wage summarises several payments, and the worker needs to see
+                which days each one covered. */}
+            {s.payments && s.payments.length > 1 && (
+              <div className="ps-plist-blk">
+                <div className="ps-mtd-k">Paid in {s.payments.length} instalments</div>
+                <div className="ps-plist">
+                  {s.payments.map(p => (
+                    <div className="ps-pln" key={p.id}>
+                      <span>{p.label}</span>
+                      <span className="ps-a">{money(p.amount)}</span>
                     </div>
-                  </>
-                )}
-                <div className="ps-mtd-row ps-mtd-tot">
-                  <span className="ps-mtd-k">Month to date</span>
-                  <span className="ps-mtd-big">{money(s.monthToDate.totalAmount)}</span>
+                  ))}
                 </div>
-                <div className="ps-mtd-n">{s.monthToDate.totalDays} days paid in {monthName(s.monthToDate.month)}</div>
+              </div>
+            )}
+
+            {/* Financial year to date -- April to March, the window every
+                payroll return is measured against. */}
+            {s.yearToDate && (
+              <div className="ps-mtd">
+                <div className="ps-mtd-k">Year to date · FY {s.yearToDate.year}</div>
+                <div className="ps-mtd-row">
+                  <span className="ps-mtd-big">{money(s.yearToDate.totalAmount)}</span>
+                  <span className="ps-mtd-d">{s.yearToDate.totalDays} days</span>
+                </div>
+                {s.yearToDate.deductions > 0 && (
+                  <div className="ps-mtd-n">{money(s.yearToDate.deductions)} deducted this year</div>
+                )}
               </div>
             )}
 
@@ -217,13 +224,6 @@ export const Slip = ({ s }) => (
     </div>
   </div>
 );
-
-/** '2026-08' -> 'August'. */
-const monthName = (ym) => {
-  const [y, m] = String(ym || '').split('-').map(Number);
-  if (!y || !m) return 'the month';
-  return new Date(y, m - 1, 1).toLocaleString('default', { month: 'long' });
-};
 
 const Fact = ({ k, v, mono }) => (
   <div className="ps-fact">
