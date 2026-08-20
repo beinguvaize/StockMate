@@ -121,6 +121,11 @@ export const usePeople = (tenantId) => {
   };
 
   const deleteSupplier = async (id) => {
+    if (typeof id !== 'string' || !id) {
+      const err = new Error(`deleteSupplier expects a supplier id, received ${typeof id}.`);
+      console.error('deleteSupplier: bad id', id);
+      return { success: false, error: err };
+    }
     const deleted_at = new Date().toISOString();
     // Same hole as deleteClient: add and edit queued on desktop, delete did not.
     if (isElectron()) {
@@ -179,6 +184,16 @@ export const usePeople = (tenantId) => {
   };
 
   const deleteClient = async (id) => {
+    // Callers pass an ID. One passed the whole client object, which stringified
+    // into the query as id=[object Object] and matched nothing -- a delete that
+    // silently did nothing, then reported a confusing permissions error once
+    // the write started checking. Refuse the bad shape here so the next caller
+    // that gets it wrong finds out immediately.
+    if (typeof id !== 'string' || !id) {
+      const err = new Error(`deleteClient expects a client id, received ${typeof id}.`);
+      console.error('deleteClient: bad id', id);
+      return { success: false, error: err };
+    }
     const deleted_at = new Date().toISOString();
     // Desktop is offline-first: adding and editing a client already queue, but
     // deleting did not -- it went straight to the network. Off the network the

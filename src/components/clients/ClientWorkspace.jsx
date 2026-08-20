@@ -363,8 +363,15 @@ const ClientWorkspace = ({
                         <Edit3 size={12} /> Edit
                       </button>
                     )}
+                    {/* handleDelete takes an ID. This passed the whole client object,
+                        so the request went out as id=[object Object] and matched
+                        nothing -- the delete that "did not work" for weeks. It also
+                        had no confirm, unlike the row button, so a misclick went
+                        straight through. */}
                     {hasPermission?.('clients', 'delete') && (
-                      <button onClick={() => handleDelete?.(selected)}
+                      <button onClick={() => {
+                        if (window.confirm(`Delete ${selected.name}?`)) handleDelete?.(selected.id);
+                      }}
                         className="h-8 px-3 rounded-lg border border-red-200 text-[12px] font-semibold text-red-600 hover:bg-red-50 inline-flex items-center gap-1.5">
                         <Trash2 size={12} /> Delete
                       </button>
