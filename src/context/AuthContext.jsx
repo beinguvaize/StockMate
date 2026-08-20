@@ -132,19 +132,46 @@ export const AuthProvider = ({ children }) => {
               } catch (_) {/* ignore — bootstrap is best-effort */}
             })();
           }
-        } else {
-          // Provision superuser if match
+        } else if (isSuperUser) {
+          // A bootstrap admin is provisioned for real -- the row is written, so
+          // the database agrees with what is in state.
           const newUserProfile = {
             id: session.user.id,
             email: session.user.email,
             name: session.user.email.split('@')[0],
-            roles: isSuperUser ? ['GLOBAL_ADMIN', 'OWNER'] : ['STAFF'],
-            status: 'ACTIVE'
+            roles: ['GLOBAL_ADMIN', 'OWNER'],
+            status: 'ACTIVE',
           };
-          setCurrentUser(newUserProfile);
-          if (isSuperUser) {
-            await supabase.from('users').upsert(newUserProfile);
+          const { error: provErr } = await supabase.from('users').upsert(newUserProfile);
+          if (provErr) {
+            console.error('[auth] superuser provisioning failed:', provErr);
+            setCurrentUser({ ...newUserProfile, roles: [], status: 'NO_PROFILE', profileMissing: true });
+          } else {
+            setCurrentUser(newUserProfile);
           }
+        } else {
+          // NO PROFILE ROW, and we are not allowed to create one.
+          //
+          // This used to invent a profile in memory -- roles STAFF, status
+          // ACTIVE, no tenant -- and carry on as though the account were set up.
+          // The app then rendered normally while the DATABASE had no record of
+          // the user, so current_tenant_id() was null, is_global_admin() was
+          // false, and every RLS policy denied. Reads still looked fine because
+          // the cache served rows; writes matched nothing and did nothing.
+          //
+          // A signed-in account the database does not know about is not a
+          // working account, and pretending otherwise is what made this take a
+          // customer report and three fixes to find.
+          console.error('[auth] signed in as %s but no users row exists — account not provisioned',
+            session.user.email);
+          setCurrentUser({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.email.split('@')[0],
+            roles: [],
+            status: 'NO_PROFILE',
+            profileMissing: true,
+          });
         }
       }
       } catch (err) {

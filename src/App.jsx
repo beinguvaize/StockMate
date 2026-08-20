@@ -9,6 +9,7 @@ const Router = (typeof window !== 'undefined' && window.electron?.isElectron)
 import { useAuth } from './context/AuthContext';
 import { useTenant } from './context/TenantContext';
 import AppLayout from './components/AppLayout';
+import AccountNotProvisioned from './components/AccountNotProvisioned';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalLoading from './components/GlobalLoading';
@@ -90,11 +91,18 @@ const GuestRoute = ({ children }) => {
  * If user already has a tenant, skip setup and go to dashboard.
  */
 const AuthRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading, logout } = useAuth();
   const { currentTenant, isSyncComplete } = useTenant();
 
   if (loading || !isSyncComplete) return <GlobalLoading />;
   if (!currentUser) return <Navigate to="/login" replace />;
+  // Signed in, but the database has no profile for this account. Every write
+  // would be denied by RLS and silently do nothing, so stop here rather than
+  // render an app that looks like it works. See AuthContext for how this state
+  // used to be papered over with an invented profile.
+  if (currentUser.profileMissing) {
+    return <AccountNotProvisioned email={currentUser.email} onSignOut={logout} />;
+  }
   // Already has workspace → skip setup
   if (currentTenant) return <Navigate to="/dashboard" replace />;
   return children;
@@ -166,7 +174,7 @@ const RootRedirect = () => {
 };
 
 function AppRoutes() {
-  const { isOwner, hasRole, currentUser, loading: authLoading } = useAuth();
+  const { isOwner, hasRole, currentUser, logout, loading: authLoading } = useAuth();
   const { loading: tenantLoading } = useTenant();
   const location = useLocation();
 
@@ -186,6 +194,13 @@ function AppRoutes() {
   }, [!!currentUser]);
 
   if (authLoading || tenantLoading) return <GlobalLoading />;
+
+  // Signed in, but the database has no profile for this account, so RLS denies
+  // every write while cached reads still look normal. Caught at the top of the
+  // app so no route can render a workspace that cannot save anything.
+  if (currentUser?.profileMissing) {
+    return <AccountNotProvisioned email={currentUser.email} onSignOut={logout} />;
+  }
 
   return (
     <Suspense fallback={<GlobalLoading />}>
