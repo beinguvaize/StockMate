@@ -229,10 +229,22 @@ export const restUpdate = async (table, patch, filters = {}, { expectRow = false
     });
     if (!res.ok) return { error: await parseRestError(res, `Update failed (${res.status})`) };
     if (expectRow) {
+      // 204 means the server honoured return=minimal despite the Prefer header
+      // (a proxy can strip it). That is NOT a failed update, and treating it as
+      // one would report a successful delete as broken.
+      if (res.status === 204) return { error: null };
+
       let rows = null; try { rows = await res.json(); } catch (_) { rows = null; }
       if (!Array.isArray(rows) || rows.length === 0) {
+        // Say WHICH row was looked for. Without it this message is unactionable:
+        // the same wording covers a row that is genuinely gone, a filter built
+        // from the wrong tenant, and a permission problem, and telling them
+        // apart from the outside took several rounds of guessing.
+        const where = Object.entries(filters)
+          .map(([k, v]) => `${k}=${v === undefined ? 'undefined' : v}`).join(', ');
         return { error: new Error(
-          `No matching row was updated in ${table}. It may have been removed already, or you may not have permission to change it.`) };
+          `No matching row was updated in ${table} (looked for ${where}). ` +
+          `It may have been removed already, or you may not have permission to change it.`) };
       }
     }
     return { error: null };
