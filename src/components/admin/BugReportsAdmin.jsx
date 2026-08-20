@@ -28,7 +28,23 @@ const fmtDate = (iso) => {
 };
 
 const BugReportsAdmin = ({ tenants = [] }) => {
-  const { data, loading, refetch, updateStatus } = useBugReports(null, { adminMode: true });
+  const { data, notes, loading, refetch, updateStatus, addNote, deleteNote } =
+    useBugReports(null, { adminMode: true });
+  const [noteDraft, setNoteDraft] = useState({});   // report id -> text
+  const [noteBusy, setNoteBusy]   = useState(null);
+  const [noteError, setNoteError] = useState('');
+
+  const submitNote = async (reportId, visibility) => {
+    const body = (noteDraft[reportId] || '').trim();
+    if (!body) return;
+    setNoteBusy(reportId + visibility); setNoteError('');
+    const { error } = await addNote(reportId, body, visibility);
+    setNoteBusy(null);
+    // Never swallow it: a note the team believes was sent to the customer but
+    // was not is worse than no note at all.
+    if (error) { setNoteError(error.message || 'The note could not be saved.'); return; }
+    setNoteDraft(d => ({ ...d, [reportId]: '' }));
+  };
   const [statusFilter, setStatusFilter]   = useState('OPEN');
   const [severityFilter, setSeverityFilter] = useState('ALL');
   const [openId, setOpenId] = useState(null);
@@ -163,6 +179,69 @@ const BugReportsAdmin = ({ tenants = [] }) => {
                           {saving && r.status !== s ? <Loader2 size={11} className="animate-spin" /> : `Mark ${s.replace('_', ' ')}`}
                         </button>
                       ))}
+                    </div>
+
+                    {/* Notes. Two buttons rather than a visibility dropdown:
+                        the destination is the decision, and a dropdown lets a
+                        mis-set default send an internal remark to a customer. */}
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <div className="text-[10px] font-black uppercase tracking-wide text-muted-foreground mb-2">
+                        Notes
+                      </div>
+
+                      {(notes[r.id] || []).length === 0 && (
+                        <div className="text-[11px] text-muted-foreground mb-2">No notes yet.</div>
+                      )}
+
+                      <div className="flex flex-col gap-1.5 mb-3">
+                        {(notes[r.id] || []).map(n => (
+                          <div key={n.id}
+                            className={`rounded-lg border px-3 py-2 ${
+                              n.visibility === 'PUBLIC'
+                                ? 'bg-emerald-50/60 border-emerald-200'
+                                : 'bg-amber-50/50 border-amber-200'}`}>
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className={`text-[9px] font-black uppercase tracking-wide ${
+                                n.visibility === 'PUBLIC' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                {n.visibility === 'PUBLIC' ? 'Customer can see this' : 'Internal only'}
+                              </span>
+                              <span className="text-[9px] text-muted-foreground">
+                                {n.author_name || 'staff'} · {new Date(n.created_at).toLocaleString('en-IN')}
+                              </span>
+                              <button onClick={() => deleteNote(n.id)}
+                                className="ml-auto text-[9px] font-bold text-muted-foreground hover:text-red-600">
+                                Remove
+                              </button>
+                            </div>
+                            <div className="text-[11.5px] text-ink-primary whitespace-pre-wrap">{n.body}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <textarea
+                        rows={2}
+                        value={noteDraft[r.id] || ''}
+                        onChange={e => setNoteDraft(d => ({ ...d, [r.id]: e.target.value }))}
+                        placeholder="Write a note…"
+                        className="w-full rounded-lg border border-border px-3 py-2 text-[11.5px] outline-none focus:ring-2 focus:ring-accent-signature/20"
+                      />
+                      {noteError && (
+                        <div className="mt-1.5 text-[11px] font-semibold text-red-600">{noteError}</div>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <button
+                          disabled={!!noteBusy || !(noteDraft[r.id] || '').trim()}
+                          onClick={() => submitNote(r.id, 'INTERNAL')}
+                          className="px-3 py-1.5 rounded-lg text-[10px] font-black border bg-white border-border text-ink-primary hover:border-amber-400 disabled:opacity-40">
+                          Add internal note
+                        </button>
+                        <button
+                          disabled={!!noteBusy || !(noteDraft[r.id] || '').trim()}
+                          onClick={() => submitNote(r.id, 'PUBLIC')}
+                          className="px-3 py-1.5 rounded-lg text-[10px] font-black border bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
+                          Send to customer
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

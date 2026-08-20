@@ -15,19 +15,37 @@ const detectSourceApp = () => {
  */
 export const useBugReports = (tenantId, { adminMode = false } = {}) => {
   const [data, setData]   = useState([]);
+  const [notes, setNotes] = useState({});   // report_id -> note[]
   const [loading, setLoading] = useState(adminMode);
 
   const fetchAll = useCallback(async () => {
-    if (!adminMode) return;
+    // Customers list their own reports too, so they can see what happened to
+    // them. RLS decides what comes back: their own rows, and only the PUBLIC
+    // notes on them.
+    if (!adminMode && !tenantId) return;
     setLoading(true);
     try {
       let q = supabase.from('bug_reports').select('*').order('created_at', { ascending: false }).limit(500);
       const { data: rows, error } = await q;
       if (!error) setData(rows || []);
+
+      // Notes for every listed report. A tenant reading this same table sees
+      // only PUBLIC ones -- that is enforced by the row's policy, not here, so
+      // the client cannot leak an internal note by asking the wrong way.
+      const { data: noteRows, error: noteErr } = await supabase
+        .from('bug_report_notes')
+        .select('*').is('deleted_at', null)
+        .order('created_at', { ascending: true }).limit(2000);
+      if (noteErr) console.error('bug notes fetch error:', noteErr);
+      const byReport = {};
+      for (const n of noteRows || []) {
+        (byReport[n.report_id] = byReport[n.report_id] || []).push(n);
+      }
+      setNotes(byReport);
     } finally {
       setLoading(false);
     }
-  }, [adminMode]);
+  }, [adminMode, tenantId]);
 
   useEffect(() => {
     fetchAll();
@@ -66,5 +84,40 @@ export const useBugReports = (tenantId, { adminMode = false } = {}) => {
     return { error };
   };
 
-  return { data, loading, refetch: fetchAll, submit, updateStatus };
+  /**
+   * Add a note. `visibility` decides who can ever read it: PUBLIC reaches the
+   * customer who filed the report, INTERNAL never leaves the team. The default
+   * is INTERNAL because the safe mistake is a note the customer does not see,
+   * not one they should not have.
+   */
+  const addNote = async (reportId, body, visibility = 'INTERNAL') => {
+    const text = String(body || '').trim();
+    if (!reportId) return { error: new Error('addNote: reportId required') };
+    if (!text) return { error: new Error('A note cannot be empty.') };
+    if (!['PUBLIC', 'INTERNAL'].includes(visibility)) {
+      return { error: new Error(`addNote: unknown visibility ${visibility}`) };
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('bug_report_notes').insert({
+      report_id: reportId,
+      // Overwritten by the trigger from the report itself; sent so the insert
+      // satisfies NOT NULL.
+      tenant_id: data.find(r => r.id === reportId)?.tenant_id || null,
+      visibility,
+      body: text.slice(0, 4000),
+      author_id: user?.id || null,
+      author_name: user?.email || null,
+    });
+    if (!error) await fetchAll();
+    return { error };
+  };
+
+  const deleteNote = async (noteId) => {
+    const { error } = await supabase.from('bug_report_notes')
+      .update({ deleted_at: new Date().toISOString() }).eq('id', noteId);
+    if (!error) await fetchAll();
+    return { error };
+  };
+
+  return { data, notes, loading, refetch: fetchAll, submit, updateStatus, addNote, deleteNote };
 };

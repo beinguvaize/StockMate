@@ -13,7 +13,11 @@ const SEVERITIES = [
 const ReportIssueButton = () => {
   // All hooks run unconditionally — React requires stable hook order.
   const { currentTenantId } = useTenant();
-  const { submit } = useBugReports(currentTenantId);
+  // Listing the tenant's own reports as well as submitting, so someone who
+  // reported something can see what came of it. RLS returns their rows and,
+  // on them, only the notes marked for the customer.
+  const { submit, data: myReports, notes: myNotes } = useBugReports(currentTenantId);
+  const [showMine, setShowMine] = useState(false);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -86,6 +90,7 @@ const ReportIssueButton = () => {
                 <div className="text-xs text-muted-foreground">Our team has been notified.</div>
               </div>
             ) : (
+              <>
               <form onSubmit={handleSubmit} className="p-5 space-y-4">
                 <div>
                   <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Title</label>
@@ -149,6 +154,45 @@ const ReportIssueButton = () => {
                   {submitting ? <><Loader2 size={14} className="animate-spin" /> Sending…</> : 'Send Report'}
                 </button>
               </form>
+
+              {/* What happened to what they reported before. */}
+              {(myReports || []).length > 0 && (
+                <div className="border-t border-black/5 px-5 py-4">
+                  <button type="button" onClick={() => setShowMine(v => !v)}
+                    className="w-full flex items-center justify-between text-[11px] font-black uppercase tracking-wide text-muted-foreground hover:text-ink-primary">
+                    <span>Your reports ({myReports.length})</span>
+                    <span>{showMine ? '−' : '+'}</span>
+                  </button>
+
+                  {showMine && (
+                    <div className="mt-3 flex flex-col gap-2.5 max-h-64 overflow-y-auto">
+                      {myReports.map(r => (
+                        <div key={r.id} className="rounded-lg border border-black/8 px-3 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11.5px] font-bold text-ink-primary">{r.title}</span>
+                            <span className="ml-auto text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-canvas text-muted-foreground">
+                              {String(r.status || 'OPEN').replace('_', ' ')}
+                            </span>
+                          </div>
+                          <div className="text-[9.5px] text-muted-foreground mt-0.5">
+                            {new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </div>
+
+                          {(myNotes?.[r.id] || []).map(n => (
+                            <div key={n.id} className="mt-2 rounded bg-emerald-50/70 border border-emerald-200 px-2.5 py-1.5">
+                              <div className="text-[9px] font-black uppercase tracking-wide text-emerald-700 mb-0.5">
+                                Update from support
+                              </div>
+                              <div className="text-[11px] text-ink-primary whitespace-pre-wrap">{n.body}</div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              </>
             )}
           </div>
         </div>
