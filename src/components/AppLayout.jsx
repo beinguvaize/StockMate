@@ -6,6 +6,7 @@ import { useBilling } from '../hooks/useBilling';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import SyncStatusButton from './SyncStatusButton';
+import TrialBanner from './TrialBanner';
 import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode} from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { getDefaultAvatar } from '../lib/supabase';
@@ -518,7 +519,7 @@ const KioskBar = ({ onExit }) => (
 const MainContent = ({ kioskMode = false }) => {
   const location = useLocation();
   const { tenantSlug } = useParams();
-  const { currentTenant } = useTenant();
+  const { currentTenant, trial, planInEffect } = useTenant();
   const { hasRole } = useAuth();
   const billing = useBilling(currentTenant?.id);
   const isSales = location.pathname.endsWith('/sales') || location.pathname.endsWith('/van-sale');
@@ -539,7 +540,15 @@ const MainContent = ({ kioskMode = false }) => {
           : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-2 md:py-6'
       }`}
     >
-      {showBilling && (
+      {/* One message about status, never two. The trial banner and the billing
+          banner read from different tables that disagree -- only four tenants
+          have a subscription row, and Aisha Store's says her trial expired in
+          July while access is in fact still open. While a tenant is on trial,
+          tenants.trial_end_date is the source that gates access, so it is the
+          one allowed to speak. */}
+      {trial ? (
+        <TrialBanner trial={trial} planInEffect={planInEffect} basePath={basePath} />
+      ) : showBilling && (
         <div className={`${billingMsg.cls} text-white rounded-xl px-4 py-2.5 mb-4 flex items-center justify-between gap-3 flex-wrap`}>
           <span className="text-[13px] font-semibold">{billingMsg.txt}</span>
           <NavLink to={`${basePath}/settings`} className="text-[12px] font-bold bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 transition-colors">
