@@ -79,6 +79,23 @@ export const AuthProvider = ({ children }) => {
           }
         }
 
+        // A removed staff member must not be able to sign in. deleteUser now
+        // soft-deletes, so without this the row still loads and they keep full
+        // access -- "removing" someone would only hide them from the list.
+        if (profile?.deleted_at) {
+          console.warn('[auth] %s was removed from this workspace', session.user.email);
+          profile = null;
+          setCurrentUser({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.email.split('@')[0],
+            roles: [],
+            status: 'REMOVED',
+            profileMissing: true,
+            accountRemoved: true,
+          });
+        }
+
         if (profile) {
           // Merge session email into profile to ensure bypass logic always has the data
           const enrichedProfile = { ...profile, email: session.user.email };

@@ -386,7 +386,7 @@ const Inventory = () => {
         priceLists={priceLists}
         onUpsert={upsertPrice}
         onDelete={deletePrice}
-        currencySymbol={businessProfile?.currencySymbol || ''}
+        currencySymbol={businessProfile?.currencySymbol || '₹'}
       />
 
       {adjustingProduct && (

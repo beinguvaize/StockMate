@@ -98,7 +98,7 @@ const Orders = () => {
   const { products } = useInventory(currentTenantId);
 
   const navigate = useNavigate();
-  const sym = businessProfile?.currencySymbol || '';
+  const sym = businessProfile?.currencySymbol || '₹';
 
   // ── Merge orders + invoices into unified pipeline ─────────────────────
   const allItems = useMemo(() => {

@@ -721,7 +721,7 @@ const Payroll = () => {
   activeEmployeesCount={activeEmployeesCount}
   totalMonthlyPayroll={totalMonthlyPayroll}
   lastPayRun={lastPayRun}
-  currencySymbol={businessProfile?.currencySymbol || ''}
+  currencySymbol={businessProfile?.currencySymbol || '₹'}
   viewOnly={viewOnly}
   hasRole={hasRole}
   handleMonthlyReset={handleMonthlyReset}
@@ -760,7 +760,7 @@ const Payroll = () => {
   setDeleteConfirm={setDeleteConfirm}
   setSalaryPayment={setSalaryPayment}
   setShowSalaryModal={setShowSalaryModal}
-  currencySymbol={businessProfile?.currencySymbol || ''}
+  currencySymbol={businessProfile?.currencySymbol || '₹'}
   viewOnly={viewOnly}
   departments={DEPARTMENTS}
   />
@@ -769,7 +769,7 @@ const Payroll = () => {
   {activeTab === 'HISTORY' && (
     <PayHistory
       payrollRecords={payrollRecords}
-      currencySymbol={businessProfile?.currencySymbol || ''}
+      currencySymbol={businessProfile?.currencySymbol || '₹'}
       openPayRun={openPayRun}
       deletePayrollRecord={deletePayrollRecord}
       rerunPayroll={rerunPayroll}
@@ -1146,7 +1146,7 @@ const Payroll = () => {
   <div>
   <label className="text-[10px] font-semibold text-ink-secondary opacity-70 block mb-2">Amount Paying</label>
   <div className="flex items-center gap-2 bg-canvas px-4 py-3 rounded-xl border border-black/10">
-  <span className="text-sm font-semibold text-ink-secondary">{businessProfile?.currencySymbol || ''}</span>
+  <span className="text-sm font-semibold text-ink-secondary">{businessProfile?.currencySymbol || '₹'}</span>
   <input type="number" step="0.01" required className="w-full bg-transparent border-none text-base font-semibold text-ink-primary outline-none" value={salaryPayment.amount} onChange={e => setSalaryPayment({...salaryPayment, amount: e.target.value})} />
   </div>
   </div>

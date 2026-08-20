@@ -101,7 +101,7 @@ const AuthRoute = ({ children }) => {
   // render an app that looks like it works. See AuthContext for how this state
   // used to be papered over with an invented profile.
   if (currentUser.profileMissing) {
-    return <AccountNotProvisioned email={currentUser.email} onSignOut={logout} />;
+    return <AccountNotProvisioned email={currentUser.email} onSignOut={logout} removed={!!currentUser.accountRemoved} />;
   }
   // Already has workspace → skip setup
   if (currentTenant) return <Navigate to="/dashboard" replace />;
@@ -199,7 +199,7 @@ function AppRoutes() {
   // every write while cached reads still look normal. Caught at the top of the
   // app so no route can render a workspace that cannot save anything.
   if (currentUser?.profileMissing) {
-    return <AccountNotProvisioned email={currentUser.email} onSignOut={logout} />;
+    return <AccountNotProvisioned email={currentUser.email} onSignOut={logout} removed={!!currentUser.accountRemoved} />;
   }
 
   return (

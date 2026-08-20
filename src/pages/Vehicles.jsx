@@ -52,7 +52,7 @@ const Vehicles = () => {
   const navigate = useNavigate();
   const { hasPermission, hasRole } = useAuth();
   const { currentTenantId, businessProfile, currentTenant } = useTenant();
-  const sym = businessProfile?.currencySymbol || '';
+  const sym = businessProfile?.currencySymbol || '₹';
 
   const {
     vehicles, addVehicle, updateVehicle, deleteVehicle,

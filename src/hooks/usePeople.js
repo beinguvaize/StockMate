@@ -61,7 +61,7 @@ export const usePeople = (tenantId) => {
         ),
         readCacheThenRevalidate(
           'users',
-          () => supabase.from('users').select('*').eq('tenant_id', tenantId).order('name'),
+          () => supabase.from('users').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
           (rows) => setUsers(rows),
         ),
       ]);
@@ -282,16 +282,37 @@ export const usePeople = (tenantId) => {
   };
 
   const deleteUser = async (userId) => {
-    // Prevent deletion of GLOBAL_ADMIN accounts
+    if (typeof userId !== 'string' || !userId) {
+      return { success: false, error: new Error(`deleteUser expects a user id, received ${typeof userId}.`) };
+    }
+    // Prevent removal of GLOBAL_ADMIN accounts. It used to return undefined
+    // here, so the screen could not tell "refused" from "done".
     const target = users.find(u => u.id === userId);
-    if (target?.roles?.includes('GLOBAL_ADMIN')) return;
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', userId)
-      .eq('tenant_id', tenantId);
+    if (target?.roles?.includes('GLOBAL_ADMIN')) {
+      return { success: false, error: new Error('A global admin cannot be removed from here.') };
+    }
+
+    // SOFT delete, where this used to hard-delete the row. 72 client payments
+    // carry recorded_by pointing at users; destroying the row leaves every one
+    // of them attributed to an id that no longer exists, and there is no way
+    // back. Everything else in this app soft-deletes; staff records were the
+    // exception for no reason.
+    //
+    // The list read above now filters deleted_at, and AuthContext refuses a
+    // removed profile, so a soft delete actually removes access -- otherwise
+    // "removing" someone would only hide them while they kept signing in.
+    const deleted_at = new Date().toISOString();
+    if (isElectron()) {
+      await queueMutation({ table: 'users', type: 'delete', payload: { id: userId } });
+      await upsertCachedRow('users', { id: userId, deleted_at });
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      return { success: true, error: null, queued: true };
+    }
+    const { error } = await restUpdate('users', { deleted_at }, { id: userId, tenant_id: tenantId },
+      { expectRow: true });
     if (error) console.error('deleteUser error:', error);
     else await fetchPeopleData();
+    return { success: !error, error };
   };
 
   return {
@@ -487,6 +508,17 @@ export const usePeople = (tenantId) => {
     },
 
     deleteClientPayment: async (paymentId) => {
+      // Desktop offline-first: queue the same server-side RPC rather than
+      // running it here. The outbox is FIFO, so a delete queued after the
+      // payment that created it replays in that order and the reversal sees
+      // the receipt it is reversing.
+      if (isElectron()) {
+        await queueMutation({
+          table: 'delete_client_payment', type: 'rpc',
+          payload: { p_tenant_id: tenantId, p_payment_id: paymentId },
+        });
+        return { success: true, queued: true };
+      }
       // One statement on the server. This used to soft-delete the receipt, then
       // re-read, recompute and write each affected sale in a loop from here --
       // so a failure part-way left the receipt gone and the sales still showing
