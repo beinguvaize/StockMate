@@ -43,6 +43,14 @@ const toEmployeeRow = (emp) => ({
   aadhaar:           emp.aadhaar           || null,
   pan:               emp.pan               || null,
   pf_account:        emp.pfAccount         ?? emp.pf_account        ?? null,
+  // Statutory setup. All default off: EPF is compulsory at 20 employees and
+  // ESI at 10, so switching them on for a three-person shop would invent
+  // deductions from real wages.
+  epf_enabled:            emp.epfEnabled        ?? emp.epf_enabled        ?? false,
+  epf_on_full_wage:       emp.epfOnFullWage     ?? emp.epf_on_full_wage   ?? false,
+  esi_enabled:            emp.esiEnabled        ?? emp.esi_enabled        ?? false,
+  professional_tax_state: emp.professionalTaxState ?? emp.professional_tax_state ?? null,
+  tds_monthly:            Number(emp.tdsMonthly ?? emp.tds_monthly ?? 0) || 0,
   esi_no:            emp.esiNo             ?? emp.esi_no            ?? null,
 });
 

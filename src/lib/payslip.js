@@ -18,7 +18,6 @@
  */
 
 import { describePeriod, monthToDate, yearToDate } from './payrollPeriods';
-import { statutoryDeductions } from './statutory';
 
 /** Rupees, Indian grouping, always two decimals -- it is a money document. */
 export const money = (v) => `₹${(Number(v) || 0).toLocaleString('en-IN', {
@@ -71,7 +70,7 @@ export function amountInWords(value) {
  * the run did not freeze.
  */
 export function buildPayslip({ run, item, employee, business, records, payment,
-                              payments, statutoryConfig } = {}) {
+                              payments } = {}) {
   if (!run || !item) return null;
 
   const basePay     = num(item.basePay);
@@ -117,13 +116,11 @@ export function buildPayslip({ run, item, employee, business, records, payment,
     { label: 'Bonus',      note: null, amount: bonus },
   ].filter(l => l.amount > 0);
 
-  // Statutory deductions come first: they are the ones the employee is most
-  // likely to be checking, and the ones reported to the department.
-  const statLines = statutoryDeductions({
-    gross: basePay + overtime + commission + bonus,
-    basic: basePay,
-    config: statutoryConfig,
-  });
+  // Statutory deductions are read from the run, never recomputed here. The run
+  // wrote a salary expense of exactly its netPay and that expense reached the
+  // ledger, so a figure derived at print time could differ from the money that
+  // actually moved -- the slip would disagree with the books it is evidence for.
+  const statLines = Array.isArray(item.statutoryLines) ? item.statutoryLines : [];
 
   const deductionLines = [
     ...statLines,

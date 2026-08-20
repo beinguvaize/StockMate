@@ -330,3 +330,60 @@ describe('employee identity', () => {
     expect(s.statutory.map(x => x.label)).not.toContain('Aadhaar');
   });
 });
+
+describe('statutory deductions come from the run, not from the slip', () => {
+  /**
+   * The run computes them, stores them on the item, and writes a salary expense
+   * of exactly netPay. If the slip recomputed instead of rendering, it could
+   * print a figure the ledger never saw -- the slip would contradict the books
+   * it exists to evidence.
+   */
+  const withStatutory = {
+    ...akbar,
+    basePay: 20000, netPay: 18104,
+    statutoryLines: [
+      { label: 'Provident fund', note: '12% of 15,000', amount: 1800, statutory: true },
+      { label: 'ESI', note: '0.75% of gross', amount: 150, statutory: true },
+      { label: 'Professional tax', note: 'Kerala · 300 half-yearly', amount: 50, statutory: true },
+    ],
+    statutoryTotal: 2000,
+  };
+
+  it('prints the lines the run stored', () => {
+    const s = buildPayslip({ run, item: withStatutory });
+    expect(s.deductionLines.map(l => l.label))
+      .toEqual(['Provident fund', 'ESI', 'Professional tax']);
+    expect(s.deductions).toBe(2000);
+  });
+
+  it('reconciles: gross − deductions = net, and matches what the run recorded', () => {
+    const s = buildPayslip({ run, item: withStatutory });
+    expect(s.grossEarnings).toBe(20000);
+    expect(s.netPay).toBe(18000);
+    // The stored net is 18,104 here on purpose: it does NOT agree, and the slip
+    // must say so rather than quietly showing one of two figures.
+    expect(s.discrepancy).toBe(18104);
+  });
+
+  it('is silent when the run and the lines agree', () => {
+    const s = buildPayslip({ run, item: { ...withStatutory, netPay: 18000 } });
+    expect(s.discrepancy).toBeNull();
+    expect(s.grossEarnings - s.deductions).toBe(s.netPay);
+  });
+
+  it('shows no statutory lines for an employee not configured for any', () => {
+    // Every live employee is in this state: EPF is compulsory at 20 staff and
+    // ESI at 10, and the largest tenant here has three.
+    const s = buildPayslip({ run, item: akbar });
+    expect(s.deductionLines).toHaveLength(0);
+    expect(s.netPay).toBe(900);
+  });
+
+  it('cannot invent a deduction the run did not record', () => {
+    // No statutoryLines on the item means none on the paper, whatever the
+    // employee's configuration happens to say today.
+    const s = buildPayslip({ run, item: { ...akbar, basePay: 50000, netPay: 50000 } });
+    expect(s.deductionLines).toHaveLength(0);
+    expect(s.netPay).toBe(50000);
+  });
+});

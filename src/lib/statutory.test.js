@@ -30,9 +30,11 @@ describe('EPF', () => {
 });
 
 describe('ESI', () => {
-  it('is 0.75% of gross at or below the limit', () => {
+  it('is 0.75% of gross at or below the limit, rounded UP to the rupee', () => {
+    // ESIC rounds a contribution up to the next rupee; 21,000 x 0.75% is
+    // 157.50, which is remitted as 158.
     expect(esiEmployee({ gross: 20000 })).toBe(150);
-    expect(esiEmployee({ gross: ESI_WAGE_LIMIT })).toBe(157.5);
+    expect(esiEmployee({ gross: ESI_WAGE_LIMIT })).toBe(158);
   });
 
   it('does not apply above the limit', () => {
@@ -41,7 +43,7 @@ describe('ESI', () => {
 
   it('continues above the limit inside a contribution period', () => {
     // Crossing mid-period does not stop the deduction; it runs to period end.
-    expect(esiEmployee({ gross: 25000, inContributionPeriod: true })).toBe(187.5);
+    expect(esiEmployee({ gross: 25000, inContributionPeriod: true })).toBe(188);
   });
 });
 
@@ -55,8 +57,11 @@ describe('professional tax', () => {
     expect(professionalTax({ state: 'Kerala', halfYearlyIncome: 11000 }).halfYearly).toBe(0);
   });
 
-  it('spreads the half-yearly charge over six months', () => {
+  it('spreads the half-yearly charge over six months, in whole rupees', () => {
     expect(professionalTax({ state: 'Kerala', halfYearlyIncome: 50000 }).monthly).toBe(75);
+    // 1,000 / 6 is 166.67. Paise here made the payslip's own total disagree
+    // with the expense the run wrote, so every line is a whole rupee.
+    expect(professionalTax({ state: 'Kerala', halfYearlyIncome: 200000 }).monthly).toBe(208);
   });
 
   it('returns null for a state it has no table for', () => {
@@ -92,12 +97,20 @@ describe('statutoryDeductions', () => {
     expect(lines.find(l => l.label === 'TDS').amount).toBe(500);
   });
 
+  it('deducts only whole rupees, so a slip can always reconcile', () => {
+    const lines = statutoryDeductions({
+      gross: 20000, basic: 20000,
+      config: { epf: true, esi: true, professionalTaxState: 'Kerala', tdsMonthly: 500 },
+    });
+    for (const l of lines) expect(Number.isInteger(l.amount)).toBe(true);
+  });
+
   it('prints TDS exactly as entered, never derived', () => {
     // Section 192 needs the regime, 80C/80D declarations, HRA and prior
     // employment. None of that is here, so the figure is the one the business
     // was advised and nothing computes over the top of it.
     const lines = statutoryDeductions({ gross: 500000, config: { tdsMonthly: 1234.5 } });
-    expect(lines).toEqual([{ label: 'TDS', note: 'As advised', amount: 1234.5, statutory: true }]);
+    expect(lines).toEqual([{ label: 'TDS', note: 'As advised', amount: 1235, statutory: true }]);
   });
 
   it('marks every line statutory, so the slip can group them', () => {

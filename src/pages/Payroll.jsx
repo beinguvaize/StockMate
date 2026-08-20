@@ -14,6 +14,7 @@ import EmployeeTable from '../components/payroll/EmployeeTable';
 import PayHistory from '../components/payroll/PayHistory';
 import { todayISOInAppTZ } from '../lib/utils';
 import { salariedBasePay } from '../lib/monthlyPay';
+import { statutoryDeductions } from '../lib/statutory';
 import { needsOverlapConfirmation } from '../lib/payrollPeriods';
 import { iso } from '../lib/reportPeriods';
 
@@ -341,6 +342,8 @@ const Payroll = () => {
   dob: '', gender: '', bloodGroup: '', emergencyContact: '',
   joiningDate: '', employmentType: 'FULL_TIME',
   aadhaar: '', pan: '', pfAccount: '', esiNo: '',
+  epfEnabled: false, epfOnFullWage: false, esiEnabled: false,
+  professionalTaxState: '', tdsMonthly: 0,
 });
   
   // Modals state
@@ -352,7 +355,8 @@ const Payroll = () => {
   // ===== EMPLOYEE CRUD =====
   const openAdd = () => {
   setEditingEmployee(null);
-  setEmpForm({ name: '', email: '', phone: '', department: DEPARTMENTS[0], position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '', dailyRate: 500, daysWorked: 0, userId: '', dob: '', gender: '', bloodGroup: '', emergencyContact: '', joiningDate: '', employmentType: 'FULL_TIME', aadhaar: '', pan: '', pfAccount: '', esiNo: '' });
+  setEmpForm({ name: '', email: '', phone: '', department: DEPARTMENTS[0], position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '', dailyRate: 500, daysWorked: 0, userId: '', dob: '', gender: '', bloodGroup: '', emergencyContact: '', joiningDate: '', employmentType: 'FULL_TIME', aadhaar: '', pan: '', pfAccount: '', esiNo: '',
+    epfEnabled: false, epfOnFullWage: false, esiEnabled: false, professionalTaxState: '', tdsMonthly: 0 });
   setShowForm(true);
 };
 
@@ -371,6 +375,10 @@ const Payroll = () => {
   employmentType: emp.employment_type || 'FULL_TIME',
   aadhaar: emp.aadhaar || '', pan: emp.pan || '',
   pfAccount: emp.pf_account || '', esiNo: emp.esi_no || '',
+  epfEnabled: !!emp.epf_enabled, epfOnFullWage: !!emp.epf_on_full_wage,
+  esiEnabled: !!emp.esi_enabled,
+  professionalTaxState: emp.professional_tax_state || '',
+  tdsMonthly: Number(emp.tds_monthly) || 0,
 });
   setShowForm(true);
 };
@@ -477,7 +485,29 @@ const Payroll = () => {
       // 1-8 Aug and then running August handed over the first week twice. The
       // overlap warning caught the period; it did not correct the amount.
       const already = Math.round(paidThisMonth.get(emp.id)?.amount || 0);
-      const net = Math.max(0, base - already);
+
+      // Statutory deductions are computed HERE, in the run, not when a slip is
+      // printed. The run writes a salary expense of exactly netPay, and that
+      // expense posts to the ledger -- so a deduction applied at print time
+      // would put a figure on the employee's slip that DayBook, the P&L and the
+      // cash account had never heard of. Everything below flows from this one
+      // number.
+      //
+      // All of it is off unless the employee is configured for it.
+      const statutory = statutoryDeductions({
+        gross: base,
+        basic: base,
+        config: {
+          epf: !!emp.epf_enabled,
+          epfOnFullWage: !!emp.epf_on_full_wage,
+          esi: !!emp.esi_enabled,
+          professionalTaxState: emp.professional_tax_state || null,
+          tdsMonthly: Number(emp.tds_monthly) || 0,
+        },
+      });
+      const statutoryTotal = Math.round(statutory.reduce((t, l) => t + l.amount, 0));
+
+      const net = Math.max(0, base - already - statutoryTotal);
       return {
         employeeId:   emp.id,
         employeeName: emp.name,
@@ -497,6 +527,11 @@ const Payroll = () => {
         // what was earned AND what was outstanding when it was paid, not just a
         // net figure nobody can explain later.
         alreadyPaid:  already,
+        // Stored on the item so the saved run, the expense and the slip all
+        // quote the same deductions. The slip renders these; it does not
+        // recompute them.
+        statutoryLines: statutory,
+        statutoryTotal,
         overtime:     0,
         commission:   0,
         bonus:        0,
@@ -582,8 +617,13 @@ const Payroll = () => {
   // One formula for every pay type. The hourly branch that used to sit here
   // multiplied basePay by a hardcoded 160 hours and dropped deductions and
   // alreadyPaid on the floor; HOURLY no longer exists.
+  // statutoryTotal must stay in this sum. Leaving it out meant editing any
+  // field -- a bonus, a deduction -- silently added the statutory deduction
+  // back to the payout, and the figure that reached the expense was the one
+  // AFTER the edit.
   const net = updated.basePay + updated.overtime + updated.commission
-            + updated.bonus - updated.deductions - (updated.alreadyPaid || 0);
+            + updated.bonus - updated.deductions - (updated.alreadyPaid || 0)
+            - (updated.statutoryTotal || 0);
   return { ...updated, netPay: Math.round(net)};
 }
   return item;
@@ -1401,6 +1441,73 @@ const Payroll = () => {
             <input type="text" placeholder="31-00-123456-000-0001"
               className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={empForm.esiNo} onChange={e => setEmpForm({...empForm, esiNo: e.target.value})} />
+          </div>
+
+          {/* What is actually DEDUCTED. The fields above are identifiers; these
+              decide money. Off by default -- EPF is compulsory at 20 employees
+              and ESI at 10, so a small shop deducts nothing until it says so. */}
+          <div className="sm:col-span-2 rounded-xl border border-black/8 bg-canvas/60 p-3.5">
+            <div className="text-[11px] font-bold text-ink-primary mb-1">Statutory deductions</div>
+            <p className="text-[10.5px] text-muted-foreground mb-3">
+              These come off every pay run for this employee. Leave them off unless the
+              business is registered for them.
+            </p>
+
+            <label className="flex items-start gap-2.5 mb-2.5 cursor-pointer">
+              <input type="checkbox" className="mt-0.5" checked={empForm.epfEnabled}
+                onChange={e => setEmpForm({ ...empForm, epfEnabled: e.target.checked })} />
+              <span className="text-[12px] text-ink-primary">
+                Provident fund <span className="text-muted-foreground">— 12% of wages, capped at ₹15,000 a month</span>
+              </span>
+            </label>
+
+            {empForm.epfEnabled && (
+              <label className="flex items-start gap-2.5 mb-2.5 ml-6 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={empForm.epfOnFullWage}
+                  onChange={e => setEmpForm({ ...empForm, epfOnFullWage: e.target.checked })} />
+                <span className="text-[12px] text-ink-primary">
+                  Contribute on the full wage
+                  <span className="text-muted-foreground"> — ignore the ₹15,000 ceiling</span>
+                </span>
+              </label>
+            )}
+
+            <label className="flex items-start gap-2.5 mb-2.5 cursor-pointer">
+              <input type="checkbox" className="mt-0.5" checked={empForm.esiEnabled}
+                onChange={e => setEmpForm({ ...empForm, esiEnabled: e.target.checked })} />
+              <span className="text-[12px] text-ink-primary">
+                ESI <span className="text-muted-foreground">— 0.75% of gross, while gross is ₹21,000 or below</span>
+              </span>
+            </label>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+              <div>
+                <label className="block text-[11px] font-medium text-ink-secondary mb-1">Professional tax state</label>
+                <select
+                  className="w-full bg-white border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+                  value={empForm.professionalTaxState}
+                  onChange={e => setEmpForm({ ...empForm, professionalTaxState: e.target.value })}>
+                  <option value="">Not applicable</option>
+                  {/* Only states with a slab table deduct anything. Any other
+                      state would need its own table; guessing from Kerala's
+                      would be a short deduction the employer answers for. */}
+                  <option value="Kerala">Kerala</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-ink-secondary mb-1">TDS per month (₹)</label>
+                <input type="number" min="0" step="1" placeholder="0"
+                  className="w-full bg-white border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+                  value={empForm.tdsMonthly}
+                  onChange={e => setEmpForm({ ...empForm, tdsMonthly: e.target.value })} />
+                {/* Section 192 needs the employee's regime, their 80C/80D
+                    declarations, rent for HRA and previous-employment income.
+                    None of that is here, so this is entered, not derived. */}
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Entered as advised by your accountant — not calculated here.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

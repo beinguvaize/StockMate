@@ -26,7 +26,17 @@
  */
 
 const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
-const r2 = (v) => Math.round(v * 100) / 100;
+/**
+ * Statutory deductions are whole rupees. Keeping paise here made the payslip's
+ * own arithmetic disagree with the expense the run wrote: professional tax is a
+ * half-yearly slab divided by six (1,000 / 6 = 166.67), so the lines summed to
+ * 2,616.67 while the total deducted was 2,617, and the slip's reconciliation
+ * check fired on a perfectly correct run.
+ */
+const rupees = (v) => Math.round(v);
+
+/** ESI is rounded UP to the next rupee, per the ESIC rules. */
+const rupeesUp = (v) => Math.ceil(v);
 
 /** Statutory ceilings and rates, FY 2026-27. */
 export const EPF_WAGE_CEILING = 15000;   // monthly EPF wage cap
@@ -45,7 +55,7 @@ export function epfEmployee({ epfWage, onFullWage = false } = {}) {
   const wage = num(epfWage);
   if (wage <= 0) return 0;
   const base = onFullWage ? wage : Math.min(wage, EPF_WAGE_CEILING);
-  return r2(base * EPF_EMPLOYEE_RATE);
+  return rupees(base * EPF_EMPLOYEE_RATE);
 }
 
 /**
@@ -61,7 +71,7 @@ export function esiEmployee({ gross, inContributionPeriod = false } = {}) {
   const g = num(gross);
   if (g <= 0) return 0;
   if (g > ESI_WAGE_LIMIT && !inContributionPeriod) return 0;
-  return r2(g * ESI_EMPLOYEE_RATE);
+  return rupeesUp(g * ESI_EMPLOYEE_RATE);
 }
 
 /**
@@ -85,7 +95,7 @@ export function professionalTax({ state, halfYearlyIncome } = {}) {
   if (income <= 0) return { halfYearly: 0, monthly: 0 };
   const row = KERALA_PT_HALF_YEARLY.find(([ceiling]) => income <= ceiling);
   const halfYearly = row ? row[1] : 0;
-  return { halfYearly, monthly: r2(halfYearly / 6) };
+  return { halfYearly, monthly: rupees(halfYearly / 6) };
 }
 
 /**
@@ -131,7 +141,7 @@ export function statutoryDeductions({ gross, basic, config = {} } = {}) {
   }
 
   // Entered, never inferred. See the note at the top of this file.
-  const tds = num(config.tdsMonthly);
+  const tds = rupees(num(config.tdsMonthly));
   if (tds > 0) {
     lines.push({ label: 'TDS', note: 'As advised', amount: tds, statutory: true });
   }
