@@ -37,7 +37,7 @@ export const PLANS = {
     modules: [
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports',
-      'estimates', 'manufacturing',
+      'estimates', 'manufacturing', 'accounts',
     ],
     features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory'],
     maxUsers: 5,
@@ -50,7 +50,11 @@ export const PLANS = {
     modules: [
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports',
-      'estimates', 'manufacturing',
+      'estimates', 'manufacturing', 'accounts',
+      // Niche modules with no tier until now, so their routes were open to
+      // every plan. Enterprise is the conservative home for them; move them
+      // down if any are meant to be sold lower.
+      'appointments', 'kds', 'labels',
       'users', 'settings', 'audit-log',
     ],
     features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory', 'api_access', 'white_label', 'priority_support'],
@@ -79,7 +83,22 @@ export const getPlanLimits = (plan) => {
  * Check if a module is accessible under a given plan.
  * Admin-only modules (users, settings) always require ENTERPRISE or admin role.
  */
+/**
+ * Settings and Users are SELF-SERVICE, not premium.
+ *
+ * They were ENTERPRISE-only in the module lists, so a Free, Growth or Pro tenant
+ * could not open Settings to enter their own GST number, bank details or
+ * printing setup -- and could not open Users at all, while the pricing page sold
+ * Growth on "3 users" and Pro on "5 users". Seat COUNTS are still enforced,
+ * separately, by maxUsers; being able to reach the page is not the paid part.
+ *
+ * The audit log stays on Enterprise. That one genuinely is a premium feature
+ * rather than a tenant managing its own shop.
+ */
+const SELF_SERVICE_MODULES = ['settings', 'users'];
+
 export const isModuleAvailable = (plan, moduleKey) => {
+  if (SELF_SERVICE_MODULES.includes(moduleKey)) return true;
   const planConfig = PLANS[plan] || PLANS.STARTER;
   return planConfig.modules.includes(moduleKey);
 };

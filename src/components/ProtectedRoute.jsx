@@ -103,6 +103,17 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOw
   'settings': 'settings',
   'invoices': 'invoices',   // STARTER+ (all plans); ensures route is gated, not bypassed
   'audit-log': 'audit-log', // ENTERPRISE-only
+  // These routes had NO entry here, so the plan gate never ran for them and any
+  // tenant could open them by typing the URL -- the nav hid the link, which is
+  // not the same as blocking the page.
+  'accounts': 'accounts',
+  'estimates': 'estimates',
+  'manufacturing': 'manufacturing',
+  'appointments': 'appointments',
+  'kds': 'kds',
+  'labels': 'labels',
+  // Creating a document is issuing an invoice, so it follows invoices.
+  'documents': 'invoices',
   };
 
  const moduleKey = moduleMap[path];

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { effectivePlan, trialDaysLeft, isTrialExpired, isTrialLapsed, trialNotice, TRIAL_GRACE_DAYS, PLANS, TRIAL_ENFORCEMENT_START } from './tenancy';
+import { effectivePlan, trialDaysLeft, isTrialExpired, isTrialLapsed, trialNotice, TRIAL_GRACE_DAYS, PLANS, TRIAL_ENFORCEMENT_START, isModuleAvailable } from './tenancy';
 
 /**
  * What a tenant can reach is decided here, so a wrong answer either bills a
@@ -130,6 +130,71 @@ describe('grace is anchored to when enforcement began', () => {
     } else {
       // Before that day arrives, nobody is cut off — which is the point.
       expect(isTrialLapsed(past)).toBe(false);
+    }
+  });
+});
+
+describe('module gating', () => {
+  /**
+   * What each plan can reach. Pinned because the gate had drifted in BOTH
+   * directions: settings and users were Enterprise-only, so a Growth customer
+   * sold "3 users" could not open the page to invite anyone; while accounts,
+   * estimates, manufacturing, appointments, kds and labels had no route mapping
+   * at all, so any tenant could open them by typing the URL.
+   */
+  const can = (plan, mod) => isModuleAvailable(plan, mod);
+
+  it('gives every plan the Free essentials', () => {
+    for (const p of ['FREE', 'GROWTH', 'PRO', 'ENTERPRISE']) {
+      for (const m of ['dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices']) {
+        expect(can(p, m)).toBe(true);
+      }
+    }
+  });
+
+  it('keeps Free out of the paid modules', () => {
+    for (const m of ['purchases', 'suppliers', 'reports', 'payroll', 'estimates',
+                     'orders', 'vehicles', 'manufacturing', 'accounts', 'audit-log']) {
+      expect(can('FREE', m)).toBe(false);
+    }
+  });
+
+  it('opens Growth up to purchases, reports, payroll and estimates', () => {
+    for (const m of ['purchases', 'suppliers', 'reports', 'payroll', 'estimates']) {
+      expect(can('GROWTH', m)).toBe(true);
+    }
+    // ...but not the Pro tier above it.
+    for (const m of ['orders', 'vehicles', 'manufacturing', 'accounts']) {
+      expect(can('GROWTH', m)).toBe(false);
+    }
+  });
+
+  it('gives Pro the ledger, orders, vehicles and manufacturing', () => {
+    for (const m of ['orders', 'vehicles', 'manufacturing', 'accounts']) {
+      expect(can('PRO', m)).toBe(true);
+    }
+    expect(can('PRO', 'audit-log')).toBe(false);
+  });
+
+  it('lets EVERY plan reach its own settings and users', () => {
+    // Not premium: a shop must be able to set its GST number and invite the
+    // staff its plan already pays for. The seat COUNT is enforced by maxUsers.
+    for (const p of ['FREE', 'GROWTH', 'PRO', 'ENTERPRISE']) {
+      expect(can(p, 'settings')).toBe(true);
+      expect(can(p, 'users')).toBe(true);
+    }
+  });
+
+  it('keeps the audit log on Enterprise', () => {
+    expect(can('ENTERPRISE', 'audit-log')).toBe(true);
+    for (const p of ['FREE', 'GROWTH', 'PRO']) expect(can(p, 'audit-log')).toBe(false);
+  });
+
+  it('gives an unknown module to nobody', () => {
+    // Fail closed: a module with no tier must not be reachable by everyone,
+    // which is exactly how accounts and manufacturing came to be open.
+    for (const p of ['FREE', 'GROWTH', 'PRO', 'ENTERPRISE']) {
+      expect(can(p, 'some-future-module')).toBe(false);
     }
   });
 });
