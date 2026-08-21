@@ -14,7 +14,7 @@ import EmployeeTable from '../components/payroll/EmployeeTable';
 import PayHistory from '../components/payroll/PayHistory';
 import { todayISOInAppTZ } from '../lib/utils';
 import { salariedBasePay } from '../lib/monthlyPay';
-import { statutoryDeductions } from '../lib/statutory';
+import { statutoryDeductions, PT_STATES } from '../lib/statutory';
 import { needsOverlapConfirmation } from '../lib/payrollPeriods';
 import { iso } from '../lib/reportPeriods';
 
@@ -1488,10 +1488,17 @@ const Payroll = () => {
                   value={empForm.professionalTaxState}
                   onChange={e => setEmpForm({ ...empForm, professionalTaxState: e.target.value })}>
                   <option value="">Not applicable</option>
-                  {/* Only states with a slab table deduct anything. Any other
-                      state would need its own table; guessing from Kerala's
-                      would be a short deduction the employer answers for. */}
-                  <option value="Kerala">Kerala</option>
+                  {/* Only listed states can be computed. A state with no slab
+                      table is deliberately absent rather than defaulted to a
+                      neighbour's rates -- that would be a short deduction the
+                      employer answers for. States that levy nothing are shown
+                      and labelled, so "no professional tax here" is an answer
+                      rather than a gap. */}
+                  {PT_STATES.map(st => (
+                    <option key={st.key} value={st.key}>
+                      {st.label}{st.levies ? '' : ' — no professional tax'}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

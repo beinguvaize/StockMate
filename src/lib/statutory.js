@@ -75,27 +75,118 @@ export function esiEmployee({ gross, inContributionPeriod = false } = {}) {
 }
 
 /**
- * Professional tax, a state levy. Kerala's is charged half-yearly by the local
- * body on income for that half year; the monthly figure below is that charge
- * spread over six months, which is how it is normally shown on a slip.
+ * Professional tax, a state levy under Article 276.
  *
- * Only Kerala is tabulated, because that is where this business operates.
- * Any other state returns null rather than a plausible-looking number from the
- * wrong table -- professional tax varies by state and an invented figure is a
- * short-deduction the employer answers for.
+ * Three things this has to express that a single table could not:
+ *
+ *  · States charge on different BASES. Most assess a monthly salary; Kerala and
+ *    Tamil Nadu assess income for a half year; Bihar assesses a year. Feeding a
+ *    monthly wage into a half-yearly table under-deducts by a factor of six.
+ *  · Several states levy NO professional tax at all -- Delhi, Haryana, Uttar
+ *    Pradesh and Rajasthan among them. "This state does not charge it" is a
+ *    different answer from "I have no table for this state", and only the
+ *    second is a reason to be cautious.
+ *  · Article 276 caps the levy at 2,500 per person per YEAR. That is a
+ *    constitutional ceiling, so it is enforced here rather than trusted to
+ *    every slab table being right.
+ *
+ * SLAB FIGURES ARE AS OF FY 2026-27 AND MUST BE CHECKED against the current
+ * state notification before a business is switched on. States revise them in
+ * their budgets, and a stale slab is a short deduction the employer answers
+ * for. A state that is not listed returns null and deducts NOTHING, which is
+ * the safe direction and is deliberately not a guess from a neighbour's table.
+ *
+ * Not modelled: Maharashtra and a few others charge women a different (higher)
+ * exemption, and some states load the final month of the year. Both would need
+ * data this system does not hold, so the tables below use the standard slab.
  */
-const KERALA_PT_HALF_YEARLY = [
-  [11999, 0], [17999, 120], [29999, 180], [44999, 300],
-  [59999, 450], [74999, 600], [99999, 750], [124999, 1000], [Infinity, 1250],
-];
+export const PT_ANNUAL_CAP = 2500;
 
-export function professionalTax({ state, halfYearlyIncome } = {}) {
-  if (String(state || '').trim().toUpperCase() !== 'KERALA') return null;
-  const income = num(halfYearlyIncome);
-  if (income <= 0) return { halfYearly: 0, monthly: 0 };
-  const row = KERALA_PT_HALF_YEARLY.find(([ceiling]) => income <= ceiling);
-  const halfYearly = row ? row[1] : 0;
-  return { halfYearly, monthly: rupees(halfYearly / 6) };
+const PT_TABLES = {
+  // [ceiling, amount] — first row whose ceiling the income does not exceed.
+  KERALA:           { basis: 'HALF_YEARLY', slabs: [
+    [11999, 0], [17999, 120], [29999, 180], [44999, 300],
+    [59999, 450], [74999, 600], [99999, 750], [124999, 1000], [Infinity, 1250]] },
+  TAMIL_NADU:       { basis: 'HALF_YEARLY', slabs: [
+    [21000, 0], [30000, 135], [45000, 315], [60000, 690], [75000, 1025], [Infinity, 1250]] },
+
+  MAHARASHTRA:      { basis: 'MONTHLY', slabs: [[7500, 0], [10000, 175], [Infinity, 200]] },
+  KARNATAKA:        { basis: 'MONTHLY', slabs: [[24999, 0], [Infinity, 200]] },
+  GUJARAT:          { basis: 'MONTHLY', slabs: [[12000, 0], [Infinity, 200]] },
+  WEST_BENGAL:      { basis: 'MONTHLY', slabs: [
+    [10000, 0], [15000, 110], [25000, 130], [40000, 150], [Infinity, 200]] },
+  ANDHRA_PRADESH:   { basis: 'MONTHLY', slabs: [[15000, 0], [20000, 150], [Infinity, 200]] },
+  TELANGANA:        { basis: 'MONTHLY', slabs: [[15000, 0], [20000, 150], [Infinity, 200]] },
+  MADHYA_PRADESH:   { basis: 'MONTHLY', slabs: [[18750, 0], [25000, 125], [33333, 167], [Infinity, 208]] },
+  ODISHA:           { basis: 'MONTHLY', slabs: [[13304, 0], [25000, 125], [Infinity, 200]] },
+  ASSAM:            { basis: 'MONTHLY', slabs: [[10000, 0], [15000, 150], [25000, 180], [Infinity, 208]] },
+
+  BIHAR:            { basis: 'ANNUAL', slabs: [
+    [300000, 0], [500000, 1000], [1000000, 2000], [Infinity, 2500]] },
+
+  // States that levy no professional tax. Listed so the app can SAY so rather
+  // than look like it is missing a table.
+  DELHI:            { none: true },
+  HARYANA:          { none: true },
+  UTTAR_PRADESH:    { none: true },
+  RAJASTHAN:        { none: true },
+  CHANDIGARH:       { none: true },
+  ARUNACHAL_PRADESH:{ none: true },
+  GOA:              { none: true },
+  ANDAMAN_AND_NICOBAR: { none: true },
+};
+
+/** 'Tamil Nadu', 'tamil-nadu', 'TAMIL_NADU' all reach the same table. */
+const ptKey = (state) =>
+  String(state || '').trim().toUpperCase().replace(/[\s-]+/g, '_').replace(/&/g, 'AND');
+
+/** Every state this app can compute, for a settings dropdown. */
+export const PT_STATES = Object.keys(PT_TABLES)
+  .map(k => ({ key: k, label: k.replace(/_/g, ' ').replace(/\bAND\b/g, '&'),
+               levies: !PT_TABLES[k].none }))
+  .sort((a, b) => a.label.localeCompare(b.label));
+
+/**
+ * `monthlyGross` is what the employee earns in a month; each table converts it
+ * to the basis that state assesses on.
+ */
+export function professionalTax({ state, monthlyGross } = {}) {
+  const key = ptKey(state);
+  const table = PT_TABLES[key];
+  if (!table) return null;                       // no table: deduct nothing
+  // Normalised key for logic, readable label for anything a person reads.
+  const label = key.replace(/_/g, ' ').replace(/\bAND\b/g, '&');
+  if (table.none) {
+    return { applicable: false, reason: 'STATE_DOES_NOT_LEVY',
+             state: key, stateLabel: label, monthly: 0 };
+  }
+
+  const monthly = num(monthlyGross);
+  if (monthly <= 0) {
+    return { applicable: true, state: key, stateLabel: label, basis: table.basis, monthly: 0 };
+  }
+
+  const assessed = table.basis === 'HALF_YEARLY' ? monthly * 6
+                 : table.basis === 'ANNUAL'      ? monthly * 12
+                 : monthly;
+  const row = table.slabs.find(([ceiling]) => assessed <= ceiling);
+  const charge = row ? row[1] : 0;
+
+  // Back to a per-month figure, which is how a slip shows it.
+  const perMonth = table.basis === 'HALF_YEARLY' ? charge / 6
+                 : table.basis === 'ANNUAL'      ? charge / 12
+                 : charge;
+
+  // Article 276: never more than the annual ceiling, whatever a slab says.
+  const capped = Math.min(perMonth, PT_ANNUAL_CAP / 12);
+
+  return {
+    applicable: true, state: key, stateLabel: label, basis: table.basis,
+    charge,                       // as the state assesses it
+    monthly: rupees(capped),
+    halfYearly: table.basis === 'HALF_YEARLY' ? charge : rupees(capped * 6),
+    annual: rupees(capped * 12),
+  };
 }
 
 /**
@@ -127,16 +218,16 @@ export function statutoryDeductions({ gross, basic, config = {} } = {}) {
   }
 
   if (config.professionalTaxState) {
-    const pt = professionalTax({
-      state: config.professionalTaxState,
-      halfYearlyIncome: g * 6,
-    });
-    if (pt && pt.monthly > 0) {
-      lines.push({
-        label: 'Professional tax',
-        note: `${config.professionalTaxState} · ${pt.halfYearly.toLocaleString('en-IN')} half-yearly`,
-        amount: pt.monthly, statutory: true,
-      });
+    const pt = professionalTax({ state: config.professionalTaxState, monthlyGross: g });
+    if (pt && pt.applicable && pt.monthly > 0) {
+      // Say what the state actually assesses, so the figure can be checked
+      // against the notification rather than taken on trust.
+      const note = pt.basis === 'HALF_YEARLY'
+        ? `${pt.stateLabel} · ₹${pt.charge.toLocaleString('en-IN')} half-yearly`
+        : pt.basis === 'ANNUAL'
+        ? `${pt.stateLabel} · ₹${pt.charge.toLocaleString('en-IN')} a year`
+        : `${pt.stateLabel} · monthly slab`;
+      lines.push({ label: 'Professional tax', note, amount: pt.monthly, statutory: true });
     }
   }
 

@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { statutoryDeductions, epfEmployee, esiEmployee, professionalTax,
-         EPF_WAGE_CEILING, ESI_WAGE_LIMIT } from './statutory';
+import { statutoryDeductions, epfEmployee, esiEmployee, professionalTax, EPF_WAGE_CEILING, ESI_WAGE_LIMIT, PT_ANNUAL_CAP, PT_STATES } from './statutory';
 
 /**
  * These deductions come off real wages and are reported to the department, so
@@ -48,27 +47,85 @@ describe('ESI', () => {
 });
 
 describe('professional tax', () => {
-  it('reads the Kerala half-yearly slab', () => {
-    expect(professionalTax({ state: 'Kerala', halfYearlyIncome: 50000 }).halfYearly).toBe(450);
-    expect(professionalTax({ state: 'Kerala', halfYearlyIncome: 200000 }).halfYearly).toBe(1250);
+  /**
+   * A state levy that varies by state, assessed on different bases, and capped
+   * by Article 276 at 2,500 a year. A wrong figure here is a short deduction
+   * the employer answers for, so the cases below are the ones where a
+   * plausible-looking mistake costs money.
+   */
+
+  it('assesses a half-yearly state on six months of pay', () => {
+    // Kerala's slabs are half-yearly. Handing them a monthly wage would
+    // under-deduct by a factor of six.
+    const pt = professionalTax({ state: 'Kerala', monthlyGross: 8333 });
+    expect(pt.basis).toBe('HALF_YEARLY');
+    expect(pt.charge).toBe(450);          // ~50,000 for the half year
+    expect(pt.monthly).toBe(75);
   });
 
-  it('is nil below the first slab', () => {
-    expect(professionalTax({ state: 'Kerala', halfYearlyIncome: 11000 }).halfYearly).toBe(0);
+  it('assesses a monthly state on one month of pay', () => {
+    const pt = professionalTax({ state: 'Karnataka', monthlyGross: 30000 });
+    expect(pt.basis).toBe('MONTHLY');
+    expect(pt.monthly).toBe(200);
+    // Below the Karnataka threshold nothing is due.
+    expect(professionalTax({ state: 'Karnataka', monthlyGross: 20000 }).monthly).toBe(0);
   });
 
-  it('spreads the half-yearly charge over six months, in whole rupees', () => {
-    expect(professionalTax({ state: 'Kerala', halfYearlyIncome: 50000 }).monthly).toBe(75);
-    // 1,000 / 6 is 166.67. Paise here made the payslip's own total disagree
-    // with the expense the run wrote, so every line is a whole rupee.
-    expect(professionalTax({ state: 'Kerala', halfYearlyIncome: 200000 }).monthly).toBe(208);
+  it('assesses an annual state on a year of pay', () => {
+    const pt = professionalTax({ state: 'Bihar', monthlyGross: 50000 });
+    expect(pt.basis).toBe('ANNUAL');
+    expect(pt.charge).toBe(2000);         // 6,00,000 a year
+    expect(pt.monthly).toBe(167);
+  });
+
+  it('reads a graded monthly slab', () => {
+    const wb = (g) => professionalTax({ state: 'West Bengal', monthlyGross: g }).monthly;
+    expect(wb(9000)).toBe(0);
+    expect(wb(12000)).toBe(110);
+    expect(wb(20000)).toBe(130);
+    expect(wb(50000)).toBe(200);
+  });
+
+  it('accepts a state name however it is written', () => {
+    for (const n of ['Tamil Nadu', 'tamil nadu', 'TAMIL_NADU', 'tamil-nadu']) {
+      expect(professionalTax({ state: n, monthlyGross: 20000 }).state).toBe('TAMIL_NADU');
+    }
+  });
+
+  it('says plainly when a state levies NO professional tax', () => {
+    // Different from having no table. Delhi charges nothing; that is an answer,
+    // not a gap.
+    const pt = professionalTax({ state: 'Delhi', monthlyGross: 90000 });
+    expect(pt.applicable).toBe(false);
+    expect(pt.reason).toBe('STATE_DOES_NOT_LEVY');
+    expect(pt.monthly).toBe(0);
   });
 
   it('returns null for a state it has no table for', () => {
-    // An invented figure from the wrong state's table is a short deduction the
-    // employer answers for. Silence is the safe answer.
-    expect(professionalTax({ state: 'Karnataka', halfYearlyIncome: 50000 })).toBeNull();
-    expect(professionalTax({ halfYearlyIncome: 50000 })).toBeNull();
+    // Deduct nothing rather than guess from a neighbour's slabs.
+    expect(professionalTax({ state: 'Nagaland', monthlyGross: 50000 })).toBeNull();
+    expect(professionalTax({ monthlyGross: 50000 })).toBeNull();
+  });
+
+  it('never exceeds the Article 276 annual ceiling', () => {
+    // Constitutional cap, enforced here rather than trusted to every slab.
+    for (const st of ['Kerala', 'Maharashtra', 'West Bengal', 'Bihar', 'Tamil Nadu']) {
+      const pt = professionalTax({ state: st, monthlyGross: 500000 });
+      expect(pt.annual).toBeLessThanOrEqual(PT_ANNUAL_CAP);
+      expect(pt.monthly * 12).toBeLessThanOrEqual(PT_ANNUAL_CAP + 12);
+    }
+  });
+
+  it('is nothing on no pay', () => {
+    expect(professionalTax({ state: 'Maharashtra', monthlyGross: 0 }).monthly).toBe(0);
+  });
+
+  it('lists the states it can compute, flagging which levy nothing', () => {
+    const delhi = PT_STATES.find(s => s.key === 'DELHI');
+    const kerala = PT_STATES.find(s => s.key === 'KERALA');
+    expect(delhi.levies).toBe(false);
+    expect(kerala.levies).toBe(true);
+    expect(PT_STATES.length).toBeGreaterThan(15);
   });
 });
 
