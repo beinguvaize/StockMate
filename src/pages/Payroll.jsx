@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePayroll } from '../hooks/usePayroll';
-import { findOverlapping, describePeriod, monthIsPaid, paidByEmployeeInMonth } from '../lib/payrollPeriods';
+import { findOverlapping, describePeriod, monthIsPaid, paidByEmployeeInMonth, paidForWindow } from '../lib/payrollPeriods';
 import { usePeople } from '../hooks/usePeople';
 import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { DollarSign, Trash2, X, Check, CreditCard, UserPlus, Lock, Receipt, Link2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -480,11 +480,16 @@ const Payroll = () => {
             ? computeWageForRange(emp.id, emp.daily_rate || 0, weekStart, rangeEnd)
             : computeWage(emp.id, emp.daily_rate || 0))
         : monthly.basePay;
-      // What this employee has ALREADY been paid for a window overlapping this
-      // one. The run used to offer the full earned wage regardless, so paying
-      // 1-8 Aug and then running August handed over the first week twice. The
-      // overlap warning caught the period; it did not correct the amount.
-      const already = Math.round(paidThisMonth.get(emp.id)?.amount || 0);
+      // What this employee was already paid FOR THE DAYS IN THIS RUN'S WINDOW.
+      //
+      // This used to be the whole month's payments regardless of the window,
+      // which is right for a monthly run and badly wrong for any other: a
+      // custom 17-21 Aug run subtracted the month's 7,200 from 1,800 of
+      // earnings and offered nothing, while the screen beside it correctly said
+      // 900 was still due. Netting off more than the window covers UNDERPAYS.
+      const already = paidForWindow({
+        from: periodFrom, to: periodTo, employeeId: emp.id, records: payrollRecords,
+      });
 
       // Statutory deductions are computed HERE, in the run, not when a slip is
       // printed. The run writes a salary expense of exactly netPay, and that
@@ -539,7 +544,11 @@ const Payroll = () => {
         netPay:       net,
       };
     });
-  }, [employees, isRangeRun, weekStart, rangeEnd, computeDays, computeDaysForRange, computeWage, computeWageForRange, paidThisMonth]);
+    // periodFrom/periodTo and payrollRecords are read directly now: without
+    // them the run keeps costing against the previous window, and a re-run does
+    // not see the record it just reversed.
+  }, [employees, isRangeRun, weekStart, rangeEnd, periodFrom, periodTo, payrollRecords,
+      attendance, computeDays, computeDaysForRange, computeWage, computeWageForRange]);
 
   const openPayRun = () => {
     setPayRunItems(buildPayRunItems());

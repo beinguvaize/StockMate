@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid, runsPaidInMonth, paidByEmployeeInMonth, monthToDate, financialYear, yearToDate, monthlyPayItem, needsOverlapConfirmation } from './payrollPeriods';
+import { parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid, runsPaidInMonth, paidByEmployeeInMonth, monthToDate, financialYear, yearToDate, monthlyPayItem, needsOverlapConfirmation, paidForWindow } from './payrollPeriods';
 
 /**
  * The defect these pin: the same window could be paid twice. FUTURE DISPO's
@@ -498,5 +498,55 @@ describe('needsOverlapConfirmation', () => {
   it('ignores lines that pay nothing', () => {
     // Parthipan is on every run at zero; he must not trigger a confirmation.
     expect(needsOverlapConfirmation([nil], overlaps)).toBe(false);
+  });
+});
+
+describe('paidForWindow', () => {
+  /**
+   * The real August runs. The bug: a custom 17-21 Aug run subtracted the whole
+   * month's 7,200 from 1,800 of earnings and offered nothing, while the screen
+   * beside it correctly said 900 was still due.
+   */
+  const AK = 'ak';
+  const run = (id, period, net) => ({ id, period, processed_at: period.slice(-10) + 'T10:00:00Z',
+    items: [{ employeeId: AK, netPay: net, daysWorked: 1 }] });
+  const records = [
+    { id: 'r1', period: '2026-08-01/2026-08-08', processed_at: '2026-08-08T11:55:00Z',
+      items: [{ employeeId: AK, netPay: 3600, daysWorked: 4 }] },
+    run('r2', '2026-08-10/2026-08-10', 900),
+    run('r3', '2026-08-13/2026-08-13', 900),
+    run('r4', '2026-08-15/2026-08-15', 900),
+    run('r5', '2026-08-17/2026-08-17', 900),
+  ];
+
+  it('counts only what was paid for days inside the window', () => {
+    // 17-21 Aug: only the 17 Aug run falls inside. NOT the month's 7,200.
+    expect(paidForWindow({ from: '2026-08-17', to: '2026-08-21', employeeId: AK, records }))
+      .toBe(900);
+  });
+
+  it('counts the whole month for a whole-month window', () => {
+    expect(paidForWindow({ from: '2026-08-01', to: '2026-08-31', employeeId: AK, records }))
+      .toBe(7200);
+  });
+
+  it('pro-rates a run that only partly overlaps', () => {
+    // The 1-8 Aug run is 8 days at 3,600. A 5-10 Aug window shares 4 of them,
+    // so half of it counts, plus the 10 Aug run in full.
+    expect(paidForWindow({ from: '2026-08-05', to: '2026-08-10', employeeId: AK, records }))
+      .toBe(1800 + 900);
+  });
+
+  it('is zero for a window nothing was paid for', () => {
+    expect(paidForWindow({ from: '2026-08-25', to: '2026-08-28', employeeId: AK, records }))
+      .toBe(0);
+  });
+
+  it('ignores other employees and deleted runs', () => {
+    expect(paidForWindow({ from: '2026-08-01', to: '2026-08-31', employeeId: 'someone', records }))
+      .toBe(0);
+    const deleted = records.map(r => ({ ...r, deleted_at: '2026-08-20' }));
+    expect(paidForWindow({ from: '2026-08-01', to: '2026-08-31', employeeId: AK, records: deleted }))
+      .toBe(0);
   });
 });

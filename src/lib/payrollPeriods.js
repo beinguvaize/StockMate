@@ -421,3 +421,49 @@ export function needsOverlapConfirmation(items = [], overlappingRuns = []) {
   return (items || []).some(i =>
     Number(i?.netPay || 0) > 0 && !(Number(i?.alreadyPaid || 0) > 0));
 }
+
+/**
+ * What this employee has already been paid FOR THE DAYS IN A GIVEN WINDOW.
+ *
+ * Not the same as what they were paid this month. A monthly run covers the
+ * whole month, so the month's total happens to be the right figure there; a
+ * custom or weekly run does not. Subtracting a month of payments from five
+ * days of earnings wipes the payout out: Akbar earned 1,800 for 17-21 Aug, had
+ * 7,200 subtracted for the month, and the run offered zero while the screen
+ * beside it correctly said 900 was still due.
+ *
+ * A prior run that only PARTLY overlaps is pro-rated by the days shared with
+ * the window. A run covering 1-8 Aug overlapping a 5-10 Aug window paid for
+ * four of its eight days inside that window, so half of it counts.
+ */
+export function paidForWindow({ from, to, employeeId, records = [] } = {}) {
+  if (!from || !to || !employeeId) return 0;
+  const wFrom = parseISO(from), wTo = parseISO(to);
+  if (Number.isNaN(wFrom.getTime()) || Number.isNaN(wTo.getTime())) return 0;
+
+  const dayCount = (a, b) => Math.round((parseISO(b) - parseISO(a)) / 86400000) + 1;
+
+  let total = 0;
+  for (const r of records || []) {
+    if (!r || r.deleted_at) continue;
+    const p = parsePeriod(r.period);
+    if (!p) continue;
+
+    // Intersection of the prior run's period with this window.
+    const lo = p.from > from ? p.from : from;
+    const hi = p.to   < to   ? p.to   : to;
+    if (lo > hi) continue;
+
+    const item = (r.items || []).find(i => i.employeeId === employeeId);
+    const net = Number(item?.netPay || 0);
+    if (net <= 0) continue;
+
+    const runDays = dayCount(p.from, p.to);
+    const shared  = dayCount(lo, hi);
+    if (runDays <= 0 || shared <= 0) continue;
+
+    // Fully inside the window: the whole payment was for these days.
+    total += shared >= runDays ? net : net * (shared / runDays);
+  }
+  return Math.round(total);
+}
