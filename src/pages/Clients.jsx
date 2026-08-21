@@ -44,6 +44,7 @@ const Clients = () => {
     supabase
       .from('invoices')
       .select('id, client_id, delivery_status, delivery_date, delivery_address, delivery_zone')
+      .is('deleted_at', null)   // a deleted invoice is not a pending delivery
       .eq('tenant_id', currentTenantId)
       .eq('delivery_required', true)
       .in('delivery_status', ['PENDING', 'IN_TRANSIT'])

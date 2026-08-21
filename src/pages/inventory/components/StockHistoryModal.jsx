@@ -40,6 +40,7 @@ export default function StockHistoryModal({ tenantId, products, onClose }) {
     supabase
       .from('movement_log')
       .select('*')
+      .is('deleted_at', null)
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(500)

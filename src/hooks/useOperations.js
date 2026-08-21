@@ -34,7 +34,7 @@ export const useOperations = (tenantId) => {
         fetchWithCache('routes', () =>
           supabase.from('routes').select('*').eq('tenant_id', tenantId).order('date', { ascending: false })),
         fetchWithCache('movement_log', () =>
-          supabase.from('movement_log').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(200)),
+          supabase.from('movement_log').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(200)),
         fetchWithCache('vehicles', () =>
           supabase.from('vehicles').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name')),
         fetchWithCache('invoices', () =>
@@ -42,6 +42,7 @@ export const useOperations = (tenantId) => {
             // tenant_id is fetched because mine() filters on it. Without it every
             // row compares undefined and the delivery list comes back empty.
             .select('id, tenant_id, invoice_number, client_name, client_id, grand_total, paid_amount, payment_status, items, delivery_status, delivery_required, vehicle_route_id, delivery_address, delivery_zone, delivery_date, delivery_notes, delivery_fee, created_at')
+            .is('deleted_at', null)   // a deleted invoice is not a delivery
             .eq('tenant_id', tenantId)
             .eq('delivery_required', true)
             .in('delivery_status', ['PENDING', 'IN_TRANSIT'])

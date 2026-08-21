@@ -558,6 +558,7 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
       const { data: inv, error: readErr } = await supabase
         .from('invoices')
         .select('grand_total')
+        .is('deleted_at', null)   // never mark a deleted invoice paid
         .eq('id', id)
         .eq('tenant_id', tenantId)
         .single();

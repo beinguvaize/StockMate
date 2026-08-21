@@ -74,6 +74,7 @@ const ItemDetailView = ({
         // Every stock in/out for this item — purchases, sales, and manual
         // adjustments — so the user can track exactly what moved and why.
         supabase.from('movement_log').select('id, date, type, quantity, reason')
+          .is('deleted_at', null)
           .eq('product_id', pid).eq('tenant_id', tenantId)
           .order('date', { ascending: false }).limit(200),
       ]);

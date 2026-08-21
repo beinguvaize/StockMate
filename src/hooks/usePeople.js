@@ -378,6 +378,8 @@ export const usePeople = (tenantId) => {
             const { data: invRows } = await supabase
               .from('invoices')
               .select('id, grand_total, paid_amount, sale_id')
+              // Money must never be allocated against a deleted document.
+              .is('deleted_at', null)
               .in('id', realInvoiceIds)
               .eq('tenant_id', tenantId);
 
@@ -416,6 +418,8 @@ export const usePeople = (tenantId) => {
             const { data: saleRows } = await supabase
               .from('sales')
               .select('id, "totalAmount", "paidAmount"')
+              // Same: a voided sale owes nothing and must not absorb a receipt.
+              .is('deleted_at', null)
               .in('id', saleOnlyIds)
               .eq('tenant_id', tenantId);
 
