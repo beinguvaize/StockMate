@@ -176,6 +176,13 @@ export function monthToDate({ run, records = [], employeeId } = {}) {
   const year = end.getFullYear();
   const month = end.getMonth() + 1;
 
+  // A MONTHLY slip's run is synthetic: it stands for several real runs and is
+  // not itself in `records`. Without this the real run sharing its processed_at
+  // matched neither "this run" nor "before it" and was dropped, so a month that
+  // paid 7,200 reported 6,300. The same fault was fixed in yearToDate; this
+  // copy was missed because monthToDate was not feeding a monthly slip then.
+  const own = new Set([String(run.id), ...(run.sourceRunIds || []).map(String)]);
+
   const isBefore = (r) => {
     const a = String(r.processed_at || '');
     const b = String(run.processed_at || '');
@@ -195,8 +202,8 @@ export function monthToDate({ run, records = [], employeeId } = {}) {
     const net = Number(item.netPay || 0);
     const days = Number(item.daysWorked || 0);
 
-    if (String(r.id) === String(run.id)) {
-      thisAmount = net; thisDays = days;
+    if (own.has(String(r.id))) {
+      thisAmount += net; thisDays += days;
     } else if (isBefore(r)) {
       priorAmount += net;
       priorDays += days;

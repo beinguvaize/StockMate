@@ -550,3 +550,38 @@ describe('paidForWindow', () => {
       .toBe(0);
   });
 });
+
+describe('monthToDate on a monthly slip', () => {
+  /**
+   * The same synthetic-run fault that hit yearToDate. A monthly slip's run
+   * stands for several real ones and is not in `records`; without matching
+   * through sourceRunIds the run sharing its processed_at was dropped, and a
+   * month that paid 7,200 reported 6,300.
+   */
+  const AK = 'ak';
+  const line = (net, days) => ({ employeeId: AK, netPay: net, daysWorked: days });
+  const records = [
+    { id: 'r1', period: '2026-08-01/2026-08-08', processed_at: '2026-08-08T11:55:00Z', items: [line(3600, 4)] },
+    { id: 'r2', period: '2026-08-10/2026-08-10', processed_at: '2026-08-11T09:00:00Z', items: [line(900, 1)] },
+    { id: 'r5', period: '2026-08-17/2026-08-17', processed_at: '2026-08-17T10:00:00Z', items: [line(900, 1)] },
+  ];
+  const m = monthlyPayItem({ year: 2026, month1to12: 8, employeeId: AK, records });
+
+  it('counts every run the month stands for', () => {
+    const mtd = monthToDate({ run: m.run, records, employeeId: AK });
+    expect(mtd.totalAmount).toBe(5400);
+    expect(mtd.totalDays).toBe(6);
+  });
+
+  it('agrees with the item the slip prints', () => {
+    // The month total and the slip's own net describe the same money.
+    const mtd = monthToDate({ run: m.run, records, employeeId: AK });
+    expect(mtd.totalAmount).toBe(m.item.netPay);
+  });
+
+  it('is never more than the year it sits inside', () => {
+    const mtd = monthToDate({ run: m.run, records, employeeId: AK });
+    const ytd = yearToDate({ run: m.run, records, employeeId: AK });
+    expect(ytd.totalAmount).toBeGreaterThanOrEqual(mtd.totalAmount);
+  });
+});

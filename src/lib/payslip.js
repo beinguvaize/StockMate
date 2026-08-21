@@ -206,6 +206,14 @@ export function buildPayslip({ run, item, employee, business, records, payment,
       ? monthToDate({ run, records, employeeId: item.employeeId })?.payments || null
       : null),
 
+    // Month to date AND year to date, shown as a pair. On a monthly slip the
+    // month figure is the slip's own total, which is the point: the employee
+    // sees this month beside the year without holding one in their head. It is
+    // read from the run history rather than from the slip's own net so the two
+    // agree only when they genuinely do -- if they ever diverge, that is worth
+    // seeing rather than hiding behind a copied number.
+    monthToDate: records ? monthToDate({ run, records, employeeId: item.employeeId }) : null,
+
     // Financial year to date -- April to March, the window every payroll return
     // is measured against.
     yearToDate: records ? yearToDate({ run, records, employeeId: item.employeeId }) : null,

@@ -175,17 +175,24 @@ export const Slip = ({ s }) => (
               </div>
             )}
 
-            {/* Financial year to date -- April to March, the window every
-                payroll return is measured against. */}
-            {s.yearToDate && (
-              <div className="ps-mtd">
-                <div className="ps-mtd-k">Year to date · FY {s.yearToDate.year}</div>
-                <div className="ps-mtd-row">
-                  <span className="ps-mtd-big">{money(s.yearToDate.totalAmount)}</span>
-                  <span className="ps-mtd-d">{s.yearToDate.totalDays} days</span>
-                </div>
-                {s.yearToDate.deductions > 0 && (
-                  <div className="ps-mtd-n">{money(s.yearToDate.deductions)} deducted this year</div>
+            {/* This month beside the financial year, the pairing every payslip
+                uses. The year runs April to March -- the window every payroll
+                return is measured against, not the calendar year. */}
+            {(s.monthToDate || s.yearToDate) && (
+              <div className="ps-totals">
+                {s.monthToDate && (
+                  <div className="ps-tot">
+                    <div className="ps-mtd-k">Month to date</div>
+                    <div className="ps-tot-a">{money(s.monthToDate.totalAmount)}</div>
+                    <div className="ps-tot-d">{s.monthToDate.totalDays} days</div>
+                  </div>
+                )}
+                {s.yearToDate && (
+                  <div className="ps-tot">
+                    <div className="ps-mtd-k">Year to date</div>
+                    <div className="ps-tot-a">{money(s.yearToDate.totalAmount)}</div>
+                    <div className="ps-tot-d">FY {s.yearToDate.year} · {s.yearToDate.totalDays} days</div>
+                  </div>
                 )}
               </div>
             )}
