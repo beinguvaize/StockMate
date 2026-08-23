@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import { isElectron, fetchWithCache } from '../lib/offline/hookAdapter';
+import { realtimeEnabled } from '../lib/realtime';
+import useRefetchOnFocus from './useRefetchOnFocus';
 
 const MOVEMENT_NUMERIC = ['quantity'];
 
@@ -81,12 +83,16 @@ export const useOperations = (tenantId) => {
 
   useEffect(() => { initialLoadDone.current = false; fetchRef.current?.(); }, [tenantId]);
 
+  // The dispatch board no longer holds a realtime channel on most surfaces
+  // (src/lib/realtime.js), so a return to the tab is what brings it current.
+  useRefetchOnFocus(fetchOperationsData);
+
   // ── Realtime subscriptions ───────────────────────────────────────────
   // Re-fetch whenever routes, route_stops, or inventory_balances change.
   // Critical for live dispatch board: manager sees stop updates from driver
   // instantly without manual refresh.
   useEffect(() => {
-    if (!tenantId || isElectron()) return;
+    if (!tenantId || !realtimeEnabled('operations')) return;
 
     const channel = supabase
       .channel(`ops-realtime-${tenantId}-${tabId.current}`)

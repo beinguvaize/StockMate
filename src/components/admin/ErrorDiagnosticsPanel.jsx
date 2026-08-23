@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { realtimeEnabled } from '../../lib/realtime';
 import { 
   AlertCircle, ShieldAlert, Activity, CheckCircle2, 
   ChevronDown, ChevronUp, Filter, RefreshCcw, Search, Clock, Zap
@@ -21,6 +22,8 @@ const ErrorDiagnosticsPanel = () => {
     fetchLogs();
     
     // 1. Real-time Subscription (Nexus Error Pulse)
+    // Realtime policy: see src/lib/realtime.js
+    if (!realtimeEnabled('admin')) return;
     const channel = supabase
       .channel('diagnostics_pulse')
       .on('postgres_changes', { 

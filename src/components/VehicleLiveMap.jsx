@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../lib/supabase';
 import { Navigation, Wifi, WifiOff, Clock } from 'lucide-react';
+import { realtimeEnabled } from '../lib/realtime';
 
 // Fix default marker icons broken by Vite bundling
 delete L.Icon.Default.prototype._getIconUrl;
@@ -65,6 +66,8 @@ export default function VehicleLiveMap({ vehicles, tenantId }) {
   // Realtime subscription
   useEffect(() => {
     if (!tenantId) return;
+    // Realtime policy: see src/lib/realtime.js
+    if (!realtimeEnabled('vehicles')) return;
     const channel = supabase
       .channel(`vehicle-locations-${tenantId}`)
       .on('postgres_changes', {

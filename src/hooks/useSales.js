@@ -6,6 +6,7 @@ import { generateRef, todayISOInAppTZ } from '../lib/utils';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { getPlanLimits } from '../lib/tenancy';
 import { monthBounds } from '../lib/reportPeriods';
+import { realtimeEnabled } from '../lib/realtime';
 
 // Postgres `numeric` -> JS string over the wire. Coerce on fetch so downstream
 // `reduce(sum + x, 0)` doesn't string-concat and `.toFixed` doesn't throw.
@@ -95,7 +96,7 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
   // Desktop is offline-first: no live websocket — fresh data arrives via
   // the sync engine's pullDeltas (auto every 10 min / Sync Now / reconnect).
   useEffect(() => {
-    if (!tenantId || isElectron()) return;
+    if (!tenantId || !realtimeEnabled('sales')) return;
     const channel = supabase
       .channel(`sales-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {

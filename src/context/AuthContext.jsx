@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { realtimeEnabled } from '../lib/realtime';
 
 // Reject a pending request after `ms` so a hung network call can never
 // freeze the app on the loading screen.
@@ -276,6 +277,8 @@ export const AuthProvider = ({ children }) => {
   // Realtime: watch own profile row for role/permission changes made by admin
   useEffect(() => {
     if (!currentUser?.id) return;
+    // Realtime policy: see src/lib/realtime.js
+    if (!realtimeEnabled('auth')) return;
     const channel = supabase
       .channel(`user-profile-${currentUser.id}`)
       .on('postgres_changes', {

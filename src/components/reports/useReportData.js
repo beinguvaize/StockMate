@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../context/TenantContext';
+import { realtimeEnabled } from '../../lib/realtime';
 
 /**
  * useReportData - Custom hook for premium report data fetching with Database Sync (Realtime)
@@ -145,6 +146,8 @@ const useReportData = ({
     // Scoped to this tenant. Previously subscribed with no filter at all, so
     // every write by every tenant in the database was replicated to every
     // client and triggered a full refetch here.
+    // Realtime policy: see src/lib/realtime.js
+    if (!realtimeEnabled('reports')) return;
     const channel = supabase
       .channel(`report_${table}_${currentTenantId || 'global'}_${Math.random().toString(36).slice(2, 8)}`)
       .on(

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate, isElectron } from '../lib/offline/hookAdapter';
+import { realtimeEnabled } from '../lib/realtime';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
 const PURCHASE_NUMERIC = ['quantity', 'total_amount', 'paid_amount', 'unit_price', 'tax'];
@@ -98,7 +99,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
 
   // ── Realtime — purchases + purchase_returns ───────────────────────────
   useEffect(() => {
-    if (!tenantId || isElectron()) return;
+    if (!tenantId || !realtimeEnabled('purchases')) return;
     const channel = supabase
       .channel(`purchases-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {

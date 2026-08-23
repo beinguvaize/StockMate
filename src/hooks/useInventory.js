@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restInsert, restUpdate, restRpc } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { fetchWithCache, readCacheThenRevalidate, queueMutation, upsertCachedRow, isOfflineError, isElectron } from '../lib/offline/hookAdapter';
+import { realtimeEnabled } from '../lib/realtime';
 
 // Postgres `numeric` arrives as string over the wire (supabase-js preserves
 // precision). Mixing those with JS math causes subtle bugs: `0 + "100"` is
@@ -100,7 +101,7 @@ export const useInventory = (tenantId) => {
   // ── Realtime — products + inventory_balances ──────────────────────────
   // Desktop is offline-first: no websocket; sync engine refreshes the cache.
   useEffect(() => {
-    if (!tenantId || isElectron()) return;
+    if (!tenantId || !realtimeEnabled('inventory')) return;
     const channel = supabase
       .channel(`inventory-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {

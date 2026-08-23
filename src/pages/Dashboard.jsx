@@ -17,6 +17,7 @@ import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChar
 import { useNavigate} from 'react-router-dom';
 import DailyRevenueTrendChart from '../components/DailyRevenueTrendChart';
 import { todayISOInAppTZ, formatDate, parseLocalDate } from '../lib/utils';
+import { realtimeEnabled } from '../lib/realtime';
 import { 
  ResponsiveContainer, 
  AreaChart, 
@@ -138,6 +139,8 @@ const Dashboard = () => {
     if (!currentTenantId || isElectron()) return;
     let timer;
     const trigger = () => { clearTimeout(timer); timer = setTimeout(() => refetchAllRef.current(), 600); };
+    // Realtime policy: see src/lib/realtime.js
+    if (!realtimeEnabled('dashboard')) return;
     const ch = supabase.channel(`dashboard:${currentTenantId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sales',           filter: `tenant_id=eq.${currentTenantId}` }, trigger)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'expenses',        filter: `tenant_id=eq.${currentTenantId}` }, trigger)

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { realtimeEnabled } from '../lib/realtime';
 
 const APP_VERSION = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_APP_VERSION) || 'dev';
 
@@ -50,6 +51,8 @@ export const useBugReports = (tenantId, { adminMode = false } = {}) => {
   useEffect(() => {
     fetchAll();
     if (!adminMode) return;
+    // Realtime policy: see src/lib/realtime.js
+    if (!realtimeEnabled('admin')) return;
     const ch = supabase
       .channel('bug_reports_admin')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bug_reports' }, () => fetchAll())
