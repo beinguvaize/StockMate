@@ -13,6 +13,7 @@ import CashBillPrint from '../sales/components/CashBillPrint';
 import POSReceipt from '../../components/invoice/POSReceipt';
 import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
 import { INVOICE_LAYOUT_META, RECEIPT_META, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, ACCENT_SWATCHES } from '../../components/invoice/invoiceLayouts';
+import { linkPhone, confirmPhoneLink, formatPhone, toE164 } from '../../lib/phoneAuth';
 
 // Sample documents for the print previews — exact production components.
 const SAMPLE_SALE = {
@@ -148,6 +149,88 @@ const Toggle = ({ checked, onChange }) => (
 
 const inputCls = 'w-full max-w-sm border border-border rounded-md px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition';
 
+// ── WhatsApp sign-in ─────────────────────────────────────────────────────────
+// Adding a number here is what makes phone login possible at all: the login
+// screen refuses any number it does not recognise, so that an unknown number
+// can never mint a fresh auth user with no `users` row behind it (an account
+// in that state signs in and then belongs to no business — there is one in
+// production already). Linking from inside a session attaches the number to
+// the uid the user ALREADY has, so they keep their tenant, role and history.
+const WhatsAppSignInCard = () => {
+  const [current, setCurrent] = useState(null);   // number already on the account
+  const [input, setInput] = useState('');
+  const [code, setCode] = useState('');
+  const [step, setStep] = useState('idle');       // 'idle' | 'code'
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  // auth.users.phone is the only source of truth here. Mirroring it into
+  // public.users would give two copies to drift apart for no gain.
+  useEffect(() => {
+    let alive = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (alive) setCurrent(data?.user?.phone ? `+${String(data.user.phone).replace(/^\+/, '')}` : null);
+    });
+    return () => { alive = false; };
+  }, []);
+
+  const send = async () => {
+    setErr(''); setMsg(''); setBusy(true);
+    const { error } = await linkPhone(input);
+    setBusy(false);
+    if (error) { if (error.cause) console.error('[phone-link] send failed', error.cause); setErr(error.message); return; }
+    setStep('code');
+    setMsg('Code sent on WhatsApp.');
+  };
+
+  const confirm = async () => {
+    setErr(''); setMsg(''); setBusy(true);
+    const { error, phone } = await confirmPhoneLink(input, code);
+    setBusy(false);
+    if (error) { if (error.cause) console.error('[phone-link] verify failed', error.cause); setErr(error.message); return; }
+    setCurrent(phone);
+    setStep('idle'); setInput(''); setCode('');
+    setMsg('This number can now sign in.');
+  };
+
+  return (
+    <Card
+      title="WhatsApp sign-in"
+      description="Sign in with a one-time code instead of a password. The code arrives on WhatsApp."
+      footer={
+        step === 'code'
+          ? <PrimaryBtn onClick={confirm} disabled={busy || code.length < 4}>{busy ? 'Checking…' : 'Confirm number'}</PrimaryBtn>
+          : <PrimaryBtn onClick={send} disabled={busy || !toE164(input)}>{busy ? 'Sending…' : current ? 'Change number' : 'Send code'}</PrimaryBtn>
+      }
+    >
+      <FormRow label="Current number">
+        <div className="text-[13px] text-foreground py-1.5">
+          {current ? formatPhone(current) : <span className="text-ink-secondary">Not set — password sign-in only</span>}
+        </div>
+      </FormRow>
+
+      {step === 'idle' ? (
+        <FormRow label={current ? 'New number' : 'Mobile number'} hint="Indian mobile. The code arrives on WhatsApp, not SMS.">
+          <input type="tel" inputMode="numeric" autoComplete="tel" className={inputCls}
+            placeholder="98765 43210" value={input} onChange={e => setInput(e.target.value)} />
+        </FormRow>
+      ) : (
+        <FormRow label="Code" hint={`Sent to ${formatPhone(toE164(input))} on WhatsApp.`}>
+          <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={8} className={inputCls}
+            placeholder="000000" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} />
+          <button type="button" onClick={() => { setStep('idle'); setCode(''); setErr(''); setMsg(''); }}
+            className="text-[12px] text-ink-secondary underline mt-2 bg-transparent border-0 cursor-pointer">Cancel</button>
+        </FormRow>
+      )}
+
+      {(msg || err) && (
+        <p className={`text-[12px] mt-2 ${err ? 'text-red-600' : 'text-ink-secondary'}`}>{err || msg}</p>
+      )}
+    </Card>
+  );
+};
+
 // ── Account ──────────────────────────────────────────────────────────────────
 const AccountPanel = () => {
   const { currentUser, logout } = useAuth();
@@ -198,6 +281,8 @@ const AccountPanel = () => {
           {msg && <p className="text-[12px] text-ink-secondary mt-2">{msg}</p>}
         </FormRow>
       </Card>
+
+      <WhatsAppSignInCard />
 
       <Card title="Session">
         <FormRow label="Sign out" hint="Sign out of bookledger on this device.">
