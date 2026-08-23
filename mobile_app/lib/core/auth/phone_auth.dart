@@ -16,7 +16,10 @@ import 'package:mobile_app/core/supabase/client.dart';
 /// Settings while already signed in, which attaches it to the existing uid.
 ///
 /// WhatsApp is the channel because Indian SMS needs TRAI DLT registration.
-/// Supabase supports `channel: whatsapp` only on Twilio and Twilio Verify.
+/// Delivery goes through the Send SMS Hook (`supabase/functions/send-auth-otp`)
+/// straight to Meta's Cloud API, not a Supabase provider — so no `channel` is
+/// passed below. `OtpChannel.whatsapp` selects Twilio's channel specifically,
+/// which is not what is configured. The hook decides the channel.
 const String kDefaultCountryCode = '91';
 
 /// Normalise anything a person might type into E.164 (`+919876543210`).
@@ -109,7 +112,6 @@ class PhoneAuthService {
     try {
       await supabase.auth.signInWithOtp(
         phone: phone,
-        channel: OtpChannel.whatsapp,
         shouldCreateUser: false,
       );
       return null;

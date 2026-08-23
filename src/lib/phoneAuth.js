@@ -20,9 +20,17 @@ import { supabase } from './supabase';
  *      keeps their row, tenant and history and simply gains a second way in.
  *
  * WhatsApp is the channel because Indian SMS needs TRAI DLT registration.
- * Supabase only supports `channel: 'whatsapp'` on the Twilio and Twilio Verify
- * providers — it is silently ignored elsewhere, which would send a plain SMS
- * (and fail, undelivered, with no error) on any other provider.
+ *
+ * Delivery does NOT go through a Supabase provider. `supabase/functions/
+ * send-auth-otp` is registered as the Send SMS Hook, so Supabase generates the
+ * code and hands it to us, and that function posts it to Meta's Cloud API. That
+ * is deliberate: Supabase's built-in WhatsApp channel works only through
+ * Twilio, and going to Meta directly drops the reseller markup.
+ *
+ * Which is why no `channel` option is passed below. `channel: 'whatsapp'`
+ * selects Twilio's WhatsApp channel specifically, and asking for it with no
+ * Twilio provider configured is a request Supabase has no way to honour. The
+ * hook decides the channel now; the client does not get a vote.
  */
 
 /** Default country. India — every current user is here. */
@@ -104,7 +112,7 @@ export const sendLoginOtp = async (input) => {
 
   const { error } = await supabase.auth.signInWithOtp({
     phone,
-    options: { channel: 'whatsapp', shouldCreateUser: false },
+    options: { shouldCreateUser: false },
   });
 
   if (error) return { error: describeOtpError(error), phone };
@@ -139,7 +147,7 @@ export const linkPhone = async (input) => {
   const phone = toE164(input);
   if (!phone) return { error: { code: 'BAD_NUMBER', message: 'Enter a 10-digit mobile number.' } };
 
-  const { error } = await supabase.auth.updateUser({ phone }, { channel: 'whatsapp' });
+  const { error } = await supabase.auth.updateUser({ phone });
   if (error) return { error: describeOtpError(error), phone };
   return { phone };
 };
