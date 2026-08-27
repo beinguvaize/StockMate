@@ -59,20 +59,9 @@ test.describe('Waiting time', () => {
   });
 
   test('a nominated application stops counting at the nomination date', async ({ request }) => {
-    // KNOWN FAILURE — not fixed, because fixing it moves the headline number
-    // and that is a product call.
-    //
-    // services/calculator.js stops the clock for 'Nominated', 'Endorsed' and
-    // 'Selected for EOI', but not for 'Nominated / Endorsed' -- the status the
-    // form actually sets. So a nominated applicant's waiting time keeps
-    // growing after the nomination, in their own card and in the aggregate
-    // table. The SQL in routes/stats.js takes the other view --
-    // COALESCE(nominated_date, 'now') -- so the KPI average and the table
-    // below it disagree about the same application.
-    //
-    // Whichever way it is settled, one list should decide it for all three.
-    test.fail();
-
+    // The wait ends at a terminal outcome -- a nomination or a refusal -- not
+    // at any recorded milestone. An applicant still moving through EOI
+    // selection or assessment is still waiting.
     const { user } = readAccounts();
 
     const created = await createApplication(request, user.token, {
@@ -85,6 +74,45 @@ test.describe('Waiting time', () => {
     // Twelve months to the nomination, not eighteen months to today.
     expect(created.waiting_months).toBeGreaterThan(11.5);
     expect(created.waiting_months).toBeLessThan(12.5);
+  });
+
+  test('an application still in assessment keeps counting', async ({ request }) => {
+    // EOI selection is a step along the way, not the end of the wait, even
+    // though a date is recorded for it. Freezing the counter here is what made
+    // the KPI average read lower than the rows underneath it.
+    const { user } = readAccounts();
+
+    const created = await createApplication(request, user.token, {
+      submission_date: dateFromToday(-540),
+      work_permit_expiry: dateFromToday(300),
+      status: 'EOI Selected',
+      nominated_date: dateFromToday(-180),
+    });
+
+    // Eighteen months and still waiting, not twelve to the EOI selection.
+    expect(created.waiting_months).toBeGreaterThan(17.5);
+  });
+
+  test('the KPI average and the table agree about a nominated application', async ({ request }) => {
+    const { user } = readAccounts();
+    const noc = '41400';
+
+    const created = await createApplication(request, user.token, {
+      noc_code: noc,
+      submission_date: dateFromToday(-600),
+      work_permit_expiry: dateFromToday(250),
+      status: 'Nominated / Endorsed',
+      nominated_date: dateFromToday(-240),
+    });
+
+    // The cards read from SQL, the rows from the calculator. They used to
+    // disagree about this application by the months since the nomination.
+    const kpi = await (await request.get(`/api/stats?noc_code=${noc}`)).json();
+    const table = await (await request.get(`/api/stats/table?noc_code=${noc}`)).json();
+
+    expect(kpi.stats.total_applicants).toBe(1);
+    expect(kpi.stats.avg_waiting_months).toBeCloseTo(created.waiting_months, 0);
+    expect(table.rows[0].waiting_months).toBeCloseTo(created.waiting_months, 1);
   });
 
   test('a submission date in the future does not produce a negative wait', async ({ request }) => {
