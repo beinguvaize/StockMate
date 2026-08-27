@@ -7,7 +7,9 @@ playwright/.auth/
 # Playwright output
 node_modules/
 test-results/
+test-results-immigration/
 playwright-report/
+playwright-report-immigration/
 blob-report/
 
 # Local agent/editor scratch
