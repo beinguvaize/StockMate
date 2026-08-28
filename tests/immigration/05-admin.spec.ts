@@ -306,6 +306,63 @@ test.describe('Admin portal', () => {
     }
   });
 
+  test('csv cells quote what is inside them and defuse formulas', async ({ page }) => {
+    await page.goto('/');
+
+    const cells = await page.evaluate(() => {
+      const csv = (window as unknown as { csvCell: (v: unknown) => string }).csvCell;
+      return {
+        quote: csv('note with a " in it'),
+        comma: csv('Skilled Worker, Express Entry'),
+        formula: csv('=1+1'),
+        minus: csv('-500'),
+        at: csv('@here'),
+        empty: csv(null),
+      };
+    });
+
+    expect(cells.quote).toBe('"note with a "" in it"');
+    expect(cells.comma).toBe('"Skilled Worker, Express Entry"');
+    // A spreadsheet runs a cell that opens with =, +, - or @ as a formula.
+    expect(cells.formula).toBe('"\'=1+1"');
+    expect(cells.minus).toBe('"\'-500"');
+    expect(cells.at).toBe('"\'@here"');
+    expect(cells.empty).toBe('""');
+  });
+
+  test('the export keeps a note containing a quote in its own column', async ({ page, request }) => {
+    const { other } = readAccounts();
+    const note = 'Officer said "resubmit", then went quiet';
+    await createApplication(request, other.token, { noc_code: '21232', status_note: note });
+
+    await page.goto('/admin');
+    // Export lives on the Applications panel, and exports whatever that table
+    // has loaded.
+    await page.locator('.side-nav__link[data-panel="apps"]').click();
+    await expect(page.locator('#exportCsvBtn')).toBeVisible();
+    await expect(page.locator('#adminAppTableBody tr').first()).toBeVisible();
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#exportCsvBtn').click(),
+    ]);
+
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+    const csv = Buffer.concat(chunks).toString('utf8');
+
+    // Excel needs the byte order mark to read this as UTF-8.
+    expect(csv.startsWith('\uFEFF')).toBe(true);
+
+    const row = csv.split('\r\n').find((line) => line.includes('21232'));
+    expect(row).toBeTruthy();
+    // The quotes inside the note are doubled, so the note stays one field and
+    // every column after it stays under its own header.
+    expect(row).toContain('"Officer said ""resubmit"", then went quiet"');
+    expect(row!.split('","')).toHaveLength(13);
+  });
+
   test('an announcement can be created, listed, published and removed', async ({ request }) => {
     const { admin } = readAccounts();
     const message = `E2E announcement ${Date.now()}`;
