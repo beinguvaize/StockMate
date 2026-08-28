@@ -245,6 +245,67 @@ test.describe('Admin portal', () => {
     expect(good.status()).toBe(200);
   });
 
+  test('an admin status change lands on the applicant\'s timeline', async ({ request }) => {
+    const { admin, other } = readAccounts();
+    const app = await createApplication(request, other.token, { noc_code: '13110' });
+    const nominatedOn = dateFromToday(-10);
+
+    await request.put(`/api/admin/applications/${app.id}`, {
+      headers: auth(admin.token),
+      data: {
+        ...applicationPayload({ noc_code: '13110' }),
+        status: 'Nominated / Endorsed',
+        nominated_date: nominatedOn,
+      },
+    });
+
+    const list = await request.get('/api/applications', { headers: auth(other.token) });
+    const updated = (await list.json()).find((a: { id: number }) => a.id === app.id);
+
+    // The card shows the timeline from this history, so a change made in the
+    // admin portal has to appear in it or the two disagree.
+    expect(updated.status_history.map((h: { status: string }) => h.status))
+      .toEqual(['Submitted', 'Nominated / Endorsed']);
+    expect(updated.status_history[1].changed_at).toBe(nominatedOn);
+  });
+
+  test('an admin edit that leaves the status alone adds no timeline entry', async ({ request }) => {
+    const { admin, other } = readAccounts();
+    const app = await createApplication(request, other.token, { noc_code: '13110' });
+
+    await request.put(`/api/admin/applications/${app.id}`, {
+      headers: auth(admin.token),
+      data: { status_note: 'Checked the file' },
+    });
+
+    const list = await request.get('/api/applications', { headers: auth(other.token) });
+    const updated = (await list.json()).find((a: { id: number }) => a.id === app.id);
+
+    expect(updated.status_history).toHaveLength(1);
+  });
+
+  test('a bulk status change lands on every applicant\'s timeline', async ({ request }) => {
+    const { admin, other } = readAccounts();
+    const first = await createApplication(request, other.token, { noc_code: '13110' });
+    const second = await createApplication(request, other.token, { noc_code: '13110' });
+
+    const res = await request.put('/api/admin/applications/bulk-status', {
+      headers: auth(admin.token),
+      data: { appIds: [first.id, second.id], status: 'Refused' },
+    });
+    expect(res.status()).toBe(200);
+
+    const list = await (await request.get('/api/applications', { headers: auth(other.token) })).json();
+    for (const id of [first.id, second.id]) {
+      const app = list.find((a: { id: number }) => a.id === id);
+      expect(app.status).toBe('Refused');
+      expect(app.status_history.map((h: { status: string }) => h.status))
+        .toEqual(['Submitted', 'Refused']);
+      // And the stored figures were recomputed, not left at the old status.
+      expect(app.waiting_months).toBeGreaterThan(0);
+    }
+  });
+
   test('an announcement can be created, listed, published and removed', async ({ request }) => {
     const { admin } = readAccounts();
     const message = `E2E announcement ${Date.now()}`;
