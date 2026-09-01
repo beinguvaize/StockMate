@@ -150,4 +150,50 @@ void main() {
       expect(aggregateClientProducts([], 'CLI-1'), isEmpty);
     });
   });
+
+group('units come from the product, not the sale line', () {
+  // Sale items are stored as {cess, hsn, id, name, quantity, rate, taxRate} —
+  // there is no `unit` on them and never has been. Without the lookup every
+  // quantity renders as a bare number: "29" instead of "29 PCS".
+  Sale s(String id, List<dynamic> items) =>
+      Sale(id: id, shopId: 'CLI-1', date: '2026-08-01', items: items);
+
+  test('fills the unit in from the product', () {
+    final out = aggregateClientProducts(
+      [s('S1', [{'id': 'P1', 'name': 'Cover', 'quantity': 29, 'rate': 110}])],
+      'CLI-1',
+      unitById: {'P1': 'PCS'},
+    );
+    expect(out.single.unit, 'PCS');
+    expect(out.single.qty, 29);
+    expect(out.single.value, 3190, reason: 'rate is the price key, not "price"');
+  });
+
+  test('a unit on the line still wins, if one ever appears there', () {
+    final out = aggregateClientProducts(
+      [s('S1', [{'id': 'P1', 'name': 'Rice', 'quantity': 2, 'rate': 50, 'unit': 'KG'}])],
+      'CLI-1',
+      unitById: {'P1': 'PCS'},
+    );
+    expect(out.single.unit, 'KG');
+  });
+
+  test('leaves the unit null when the product has none, rather than inventing one', () {
+    final out = aggregateClientProducts(
+      [s('S1', [{'id': 'P1', 'name': 'Thing', 'quantity': 1, 'rate': 10}])],
+      'CLI-1',
+      unitById: {'P1': null},
+    );
+    expect(out.single.unit, isNull);
+  });
+
+  test('works with no lookup supplied at all', () {
+    final out = aggregateClientProducts(
+      [s('S1', [{'id': 'P1', 'name': 'Thing', 'quantity': 1, 'rate': 10}])],
+      'CLI-1',
+    );
+    expect(out.single.unit, isNull);
+    expect(out.single.value, 10);
+  });
+});
 }

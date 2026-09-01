@@ -13,6 +13,7 @@ import 'package:mobile_app/features/sales/presentation/providers/sales_provider.
 import 'package:mobile_app/features/clients_suppliers/data/client_products.dart';
 import 'package:mobile_app/features/clients_suppliers/data/statement_credits.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_products_card.dart';
+import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 
 // ─── Data model ───────────────────────────────────────────────────────────────
 class _StatementRow {
@@ -108,6 +109,10 @@ class ClientStatementSheet extends ConsumerWidget {
     // when unavailable, which falls back to the old single credit on the sale
     // date — still right whenever nothing was collected late.
     final receiptsAsync = ref.watch(saleReceiptsForClientProvider(client.id));
+    // Sale lines carry no unit — only {cess, hsn, id, name, quantity, rate,
+    // taxRate} — so the unit comes from the product, or every quantity reads
+    // as a bare number.
+    final productsAsync = ref.watch(productsProvider);
     final salesAsync    = ref.watch(recentSalesProvider);
 
     // Determine loading / error states. Sales load is needed to resolve each
@@ -131,7 +136,14 @@ class ClientStatementSheet extends ConsumerWidget {
     // query, and it works offline as far as the cached sales go.
     final productLines = (isLoading || error != null)
         ? const <ClientProductLine>[]
-        : aggregateClientProducts(salesAsync.valueOrNull ?? const [], client.id);
+        : aggregateClientProducts(
+            salesAsync.valueOrNull ?? const [],
+            client.id,
+            unitById: {
+              for (final p in (productsAsync.valueOrNull ?? const []))
+                p.id: p.unit,
+            },
+          );
 
     if (!isLoading && error == null) {
       final sales = salesAsync.valueOrNull ?? const [];

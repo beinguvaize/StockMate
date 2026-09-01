@@ -43,7 +43,16 @@ bool _isCountable(Sale s) {
 /// Grouped by product id where the line carries one, falling back to the name.
 /// The id is preferred because a product can be renamed between two sales and
 /// splitting one product into two rows would misreport both.
-List<ClientProductLine> aggregateClientProducts(List<Sale> sales, String clientId) {
+/// [unitById] supplies the unit the sale line does not carry. Sale items are
+/// stored with only {cess, hsn, id, name, quantity, rate, taxRate} — there is
+/// no `unit` on them and never has been — so without this every quantity reads
+/// as a bare number: "29" rather than "29 PCS". The unit belongs to the
+/// product, so it is looked up there rather than guessed or left blank.
+List<ClientProductLine> aggregateClientProducts(
+  List<Sale> sales,
+  String clientId, {
+  Map<String, String?> unitById = const {},
+}) {
   final byKey = <String, _Acc>{};
 
   for (final sale in sales) {
@@ -78,9 +87,15 @@ List<ClientProductLine> aggregateClientProducts(List<Sale> sales, String clientI
 
       final date = sale.date ?? '';
 
+      // The line's own unit if it ever gains one, else the product's.
+      final lineUnit = item['unit']?.toString();
+      final unit = (lineUnit != null && lineUnit.isNotEmpty)
+          ? lineUnit
+          : (id.isNotEmpty ? unitById[id] : null);
+
       final acc = byKey.putIfAbsent(
         key,
-        () => _Acc(key: key, name: name.isEmpty ? key : name, unit: item['unit']?.toString()),
+        () => _Acc(key: key, name: name.isEmpty ? key : name, unit: unit),
       );
       acc.qty += qty;
       acc.value += lineTotal;
@@ -90,7 +105,7 @@ List<ClientProductLine> aggregateClientProducts(List<Sale> sales, String clientI
         acc.name = name;
         acc.nameDate = date;
       }
-      acc.unit ??= item['unit']?.toString();
+      acc.unit ??= unit;
       if (seenInThisSale.add(key)) acc.orders += 1;
     }
   }
