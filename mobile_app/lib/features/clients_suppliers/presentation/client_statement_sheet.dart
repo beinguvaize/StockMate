@@ -116,6 +116,12 @@ class ClientStatementSheet extends ConsumerWidget {
       final saleMethodById = <String, String>{
         for (final s in sales) s.id: (s.paymentMethod ?? '').toUpperCase(),
       };
+      // An invoice settled at the POS carries paidAmount 0 — the money sits on
+      // the SALE row. Crediting the invoice's own 0 against its full total
+      // showed the whole bill as owed. Fall back to the sale, same as web.
+      final salePaidById = <String, double>{
+        for (final s in sales) s.id: (s.paidAmount ?? 0),
+      };
       final invoicedSaleIds = <String>{};
 
       // 1. Invoice rows (single source of truth for DR).
@@ -141,25 +147,34 @@ class ClientStatementSheet extends ConsumerWidget {
         // collection IS in client_payments; synthesizing here double-counted
         // the same payment (same bug web fixed — see ClientSettlement.jsx).
         final saleMethod = saleMethodById[inv.saleId] ?? '';
-        if (inv.paidAmount > 0 && saleMethod != 'CREDIT' && saleMethod.isNotEmpty) {
+        final invPaid = inv.paidAmount > 0
+            ? inv.paidAmount
+            : (salePaidById[inv.saleId] ?? 0);
+        if (invPaid > 0 && saleMethod != 'CREDIT' && saleMethod.isNotEmpty) {
           rows.add(_StatementRow(
             date: dateStr,
             description: 'Payment received (${_methodLabel(saleMethod)})',
             debit: 0,
-            credit: inv.paidAmount,
+            credit: invPaid,
             type: 'PAYMENT',
           ));
         }
       }
 
-      // 1b. CASH/UPI partial sales with no invoice — they still contribute to
-      //     outstanding. Debit full amount + credit the paid part, same as web.
+      // 1b. CASH/UPI sales with no invoice, SETTLED OR NOT. Debit the full
+      //     amount + credit what was paid, same as web (includeSettled in
+      //     src/lib/clientStatement.js).
+      //
+      //     Settled bills used to be skipped, so a customer who pays at the
+      //     counter every time had a statement with nothing on it — no record
+      //     of what they had bought. A paid bill enters as a debit AND its
+      //     payment, which nets to zero, so the running balance and the
+      //     closing figure are unchanged. Crediting less than the debit here
+      //     would invent a debt they do not owe.
       for (final s in sales) {
         if (s.shopId != client.id) continue;
         final method = (s.paymentMethod ?? '').toUpperCase();
         if (method == 'CREDIT') continue;
-        final st = (s.paymentStatus ?? s.status ?? '').toUpperCase();
-        if (!['PARTIAL', 'UNPAID', 'PENDING'].contains(st)) continue;
         if (invoicedSaleIds.contains(s.id)) continue;
         final saleDate = s.date ?? s.createdAt?.toIso8601String().substring(0, 10) ?? '';
         final total = s.totalAmount ?? 0;

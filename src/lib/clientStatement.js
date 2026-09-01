@@ -42,6 +42,7 @@ export function parseItems(v) {
  */
 export function buildClientStatement({
   client, sales = [], invoices = [], paymentHistory = [], saleReceipts = [],
+  includeSettled = false,
 } = {}) {
   if (!client) return [];
   const rows = [];
@@ -98,7 +99,11 @@ export function buildClientStatement({
   };
 
   const saleMethodMap = {};
-  (sales || []).forEach((s) => { saleMethodMap[s.id] = String(s.paymentMethod || '').toUpperCase(); });
+  const salePaidMap = {};
+  (sales || []).forEach((s) => {
+    saleMethodMap[s.id] = String(s.paymentMethod || '').toUpperCase();
+    salePaidMap[s.id] = num(s.paidAmount);
+  });
 
   // A sale covered by an invoice is billed by that invoice. Counting both
   // would charge the client twice for one delivery.
@@ -129,7 +134,13 @@ export function buildClientStatement({
   // entered the credit ledger, so it does not belong on the statement.
   (invoices || [])
     .filter((inv) => String(inv.client_id) === cid)
-    .filter((inv) => !(inv.payment_status === 'PAID' && num(inv.paid_amount) === 0))
+    // An invoice marked PAID with paid_amount 0 is a cash-at-POS sale settled
+    // at checkout: the money sits on the SALE row, not the invoice. It was
+    // skipped because crediting 0 against its full total would have invented a
+    // debt. It is still a bill the customer received, so with includeSettled it
+    // is shown and credited from the sale's paidAmount instead.
+    .filter((inv) => includeSettled
+      || !(inv.payment_status === 'PAID' && num(inv.paid_amount) === 0))
     .forEach((inv) => {
       const n = String(inv.invoice_number || '').replace(/^#+/, '');
       const invDate = inv.invoice_date || inv.created_at?.slice(0, 10);
@@ -149,7 +160,9 @@ export function buildClientStatement({
       // method: a CREDIT sale's payment arrives as a client_payments row, and
       // crediting it here as well would count it twice.
       const saleMethod = saleMethodMap[inv.sale_id] || '';
-      const orphanPaid = num(inv.paid_amount);
+      // Fall back to the sale's own paidAmount: a POS-settled invoice carries 0
+      // while the sale it came from holds the money.
+      const orphanPaid = num(inv.paid_amount) || salePaidMap[inv.sale_id] || 0;
       if (orphanPaid > 0 && saleMethod !== 'CREDIT' && saleMethod !== '') {
         // Keep the historical `<invoice>-orphan` id when there is a single
         // credit, so nothing downstream keyed on that shape changes for the
@@ -171,7 +184,13 @@ export function buildClientStatement({
   (sales || [])
     .filter((s) => String(s.shopId) === cid || String(s.clientId) === cid)
     .filter((s) => String(s.paymentMethod || '').toUpperCase() !== 'CREDIT')
-    .filter((s) => ['PARTIAL', 'UNPAID', 'PENDING'].includes(String(s.paymentStatus || s.status || '').toUpperCase()))
+    // Settled cash sales were dropped entirely, so a customer who always pays
+    // at the counter had a statement with almost nothing on it — no record of
+    // what they had actually bought. With includeSettled they appear as a bill
+    // AND its payment, which nets to zero, so the running balance and the
+    // closing figure are untouched. Anything else would double-count.
+    .filter((s) => includeSettled
+      || ['PARTIAL', 'UNPAID', 'PENDING'].includes(String(s.paymentStatus || s.status || '').toUpperCase()))
     .filter((s) => !invoicedSaleIds.has(s.id))
     .filter((s) => !s.deleted_at)
     .forEach((s) => {

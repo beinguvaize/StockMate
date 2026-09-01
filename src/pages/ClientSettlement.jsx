@@ -120,7 +120,11 @@ const ClientSettlement = () => {
   // here (a credit sale's money arrives as a receipt; a cash sale's does not)
   // is the same class of mistake that reached production on the supplier side.
   const statementRows = useMemo(
-    () => buildClientStatement({ client, sales, invoices, paymentHistory, saleReceipts }),
+    // includeSettled: a customer who pays at the counter every time used to
+    // get a nearly empty statement — settled bills were dropped, so there was
+    // no record of what they had actually bought. A paid bill enters as a
+    // debit AND its payment, so the closing balance is unchanged.
+    () => buildClientStatement({ client, sales, invoices, paymentHistory, saleReceipts, includeSettled: true }),
     [client, sales, invoices, paymentHistory, saleReceipts]);
 
   // ── Period window ────────────────────────────────────────────────────────

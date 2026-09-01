@@ -219,3 +219,66 @@ describe('a sale collected in more than one go', () => {
     expect(rows.reduce((t, r) => t + r.credit, 0)).toBe(4960);
   });
 });
+
+describe('showing every bill, settled or not', () => {
+  // A customer who always pays at the counter had a nearly empty statement:
+  // settled cash sales were dropped, so there was no record of what they had
+  // bought. The balance must not move — a paid bill is a debit and a credit.
+  const client = { id: 'CLI-1', name: 'Walk-in regular' };
+  const paidSale = {
+    id: 'SAL-PAID1', shopId: 'CLI-1', date: '2026-08-05',
+    paymentMethod: 'CASH', paymentStatus: 'PAID',
+    totalAmount: 1200, paidAmount: 1200, items: [],
+  };
+  const partSale = {
+    id: 'SAL-PART1', shopId: 'CLI-1', date: '2026-08-09',
+    paymentMethod: 'CASH', paymentStatus: 'PARTIAL',
+    totalAmount: 800, paidAmount: 300, items: [],
+  };
+
+  it('hides settled bills by default, as before', () => {
+    const rows = buildClientStatement({ client, sales: [paidSale, partSale] });
+    expect(rows.some(r => String(r.id).startsWith('SAL-PAID1'))).toBe(false);
+    expect(rows.some(r => String(r.id).startsWith('SAL-PART1'))).toBe(true);
+  });
+
+  it('shows them when asked, as a bill and its payment', () => {
+    const rows = buildClientStatement({ client, sales: [paidSale, partSale], includeSettled: true });
+    const paidRows = rows.filter(r => String(r.id).startsWith('SAL-PAID1'));
+    expect(paidRows.map(r => [r.debit, r.credit])).toEqual([[1200, 0], [0, 1200]]);
+  });
+
+  it('leaves the closing balance exactly where it was', () => {
+    // The whole risk of this change: a settled bill that credits less than it
+    // debits would invent a debt the customer does not owe.
+    const without = buildClientStatement({ client, sales: [paidSale, partSale] });
+    const withAll = buildClientStatement({ client, sales: [paidSale, partSale], includeSettled: true });
+    expect(withAll[withAll.length - 1].balance).toBe(without[without.length - 1].balance);
+    expect(withAll[withAll.length - 1].balance).toBe(500); // 800 billed - 300 paid
+  });
+
+  it('credits a POS-settled invoice from the sale, which is where the money is', () => {
+    // invoices.paid_amount is 0 on these; the sale row holds the payment.
+    // Crediting the invoice's own 0 would show the full total as owed.
+    const sale = { id: 'SAL-INV1', shopId: 'CLI-1', clientId: 'CLI-1', date: '2026-08-07',
+                   paymentMethod: 'CASH', paymentStatus: 'PAID', totalAmount: 900, paidAmount: 900, items: [] };
+    const inv  = { id: 'INV-1', client_id: 'CLI-1', sale_id: 'SAL-INV1', invoice_number: '0007',
+                   invoice_date: '2026-08-07', grand_total: 900, paid_amount: 0,
+                   payment_status: 'PAID', items: [] };
+    const rows = buildClientStatement({ client, sales: [sale], invoices: [inv], includeSettled: true });
+    expect(rows.reduce((t, r) => t + r.debit, 0)).toBe(900);
+    expect(rows.reduce((t, r) => t + r.credit, 0)).toBe(900);
+    expect(rows[rows.length - 1].balance).toBe(0);
+  });
+
+  it('does not double-bill a sale that has an invoice', () => {
+    const sale = { id: 'SAL-INV2', shopId: 'CLI-1', clientId: 'CLI-1', date: '2026-08-08',
+                   paymentMethod: 'CASH', paymentStatus: 'PAID', totalAmount: 500, paidAmount: 500, items: [] };
+    const inv  = { id: 'INV-2', client_id: 'CLI-1', sale_id: 'SAL-INV2', invoice_number: '0008',
+                   invoice_date: '2026-08-08', grand_total: 500, paid_amount: 500,
+                   payment_status: 'PAID', items: [] };
+    const rows = buildClientStatement({ client, sales: [sale], invoices: [inv], includeSettled: true });
+    expect(rows.reduce((t, r) => t + r.debit, 0)).toBe(500);
+    expect(rows[rows.length - 1].balance).toBe(0);
+  });
+});
