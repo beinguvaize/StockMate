@@ -8,6 +8,8 @@ import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
+import 'package:mobile_app/features/clients_suppliers/data/client_products.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_products_card.dart';
 
 // ─── Data model ───────────────────────────────────────────────────────────────
 class _StatementRow {
@@ -100,6 +102,12 @@ class ClientStatementSheet extends ConsumerWidget {
 
     // ── Build statement rows (mirrors web ClientSettlement.jsx exactly) ──────
     final rows = <_StatementRow>[];
+
+    // What they buy, from the same sales the ledger is built from — no extra
+    // query, and it works offline as far as the cached sales go.
+    final productLines = (isLoading || error != null)
+        ? const <ClientProductLine>[]
+        : aggregateClientProducts(salesAsync.valueOrNull ?? const [], client.id);
 
     if (!isLoading && error == null) {
       final sales = salesAsync.valueOrNull ?? const [];
@@ -234,6 +242,7 @@ class ClientStatementSheet extends ConsumerWidget {
                       : _StatementBody(
                           client: client,
                           rows: rows,
+                          productLines: productLines,
                           scrollController: scrollController,
                         ),
             ),
@@ -248,11 +257,13 @@ class ClientStatementSheet extends ConsumerWidget {
 class _StatementBody extends StatelessWidget {
   final Client client;
   final List<_StatementRow> rows;
+  final List<ClientProductLine> productLines;
   final ScrollController scrollController;
 
   const _StatementBody({
     required this.client,
     required this.rows,
+    required this.productLines,
     required this.scrollController,
   });
 
@@ -289,6 +300,13 @@ class _StatementBody extends StatelessWidget {
             ),
           ],
         ),
+
+        const SizedBox(height: 24),
+
+        // ── What they buy ─────────────────────────────────────────────────────
+        // Above the ledger deliberately: the ledger is unbounded, so anything
+        // under it is unreachable for a client with a long history.
+        ClientProductsCard(lines: productLines),
 
         const SizedBox(height: 24),
 
