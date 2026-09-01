@@ -444,6 +444,14 @@ const ClientSettlement = () => {
                 <span className="text-[11px] font-bold text-muted-foreground">
                   {ledgerRowsView.length} {ledgerRowsView.length === 1 ? 'row' : 'rows'}
                 </span>
+                {/* Without this the balance column looks broken: on Payments it
+                    can rise across three consecutive credits, because the bills
+                    that raised it are filtered out of view. */}
+                {rowKind !== 'ALL' && (
+                  <span className="text-[11px] text-muted-foreground">
+                    · balance still counts the {rowKind === 'PAYMENT' ? 'bills' : 'payments'} hidden by this filter
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -458,7 +466,17 @@ const ClientSettlement = () => {
                     <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Reference</th>
                     <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Debit</th>
                     <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Credit</th>
-                    <th className="py-3 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Balance</th>
+                    {/* The balance is the running figure from the WHOLE ledger,
+                        carried on each row. Filtering to Bills or Payments hides
+                        the rows in between but not their effect, so the column
+                        appears to jump — three payments in a row can leave it
+                        higher than it started because the bills that raised it
+                        are not on screen. Recomputing over the visible subset
+                        would be worse: it would show a balance this client never
+                        had. Say what the number is instead. */}
+                    <th className="py-3 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">
+                      {rowKind === 'ALL' ? 'Balance' : 'Balance (all activity)'}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
