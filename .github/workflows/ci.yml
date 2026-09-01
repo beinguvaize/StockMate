@@ -1,0 +1,84 @@
+# Does the thing Cloudflare does, before Cloudflare does it.
+#
+# WHY THIS EXISTS
+# Every web deploy failed silently from 27 Aug to 1 Sep 2026 and nobody knew.
+# Cloudflare Pages runs `npm run build`; npm runs the `prebuild` hook first
+# (lint + unit tests); four tenancy tests had gone stale against the real
+# clock, so the build exited 1, vite never ran, and Pages kept serving the
+# last good bundle. The site looked fine. Three commits of fixes — including a
+# money-labelling fix — sat undeployed for days.
+#
+# The lesson is in the command: this MUST run `npm run build`, not
+# `vite build` and not `vitest`. Running either directly is exactly the check
+# that passed all week while the real deploy was broken, because neither one
+# triggers the prebuild hook.
+#
+# THE SCHEDULE IS NOT DECORATION
+# That failure arrived with no commit — the calendar moved and a test that
+# read `Date.now()` became false. A push-triggered job would still have been
+# green the day it broke. The nightly run is what catches that class, and it
+# is the only trigger that can.
+#
+# Pushes to main are the trigger that matters here: this repo deploys straight
+# off main, and the existing schema-guard workflow fires on pull_request only,
+# so it has never once run on the way things are actually shipped.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # 02:30 UTC = 08:00 IST — a failure is waiting when the shop opens,
+    # not discovered days later by a deploy that quietly did nothing.
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  web:
+    name: Web — the deploy build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+
+      # The exact command Cloudflare Pages runs. Do not "optimise" this into
+      # its parts: the prebuild hook is the half that broke, and calling vite
+      # directly is what hid it.
+      - name: npm run build (prebuild hook included)
+        run: npm run build
+
+  mobile:
+    name: Mobile — analyze and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6'   # matches the machine that cuts releases
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+        working-directory: mobile_app
+
+      # --no-fatal-infos deliberately: there are 12 pre-existing `info` hints
+      # (async-gap context use, mostly in add_sale_screen and driver_provider).
+      # Failing on those would make this job red from its first run, and a
+      # permanently red check is one nobody reads. Warnings and errors still
+      # fail. Clear the infos and tighten this.
+      - name: flutter analyze
+        run: flutter analyze --no-fatal-infos
+        working-directory: mobile_app
+
+      # Mobile ships by APK, so these tests otherwise only ever run on the one
+      # laptop that builds releases.
+      - name: flutter test
+        run: flutter test
+        working-directory: mobile_app
