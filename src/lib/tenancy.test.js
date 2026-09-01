@@ -91,8 +91,16 @@ describe('trial state', () => {
     // gone too. The gap between them is the only notice a shop gets.
     expect(isTrialExpired(trial('FREE', -1))).toBe(true);
     expect(isTrialLapsed(trial('FREE', -1))).toBe(false);
-    expect(isTrialLapsed(trial('FREE', -TRIAL_GRACE_DAYS)))
-      .toBe(wouldLapse(-TRIAL_GRACE_DAYS));
+    // Deliberately NOT the exact grace boundary. The fixture's date is taken
+    // when the file is collected and wouldLapse takes the clock again at
+    // assertion time; on the boundary those two readings are milliseconds
+    // apart and decide the answer between them, so the test passes or fails
+    // by luck. It failed in CI at 15:58 and passed locally an hour earlier.
+    // A day either side is unambiguous at any moment of any day.
+    expect(isTrialLapsed(trial('FREE', -(TRIAL_GRACE_DAYS + 1))))
+      .toBe(wouldLapse(-(TRIAL_GRACE_DAYS + 1)));
+    expect(isTrialLapsed(trial('FREE', -(TRIAL_GRACE_DAYS - 1))))
+      .toBe(wouldLapse(-(TRIAL_GRACE_DAYS - 1)));
   });
 
   it('describes what the banner should say', () => {
@@ -100,8 +108,9 @@ describe('trial state', () => {
     expect(trialNotice(trial('FREE', 5)).kind).toBe('ENDING');
     expect(trialNotice(trial('FREE', -2)).kind).toBe('GRACE');
     expect(trialNotice(trial('FREE', -2)).graceLeft).toBeGreaterThan(0);
-    expect(trialNotice(trial('FREE', -TRIAL_GRACE_DAYS)).kind)
-      .toBe(wouldLapse(-TRIAL_GRACE_DAYS) ? 'LAPSED' : 'GRACE');
+    // A day past the boundary, for the same reason as above.
+    expect(trialNotice(trial('FREE', -(TRIAL_GRACE_DAYS + 1))).kind)
+      .toBe(wouldLapse(-(TRIAL_GRACE_DAYS + 1)) ? 'LAPSED' : 'GRACE');
     expect(trialNotice({ plan: 'PRO', status: 'ACTIVE' })).toBeNull();
   });
 });
@@ -152,6 +161,26 @@ describe('grace is anchored to when enforcement began', () => {
     expect(isTrialLapsed(longExpired())).toBe(true);
     expect(trialNotice(longExpired()).kind).toBe('LAPSED');
     expect(effectivePlan(longExpired())).toBe('FREE');
+  });
+
+  it('lapses the moment the window closes, and not a moment before', () => {
+    // The exact boundary, which the relative-date tests above deliberately
+    // avoid: with the clock pinned there is one reading of "now", so the
+    // answer is decided by the rule rather than by which line ran first.
+    const endedAtGrace = () => ({
+      plan: 'ENTERPRISE', status: 'TRIAL', trial_end_date: daysFromNow(-TRIAL_GRACE_DAYS),
+    });
+
+    vi.useFakeTimers(); vi.setSystemTime(AFTER_GRACE);
+    // Exactly TRIAL_GRACE_DAYS past its end: the window has run out to the
+    // millisecond, and `>` means it has not yet been exceeded.
+    expect(isTrialLapsed(endedAtGrace())).toBe(false);
+
+    // One millisecond later it has.
+    vi.setSystemTime(new Date(AFTER_GRACE.getTime() + 1));
+    const t = endedAtGrace();
+    t.trial_end_date = new Date(AFTER_GRACE.getTime() - TRIAL_GRACE_DAYS * 86400000).toISOString();
+    expect(isTrialLapsed(t)).toBe(true);
   });
 
   it('still protects a tenant whose own trial ended only just now', () => {
