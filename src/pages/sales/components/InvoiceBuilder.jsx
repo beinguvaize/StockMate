@@ -615,7 +615,13 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
   // The one figure the cashier acts on, and what it is called right now.
   // Logic and its tests live in ../lib/checkoutMoney.
-  const money = checkoutMoney(total, amountReceived, paymentMethod, formatCurrency);
+  // Pass what the client already owes: a surplus from someone with dues is
+  // very likely a debt payment, and the block must not assert "change" while
+  // that choice is still open. Walk-ins owe nothing, so they read as before.
+  const money = checkoutMoney(
+    total, amountReceived, paymentMethod, formatCurrency,
+    Number(allClients.find(c => c.id === selectedClientId)?.outstanding_balance || 0),
+  );
 
   // Park the current cart (hold sale) and start fresh.
   const holdSale = () => {
@@ -1764,7 +1770,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   change: 'bg-emerald-600 text-white',
                   exact:  'bg-emerald-600 text-white',
                   short:  'bg-amber-500 text-white',
-                }[money.tone];
+                  // Green says "hand it back, done". This one is an open
+                  // decision, not a completed action, so it reads neutral.
+                  'change-or-credit': 'bg-ink-primary text-white',
+                  // Fall back rather than render `undefined` as a class, which
+                  // paints white text on a transparent panel.
+                }[money.tone] || 'bg-ink-primary text-white';
                 return (
                   <div className={`rounded-2xl px-5 py-4 ${tone}`}>
                     <div className="text-[10px] font-semibold uppercase tracking-widest text-white/60">
@@ -2090,7 +2101,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   ? 'Processing…'
                   : money.tone === 'change'
                     ? `Complete · return ${formatCurrency(money.value)}`
-                    : `Confirm & Pay ${formatCurrency(total)}`}
+                    : money.tone === 'change-or-credit'
+                      /* Not "return": the next screen offers to put this
+                         against the client's dues instead, and promising a
+                         refund here gets the cash counted out first. */
+                      ? `Complete · ${formatCurrency(money.value)} over`
+                      : `Confirm & Pay ${formatCurrency(total)}`}
               </Button>
             </div>
           </div>

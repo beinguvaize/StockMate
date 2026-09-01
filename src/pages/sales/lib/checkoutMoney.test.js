@@ -136,3 +136,47 @@ describe('surplusLabel', () => {
     expect(surplusLabel('CASH').label).toBe('Paid over this bill');
   });
 });
+
+describe('a surplus from a client who already owes', () => {
+  // The real case: NIHA STORE owes 2,785, bill 330, 1,515 handed over.
+  // The block said "CHANGE TO RETURN" and the button said "return 1,185",
+  // then AFTER the sale a modal offered to put it against the dues — by
+  // which time the cash may be counted out.
+  const owed = 2785;
+
+  it('does not promise change while crediting is still an option', () => {
+    const m = checkoutMoney(330, '1515', 'CASH', undefined, owed);
+    expect(m.tone).toBe('change-or-credit');
+    expect(m.label).not.toMatch(/change/i);
+    expect(m.value).toBeCloseTo(1185, 6);
+  });
+
+  it('names both outcomes and what can go against the debt', () => {
+    const m = checkoutMoney(330, '1515', 'CASH', undefined, owed);
+    expect(m.sub).toMatch(/return it/i);
+    expect(m.sub).toContain('1185.00');   // capped at the surplus
+    expect(m.sub).toContain('2785.00');   // what they owe
+  });
+
+  it('caps the creditable part at the debt, not the surplus', () => {
+    // Hands over 5,000 on a 330 bill but only owes 100: at most 100 can
+    // clear debt and the other 4,570 really is change.
+    const m = checkoutMoney(330, '5000', 'CASH', undefined, 100);
+    expect(m.sub).toContain('100.00');
+    expect(m.value).toBeCloseTo(4670, 6);
+  });
+
+  it('still says change outright for a walk-in who owes nothing', () => {
+    expect(checkoutMoney(330, '1515', 'CASH', undefined, 0).tone).toBe('change');
+    expect(checkoutMoney(330, '1515', 'CASH').tone).toBe('change');
+  });
+
+  it('leaves the credit branch alone — that surplus was never change', () => {
+    expect(checkoutMoney(330, '1515', 'CREDIT', undefined, owed).tone).toBe('credit');
+  });
+
+  it('is unchanged when the customer is short or exact', () => {
+    expect(checkoutMoney(330, '100', 'CASH', undefined, owed).tone).toBe('short');
+    expect(checkoutMoney(330, '330', 'CASH', undefined, owed).tone).toBe('exact');
+  });
+});

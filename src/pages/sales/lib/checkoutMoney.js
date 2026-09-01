@@ -21,9 +21,10 @@
  * @param {string} method   CASH / UPI / BANK / CARD / CREDIT
  * @param {(n:number)=>string} fmt money formatter; defaults to a plain 2dp
  *        number so the tests do not depend on a currency symbol
+ * @param {number} outstanding what this client already owes, 0 for a walk-in
  * @returns {{tone:string, label:string, value:number, sub:string|null}}
  */
-export function checkoutMoney(total, received, method, fmt = (n) => Number(n).toFixed(2)) {
+export function checkoutMoney(total, received, method, fmt = (n) => Number(n).toFixed(2), outstanding = 0) {
   const bill     = Number(total) || 0;
   const isCredit = String(method || '').toUpperCase() === 'CREDIT';
   const typed    = String(received ?? '').trim() !== '';
@@ -51,6 +52,21 @@ export function checkoutMoney(total, received, method, fmt = (n) => Number(n).to
   // Tolerance, not equality: 1185 entered against a total of 1184.999999
   // must read as paid in full, not as one paisa still to collect.
   if (diff > 0.001) {
+    // A customer who owes money and hands over more than the bill has very
+    // likely paid down the debt, not overpaid by accident. The app already
+    // offers that — but only AFTER the sale is saved, by which time this
+    // screen has said "Change to return" and the button has said "return",
+    // so the cash may already be counted out. Do not assert the outcome
+    // while a real choice is still open; name both and say it is coming.
+    const owed = Math.max(0, Number(outstanding) || 0);
+    if (owed > 0.001) {
+      return {
+        tone: 'change-or-credit',
+        label: 'Over the bill',
+        value: diff,
+        sub: `${fmt(paid)} received · ${fmt(bill)} bill · return it or put ${fmt(Math.min(diff, owed))} against ${fmt(owed)} owed`,
+      };
+    }
     return { tone: 'change', label: 'Change to return', value: diff,
              sub: `${fmt(paid)} received · ${fmt(bill)} bill` };
   }
