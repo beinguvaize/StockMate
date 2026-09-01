@@ -151,6 +151,13 @@ class AutoUpdater {
   }
 
   /// True iff `latest` is strictly greater than `current` (semver, naive).
+  ///
+  /// Numeric on purpose. A string compare would read "1.7.10" as OLDER than
+  /// "1.7.9" — the first release to go double-digit would stop offering
+  /// itself, on every phone, silently.
+  @visibleForTesting
+  bool isNewer(String current, String latest) => _isNewer(current, latest);
+
   bool _isNewer(String current, String latest) {
     int parse(String s) {
       final parts = s.split('.').map((p) => int.tryParse(p.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();
