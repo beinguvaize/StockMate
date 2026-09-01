@@ -8,6 +8,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -21,12 +22,69 @@ import 'package:url_launcher/url_launcher.dart';
 /// in `.apk` (release.yml does this on tag push).
 const _githubRepo = 'beinguvaize/StockMate';
 
-class _ReleaseInfo {
+class ReleaseInfo {
   final String version;       // e.g. "1.0.7"
   final String apkUrl;        // direct download URL of the .apk asset (empty = pending)
   final String releaseNotes;  // optional changelog body
-  _ReleaseInfo({required this.version, required this.apkUrl, required this.releaseNotes});
-  factory _ReleaseInfo.noAsset() => _ReleaseInfo(version: '', apkUrl: '', releaseNotes: '');
+  ReleaseInfo({required this.version, required this.apkUrl, required this.releaseNotes});
+  factory ReleaseInfo.noAsset() => ReleaseInfo(version: '', apkUrl: '', releaseNotes: '');
+}
+
+/// Pick the newest mobile release out of GitHub's /releases response.
+///
+/// This used to split the raw body on the `},{` between release objects and
+/// then regex the tag and the download URL out of each fragment. Assets are
+/// NESTED objects, so that boundary also falls inside a release — the tag and
+/// its APK could land in different fragments, and the URL would come back
+/// empty. The code's own comment says an empty URL surfaces "being prepared"
+/// forever, so the failure is a silent, permanent non-update rather than a
+/// crash. It happened to hold for every release so far, which is the worst
+/// property a parser can have.
+///
+/// dart:convert is in the SDK — the "cheaper than pulling in dart:convert"
+/// note it replaces was weighing a dependency that costs nothing.
+///
+/// Returns null when the payload is not what we expect, so a bad response
+/// leaves the app alone instead of throwing on startup.
+@visibleForTesting
+ReleaseInfo? parseMobileRelease(String body) {
+  late final List<dynamic> releases;
+  try {
+    final decoded = jsonDecode(body);
+    if (decoded is! List) return null;
+    releases = decoded;
+  } catch (_) {
+    return null;   // truncated body, an error object, HTML from a proxy
+  }
+
+  for (final entry in releases) {
+    if (entry is! Map) continue;
+    final tag = entry['tag_name'];
+    // Mobile only: desktop ships as `v*` and versions independently, so a
+    // desktop tag would read as a downgrade against an installed 1.7.x.
+    if (tag is! String || !tag.startsWith('mobile-')) continue;
+    // A draft is not published — offering it would 404 on download.
+    if (entry['draft'] == true) continue;
+    // Prereleases are NOT skipped: every mobile release is one, deliberately,
+    // so that /releases/latest keeps resolving to a desktop tag.
+
+    final assets = entry['assets'];
+    String apkUrl = '';
+    if (assets is List) {
+      for (final a in assets) {
+        if (a is! Map) continue;
+        final url = a['browser_download_url'];
+        if (url is String && url.toLowerCase().endsWith('.apk')) { apkUrl = url; break; }
+      }
+    }
+
+    return ReleaseInfo(
+      version: tag.replaceFirst(RegExp(r'^mobile-'), '').replaceFirst(RegExp(r'^v'), ''),
+      apkUrl: apkUrl,
+      releaseNotes: entry['body'] is String ? entry['body'] as String : '',
+    );
+  }
+  return null;
 }
 
 class AutoUpdater {
@@ -49,37 +107,14 @@ class AutoUpdater {
   /// The version is taken FROM THE TAG, which is why this cannot simply follow
   /// `v*`: desktop and mobile version independently, so a `v1.6.16` release
   /// would read as a downgrade against an installed 1.7.8.
-  Future<_ReleaseInfo?> _fetchLatest() async {
+  Future<ReleaseInfo?> _fetchLatest() async {
     final res = await http
         .get(Uri.parse('https://api.github.com/repos/$_githubRepo/releases?per_page=20'),
             headers: {'Accept': 'application/vnd.github+json'})
         .timeout(const Duration(seconds: 10));
     if (res.statusCode != 200) return null;
 
-    final body = res.body;
-    // Split the array into individual release objects on the }, { boundary.
-    // Cheaper than pulling in dart:convert + a JSON model.
-    final releases = body.split(RegExp(r'\}\s*,\s*\{'));
-    for (final raw in releases) {
-      // Mobile releases only — keeps desktop tags (desktop-v*) out.
-      final tagMatch = RegExp(r'"tag_name"\s*:\s*"(mobile-[^"]+)"').firstMatch(raw);
-      if (tagMatch == null) continue;
-      final notesMatch = RegExp(r'"body"\s*:\s*"((?:[^"\\]|\\.)*)"').firstMatch(raw);
-      final apkMatch   = RegExp(r'"browser_download_url"\s*:\s*"([^"]+\.apk)"').firstMatch(raw);
-
-      final version = tagMatch.group(1)!
-          .replaceFirst(RegExp(r'^mobile-'), '')
-          .replaceFirst(RegExp(r'^v'), '');
-      final notes = (notesMatch?.group(1) ?? '')
-          .replaceAll(r'\n', '\n').replaceAll(r'\"', '"');
-
-      return _ReleaseInfo(
-        version: version,
-        apkUrl: apkMatch?.group(1) ?? '',
-        releaseNotes: notes,
-      );
-    }
-    return _ReleaseInfo.noAsset();
+    return parseMobileRelease(res.body);
   }
 
   // ── "Later" snooze ─────────────────────────────────────────────────────────
@@ -211,7 +246,7 @@ class AutoUpdater {
     return m?.group(1) ?? raw;
   }
 
-  Future<void> _showDialog(BuildContext context, {required String current, required _ReleaseInfo release}) async {
+  Future<void> _showDialog(BuildContext context, {required String current, required ReleaseInfo release}) async {
     final notes = _plain(release.releaseNotes).trim();
     await showDialog<void>(
       context: context,
