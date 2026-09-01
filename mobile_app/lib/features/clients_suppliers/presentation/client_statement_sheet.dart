@@ -6,6 +6,8 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
+import 'package:mobile_app/features/invoices/data/models/invoice.dart';
+import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/data/client_products.dart';
@@ -20,12 +22,22 @@ class _StatementRow {
   final String type;    // 'SALE' | 'INVOICE' | 'PAYMENT'
   double balance = 0;   // filled after sort
 
+  /// The bill this row is about, so tapping it can open the thing itself
+  /// rather than making the user go and find it in the invoice list. Null on
+  /// payment rows — a receipt against the account is not a bill.
+  ///
+  /// Cash sales have no invoice record, so they are wrapped with
+  /// Invoice.fromSale: one screen opens every bill, whichever way it was rung
+  /// up, instead of two paths that drift apart.
+  final Invoice? bill;
+
   _StatementRow({
     required this.date,
     required this.description,
     required this.debit,
     required this.credit,
     required this.type,
+    this.bill,
   });
 }
 
@@ -140,6 +152,7 @@ class ClientStatementSheet extends ConsumerWidget {
           debit: inv.grandTotal,
           credit: 0,
           type: 'INVOICE',
+          bill: inv,
         ));
 
         // Inline payment CR — ONLY for upfront-paid (non-CREDIT) sales, whose
@@ -185,6 +198,7 @@ class ClientStatementSheet extends ConsumerWidget {
           debit: total,
           credit: 0,
           type: 'SALE',
+          bill: Invoice.fromSale(s),
         ));
         if (paid > 0) {
           rows.add(_StatementRow(
@@ -567,7 +581,7 @@ class _LedgerCard extends StatelessWidget {
             ? 'Advance ${_fmtRupee(row.balance.abs())}'
             : 'Fully paid';
 
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -590,7 +604,20 @@ class _LedgerCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              _TypePill(type: row.type),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _TypePill(type: row.type),
+                  // Only bill rows open anything, so only they get the hint.
+                  // A chevron on a payment row would promise a screen that
+                  // does not exist.
+                  if (row.bill != null) ...[
+                    const SizedBox(width: 4),
+                    const Icon(LucideIcons.chevronRight,
+                        size: 13, color: AppColors.inkTertiary),
+                  ],
+                ],
+              ),
             ],
           ),
 
@@ -664,6 +691,19 @@ class _LedgerCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    // A bill row opens the bill. Without this the statement tells you a bill
+    // exists and then makes you go and find it in the invoice list — with the
+    // date and amount held in your head. Payment rows have no bill to open, so
+    // they stay inert rather than pretending to be tappable.
+    if (row.bill == null) return card;
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => InvoiceDetailScreen(invoice: row.bill!)),
+      ),
+      borderRadius: BorderRadius.circular(16),
+      child: card,
     );
   }
 
