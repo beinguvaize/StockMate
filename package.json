@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "prebuild": "npm run lint:crash && npm run test:unit",
+    "test:future": "bash scripts/test-future.sh",
     "build": "vite build",
     "lint": "eslint .",
     "lint:crash": "eslint --config eslint.crash.config.js src",

@@ -82,3 +82,23 @@ jobs:
       - name: flutter test
         run: flutter test
         working-directory: mobile_app
+
+  future:
+    name: Web — suite still true next year
+    # Separate job so a stale-date failure is legible on its own: the deploy
+    # build is green TODAY, and this says it will not be on the date named.
+    # Scheduled and manual only — it runs the suite nine times, which is not
+    # worth adding to every push when the nightly catches it days early.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      # Reproduces the 27 Aug break days before it would have happened: the
+      # old tenancy tests pass at 2026-08-22 and fail from 2026-09-01.
+      - name: Suite under future dates
+        run: npm run test:future
