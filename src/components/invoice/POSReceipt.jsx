@@ -318,8 +318,17 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
                             dues, been returned as change, or split between the
                             two — the receipt only sees the final balance, so
                             don't claim it all went "to account". The YOU OWE NOW
-                            line below is the authoritative figure. */}
-                        <span>{showAccount ? 'Extra received' : 'Change returned'}</span>
+                            line below is the authoritative figure.
+
+                            "Extra received" read as "we kept this", which put it
+                            at odds with a YOU OWE NOW that had not moved: a
+                            customer handed 1,515 on a 330 bill saw 1,185 extra
+                            AND the full 2,785 still owed, and neither line
+                            explained the other. State the fact and let the
+                            balance speak — same wording as the invoice screen
+                            (surplusLabel in checkoutMoney.js). A walk-in has no
+                            account, so for them the surplus IS change. */}
+                        <span>{showAccount ? 'Paid over this bill' : 'Change returned'}</span>
                         <span>{fmt(excess)}</span>
                       </div>
                     )}
