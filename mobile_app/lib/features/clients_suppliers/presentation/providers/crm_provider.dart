@@ -8,6 +8,7 @@ import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client_payment.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart';
 import 'package:mobile_app/main.dart' show databaseProvider;
+import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 
 // Cache-first clients provider.
 // Tries Supabase first; on any network / server failure falls back to the
@@ -180,5 +181,42 @@ final clientPaymentsForClientProvider =
     final rows = await cachedClientPayments(
         ref.read(databaseProvider), ctx.tenantId, clientId: clientId);
     return rows.map(ClientPayment.fromJson).toList();
+  }
+});
+
+/// Sale ledger rows for one client's sales — one per payment event, each
+/// carrying the date the money actually arrived.
+///
+/// The statement used to credit a sale's whole paidAmount on the BILL's date.
+/// That is wrong the moment part of it was collected later: a 10 Aug bill
+/// showed the full 4,960 on the 10th, though 1,185 of it was not handed over
+/// until the 31st. post_sale_to_ledger writes one row per payment event, so
+/// these rows decide the dates. Web does the same (ClientSettlement.jsx).
+///
+/// Queried by sale id because account_transactions references the SALE and has
+/// no client column. Returns [] on any failure so the statement falls back to
+/// the single credit on the sale's date rather than rendering empty — still
+/// correct whenever nothing was collected late, which is the ordinary case.
+final saleReceiptsForClientProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>((ref, clientId) async {
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return [];
+  final sales = await ref.watch(recentSalesProvider.future);
+  final saleIds = sales
+      .where((s) => s.shopId == clientId)
+      .map((s) => s.id)
+      .toList();
+  if (saleIds.isEmpty) return [];
+  try {
+    final res = await supabase
+        .from('account_transactions')
+        .select('id, date, amount, mode, ref_type, ref_id, note')
+        .eq('tenant_id', ctx.tenantId)
+        .eq('ref_type', 'SALE')
+        .inFilter('ref_id', saleIds);
+    return (res as List).cast<Map<String, dynamic>>();
+  } catch (e) {
+    debugPrint('[saleReceiptsForClient] failed, statement falls back to sale dates: $e');
+    return [];
   }
 });

@@ -11,6 +11,7 @@ import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/data/client_products.dart';
+import 'package:mobile_app/features/clients_suppliers/data/statement_credits.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_products_card.dart';
 
 // ─── Data model ───────────────────────────────────────────────────────────────
@@ -103,12 +104,23 @@ class ClientStatementSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final invoicesAsync = ref.watch(invoicesProvider);
     final paymentsAsync = ref.watch(clientPaymentsForClientProvider(client.id));
+    // One row per payment event, each with the date the money arrived. Empty
+    // when unavailable, which falls back to the old single credit on the sale
+    // date — still right whenever nothing was collected late.
+    final receiptsAsync = ref.watch(saleReceiptsForClientProvider(client.id));
     final salesAsync    = ref.watch(recentSalesProvider);
 
     // Determine loading / error states. Sales load is needed to resolve each
     // invoice's original payment method (invoices table doesn't store it).
-    final isLoading =
-        invoicesAsync.isLoading || paymentsAsync.isLoading || salesAsync.isLoading;
+    // receiptsAsync is in the LOADING gate so the credits are not first drawn
+    // on the sale's date and then jump when the ledger lands. It is
+    // deliberately NOT in the error gate: if it fails, the statement should
+    // degrade to that single credit rather than refuse to render. isLoading
+    // goes false on failure too, so a failure does not block either.
+    final isLoading = invoicesAsync.isLoading ||
+        paymentsAsync.isLoading ||
+        salesAsync.isLoading ||
+        receiptsAsync.isLoading;
 
     final error = invoicesAsync.error ?? paymentsAsync.error ?? salesAsync.error;
 
@@ -135,6 +147,37 @@ class ClientStatementSheet extends ConsumerWidget {
         for (final s in sales) s.id: (s.paidAmount ?? 0),
       };
       final invoicedSaleIds = <String>{};
+
+      // saleId -> its ledger rows, so a credit can be dated by when it landed.
+      final receiptsBySale = <String, List<Map<String, dynamic>>>{};
+      for (final r in (receiptsAsync.valueOrNull ?? const <Map<String, dynamic>>[])) {
+        final id = (r['ref_id'] ?? '').toString();
+        if (id.isEmpty) continue;
+        (receiptsBySale[id] ??= []).add(r);
+      }
+
+      /// Credit rows for one sale. The dating rule lives in
+      /// data/statement_credits.dart so it can be tested without the widget.
+      List<_StatementRow> creditRows({
+        required String saleId,
+        required double fallbackAmount,
+        required String fallbackDate,
+        required String label,
+      }) =>
+          creditsForSale(
+            saleId: saleId,
+            fallbackAmount: fallbackAmount,
+            fallbackDate: fallbackDate,
+            receipts: receiptsBySale[saleId] ?? const [],
+          )
+              .map((c) => _StatementRow(
+                    date: c.date,
+                    description: c.collectedLater ? '$label — collected later' : label,
+                    debit: 0,
+                    credit: c.amount,
+                    type: 'PAYMENT',
+                  ))
+              .toList();
 
       // 1. Invoice rows (single source of truth for DR).
       //    Credit sales that also appear as invoices must NOT be added as
@@ -164,12 +207,11 @@ class ClientStatementSheet extends ConsumerWidget {
             ? inv.paidAmount
             : (salePaidById[inv.saleId] ?? 0);
         if (invPaid > 0 && saleMethod != 'CREDIT' && saleMethod.isNotEmpty) {
-          rows.add(_StatementRow(
-            date: dateStr,
-            description: 'Payment received (${_methodLabel(saleMethod)})',
-            debit: 0,
-            credit: invPaid,
-            type: 'PAYMENT',
+          rows.addAll(creditRows(
+            saleId: inv.saleId ?? '',
+            fallbackAmount: invPaid,
+            fallbackDate: dateStr,
+            label: 'Payment received (${_methodLabel(saleMethod)})',
           ));
         }
       }
@@ -201,12 +243,11 @@ class ClientStatementSheet extends ConsumerWidget {
           bill: Invoice.fromSale(s),
         ));
         if (paid > 0) {
-          rows.add(_StatementRow(
-            date: saleDate,
-            description: 'Payment received (${_methodLabel(method)})',
-            debit: 0,
-            credit: paid,
-            type: 'PAYMENT',
+          rows.addAll(creditRows(
+            saleId: s.id,
+            fallbackAmount: paid,
+            fallbackDate: saleDate,
+            label: 'Payment received (${_methodLabel(method)})',
           ));
         }
       }
