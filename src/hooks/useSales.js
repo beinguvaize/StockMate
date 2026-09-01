@@ -18,7 +18,14 @@ const NUMERIC_SALE_COLS = ['totalAmount', 'subtotal', 'tax', 'discount', 'totalC
 // it, cutting the sales payload ~3x. Web only: desktop keeps the full fetch so
 // the shared offline cache under the 'sales' key never loses items for the POS
 // list, which does need them (edit, return, reprint).
-const SALE_LEAN_COLS = '"id", "shopId", "customerInfo", "paymentMethod", "paymentStatus", "routeId", "subtotal", "discount", "tax", "totalAmount", "totalCogs", "date", "salesRepId", "bookedBy", "status", "scheduledDate", "deliveredBy", "note", "paidAmount", "lastPaymentDate", "created_at", "payment_type", "is_seed", "vehicleid", "vehicleId", "tenant_id", "delivery_method", "fulfillment_status", "sale_type", "route_id", "invoice_id", "place_of_supply", "billing_address", "shipping_address", "terms_id", "eway_bill_number", "transport_name", "vehicle_number", "lr_number", "tds_amount", "tcs_amount", "round_off", "is_pos", "cashier_id", "updated_at", "deleted_at", "source_app", "voided_at", "void_reason", "location_id", "amount_received"';
+// `vehicleid` (all lower case) is a dead twin of `vehicleId` — 0 rows against
+// 21, and every read in web and mobile uses the camelCase one. It was being
+// fetched here purely because it exists, and selecting both is what makes the
+// pair look interchangeable: reading the lower-case one returns null for a van
+// sale that is correctly attributed, which reads as missing data rather than as
+// the wrong column. `routeId`/`route_id` are the same shape of duplicate, both
+// empty; only route_id is written going forward.
+const SALE_LEAN_COLS = '"id", "shopId", "customerInfo", "paymentMethod", "paymentStatus", "routeId", "subtotal", "discount", "tax", "totalAmount", "totalCogs", "date", "salesRepId", "bookedBy", "status", "scheduledDate", "deliveredBy", "note", "paidAmount", "lastPaymentDate", "created_at", "payment_type", "is_seed", "vehicleId", "tenant_id", "delivery_method", "fulfillment_status", "sale_type", "route_id", "invoice_id", "place_of_supply", "billing_address", "shipping_address", "terms_id", "eway_bill_number", "transport_name", "vehicle_number", "lr_number", "tds_amount", "tcs_amount", "round_off", "is_pos", "cashier_id", "updated_at", "deleted_at", "source_app", "voided_at", "void_reason", "location_id", "amount_received"';
 const NUMERIC_CLIENT_COLS = ['outstanding_balance', 'credit_limit'];
 const NUMERIC_INVOICE_COLS = ['amount', 'grand_total', 'taxable_amount', 'tax_total', 'discount_total', 'cgst_amount', 'sgst_amount', 'igst_amount', 'round_off', 'paid_amount'];
 
