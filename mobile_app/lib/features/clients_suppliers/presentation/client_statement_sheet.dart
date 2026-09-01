@@ -283,7 +283,7 @@ class ClientStatementSheet extends ConsumerWidget {
 }
 
 // ─── Statement body ───────────────────────────────────────────────────────────
-class _StatementBody extends StatelessWidget {
+class _StatementBody extends StatefulWidget {
   final Client client;
   final List<_StatementRow> rows;
   final List<ClientProductLine> productLines;
@@ -297,8 +297,31 @@ class _StatementBody extends StatelessWidget {
   });
 
   @override
+  State<_StatementBody> createState() => _StatementBodyState();
+}
+
+class _StatementBodyState extends State<_StatementBody> {
+  // Same two controls as the web ledger, with the same meanings — 'ALL',
+  // 'SALE' (bills), 'PAYMENT' — so one statement reads the same on either
+  // screen. Nothing beyond what web already shows.
+  String _rowKind = 'ALL';
+  bool _newestFirst = true;
+
+  @override
   Widget build(BuildContext context) {
+    final client = widget.client;
+    final productLines = widget.productLines;
+    final scrollController = widget.scrollController;
     final balance = client.outstandingBalance ?? 0;
+
+    final filtered = widget.rows.where((r) {
+      if (_rowKind == 'SALE') return r.type != 'PAYMENT';
+      if (_rowKind == 'PAYMENT') return r.type == 'PAYMENT';
+      return true;
+    }).toList();
+    // The rows arrive oldest-first with the running balance already on them,
+    // so reversing is a view choice and does not touch the arithmetic.
+    final rows = _newestFirst ? filtered.reversed.toList() : filtered;
 
     return ListView(
       controller: scrollController,
@@ -353,8 +376,53 @@ class _StatementBody extends StatelessWidget {
                 letterSpacing: 1.2,
               ),
             ),
+            const Spacer(),
+            Text(
+              '${rows.length} ${rows.length == 1 ? 'row' : 'rows'}',
+              style: GoogleFonts.manrope(
+                fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.inkTertiary,
+              ),
+            ),
           ],
         ),
+
+        const SizedBox(height: 8),
+
+        // Filter + order, the same two controls as the web ledger.
+        Row(
+          children: [
+            for (final e in const [['ALL', 'All'], ['SALE', 'Bills'], ['PAYMENT', 'Payments']])
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: _FilterPill(
+                  label: e[1],
+                  selected: _rowKind == e[0],
+                  onTap: () => setState(() => _rowKind = e[0]),
+                ),
+              ),
+            const Spacer(),
+            _FilterPill(
+              label: _newestFirst ? 'Newest' : 'Oldest',
+              selected: false,
+              icon: _newestFirst ? LucideIcons.arrowDown : LucideIcons.arrowUp,
+              onTap: () => setState(() => _newestFirst = !_newestFirst),
+            ),
+          ],
+        ),
+
+        // The balance on each row is the running figure from the WHOLE ledger.
+        // Filtering hides rows but not their effect, so on Payments it can
+        // climb across consecutive credits. Recomputing over what is visible
+        // would show a balance this client never had — same wording as web.
+        if (_rowKind != 'ALL') ...[
+          const SizedBox(height: 6),
+          Text(
+            'Balance still counts the ${_rowKind == 'PAYMENT' ? 'bills' : 'payments'} hidden by this filter.',
+            style: GoogleFonts.manrope(
+              fontSize: 10.5, fontWeight: FontWeight.w500, color: AppColors.inkTertiary,
+            ),
+          ),
+        ],
 
         const SizedBox(height: 10),
 
@@ -829,6 +897,58 @@ class _ErrorView extends StatelessWidget {
               message,
               style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
               textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+// ─── Filter / order pill — mirrors the web ledger's controls ─────────────────
+class _FilterPill extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final IconData? icon;
+  final VoidCallback onTap;
+  const _FilterPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected
+                ? Colors.transparent
+                : AppColors.outlineVariant.withValues(alpha: 0.7),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 11, color: selected ? Colors.white : AppColors.inkSecondary),
+              const SizedBox(width: 3),
+            ],
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : AppColors.inkSecondary,
+              ),
             ),
           ],
         ),
