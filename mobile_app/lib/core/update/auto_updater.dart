@@ -57,6 +57,16 @@ ReleaseInfo? parseMobileRelease(String body) {
     return null;   // truncated body, an error object, HTML from a proxy
   }
 
+  // Pick the HIGHEST version, not the first in the list.
+  //
+  // GitHub's ordering cannot be relied on: with mobile-v1.7.9 and
+  // mobile-v1.7.10 both published, /releases returns 1.7.9 FIRST — twelve
+  // minutes older. Taking the first match meant a phone on 1.7.9 was shown
+  // 1.7.9, decided it was up to date, and never saw 1.7.10 at all. Silent, and
+  // it gets worse with every release rather than better.
+  ReleaseInfo? best;
+  List<int>? bestParts;
+
   for (final entry in releases) {
     if (entry is! Map) continue;
     final tag = entry['tag_name'];
@@ -78,13 +88,41 @@ ReleaseInfo? parseMobileRelease(String body) {
       }
     }
 
-    return ReleaseInfo(
-      version: tag.replaceFirst(RegExp(r'^mobile-'), '').replaceFirst(RegExp(r'^v'), ''),
-      apkUrl: apkUrl,
-      releaseNotes: entry['body'] is String ? entry['body'] as String : '',
-    );
+    final version =
+        tag.replaceFirst(RegExp(r'^mobile-'), '').replaceFirst(RegExp(r'^v'), '');
+    final parts = _versionParts(version);
+
+    // Numeric, part by part: "1.7.10" is newer than "1.7.9" even though it
+    // sorts earlier as text.
+    if (bestParts == null || _greater(parts, bestParts)) {
+      best = ReleaseInfo(
+        version: version,
+        apkUrl: apkUrl,
+        releaseNotes: entry['body'] is String ? entry['body'] as String : '',
+      );
+      bestParts = parts;
+    }
   }
-  return null;
+  return best;
+}
+
+/// major/minor/patch as numbers, ignoring any build suffix.
+List<int> _versionParts(String v) {
+  final parts = v
+      .split('.')
+      .map((p) => int.tryParse(p.replaceAll(RegExp(r'\D'), '')) ?? 0)
+      .toList();
+  while (parts.length < 3) {
+    parts.add(0);
+  }
+  return parts;
+}
+
+bool _greater(List<int> a, List<int> b) {
+  for (var i = 0; i < 3; i++) {
+    if (a[i] != b[i]) return a[i] > b[i];
+  }
+  return false;
 }
 
 class AutoUpdater {

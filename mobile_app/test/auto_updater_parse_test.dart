@@ -57,12 +57,41 @@ void main() {
       expect(r.version, '1.7.9');
     });
 
-    test('takes the newest mobile release, which GitHub lists first', () {
+    test('takes the highest version, NOT the first one listed', () {
+      // GitHub's order cannot be trusted. With both published it returns
+      // mobile-v1.7.9 BEFORE mobile-v1.7.10 — twelve minutes older. Taking
+      // the first match meant a phone on 1.7.9 was shown 1.7.9, decided it
+      // was up to date, and never saw 1.7.10 at all.
       final r = parseMobileRelease(api([
-        rel(tag: 'mobile-v1.7.9', assets: [apk]),
-        rel(tag: 'mobile-v1.7.8', assets: ['https://x/y/old.apk']),
+        rel(tag: 'mobile-v1.7.9',  assets: ['https://x/y/nine.apk']),
+        rel(tag: 'mobile-v1.7.10', assets: [apk]),
       ]))!;
-      expect(r.version, '1.7.9');
+      expect(r.version, '1.7.10');
+      expect(r.apkUrl, apk, reason: 'and its own apk, not the other release\'s');
+    });
+
+    test('compares numerically across every part of the version', () {
+      expect(parseMobileRelease(api([
+        rel(tag: 'mobile-v1.9.0',  assets: [apk]),
+        rel(tag: 'mobile-v1.10.0', assets: [apk]),
+      ]))!.version, '1.10.0');
+      expect(parseMobileRelease(api([
+        rel(tag: 'mobile-v2.0.0', assets: [apk]),
+        rel(tag: 'mobile-v1.9.9', assets: [apk]),
+      ]))!.version, '2.0.0');
+      // A build suffix must not change the ordering.
+      expect(parseMobileRelease(api([
+        rel(tag: 'mobile-v1.7.9',      assets: [apk]),
+        rel(tag: 'mobile-v1.7.10+128', assets: [apk]),
+      ]))!.version, '1.7.10+128');
+    });
+
+    test('a draft with a higher version does not win', () {
+      final r = parseMobileRelease(api([
+        rel(tag: 'mobile-v9.9.9', assets: [apk], draft: true),
+        rel(tag: 'mobile-v1.7.10', assets: [apk]),
+      ]))!;
+      expect(r.version, '1.7.10');
     });
 
     test('skips a draft — downloading it would 404', () {
