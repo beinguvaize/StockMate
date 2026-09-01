@@ -60,3 +60,43 @@ export function checkoutMoney(total, received, method, fmt = (n) => Number(n).to
   }
   return { tone: 'exact', label: 'Paid in full', value: bill, sub: 'No change due' };
 }
+
+/**
+ * How to describe money handed over beyond the bill, on a sale already saved.
+ *
+ * "Excess received" covered two opposite outcomes and so told the reader
+ * neither. On a cash sale it reads as money the shop is holding when it was
+ * handed back at the counter, and crediting that against the client's dues
+ * pays the same rupees out twice.
+ *
+ * But the fate is NOT implied by the payment method. After a sale to a client
+ * with dues, checkout asks the cashier to choose: apply the surplus to the
+ * outstanding balance, or give it as change. Applying it writes a
+ * `client_payments` row and nothing on the sale records which was chosen — so
+ * from the sale row alone, a cash surplus could be either.
+ *
+ * Only the CREDIT case is knowable here: a credit sale collects nothing at the
+ * till, so anything beyond the bill is by definition against older dues and is
+ * never handed back (see the branch above).
+ *
+ * So this states the fact and declines to invent the fate. Saying "Change
+ * returned" on a surplus that actually cleared debt is the same class of error
+ * as the label it replaces, pointing the other way.
+ *
+ * @param {string} method CASH / UPI / BANK / CARD / CREDIT
+ * @returns {{label:string, hint:string, certain:boolean}}
+ */
+export function surplusLabel(method) {
+  const isCredit = String(method || '').toUpperCase() === 'CREDIT';
+  return isCredit
+    ? {
+        label: 'Credited to account',
+        hint: 'A credit sale collects nothing at the till, so this went against older dues.',
+        certain: true,
+      }
+    : {
+        label: 'Paid over this bill',
+        hint: 'Either handed back as change or applied to the client\'s dues — the client account shows which.',
+        certain: false,
+      };
+}

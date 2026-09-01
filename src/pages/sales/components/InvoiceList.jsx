@@ -8,6 +8,7 @@ import Table from '../../../shared/Table';
 import Modal from '../../../shared/Modal';
 import { supabase } from '../../../lib/supabase';
 import { formatCurrency, formatDate, formatDateTime, todayISOInAppTZ, getAppTimezone, getAppLocale } from '../../../lib/utils';
+import { surplusLabel } from '../lib/checkoutMoney';
 
 // Payment method -> icon.
 const PAY_ICON = {
@@ -717,11 +718,17 @@ const SaleDetail = ({
             <>
               <TotalRow label="Amount received" value={formatCurrency(received)} tone="emerald" />
               {extra > 0.5 && (
-                /* "Change / to account" told the cashier neither. The surplus is
-                   either handed back or credited to the client's account (a
-                   deliberate choice at checkout), and reading "Change" on a
-                   credited sale means paying it out twice. */
-                <TotalRow label="Excess received" value={formatCurrency(extra)} />
+                /* Say which of the two fates this surplus met. "Excess
+                   received" covered both and so told the reader neither: on a
+                   cash sale it reads as money the shop is holding, when it was
+                   handed back at the counter — and crediting that against the
+                   client's dues pays the same rupees out twice. The payment
+                   method decides it, exactly as it does at checkout, so one
+                   sale reads the same on both screens. */
+                <TotalRow
+                  label={surplusLabel(sale.paymentMethod).label}
+                  value={formatCurrency(extra)}
+                />
               )}
             </>
           );

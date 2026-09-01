@@ -1796,8 +1796,21 @@ class _InvoiceCard extends StatelessWidget {
                   if (invoice.amountReceived != null && invoice.amountReceived! > 0) ...[
                     _TaxRow(label: 'Amount received', value: invoice.amountReceived!),
                     if (invoice.amountReceived! - grandTotal > 0.5)
+                      // "Excess received" covered two opposite outcomes and so
+                      // told the reader neither: on a cash sale it reads as
+                      // money the shop is holding when it may have been handed
+                      // back, and crediting that against dues pays the same
+                      // rupees out twice. The fate is NOT implied by the
+                      // method — checkout lets the cashier apply a surplus to
+                      // the outstanding OR give it as change, and nothing on
+                      // the sale records which. Only a CREDIT sale is knowable:
+                      // it collects nothing at the till, so anything over the
+                      // bill went against older dues. Mirrors surplusLabel() in
+                      // src/pages/sales/lib/checkoutMoney.js — change both.
                       _TaxRow(
-                        label: 'Excess received',
+                        label: (invoice.paymentMethod ?? '').toUpperCase() == 'CREDIT'
+                            ? 'Credited to account'
+                            : 'Paid over this bill',
                         value: invoice.amountReceived! - grandTotal,
                       ),
                   ],

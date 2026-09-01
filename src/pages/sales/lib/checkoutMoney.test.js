@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkoutMoney } from './checkoutMoney';
+import { checkoutMoney, surplusLabel } from './checkoutMoney';
 
 /**
  * The block is the largest thing on the checkout screen, so a wrong label is a
@@ -95,5 +95,44 @@ describe('robustness', () => {
 
   it('is case-insensitive about the method', () => {
     expect(checkoutMoney(100, '', 'credit').tone).toBe('credit');
+  });
+});
+
+describe('surplusLabel', () => {
+  // "Excess received" covered two opposite outcomes: cash handed back, or a
+  // surplus that cleared debt. A reader who credits already-returned cash
+  // against the dues pays the same rupees out twice.
+  it('is certain only about a credit sale, where nothing is collected at the till', () => {
+    const credit = surplusLabel('CREDIT');
+    expect(credit.label).toBe('Credited to account');
+    expect(credit.certain).toBe(true);
+  });
+
+  it('refuses to guess the fate of a cash surplus', () => {
+    // Checkout lets the cashier apply it to dues OR give it as change, and
+    // nothing on the sale row records which. Asserting "Change returned" would
+    // be the same error as "Excess received", pointing the other way.
+    for (const m of ['CASH', 'cash', 'UPI', 'BANK', 'CARD', '', null, undefined]) {
+      const r = surplusLabel(m);
+      expect(r.label).toBe('Paid over this bill');
+      expect(r.certain).toBe(false);
+      expect(r.hint).toMatch(/change|dues/i);
+    }
+  });
+
+  it('never says "excess", and never claims cash was kept or returned', () => {
+    for (const m of ['CASH', 'CREDIT']) {
+      const { label } = surplusLabel(m);
+      expect(label.toLowerCase()).not.toContain('excess');
+    }
+    expect(surplusLabel('CASH').label).not.toMatch(/returned|change/i);
+  });
+
+  it('does not contradict what checkout showed for the same sale', () => {
+    // SAL-04F680F6: 330 bill, 1515 handed over, CASH, client owing 2,785.
+    // Checkout offered "Change to return"; the invoice must not assert the
+    // shop kept it, nor that it was definitely handed back.
+    expect(checkoutMoney(330, '1515', 'CASH').label).toBe('Change to return');
+    expect(surplusLabel('CASH').label).toBe('Paid over this bill');
   });
 });
