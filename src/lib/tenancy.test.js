@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { effectivePlan, trialDaysLeft, isTrialExpired, isTrialLapsed, trialNotice, TRIAL_GRACE_DAYS, PLANS, TRIAL_ENFORCEMENT_START, isModuleAvailable } from './tenancy';
 
 /**
@@ -14,9 +14,19 @@ const trial = (plan, days) => ({ plan, status: 'TRIAL', trial_end_date: daysFrom
  * Grace runs from the LATER of the trial end and TRIAL_ENFORCEMENT_START, so a
  * tenant only lapses once BOTH are more than the grace window behind us.
  * Expressing it this way keeps the tests true whatever today's date is.
+ *
+ * This used to test the enforcement date ALONE, which silently stopped
+ * matching the code once we moved more than a grace window past 20 Aug: from
+ * then on a recently-ended trial anchors on its OWN end date, which is later.
+ * The tests went red on 27 Aug and — because `npm run build` runs them via the
+ * prebuild hook — took every Cloudflare deploy with them. Mirror the real rule
+ * instead of half of it.
  */
-const enforcementAnchorPassed = () =>
-  Date.now() > new Date(TRIAL_ENFORCEMENT_START).getTime() + TRIAL_GRACE_DAYS * 86400000;
+const wouldLapse = (endDaysFromNow) => {
+  const end    = Date.now() + endDaysFromNow * 86400000;
+  const anchor = Math.max(end, new Date(TRIAL_ENFORCEMENT_START).getTime());
+  return Date.now() > anchor + TRIAL_GRACE_DAYS * 86400000;
+};
 
 describe('effectivePlan', () => {
   it('leaves a paying customer entirely alone', () => {
@@ -49,7 +59,7 @@ describe('effectivePlan', () => {
     // Aisha Store is 39 days past her trial end, but enforcement only just
     // began; she keeps ENTERPRISE until the warning window from THAT day runs
     // out. Cutting her off on deploy day is the thing this prevents.
-    const expected = enforcementAnchorPassed() ? 'FREE' : 'ENTERPRISE';
+    const expected = wouldLapse(-40) ? 'FREE' : 'ENTERPRISE';
     expect(effectivePlan(trial('ENTERPRISE', -40))).toBe(expected);
   });
 
@@ -82,7 +92,7 @@ describe('trial state', () => {
     expect(isTrialExpired(trial('FREE', -1))).toBe(true);
     expect(isTrialLapsed(trial('FREE', -1))).toBe(false);
     expect(isTrialLapsed(trial('FREE', -TRIAL_GRACE_DAYS)))
-      .toBe(enforcementAnchorPassed());
+      .toBe(wouldLapse(-TRIAL_GRACE_DAYS));
   });
 
   it('describes what the banner should say', () => {
@@ -91,7 +101,7 @@ describe('trial state', () => {
     expect(trialNotice(trial('FREE', -2)).kind).toBe('GRACE');
     expect(trialNotice(trial('FREE', -2)).graceLeft).toBeGreaterThan(0);
     expect(trialNotice(trial('FREE', -TRIAL_GRACE_DAYS)).kind)
-      .toBe(enforcementAnchorPassed() ? 'LAPSED' : 'GRACE');
+      .toBe(wouldLapse(-TRIAL_GRACE_DAYS) ? 'LAPSED' : 'GRACE');
     expect(trialNotice({ plan: 'PRO', status: 'ACTIVE' })).toBeNull();
   });
 });
@@ -102,35 +112,58 @@ describe('grace is anchored to when enforcement began', () => {
    * Aisha Store by 39 days, Shibily stores by 11, MaazMobiles by 3. Counting
    * grace from their own end dates would have cut two of them off the moment
    * the deploy landed, with no warning at all.
+   *
+   * These assertions describe what is true DURING the grace window, so the
+   * clock is pinned inside it. Left on the real clock they quietly became
+   * false when the window closed on 27 Aug — and because `npm run build` runs
+   * this suite through the prebuild hook, that took every Cloudflare deploy
+   * down with it for days. A test that only holds this week is a deploy
+   * blocker with a delay fuse.
    */
-  const longExpired = { plan: 'ENTERPRISE', status: 'TRIAL',
-    trial_end_date: daysFromNow(-39) };
+  const DURING_GRACE = new Date('2026-08-22T10:00:00Z');   // 2 days in
+  const AFTER_GRACE  = new Date('2026-09-15T10:00:00Z');   // well past it
+
+  afterEach(() => { vi.useRealTimers(); });
+
+  // Built inside each test so the fixture dates come from the pinned clock,
+  // not from whenever the file happened to be collected.
+  const longExpired = () => ({
+    plan: 'ENTERPRISE', status: 'TRIAL', trial_end_date: daysFromNow(-39),
+  });
 
   it('does not lapse a tenant whose trial ended before enforcement existed', () => {
-    // Aisha Store: 39 days past, but enforcement only just began.
-    expect(isTrialLapsed(longExpired)).toBe(false);
-    expect(effectivePlan(longExpired)).toBe('ENTERPRISE');
+    vi.useFakeTimers(); vi.setSystemTime(DURING_GRACE);
+    // Aisha Store: 39 days past, but enforcement had only just begun.
+    expect(isTrialLapsed(longExpired())).toBe(false);
+    expect(effectivePlan(longExpired())).toBe('ENTERPRISE');
   });
 
   it('still gives them the full warning window', () => {
-    const n = trialNotice(longExpired);
+    vi.useFakeTimers(); vi.setSystemTime(DURING_GRACE);
+    const n = trialNotice(longExpired());
     expect(n.kind).toBe('GRACE');
     expect(n.graceLeft).toBeGreaterThan(0);
     expect(n.graceLeft).toBeLessThanOrEqual(TRIAL_GRACE_DAYS);
   });
 
   it('lapses normally once enforcement has been running longer than grace', () => {
-    // Simulated by a tenant whose end date is well past BOTH anchors.
-    const past = { plan: 'FREE', status: 'TRIAL',
-      trial_end_date: new Date('2026-01-01').toISOString() };
-    const enforcementPlusGrace =
-      new Date('2026-08-20').getTime() + TRIAL_GRACE_DAYS * 86400000;
-    if (Date.now() > enforcementPlusGrace) {
-      expect(isTrialLapsed(past)).toBe(true);
-    } else {
-      // Before that day arrives, nobody is cut off — which is the point.
-      expect(isTrialLapsed(past)).toBe(false);
-    }
+    vi.useFakeTimers(); vi.setSystemTime(AFTER_GRACE);
+    // Well past both anchors: the warning window has been and gone.
+    expect(isTrialLapsed(longExpired())).toBe(true);
+    expect(trialNotice(longExpired()).kind).toBe('LAPSED');
+    expect(effectivePlan(longExpired())).toBe('FREE');
+  });
+
+  it('still protects a tenant whose own trial ended only just now', () => {
+    // The anchor is the LATER of the two dates, so a trial ending today gets
+    // its full window even long after enforcement began. This is the case the
+    // old helper got wrong, by testing the enforcement date alone.
+    vi.useFakeTimers(); vi.setSystemTime(AFTER_GRACE);
+    const endedYesterday = {
+      plan: 'ENTERPRISE', status: 'TRIAL', trial_end_date: daysFromNow(-1),
+    };
+    expect(isTrialLapsed(endedYesterday)).toBe(false);
+    expect(trialNotice(endedYesterday).kind).toBe('GRACE');
   });
 });
 
