@@ -30,6 +30,14 @@ const HOOKS = join(process.cwd(), 'src', 'hooks');
 // Columns a hook filters on client-side → the select must fetch them.
 const FILTERED_COLUMNS = ['tenant_id', 'deleted_at'];
 
+/**
+ * Tables with no soft-delete column at all. Asking for `deleted_at` on these
+ * is a 400 from PostgREST, so requiring it would replace one broken screen
+ * with another. Verified against the live schema — add to this list only after
+ * checking information_schema, not because a test is inconvenient.
+ */
+const NO_SOFT_DELETE = ['account_transactions'];
+
 const files = readdirSync(HOOKS).filter(f => f.endsWith('.js') && !f.endsWith('.test.js'));
 
 /**
@@ -59,14 +67,18 @@ function cachedSelects(src) {
     }
     const call = src.slice(m.index, i);
 
+    // The cache key names the table, which is how we know whether the table
+    // even has the column being demanded.
+    const table = (call.match(/fetchWithCache\s*\(\s*'([a-z_]+)'/) || [])[1] || '';
+
     const lit = call.match(/\.select\(\s*'([^']*)'/);
     if (lit) {
       const cols = lit[1].trim();
-      if (cols && cols !== '*') out.push(cols.split(',').map(c => c.trim()));
+      if (cols && cols !== '*') out.push({ table, cols: cols.split(',').map(c => c.trim()) });
       continue;
     }
     const named = call.match(/\.select\(\s*(SEL_[A-Z_]+)\s*\)/);
-    if (named && constants[named[1]]) out.push(constants[named[1]]);
+    if (named && constants[named[1]]) out.push({ table, cols: constants[named[1]] });
   }
   return out;
 }
@@ -86,8 +98,9 @@ describe('every hook fetches the columns it later filters on', () => {
     const needs = filteredOn(src);
     if (!needs.length) continue;
 
-    for (const cols of cachedSelects(src)) {
+    for (const { table, cols } of cachedSelects(src)) {
       for (const col of needs) {
+        if (col === 'deleted_at' && NO_SOFT_DELETE.includes(table)) continue;
         if (!cols.includes(col)) {
           offenders.push(`${file}: cached select(${cols.slice(0, 3).join(', ')}…) omits ${col}`);
         }

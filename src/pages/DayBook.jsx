@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { receivedOnDay, carriedOpening } from '../lib/dayBook';
+import { receivedOnDay, carriedOpening, isBankMethod, saleReceiptsByMode } from '../lib/dayBook';
 import { useDialogClose } from '../hooks/useDialogClose';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -30,8 +30,6 @@ const fmt = (n) =>
 // or another, so a card sale or card collection fell into neither cash nor
 // bank and vanished from the day's totals. CREDIT is deliberately absent: a
 // credit purchase is settled later as a supplier payment, not counted here.
-const BANK_METHODS = ['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS', 'CARD', 'CHEQUE'];
-const isBankMethod = (m) => BANK_METHODS.includes((m || '').toUpperCase());
 
 const addDays = (dateStr, n) => {
   const d = new Date(dateStr + 'T00:00:00');
@@ -87,7 +85,7 @@ const DayBook = () => {
   const currentUserId = currentUser?.id || null;
   const [selectedDate,  setSelectedDate]  = useState(todayISOInAppTZ());
   const {
-    sales, expenses, clientPayments, purchases, supplierPayments, dayBook,
+    sales, expenses, clientPayments, purchases, supplierPayments, saleReceipts, dayBook,
     loading: dbLoading, updateDayBook, getDayBookForDate, getPrevDayBook,
   } = useDayBookData(currentTenantId, selectedDate);
   const { addNotification } = useNotifications();
@@ -134,10 +132,19 @@ const DayBook = () => {
     // page. It was the reason closed days grew after the fact.
     const recv = receivedOnDay;
     const isBank = isBankMethod;
-    const cashSales   = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CASH')
-                                .reduce((t, s) => t + recv(s), 0);
-    const bankSales   = daySales.filter(s => isBank(s.paymentMethod))
-                                .reduce((t, s) => t + recv(s), 0);
+    // Sale receipts come from the LEDGER, not from the day's sales rows.
+    // A sale is dated when the bill was raised, so money collected later
+    // against an older bill is not in this day's sales at all — while the
+    // sale's own day counted the whole paidAmount, later collections
+    // included. That is how a closed day grew after it was signed off.
+    // account_transactions carries one row per payment event with its own
+    // date, so it answers "what came in today"; the rule is in
+    // saleReceiptsByMode so it can be tested without opening this page.
+    // Ledger rows carry the sale's location_id, so the per-store view still
+    // segments correctly (FUTURE DISPO runs two).
+    const receipts    = saleReceiptsByMode((saleReceipts || []).filter(storeMatch));
+    const cashSales   = receipts.cash;
+    const bankSales   = receipts.bank;
     // Receivable = the UNPAID remainder of EVERY sale (any method) — incl. partial
     // cash/UPI sales, not just credit-method ones.
     const creditSales = daySales.reduce((t, s) => t + Math.max(0, (Number(s.totalAmount) || 0) - recv(s)), 0);

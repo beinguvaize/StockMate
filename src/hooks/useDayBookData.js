@@ -22,6 +22,18 @@ const SEL_EXPENSE  = 'id, tenant_id, deleted_at, date, amount, payment_method, c
 const SEL_PURCHASE = 'id, tenant_id, deleted_at, date, total_amount, paid_amount, payment_type, created_at';
 const SEL_CLIENTPAY = 'id, tenant_id, deleted_at, date, amount, payment_method, notes, created_at';
 const SEL_SUPPLIERPAY = 'id, tenant_id, deleted_at, date, amount, payment_method, purchase_id, supplier_name, supplier_id, created_at';
+// Sale receipts, by the day the money actually arrived.
+// A sale row is dated when the BILL was raised, so money collected later
+// against an older bill is not in this day's sales at all — while the sale's
+// own day counts the whole paidAmount, later collections included. The ledger
+// carries one row per payment event with its own date, so it is the only
+// source that answers "what came in today". Restricted to ref_type=SALE:
+// client payments reach the drawer through their own table below, and reading
+// both would count them twice.
+// ref_type is selected because it is FILTERED on: fetchWithCache replays the
+// query's filters against cached rows, so a column it filters by but does not
+// select silently matches nothing offline (selectFilterAgreement.test.js).
+const SEL_SALETXN = 'id, tenant_id, date, direction, amount, mode, ref_type, ref_id, note, location_id';
 
 export function useDayBookData(tenantId, selectedDate) {
   const [sales, setSales]                     = useState([]);
@@ -29,6 +41,7 @@ export function useDayBookData(tenantId, selectedDate) {
   const [purchases, setPurchases]             = useState([]);
   const [clientPayments, setClientPayments]   = useState([]);
   const [supplierPayments, setSupplierPayments] = useState([]);
+  const [saleReceipts, setSaleReceipts]       = useState([]); // ledger rows for sales, by day received
   const [dayBook, setDayBook]                 = useState([]); // day_book records (for lookups)
   const [loading, setLoading]                 = useState(false);
   const fetchRef = useRef(null);
@@ -68,18 +81,20 @@ export function useDayBookData(tenantId, selectedDate) {
           && String(r.date || '').slice(0, 10) === selectedDate
           && !r.deleted_at);
 
-      const [sRes, eRes, pRes, cpRes, spRes] = await Promise.all([
+      const [sRes, eRes, pRes, cpRes, spRes, stRes] = await Promise.all([
         fetchWithCache('sales', () => supabase.from('sales').select(SEL_SALES).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate)),
         fetchWithCache('expenses', () => supabase.from('expenses').select(SEL_EXPENSE).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate)),
         fetchWithCache('purchases', () => supabase.from('purchases').select(SEL_PURCHASE).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate)),
         fetchWithCache('client_payments', () => supabase.from('client_payments').select(SEL_CLIENTPAY).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate)),
         fetchWithCache('supplier_payments', () => supabase.from('supplier_payments').select(SEL_SUPPLIERPAY).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null)),
+        fetchWithCache('account_transactions', () => supabase.from('account_transactions').select(SEL_SALETXN).eq('tenant_id', tenantId).eq('date', selectedDate).eq('ref_type', 'SALE')),
       ]);
       setSales(forDay(sRes.data));
       setExpenses(forDay(eRes.data));
       setPurchases(forDay(pRes.data));
       setClientPayments(forDay(cpRes.data));
       setSupplierPayments(forDay(spRes.data));
+      setSaleReceipts((stRes.data || []).filter(r => r.date === selectedDate));
       await fetchDayBookRecords();
     } catch (err) {
       console.error('useDayBookData error:', err);
@@ -120,7 +135,7 @@ export function useDayBookData(tenantId, selectedDate) {
   };
 
   return {
-    sales, expenses, purchases, clientPayments, supplierPayments, dayBook,
+    sales, expenses, purchases, clientPayments, supplierPayments, saleReceipts, dayBook,
     loading,
     refetch: fetchDay,
     updateDayBook, getDayBookForDate, getPrevDayBook,

@@ -109,3 +109,48 @@ export function carriedOpening(selectedDate, dayBookRows = [], netByDay = {}) {
 
   return { opening: bal, from, counted: anchor.physical_cash != null };
 }
+
+/**
+ * Which payment methods land in a bank-type account rather than the drawer.
+ *
+ * Lived in DayBook.jsx while saleReceiptsByMode needed the same rule; two
+ * copies of "what counts as bank" is how a card sale ends up in neither total.
+ * CREDIT is deliberately absent: it is settled later, not received now.
+ */
+export const BANK_METHODS = ['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS', 'CARD', 'CHEQUE'];
+export const isBankMethod = (m) => BANK_METHODS.includes(String(m || '').toUpperCase());
+
+/**
+ * Sale money that reached the drawer on a given day, split by where it landed.
+ *
+ * Read from the ledger, not from the sales rows, because a sale is dated when
+ * the BILL was raised. A ₹1,185 collection made on 31 Aug against a 10 Aug bill
+ * is not in the 31st's sales at all, while the 10th counts the whole
+ * paidAmount — later collections included. That is how a closed day grew after
+ * it was signed off. The ledger carries one row per payment event with its own
+ * date, so it is the only source that answers "what came in today".
+ *
+ * Pass only ref_type='SALE' rows. Client payments reach the drawer through
+ * their own table; counting them here as well would double them.
+ *
+ * @param {Array} rows account_transactions rows for the day
+ * @returns {{cash:number, bank:number, total:number}}
+ */
+export function saleReceiptsByMode(rows = []) {
+  let cash = 0;
+  let bank = 0;
+  for (const r of rows || []) {
+    if (!r) continue;
+    // OUT on a sale is a reversal (a refund or a correction); it reduces the
+    // day's takings rather than being ignored.
+    const signed = String(r.direction || 'IN').toUpperCase() === 'OUT'
+      ? -num(r.amount)
+      : num(r.amount);
+    const mode = String(r.mode || 'CASH').toUpperCase();
+    if (mode === 'CASH') cash += signed;
+    else if (isBankMethod(mode)) bank += signed;
+    // Anything else (an unrecognised mode) is deliberately left out of both
+    // rather than guessed into one — a drawer count must not inherit a guess.
+  }
+  return { cash, bank, total: cash + bank };
+}

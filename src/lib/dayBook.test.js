@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { receivedOnDay, receivableOnDay, settledLater, carriedOpening } from './dayBook';
+import { receivedOnDay, receivableOnDay, settledLater, carriedOpening, saleReceiptsByMode } from './dayBook';
 
 /**
  * The defect these pin: paidAmount is a running total, so money a customer
@@ -172,5 +172,58 @@ describe('carriedOpening — a day nobody opened', () => {
 
   it('returns null on a bad date rather than guessing', () => {
     expect(carriedOpening('', [closed1Aug], {})).toBeNull();
+  });
+});
+
+describe('saleReceiptsByMode', () => {
+  // Sale receipts are read from the ledger because a sale row is dated when
+  // the BILL was raised. NIHA STORE's ₹1,185 was collected on 31 Aug against a
+  // 10 Aug bill: counting it on the 10th is how a closed day grew after it was
+  // signed off, and the 31st showed nothing for money that was in the drawer.
+  it('adds up what actually arrived, split by where it landed', () => {
+    const { cash, bank, total } = saleReceiptsByMode([
+      { amount: 3775, mode: 'CASH', direction: 'IN' },
+      { amount: 1185, mode: 'CASH', direction: 'IN' },
+      { amount: 500,  mode: 'UPI',  direction: 'IN' },
+    ]);
+    expect(cash).toBe(4960);
+    expect(bank).toBe(500);
+    expect(total).toBe(5460);
+  });
+
+  it('treats every bank-ish method as bank, so a card sale is not lost', () => {
+    // A method in neither bucket vanished from the day's totals once before.
+    for (const mode of ['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS', 'CARD', 'CHEQUE']) {
+      const r = saleReceiptsByMode([{ amount: 100, mode, direction: 'IN' }]);
+      expect(r.bank, mode).toBe(100);
+      expect(r.cash, mode).toBe(0);
+    }
+  });
+
+  it('subtracts a reversal rather than counting it as takings', () => {
+    const r = saleReceiptsByMode([
+      { amount: 1000, mode: 'CASH', direction: 'IN' },
+      { amount: 250,  mode: 'CASH', direction: 'OUT' },
+    ]);
+    expect(r.cash).toBe(750);
+  });
+
+  it('defaults a missing mode to cash and a missing direction to in', () => {
+    const r = saleReceiptsByMode([{ amount: 300 }]);
+    expect(r.cash).toBe(300);
+  });
+
+  it('leaves an unrecognised mode out of both totals rather than guessing', () => {
+    // A drawer count must not inherit a guess about where money went.
+    const r = saleReceiptsByMode([{ amount: 999, mode: 'CRYPTO', direction: 'IN' }]);
+    expect(r.cash).toBe(0);
+    expect(r.bank).toBe(0);
+    expect(r.total).toBe(0);
+  });
+
+  it('survives the empty and malformed cases', () => {
+    expect(saleReceiptsByMode([]).total).toBe(0);
+    expect(saleReceiptsByMode().total).toBe(0);
+    expect(saleReceiptsByMode([null, undefined, {}]).total).toBe(0);
   });
 });
