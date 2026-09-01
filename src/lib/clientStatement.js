@@ -41,11 +41,61 @@ export function parseItems(v) {
  * one is chosen.
  */
 export function buildClientStatement({
-  client, sales = [], invoices = [], paymentHistory = [],
+  client, sales = [], invoices = [], paymentHistory = [], saleReceipts = [],
 } = {}) {
   if (!client) return [];
   const rows = [];
   const cid = String(client.id);
+
+  /**
+   * Money taken against a sale, by the day it actually arrived.
+   *
+   * The statement used to credit a sale's whole paidAmount on the BILL's date.
+   * That is wrong the moment any of it was collected later: NIHA STORE's
+   * 10 Aug bill showed a 4,960 payment on the 10th, though 1,185 of it was not
+   * handed over until the 31st. The ledger carries one row per payment event
+   * with its own date (post_sale_to_ledger), so when those rows are supplied
+   * they decide the dates.
+   *
+   * Optional on purpose: callers that have not fetched the ledger — and the
+   * offline path — fall back to the single lump on the sale's date, which is
+   * still right whenever nothing was collected late.
+   */
+  const receiptsBySale = new Map();
+  for (const r of saleReceipts || []) {
+    if (!r || String(r.ref_type || 'SALE').toUpperCase() !== 'SALE') continue;
+    const key = String(r.ref_id ?? '');
+    if (!key) continue;
+    if (!receiptsBySale.has(key)) receiptsBySale.set(key, []);
+    receiptsBySale.get(key).push(r);
+  }
+
+  /** Credit rows for one sale: per payment event when known, else one lump. */
+  const creditRows = (saleId, fallbackAmount, fallbackDate, createdAt, label) => {
+    const events = receiptsBySale.get(String(saleId));
+    if (!events || !events.length) {
+      return fallbackAmount > 0 ? [{
+        id: `${saleId}-cash-credit`,
+        date: fallbackDate, created_at: createdAt,
+        description: label, debit: 0, credit: fallbackAmount, type: 'PAYMENT',
+      }] : [];
+    }
+    return events
+      .filter((e) => num(e.amount) !== 0)
+      .map((e, i) => ({
+        id: `${saleId}-rcpt-${e.id ?? i}`,
+        date: String(e.date || fallbackDate).slice(0, 10),
+        created_at: e.created_at || createdAt,
+        // A later collection is a different event from money taken at the till,
+        // and saying so is the point of dating it separately.
+        description: String(e.note || '').startsWith('Collection')
+          ? `${label} — collected later`
+          : label,
+        debit: 0,
+        credit: num(e.amount),
+        type: 'PAYMENT',
+      }));
+  };
 
   const saleMethodMap = {};
   (sales || []).forEach((s) => { saleMethodMap[s.id] = String(s.paymentMethod || '').toUpperCase(); });
@@ -101,15 +151,17 @@ export function buildClientStatement({
       const saleMethod = saleMethodMap[inv.sale_id] || '';
       const orphanPaid = num(inv.paid_amount);
       if (orphanPaid > 0 && saleMethod !== 'CREDIT' && saleMethod !== '') {
-        rows.push({
-          id: `${inv.id}-orphan`,
-          date: invDate,
-          created_at: inv.created_at,
-          description: `Payment (Cash) — Invoice #${n}`,
-          debit: 0,
-          credit: orphanPaid,
-          type: 'PAYMENT',
-        });
+        // Keep the historical `<invoice>-orphan` id when there is a single
+        // credit, so nothing downstream keyed on that shape changes for the
+        // common case; only a split sale gains suffixed ids.
+        const credits = creditRows(
+          inv.sale_id, orphanPaid, invDate, inv.created_at,
+          `Payment (Cash) — Invoice #${n}`,
+        );
+        rows.push(...credits.map((r, i) => ({
+          ...r,
+          id: credits.length === 1 ? `${inv.id}-orphan` : `${inv.id}-orphan-${i}`,
+        })));
       }
     });
 
@@ -136,15 +188,10 @@ export function buildClientStatement({
         items: parseItems(s.items),
       });
       if (paid > 0) {
-        rows.push({
-          id: `${s.id}-cash-credit`,
-          date: saleDate,
-          created_at: s.created_at,
-          description: `Payment (Cash) — Sale #${String(s.id).split('-').pop()}`,
-          debit: 0,
-          credit: paid,
-          type: 'PAYMENT',
-        });
+        rows.push(...creditRows(
+          s.id, paid, saleDate, s.created_at,
+          `Payment (Cash) — Sale #${String(s.id).split('-').pop()}`,
+        ));
       }
     });
 

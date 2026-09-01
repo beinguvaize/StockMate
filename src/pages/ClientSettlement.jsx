@@ -44,6 +44,11 @@ const ClientSettlement = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState([]);
+  // Sale ledger rows for this client's sales — one per payment event, each with
+  // the date the money actually arrived. Without them the statement credits a
+  // sale's whole paidAmount on the BILL's date, so a 1,185 collected on 31 Aug
+  // against a 10 Aug bill shows up on the 10th.
+  const [saleReceipts, setSaleReceipts] = useState([]);
   const [expandedRow, setExpandedRow] = useState(null); // ledger row showing its products
   // ── Ledger view, matching the supplier ledger ───────────────────────────
   // The statement was a tab at the bottom of a third column. It is the thing
@@ -80,6 +85,33 @@ const ClientSettlement = () => {
       });
   }, [id, currentTenantId, success]); // refetch after successful payment
 
+  // Ledger rows for this client's sales. Fetched by the sale ids already in
+  // scope rather than by client, because account_transactions has no client
+  // column — it references the sale. Kept separate from the payment-history
+  // effect so a failure here degrades to the old single-credit behaviour
+  // (buildClientStatement falls back) instead of emptying the statement.
+  useEffect(() => {
+    if (!id || !currentTenantId) { setSaleReceipts([]); return; }
+    const saleIds = (sales || [])
+      .filter(s => String(s.shopId ?? s.clientId ?? '') === String(id))
+      .map(s => s.id)
+      .filter(Boolean);
+    if (!saleIds.length) { setSaleReceipts([]); return; }
+    let alive = true;
+    supabase
+      .from('account_transactions')
+      .select('id, tenant_id, date, amount, mode, ref_type, ref_id, note')
+      .eq('tenant_id', currentTenantId)
+      .eq('ref_type', 'SALE')
+      .in('ref_id', saleIds)
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) { console.error('sale receipts fetch error:', error); setSaleReceipts([]); return; }
+        setSaleReceipts(data || []);
+      });
+    return () => { alive = false; };
+  }, [id, currentTenantId, sales, success]);
+
   // Sales and invoices both store their lines the same way: {id, name, rate,
   // quantity}. Either can arrive as a JSON string depending on the path that
   // wrote it, so parse defensively rather than assuming an array.
@@ -88,8 +120,8 @@ const ClientSettlement = () => {
   // here (a credit sale's money arrives as a receipt; a cash sale's does not)
   // is the same class of mistake that reached production on the supplier side.
   const statementRows = useMemo(
-    () => buildClientStatement({ client, sales, invoices, paymentHistory }),
-    [client, sales, invoices, paymentHistory]);
+    () => buildClientStatement({ client, sales, invoices, paymentHistory, saleReceipts }),
+    [client, sales, invoices, paymentHistory, saleReceipts]);
 
   // ── Period window ────────────────────────────────────────────────────────
   // Same shape as the supplier ledger: a window, plus a brought-forward row so

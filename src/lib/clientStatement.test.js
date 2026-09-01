@@ -159,3 +159,63 @@ describe('buildClientStatement — edges', () => {
     expect(parseItems(null)).toEqual([]);
   });
 });
+
+describe('a sale collected in more than one go', () => {
+  // NIHA STORE: a 5,745 bill on 10 Aug, 3,775 taken at the till, 1,185
+  // collected on 31 Aug. The statement used to show one 4,960 payment on the
+  // 10th — money credited three weeks before it was handed over.
+  const client = { id: 'CLI-1', name: 'NIHA STORE' };
+  const sale = {
+    id: 'SAL-C64B1FA3', shopId: 'CLI-1', date: '2026-08-10',
+    paymentMethod: 'CASH', paymentStatus: 'PARTIAL',
+    totalAmount: 5745, paidAmount: 4960, items: [],
+  };
+  const receipts = [
+    { id: 'ATX-1', ref_type: 'SALE', ref_id: 'SAL-C64B1FA3', date: '2026-08-10',
+      amount: 3775, note: 'POS sale (edited)' },
+    { id: 'ATX-2', ref_type: 'SALE', ref_id: 'SAL-C64B1FA3', date: '2026-08-31',
+      amount: 1185, note: 'Collection on sale' },
+  ];
+
+  it('credits each part on the day it arrived', () => {
+    const rows = buildClientStatement({ client, sales: [sale], saleReceipts: receipts });
+    const pays = rows.filter(r => r.type === 'PAYMENT');
+    expect(pays.map(p => [p.date, p.credit])).toEqual([
+      ['2026-08-10', 3775],
+      ['2026-08-31', 1185],
+    ]);
+  });
+
+  it('still totals the same money — only its dates moved', () => {
+    const rows = buildClientStatement({ client, sales: [sale], saleReceipts: receipts });
+    const credited = rows.reduce((t, r) => t + r.credit, 0);
+    expect(credited).toBe(4960);
+    // Closing balance is unchanged: 5745 billed - 4960 paid.
+    expect(rows[rows.length - 1].balance).toBe(785);
+  });
+
+  it('marks the later one so the two are tellable apart', () => {
+    const rows = buildClientStatement({ client, sales: [sale], saleReceipts: receipts });
+    const later = rows.find(r => r.date === '2026-08-31');
+    expect(later.description).toMatch(/collected later/i);
+    const atTill = rows.find(r => r.type === 'PAYMENT' && r.date === '2026-08-10');
+    expect(atTill.description).not.toMatch(/collected later/i);
+  });
+
+  it('falls back to the old single credit when no ledger rows are given', () => {
+    // Offline, or any caller that has not fetched them. Still correct whenever
+    // nothing was collected late, which is the ordinary case.
+    const rows = buildClientStatement({ client, sales: [sale] });
+    const pays = rows.filter(r => r.type === 'PAYMENT');
+    expect(pays.map(p => [p.date, p.credit])).toEqual([['2026-08-10', 4960]]);
+  });
+
+  it('ignores ledger rows belonging to another sale or another ref type', () => {
+    const noise = [
+      { id: 'X1', ref_type: 'SALE',    ref_id: 'SAL-OTHER', date: '2026-08-31', amount: 999 },
+      { id: 'X2', ref_type: 'EXPENSE', ref_id: 'SAL-C64B1FA3', date: '2026-08-31', amount: 500 },
+    ];
+    const rows = buildClientStatement({ client, sales: [sale], saleReceipts: [...receipts, ...noise] });
+    expect(rows.reduce((t, r) => t + r.credit, 0)).toBe(4960);
+  });
+});
