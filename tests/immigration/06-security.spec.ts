@@ -202,6 +202,86 @@ test.describe('Untrusted input', () => {
   });
 });
 
+test.describe('Only known values reach the shared dataset', () => {
+  // program_type, stream, noc_code and status are read straight back out into
+  // the charts, the NOC filter and the table every applicant sees, and anyone
+  // can register. They have to be values the app knows.
+  const cases = [
+    { label: 'an invented program', overrides: { program_type: 'TOTALLY MADE UP' }, expect: 'Unknown program' },
+    { label: 'a stream from the other program', overrides: { program_type: 'AIP', stream: 'Skilled Worker' }, expect: 'Unknown stream' },
+    { label: 'an invented stream', overrides: { stream: 'Fast Track Deluxe' }, expect: 'Unknown stream' },
+    { label: 'a NOC code that is not five digits', overrides: { noc_code: 'not-a-noc' }, expect: 'not a NOC code' },
+    { label: 'an invented status', overrides: { status: 'APPROVED BY ME' }, expect: 'Unknown status' },
+  ];
+
+  for (const { label, overrides, expect: message } of cases) {
+    test(`creating an application with ${label} is refused`, async ({ request }) => {
+      const { user } = readAccounts();
+
+      const res = await request.post('/api/applications', {
+        headers: auth(user.token),
+        data: applicationPayload(overrides),
+      });
+
+      expect(res.status()).toBe(400);
+      expect((await res.json()).error).toContain(message);
+    });
+
+    test(`updating an application to ${label} is refused`, async ({ request }) => {
+      const { user } = readAccounts();
+      const app = await createApplication(request, user.token, { noc_code: '21231' });
+
+      const res = await request.put(`/api/applications/${app.id}`, {
+        headers: auth(user.token),
+        data: overrides,
+      });
+
+      expect(res.status()).toBe(400);
+      expect((await res.json()).error).toContain(message);
+    });
+  }
+
+  test('the admin route enforces the same values', async ({ request }) => {
+    const { admin, other } = readAccounts();
+    const app = await createApplication(request, other.token, { noc_code: '21231' });
+
+    const res = await request.put(`/api/admin/applications/${app.id}`, {
+      headers: auth(admin.token),
+      data: { ...applicationPayload({ noc_code: '21231' }), status: 'APPROVED BY ME' },
+    });
+
+    expect(res.status()).toBe(400);
+    expect((await res.json()).error).toContain('Unknown status');
+  });
+
+  test('nothing invented ever reaches the public aggregate', async ({ request }) => {
+    const body = await (await request.get('/api/stats')).text();
+
+    for (const junk of ['TOTALLY MADE UP', 'APPROVED BY ME', 'not-a-noc', 'Fast Track Deluxe']) {
+      expect(body, `${junk} should never have been stored`).not.toContain(junk);
+    }
+  });
+
+  test('every real program and stream pairing is still accepted', async ({ request }) => {
+    const { user } = readAccounts();
+    const pairings = [
+      ['NS PNP', 'Skilled Worker'],
+      ['NS PNP', 'Express Entry'],
+      ['NS PNP', 'Occupations in Demand'],
+      ['AIP', 'Atlantic High-Skilled Program'],
+      ['AIP', 'Atlantic Intermediate-Skilled Program'],
+    ];
+
+    for (const [program_type, stream] of pairings) {
+      const res = await request.post('/api/applications', {
+        headers: auth(user.token),
+        data: applicationPayload({ program_type, stream, noc_code: '21231' }),
+      });
+      expect(res.status(), `${program_type} / ${stream}`).toBe(201);
+    }
+  });
+});
+
 test.describe('Public surface', () => {
   test('the aggregate endpoints never expose an email address', async ({ request }) => {
     for (const endpoint of ['/api/stats', '/api/stats/table?limit=100', '/api/stats/activity-feed']) {
