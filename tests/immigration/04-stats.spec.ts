@@ -200,6 +200,52 @@ test.describe('Aggregate table', () => {
     expect((await stillThere.json()).rows.length).toBeGreaterThan(0);
   });
 
+  test('the legacy spelling of a status is folded into one chart segment', async ({ request, playwright, baseURL }) => {
+    const context = await playwright.request.newContext({ baseURL });
+    const applicant = await register(context, uniqueEmail('legacy-status'));
+    const noc = '21233';
+
+    // 'Selected for EOI' is declared in data.js as a legacy mapping of
+    // 'EOI Selected' -- same stage, same colour. It used to arrive as its own
+    // segment, so the chart showed the stage twice.
+    await createApplication(context, applicant.token, {
+      noc_code: noc,
+      status: 'EOI Selected',
+      nominated_date: dateFromToday(-30),
+    });
+    await createApplication(context, applicant.token, {
+      noc_code: noc,
+      status: 'Selected for EOI',
+      nominated_date: dateFromToday(-20),
+    });
+    await context.dispose();
+
+    const body = await (await request.get(`/api/stats?noc_code=${noc}`)).json();
+    const segments = body.statusDistribution.map((r: { status: string }) => r.status);
+
+    expect(segments).toContain('EOI Selected');
+    expect(segments).not.toContain('Selected for EOI');
+    expect(body.statusDistribution.find((r: { status: string }) => r.status === 'EOI Selected').count).toBe(2);
+  });
+
+  test('filtering by a status catches every spelling of it', async ({ request }) => {
+    const res = await request.get('/api/stats/table?noc_code=21233&status=EOI Selected&limit=100');
+    const { rows } = await res.json();
+
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((r: { status: string }) => r.status)))
+      .toEqual(new Set(['EOI Selected', 'Selected for EOI']));
+  });
+
+  test('an EOI selection is a stage, not a win', async ({ request }) => {
+    // It was being counted as a nomination, which inflated the success rate
+    // and stopped those applicants' waiting clocks early.
+    const body = await (await request.get('/api/stats?noc_code=21233')).json();
+
+    expect(body.stats.pct_nominated).toBe(0);
+    expect(body.recentSuccesses.map((r: { noc_code: string }) => r.noc_code)).not.toContain('21233');
+  });
+
   test('the activity feed and insights endpoints answer', async ({ request }) => {
     const feed = await request.get('/api/stats/activity-feed');
     expect(feed.status()).toBe(200);
