@@ -16,11 +16,35 @@ Each step fails visibly if the one before it was skipped.
    recipients you add to its allowed list — enough to prove the flow, useless
    for customers.
 
-2. **Create an authentication template** and wait for approval. Note its exact
-   name and language. Authentication templates require a copy-code or one-tap
-   button; if yours somehow has none, set `WHATSAPP_OTP_HAS_BUTTON=false`,
-   because sending a button component for a template without one is an error —
-   and so is omitting it for a template with one.
+2. **Create an authentication template** and wait for approval. It can be made
+   from the console or in one call:
+
+   ```
+   curl -X POST "https://graph.facebook.com/v23.0/<WABA_ID>/message_templates" \
+     -H "Authorization: Bearer <ACCESS_TOKEN>" -H "Content-Type: application/json" \
+     -d '{
+       "name": "login_code",
+       "language": "en_US",
+       "category": "authentication",
+       "components": [
+         { "type": "body",   "add_security_recommendation": true },
+         { "type": "footer", "code_expiration_minutes": 10 },
+         { "type": "buttons",
+           "buttons": [ { "type": "otp", "otp_type": "copy_code" } ] }
+       ]
+     }'
+   ```
+
+   **Use `copy_code`, not one-tap or zero-tap.** Those two are Android-only and
+   need your package name and app signing hash; copy-code works on iPhone as
+   well, and half your users will be on one.
+
+   Note the language is `en_US`, not `en` — Meta treats them as different
+   templates and a mismatch comes back as "template does not exist". Whatever
+   you create here is what `WHATSAPP_OTP_LANG` must be set to.
+
+   The wording is fixed by Meta: "<code> is your verification code", plus the
+   optional security line and expiry warning above. You cannot write your own.
 
 3. **Enable phone auth** in Auth → Providers. The hook replaces the provider's
    sender, so no Twilio credentials are needed. *If the dashboard still insists
@@ -44,7 +68,7 @@ Each step fails visibly if the one before it was skipped.
      WHATSAPP_PHONE_NUMBER_ID="..." \
      WHATSAPP_ACCESS_TOKEN="..." \
      WHATSAPP_OTP_TEMPLATE="login_code" \
-     WHATSAPP_OTP_LANG="en"
+     WHATSAPP_OTP_LANG="en_US"
    ```
 
 7. **Link a number before testing.** Login refuses numbers it does not
@@ -63,6 +87,7 @@ function logs — Meta puts the actionable part in `error.error_data.details`:
 | `template name does not exist` | name or language does not match step 2 |
 | `recipient phone number not in allowed list` | test number, add the recipient |
 | `template is paused` | Meta paused it for quality |
+| template exists but never arrives | Authentication messages reach only the user's PRIMARY WhatsApp device — a linked desktop shows a prompt to check the phone. Not a fault. |
 | `missing secrets: ...` | step 6 incomplete; names the missing ones |
 | `Invalid webhook signature` | `SEND_SMS_HOOK_SECRET` does not match the hook |
 

@@ -11,7 +11,10 @@
 //   WHATSAPP_PHONE_NUMBER_ID   numeric id of the sender, from Meta
 //   WHATSAPP_ACCESS_TOKEN      Meta access token for that app
 //   WHATSAPP_OTP_TEMPLATE      approved authentication template name
-//   WHATSAPP_OTP_LANG          template language, default "en"
+//   WHATSAPP_OTP_LANG          template language AND locale, e.g. "en_US".
+//                              Must match the template exactly — Meta treats
+//                              "en" and "en_US" as different templates, and a
+//                              mismatch reads as "template does not exist".
 //   WHATSAPP_OTP_HAS_BUTTON    "false" only if the template has no code button
 //
 // Deploy WITHOUT jwt verification — the caller is Supabase Auth, not a signed-in
@@ -47,7 +50,9 @@ const digitsOnly = (phone: string) => (phone || '').replace(/\D/g, '');
  * Build the Cloud API body for an authentication template.
  *
  * Meta's authentication templates take the code TWICE: once for the message
- * body, and once for the copy-code / one-tap button. Sending a button component
+ * body, and once for the copy-code / one-tap button. Meta's own docs state the
+ * value "must appear twice in the payload", capped at 15 characters — Supabase
+ * generates 6 digits, so that cap is not a concern. Sending a button component
  * for a template that has no button is an error, and omitting it for a template
  * that has one is also an error — hence WHATSAPP_OTP_HAS_BUTTON. Meta requires
  * a button on authentication templates, so it defaults to on.
@@ -80,7 +85,7 @@ serve(async (req) => {
   const PHONE_NUMBER_ID = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID');
   const ACCESS_TOKEN = Deno.env.get('WHATSAPP_ACCESS_TOKEN');
   const TEMPLATE = Deno.env.get('WHATSAPP_OTP_TEMPLATE');
-  const LANG = Deno.env.get('WHATSAPP_OTP_LANG') || 'en';
+  const LANG = Deno.env.get('WHATSAPP_OTP_LANG') || 'en_US';
   const HAS_BUTTON = (Deno.env.get('WHATSAPP_OTP_HAS_BUTTON') || 'true') !== 'false';
 
   // Name what is missing. A hook that 500s with no reason is the kind of thing
