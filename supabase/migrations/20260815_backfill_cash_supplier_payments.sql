@@ -1,0 +1,21 @@
+-- Applied via apply_migration; recorded here for history.
+--
+-- Only 11 of 34 supplier payments ever reached Cash & Bank -- the ones made
+-- through the Purchases Pay button, which posted with ref_type='PURCHASE' keyed
+-- on the BILL id. Payments through the Supplier Ledger, the bulk FIFO settle, or
+-- an RPC directly posted nothing. trg_supplier_payments_post_ledger fixes it
+-- going forward; this posts the history.
+--
+-- CASH ONLY: 17 payments, Rs 136,355, taking Company Cash from 193,277 to
+-- 56,922. Rows are written exactly as the trigger writes them (ref_type
+-- SUPPLIER_PAYMENT, keyed on the PAYMENT id), so they cannot collide with the 11
+-- already posted under the bill id.
+--
+-- The six BANK payments (Rs 41,830, all HASSAN, 19 and 29 June) are left out on
+-- purpose: nothing records WHICH bank, there are two, and posting them to the
+-- default would take Akbar's UBI to -34,483. That needs the user to say which
+-- account the money left.
+--
+-- Guarded on both the expected count/total and on the cash account not ending
+-- negative. Every posted row is listed in
+-- snap.supplier_payment_ledger_backfill_20260815.

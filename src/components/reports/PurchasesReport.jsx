@@ -1,22 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import useReportData from './useReportData';
+import { presetRange } from './reportUtils';
 import PremiumReportView from './PremiumReportView';
 import { Truck, Package, User, Calendar, Info, BarChart2 } from 'lucide-react';
 
 /* ─── Period presets ──────────────────────────────────────────────────────── */
 const pad = n => String(n).padStart(2, '0');
 const fmtD = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const presetRange = (id) => {
-  const now = new Date(); const today = fmtD(now);
-  switch (id) {
-    case 'TODAY':   return { start: today, end: today };
-    case 'WEEK':    { const m = new Date(now); m.setDate(now.getDate() - now.getDay() + 1); return { start: fmtD(m), end: today }; }
-    case 'MONTH':   return { start: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, end: today };
-    case 'QUARTER': { const q = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1); return { start: fmtD(q), end: today }; }
-    case 'YEAR':    return { start: `${now.getFullYear()}-01-01`, end: today };
-    default:        return { start: today, end: today };
-  }
-};
 const PERIODS = [['TODAY', 'Today'], ['WEEK', 'This Week'], ['MONTH', 'This Month'], ['QUARTER', 'Quarter'], ['YEAR', 'This Year'], ['CUSTOM', 'Custom']];
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
@@ -24,12 +14,12 @@ const payBadge = (method) => {
   const m = (method || 'CASH').toUpperCase();
   const colors = {
     CASH:   'bg-emerald-50 text-emerald-700 border-emerald-100',
-    CREDIT: 'bg-amber-50   text-amber-700   border-amber-100',
+    CREDIT: 'bg-accent-signature/10   text-accent-signature-hover   border-accent-signature/15',
     BANK:   'bg-blue-50    text-blue-700    border-blue-100',
   };
-  const cls = colors[m] || 'bg-gray-50 text-gray-500 border-gray-100';
+  const cls = colors[m] || 'bg-muted text-muted-foreground border-border';
   return (
-    <span className={`inline-block text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
+    <span className={`inline-block text-[9px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
       {m}
     </span>
   );
@@ -40,10 +30,10 @@ const statusBadge = (status) => {
   const cls = s === 'RECEIVED' || s === 'COMPLETED'
     ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
     : s === 'PENDING'
-    ? 'bg-amber-50 text-amber-700 border-amber-100'
-    : 'bg-gray-50 text-gray-500 border-gray-100';
+    ? 'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/15'
+    : 'bg-muted text-muted-foreground border-border';
   return (
-    <span className={`inline-block text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
+    <span className={`inline-block text-[9px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
       {s}
     </span>
   );
@@ -81,10 +71,12 @@ const PurchasesReport = () => {
 
   /* ── Resolve product name ───────────────────────────────────────────── */
   const resolveName = (purchase) => {
-    const pid = purchase.linked_product_id || purchase.product_id;
-    if (!pid) return purchase.product_id || 'Unknown Product';
-    const found = products.find(p => p.id === pid);
-    return found?.name || purchase.product_id || pid;
+    // linked_product_id is the only product reference on a purchase. The old
+    // product_id column duplicated it, drifted whenever a purchase was
+    // re-linked, and has been dropped.
+    const pid = purchase.linked_product_id;
+    if (!pid) return 'Unknown Product';
+    return products.find(p => p.id === pid)?.name || pid;
   };
 
   /* ── 1. Overview metrics ─────────────────────────────────────────────── */
@@ -153,7 +145,7 @@ const PurchasesReport = () => {
     const map = {};
     purchases.forEach(p => {
       const name = resolveName(p);
-      const key  = p.linked_product_id || p.product_id || name;
+      const key  = p.linked_product_id || name;
       if (!map[key]) map[key] = { _id: key, productName: name, totalAmount: 0, totalUnits: 0, orderCount: 0, avgUnit: 0 };
       map[key].totalAmount += Number(p.total_amount || 0);
       map[key].totalUnits  += Number(p.quantity     || 0);
@@ -185,7 +177,7 @@ const PurchasesReport = () => {
       title: 'Procurement Value Over Time',
       type: 'area',
       data: metrics.chartData,
-      series: [{ key: 'amount', name: 'Amount', color: '#D97706' }],
+      series: [{ key: 'amount', name: 'Amount', color: 'var(--color-accent-signature)' }],
     },
     columns: [
       { key: 'date', label: 'Date', type: 'date', sortable: true, width: 130 },
@@ -196,7 +188,7 @@ const PurchasesReport = () => {
             <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
               <User size={10} className="text-blue-500" />
             </div>
-            <span className="font-semibold text-ink-primary">{val || 'Direct'}</span>
+            <span className="font-semibold text-foreground">{val || 'Direct'}</span>
           </div>
         ),
       },
@@ -209,14 +201,14 @@ const PurchasesReport = () => {
               <div className="w-5 h-5 rounded-md bg-accent-signature/10 flex items-center justify-center shrink-0">
                 <Package size={9} className="text-accent-signature" />
               </div>
-              <span className="font-semibold text-ink-primary">{name}</span>
+              <span className="font-semibold text-foreground">{name}</span>
             </div>
           );
         },
       },
       {
         key: 'quantity', label: 'Units', align: 'right', sortable: true, width: 90,
-        render: (val) => <span className="font-mono font-bold text-ink-primary">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-foreground">{val}</span>,
       },
       { key: 'total_amount', label: 'Amount', type: 'currency', align: 'right', sortable: true, width: 140 },
       {
@@ -263,13 +255,13 @@ const PurchasesReport = () => {
       title: 'Spend by Supplier',
       type: 'bar',
       data: supplierData.slice(0, 8).map(s => ({ name: s.supplierName, value: s.totalAmount })),
-      series: [{ key: 'value', name: 'Spend', color: '#D97706' }],
+      series: [{ key: 'value', name: 'Spend', color: 'var(--color-accent-signature)' }],
     },
     columns: [
       {
         key: '_rank', label: '#', width: 50, align: 'center',
         render: (val) => (
-          <span className={`font-black text-sm ${val === 1 ? 'text-amber-500' : 'text-ink-tertiary'}`}>
+          <span className={`font-semibold text-sm ${val === 1 ? 'text-accent-signature' : 'text-ink-tertiary'}`}>
             {val}
           </span>
         ),
@@ -278,22 +270,22 @@ const PurchasesReport = () => {
         key: 'supplierName', label: 'Supplier', sortable: true, width: 240,
         render: (val, row) => (
           <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-[11px] shrink-0 ${
-              row._rank === 1 ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-600'
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-[11px] shrink-0 ${
+              row._rank === 1 ? 'bg-accent-signature/15 text-accent-signature-hover' : 'bg-blue-50 text-blue-600'
             }`}>
               {(val || 'D')[0].toUpperCase()}
             </div>
-            <span className="font-bold text-ink-primary">{val}</span>
+            <span className="font-semibold text-foreground">{val}</span>
           </div>
         ),
       },
       {
         key: 'orderCount', label: 'Orders', align: 'right', sortable: true, width: 110,
-        render: (val) => <span className="font-mono font-bold text-ink-secondary">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-ink-secondary">{val}</span>,
       },
       {
         key: 'totalUnits', label: 'Units Received', align: 'right', sortable: true, width: 140,
-        render: (val) => <span className="font-mono font-bold text-ink-primary">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-foreground">{val}</span>,
       },
       { key: 'totalAmount', label: 'Total Spend', type: 'currency', align: 'right', sortable: true, width: 150 },
       {
@@ -304,11 +296,11 @@ const PurchasesReport = () => {
             <div className="flex items-center gap-2 justify-end">
               <div className="w-16 h-1.5 rounded-full bg-canvas overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-amber-500"
+                  className="h-full rounded-full bg-accent-signature"
                   style={{ width: `${Math.min(100, pct)}%` }}
                 />
               </div>
-              <span className="text-[10px] font-black text-amber-500 tabular-nums w-10 text-right">
+              <span className="text-[10px] font-semibold text-accent-signature tabular-nums w-10 text-right">
                 {pct.toFixed(1)}%
               </span>
             </div>
@@ -348,7 +340,7 @@ const PurchasesReport = () => {
       {
         key: '_rank', label: '#', width: 50, align: 'center',
         render: (val) => (
-          <span className={`font-black text-sm ${val === 1 ? 'text-amber-500' : 'text-ink-tertiary'}`}>
+          <span className={`font-semibold text-sm ${val === 1 ? 'text-accent-signature' : 'text-ink-tertiary'}`}>
             {val}
           </span>
         ),
@@ -362,17 +354,17 @@ const PurchasesReport = () => {
             }`}>
               <Package size={12} className={row._rank <= 3 ? 'text-emerald-600' : 'text-ink-tertiary'} />
             </div>
-            <span className="font-bold text-ink-primary">{val}</span>
+            <span className="font-semibold text-foreground">{val}</span>
           </div>
         ),
       },
       {
         key: 'orderCount', label: 'Orders', align: 'right', sortable: true, width: 110,
-        render: (val) => <span className="font-mono font-bold text-ink-secondary">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-ink-secondary">{val}</span>,
       },
       {
         key: 'totalUnits', label: 'Units Procured', align: 'right', sortable: true, width: 140,
-        render: (val) => <span className="font-mono font-bold text-ink-primary">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-foreground">{val}</span>,
       },
       { key: 'avgUnit',    label: 'Avg. Unit Cost', type: 'currency', align: 'right', width: 140 },
       { key: 'totalAmount', label: 'Total Spend',   type: 'currency', align: 'right', sortable: true, width: 150 },
@@ -388,7 +380,7 @@ const PurchasesReport = () => {
                   style={{ width: `${Math.min(100, pct)}%` }}
                 />
               </div>
-              <span className="text-[10px] font-black text-emerald-600 tabular-nums w-9 text-right">
+              <span className="text-[10px] font-semibold text-emerald-600 tabular-nums w-9 text-right">
                 {pct.toFixed(1)}%
               </span>
             </div>
@@ -402,25 +394,27 @@ const PurchasesReport = () => {
     <div className="flex flex-col gap-4">
       {/* Period filter */}
       <div className="flex items-center gap-2 flex-wrap no-print">
-        <div className="flex items-center gap-0.5 p-1 rounded-xl bg-black/[0.04]">
+        <div className="flex items-center bg-muted rounded-lg p-0.5">
           {PERIODS.map(([id, label]) => (
             <button key={id} onClick={() => applyPreset(id)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                preset === id ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/20' : 'text-gray-500 hover:text-ink-primary'
+              className={`px-3 py-1.5 rounded-md text-[11px] whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                preset === id
+                  ? 'bg-card text-foreground font-semibold shadow-sm'
+                  : 'text-muted-foreground font-medium hover:text-foreground'
               }`}>
               {id === 'CUSTOM' && <Calendar size={12} />}{label}
             </button>
           ))}
         </div>
-        <span className="text-[11px] font-mono font-semibold text-gray-400">{range.start} → {range.end}</span>
+        <span className="text-[11px] tabular-nums font-semibold text-muted-foreground">{range.start} → {range.end}</span>
         {showCustom && (
           <div className="flex items-center gap-2">
             <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-              className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-mono outline-none focus:border-amber-400" />
-            <span className="text-gray-400">–</span>
+              className="bg-card border border-black/10 rounded-lg px-3 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature/70" />
+            <span className="text-muted-foreground">–</span>
             <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-              className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-mono outline-none focus:border-amber-400" />
-            <button onClick={applyCustom} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-[11px] font-bold">Apply</button>
+              className="bg-card border border-black/10 rounded-lg px-3 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature/70" />
+            <button onClick={applyCustom} className="px-3 py-1.5 rounded-lg bg-accent-signature text-white text-[11px] font-semibold">Apply</button>
           </div>
         )}
       </div>

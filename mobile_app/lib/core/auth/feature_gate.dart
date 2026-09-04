@@ -1,22 +1,35 @@
-// Plan hierarchy
-const planOrder = {'STARTER': 0, 'PRO': 1, 'ENTERPRISE': 2};
+// Plan hierarchy — aligned with web tenancy.js + bookledger.in pricing.
+// FREE < GROWTH < PRO < ENTERPRISE. STARTER = legacy alias of GROWTH
+// (grandfathered until the tenants.plan DB migration lands everywhere).
+const planOrder = {
+  'FREE': 0,
+  'STARTER': 1, // legacy alias — treated as GROWTH
+  'GROWTH': 1,
+  'PRO': 2,
+  'ENTERPRISE': 3,
+};
 
 // Features and minimum plan required
 const featureMinPlan = {
-  'dashboard': 'STARTER',
-  'inventory': 'STARTER',
-  'sales': 'STARTER',
-  'pos': 'STARTER',
-  'clients': 'STARTER',
-  'expenses': 'STARTER',
-  'daybook': 'STARTER',
-  'invoices': 'STARTER',
-  'purchases': 'PRO',
-  'suppliers': 'PRO',
-  'gstr': 'PRO',
-  'reports': 'PRO',
-  'hr': 'PRO',
-  'logistics': 'ENTERPRISE',
+  'dashboard': 'FREE',
+  'inventory': 'FREE',
+  'sales': 'FREE',
+  'pos': 'FREE',
+  'clients': 'FREE',
+  'expenses': 'FREE',
+  'daybook': 'FREE',
+  'invoices': 'FREE',
+  'purchases': 'GROWTH',
+  'suppliers': 'GROWTH',
+  'gstr': 'GROWTH',
+  'reports': 'GROWTH',
+  'payroll': 'GROWTH',
+  'hr': 'GROWTH',       // alias — kept for backward compat with existing permission maps
+  'estimates': 'GROWTH',
+  'orders': 'PRO',
+  'accounts': 'PRO',
+  'manufacturing': 'PRO',
+  'logistics': 'PRO',
   'users': 'ENTERPRISE',
   'audit_log': 'ENTERPRISE',
 };
@@ -26,6 +39,7 @@ const featureMinPlan = {
 const _featureToModuleKey = <String, String>{
   'logistics': 'vehicles',
   'pos': 'sales',
+  'hr': 'payroll',       // mobile legacy key → web module key
 };
 
 String _toModuleKey(String feature) => _featureToModuleKey[feature] ?? feature;
@@ -93,7 +107,7 @@ bool canAccess(
   Map<dynamic, dynamic>? permissions,
 }) {
   // Plan check — unchanged from original
-  final minPlan = featureMinPlan[feature] ?? 'STARTER';
+  final minPlan = featureMinPlan[feature] ?? 'FREE';
   final userPlanLevel = planOrder[plan] ?? 0;
   final requiredPlanLevel = planOrder[minPlan] ?? 0;
   if (userPlanLevel < requiredPlanLevel) return false;
@@ -127,7 +141,7 @@ bool canEdit(
 
 /// Returns true if the user's plan meets the feature's minimum plan requirement.
 bool planMeetsRequirement(String feature, String plan) {
-  final minPlan = featureMinPlan[feature] ?? 'STARTER';
+  final minPlan = featureMinPlan[feature] ?? 'FREE';
   final userPlanLevel = planOrder[plan] ?? 0;
   final requiredPlanLevel = planOrder[minPlan] ?? 0;
   return userPlanLevel >= requiredPlanLevel;
@@ -135,7 +149,7 @@ bool planMeetsRequirement(String feature, String plan) {
 
 /// Returns the minimum plan label for a feature, e.g. "PRO".
 String requiredPlanFor(String feature) {
-  return featureMinPlan[feature] ?? 'STARTER';
+  return featureMinPlan[feature] ?? 'FREE';
 }
 
 /// Alias for [requiredPlanFor] — used by desktop shell.

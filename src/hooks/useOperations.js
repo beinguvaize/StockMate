@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
+import { isElectron, fetchWithCache } from '../lib/offline/hookAdapter';
+import { realtimeEnabled } from '../lib/realtime';
+import useRefetchOnFocus from './useRefetchOnFocus';
 
 const MOVEMENT_NUMERIC = ['quantity'];
 
@@ -20,36 +23,53 @@ export const useOperations = (tenantId) => {
     if (!tenantId) { setLoading(false); return; }
     if (!initialLoadDone.current) setLoading(true);
     try {
-      const [
-        { data: rtData,  error: rtErr  },
-        { data: mvData,  error: mvErr  },
-        { data: vhData,  error: vhErr  },
-        { data: invData, error: invErr },
-        { data: stData,  error: stErr  },
-      ] = await Promise.all([
-        supabase.from('routes').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }),
-        supabase.from('movement_log').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(200),
-        supabase.from('vehicles').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
-        supabase.from('invoices')
-          .select('id, invoice_number, client_name, client_id, grand_total, paid_amount, payment_status, items, delivery_status, delivery_required, vehicle_route_id, delivery_address, delivery_zone, delivery_date, delivery_notes, delivery_fee, created_at')
-          .eq('tenant_id', tenantId)
-          .eq('delivery_required', true)
-          .in('delivery_status', ['PENDING', 'IN_TRANSIT'])
-          .order('created_at', { ascending: false }),
-        supabase.from('route_stops').select('*').eq('tenant_id', tenantId).order('sequence'),
+      // Reads go through the offline cache on desktop. Only this block: the
+      // other selects in this hook are lookups inside write paths, which
+      // genuinely need the server.
+      //
+      // The cache holds whole tables, so the filters and ordering the queries
+      // applied server-side are re-applied to whatever comes back.
+      const mine = (rows) => (rows || []).filter(r => r && r.tenant_id === tenantId);
+      const byDateDesc = (a, b) => String(b.date || '').localeCompare(String(a.date || ''));
+
+      const [rtRes, mvRes, vhRes, invRes, stRes] = await Promise.all([
+        fetchWithCache('routes', () =>
+          supabase.from('routes').select('*').eq('tenant_id', tenantId).order('date', { ascending: false })),
+        fetchWithCache('movement_log', () =>
+          supabase.from('movement_log').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(200)),
+        fetchWithCache('vehicles', () =>
+          supabase.from('vehicles').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name')),
+        fetchWithCache('invoices', () =>
+          supabase.from('invoices')
+            // tenant_id is fetched because mine() filters on it. Without it every
+            // row compares undefined and the delivery list comes back empty.
+            .select('id, tenant_id, invoice_number, client_name, client_id, grand_total, paid_amount, payment_status, items, delivery_status, delivery_required, vehicle_route_id, delivery_address, delivery_zone, delivery_date, delivery_notes, delivery_fee, created_at')
+            .is('deleted_at', null)   // a deleted invoice is not a delivery
+            .eq('tenant_id', tenantId)
+            .eq('delivery_required', true)
+            .in('delivery_status', ['PENDING', 'IN_TRANSIT'])
+            .order('created_at', { ascending: false })),
+        fetchWithCache('route_stops', () =>
+          supabase.from('route_stops').select('*').eq('tenant_id', tenantId).order('sequence')),
       ]);
 
-      if (rtErr)  throw rtErr;
-      if (mvErr)  throw mvErr;
-      if (vhErr)  throw vhErr;
-      if (invErr) console.warn('deliveryInvoices fetch warn:', invErr);
-      if (stErr)  console.warn('route_stops fetch warn:', stErr);
+      const rtData  = mine(rtRes.data).sort(byDateDesc);
+      const mvData  = mine(mvRes.data).sort(byDateDesc).slice(0, 200);
+      const vhData  = mine(vhRes.data).filter(v => !v.deleted_at)
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+      // Same predicate the query carried: a delivery still to be made.
+      const invData = mine(invRes.data)
+        .filter(i => i.delivery_required === true &&
+                     ['PENDING', 'IN_TRANSIT'].includes(i.delivery_status))
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+      const stData  = mine(stRes.data)
+        .sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
 
-      setRoutes(rtData || []);
+      setRoutes(rtData);
       setMovementLog(normalizeNumericRows(mvData, MOVEMENT_NUMERIC));
-      setVehicles(vhData || []);
-      setDeliveryInvoices(invData || []);
-      setRouteStops(stData || []);
+      setVehicles(vhData);
+      setDeliveryInvoices(invData);
+      setRouteStops(stData);
     } catch (err) {
       console.error('useOperations Fetch Error:', err);
       setError(err.message);
@@ -63,12 +83,16 @@ export const useOperations = (tenantId) => {
 
   useEffect(() => { initialLoadDone.current = false; fetchRef.current?.(); }, [tenantId]);
 
+  // The dispatch board no longer holds a realtime channel on most surfaces
+  // (src/lib/realtime.js), so a return to the tab is what brings it current.
+  useRefetchOnFocus(fetchOperationsData);
+
   // ── Realtime subscriptions ───────────────────────────────────────────
   // Re-fetch whenever routes, route_stops, or inventory_balances change.
   // Critical for live dispatch board: manager sees stop updates from driver
   // instantly without manual refresh.
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !realtimeEnabled('operations')) return;
 
     const channel = supabase
       .channel(`ops-realtime-${tenantId}-${tabId.current}`)

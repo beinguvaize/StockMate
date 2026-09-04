@@ -60,20 +60,20 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
       // Drivers (employees)
       final emps = await supabase
           .from('employees')
-          .select('id, name, position')
+          .select('id, name, position').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId);
 
       // Pending delivery invoices
       final invs = await supabase
           .from('invoices')
-          .select('id, client_name, grand_total, delivery_address')
+          .select('id, client_name, grand_total, delivery_address').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId)
           .eq('delivery_status', 'PENDING');
 
       // Vehicle current stock → loadedStock snapshot
       final vLocRows = await supabase
           .from('inventory_locations')
-          .select('id')
+          .select('id').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId)
           .eq('type', 'VEHICLE')
           .eq('reference_id', widget.vehicleId);
@@ -86,7 +86,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
             .eq('location_id', vLocId);
         final prods = await supabase
             .from('products')
-            .select('*')
+            .select('*').isFilter('deleted_at', null)
             .eq('tenant_id', tenantId);
         final byId = {for (final p in prods) p['id'].toString(): p};
         for (final b in bals) {

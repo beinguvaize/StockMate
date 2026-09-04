@@ -18,4 +18,19 @@ contextBridge.exposeInMainWorld('electron', {
       return () => ipcRenderer.removeListener('update:status', handler);
     },
   },
+  window: {
+    setKiosk: (enabled) => ipcRenderer.invoke('window:setKiosk', enabled),
+    onKioskChange: (callback) => {
+      const handler = (_event, payload) => callback(payload);
+      ipcRenderer.on('window:kioskChange', handler);
+      return () => ipcRenderer.removeListener('window:kioskChange', handler);
+    },
+  },
+  troubleshoot: {
+    onAction: (callback) => {
+      const handler = (_event, payload) => callback(payload);
+      ipcRenderer.on('troubleshoot:action', handler);
+      return () => ipcRenderer.removeListener('troubleshoot:action', handler);
+    },
+  },
 });

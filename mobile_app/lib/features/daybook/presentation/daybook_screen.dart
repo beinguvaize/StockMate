@@ -129,7 +129,7 @@ class _DayBookScreenState extends ConsumerState<DayBookScreen> {
               ),
             ),
             Text(
-              'DAILY LEDGER',
+              'DAY BOOK',
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
@@ -489,6 +489,15 @@ class _LedgerBodyState extends State<_LedgerBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // 0. Say so when the day is coming from the local cache. Without this
+          // an offline day with nothing cached renders as a legitimate day of
+          // zero trade — the two are indistinguishable, and a cashier reading a
+          // blank ledger as a closed till would reconcile against nothing.
+          if (ledger.fromCache) ...[
+            const _OfflineLedgerBanner(),
+            const SizedBox(height: 12),
+          ],
+
           // 1. KPI Grid
           _KpiGrid(ledger: ledger),
           const SizedBox(height: 16),
@@ -529,12 +538,19 @@ class _LedgerBodyState extends State<_LedgerBody> {
           _TransactionsSection(ledger: ledger, net: net),
           const SizedBox(height: 12),
 
-          // 7. Close & Lock Day button
+          // 7. Close & Lock Day button.
+          // Withheld on a cached day. Closing computes variance as
+          // physical minus expected and posts that difference to the cash
+          // account — on a short expected figure that writes a real adjustment
+          // for money that never went missing, and the day locks irreversibly.
           if (!ledger.isLocked && ledger.hasOpening && !widget.isFuture) ...[
-            _CloseDayButton(
-              isLoading: widget.isLoading,
-              onCloseDay: widget.onCloseDay,
-            ),
+            if (ledger.fromCache)
+              const _CloseBlockedOffline()
+            else
+              _CloseDayButton(
+                isLoading: widget.isLoading,
+                onCloseDay: widget.onCloseDay,
+              ),
             const SizedBox(height: 12),
           ],
 
@@ -1851,6 +1867,97 @@ class _SectionLabel extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: AppColors.inkTertiary,
         letterSpacing: 1.5,
+      ),
+    );
+  }
+}
+
+/// Shown when the ledger was served from the local cache after the server could
+/// not be reached. Deliberately states the consequence rather than just the
+/// condition: "offline" alone does not tell a cashier that the totals below may
+/// be short.
+class _OfflineLedgerBanner extends StatelessWidget {
+  const _OfflineLedgerBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.warningContainer,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(LucideIcons.cloudOff, size: 16, color: AppColors.onWarningContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Showing the last synced data',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onWarningContainer,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  "Anything recorded since the last sync is missing, so these totals may be short. Don't reconcile the till against this.",
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    height: 1.35,
+                    color: AppColors.onWarningContainer,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Replaces the Close Day button while the ledger is cached.
+///
+/// Closing is irreversible and writes a variance adjustment against the cash
+/// account. Doing that from figures that are missing every transaction since
+/// the last sync would book a shortfall that does not exist, so the action is
+/// withheld rather than merely warned about.
+class _CloseBlockedOffline extends StatelessWidget {
+  const _CloseBlockedOffline();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.secondaryContainer,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.lock, size: 16, color: AppColors.inkTertiary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Reconnect to close this day — closing locks it and records a cash '
+              'variance, which needs the complete day.',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                height: 1.35,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

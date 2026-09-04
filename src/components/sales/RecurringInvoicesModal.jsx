@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useDialogClose } from '../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, Repeat, Play, Pause } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -12,6 +13,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const emptyLine = () => ({ name: '', qty: 1, rate: 0, taxRate: 18 });
 
 const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
+  useDialogClose(onClose);
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -89,7 +91,7 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
             <Repeat size={17} className="text-accent-signature" />
             <h2 className="text-[15px] font-black text-ink-primary">Recurring Invoices</h2>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center">
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center">
             <X size={15} />
           </button>
         </div>
@@ -103,23 +105,23 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
               </button>
 
               {loading ? (
-                <p className="text-center text-[12px] text-gray-400 py-6">Loading…</p>
+                <p className="text-center text-[12px] text-muted-foreground py-6">Loading…</p>
               ) : templates.length === 0 ? (
-                <p className="text-center text-[12px] text-gray-400 py-6">
+                <p className="text-center text-[12px] text-muted-foreground py-6">
                   No recurring invoices yet. Perfect for AMCs, rent, subscriptions and standing orders.
                 </p>
               ) : templates.map(t => (
                 <div key={t.id} className="border border-black/5 rounded-xl p-4 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-bold text-ink-primary truncate">{t.client_name}</div>
-                    <div className="text-[11px] text-gray-500">
+                    <div className="text-[11px] text-muted-foreground">
                       {(t.items || []).length} item{(t.items || []).length === 1 ? '' : 's'} · {money(tmplTotal(t))} ·{' '}
                       {t.frequency === 'WEEKLY' ? 'Every week' : 'Every month'} · next {t.next_run}
-                      {!t.active && <span className="ml-2 text-amber-600 font-bold">PAUSED</span>}
+                      {!t.active && <span className="ml-2 text-accent-signature font-bold">PAUSED</span>}
                     </div>
                   </div>
                   <button onClick={() => toggleActive(t)} title={t.active ? 'Pause' : 'Resume'}
-                    className="w-8 h-8 rounded-lg border border-black/10 flex items-center justify-center hover:bg-gray-50">
+                    className="w-8 h-8 rounded-lg border border-black/10 flex items-center justify-center hover:bg-muted">
                     {t.active ? <Pause size={13} /> : <Play size={13} />}
                   </button>
                   <button onClick={() => removeTemplate(t)} title="Delete"
@@ -135,7 +137,7 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
             <div className="space-y-4">
               <div className="grid sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-1">
-                  <label className="block text-[11px] font-bold text-gray-500 mb-1">Client</label>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">Client</label>
                   <select value={clientId} onChange={e => setClientId(e.target.value)}
                     className="w-full border border-black/10 rounded-lg px-2.5 py-2 text-[13px]">
                     <option value="">Select client…</option>
@@ -143,7 +145,7 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 mb-1">Repeats</label>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">Repeats</label>
                   <select value={frequency} onChange={e => setFrequency(e.target.value)}
                     className="w-full border border-black/10 rounded-lg px-2.5 py-2 text-[13px]">
                     <option value="MONTHLY">Every month</option>
@@ -151,7 +153,7 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 mb-1">First invoice on</label>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">First invoice on</label>
                   <input type="date" value={nextRun} min={todayISO()}
                     onChange={e => setNextRun(e.target.value)}
                     className="w-full border border-black/10 rounded-lg px-2.5 py-2 text-[13px]" />
@@ -159,7 +161,7 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-gray-500 mb-1.5">Line items</label>
+                <label className="block text-[11px] font-bold text-muted-foreground mb-1.5">Line items</label>
                 <div className="space-y-2">
                   {lines.map((l, i) => (
                     <div key={i} className="flex gap-2 items-center">
@@ -178,7 +180,7 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
                         {[0, 5, 12, 18, 28].map(r => <option key={r} value={r}>{r}%</option>)}
                       </select>
                       <button onClick={() => setLines(ls => ls.length > 1 ? ls.filter((_, j) => j !== i) : ls)}
-                        className="w-8 h-8 shrink-0 rounded-lg border border-black/10 text-gray-400 hover:text-red-500 flex items-center justify-center">
+                        className="w-8 h-8 shrink-0 rounded-lg border border-black/10 text-muted-foreground hover:text-red-500 flex items-center justify-center">
                         <X size={12} />
                       </button>
                     </div>
@@ -188,8 +190,8 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 text-[12px]">
-                <span className="text-gray-500">Taxable {money(totals.taxable)} · GST {money(totals.tax)}</span>
+              <div className="flex items-center justify-between bg-muted rounded-xl px-4 py-3 text-[12px]">
+                <span className="text-muted-foreground">Taxable {money(totals.taxable)} · GST {money(totals.tax)}</span>
                 <span className="font-black text-ink-primary text-[14px]">{money(totals.total)} / {frequency === 'WEEKLY' ? 'week' : 'month'}</span>
               </div>
 
@@ -197,7 +199,7 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
 
               <div className="flex gap-2 justify-end">
                 <button onClick={() => { setCreating(false); setErr(''); }}
-                  className="px-4 py-2 rounded-lg border border-black/10 text-[12px] font-bold text-gray-600 hover:bg-gray-50">
+                  className="px-4 py-2 rounded-lg border border-black/10 text-[12px] font-bold text-ink-secondary hover:bg-muted">
                   Cancel
                 </button>
                 <button onClick={saveTemplate} disabled={busy}
@@ -209,7 +211,7 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
           )}
         </div>
 
-        <div className="px-6 py-3 bg-gray-50 border-t border-black/5 text-[11px] text-gray-400">
+        <div className="px-6 py-3 bg-muted border-t border-black/5 text-[11px] text-muted-foreground">
           Invoices generate automatically every night when due, marked UNPAID, and appear in this list’s client account.
         </div>
       </div>

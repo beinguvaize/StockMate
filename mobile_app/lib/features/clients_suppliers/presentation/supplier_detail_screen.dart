@@ -25,7 +25,7 @@ final supplierTransactionsProvider =
     try {
       final result = await supabase
           .from('purchases')
-          .select('id, total_amount, date, payment_type')
+          .select('id, total_amount, date, payment_type').isFilter('deleted_at', null)
           .eq('supplier_id', supplierId)
           .order('date', ascending: false)
           .limit(50);
@@ -36,7 +36,7 @@ final supplierTransactionsProvider =
   if (data.isEmpty && supplierName.isNotEmpty) {
     final result = await supabase
         .from('purchases')
-        .select('id, total_amount, date, payment_type')
+        .select('id, total_amount, date, payment_type').isFilter('deleted_at', null)
         .eq('supplier_name', supplierName)
         .order('date', ascending: false)
         .limit(50);
@@ -113,7 +113,10 @@ class SupplierDetailScreen extends ConsumerWidget {
     );
     final avatarColor = _avatarColor(supplier.name);
     final avatarBg = avatarColor.withValues(alpha: 0.12);
-    final balance = supplier.balance ?? 0;
+    // Derived from the bills. suppliers.balance is a cached aggregate that has
+    // drifted from the transactions before, and the web app never trusted it.
+    final balance = supplierOutstanding(
+        supplier, ref.watch(supplierOutstandingProvider).valueOrNull);
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -152,6 +155,7 @@ class SupplierDetailScreen extends ConsumerWidget {
                     ),
                   ).then((_) {
                     ref.invalidate(suppliersProvider);
+                    ref.invalidate(supplierOutstandingProvider);
                     ref.invalidate(supplierTransactionsProvider('${supplier.id}|${supplier.name ?? ''}'));
                   }),
                   child: Container(
@@ -985,10 +989,12 @@ class _TransactionSection extends StatelessWidget {
   }
 
   static String _compactNum(double v) {
-    if (v >= 10000000) return '${(v / 10000000).toStringAsFixed(1)}Cr';
-    if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
-    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
-    return v.toStringAsFixed(0);
+    final whole = v.round();
+    final s = whole.abs().toString();
+    final grouped = s.length <= 3
+        ? s
+        : '${s.substring(0, s.length - 3).replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},')},${s.substring(s.length - 3)}';
+    return '${whole < 0 ? '-' : ''}$grouped';
   }
 }
 

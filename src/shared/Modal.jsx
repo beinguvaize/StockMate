@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import { X, ChevronLeft } from 'lucide-react';
+import { useDialogClose } from '../hooks/useDialogClose';
 
 const Modal = ({
   isOpen,
@@ -11,19 +12,20 @@ const Modal = ({
   // maxWidth kept for API compat but ignored — all modals are full-page now
   maxWidth,
 }) => {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => { document.body.style.overflow = 'unset'; };
-  }, [isOpen]);
+  // Escape to close + scroll lock + focus restore. Replaces a hand-rolled
+  // lock that forced body overflow back to 'unset' whenever ANY modal closed,
+  // so shutting a nested modal unlocked the page under the one still open.
+  useDialogClose(onClose, { enabled: isOpen });
 
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title || 'Dialog'}
+      className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in"
+    >
 
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-black/5 bg-white shrink-0">
@@ -41,7 +43,7 @@ const Modal = ({
             </h1>
           )}
           {subtitle && (
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
               {subtitle}
             </p>
           )}
@@ -49,7 +51,7 @@ const Modal = ({
         <button
           type="button"
           onClick={onClose}
-          className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-gray-400 shrink-0"
+          className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-muted-foreground shrink-0"
         >
           <X size={16} />
         </button>

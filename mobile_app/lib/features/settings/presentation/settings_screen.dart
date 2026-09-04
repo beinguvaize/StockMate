@@ -184,7 +184,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                error: (e, _) => Text('Error: $e', style: GoogleFonts.manrope(color: AppColors.danger)),
+                error: (e, _) => Text('Could not load settings. Check your internet and try again.', style: GoogleFonts.manrope(color: AppColors.danger)),
               ),
 
               const SizedBox(height: 24),
@@ -847,7 +847,14 @@ class _TaxModePicker extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: ['INCLUSIVE', 'EXCLUSIVE'].map((mode) {
+      // value = DB tax_mode; label = shorter display. NONE = not filing GST,
+      // P&L counts full amounts (no GST split) — matches get_pl_ranged.
+      children: const [
+        ('INCLUSIVE', 'INCL'),
+        ('EXCLUSIVE', 'EXCL'),
+        ('NONE', 'NO GST'),
+      ].map((opt) {
+        final mode = opt.$1;
         final selected = current == mode;
         return GestureDetector(
           onTap: () => onChanged(mode),
@@ -864,7 +871,7 @@ class _TaxModePicker extends StatelessWidget {
               ),
             ),
             child: Text(
-              mode,
+              opt.$2,
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,

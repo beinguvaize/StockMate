@@ -7,6 +7,10 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
+import 'package:mobile_app/core/widgets/app_states.dart' show AppSpinner;
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/widgets/trial_banner.dart';
 import 'package:mobile_app/core/widgets/banner_carousel.dart';
 import 'package:mobile_app/core/widgets/expiry_alert_card.dart';
@@ -17,6 +21,8 @@ import 'package:mobile_app/features/finance/presentation/add_expense_screen.dart
 import 'package:mobile_app/features/finance/presentation/finance_screen.dart';
 import 'package:mobile_app/features/hr/presentation/hr_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/inventory_screen.dart';
+import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
+import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/features/logistics/presentation/driver_route_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart';
 import 'package:mobile_app/features/menu/presentation/menu_screen.dart';
@@ -50,7 +56,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   late final List<_NavTab> _allTabs = [
     (feature: 'dashboard', icon: LucideIcons.layoutDashboard, label: 'Dashboard', tab: DashboardHome(onTabSwitch: _switchToFeature)),
     (feature: 'sales',     icon: LucideIcons.shoppingCart,    label: 'Sales',     tab: const SalesScreen()),
-    (feature: 'inventory', icon: LucideIcons.package,         label: 'Inventory', tab: const InventoryScreen()),
+    (feature: 'inventory', icon: LucideIcons.package,         label: 'Inventory', tab: const InventoryScreen(showAddButton: false)),
     (feature: 'logistics', icon: LucideIcons.truck,           label: 'My Route',  tab: const DriverRouteScreen()),
     (feature: '__menu__',  icon: LucideIcons.moreHorizontal,  label: 'More',      tab: const MenuScreen()),
   ];
@@ -85,20 +91,46 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       key: _scaffoldKey,
       backgroundColor: AppColors.canvas,
       drawer: const _AppDrawer(),
-      floatingActionButton: currentFeature == 'sales'
-          ? FloatingActionButton(
-              heroTag: null,
-              onPressed: () {
-                final roles = ProviderScope.containerOf(context, listen: false)
-                    .read(tenantContextProvider)
-                    .value?.roles ?? [];
-                navigateToNewSale(context, roles);
-              },
-              backgroundColor: AppColors.secondary,
-              foregroundColor: AppColors.primaryContainer,
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-              child: const Icon(LucideIcons.plus, size: 26),
+      // Lift the FAB clear of the custom bottom nav bar so the "+" sits
+      // ABOVE the "More" tab instead of covering it. The nav bar is a
+      // Positioned container (not Scaffold.bottomNavigationBar), so Scaffold
+      // never auto-offsets the FAB — we pad it up by the nav height + SafeArea.
+      // Inventory used to have no visible Add button on the phone. The screen
+      // supplies one, but at the default position -- which is UNDER this nav
+      // bar, since the bar is a Positioned overlay and Scaffold therefore never
+      // offsets a FAB above it. The button was rendering and invisible.
+      // The shell owns the offset, so the shell owns the button.
+      floatingActionButton: (currentFeature == 'sales' || currentFeature == 'inventory')
+          ? Padding(
+              padding: EdgeInsets.only(
+                  bottom: 76 + MediaQuery.of(context).viewPadding.bottom),
+              child: FloatingActionButton(
+                heroTag: null,
+                tooltip: currentFeature == 'inventory' ? 'Add product' : 'New sale',
+                onPressed: () {
+                  if (currentFeature == 'inventory') {
+                    // Hold the container now: reaching for `context` inside the
+                    // .then() is across an async gap, by which point this widget
+                    // may be gone.
+                    final container =
+                        ProviderScope.containerOf(context, listen: false);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AddProductScreen()),
+                    ).then((_) => container.invalidate(productsProvider));
+                    return;
+                  }
+                  final roles = ProviderScope.containerOf(context, listen: false)
+                      .read(tenantContextProvider)
+                      .value?.roles ?? [];
+                  navigateToNewSale(context, roles);
+                },
+                backgroundColor: AppColors.secondary,
+                foregroundColor: AppColors.primaryContainer,
+                elevation: 4,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                child: const Icon(LucideIcons.plus, size: 26),
+              ),
             )
           : null,
       body: Column(
@@ -148,14 +180,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       final i = e.key;
                       final item = e.value;
                       final isActive = selIdx == i;
-                      return GestureDetector(
+                      return AppTappable(
                         onTap: () => _switchTab(i),
-                        behavior: HitTestBehavior.opaque,
+                        ripple: false,
+                        pressedScale: 0.94,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
+                              duration: Motion.base,
+                              curve: Motion.standard,
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                               decoration: BoxDecoration(
                                 color: isActive ? AppColors.primaryContainer : Colors.transparent,
@@ -226,7 +260,8 @@ class _GlobalAppBar extends StatelessWidget {
               Row(
             children: [
               // Hamburger
-              GestureDetector(
+              AppTappable(
+                ripple: false,
                 onTap: onMenuTap,
                 child: Container(
                   width: 42,
@@ -250,7 +285,8 @@ class _GlobalAppBar extends StatelessWidget {
               const SyncStatusPill(),
 
               // Bell
-              GestureDetector(
+              AppTappable(
+                ripple: false,
                 onTap: () => showModalBottomSheet(
                   context: context,
                   backgroundColor: Colors.white,
@@ -325,8 +361,8 @@ class _AppDrawer extends ConsumerWidget {
       _DrawerItem(icon: LucideIcons.barChart2, label: 'Reports', color: AppColors.primary, feature: 'reports'),
     ]),
     _DrawerSection(label: 'WORKFORCE & OPS', items: [
-      _DrawerItem(icon: LucideIcons.users2, label: 'HR & Payroll', color: AppColors.secondary, feature: 'hr'),
-      _DrawerItem(icon: LucideIcons.truck,  label: 'Fleet',         color: Color(0xFF5b5f5a), feature: 'logistics'),
+      _DrawerItem(icon: LucideIcons.users2, label: 'Payroll',  color: AppColors.secondary, feature: 'payroll'),
+      _DrawerItem(icon: LucideIcons.truck,  label: 'Vehicles', color: Color(0xFF5b5f5a), feature: 'logistics'),
     ]),
   ];
 
@@ -355,8 +391,8 @@ class _AppDrawer extends ConsumerWidget {
       case 'Inventory':     return const InventoryScreen();
       case 'CRM':           return const CRMScreen();
       case 'Reports':       return const ReportsScreen();
-      case 'HR & Payroll':  return const HRScreen();
-      case 'Fleet':         return const LogisticsScreen();
+      case 'Payroll':   return const HRScreen();
+      case 'Vehicles':  return const LogisticsScreen();
       case 'Settings':      return const SettingsScreen();
       default:              return null;
     }
@@ -433,7 +469,8 @@ class _AppDrawer extends ConsumerWidget {
             // ── Sign out ──────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.all(16),
-              child: GestureDetector(
+              child: AppTappable(
+                ripple: false,
                 onTap: () async {
                   Navigator.pop(context);
                   await supabase.auth.signOut();
@@ -495,7 +532,8 @@ class _DrawerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 2),
@@ -656,7 +694,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       icon: LucideIcons.trendingUp,
                       isHero: true,
                       onTap: () => widget.onTabSwitch('sales'),
-                      trailing: GestureDetector(
+                      trailing: AppTappable(
+                        ripple: false,
                         onTap: () => setState(() => _revenueVisible = !_revenueVisible),
                         child: Icon(
                           _revenueVisible ? LucideIcons.eye : LucideIcons.eyeOff,
@@ -748,7 +787,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
               Row(
                 children: [
                   Expanded(
-                    child: GestureDetector(
+                    child: AppTappable(
+                      ripple: false,
                       onTap: () {
                         final roles = ref.read(tenantContextProvider).value?.roles ?? [];
                         navigateToNewSale(context, roles);
@@ -774,7 +814,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: GestureDetector(
+                    child: AppTappable(
+                      ripple: false,
                       onTap: () => _push(const AddExpenseScreen()),
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -834,7 +875,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                             ),
                           ],
                         ),
-                        GestureDetector(
+                        AppTappable(
+                          ripple: false,
                           onTap: () => widget.onTabSwitch('sales'),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -938,7 +980,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       ),
                     ],
                   ),
-                  GestureDetector(
+                  AppTappable(
+                    ripple: false,
                     onTap: () => widget.onTabSwitch('sales'),
                     child: Text(
                       'See All',
@@ -1005,7 +1048,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                 loading: () => const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                    child: AppSpinner(size: 20),
                   ),
                 ),
                 error: (e, _) => Text('Error: $e',
@@ -1107,7 +1150,8 @@ class _KpiCard extends StatelessWidget {
 
     if (isHero) {
       // ── Hero card (TODAY'S REVENUE) — dark gradient, full-width ──
-      return GestureDetector(
+      return AppTappable(
+        ripple: false,
         onTap: onTap,
         child: Container(
           width: double.infinity,
@@ -1181,7 +1225,8 @@ class _KpiCard extends StatelessWidget {
     }
 
     // ── Metric card — white, colored icon + value ──
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -1205,7 +1250,7 @@ class _KpiCard extends StatelessWidget {
                   ),
                   child: Icon(icon, size: 15, color: valueColor),
                 ),
-                ?trailing,
+                if (trailing != null) trailing!,
               ],
             ),
             const SizedBox(height: 12),
@@ -1243,14 +1288,16 @@ class _QuickBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: GestureDetector(
+      child: AppTappable(
         onTap: onTap,
+        ripple: false,
+        borderRadius: Radii.rMd,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+            color: AppColors.canvas,
+            borderRadius: Radii.rMd,
+            border: Border.all(color: AppColors.outlineVariant),
             boxShadow: [AppColors.cardShadow],
           ),
           child: Column(

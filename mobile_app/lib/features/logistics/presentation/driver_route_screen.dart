@@ -134,7 +134,7 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
                   // Look up van's inventory location, then open AddSaleScreen
                   final locRes = await supabase
                       .from('inventory_locations')
-                      .select('id')
+                      .select('id').isFilter('deleted_at', null)
                       .eq('type', 'VEHICLE')
                       .eq('reference_id', route.vehicleId ?? '')
                       .maybeSingle();
@@ -681,7 +681,7 @@ class _NoRouteView extends ConsumerWidget {
     // Load VEHICLE-type inventory locations that have stock
     final locRows = await supabase
         .from('inventory_locations')
-        .select('id, reference_id, name')
+        .select('id, reference_id, name').isFilter('deleted_at', null)
         .eq('type', 'VEHICLE');
 
     if (!context.mounted) return;

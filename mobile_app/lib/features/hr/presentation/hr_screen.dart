@@ -8,6 +8,9 @@ import 'package:mobile_app/features/hr/data/models/employee.dart';
 import 'package:mobile_app/features/hr/presentation/providers/hr_provider.dart';
 import 'package:mobile_app/features/hr/presentation/add_employee_screen.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/core/utils/payroll_periods.dart';
+import 'package:uuid/uuid.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 class HRScreen extends ConsumerWidget {
   const HRScreen({super.key});
@@ -27,7 +30,7 @@ class HRScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'HR & Payroll',
+                'Payroll',
                 style: GoogleFonts.manrope(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -244,12 +247,12 @@ class _EmployeesTab extends ConsumerWidget {
   }
 
   static String _formatCompact(double value) {
-    if (value >= 100000) {
-      return '${(value / 100000).toStringAsFixed(1)}L';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(1)}K';
-    }
-    return value.toStringAsFixed(0);
+    final whole = value.round();
+    final s = whole.abs().toString();
+    final grouped = s.length <= 3
+        ? s
+        : '${s.substring(0, s.length - 3).replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},')},${s.substring(s.length - 3)}';
+    return '${whole < 0 ? '-' : ''}$grouped';
   }
 
   void _openProcessPayroll(
@@ -593,8 +596,83 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
     return base + bonus - deductions;
   }
 
+  /// Has this month already been paid?
+  ///
+  /// Read straight from the server rather than from whatever the provider last
+  /// cached: the phone is the surface most likely to be offline, or to be a
+  /// second device running payroll minutes after the desktop did. A stale list
+  /// would wave through the exact duplicate this is here to stop.
+  ///
+  /// The window comparison lives in core/utils/payroll_periods.dart, mirroring
+  /// the web rule, because mobile writes 'YYYY-MM' while the desktop also
+  /// writes ranges -- a desktop run of 1-8 Aug must block an August run here,
+  /// and the two strings share no prefix a comparison would catch.
+  Future<List<Map<String, dynamic>>> _alreadyPaid(String tenantId, String period) async {
+    final rows = await supabase
+        .from('payroll')
+        .select('id, period, total_net, processed_at, deleted_at')
+        .eq('tenant_id', tenantId)
+        .isFilter('deleted_at', null);
+    return findOverlappingRuns(period, List<Map<String, dynamic>>.from(rows));
+  }
+
+  /// Name what was already paid, then let it through on an explicit choice.
+  ///
+  /// Deliberately not a bare "are you sure": the cashier needs the amount and
+  /// the date to tell a real second payout from a mistaken re-run.
+  Future<bool?> _confirmDuplicate(List<Map<String, dynamic>> runs) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(
+          runs.length == 1
+              ? 'This month has already been paid'
+              : 'This month overlaps payments already made',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final r in runs)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '${describePeriod(r['period'] as String?)} — '
+                  '₹${(double.tryParse('${r['total_net'] ?? 0}') ?? 0).toStringAsFixed(0)}'
+                  '${r['processed_at'] != null ? ', processed ${'${r['processed_at']}'.substring(0, 10)}' : ''}',
+                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            const SizedBox(height: 6),
+            Text(
+              'Paying again adds a second set of salary expenses, so DayBook, '
+              'the P&L and the cash account will all drop again.',
+              style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkSecondary),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, true),
+            child: Text('Pay again anyway',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _runPayroll() async {
     setState(() => _isRunning = true);
+    // Grab this before Navigator.pop -- after the sheet closes this State's
+    // context is defunct and ScaffoldMessenger.of(context) would throw, losing
+    // the very message that explains what failed.
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final ctx = await ref.read(tenantContextProvider.future);
       if (ctx == null) throw Exception('Not authenticated');
@@ -604,6 +682,29 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
       final monthStr =
           '$_year-${_month.toString().padLeft(2, '0')}';
       final lastDay = DateTime(_year, _month + 1, 0).day;
+      final payDate = '$monthStr-${lastDay.toString().padLeft(2, '0')}';
+
+      // Nothing used to ask. Each run posts one Salary expense per employee and
+      // trg_expenses_post_ledger turns each into a money-OUT, so a second run
+      // pushes a payout that never happened into DayBook, the P&L and the cash
+      // account. It warns rather than blocks: a genuine second payout in the
+      // same month -- an advance, a correction -- has to stay possible.
+      final clashes = await _alreadyPaid(tenantId, monthStr);
+      if (clashes.isNotEmpty) {
+        if (!mounted) return;
+        final proceed = await _confirmDuplicate(clashes);
+        if (proceed != true) {
+          setState(() => _isRunning = false);
+          return;
+        }
+      }
+
+      // The table is `payroll`, not `payroll_records`, and it holds one row per
+      // run with the employee lines in `items` -- the shape web writes. The old
+      // insert named a table that does not exist, so running payroll on mobile
+      // always threw and nothing was ever recorded.
+      final items = <Map<String, dynamic>>[];
+      double totalBase = 0, totalBonus = 0, totalDeductions = 0, totalNet = 0;
 
       for (final entry in _entries) {
         final emp = entry.employee;
@@ -612,20 +713,70 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
         final deductions = double.tryParse(entry.deductionsCtrl.text) ?? 0;
         final netPay = basePay + bonus - deductions;
 
-        await supabase.from('payroll_records').insert({
-          'id': 'PR-${now.millisecondsSinceEpoch}-${emp.id.substring(0, 6)}',
-          'tenant_id': tenantId,
-          'employee_id': emp.id,
-          'employee_name': emp.name,
-          'pay_period_start': '$monthStr-01',
-          'pay_period_end': '$monthStr-$lastDay',
-          'base_pay': basePay,
+        totalBase += basePay;
+        totalBonus += bonus;
+        totalDeductions += deductions;
+        totalNet += netPay;
+
+        items.add({
+          'employeeId': emp.id,
+          'employeeName': emp.name,
+          'basePay': basePay,
+          'overtime': 0,
+          'commission': 0,
           'bonus': bonus,
           'deductions': deductions,
-          'net_pay': netPay,
-          'status': 'PAID',
-          'paid_at': now.toIso8601String(),
+          'netPay': netPay,
         });
+      }
+
+      // The run's own id, held so its salary expenses can point back at it.
+      // Without that link, deleting the run leaves its money in DayBook and the
+      // P&L -- the web side hit exactly this and now stamps expenses.payroll_id.
+      final payrollId = const Uuid().v4();
+
+      await supabase.from('payroll').insert({
+        'id': payrollId,
+        'tenant_id': tenantId,
+        'period': monthStr,
+        'items': items,
+        'total_base': totalBase,
+        'total_net': totalNet,
+        'total_overtime': 0,
+        'total_commission': 0,
+        'total_bonus': totalBonus,
+        'total_deductions': totalDeductions,
+        'processed_at': now.toIso8601String(),
+      });
+
+      // One salary expense per employee. That expense is what puts the payout in
+      // DayBook and the P&L -- the payroll row alone shows up nowhere else. Web
+      // does the same; without it mobile runs would be silently missing from
+      // every money report.
+      final expenseRows = items
+          .where((i) => (i['netPay'] as double) > 0)
+          .map((i) => {
+                'id': const Uuid().v4(),
+                'tenant_id': tenantId,
+                'category': 'Salary',
+                'amount': i['netPay'],
+                'note': 'Payroll $monthStr — ${i['employeeName']}',
+                'date': payDate,
+                'payment_method': 'CASH',
+                'payroll_id': payrollId,
+              })
+          .toList();
+      // The run is saved at this point. If the expenses fail, the run must NOT
+      // be reported as a plain error -- that reads as "nothing happened" and
+      // invites a re-run, which would write a second payroll row for the same
+      // period. Catch it separately and say exactly what did and did not save.
+      String? expenseFailure;
+      if (expenseRows.isNotEmpty) {
+        try {
+          await supabase.from('expenses').insert(expenseRows);
+        } catch (e) {
+          expenseFailure = _reason(e);
+        }
       }
 
       ref.invalidate(payrollRecordsProvider);
@@ -633,33 +784,72 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
 
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Payroll processed for ${_entries.length} employees',
-            style: GoogleFonts.manrope(color: AppColors.inkPrimary),
-          ),
-          backgroundColor: AppColors.primaryContainer,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+
+      if (expenseFailure != null) {
+        _snack(
+          messenger,
+          'Payroll saved, but the ${expenseRows.length} salary '
+          '${expenseRows.length == 1 ? 'expense' : 'expenses'} '
+          '(₹${totalNet.toStringAsFixed(0)}) could not be posted: '
+          '$expenseFailure\n\n'
+          'DayBook, the P&L and the cash account will not show this payout '
+          'until it is entered. Do not run payroll again for this period — '
+          'the run itself is already recorded.',
+          error: true,
+          long: true,
+        );
+      } else {
+        _snack(messenger, 'Payroll processed for ${_entries.length} employees');
+      }
     } catch (e) {
+      // Nothing was written -- the payroll insert itself failed.
       if (mounted) {
         setState(() => _isRunning = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e',
-                style: GoogleFonts.manrope(color: Colors.white)),
-            backgroundColor: AppColors.danger,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        _snack(messenger, 'Payroll not saved: ${_reason(e)}',
+            error: true, long: true);
       }
     }
+  }
+
+  /// The real reason, not `Instance of 'PostgrestException'`. A bare message
+  /// like "3 failed to save" is how a days-long outage stayed invisible.
+  String _reason(Object e) {
+    if (e is PostgrestException) {
+      final parts = [
+        e.message,
+        if (e.details != null && '${e.details}'.isNotEmpty) '${e.details}',
+        if (e.hint != null && e.hint!.isNotEmpty) e.hint!,
+        if (e.code != null && e.code!.isNotEmpty) '(${e.code})',
+      ];
+      return parts.join(' — ');
+    }
+    return e.toString();
+  }
+
+  void _snack(ScaffoldMessengerState messenger, String msg,
+      {bool error = false, bool long = false}) {
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          msg,
+          style: GoogleFonts.manrope(
+            color: error ? Colors.white : AppColors.inkPrimary,
+          ),
+        ),
+        backgroundColor: error ? AppColors.danger : AppColors.primaryContainer,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: long ? 20 : 4),
+        action: long
+            ? SnackBarAction(
+                label: 'DISMISS',
+                textColor: Colors.white,
+                onPressed: messenger.hideCurrentSnackBar,
+              )
+            : null,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
@@ -1291,9 +1481,11 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
 
     setState(() => _isPaying = true);
     try {
+      // The column is amount_paid. paid_amount does not exist on employees, so
+      // this update always failed and marking a salary paid never worked.
       await supabase
           .from('employees')
-          .update({'paid_amount': salary}).eq('id', emp.id);
+          .update({'amount_paid': salary}).eq('id', emp.id);
       if (!mounted) return;
       ref.invalidate(employeesProvider);
       Navigator.pop(context); // close sheet — list will refresh

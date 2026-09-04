@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POS Checkout — sample</title>
+<style>
+  /* Same visual language as parties.html / purchase-voucher.html — system sans,
+     hairline rules, tabular numerals. What changes is the SCALE: this is read
+     across a counter, at speed, sometimes one-handed. So touch targets are
+     44px+, the one number that matters is the largest thing on screen, and
+     nothing that matters needs scrolling. */
+  :root{
+    --ink:#14161a; --ink-2:#454b54; --ink-3:#767d87;
+    --line:#e3e5e9; --line-2:#f0f1f3;
+    --paper:#fff; --desk:#f4f5f7;
+    --accent:#c2410c; --accent-bg:#fff7ed; --accent-line:#fed7aa;
+    --pos:#15803d; --pos-bg:#f0fdf4; --pos-line:#bbf7d0;
+    --neg:#b91c1c; --neg-bg:#fef2f2;
+    --dark:#14161a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--desk); color:var(--ink);
+    font:400 13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1240px;margin:0 auto;padding:26px 20px 90px}
+
+  /* ── sample chrome ────────────────────────────────────────────────────── */
+  .note{background:#fff;border:1px solid var(--line);border-radius:10px;padding:15px 17px;margin:0 0 24px}
+  .note h1{font-size:15px;font-weight:600;margin:0 0 5px}
+  .note p{margin:0 0 8px;font-size:12px;color:var(--ink-2);max-width:78ch}
+  .note ul{margin:6px 0 0;padding-left:18px;font-size:12px;color:var(--ink-2)}
+  .note li{margin:4px 0;max-width:78ch}
+  .tag{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.06em;
+    text-transform:uppercase;padding:3px 7px;border-radius:5px;
+    background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-line)}
+  .caption{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-3);margin:34px 0 10px}
+  .caption span{text-transform:none;letter-spacing:0;font-weight:400}
+
+  /* ── the checkout screen ──────────────────────────────────────────────── */
+  .screen{
+    background:var(--paper);border:1px solid var(--line);border-radius:14px;
+    overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.05),0 12px 30px -14px rgba(16,24,40,.18);
+  }
+  .topbar{
+    display:flex;align-items:center;gap:14px;padding:12px 18px;
+    border-bottom:1px solid var(--line);background:#fcfcfd;
+  }
+  .back{font-size:12px;font-weight:600;color:var(--ink-3)}
+  .topttl{font-size:13px;font-weight:600;margin-left:auto;margin-right:auto}
+  .chip{font-size:11px;font-weight:600;color:var(--ink-2);background:var(--line-2);
+    padding:3px 9px;border-radius:999px}
+
+  .body{display:grid;grid-template-columns:1fr 428px}
+  @media (max-width:900px){ .body{grid-template-columns:1fr} }
+
+  /* left — the bill */
+  .bill{padding:16px 18px;border-right:1px solid var(--line);min-width:0}
+  .sec{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--ink-3);margin:0 0 8px}
+  .line{display:flex;align-items:baseline;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-2)}
+  .line .q{font-size:12px;font-weight:700;color:var(--ink-3);width:30px;flex:none}
+  .line .n{flex:1;font-size:13px;font-weight:500;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .line .r{font-size:11px;color:var(--ink-3);flex:none}
+  .line .a{font-size:13px;font-weight:600;width:82px;text-align:right;flex:none}
+
+  .tot{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+  .tot .kv{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2);margin:3px 0}
+  .tot .kv b{font-weight:600;color:var(--ink-2)}
+  .gsttag{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:2px 6px;border-radius:4px}
+
+  /* right — payment */
+  .pay{padding:16px 18px;background:#fcfcfd;display:flex;flex-direction:column;gap:13px}
+
+  /* the number that matters */
+  .due{
+    background:var(--dark);color:#fff;border-radius:12px;padding:14px 16px;
+  }
+  .due .l{font-size:10px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:#ffffff8c}
+  .due .v{font-size:38px;font-weight:800;letter-spacing:-.025em;line-height:1.05;margin-top:3px}
+  .due.change{background:var(--pos)}
+  .due .sub{font-size:11px;color:#ffffffb3;margin-top:5px}
+
+  /* method row */
+  .methods{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+  .m{
+    border:1.5px solid var(--line);background:#fff;border-radius:10px;
+    padding:9px 4px;text-align:center;cursor:default;position:relative;
+  }
+  .m .ic{font-size:16px;line-height:1}
+  .m .t{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-top:3px}
+  .m .k{position:absolute;top:3px;right:5px;font-size:8px;font-weight:700;color:var(--ink-3)}
+  .m.on{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
+  .m.on .k{color:var(--accent)}
+  .m.off{opacity:.42}
+
+  /* tender presets */
+  .presets{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+  .p{
+    border:1px solid var(--line);background:#fff;border-radius:9px;
+    padding:10px 4px;text-align:center;font-size:13px;font-weight:700;
+  }
+  .p small{display:block;font-size:9px;font-weight:600;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--ink-3);margin-top:2px}
+  .p.exact{border-color:var(--ink);background:var(--ink);color:#fff}
+  .p.exact small{color:#ffffff8c}
+
+  /* keypad */
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .pad div{
+    border:1px solid var(--line);background:#fff;border-radius:9px;
+    padding:11px 0;text-align:center;font-size:16px;font-weight:600;
+  }
+  .pad .wide{grid-column:span 2}
+  .pad .fn{font-size:12px;font-weight:700;color:var(--ink-2);background:var(--line-2)}
+
+  .tendered{
+    display:flex;justify-content:space-between;align-items:center;
+    border:1.5px solid var(--ink);border-radius:10px;padding:10px 13px;background:#fff;
+  }
+  .tendered .l{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .tendered .v{font-size:20px;font-weight:700}
+
+  /* split */
+  .split{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}
+  .split .row{display:flex;justify-content:space-between;align-items:center;
+    padding:9px 12px;border-bottom:1px solid var(--line-2);font-size:12.5px}
+  .split .row:last-child{border-bottom:0}
+  .split .row b{font-weight:600}
+  .split .row .amt{font-weight:700}
+  .split .rem{background:var(--accent-bg);color:var(--accent);font-weight:700}
+  .split .done{background:var(--pos-bg);color:var(--pos);font-weight:700}
+
+  .cta{
+    border:0;border-radius:11px;padding:15px;width:100%;
+    background:var(--accent);color:#fff;font-size:14px;font-weight:700;
+    letter-spacing:.03em;display:flex;align-items:center;justify-content:center;gap:9px;
+  }
+  .cta.ready{background:var(--pos)}
+  .cta .kbd{font-size:10px;font-weight:700;background:#ffffff2e;padding:2px 6px;border-radius:4px}
+  .cta.dim{background:#d5d7db;color:#8b9099}
+
+  .who{display:flex;align-items:center;gap:9px;border:1px solid var(--line);
+    background:#fff;border-radius:10px;padding:9px 12px}
+  .who .av{width:26px;height:26px;border-radius:7px;background:var(--line-2);
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--ink-2)}
+  .who .nm{font-size:12.5px;font-weight:600}
+  .who .sb{font-size:10px;color:var(--ink-3)}
+  .who .due2{margin-left:auto;font-size:11px;font-weight:700;color:var(--neg)}
+
+  .hint{font-size:10.5px;color:var(--ink-3);text-align:center}
+  .hint b{color:var(--ink-2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="note">
+    <h1>POS checkout — new sale window <span class="tag">sample — nothing built yet</span></h1>
+    <p>Real products and prices from FUTURE DISPO. The current screen works, but it is
+       laid out for a mouse: <em>Amount Received</em> is a small optional field and
+       <em>Change due</em> is a small chip beneath it. At a counter those are the two
+       things that matter most.</p>
+    <ul>
+      <li><strong>One number dominates, and it changes as you go.</strong> Before tendering it is
+          AMOUNT DUE; the moment cash is entered the same block turns green and becomes
+          CHANGE TO RETURN. The cashier never hunts for the figure they act on.</li>
+      <li><strong>Tender presets and a keypad.</strong> Cash is counted in notes, so the presets are
+          notes — exact, and the next ₹500/₹1000/₹2000 up. Typing on a keyboard is not
+          how a busy counter works.</li>
+      <li><strong>Split payment</strong> — ₹1,000 by UPI and the rest cash is normal here and is
+          impossible on the current screen; it takes one payment method per sale.</li>
+      <li><strong>Keyboard first.</strong> F1–F4 pick the method, Enter completes. A trained cashier
+          should never need the mouse.</li>
+    </ul>
+  </div>
+
+  <!-- ── A ─────────────────────────────────────────────────────────────── -->
+  <div class="caption">A · Ready to tender <span>— cash selected, nothing entered yet</span></div>
+  <div class="screen">
+    <div class="topbar">
+      <span class="back">‹ Back to cart</span>
+      <span class="topttl">Checkout</span>
+      <span class="chip">4 items · 22 units</span>
+    </div>
+    <div class="body">
+      <div class="bill">
+        <p class="sec">Order</p>
+        <div class="line"><span class="q">3×</span><span class="n">Frootty plate 12"</span><span class="r">120.00</span><span class="a">360.00</span></div>
+        <div class="line"><span class="q">5×</span><span class="n">13*16Kg Cover</span><span class="r">115.00</span><span class="a">575.00</span></div>
+        <div class="line"><span class="q">4×</span><span class="n">Paper Cup 210 Ml</span><span class="r">45.00</span><span class="a">180.00</span></div>
+        <div class="line"><span class="q">10×</span><span class="n">Tissue small</span><span class="r">7.00</span><span class="a">70.00</span></div>
+        <div class="tot">
+          <div class="kv"><span class="gsttag">Tax inclusive</span></div>
+          <div class="kv"><span>Taxable (extracted)</span><b>1,004.24</b></div>
+          <div class="kv"><span>GST 18% (incl.)</span><b>180.76</b></div>
+          <div class="kv" style="border-top:1px solid var(--line);margin-top:8px;padding-top:9px;
+              font-size:17px;font-weight:700;color:var(--ink)"><span>Total</span><b style="font-size:17px;color:var(--ink)">₹1,185.00</b></div>
+        </div>
+      </div>
+
+      <div class="pay">
+        <div class="who">
+          <div class="av">W</div>
+          <div><div class="nm">Walk-in</div><div class="sb">No account · tap to attach a client</div></div>
+        </div>
+
+        <div class="due">
+          <div class="l">Amount due</div>
+          <div class="v">₹1,185.00</div>
+        </div>
+
+        <div class="methods">
+          <div class="m on"><span class="k">F1</span><div class="ic">💵</div><div class="t">Cash</div></div>
+          <div class="m"><span class="k">F2</span><div class="ic">📱</div><div class="t">UPI</div></div>
+          <div class="m"><span class="k">F3</span><div class="ic">🏦</div><div class="t">Bank</div></div>
+          <div class="m off"><span class="k">F4</span><div class="ic">📄</div><div class="t">Credit</div></div>
+        </div>
+
+        <div>
+          <p class="sec" style="margin-bottom:6px">Cash tendered</p>
+          <div class="presets">
+            <div class="p exact">₹1,185<small>Exact</small></div>
+            <div class="p">₹1,200</div>
+            <div class="p">₹1,500</div>
+            <div class="p">₹2,000</div>
+          </div>
+        </div>
+
+        <div class="pad">
+          <div>1</div><div>2</div><div>3</div>
+          <div>4</div><div>5</div><div>6</div>
+          <div>7</div><div>8</div><div>9</div>
+          <div class="fn">00</div><div>0</div><div class="fn">⌫</div>
+        </div>
+
+        <button class="cta">Complete sale <span class="kbd">Enter</span></button>
+        <div class="hint">Credit needs a client · <b>F4</b> is off for Walk-in</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── B ─────────────────────────────────────────────────────────────── -->
+  <div class="caption">B · Cash tendered <span>— the block flips to change, the only number that matters now</span></div>
+  <div class="screen">
+    <div class="topbar">
+      <span class="back">‹ Back to cart</span>
+      <span class="topttl">Checkout</span>
+      <span class="chip">4 items · 22 units</span>
+    </div>
+    <div class="body">
+      <div class="bill">
+        <p class="sec">Order</p>
+        <div class="line"><span class="q">3×</span><span class="n">Frootty plate 12"</span><span class="r">120.00</span><span class="a">360.00</span></div>
+        <div class="line"><span class="q">5×</span><span class="n">13*16Kg Cover</span><span class="r">115.00</span><span class="a">575.00</span></div>
+        <div class="line"><span class="q">4×</span><span class="n">Paper Cup 210 Ml</span><span class="r">45.00</span><span class="a">180.00</span></div>
+        <div class="line"><span class="q">10×</span><span class="n">Tissue small</span><span class="r">7.00</span><span class="a">70.00</span></div>
+        <div class="tot">
+          <div class="kv"><span class="gsttag">Tax inclusive</span></div>
+          <div class="kv"><span>Taxable (extracted)</span><b>1,004.24</b></div>
+          <div class="kv"><span>GST 18% (incl.)</span><b>180.76</b></div>
+          <div class="kv" style="border-top:1px solid var(--line);margin-top:8px;padding-top:9px;
+              font-size:17px;font-weight:700;color:var(--ink)"><span>Total</span><b style="font-size:17px;color:var(--ink)">₹1,185.00</b></div>
+        </div>
+      </div>
+
+      <div class="pay">
+        <div class="who">
+          <div class="av">W</div>
+          <div><div class="nm">Walk-in</div><div class="sb">No account</div></div>
+        </div>
+
+        <div class="due change">
+          <div class="l">Change to return</div>
+          <div class="v">₹315.00</div>
+          <div class="sub">₹1,500.00 received · ₹1,185.00 bill</div>
+        </div>
+
+        <div class="methods">
+          <div class="m on"><span class="k">F1</span><div class="ic">💵</div><div class="t">Cash</div></div>
+          <div class="m"><span class="k">F2</span><div class="ic">📱</div><div class="t">UPI</div></div>
+          <div class="m"><span class="k">F3</span><div class="ic">🏦</div><div class="t">Bank</div></div>
+          <div class="m off"><span class="k">F4</span><div class="ic">📄</div><div class="t">Credit</div></div>
+        </div>
+
+        <div class="tendered">
+          <span class="l">Cash tendered</span>
+          <span class="v">₹1,500.00</span>
+        </div>
+
+        <div class="pad">
+          <div>1</div><div>2</div><div>3</div>
+          <div>4</div><div>5</div><div>6</div>
+          <div>7</div><div>8</div><div>9</div>
+          <div class="fn">00</div><div>0</div><div class="fn">⌫</div>
+        </div>
+
+        <button class="cta ready">Complete sale · return ₹315.00 <span class="kbd">Enter</span></button>
+        <div class="hint">Receipt prints on complete · <b>Ctrl+P</b> to skip</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── C ─────────────────────────────────────────────────────────────── -->
+  <div class="caption">C · Split payment <span>— ₹1,000 UPI, rest in cash. Not possible today.</span></div>
+  <div class="screen">
+    <div class="topbar">
+      <span class="back">‹ Back to cart</span>
+      <span class="topttl">Checkout</span>
+      <span class="chip">4 items · 22 units</span>
+    </div>
+    <div class="body">
+      <div class="bill">
+        <p class="sec">Order</p>
+        <div class="line"><span class="q">3×</span><span class="n">Frootty plate 12"</span><span class="r">120.00</span><span class="a">360.00</span></div>
+        <div class="line"><span class="q">5×</span><span class="n">13*16Kg Cover</span><span class="r">115.00</span><span class="a">575.00</span></div>
+        <div class="line"><span class="q">4×</span><span class="n">Paper Cup 210 Ml</span><span class="r">45.00</span><span class="a">180.00</span></div>
+        <div class="line"><span class="q">10×</span><span class="n">Tissue small</span><span class="r">7.00</span><span class="a">70.00</span></div>
+        <div class="tot">
+          <div class="kv"><span class="gsttag">Tax inclusive</span></div>
+          <div class="kv"><span>Taxable (extracted)</span><b>1,004.24</b></div>
+          <div class="kv"><span>GST 18% (incl.)</span><b>180.76</b></div>
+          <div class="kv" style="border-top:1px solid var(--line);margin-top:8px;padding-top:9px;
+              font-size:17px;font-weight:700;color:var(--ink)"><span>Total</span><b style="font-size:17px;color:var(--ink)">₹1,185.00</b></div>
+        </div>
+      </div>
+
+      <div class="pay">
+        <div class="who">
+          <div class="av">M</div>
+          <div><div class="nm">Madeena Store</div><div class="sb">Client · Thrissur</div></div>
+          <div class="due2">owes 4,377</div>
+        </div>
+
+        <div class="due">
+          <div class="l">Still to collect</div>
+          <div class="v">₹185.00</div>
+          <div class="sub">₹1,000.00 taken by UPI</div>
+        </div>
+
+        <div class="split">
+          <div class="row"><b>📱 UPI · NADARSHA</b><span class="amt">1,000.00</span></div>
+          <div class="row rem"><b>💵 Cash — remaining</b><span class="amt">185.00</span></div>
+        </div>
+
+        <div class="methods">
+          <div class="m on"><span class="k">F1</span><div class="ic">💵</div><div class="t">Cash</div></div>
+          <div class="m"><span class="k">F2</span><div class="ic">📱</div><div class="t">UPI</div></div>
+          <div class="m"><span class="k">F3</span><div class="ic">🏦</div><div class="t">Bank</div></div>
+          <div class="m"><span class="k">F4</span><div class="ic">📄</div><div class="t">Credit</div></div>
+        </div>
+
+        <div>
+          <p class="sec" style="margin-bottom:6px">Cash tendered</p>
+          <div class="presets">
+            <div class="p exact">₹185<small>Exact</small></div>
+            <div class="p">₹200</div>
+            <div class="p">₹500</div>
+            <div class="p">₹1,000</div>
+          </div>
+        </div>
+
+        <button class="cta dim">₹185.00 still to collect</button>
+        <div class="hint">Or <b>F4</b> to put the remaining ₹185.00 on Madeena's account</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

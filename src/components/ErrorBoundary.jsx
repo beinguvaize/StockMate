@@ -63,7 +63,7 @@ class ErrorBoundary extends React.Component {
  System Resilience <br /> Triggered.
  </h1>
  
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">
+ <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-6 uppercase">
  A critical rendering exception was intercepted. This security measure prevents data corruption and allows for a clean recovery.
  </p>
 
@@ -79,7 +79,7 @@ class ErrorBoundary extends React.Component {
  <div className="grid grid-cols-2 gap-4">
  <button 
  onClick={() => goHref('/')}
- className="flex items-center justify-center gap-2 bg-gray-50 text-ink-primary font-bold py-2 rounded-lg hover:bg-gray-100 transition-all text-xs"
+ className="flex items-center justify-center gap-2 bg-muted text-ink-primary font-bold py-2 rounded-lg hover:bg-muted transition-all text-xs"
  >
  <Home className="w-4 h-4" />
  Bypass
@@ -95,7 +95,7 @@ class ErrorBoundary extends React.Component {
 
  <div className="mt-10 pt-8 border-t border-black/5">
  <p className="text-[10px] font-semibold text-ink-tertiary">
- Error Code: <span className="text-red-500 font-mono ml-1">
+ Error Code: <span className="text-red-500 tabular-nums ml-1">
  {this.state.error?.name || 'GENERIC_RUNTIME_EXCEPTION'}
  </span>
  </p>
@@ -103,7 +103,7 @@ class ErrorBoundary extends React.Component {
      swallowing bug signal. In production this section still renders, but
      the information is what would otherwise require opening DevTools. */}
  {this.state.error?.message && (
-   <pre className="mt-4 text-left text-[10px] font-mono text-red-600 whitespace-pre-wrap break-words bg-red-50/50 p-3 rounded-lg max-h-48 overflow-auto">
+   <pre className="mt-4 text-left text-[10px] tabular-nums text-red-600 whitespace-pre-wrap break-words bg-red-50/50 p-3 rounded-lg max-h-48 overflow-auto">
      {this.state.error.message}
      {this.state.error.stack ? '\n\n' + this.state.error.stack : ''}
    </pre>

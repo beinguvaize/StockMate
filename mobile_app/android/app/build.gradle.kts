@@ -43,7 +43,13 @@ android {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String?
             keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let { file("../${it}") }
+            // Absolute paths (keystore lives outside the repo, in
+            // ~/Documents/StockMate-keys) pass through; relative ones stay
+            // resolved against android/ as before.
+            storeFile = keystoreProperties["storeFile"]?.let {
+                val p = it as String
+                if (p.startsWith("/")) file(p) else file("../$p")
+            }
             storePassword = keystoreProperties["storePassword"] as String?
         }
     }

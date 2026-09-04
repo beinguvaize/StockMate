@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useDialogClose } from '../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import {
   Printer, Share2, ZoomIn, ZoomOut, Maximize2, X,
@@ -13,7 +14,7 @@ import {
 } from 'lucide-react';
 import { formatINR, amountToWords } from '../../lib/gstEngine';
 import { INVOICE_LAYOUTS, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, Editable, CustomFields } from './invoiceLayouts';
-import { formatDate } from '../../lib/utils';
+import { formatDate, formatTime } from '../../lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 
 const Totals = ({ k, v, bold }) => (
@@ -24,6 +25,7 @@ const Totals = ({ k, v, bold }) => (
 );
 
 const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null, editable = false, onEditText = null, textsOverride = null, optsOverride = null, accentOverride = null, customFieldsOverride = null }) => {
+  useDialogClose(onClose, { enabled: !previewMode }); // previewMode renders inline
   const [zoom, setZoom] = useState(100);
 
   // Inject print isolation CSS into <head> so it's guaranteed to apply
@@ -110,6 +112,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
   // EXCLUSIVE = GST added on top of rate. Default EXCLUSIVE for legacy.
   const taxMode = String(safeBusiness.tax_mode || invoice.tax_mode || 'EXCLUSIVE').toUpperCase();
   const isInclusive = taxMode === 'INCLUSIVE';
+  const noGst       = taxMode === 'NONE'; // not filing GST — no tax split
 
   // Map items to a consistent structure first (needed for fallback tax calc).
   // For INCLUSIVE mode the rate already contains tax; back it out.
@@ -118,10 +121,10 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
     const rate = parseFloat(item.rate || item.price || item.sellingPrice || 0);
     const taxRate = parseFloat(item.taxRate ?? 0);
     const lineTotal = qty * rate;
-    const taxAmount = isInclusive
+    const taxAmount = noGst ? 0 : (isInclusive
       ? lineTotal - (lineTotal / (1 + taxRate / 100))
-      : lineTotal * taxRate / 100;
-    const taxable   = isInclusive
+      : lineTotal * taxRate / 100);
+    const taxable   = (isInclusive && !noGst)
       ? lineTotal - taxAmount
       : lineTotal;
     return {
@@ -130,7 +133,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
       hsn_code: item.hsn_code || item.hsn || '---',
       qty, unit: item.unit || 'PCS', rate, taxRate,
       taxAmount, taxable,
-      total: isInclusive ? lineTotal : lineTotal + taxAmount,
+      total: (isInclusive || noGst) ? lineTotal : lineTotal + taxAmount,
     };
   });
 
@@ -301,7 +304,16 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
               </div>
               <div className="p-3 text-[10px] grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 self-center">
                 <span className="text-slate-500">Invoice No</span><span className="font-bold text-right">#{invoice.invoice_number}</span>
-                <span className="text-slate-500">Invoice Date</span><span className="font-bold text-right">{formatDate(invoice.invoice_date)}</span>
+                {/* Time comes from created_at — invoice_date is date-only. Shown
+                    beside the date rather than as its own row, so it reads as
+                    one fact and the block keeps its height. */}
+                <span className="text-slate-500">Invoice Date</span>
+                <span className="font-bold text-right">
+                  {formatDate(invoice.invoice_date)}
+                  {formatTime(invoice.created_at) && (
+                    <span className="font-normal text-slate-500"> · {formatTime(invoice.created_at)}</span>
+                  )}
+                </span>
                 <span className="text-slate-500">Due Date</span><span className="font-bold text-right">{formatDate(invoice.due_date || invoice.invoice_date)}</span>
                 <span className="text-slate-500">Supply Type</span><span className="font-bold text-right">{(invoice.is_interstate || invoice.isInterstate) ? 'Inter-State' : 'Intra-State'}</span>
                 {safeClient.state && <><span className="text-slate-500">Place of Supply</span><span className="font-bold text-right">{safeClient.state}</span></>}

@@ -1,14 +1,31 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { fetchWithCache, queueMutation, isOfflineError, decrementCachedStock } from '../lib/offline/hookAdapter';
+import { readCacheThenRevalidate, queueMutation, isOfflineError, decrementCachedStock, isElectron, upsertCachedRow } from '../lib/offline/hookAdapter';
 import { generateRef, todayISOInAppTZ } from '../lib/utils';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { getPlanLimits } from '../lib/tenancy';
+import { monthBounds } from '../lib/reportPeriods';
+import { realtimeEnabled } from '../lib/realtime';
 
 // Postgres `numeric` -> JS string over the wire. Coerce on fetch so downstream
 // `reduce(sum + x, 0)` doesn't string-concat and `.toFixed` doesn't throw.
 const NUMERIC_SALE_COLS = ['totalAmount', 'subtotal', 'tax', 'discount', 'totalCogs', 'paidAmount'];
+
+// Every sales column EXCEPT the items JSONB. items is ~65% of a sale row's
+// bytes (~460 B/sale), and screens that only show totals/status/dates — the
+// dashboard, revenue trend, clients list — never read it. A lean select drops
+// it, cutting the sales payload ~3x. Web only: desktop keeps the full fetch so
+// the shared offline cache under the 'sales' key never loses items for the POS
+// list, which does need them (edit, return, reprint).
+// `vehicleid` (all lower case) is a dead twin of `vehicleId` — 0 rows against
+// 21, and every read in web and mobile uses the camelCase one. It was being
+// fetched here purely because it exists, and selecting both is what makes the
+// pair look interchangeable: reading the lower-case one returns null for a van
+// sale that is correctly attributed, which reads as missing data rather than as
+// the wrong column. `routeId`/`route_id` are the same shape of duplicate, both
+// empty; only route_id is written going forward.
+const SALE_LEAN_COLS = '"id", "shopId", "customerInfo", "paymentMethod", "paymentStatus", "routeId", "subtotal", "discount", "tax", "totalAmount", "totalCogs", "date", "salesRepId", "bookedBy", "status", "scheduledDate", "deliveredBy", "note", "paidAmount", "lastPaymentDate", "created_at", "payment_type", "is_seed", "vehicleId", "tenant_id", "delivery_method", "fulfillment_status", "sale_type", "route_id", "invoice_id", "place_of_supply", "billing_address", "shipping_address", "terms_id", "eway_bill_number", "transport_name", "vehicle_number", "lr_number", "tds_amount", "tcs_amount", "round_off", "is_pos", "cashier_id", "updated_at", "deleted_at", "source_app", "voided_at", "void_reason", "location_id", "amount_received"';
 const NUMERIC_CLIENT_COLS = ['outstanding_balance', 'credit_limit'];
 const NUMERIC_INVOICE_COLS = ['amount', 'grand_total', 'taxable_amount', 'tax_total', 'discount_total', 'cgst_amount', 'sgst_amount', 'igst_amount', 'round_off', 'paid_amount'];
 
@@ -21,7 +38,7 @@ const normalizeRow = (row, cols) => {
   return out;
 };
 
-export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
+export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
   const { currentUser } = useAuth();
   const [data, setData] = useState([]);
   const [clients, setClients] = useState([]);
@@ -41,21 +58,31 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     if (!initialLoadDone.current) setLoading(true);
     setError(null);
     try {
-      const [salesRes, clientsRes, invoicesRes, returnsRes] = await Promise.all([
-        fetchWithCache('sales',    () => supabase.from('sales').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(500)),
-        fetchWithCache('clients',  () => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name')),
-        fetchWithCache('invoices', () => supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(500)),
-        fetchWithCache('sales_returns', () => supabase.from('sales_returns').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500)),
+      const [sales, clients, invoicesRows, returns] = await Promise.all([
+        readCacheThenRevalidate('sales',
+          // Lean (items-less) only on web — desktop keeps '*' so the shared
+          // 'sales' cache stays complete for the POS list that needs items.
+          () => supabase.from('sales').select(lean && !isElectron() ? SALE_LEAN_COLS : '*').is('deleted_at', null).eq('tenant_id', tenantId).order('created_at', { ascending: false, nullsFirst: false }).limit(500),
+          (fresh) => setData(fresh.map(r => normalizeRow(r, NUMERIC_SALE_COLS))),
+        ),
+        readCacheThenRevalidate('clients',
+          () => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
+          (fresh) => setClients(fresh.map(r => normalizeRow(r, NUMERIC_CLIENT_COLS))),
+        ),
+        readCacheThenRevalidate('invoices',
+          () => supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(500),
+          (fresh) => setInvoices(fresh.map(r => normalizeRow(r, NUMERIC_INVOICE_COLS))),
+        ),
+        readCacheThenRevalidate('sales_returns',
+          () => supabase.from('sales_returns').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          (fresh) => setSalesReturns(fresh),
+        ),
       ]);
 
-      setData((salesRes.data || []).map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
-      setClients((clientsRes.data || []).map(r => normalizeRow(r, NUMERIC_CLIENT_COLS)));
-      setInvoices((invoicesRes.data || []).map(r => normalizeRow(r, NUMERIC_INVOICE_COLS)));
-      setSalesReturns(returnsRes.data || []);
-
-      if (salesRes.fromCache && clientsRes.fromCache) {
-        setError('Showing cached data — tap Sync Now when online to refresh.');
-      }
+      setData(sales.map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
+      setClients(clients.map(r => normalizeRow(r, NUMERIC_CLIENT_COLS)));
+      setInvoices(invoicesRows.map(r => normalizeRow(r, NUMERIC_INVOICE_COLS)));
+      setSalesReturns(returns);
     } catch (err) {
       console.error("useSales Fetch Error:", err);
       setError(err.message);
@@ -63,7 +90,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       setLoading(false);
       initialLoadDone.current = true;
     }
-  }, [tenantId]);
+  }, [tenantId, lean]);
 
   fetchRef.current = fetchSales;
 
@@ -73,8 +100,10 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
   useRefetchOnFocus(fetchSales);
 
   // ── Realtime — invoices + sales ───────────────────────────────────────
+  // Desktop is offline-first: no live websocket — fresh data arrives via
+  // the sync engine's pullDeltas (auto every 10 min / Sync Now / reconnect).
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !realtimeEnabled('sales')) return;
     const channel = supabase
       .channel(`sales-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {
@@ -124,8 +153,14 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     return { error };
   };
 
+  // Delete a sale through delete_sale, which reverses the stock (FIFO batches,
+  // inventory, movement log), reverses the client's outstanding, and cancels the
+  // linked invoice — then hides the sale. A bare soft-delete used to leave stock
+  // missing and the invoice showing as a phantom bill.
   const remove = async (id) => {
-    const { error } = await restUpdate('sales', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
+    const { error } = await restRpc('delete_sale', {
+      p_id: id, p_tenant_id: tenantId, p_user_id: currentUser?.id || null,
+    });
     if (!error) await fetchSales();
     return { error };
   };
@@ -198,36 +233,66 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         p_shop_id: clientId,
         p_items: items,
         p_total_amount: totalAmount,
-        // Store the bill discount so the receipt's "Discount" line shows it.
-        // p_total_amount is already net of this. RPC defaults it to 0.
         p_discount: Number(sale.discount) || 0,
         p_payment_method: sale.paymentMethod || 'CASH',
         p_payment_status: paymentStatus,
         p_date: sale.date || todayISOInAppTZ(),
         p_user_id: currentUser.id,
         p_location_id: sale.locationId || null,
-        // Honor impersonation: GLOBAL_ADMIN acting on another tenant must
-        // persist sales under that tenant, not the admin's home tenant.
-        // RPC rejects the override for non-admins (defence-in-depth).
+        p_route_id: sale.routeId || null,
         p_tenant_id: tenantId || null,
         p_delivery_method: sale.fulfillmentType === 'DELIVERY' ? 'DELIVERY' : 'PICKUP',
-        // source_app baked into INSERT (no post-RPC UPDATE needed).
         p_source_app: sourceApp,
-        // Only pass when the caller specified — RPC defaults to method
-        // behaviour when omitted.
-        ...(paidAmount !== null ? { p_paid_amount: paidAmount } : {}),
+        p_paid_amount: paidAmount,   // null when not set — RPC recomputes from payment_status
       };
+
+      // Desktop is offline-first: never wait for the network at the counter.
+      // Queue the RPC + decrement cached stock immediately; the sync engine
+      // pushes it on the next auto/manual sync.
+      if (isElectron()) {
+        try {
+          await queueMutation({ table: 'process_sale', type: 'rpc', payload: rpcParams });
+          await decrementCachedStock(items);
+          const discountAmt = Number(sale.discount) || 0;
+          if (discountAmt > 0) {
+            await queueMutation({ table: 'sales', type: 'update', payload: { id, discount: discountAmt } });
+          }
+          // Optimistic sale row so lists/DayBook reflect it before sync.
+          const optimisticPaid = paidAmount ?? (paymentStatus === 'PAID' ? totalAmount : 0);
+          await upsertCachedRow('sales', {
+            id, tenant_id: tenantId, shopId: clientId, items,
+            totalAmount, discount: Number(sale.discount) || 0,
+            paymentMethod: sale.paymentMethod || 'CASH', paymentStatus,
+            paidAmount: optimisticPaid,
+            date: sale.date || todayISOInAppTZ(), created_at: new Date().toISOString(),
+          });
+          // Credit/partial sale: bump the client's outstanding in state AND the
+          // IDB cache so the balance survives reloads/offline reads before sync.
+          const unpaid = Math.max(0, Number(totalAmount) - Number(optimisticPaid));
+          if (clientId && unpaid > 0) {
+            const curClient = clients.find(c => c.id === clientId);
+            if (curClient) {
+              const updated = { ...curClient, outstanding_balance: Number(curClient.outstanding_balance || 0) + unpaid };
+              await upsertCachedRow('clients', updated);
+              setClients(prev => prev.map(c => c.id === clientId ? updated : c));
+            }
+          }
+          fetchSales();
+          return { success: true, id, queued: true };
+        } catch (qErr) {
+          console.error('placeSale local-first queue error:', qErr);
+          // fall through to the online path as a last resort
+        }
+      }
 
       const { error: rpcError } = await restRpc('process_sale', rpcParams);
 
       if (rpcError) {
-        // If this is a network error (offline / timeout), queue the sale to
-        // the outbox so the cashier doesn't lose the transaction. Sync engine
-        // replays it via the same RPC on next "Sync Now".
+        // Web safety net: on a network error, queue the sale so the cashier
+        // doesn't lose the transaction (no-op on web where outbox is disabled).
         if (isOfflineError(rpcError)) {
           try {
             await queueMutation({ table: 'process_sale', type: 'rpc', payload: rpcParams });
-            // Optimistic local stock decrement so cashier can't oversell while offline.
             await decrementCachedStock(items);
             return { success: true, id, queued: true };
           } catch (qErr) {
@@ -246,7 +311,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         try { await restUpdate('sales', { discount: discountAmt }, { id }); }
         catch (e) { console.warn('discount persist skipped:', e?.message); }
       }
-      await fetchSales();
+      fetchSales(); // fire-and-forget — don't block the checkout button reset
       return { success: true, id };
     },
     dispatchSale: async (saleId) => {
@@ -283,7 +348,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
                           : sale.status === 'PARTIAL'   ? 'PARTIAL'
                           : (sale.status || 'PAID');
       const paidAmount = typeof sale.paidAmount === 'number' ? sale.paidAmount : null;
-      const { error } = await restRpc('edit_sale', {
+      const editParams = {
         p_id:             id,
         p_items:          items,
         p_total_amount:   sale.totalAmount ?? 0,
@@ -294,7 +359,22 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         p_shop_id:        clientId,
         p_user_id:        currentUser.id,
         p_tenant_id:      tenantId || null,
-      });
+      };
+      // Desktop offline-first: queue the edit RPC; sync engine replays it.
+      if (isElectron()) {
+        try {
+          await queueMutation({ table: 'edit_sale', type: 'rpc', payload: editParams });
+          const discountAmt = Number(sale.discount) || 0;
+          if (discountAmt > 0) {
+            await queueMutation({ table: 'sales', type: 'update', payload: { id, discount: discountAmt } });
+          }
+          fetchSales();
+          return { success: true, id, queued: true };
+        } catch (qErr) {
+          console.error('editSale local-first queue error:', qErr);
+        }
+      }
+      const { error } = await restRpc('edit_sale', editParams);
       if (error) { console.error('editSale RPC Error:', error); return { error }; }
       // Record discount for reporting/receipts (edit_sale takes the net total).
       const discountAmt = Number(sale.discount) || 0;
@@ -312,6 +392,20 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     // and drop anything else (amount_in_words, notes, paymentMethod, etc.)
     // so the insert doesn't fail on unknown columns.
     invoices,
+    // Delivery details for an invoice process_sale already wrote. Updating that
+    // row is what keeps a credit delivery to ONE invoice -- writing a second
+    // document just to carry the address is how the duplicates started.
+    updateInvoiceDelivery: async (invoiceId, fields) => {
+      if (!tenantId) return { error: new Error('updateInvoiceDelivery: no tenant') };
+      const { error } = await restUpdate('invoices', fields, { id: invoiceId, tenant_id: tenantId });
+      if (error) {
+        console.error('updateInvoiceDelivery error:', error);
+        return { error };
+      }
+      setInvoices(prev => prev.map(i => (i.id === invoiceId ? { ...i, ...fields } : i)));
+      return { success: true };
+    },
+
     createInvoice: async (draft) => {
       if (!tenantId) return { error: new Error('createInvoice: no tenant') };
 
@@ -319,8 +413,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       const { maxInvoices } = getPlanLimits(plan);
       if (maxInvoices !== -1) {
         const now = new Date();
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-        const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        const { from: monthStart, to: monthEnd } = monthBounds(now);
         const { count } = await supabase
           .from('sales')
           .select('id', { count: 'exact', head: true }).is('deleted_at', null)
@@ -473,6 +566,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       const { data: inv, error: readErr } = await supabase
         .from('invoices')
         .select('grand_total')
+        .is('deleted_at', null)   // never mark a deleted invoice paid
         .eq('id', id)
         .eq('tenant_id', tenantId)
         .single();

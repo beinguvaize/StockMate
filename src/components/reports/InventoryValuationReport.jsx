@@ -16,8 +16,16 @@ const InventoryValuationReport = () => {
     if (!rawData.length) return { totalCost: 0, totalPotential: 0, lowStock: 0, chartData: [], kpis: [] };
 
     const totalCost = rawData.reduce((acc, p) => acc + ((p.stock || 0) * (p.costPrice || 0)), 0);
-    const totalPotential = rawData.reduce((acc, p) => acc + ((p.stock || 0) * (p.sellingPrice || 0)), 0);
-    const totalProfit = totalPotential - totalCost;
+    // Raw materials are manufactured with, not sold, so they carry no selling
+    // price. Counting their cost against zero revenue made projected profit
+    // read as a loss — three RAW items held Rs 83,994 against Rs 0 of retail.
+    // Potential and profit are measured over sellable stock only; totalCost
+    // still covers everything on hand.
+    const isRaw = (p) => (p.product_type || 'STANDARD').toUpperCase() === 'RAW';
+    const sellable = rawData.filter(p => !isRaw(p));
+    const sellableCost = sellable.reduce((acc, p) => acc + ((p.stock || 0) * (p.costPrice || 0)), 0);
+    const totalPotential = sellable.reduce((acc, p) => acc + ((p.stock || 0) * (p.sellingPrice || 0)), 0);
+    const totalProfit = totalPotential - sellableCost;
     const lowStockItems = rawData.filter(p => (p.stock || 0) <= (p.lowStockThreshold || 5));
     const lowStockCount = lowStockItems.length;
 
@@ -38,8 +46,8 @@ const InventoryValuationReport = () => {
         id: 'val', 
         label: 'Total Stock Value', 
         value: totalCost, 
-        trend: 5.4, 
-        trendDir: 'up', 
+        trend: 0, 
+        trendDir: 'none', 
         chartData: chartData.map(d => ({ value: d.value })),
         color: 'indigo'
       },
@@ -47,8 +55,8 @@ const InventoryValuationReport = () => {
         id: 'rev', 
         label: 'Potential Revenue', 
         value: totalPotential, 
-        trend: 3.2, 
-        trendDir: 'up', 
+        trend: 0, 
+        trendDir: 'none', 
         chartData: chartData.map(d => ({ value: d.value * 1.2 })),
         color: 'emerald'
       },
@@ -56,8 +64,8 @@ const InventoryValuationReport = () => {
         id: 'prof', 
         label: 'Projected Profit', 
         value: totalProfit, 
-        trend: 1.8, 
-        trendDir: 'down', 
+        trend: 0, 
+        trendDir: 'none', 
         chartData: chartData.map(d => ({ value: d.value * 0.2 })),
         color: 'amber'
       },
@@ -77,11 +85,11 @@ const InventoryValuationReport = () => {
 
   // 3. Define Table Columns (Rule 2)
   const columns = [
-    { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 uppercase">{val || 'N/A'}</span> },
+    { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase">{val || 'N/A'}</span> },
     { key: 'name', label: 'Product Name', sortable: true, width: 250 },
-    { key: 'category', label: 'Category', sortable: true, width: 140, render: (val) => <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{val || 'GENERAL'}</span> },
+    { key: 'category', label: 'Category', sortable: true, width: 140, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'GENERAL'}</span> },
     { key: 'stock', label: 'Quantity', align: 'right', sortable: true, width: 100, render: (val, row) => (
-      <span className={`font-black ${val <= (row.lowStockThreshold || 5) ? 'text-red-500' : 'text-emerald-600'}`}>
+      <span className={`font-semibold ${val <= (row.lowStockThreshold || 5) ? 'text-red-500' : 'text-emerald-600'}`}>
         {val} {row.unit || 'pcs'}
       </span>
     )},
@@ -93,7 +101,7 @@ const InventoryValuationReport = () => {
     { key: 'margin', label: 'Margin %', align: 'right', width: 100, render: (_, row) => {
       const p = row.sellingPrice - row.costPrice;
       const m = (p / row.sellingPrice) * 100;
-      return <span className={`font-black ${m > 25 ? 'text-emerald-600' : 'text-amber-600'}`}>{m.toFixed(1)}%</span>;
+      return <span className={`font-semibold ${m > 25 ? 'text-emerald-600' : 'text-accent-signature'}`}>{m.toFixed(1)}%</span>;
     }}
   ];
 

@@ -75,7 +75,10 @@ const InvoiceEmbed = () => {
     (async () => {
       try {
         const { data: invoice, error: iErr } = await supabase
-          .from('invoices').select('*').eq('id', invoiceId).maybeSingle();
+          // A deleted invoice must not still print. This route is a public URL
+          // the phone loads to render a document; without the filter a cancelled
+          // invoice stayed shareable and printable forever.
+          .from('invoices').select('*').is('deleted_at', null).eq('id', invoiceId).maybeSingle();
         if (iErr) throw iErr;
         if (!invoice) throw new Error('Invoice not found');
 

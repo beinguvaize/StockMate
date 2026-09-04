@@ -8,9 +8,11 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:ota_update/ota_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -20,12 +22,107 @@ import 'package:url_launcher/url_launcher.dart';
 /// in `.apk` (release.yml does this on tag push).
 const _githubRepo = 'beinguvaize/StockMate';
 
-class _ReleaseInfo {
+class ReleaseInfo {
   final String version;       // e.g. "1.0.7"
   final String apkUrl;        // direct download URL of the .apk asset (empty = pending)
   final String releaseNotes;  // optional changelog body
-  _ReleaseInfo({required this.version, required this.apkUrl, required this.releaseNotes});
-  factory _ReleaseInfo.noAsset() => _ReleaseInfo(version: '', apkUrl: '', releaseNotes: '');
+  ReleaseInfo({required this.version, required this.apkUrl, required this.releaseNotes});
+  factory ReleaseInfo.noAsset() => ReleaseInfo(version: '', apkUrl: '', releaseNotes: '');
+}
+
+/// Pick the newest mobile release out of GitHub's /releases response.
+///
+/// This used to split the raw body on the `},{` between release objects and
+/// then regex the tag and the download URL out of each fragment. Assets are
+/// NESTED objects, so that boundary also falls inside a release — the tag and
+/// its APK could land in different fragments, and the URL would come back
+/// empty. The code's own comment says an empty URL surfaces "being prepared"
+/// forever, so the failure is a silent, permanent non-update rather than a
+/// crash. It happened to hold for every release so far, which is the worst
+/// property a parser can have.
+///
+/// dart:convert is in the SDK — the "cheaper than pulling in dart:convert"
+/// note it replaces was weighing a dependency that costs nothing.
+///
+/// Returns null when the payload is not what we expect, so a bad response
+/// leaves the app alone instead of throwing on startup.
+@visibleForTesting
+ReleaseInfo? parseMobileRelease(String body) {
+  late final List<dynamic> releases;
+  try {
+    final decoded = jsonDecode(body);
+    if (decoded is! List) return null;
+    releases = decoded;
+  } catch (_) {
+    return null;   // truncated body, an error object, HTML from a proxy
+  }
+
+  // Pick the HIGHEST version, not the first in the list.
+  //
+  // GitHub's ordering cannot be relied on: with mobile-v1.7.9 and
+  // mobile-v1.7.10 both published, /releases returns 1.7.9 FIRST — twelve
+  // minutes older. Taking the first match meant a phone on 1.7.9 was shown
+  // 1.7.9, decided it was up to date, and never saw 1.7.10 at all. Silent, and
+  // it gets worse with every release rather than better.
+  ReleaseInfo? best;
+  List<int>? bestParts;
+
+  for (final entry in releases) {
+    if (entry is! Map) continue;
+    final tag = entry['tag_name'];
+    // Mobile only: desktop ships as `v*` and versions independently, so a
+    // desktop tag would read as a downgrade against an installed 1.7.x.
+    if (tag is! String || !tag.startsWith('mobile-')) continue;
+    // A draft is not published — offering it would 404 on download.
+    if (entry['draft'] == true) continue;
+    // Prereleases are NOT skipped: every mobile release is one, deliberately,
+    // so that /releases/latest keeps resolving to a desktop tag.
+
+    final assets = entry['assets'];
+    String apkUrl = '';
+    if (assets is List) {
+      for (final a in assets) {
+        if (a is! Map) continue;
+        final url = a['browser_download_url'];
+        if (url is String && url.toLowerCase().endsWith('.apk')) { apkUrl = url; break; }
+      }
+    }
+
+    final version =
+        tag.replaceFirst(RegExp(r'^mobile-'), '').replaceFirst(RegExp(r'^v'), '');
+    final parts = _versionParts(version);
+
+    // Numeric, part by part: "1.7.10" is newer than "1.7.9" even though it
+    // sorts earlier as text.
+    if (bestParts == null || _greater(parts, bestParts)) {
+      best = ReleaseInfo(
+        version: version,
+        apkUrl: apkUrl,
+        releaseNotes: entry['body'] is String ? entry['body'] as String : '',
+      );
+      bestParts = parts;
+    }
+  }
+  return best;
+}
+
+/// major/minor/patch as numbers, ignoring any build suffix.
+List<int> _versionParts(String v) {
+  final parts = v
+      .split('.')
+      .map((p) => int.tryParse(p.replaceAll(RegExp(r'\D'), '')) ?? 0)
+      .toList();
+  while (parts.length < 3) {
+    parts.add(0);
+  }
+  return parts;
+}
+
+bool _greater(List<int> a, List<int> b) {
+  for (var i = 0; i < 3; i++) {
+    if (a[i] != b[i]) return a[i] > b[i];
+  }
+  return false;
 }
 
 class AutoUpdater {
@@ -38,45 +135,67 @@ class AutoUpdater {
   /// app start.
   ///
   /// We don't use /releases/latest because the repo publishes both desktop
-  /// (`desktop-v*`) and mobile (`mobile-v*`) releases. /latest returns
+  /// (`v*` — not `desktop-v*`, despite what this comment said until Aug 2026)
+  /// and mobile (`mobile-v*`) releases. /latest returns
   /// whichever tag was pushed most recently, so a desktop drop would make
   /// the mobile auto-updater pick a release that has only a .dmg asset and
   /// surface "being prepared" forever. Instead we list recent releases and
   /// pick the newest one whose tag matches our platform prefix.
-  Future<_ReleaseInfo?> _fetchLatest() async {
+  ///
+  /// The version is taken FROM THE TAG, which is why this cannot simply follow
+  /// `v*`: desktop and mobile version independently, so a `v1.6.16` release
+  /// would read as a downgrade against an installed 1.7.8.
+  Future<ReleaseInfo?> _fetchLatest() async {
     final res = await http
         .get(Uri.parse('https://api.github.com/repos/$_githubRepo/releases?per_page=20'),
             headers: {'Accept': 'application/vnd.github+json'})
         .timeout(const Duration(seconds: 10));
     if (res.statusCode != 200) return null;
 
-    final body = res.body;
-    // Split the array into individual release objects on the }, { boundary.
-    // Cheaper than pulling in dart:convert + a JSON model.
-    final releases = body.split(RegExp(r'\}\s*,\s*\{'));
-    for (final raw in releases) {
-      // Mobile releases only — keeps desktop tags (desktop-v*) out.
-      final tagMatch = RegExp(r'"tag_name"\s*:\s*"(mobile-[^"]+)"').firstMatch(raw);
-      if (tagMatch == null) continue;
-      final notesMatch = RegExp(r'"body"\s*:\s*"((?:[^"\\]|\\.)*)"').firstMatch(raw);
-      final apkMatch   = RegExp(r'"browser_download_url"\s*:\s*"([^"]+\.apk)"').firstMatch(raw);
+    return parseMobileRelease(res.body);
+  }
 
-      final version = tagMatch.group(1)!
-          .replaceFirst(RegExp(r'^mobile-'), '')
-          .replaceFirst(RegExp(r'^v'), '');
-      final notes = (notesMatch?.group(1) ?? '')
-          .replaceAll(r'\n', '\n').replaceAll(r'\"', '"');
+  // ── "Later" snooze ─────────────────────────────────────────────────────────
+  // Tapping Later used to be forgotten instantly, so the launch check
+  // re-prompted on every single app open — the dialog felt like it "always"
+  // showed. Remember the declined version for a day. A NEWER version still
+  // prompts immediately, and the manual Settings check (verbose) always shows.
+  static const _snoozeVerKey   = 'update_snooze_version';
+  static const _snoozeUntilKey = 'update_snooze_until';
+  static const _snoozeFor      = Duration(hours: 24);
+  static const _store = FlutterSecureStorage();
 
-      return _ReleaseInfo(
-        version: version,
-        apkUrl: apkMatch?.group(1) ?? '',
-        releaseNotes: notes,
-      );
+  Future<void> _snooze(String version) async {
+    try {
+      await _store.write(key: _snoozeVerKey, value: version);
+      await _store.write(
+          key: _snoozeUntilKey,
+          value: DateTime.now().add(_snoozeFor).toIso8601String());
+    } catch (e) {
+      debugPrint('[autoUpdater] snooze write failed: $e');
     }
-    return _ReleaseInfo.noAsset();
+  }
+
+  Future<bool> _isSnoozed(String version) async {
+    try {
+      if (await _store.read(key: _snoozeVerKey) != version) return false;
+      final until = DateTime.tryParse(
+          await _store.read(key: _snoozeUntilKey) ?? '');
+      return until != null && DateTime.now().isBefore(until);
+    } catch (e) {
+      debugPrint('[autoUpdater] snooze read failed: $e');
+      return false; // never block the prompt on a storage error
+    }
   }
 
   /// True iff `latest` is strictly greater than `current` (semver, naive).
+  ///
+  /// Numeric on purpose. A string compare would read "1.7.10" as OLDER than
+  /// "1.7.9" — the first release to go double-digit would stop offering
+  /// itself, on every phone, silently.
+  @visibleForTesting
+  bool isNewer(String current, String latest) => _isNewer(current, latest);
+
   bool _isNewer(String current, String latest) {
     int parse(String s) {
       final parts = s.split('.').map((p) => int.tryParse(p.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();
@@ -122,6 +241,12 @@ class AutoUpdater {
         }
         return;
       }
+      // Respect a recent "Later" on this same version for the silent launch
+      // check. A manual check (verbose) always shows the dialog.
+      if (!verbose && await _isSnoozed(release.version)) {
+        debugPrint('[autoUpdater] v${release.version} snoozed — not prompting');
+        return;
+      }
       if (!context.mounted) return;
       await _showDialog(context, current: info.version, release: release);
     } catch (e) {
@@ -144,12 +269,20 @@ class AutoUpdater {
   // Strip github-flavored markdown (#, **, _, `) so the AlertDialog Text
   // widget shows readable copy instead of literal symbols. Cheap
   // alternative to pulling in flutter_markdown.
+  // NOTE: replaceAll does NOT expand `$1` — it inserts the literal text, so
+  // every **bold** heading rendered as "$1" in the update dialog. Group
+  // backreferences need replaceAllMapped.
   String _plain(String s) => s
       .replaceAll(RegExp(r'^#+\s*', multiLine: true), '')
-      .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1')
-      .replaceAll(RegExp(r'\*([^*]+)\*'), r'$1')
-      .replaceAll(RegExp(r'`([^`]+)`'), r'$1')
-      .replaceAll(RegExp(r'_([^_]+)_'), r'$1');
+      .replaceAllMapped(RegExp(r'\*\*([^*]+)\*\*'), (m) => m[1]!)
+      .replaceAllMapped(RegExp(r'\*([^*]+)\*'), (m) => m[1]!)
+      .replaceAllMapped(RegExp(r'`([^`]+)`'), (m) => m[1]!)
+      .replaceAllMapped(RegExp(r'_([^_]+)_'), (m) => m[1]!)
+      // Drop the trailing "🤖 Generated with [Claude Code](url)" footer and
+      // collapse any leftover markdown links to their label.
+      .replaceAll(RegExp(r'\n*🤖 Generated with .*$', dotAll: true), '')
+      .replaceAllMapped(RegExp(r'\[([^\]]+)\]\([^)]*\)'), (m) => m[1]!)
+      .trim();
 
   // GitHub tag may include a product prefix (e.g. "mobile-v1.3.3").
   // Display the bare semver to the user.
@@ -158,7 +291,7 @@ class AutoUpdater {
     return m?.group(1) ?? raw;
   }
 
-  Future<void> _showDialog(BuildContext context, {required String current, required _ReleaseInfo release}) async {
+  Future<void> _showDialog(BuildContext context, {required String current, required ReleaseInfo release}) async {
     final notes = _plain(release.releaseNotes).trim();
     await showDialog<void>(
       context: context,
@@ -197,7 +330,13 @@ class AutoUpdater {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Later')),
+          TextButton(
+            onPressed: () {
+              _snooze(release.version); // don't re-nag on every launch
+              Navigator.pop(ctx);
+            },
+            child: const Text('Later'),
+          ),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);

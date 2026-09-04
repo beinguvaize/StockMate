@@ -1,8 +1,10 @@
+import { formatQty } from '../../lib/units';
 import React, { useEffect } from 'react';
+import { useDialogClose } from '../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import { X, Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { formatDate } from '../../lib/utils';
+import { formatDate, formatTime } from '../../lib/utils';
 
 const LINE  = '--------------------------------';
 const DLINE = '================================';
@@ -47,6 +49,7 @@ const lbl = (labels, key, def) => {
 // receipt renders "Tendered / Change" rows. Lost after print since cash
 // tendered isn't stored on the sale row.
 const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null, bare = false }) => {
+  useDialogClose(onClose, { enabled: !bare }); // bare renders inline, not as an overlay
   const biz = businessProfile || {};
   const cli = client || { name: invoice?.client_name || 'Walk-in' };
   const s   = resolveSettings(biz.bill_settings);
@@ -93,6 +96,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
   // EXCLUSIVE mode the rate is net and tax is added on top.
   const taxMode = (biz.tax_mode || 'EXCLUSIVE').toUpperCase();
   const inclusive = taxMode === 'INCLUSIVE';
+  const noGst     = taxMode === 'NONE'; // not filing GST — no tax split
 
   const items = (invoice.items || []).map(i => ({
     name:    i.name || 'Item',
@@ -106,17 +110,27 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
     const gross = i.qty * i.rate;
     return s + (inclusive ? gross / (1 + i.taxRate / 100) : gross);
   }, 0);
-  const totalTax = items.reduce((s, i) => {
+  const totalTax = noGst ? 0 : items.reduce((s, i) => {
     const gross = i.qty * i.rate;
     return s + (inclusive
       ? gross - gross / (1 + i.taxRate / 100)
       : gross * i.taxRate / 100);
   }, 0);
-  const grandTotal = parseFloat(invoice.grand_total ?? (inclusive
+  const grandTotal = parseFloat(invoice.grand_total ?? ((inclusive || noGst)
     ? items.reduce((s, i) => s + i.qty * i.rate, 0)
     : taxable + totalTax));
   const paidAmount = parseFloat(invoice.paid_amount ?? 0);
   const balance    = grandTotal - paidAmount;
+  // Actual amount the customer handed over. Prefer the stored value (works on
+  // reprint); fall back to the transient `tendered` prop right after a sale.
+  const receivedRaw = invoice.amount_received != null
+    ? parseFloat(invoice.amount_received)
+    : (tendered != null ? parseFloat(tendered) : null);
+  const received = Number.isFinite(receivedRaw) && receivedRaw > 0 ? receivedRaw : null;
+  // Client's balance after this sale (negative = advance). Drives both the
+  // money summary and whether the "payment due" terms line is worth printing.
+  const totalOutstanding = Number(cli?.outstanding_balance ?? cli?.outstanding ?? 0);
+  const owesNothing = balance <= 0.001 && totalOutstanding <= 0.001;
   // A voided / failed / cancelled sale owes nothing — its receipt must
   // not show "PAYMENT DUE", a balance, or a scan-to-pay QR.
   const status  = String(invoice.payment_status ?? '').toUpperCase();
@@ -157,7 +171,13 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
         {(s.show_bill_no || s.show_date) && (
           <div className="text-[10px] flex justify-between">
             <span>{s.show_bill_no ? `#${invoice.invoice_number || invoice.id?.split('-').pop()}` : ''}</span>
-            <span>{s.show_date ? formatDate(invoice.invoice_date || invoice.date) : ''}</span>
+            {/* invoice_date is date-only; the time it was rung up is on
+                created_at. Two bills to the same customer on one day are
+                otherwise indistinguishable — which is when a customer asks. */}
+            <span>{s.show_date ? [
+              formatDate(invoice.invoice_date || invoice.date),
+              formatTime(invoice.created_at),
+            ].filter(Boolean).join(' · ') : ''}</span>
           </div>
         )}
 
@@ -186,10 +206,13 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
             <div key={idx} className="text-[10px]">
               <div className="font-semibold truncate">{item.name}</div>
               <div className="flex">
+                {/* No per-line GST label when the business isn't charging or
+                    filing GST (tax mode NONE) — the totals already show no
+                    CGST/SGST, so printing "GST 18%" per item was misleading. */}
                 <span className="flex-1 text-[9px] text-gray-500">
-                  {item.taxRate > 0 ? `GST ${item.taxRate}%` : ''}
+                  {!noGst && item.taxRate > 0 ? `GST ${item.taxRate}%` : ''}
                 </span>
-                <span className="w-6 text-right">{item.qty}</span>
+                <span className="w-8 text-right">{formatQty(item.qty, item.unit)}</span>
                 <span className="w-14 text-right">{fmt(item.rate)}</span>
                 <span className="w-14 text-right font-semibold">{fmt(amt)}</span>
               </div>
@@ -205,10 +228,15 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
         <div className="text-[10px] mt-1">{LINE}</div>
 
         {/* ── Totals ───────────────────────────────────────── */}
+        {/* Subtotal must tie with TOTAL on the slip. When the CGST/SGST
+            breakdown is shown, subtotal is the taxable base (base + taxes
+            = total). When the breakdown is HIDDEN, printing the base made
+            the receipt look wrong (e.g. Subtotal 4894.07 → TOTAL 5775 with
+            nothing in between) — show the gross sum instead. */}
         <div className="text-[10px] space-y-0.5">
           <div className="flex justify-between">
             <span>{L('subtotal', 'Subtotal')}</span>
-            <span>{fmt(taxable)}</span>
+            <span>{fmt(s.show_tax_breakdown && totalTax > 0 ? taxable : taxable + totalTax)}</span>
           </div>
           {s.show_discount && discount > 0 && (
             <div className="flex justify-between">
@@ -242,62 +270,92 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
           <span>&#8377;{fmt(grandTotal)}</span>
         </div>
 
-        {paidAmount > 0 && (
-          <>
-            <div className="text-[10px] my-0.5">{LINE}</div>
-            <div className="text-[10px] space-y-0.5">
-              <div className="flex justify-between">
-                <span>Paid</span>
-                <span>{fmt(paidAmount)}</span>
-              </div>
-              {!isVoid && balance > 0.001 && (
-                <div className="flex justify-between font-bold">
-                  <span>Balance Due</span>
-                  <span>{fmt(balance)}</span>
+        {/* ── Money summary ────────────────────────────────────
+            One plain-language block so the customer can read, in order:
+            what this bill was, what they handed over, what's left on this
+            bill, what older bills still owe, and the single bottom-line
+            figure. Printed even when nothing was paid (credit sale) —
+            that's exactly when they need to see what they owe. */}
+        {!isVoid && (() => {
+          const totalOut  = totalOutstanding;     // balance after this sale
+          const olderDue  = totalOut - balance;   // unpaid from earlier bills
+          const excess    = received != null ? received - grandTotal : 0;
+          // Account lines apply to any registered client — including one who
+          // just cleared everything, who should still see "YOU OWE NOW 0.00"
+          // as proof. Keying this off a non-zero balance hid the summary at
+          // exactly that moment and mislabelled the extra as change.
+          const isRegistered = !!(cli?.id || invoice?.client_id);
+          const showAccount  = s.show_party_balance && isRegistered;
+          return (
+            <>
+              <div className="text-[10px] my-0.5">{LINE}</div>
+              <div className="text-[10px] space-y-0.5">
+                <div className="flex justify-between">
+                  <span>Bill amount</span>
+                  <span>{fmt(grandTotal)}</span>
                 </div>
-              )}
-              {/* Running ledger for registered clients: previous balance from
-                  earlier credit sales + total after this bill. outstanding_
-                  balance is already updated by the sale, so previous = total −
-                  this bill's due. Hidden for walk-ins / zero history. */}
-              {!isVoid && s.show_party_balance && (() => {
-                const totalOut = Number(cli?.outstanding_balance ?? cli?.outstanding ?? 0);
-                const prev = totalOut - balance;
-                if (!(prev > 0.001)) return null;
-                return (
+                <div className="flex justify-between">
+                  <span>Paid on this bill</span>
+                  <span>{fmt(paidAmount)}</span>
+                </div>
+                {balance > 0.001 && (
+                  <div className="flex justify-between font-bold">
+                    <span>Still due on this bill</span>
+                    <span>{fmt(balance)}</span>
+                  </div>
+                )}
+
+                {/* What the customer actually handed over, when it differs. */}
+                {received != null && received > paidAmount + 0.01 && (
                   <>
                     <div className="flex justify-between border-t border-dashed border-black/30 mt-1 pt-1">
-                      <span>Previous Balance</span>
-                      <span>{fmt(prev)}</span>
+                      <span>Cash received</span>
+                      <span>{fmt(received)}</span>
                     </div>
-                    <div className="flex justify-between font-bold">
-                      <span>TOTAL BALANCE</span>
-                      <span>{fmt(totalOut)}</span>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </>
-        )}
+                    {excess > 0.01 && (
+                      <div className="flex justify-between">
+                        {/* For a registered client the surplus may have gone to
+                            dues, been returned as change, or split between the
+                            two — the receipt only sees the final balance, so
+                            don't claim it all went "to account". The YOU OWE NOW
+                            line below is the authoritative figure.
 
-        {/* Cash walk-in: cashier handed customer change. Render only when
-            caller passed the tendered amount and it overpays the total. */}
-        {tendered != null && tendered > grandTotal && (
-          <>
-            <div className="text-[10px] my-0.5">{LINE}</div>
-            <div className="text-[10px] space-y-0.5">
-              <div className="flex justify-between">
-                <span>Tendered</span>
-                <span>{fmt(tendered)}</span>
+                            "Extra received" read as "we kept this", which put it
+                            at odds with a YOU OWE NOW that had not moved: a
+                            customer handed 1,515 on a 330 bill saw 1,185 extra
+                            AND the full 2,785 still owed, and neither line
+                            explained the other. State the fact and let the
+                            balance speak — same wording as the invoice screen
+                            (surplusLabel in checkoutMoney.js). A walk-in has no
+                            account, so for them the surplus IS change. */}
+                        <span>{showAccount ? 'Paid over this bill' : 'Change returned'}</span>
+                        <span>{fmt(excess)}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {showAccount && (
+                  <>
+                    {olderDue > 0.001 && (
+                      <div className="flex justify-between border-t border-dashed border-black/30 mt-1 pt-1">
+                        <span>Older bills still due</span>
+                        <span>{fmt(olderDue)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-black text-[11px] border-t border-black/40 mt-1 pt-1">
+                      <span>{totalOut < -0.001 ? 'ADVANCE WITH US' : 'YOU OWE NOW'}</span>
+                      <span>{fmt(Math.abs(totalOut))}</span>
+                    </div>
+                    {totalOut < -0.001 && (
+                      <div className="text-[9px] text-center">(we will use it on your next bill)</div>
+                    )}
+                  </>
+                )}
               </div>
-              <div className="flex justify-between font-bold">
-                <span>Change</span>
-                <span>{fmt(tendered - grandTotal)}</span>
-              </div>
-            </div>
-          </>
-        )}
+            </>
+          );
+        })()}
 
         <div className="text-[10px] my-1">{DLINE}</div>
 
@@ -345,11 +403,25 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
               </>
             );
           })()}
-          {s.show_terms && biz.invoice_terms && (
-            <div className="text-[9px] text-gray-500 mt-1 whitespace-pre-wrap">
-              {biz.invoice_terms.split('\n').slice(0, 2).join('\n')}
-            </div>
-          )}
+          {s.show_terms && biz.invoice_terms && (() => {
+            // Drop the "payment due within N days" sentence when there is
+            // nothing left to pay — it read oddly under *** PAID ***. The
+            // rest of the terms (return policy, jurisdiction) still print.
+            const raw = biz.invoice_terms.split('\n').slice(0, 2).join('\n');
+            if (!owesNothing) {
+              return (
+                <div className="text-[9px] text-gray-500 mt-1 whitespace-pre-wrap">{raw}</div>
+              );
+            }
+            const kept = raw.split('.').map(x => x.trim()).filter(Boolean)
+              .filter(sn => !/payment\s+due/i.test(sn));
+            if (!kept.length) return null;
+            return (
+              <div className="text-[9px] text-gray-500 mt-1 whitespace-pre-wrap">
+                {kept.join('. ') + '.'}
+              </div>
+            );
+          })()}
         </div>
         <div className="text-[10px] mt-1">{DLINE}</div>
       </div>

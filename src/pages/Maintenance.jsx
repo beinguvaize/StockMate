@@ -31,7 +31,7 @@ const Maintenance = () => {
  SYSTEM<br />MAINTENANCE.
  </h1>
  
- <p className="text-gray-700 text-sm font-bold leading-relaxed opacity-70 mb-10 px-4">
+ <p className="text-ink-secondary text-sm font-bold leading-relaxed opacity-70 mb-10 px-4">
  Our engineering team is currently upgrading the {businessProfile?.name || 'bookledger'} platform to improve performance and reliability. 
  <br /><br />
  <span className="text-[10px] font-semibold text-ink-primary">Expected downtime: 30 minutes</span>
@@ -40,8 +40,8 @@ const Maintenance = () => {
  {/* Footer Controls */}
  <div className="space-y-4">
  <div className="flex items-center justify-center gap-3 py-3 px-6 bg-black/5 rounded-pill border border-black/5">
- <ShieldAlert size={14} className="text-gray-700 opacity-70" />
- <span className="text-[10px] font-semibold text-gray-700 opacity-60">Status: Scheduled Update</span>
+ <ShieldAlert size={14} className="text-ink-secondary opacity-70" />
+ <span className="text-[10px] font-semibold text-ink-secondary opacity-60">Status: Scheduled Update</span>
  </div>
 
  <button 

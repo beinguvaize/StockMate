@@ -7,60 +7,24 @@
  */
 import React, { useState, useMemo } from 'react';
 import {
-  Package, Calendar, Search, Download, TrendingUp, Hash, DollarSign, UserCircle,
+  Package, Search, TrendingUp, Hash, DollarSign, UserCircle,
 } from 'lucide-react';
 import useReportData from './useReportData';
-import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
+import ReportHeader from './ReportHeader';
+import { SectionHead } from './ReportBits'; // local KPI variant kept (truncate)
+import { presetRange, isCountableSale } from './reportUtils';
+import { formatCurrency } from '../../lib/utils';
 
-const today = todayISOInAppTZ();
-
-const PRESETS = [
-  { id: 'TODAY',   label: 'Today' },
-  { id: 'WEEK',    label: 'This Week' },
-  { id: 'MONTH',   label: 'This Month' },
-  { id: 'QUARTER', label: 'Quarter' },
-  { id: 'YEAR',    label: 'This Year' },
-];
-
-function presetRange(id) {
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  switch (id) {
-    case 'TODAY': return { start: today, end: today };
-    case 'WEEK': {
-      const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
-      return { start: fmt(mon), end: today };
-    }
-    case 'MONTH':
-      return { start: `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`, end: today };
-    case 'QUARTER': {
-      const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth()/3)*3, 1);
-      return { start: fmt(qStart), end: today };
-    }
-    case 'YEAR':
-      return { start: `${now.getFullYear()}-01-01`, end: today };
-    default: return { start: today, end: today };
-  }
-}
-
-const SectionHead = ({ title, sub }) => (
-  <div className="flex items-baseline gap-3 mb-4">
-    <h2 className="text-base font-black text-ink-primary">{title}</h2>
-    {sub && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{sub}</span>}
-  </div>
-);
-
-const KPI = ({ label, value, icon: Icon, color = '#D97706', loading }) => (
-  <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
-    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
+const KPI = ({ label, value, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
+  <div className="bg-card rounded-[10px] border border-border/60 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
+    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
       <Icon size={16} style={{ color }} />
     </div>
     {loading
       ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="text-2xl font-black text-ink-primary tabular-nums leading-none truncate">{value}</div>
+      : <div className="text-2xl font-semibold text-foreground tabular-nums leading-none truncate">{value}</div>
     }
-    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</div>
+    <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
   </div>
 );
 
@@ -78,11 +42,13 @@ const ProductSalesReport = () => {
   const { data: products, loading: prodLoading } = useReportData({
     table: 'products', select: 'id, name, sku, unit, sellingPrice, costPrice',
   });
-  const { data: sales, loading: salesLoading } = useReportData({
+  const { data: salesRaw, loading: salesLoading } = useReportData({
     table: 'sales',
-    select: 'id, date, items, status, customerInfo, shopId, totalAmount',
+    select: 'id, date, items, status, customerInfo, shopId, totalAmount, voided_at, paymentStatus',
     dateColumn: 'date', filters: dateFilters,
   });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
   const { data: clients } = useReportData({
     table: 'clients', select: 'id, name',
   });
@@ -124,7 +90,7 @@ const ProductSalesReport = () => {
     const out = [];
     sales.forEach(s => {
       const status = String(s.status || '').toUpperCase();
-      if (status === 'CANCELLED' || status === 'VOID' || status === 'REFUNDED') return;
+      if (status === 'CANCELLED' || status === 'VOIDED' || status === 'FAILED' || status === 'REFUNDED') return;
       const items = Array.isArray(s.items) ? s.items : [];
       items.forEach(it => {
         const pid = it.productId || it.id;
@@ -180,87 +146,54 @@ const ProductSalesReport = () => {
   };
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-ink-primary leading-none">
-            Product Sales<span className="text-accent-signature">.</span>
-          </h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">
-            {range.start === range.end ? range.start : `${range.start} → ${range.end}`}
-          </p>
-        </div>
-        <div className="flex-1" />
-        <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1 flex-wrap">
-          {PRESETS.map(p => (
-            <button key={p.id} onClick={() => applyPreset(p.id)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-                preset === p.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
-              }`}>{p.label}</button>
-          ))}
-          <button onClick={() => applyPreset('CUSTOM')}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-              preset === 'CUSTOM' ? 'bg-ink-primary text-white' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
-            }`}>
-            <Calendar size={11} /> Custom
-          </button>
-        </div>
-        {selectedProduct && (
-          <button onClick={exportCSV}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-black/8 bg-white text-xs font-black text-ink-primary hover:border-black/20 hover:shadow-sm transition-all">
-            <Download size={13} /> Export CSV
-          </button>
-        )}
-      </div>
-
-      {showCustom && (
-        <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-black/5 shadow-sm">
-          <Calendar size={14} className="text-gray-400 shrink-0" />
-          <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
-          <span className="text-gray-400 text-xs font-bold">to</span>
-          <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
-          <button onClick={applyCustom}
-            className="px-4 py-2 rounded-xl bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all">
-            Apply
-          </button>
-        </div>
-      )}
+    <div className="space-y-4 pb-16">
+      <ReportHeader
+        title="Product Sales"
+        subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
+        preset={preset}
+        onPreset={applyPreset}
+        showCustom={showCustom}
+        customStart={customStart}
+        customEnd={customEnd}
+        setCustomStart={setCustomStart}
+        setCustomEnd={setCustomEnd}
+        onApplyCustom={applyCustom}
+        onExport={exportCSV}
+        exportLabel="Export CSV"
+      />
 
       {/* Product Picker */}
-      <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-6">
+      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-6">
         <SectionHead title="Select Product" sub="search by name or SKU" />
         <div className="relative max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search products..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-300 shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
           />
         </div>
         {!selectedProduct && (
-          <div className="mt-2 bg-white border border-gray-300 shadow-sm rounded-xl max-h-64 overflow-y-auto">
+          <div className="mt-2 bg-card border border-border shadow-sm rounded-xl max-h-64 overflow-y-auto">
             {prodLoading
-              ? <div className="p-4 text-xs text-gray-400">Loading...</div>
+              ? <div className="p-4 text-xs text-muted-foreground">Loading...</div>
               : products.length === 0
-              ? <div className="p-4 text-xs text-gray-400">No products yet</div>
+              ? <div className="p-4 text-xs text-muted-foreground">No products yet</div>
               : filteredProducts.length === 0
-              ? <div className="p-4 text-xs text-gray-400">No products match "{search}"</div>
+              ? <div className="p-4 text-xs text-muted-foreground">No products match "{search}"</div>
               : filteredProducts.map(p => (
                 <button key={p.id} onClick={() => { setProductId(p.id); setSearch(''); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-black/5 last:border-0`}>
+                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-border/60 last:border-0`}>
                   <div className="w-8 h-8 rounded-lg bg-accent-signature/10 flex items-center justify-center shrink-0">
                     <Package size={14} className="text-accent-signature" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-ink-primary truncate">{p.name}</div>
-                    <div className="text-[10px] text-gray-400 font-mono">{p.sku || '—'}</div>
+                    <div className="text-sm font-semibold text-foreground truncate">{p.name}</div>
+                    <div className="text-[10px] text-muted-foreground tabular-nums">{p.sku || '—'}</div>
                   </div>
-                  <div className="text-xs font-black text-ink-primary tabular-nums">
+                  <div className="text-xs font-semibold text-foreground tabular-nums">
                     {formatCurrency(p.sellingPrice || 0)}
                   </div>
                 </button>
@@ -274,11 +207,11 @@ const ProductSalesReport = () => {
               <Package size={16} className="text-accent-signature" />
             </div>
             <div className="flex-1">
-              <div className="text-sm font-black text-ink-primary">{selectedProduct.name}</div>
-              <div className="text-[10px] text-gray-400 font-mono">{selectedProduct.sku || '—'} · list {formatCurrency(selectedProduct.sellingPrice || 0)}</div>
+              <div className="text-sm font-semibold text-foreground">{selectedProduct.name}</div>
+              <div className="text-[10px] text-muted-foreground tabular-nums">{selectedProduct.sku || '—'} · list {formatCurrency(selectedProduct.sellingPrice || 0)}</div>
             </div>
             <button onClick={() => setProductId('')}
-              className="text-[10px] font-black text-gray-400 hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50">
+              className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50">
               Change
             </button>
           </div>
@@ -289,7 +222,7 @@ const ProductSalesReport = () => {
         <>
           {/* KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPI label="Units Sold"  loading={loading} value={kpis.units.toLocaleString('en-IN')}    icon={Hash}        color="#D97706" />
+            <KPI label="Units Sold"  loading={loading} value={kpis.units.toLocaleString('en-IN')}    icon={Hash}        color="var(--color-accent-signature)" />
             <KPI label="Revenue"     loading={loading} value={formatCurrency(kpis.revenue)}          icon={DollarSign}  color="#10b981" />
             <KPI label="Avg Rate"    loading={loading} value={formatCurrency(kpis.avg)}              icon={TrendingUp}  color="#f59e0b" />
             <KPI label="Orders"      loading={loading} value={kpis.orders.toLocaleString('en-IN')}   icon={UserCircle}  color="#8b5cf6" />
@@ -297,14 +230,14 @@ const ProductSalesReport = () => {
 
           {/* Top buyers */}
           {topBuyers.length > 0 && (
-            <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-6">
+            <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-6">
               <SectionHead title="Top Buyers" sub={`${topBuyers.length} clients`} />
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                 {topBuyers.map((b, i) => (
-                  <div key={i} className="bg-canvas/40 rounded-xl border border-black/5 p-3">
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 truncate">{b.name}</div>
-                    <div className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(b.revenue)}</div>
-                    <div className="text-[10px] font-bold text-gray-500 mt-0.5">{b.qty} {selectedProduct.unit || 'units'}</div>
+                  <div key={i} className="bg-canvas/40 rounded-xl border border-border/60 p-3">
+                    <div className="text-[11px] font-medium text-muted-foreground mb-1 truncate">{b.name}</div>
+                    <div className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(b.revenue)}</div>
+                    <div className="text-[10px] font-semibold text-muted-foreground mt-0.5">{b.qty} {selectedProduct.unit || 'units'}</div>
                   </div>
                 ))}
               </div>
@@ -312,8 +245,8 @@ const ProductSalesReport = () => {
           )}
 
           {/* Lines Table */}
-          <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-            <div className="px-6 pt-6 pb-4 border-b border-black/5">
+          <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
+            <div className="px-6 pt-6 pb-4 border-b border-border/60">
               <SectionHead title={`${selectedProduct.name} — Sale Lines`} sub={`${lines.length} entries`} />
             </div>
 
@@ -322,27 +255,27 @@ const ProductSalesReport = () => {
                 {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}
               </div>
             ) : lines.length === 0 ? (
-              <div className="py-16 text-center text-sm text-gray-400">No sales of this product in the selected period</div>
+              <div className="py-16 text-center text-sm text-muted-foreground">No sales of this product in the selected period</div>
             ) : (
               <div>
-                <div className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-black/5">
+                <div className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
                   {['Date','Sale Ref','Client','Qty','Rate','Total'].map(h => (
-                    <span key={h} className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{h}</span>
+                    <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
                   ))}
                 </div>
                 {lines.map((r, i) => (
-                  <div key={i} className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-6 py-3 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
-                    <span className="text-xs font-bold text-ink-secondary tabular-nums">{r.date}</span>
-                    <span className="text-xs font-mono text-gray-500 truncate">{String(r.saleId).toUpperCase()}</span>
-                    <span className="text-xs font-bold text-ink-primary truncate">{r.client}</span>
-                    <span className="text-xs font-black text-ink-primary tabular-nums">{r.qty}</span>
-                    <span className="text-xs text-gray-500 tabular-nums">{formatCurrency(r.rate)}</span>
-                    <span className="text-xs font-black text-emerald-600 tabular-nums">{formatCurrency(r.total)}</span>
+                  <div key={i} className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-6 py-3 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
+                    <span className="text-xs font-semibold text-ink-secondary tabular-nums">{r.date}</span>
+                    <span className="text-xs tabular-nums text-muted-foreground truncate">{String(r.saleId).toUpperCase()}</span>
+                    <span className="text-xs font-semibold text-foreground truncate">{r.client}</span>
+                    <span className="text-xs font-semibold text-foreground tabular-nums">{r.qty}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">{formatCurrency(r.rate)}</span>
+                    <span className="text-xs font-semibold text-emerald-600 tabular-nums">{formatCurrency(r.total)}</span>
                   </div>
                 ))}
-                <div className="flex justify-end gap-8 px-6 py-3.5 border-t border-black/5 bg-canvas/30">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Revenue</span>
-                  <span className="text-sm font-black text-emerald-600 tabular-nums">{formatCurrency(kpis.revenue)}</span>
+                <div className="flex justify-end gap-8 px-6 py-3.5 border-t border-border/60 bg-canvas/30">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Total Revenue</span>
+                  <span className="text-sm font-semibold text-emerald-600 tabular-nums">{formatCurrency(kpis.revenue)}</span>
                 </div>
               </div>
             )}
@@ -351,8 +284,8 @@ const ProductSalesReport = () => {
       )}
 
       {!selectedProduct && !prodLoading && (
-        <div className="py-20 text-center text-sm text-gray-400 bg-white rounded-2xl border border-black/5 shadow-sm">
-          <Package size={32} className="mx-auto mb-3 text-gray-300" />
+        <div className="py-20 text-center text-sm text-muted-foreground bg-card rounded-[10px] border border-border/60 shadow-sm">
+          <Package size={32} className="mx-auto mb-3 text-muted-foreground" />
           Select a product above to view its sale ledger
         </div>
       )}

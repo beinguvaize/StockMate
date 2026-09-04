@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.dart';
@@ -16,6 +17,31 @@ class SalesScreen extends ConsumerStatefulWidget {
 
 class _SalesScreenState extends ConsumerState<SalesScreen> {
   int _filterIndex = 0; // 0=All, 1=Paid, 2=Credit, 3=Pending/Failed
+  int _dateIndex = 0;   // 0=All, 1=Today, 2=Yesterday, 3=This Week, 4=This Month
+  static const _dateFilters = ['All', 'Today', 'Yesterday', 'This Week', 'This Month'];
+
+  // True when a sale's date falls inside the currently-selected range.
+  // DB returns DATE ("2026-07-13") or TIMESTAMP ("2026-07-13T..") — DateTime.parse handles both.
+  bool _inDateRange(String? dateStr) {
+    if (_dateIndex == 0) return true;
+    if (dateStr == null || dateStr.isEmpty) return false;
+    final d = DateTime.tryParse(dateStr);
+    if (d == null) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(d.year, d.month, d.day);
+    switch (_dateIndex) {
+      case 1: return day == today;
+      case 2: return day == today.subtract(const Duration(days: 1));
+      case 3:
+        final weekStart = today.subtract(Duration(days: today.weekday - 1)); // Monday
+        return !day.isBefore(weekStart) && !day.isAfter(today);
+      case 4:
+        final monthStart = DateTime(now.year, now.month, 1);
+        return !day.isBefore(monthStart) && !day.isAfter(today);
+    }
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,13 +86,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             // ── Stats row ──────────────────────────────────────────
             salesAsync.maybeWhen(
               data: (sales) {
-                final today = DateTime.now();
-                final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-                // DB may return DATE as "2026-05-27" or TIMESTAMP as
-                // "2026-05-27T00:00:00". startsWith handles both.
-                final todaySales = sales.where((s) => (s.date ?? '').startsWith(todayStr)).toList();
-                final total = todaySales.fold(0.0, (sum, s) => sum + (s.totalAmount ?? 0));
-                final txCount = todaySales.length;
+                // Stats follow the selected date range (Total Today by default).
+                final rangeSales = sales.where((s) => _inDateRange(s.date)).toList();
+                final total = rangeSales.fold(0.0, (sum, s) => sum + (s.totalAmount ?? 0));
+                final txCount = rangeSales.length;
+                final totalLabel = _dateIndex == 0
+                    ? 'TOTAL (ALL)'
+                    : 'TOTAL ${_dateFilters[_dateIndex].toUpperCase()}';
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Row(
@@ -83,7 +109,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'TOTAL TODAY',
+                                totalLabel,
                                 style: GoogleFonts.jetBrainsMono(
                                   fontSize: 10,
                                   color: AppColors.inkTertiary,
@@ -145,7 +171,43 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               orElse: () => const SizedBox.shrink(),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // ── Date-range chips (All / Today / Yesterday / Week / Month) ──
+            SizedBox(
+              height: 34,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: _dateFilters.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final isActive = _dateIndex == i;
+                  return GestureDetector(
+                    onTap: () => setState(() => _dateIndex = i),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isActive ? AppColors.primary : Colors.white,
+                        borderRadius: BorderRadius.circular(100),
+                        boxShadow: [AppColors.cardShadow],
+                      ),
+                      child: Text(
+                        _dateFilters[i],
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isActive ? Colors.white : AppColors.inkTertiary,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 20),
 
             // ── Filter chips ────────────────────────────────────────
             Padding(
@@ -201,6 +263,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               child: salesAsync.when(
                 data: (allSales) {
                   final sales = allSales.where((s) {
+                    if (!_inDateRange(s.date)) return false;
                     final st = (s.paymentStatus ?? '').toUpperCase();
                     // Credit = anything owed (PENDING/UNPAID/PARTIAL) — matches the
                     // "Credit" badge. Failed = only voided/failed.
@@ -268,7 +331,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [AppColors.cardShadow],
                         ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                          Row(
                           children: [
                             // Avatar
                             Container(
@@ -306,7 +372,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '#${sale.id.substring(0, 8).toUpperCase()}',
+                                    '#${sale.id.toUpperCase()}',
                                     style: GoogleFonts.jetBrainsMono(
                                       fontSize: 11,
                                       color: AppColors.inkTertiary,
@@ -361,19 +427,71 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                     ),
                                   ),
                                 ),
-                                if (isPartial) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Paid ₹${paidAmt.toStringAsFixed(0)} · Due ₹${dueAmt.toStringAsFixed(0)}',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.inkTertiary,
-                                    ),
-                                  ),
-                                ],
                               ],
                             ),
+                          ],
+                        ),
+                        // Full-width strip for sales that still owe money —
+                        // clear paid/due figures + one-tap Collect, instead of
+                        // cramming them into the narrow right column.
+                        if (!isPaid && !isFailed && dueAmt > 0) ...[
+                          const SizedBox(height: 12),
+                          const Divider(height: 1),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text.rich(
+                                  TextSpan(
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 12, fontWeight: FontWeight.w700),
+                                    children: [
+                                      if (isPartial) ...[
+                                        TextSpan(
+                                          text: 'Paid ₹${paidAmt.toStringAsFixed(0)}',
+                                          style: const TextStyle(color: AppColors.success),
+                                        ),
+                                        const TextSpan(
+                                          text: '  ·  ',
+                                          style: TextStyle(color: AppColors.inkTertiary),
+                                        ),
+                                      ],
+                                      TextSpan(
+                                        text: 'Balance ₹${dueAmt.toStringAsFixed(0)}',
+                                        style: const TextStyle(color: Color(0xFFB91C1C)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => InvoiceDetailScreen(invoice: Invoice.fromSale(sale))),
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(LucideIcons.indianRupee, size: 13, color: Colors.white),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Collect ₹${dueAmt.toStringAsFixed(0)}',
+                                        style: GoogleFonts.manrope(
+                                          fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                           ],
                         ),
                       ),
@@ -383,7 +501,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 },
                 loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
                 error: (err, stack) => Center(
-                  child: Text('Error: $err', style: GoogleFonts.manrope(color: AppColors.danger)),
+                  child: Text('Could not load sales. Check your internet and try again.', style: GoogleFonts.manrope(color: AppColors.danger)),
                 ),
               ),
             ),

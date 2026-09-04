@@ -11,7 +11,7 @@ export const Editable = ({ on, value, onChange, className = '', style }) =>
     <span
       contentEditable
       suppressContentEditableWarning
-      className={`${className} outline-none ring-1 ring-amber-300/70 bg-amber-50/40 rounded-[2px] px-0.5 cursor-text`}
+      className={`${className} outline-none ring-1 ring-accent-signature/30 bg-accent-signature/5 rounded-[2px] px-0.5 cursor-text`}
       style={style}
       onBlur={e => onChange?.(e.currentTarget.textContent.trim())}
     >{value}</span>

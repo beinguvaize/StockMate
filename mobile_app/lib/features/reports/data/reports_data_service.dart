@@ -9,7 +9,7 @@ class ReportsDataService {
   }) async {
     final data = await supabase
         .from('sales')
-        .select('id, date, totalAmount, totalCogs, customerInfo, items, paymentMethod, status, note')
+        .select('id, date, totalAmount, totalCogs, customerInfo, items, paymentMethod, status, note').isFilter('deleted_at', null)
         .eq('tenant_id', tenantId)
         .gte('date', from)
         .lte('date', to);
@@ -24,7 +24,7 @@ class ReportsDataService {
     final data = await supabase
         .from('invoices')
         .select(
-            'id, sale_id, client_id, client_name, invoice_number, invoice_date, date, due_date, grand_total, taxable_amount, cgst_amount, sgst_amount, igst_amount, is_interstate, items, payment_status')
+            'id, sale_id, client_id, client_name, invoice_number, invoice_date, date, due_date, grand_total, taxable_amount, cgst_amount, sgst_amount, igst_amount, is_interstate, items, payment_status').isFilter('deleted_at', null)
         .eq('tenant_id', tenantId)
         .gte('invoice_date', from)
         .lte('invoice_date', to);
@@ -36,7 +36,7 @@ class ReportsDataService {
   }) async {
     final data = await supabase
         .from('clients')
-        .select()
+        .select().isFilter('deleted_at', null)
         .eq('tenant_id', tenantId);
     return List<Map<String, dynamic>>.from(data as List);
   }
@@ -46,7 +46,7 @@ class ReportsDataService {
   }) async {
     final data = await supabase
         .from('suppliers')
-        .select()
+        .select().isFilter('deleted_at', null)
         .eq('tenant_id', tenantId);
     return List<Map<String, dynamic>>.from(data as List);
   }
@@ -58,7 +58,7 @@ class ReportsDataService {
   }) async {
     final data = await supabase
         .from('purchases')
-        .select('id, date, supplier_id, supplier_name, quantity, total_amount, payment_type, notes')
+        .select('id, date, supplier_id, supplier_name, quantity, total_amount, payment_type, notes').isFilter('deleted_at', null)
         .eq('tenant_id', tenantId)
         .gte('date', from)
         .lte('date', to);
@@ -72,7 +72,7 @@ class ReportsDataService {
   }) async {
     final data = await supabase
         .from('expenses')
-        .select('id, date, category, note, amount')
+        .select('id, date, category, note, amount').isFilter('deleted_at', null)
         .eq('tenant_id', tenantId)
         .gte('date', from)
         .lte('date', to);
@@ -84,7 +84,7 @@ class ReportsDataService {
   }) async {
     final data = await supabase
         .from('products')
-        .select('id, sku, name, category, stock, costPrice, sellingPrice, lowStockThreshold, unit, created_at')
+        .select('id, sku, name, category, stock, costPrice, sellingPrice, lowStockThreshold, unit, created_at').isFilter('deleted_at', null)
         .eq('tenant_id', tenantId);
     return List<Map<String, dynamic>>.from(data as List);
   }

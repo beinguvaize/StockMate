@@ -1,19 +1,23 @@
-import React, { useMemo, useState, useEffect} from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import useRefetchOnFocus from '../hooks/useRefetchOnFocus';
 import { useAuth } from '../context/AuthContext';
 import BannerCarousel from '../components/BannerCarousel';
 import ExpiryAlertCard from '../components/ExpiryAlertCard';
 import { useTenant } from '../context/TenantContext';
 import { supabase } from '../lib/supabase';
+import { isElectron } from '../lib/offline/hookAdapter';
 import { useInventory } from '../hooks/useInventory';
 import { useSales } from '../hooks/useSales';
 import { usePurchases } from '../hooks/usePurchases';
 import { useFinance } from '../hooks/useFinance';
 import { usePeople } from '../hooks/usePeople';
 import { useOperations } from '../hooks/useOperations';
+import { useAccounts } from '../hooks/useAccounts';
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, ArrowUpRight, ArrowDownRight, LayoutDashboard, Activity, Users, Calendar} from 'lucide-react';
 import { useNavigate} from 'react-router-dom';
 import DailyRevenueTrendChart from '../components/DailyRevenueTrendChart';
 import { todayISOInAppTZ, formatDate, parseLocalDate } from '../lib/utils';
+import { realtimeEnabled } from '../lib/realtime';
 import { 
  ResponsiveContainer, 
  AreaChart, 
@@ -40,7 +44,7 @@ const WeeklySalesBarChart = React.memo(({ data, currencySymbol }) => (
       <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} formatter={(val, name) => [`${currencySymbol}${Number(val).toLocaleString('en-IN')}`, name]} />
       <Legend wrapperStyle={{ fontSize: 11, fontWeight: 700 }} iconType="circle" iconSize={8} />
       <Bar dataKey="prev"  name="Last week" fill="#D1D5DB" radius={[4, 4, 0, 0]} barSize={18} />
-      <Bar dataKey="value" name="This week" fill="#D97706" radius={[4, 4, 0, 0]} barSize={18} />
+      <Bar dataKey="value" name="This week" fill="var(--color-accent-signature)" radius={[4, 4, 0, 0]} barSize={18} />
     </BarChart>
   </ResponsiveContainer>
 ));
@@ -50,15 +54,15 @@ const MonthlyComparisonAreaChart = React.memo(({ data, currencySymbol }) => (
     <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0}}>
       <defs>
         <linearGradient id="fillThisMonth" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="5%" stopColor="#D97706" stopOpacity={0.2}/>
-          <stop offset="95%" stopColor="#D97706" stopOpacity={0}/>
+          <stop offset="5%" stopColor="var(--color-accent-signature)" stopOpacity={0.2}/>
+          <stop offset="95%" stopColor="var(--color-accent-signature)" stopOpacity={0}/>
         </linearGradient>
       </defs>
       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
       <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} />
       <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `${currencySymbol}${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
       <RechartsTooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
-      <Area type="monotone" dataKey="thisMonth" name="This Month" stroke="#D97706" strokeWidth={2} fillOpacity={1} fill="url(#fillThisMonth)" />
+      <Area type="monotone" dataKey="thisMonth" name="This Month" stroke="var(--color-accent-signature)" strokeWidth={2} fillOpacity={1} fill="url(#fillThisMonth)" />
       <Area type="monotone" dataKey="lastMonth" name="Last Month" stroke="#94A3B8" strokeWidth={2} strokeDasharray="5 5" fill="none" />
     </AreaChart>
   </ResponsiveContainer>
@@ -70,7 +74,7 @@ const PaymentBreakdownPieChart = React.memo(({ data, total, currencySymbol }) =>
       <Pie data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={2} dataKey="value" stroke="none">
         {data.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
       </Pie>
-      <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" className="text-xs font-semibold text-gray-700 opacity-[0.85]">Total</text>
+      <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" className="text-xs font-semibold text-ink-secondary opacity-[0.85]">Total</text>
       <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" className="text-xl font-semibold text-ink-primary">{currencySymbol}{total.toLocaleString()}</text>
       <RechartsTooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} formatter={(value) => `${currencySymbol}${value.toLocaleString()}`} />
       <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold'}} />
@@ -94,17 +98,56 @@ const Dashboard = () => {
   const { currentTenant, currentTenantId, businessProfile } = useTenant();
   const slug = currentTenant?.slug || '';
   const { products, inventoryBalances, refetch: refetchInventory, loading: invLoading, error: invError } = useInventory(currentTenantId);
-  const { sales, refetch: refetchSales, loading: salesLoading } = useSales(currentTenantId);
+  const { sales, refetch: refetchSales, loading: salesLoading } = useSales(currentTenantId, { lean: true });
   const { purchases, refetch: refetchPurchases, loading: purLoading } = usePurchases(currentTenantId, { withReturns: false, withPayments: false });
   const { expenses, dayBook, refetch: refetchFinance, loading: finLoading } = useFinance(currentTenantId);
   const { clients, employees, refetch: refetchPeople } = usePeople(currentTenantId);
   const { routes, movementLog, refetch: refetchOps } = useOperations(currentTenantId);
+  const { accounts, balances: accountBalances } = useAccounts(currentTenantId);
 
   const isLoading = invLoading || salesLoading || purLoading || finLoading;
-  const refetchAll = () => {
+
+  // Server-side KPI aggregation via Supabase RPC (replaces 7 client-side filters)
+  const [kpiData, setKpiData] = useState(null);
+  const [kpiLoading, setKpiLoading] = useState(true);
+  const fetchKpis = useCallback(() => {
+    if (!currentTenantId) return;
+    const todayStr = new Date().toISOString().split('T')[0];
+    supabase.rpc('get_dashboard_kpis', {
+      p_tenant_id: currentTenantId,
+      p_date: todayStr,
+    }).then(({ data, error }) => {
+      if (!error && data) setKpiData(data);
+      setKpiLoading(false);
+    });
+  }, [currentTenantId]);
+
+  useEffect(() => { fetchKpis(); }, [fetchKpis]);
+
+  const refetchAll = useCallback(() => {
     refetchInventory(); refetchSales(); refetchPurchases();
     refetchFinance(); refetchPeople(); refetchOps();
-  };
+    fetchKpis();
+  }, [refetchInventory, refetchSales, refetchPurchases, refetchFinance, refetchPeople, refetchOps, fetchKpis]);
+
+  useRefetchOnFocus(refetchAll, 15_000);
+
+  // Realtime: auto-refresh dashboard when sales/expenses/payments change
+  const refetchAllRef = useRef(refetchAll);
+  useEffect(() => { refetchAllRef.current = refetchAll; }, [refetchAll]);
+  useEffect(() => {
+    if (!currentTenantId || isElectron()) return;
+    let timer;
+    const trigger = () => { clearTimeout(timer); timer = setTimeout(() => refetchAllRef.current(), 600); };
+    // Realtime policy: see src/lib/realtime.js
+    if (!realtimeEnabled('dashboard')) return;
+    const ch = supabase.channel(`dashboard:${currentTenantId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sales',           filter: `tenant_id=eq.${currentTenantId}` }, trigger)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'expenses',        filter: `tenant_id=eq.${currentTenantId}` }, trigger)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'client_payments', filter: `tenant_id=eq.${currentTenantId}` }, trigger)
+      .subscribe();
+    return () => { clearTimeout(timer); supabase.removeChannel(ch); };
+  }, [currentTenantId]);
 
   // Placeholders for remaining data
   const payrollRecords = [];
@@ -119,21 +162,6 @@ const Dashboard = () => {
    const t = setTimeout(() => setHeroVisible(false), 15000);
    return () => clearTimeout(t);
  }, []);
-
- // Server-side KPI aggregation via Supabase RPC (replaces 7 client-side filters)
- const [kpiData, setKpiData] = useState(null);
- const [kpiLoading, setKpiLoading] = useState(true);
- useEffect(() => {
-   if (!currentTenantId) return;
-   const todayStr = new Date().toISOString().split('T')[0];
-   supabase.rpc('get_dashboard_kpis', {
-     p_tenant_id: currentTenantId,
-     p_date: todayStr,
-   }).then(({ data, error }) => {
-     if (!error && data) setKpiData(data);
-     setKpiLoading(false);
-   });
- }, [currentTenantId]);
 
  // Pull a clean YYYY-MM-DD out of any input ("2026-05-15", "2026-05-15T00:00:00Z", Date, etc)
  // No Date-object parsing — avoids timezone off-by-one (esp. negative UTC offsets).
@@ -198,9 +226,15 @@ const Dashboard = () => {
 
  const todayStr = todayISOInAppTZ();
  const currentCashBalance = useMemo(() => {
+   if (accounts && accounts.length > 0) {
+     return accounts
+       .filter(a => a.type !== 'LOAN')
+       .reduce((sum, a) => sum + (accountBalances[a.id] || 0), 0);
+   }
+   // fallback to day book closing balance if accounts not loaded
    const todaysDayBook = (dayBook || []).find(db => db.date === todayStr);
    return todaysDayBook ? (todaysDayBook.closing_balance || 0) : 0;
- }, [dayBook, todayStr]);
+ }, [accounts, accountBalances, dayBook, todayStr]);
 
  const totalOutstanding = useMemo(
    () => (clients || []).reduce((sum, c) => sum + (c.outstanding_balance || 0), 0),
@@ -353,10 +387,10 @@ const Dashboard = () => {
  const COLORS = [
  '#3b82f6', // blue-500
  '#ec4899', // pink-500
- '#8b5cf6', // amber-500
+ '#8b5cf6', // accent-signature
  '#10b981', // emerald-500
- '#f59e0b', // amber-500
- '#D97706', // amber-500
+ '#f59e0b', // accent-signature
+ 'var(--color-accent-signature)', // accent-signature
  '#ef4444', // red-500
  '#06b6d4', // cyan-500
  '#84cc16', // lime-500
@@ -516,7 +550,7 @@ const Dashboard = () => {
         <h1 className="text-3xl md:text-6xl font-black font-sora text-ink-primary leading-[0.9] tracking-tight mb-3 uppercase">
           COMMAND <br className="hidden md:block" /> CENTER<span className="text-accent-signature">.</span>
         </h1>
-        <p className="text-gray-700 text-base max-w-lg opacity-60 font-medium leading-relaxed">
+        <p className="text-ink-secondary text-base max-w-lg opacity-60 font-medium leading-relaxed">
           Operational intelligence and real-time asset synchronization across your entire retail ecosystem.
         </p>
       </div>
@@ -532,7 +566,7 @@ const Dashboard = () => {
         </button>
         <button 
           onClick={() => navigate('/reports')}
-          className="px-8 flex items-center justify-center rounded-full font-bold text-[11px] tracking-wide text-ink-primary bg-white border border-gray-300 shadow-sm hover:bg-white hover:shadow-premium transition-all uppercase"
+          className="px-8 flex items-center justify-center rounded-full font-bold text-[11px] tracking-wide text-ink-primary bg-white border border-border shadow-sm hover:bg-white hover:shadow-premium transition-all uppercase"
         >
           ANALYTICS BROWSER
         </button>
@@ -562,11 +596,11 @@ const Dashboard = () => {
  <button
    onClick={refetchAll}
    title="Refresh all data"
-   className={`w-8 h-8 flex items-center justify-center rounded-full border border-black/10 hover:bg-black/5 transition-all text-gray-500 ${isLoading ? 'animate-spin opacity-50 pointer-events-none' : ''}`}
+   className={`w-8 h-8 flex items-center justify-center rounded-full border border-black/10 hover:bg-black/5 transition-all text-muted-foreground ${isLoading ? 'animate-spin opacity-50 pointer-events-none' : ''}`}
  >
    <Activity size={14} />
  </button>
- <div className="flex items-center text-sm font-bold text-gray-700 mr-2">
+ <div className="flex items-center text-sm font-bold text-ink-secondary mr-2">
  <Calendar size={16} className="mr-2 opacity-[0.85]" />
  Date Range
  </div>
@@ -584,9 +618,9 @@ const Dashboard = () => {
  </select>
  {datePreset === 'Custom Range' && (
  <div className="flex items-center gap-2">
- <input type="date" value={customRange.start} onChange={e => setCustomRange({...customRange, start: e.target.value})} className="bg-surface border border-black/10 rounded-pill px-3 py-1.5 text-xs font-bold font-mono text-ink-primary outline-none" />
- <span className="text-gray-700 opacity-[0.85] text-xs font-semibold">TO</span>
- <input type="date" value={customRange.end} onChange={e => setCustomRange({...customRange, end: e.target.value})} className="bg-surface border border-black/10 rounded-pill px-3 py-1.5 text-xs font-bold font-mono text-ink-primary outline-none" />
+ <input type="date" value={customRange.start} onChange={e => setCustomRange({...customRange, start: e.target.value})} className="bg-surface border border-black/10 rounded-pill px-3 py-1.5 text-xs font-bold tabular-nums text-ink-primary outline-none" />
+ <span className="text-ink-secondary opacity-[0.85] text-xs font-semibold">TO</span>
+ <input type="date" value={customRange.end} onChange={e => setCustomRange({...customRange, end: e.target.value})} className="bg-surface border border-black/10 rounded-pill px-3 py-1.5 text-xs font-bold tabular-nums text-ink-primary outline-none" />
  </div>
  )}
  </div>
@@ -601,7 +635,7 @@ const Dashboard = () => {
    { label: `${datePreset} Purchases`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases), icon: <ShoppingBag size={16} />, tone: 'slate', to: '/purchases' },
    { label: 'Salary Pending',          value: Math.round(salariesPending),                                                                                   icon: <Users size={16} />,       tone: 'slate', to: '/payroll' },
  ].map((m, i) => {
-   const chip = { emerald: 'bg-emerald-50 text-emerald-600', rose: 'bg-rose-50 text-rose-500', amber: 'bg-amber-50 text-amber-600', slate: 'bg-slate-100 text-slate-500' }[m.tone];
+   const chip = { emerald: 'bg-emerald-50 text-emerald-600', rose: 'bg-rose-50 text-rose-500', amber: 'bg-accent-signature/10 text-accent-signature', slate: 'bg-slate-100 text-slate-500' }[m.tone];
    const d = typeof m.delta === 'number' ? m.delta : null;
    return (
    <div key={i} role="button" tabIndex={0}
@@ -611,15 +645,15 @@ const Dashboard = () => {
      <div className="flex items-center justify-between">
        <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${chip}`}>{m.icon}</span>
        {d !== null && (
-         <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${d > 0 ? 'text-emerald-600' : d < 0 ? 'text-rose-500' : 'text-gray-400'}`}>
+         <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${d > 0 ? 'text-emerald-600' : d < 0 ? 'text-rose-500' : 'text-muted-foreground'}`}>
            {d > 0 ? <ArrowUpRight size={12} /> : d < 0 ? <ArrowDownRight size={12} /> : null}{Math.abs(d).toFixed(1)}%
          </span>
        )}
      </div>
-     <div className="font-mono text-[22px] font-bold tabular-nums leading-none text-ink-primary mt-1">
-       <span className="text-amber-400 text-sm mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{m.value.toLocaleString('en-IN')}
+     <div className="text-[22px] font-bold tabular-nums leading-none text-ink-primary mt-1">
+       <span className="text-accent-signature/70 text-sm mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{m.value.toLocaleString('en-IN')}
      </div>
-     <div className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{m.label}</div>
+     <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{m.label}</div>
    </div>
    );
  })}
@@ -633,7 +667,7 @@ const Dashboard = () => {
  <h2 className="text-xl font-bold text-ink-primary mb-6">Sales This Week</h2>
  <div className="flex-1 w-full relative">
  {chart1Data.reduce((s, d) => s + d.value, 0) === 0 ? (
- <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-700 opacity-70">
+ <div className="absolute inset-0 flex flex-col items-center justify-center text-ink-secondary opacity-70">
  <BarChart3 size={32} className="mb-2" />
  <span className="text-sm font-bold">No Sales Data for This Week</span>
  </div>
@@ -647,14 +681,14 @@ const Dashboard = () => {
  <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 flex flex-col h-[380px]">
  <div className="flex justify-between items-center mb-6">
  <h2 className="text-xl font-bold text-ink-primary">Monthly Sales Comparison</h2>
- <div className="flex gap-4 text-xs font-bold text-gray-700">
+ <div className="flex gap-4 text-xs font-bold text-ink-secondary">
  <span className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-600 rounded-sm"></div> This Month</span>
  <span className="flex items-center gap-1"><div className="w-3 h-3 border-2 border-dashed border-slate-400 rounded-sm"></div> Last Month</span>
  </div>
  </div>
  <div className="flex-1 w-full relative">
  {chart2Data.reduce((s, d) => s + d.thisMonth + d.lastMonth, 0) === 0 ? (
- <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-700 opacity-70">
+ <div className="absolute inset-0 flex flex-col items-center justify-center text-ink-secondary opacity-70">
  <TrendingUp size={32} className="mb-2" />
  <span className="text-sm font-bold">No Monthly Progression Data</span>
  </div>
@@ -669,7 +703,7 @@ const Dashboard = () => {
  <h2 className="text-xl font-bold text-ink-primary mb-6">Payment Breakdown</h2>
  <div className="flex-1 w-full relative">
  {chart3Total === 0 ? (
- <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-700 opacity-70">
+ <div className="absolute inset-0 flex flex-col items-center justify-center text-ink-secondary opacity-70">
  <DollarSign size={32} className="mb-2" />
  <span className="text-sm font-bold">Awaiting Transactions</span>
  </div>
@@ -684,7 +718,7 @@ const Dashboard = () => {
  <h2 className="text-xl font-bold text-ink-primary mb-6">Expenses by Category</h2>
  <div className="flex-1 w-full relative -ml-16">
  {chart4Data.length === 0 ? (
- <div className="absolute inset-0 pl-16 flex flex-col items-center justify-center text-gray-700 opacity-70">
+ <div className="absolute inset-0 pl-16 flex flex-col items-center justify-center text-ink-secondary opacity-70">
  <TrendingDown size={32} className="mb-2" />
  <span className="text-sm font-bold">No Expenses Currently</span>
  </div>
@@ -704,14 +738,14 @@ const Dashboard = () => {
    className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 cursor-pointer hover:shadow-md hover:border-black/15 transition-all">
  <div className="flex justify-between items-start mb-4">
  <div>
- <p className="text-gray-700 text-sm font-medium">Total Products</p>
+ <p className="text-ink-secondary text-sm font-medium">Total Products</p>
  <h3 className="text-3xl font-bold mt-1 text-ink-primary">{kpiData ? (kpiData.total_products ?? (products || []).length) : (products || []).length}</h3>
  </div>
- <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-ink-primary">
+ <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-ink-primary">
  <Package className="w-6 h-6" />
  </div>
  </div>
- <div className="flex items-center gap-2 text-sm text-gray-700 font-semibold">
+ <div className="flex items-center gap-2 text-sm text-ink-secondary font-semibold">
  System Inventory Health
  </div>
  </div>
@@ -721,14 +755,14 @@ const Dashboard = () => {
    className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 cursor-pointer hover:shadow-md hover:border-black/15 transition-all">
  <div className="flex justify-between items-start mb-4">
  <div>
- <p className="text-gray-700 text-sm font-medium">Active Trips</p>
+ <p className="text-ink-secondary text-sm font-medium">Active Trips</p>
  <h3 className="text-3xl font-bold mt-1 text-ink-primary">{kpiData ? (kpiData.active_trips ?? (routes || []).filter(r => r.status === 'ACTIVE').length) : (routes || []).filter(r => r.status === 'ACTIVE').length}</h3>
  </div>
  <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center overflow-hidden border border-blue-100 shadow-sm">
  <img src={`${import.meta.env.BASE_URL}assets/van.png`} className="w-full h-full object-cover scale-150 transform hover:scale-175 transition-transform" alt="Van" />
  </div>
  </div>
- <div className="flex items-center gap-2 text-sm text-gray-700 font-semibold">
+ <div className="flex items-center gap-2 text-sm text-ink-secondary font-semibold">
  {routes?.length || 0} Total Routes
  </div>
  </div>
@@ -738,7 +772,7 @@ const Dashboard = () => {
    className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 cursor-pointer hover:shadow-md hover:border-black/15 transition-all">
  <div className="flex justify-between items-start mb-4">
  <div>
- <p className="text-gray-700 text-sm font-medium">Low Stock Items</p>
+ <p className="text-ink-secondary text-sm font-medium">Low Stock Items</p>
  <h3 className="text-3xl font-bold mt-1 text-red-600">{kpiData ? (kpiData.low_stock_items ?? lowStockProducts.length) : lowStockProducts.length}</h3>
  </div>
  <div className="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center text-red-600">
@@ -756,10 +790,10 @@ const Dashboard = () => {
  <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-black/5">
  <div className="flex justify-between items-start mb-4">
  <div>
- <p className="text-gray-700 text-sm font-medium">System Status</p>
+ <p className="text-ink-secondary text-sm font-medium">System Status</p>
  <h3 className="text-3xl font-bold mt-1 text-ink-primary">99.9%</h3>
  </div>
- <div className="w-12 h-12 rounded-lg bg-gray-50 flex items-center justify-center text-ink-primary opacity-[0.85]">
+ <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-ink-primary opacity-[0.85]">
  <LayoutDashboard className="w-6 h-6" />
  </div>
  </div>
@@ -855,7 +889,7 @@ const Dashboard = () => {
   <div className="bg-white p-5 rounded-[2rem] shadow-premium border border-black/5 flex flex-col gap-5">
     <div className="flex justify-between items-center mb-2">
       <h2 className="text-xl font-bold text-ink-primary">Analytics</h2>
-      <span className="text-xs font-bold px-3 py-1 bg-gray-100 rounded-full text-gray-700 uppercase tracking-wider">Expense Portfolio</span>
+      <span className="text-xs font-bold px-3 py-1 bg-muted rounded-full text-ink-secondary uppercase tracking-wider">Expense Portfolio</span>
     </div>
   
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
@@ -905,7 +939,7 @@ const Dashboard = () => {
  iconType="circle"
  iconSize={10}
  wrapperStyle={{ paddingLeft: '0px'}}
- formatter={(value) => <span className="text-[11px] font-bold text-gray-700">{value}</span>}
+ formatter={(value) => <span className="text-[11px] font-bold text-ink-secondary">{value}</span>}
  />
  </PieChart>
  </ResponsiveContainer>
@@ -915,7 +949,7 @@ const Dashboard = () => {
  <div className="relative h-[280px] w-full">
  <div className="absolute -top-6 left-0 flex items-center gap-2">
  <TrendingUp className="w-4 h-4 text-green-600" />
- <span className="text-[10px] font-semibold text-gray-700">Weekly Performance</span>
+ <span className="text-[10px] font-semibold text-ink-secondary">Weekly Performance</span>
  </div>
  <ResponsiveContainer width="100%" height="100%">
  <BarChart data={earningsByDay} margin={{ top: 20, right: 10, left: -20, bottom: 0}}>
@@ -939,7 +973,7 @@ const Dashboard = () => {
  <Bar 
  dataKey="value" 
  name="Revenue" 
- fill="#D97706" 
+ fill="var(--color-accent-signature)" 
  radius={[6, 6, 0, 0]}
  barSize={32}
  animationDuration={2000}
@@ -962,7 +996,7 @@ const Dashboard = () => {
  <div className="flex justify-between items-center mb-6">
  <div>
  <h2 className="text-xl font-bold text-ink-primary">Efficiency</h2>
- <p className="text-[10px] font-semibold text-gray-700/40">Performance</p>
+ <p className="text-[10px] font-semibold text-ink-secondary/40">Performance</p>
  </div>
  <div className="w-10 h-10 rounded-xl bg-accent-signature/10 flex items-center justify-center text-ink-primary">
  <Activity size={18} />
@@ -973,8 +1007,8 @@ const Dashboard = () => {
  {efficiencyStats.map((stat, i) => (
  <div key={i} className="space-y-2">
  <div className="flex justify-between items-end">
- <span className="text-[10px] font-semibold text-gray-700">{stat.label}</span>
- <span className="text-sm font-semibold text-ink-primary font-mono">{stat.value}%</span>
+ <span className="text-[10px] font-semibold text-ink-secondary">{stat.label}</span>
+ <span className="text-sm font-semibold text-ink-primary tabular-nums">{stat.value}%</span>
  </div>
  <div className="h-2 w-full bg-canvas rounded-full overflow-hidden">
  <div 
@@ -1001,14 +1035,14 @@ const Dashboard = () => {
    </div>
    <div className="flex-1 overflow-y-auto divide-y divide-black/5">
      {lowStockProducts.length === 0 ? (
-       <div className="h-full flex items-center justify-center text-[11px] text-gray-400 font-semibold">All products stocked</div>
+       <div className="h-full flex items-center justify-center text-[11px] text-muted-foreground font-semibold">All products stocked</div>
      ) : (
        lowStockProducts.map(item => (
          <div key={item.id} role="button" tabIndex={0} onClick={() => navigate('/inventory')}
            className="flex items-center justify-between px-5 py-3 hover:bg-canvas transition-colors cursor-pointer">
            <div className="flex-1 min-w-0">
              <p className="text-xs font-bold text-ink-primary truncate">{item.name}</p>
-             <p className="text-[10px] text-gray-400 mt-0.5">
+             <p className="text-[10px] text-muted-foreground mt-0.5">
                {(() => {
                  const bal = (inventoryBalances || []).filter(b => b.product_id === item.id);
                  const qty = bal.length > 0 ? bal.reduce((s, b) => s + b.quantity, 0) : (item.stock ?? 0);
@@ -1030,14 +1064,14 @@ const Dashboard = () => {
  <div className="bg-white rounded-[1.5rem] border border-black/5 shadow-sm flex flex-col h-[400px] overflow-hidden">
    <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
      <div className="flex items-center gap-2">
-       <Users size={13} className="text-amber-500" />
+       <Users size={13} className="text-accent-signature" />
        <span className="text-xs font-black text-ink-primary uppercase tracking-wide">Salary Dues</span>
      </div>
-     <span className="text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-lg">{pendingSalaryAlerts.length}</span>
+     <span className="text-[10px] font-black text-accent-signature bg-accent-signature/10 border border-accent-signature/15 px-2 py-0.5 rounded-lg">{pendingSalaryAlerts.length}</span>
    </div>
    <div className="flex-1 overflow-y-auto divide-y divide-black/5">
      {pendingSalaryAlerts.length === 0 ? (
-       <div className="h-full flex items-center justify-center text-[11px] text-gray-400 font-semibold">All salaries cleared</div>
+       <div className="h-full flex items-center justify-center text-[11px] text-muted-foreground font-semibold">All salaries cleared</div>
      ) : (
        pendingSalaryAlerts.map(emp => {
          const rate = emp.dailyRate ?? emp.daily_rate ?? 500;
@@ -1049,11 +1083,11 @@ const Dashboard = () => {
            <div key={emp.id} className="flex items-center justify-between px-5 py-3 hover:bg-canvas transition-colors">
              <div className="flex-1 min-w-0">
                <p className="text-xs font-bold text-ink-primary truncate">{emp.name}</p>
-               <p className="text-[10px] text-gray-400 mt-0.5">{days}d × ₹{rate} · paid ₹{paid.toLocaleString()}</p>
+               <p className="text-[10px] text-muted-foreground mt-0.5">{days}d × ₹{rate} · paid ₹{paid.toLocaleString()}</p>
              </div>
              <div className="flex items-center gap-2 shrink-0 ml-3">
-               <span className="text-xs font-black text-amber-600 tabular-nums">₹{pending.toLocaleString()}</span>
-               <button onClick={() => navigate('/payroll')} className="text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+               <span className="text-xs font-black text-accent-signature tabular-nums">₹{pending.toLocaleString()}</span>
+               <button onClick={() => navigate('/payroll')} className="text-[9px] font-black uppercase tracking-widest text-accent-signature-hover bg-accent-signature/10 border border-accent-signature/15 hover:bg-accent-signature hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
                  Pay
                </button>
              </div>
@@ -1068,13 +1102,13 @@ const Dashboard = () => {
  <div className="bg-white rounded-[1.5rem] border border-black/5 shadow-sm flex flex-col h-[400px] overflow-hidden">
    <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
      <div className="flex items-center gap-2">
-       <Activity size={13} className="text-amber-500" />
+       <Activity size={13} className="text-accent-signature" />
        <span className="text-xs font-black text-ink-primary uppercase tracking-wide">Top Debtors</span>
      </div>
    </div>
    <div className="flex-1 overflow-y-auto divide-y divide-black/5">
      {(!clients || clients.filter(c => c.outstanding_balance > 0).length === 0) ? (
-       <div className="h-full flex items-center justify-center text-[11px] text-gray-400 font-semibold">No outstanding balances</div>
+       <div className="h-full flex items-center justify-center text-[11px] text-muted-foreground font-semibold">No outstanding balances</div>
      ) : (
        [...(clients || [])]
          .filter(c => c.outstanding_balance > 0)
@@ -1088,12 +1122,12 @@ const Dashboard = () => {
                onClick={() => navigate(`/clients?client=${client.id}`)}
                className="flex items-center justify-between px-5 py-3 hover:bg-canvas transition-colors cursor-pointer">
                <div className="flex items-center gap-3 min-w-0">
-                 <span className="text-[9px] font-black text-gray-400 shrink-0 w-4 text-center">{idx + 1}</span>
+                 <span className="text-[9px] font-black text-muted-foreground shrink-0 w-4 text-center">{idx + 1}</span>
                  <p className="text-xs font-bold text-ink-primary truncate">{client.name}</p>
                </div>
                <div className="flex items-center gap-2 shrink-0 ml-3">
                  <span className={`text-xs font-black tabular-nums ${amtColor}`}>₹{Math.round(out).toLocaleString()}</span>
-                 <button onClick={(e) => { e.stopPropagation(); navigate(`/clients?client=${client.id}`); }} className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+                 <button onClick={(e) => { e.stopPropagation(); navigate(`/clients?client=${client.id}`); }} className="text-[9px] font-black uppercase tracking-widest text-accent-signature bg-accent-signature/10 border border-accent-signature/15 hover:bg-accent-signature hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
                    Collect
                  </button>
                </div>
@@ -1111,7 +1145,7 @@ const Dashboard = () => {
  <h2 className="text-xl font-bold text-ink-primary flex items-center gap-2">
  <Banknote className="w-5 h-5 text-green-500" /> Recent Transactions
  </h2>
- <span className="text-[10px] font-semibold bg-gray-100 px-3 py-1 rounded-full text-gray-700">
+ <span className="text-[10px] font-semibold bg-muted px-3 py-1 rounded-full text-ink-secondary">
  Last 10 Records
  </span>
  </div>
@@ -1119,7 +1153,7 @@ const Dashboard = () => {
  <div className="overflow-x-auto w-full">
  <table className="w-full text-left border-collapse min-w-[700px]">
  <thead>
- <tr className="border-b border-black/5 text-gray-700 text-xs font-bold">
+ <tr className="border-b border-black/5 text-ink-secondary text-xs font-bold">
  <th className="pb-4 pl-4 font-semibold">Time</th>
  <th className="pb-4 font-semibold">Type</th>
  <th className="pb-4 font-semibold">Description</th>
@@ -1129,18 +1163,18 @@ const Dashboard = () => {
  <tbody className="divide-y divide-black/5">
  {recentTransactions.length === 0 ? (
  <tr>
- <td colSpan="4" className="py-8 text-center text-sm font-medium text-gray-700 italic">
+ <td colSpan="4" className="py-8 text-center text-sm font-medium text-ink-secondary italic">
  No transactions recorded yet.
  </td>
  </tr>
  ) : (
  recentTransactions.map((tx) => (
- <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors group">
+ <tr key={tx.id} className="hover:bg-muted/50 transition-colors group">
  <td className="py-2 pl-4">
  <p className="text-sm font-bold text-ink-primary">
  {formatDate(tx.time)}
  </p>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">
+ <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-6 uppercase">
  {new Date(tx.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
  </p>
  </td>
@@ -1157,7 +1191,7 @@ const Dashboard = () => {
  <span className={`text-[10px] font-semibold ${tx.isPositive ? 'text-green-500' : 'text-red-500'}`}>
  {tx.isPositive ? '+' : '−'}
  </span>
- <p className={`text-sm font-bold font-mono ${tx.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+ <p className={`text-sm font-bold tabular-nums ${tx.isPositive ? 'text-green-600' : 'text-red-600'}`}>
  ₹{Math.round(tx.amount || 0).toLocaleString()}
  </p>
  </div>

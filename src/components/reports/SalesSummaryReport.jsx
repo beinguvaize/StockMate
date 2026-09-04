@@ -1,14 +1,21 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import ReportShell from './ReportShell';
+import { PRESETS } from './reportUtils';
 import { TrendingUp, DollarSign, Package, ShoppingBag, User, CreditCard, Tag, FileText, Calendar, Hash } from 'lucide-react';
 
 const SalesSummaryReport = () => {
+  // Financial year to date by default; the query was previously unfiltered.
+  const win = useDateWindow('YEAR');
+
   // 1. Fetch Sales Data
   const { data: rawData, loading, error, lastUpdated } = useReportData({
     table: 'sales',
-    select: '*', 
-    dateColumn: 'date'
+    // Narrowed from '*': this report never reads the items JSONB.
+    select: 'id, date, totalAmount, totalCogs, paymentMethod, paymentStatus, status, voided_at',
+    dateColumn: 'date',
+    filters: win.filters
   });
 
   // 2. Process Metrics (Rule 4)
@@ -38,8 +45,8 @@ const SalesSummaryReport = () => {
         id: 'rev', 
         label: 'Total Revenue', 
         value: totalRevenue, 
-        trend: 12.5, 
-        trendDir: 'up', 
+        trend: 0, 
+        trendDir: 'none', 
         chartData: chartData.map(d => ({ value: d.revenue })),
         color: 'indigo'
       },
@@ -47,8 +54,8 @@ const SalesSummaryReport = () => {
         id: 'ord', 
         label: 'Total Orders', 
         value: totalOrders, 
-        trend: 8.2, 
-        trendDir: 'up', 
+        trend: 0, 
+        trendDir: 'none', 
         chartData: chartData.map(d => ({ value: 1 })), // Simplified for example
         color: 'emerald'
       },
@@ -56,8 +63,8 @@ const SalesSummaryReport = () => {
         id: 'aov', 
         label: 'Avg. Order Value', 
         value: aov, 
-        trend: 3.1, 
-        trendDir: 'down', 
+        trend: 0, 
+        trendDir: 'none', 
         chartData: chartData.map(d => ({ value: d.revenue / (chartData.length || 1) })),
         color: 'amber'
       },
@@ -78,7 +85,7 @@ const SalesSummaryReport = () => {
   // 3. Define Table Columns (Rule 2)
   const columns = [
     { key: 'date', label: 'Date', type: 'date', sortable: true, width: 140 },
-    { key: 'id', label: 'Invoice #', sortable: true, width: 120, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5">{(val || '').slice(0, 8).toUpperCase() || 'REF-N/A'}</span> },
+    { key: 'id', label: 'Invoice #', sortable: true, width: 120, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60">{(val || '').slice(0, 8).toUpperCase() || 'REF-N/A'}</span> },
     { key: 'customerInfo', label: 'Client Name', sortable: true, width: 220, render: (val) => val?.name || 'Walk-in Client' },
     { key: 'items', label: 'Items', align: 'right', width: 80, render: (val) => val?.length || 0 },
     { key: 'totalAmount', label: 'Total Amount', type: 'currency', align: 'right', sortable: true, width: 150 },
@@ -87,14 +94,14 @@ const SalesSummaryReport = () => {
     { key: 'margin', label: 'Margin %', align: 'right', width: 100, render: (_, row) => {
       const p = row.totalAmount - (row.totalCogs || 0);
       const m = (p / row.totalAmount) * 100;
-      return <span className={`font-black ${m > 20 ? 'text-emerald-600' : 'text-amber-600'}`}>{m.toFixed(1)}%</span>;
+      return <span className={`font-semibold ${m > 20 ? 'text-emerald-600' : 'text-accent-signature'}`}>{m.toFixed(1)}%</span>;
     }},
-    { key: 'paymentMethod', label: 'Method', width: 120, render: (val) => <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{val || 'CASH'}</span> },
+    { key: 'paymentMethod', label: 'Method', width: 120, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'CASH'}</span> },
     { key: 'status', label: 'Status', width: 120, render: (val) => (
-      <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase w-fit ${
-        val === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+      <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-semibold uppercase w-fit ${
+        val === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600' : 'bg-accent-signature/10 text-accent-signature'
       }`}>
-        <div className={`w-1 h-1 rounded-full ${val === 'COMPLETED' ? 'bg-emerald-600' : 'bg-amber-600'}`} />
+        <div className={`w-1 h-1 rounded-full ${val === 'COMPLETED' ? 'bg-emerald-600' : 'bg-accent-signature'}`} />
         {val || 'PENDING'}
       </div>
     )}
@@ -135,7 +142,7 @@ const SalesSummaryReport = () => {
       type: 'area', // Area for nice filling
       data: metrics.chartData,
       series: [
-        { key: 'revenue', name: 'Revenue', color: '#D97706' },
+        { key: 'revenue', name: 'Revenue', color: 'var(--color-accent-signature)' },
         { key: 'cogs', name: 'COGS', color: '#f59e0b' }
       ]
     },
@@ -146,7 +153,27 @@ const SalesSummaryReport = () => {
     ]
   };
 
-  return <ReportShell tabs={[salesTab]} />;
+  // ReportShell has no filter slot, so the window is surfaced above it —
+  // otherwise the report would be silently filtered with no way to widen it.
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <p className="text-xs text-muted-foreground">Showing {win.subtitle}</p>
+        <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
+          {PRESETS.map(p => (
+            <button key={p.id} onClick={() => win.headerProps.onPreset(p.id)}
+              className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                win.preset === p.id
+                  ? 'bg-card text-foreground font-semibold shadow-sm'
+                  : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <ReportShell tabs={[salesTab]} />
+    </div>
+  );
 };
 
 export default SalesSummaryReport;

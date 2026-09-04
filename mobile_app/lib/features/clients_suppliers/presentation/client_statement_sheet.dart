@@ -6,8 +6,14 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
+import 'package:mobile_app/features/invoices/data/models/invoice.dart';
+import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
+import 'package:mobile_app/features/clients_suppliers/data/client_products.dart';
+import 'package:mobile_app/features/clients_suppliers/data/statement_credits.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_products_card.dart';
+import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 
 // ─── Data model ───────────────────────────────────────────────────────────────
 class _StatementRow {
@@ -18,12 +24,22 @@ class _StatementRow {
   final String type;    // 'SALE' | 'INVOICE' | 'PAYMENT'
   double balance = 0;   // filled after sort
 
+  /// The bill this row is about, so tapping it can open the thing itself
+  /// rather than making the user go and find it in the invoice list. Null on
+  /// payment rows — a receipt against the account is not a bill.
+  ///
+  /// Cash sales have no invoice record, so they are wrapped with
+  /// Invoice.fromSale: one screen opens every bill, whichever way it was rung
+  /// up, instead of two paths that drift apart.
+  final Invoice? bill;
+
   _StatementRow({
     required this.date,
     required this.description,
     required this.debit,
     required this.credit,
     required this.type,
+    this.bill,
   });
 }
 
@@ -87,42 +103,101 @@ class ClientStatementSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final salesAsync    = ref.watch(recentSalesProvider);
     final invoicesAsync = ref.watch(invoicesProvider);
     final paymentsAsync = ref.watch(clientPaymentsForClientProvider(client.id));
+    // One row per payment event, each with the date the money arrived. Empty
+    // when unavailable, which falls back to the old single credit on the sale
+    // date — still right whenever nothing was collected late.
+    final receiptsAsync = ref.watch(saleReceiptsForClientProvider(client.id));
+    // Sale lines carry no unit — only {cess, hsn, id, name, quantity, rate,
+    // taxRate} — so the unit comes from the product, or every quantity reads
+    // as a bare number.
+    final productsAsync = ref.watch(productsProvider);
+    final salesAsync    = ref.watch(recentSalesProvider);
 
-    // Determine loading / error states.
-    final isLoading = salesAsync.isLoading ||
-        invoicesAsync.isLoading ||
-        paymentsAsync.isLoading;
+    // Determine loading / error states. Sales load is needed to resolve each
+    // invoice's original payment method (invoices table doesn't store it).
+    // receiptsAsync is in the LOADING gate so the credits are not first drawn
+    // on the sale's date and then jump when the ledger lands. It is
+    // deliberately NOT in the error gate: if it fails, the statement should
+    // degrade to that single credit rather than refuse to render. isLoading
+    // goes false on failure too, so a failure does not block either.
+    final isLoading = invoicesAsync.isLoading ||
+        paymentsAsync.isLoading ||
+        salesAsync.isLoading ||
+        receiptsAsync.isLoading;
 
-    final error = salesAsync.error ?? invoicesAsync.error ?? paymentsAsync.error;
+    final error = invoicesAsync.error ?? paymentsAsync.error ?? salesAsync.error;
 
-    // ── Build statement rows ──────────────────────────────────────────────────
+    // ── Build statement rows (mirrors web ClientSettlement.jsx exactly) ──────
     final rows = <_StatementRow>[];
 
+    // What they buy, from the same sales the ledger is built from — no extra
+    // query, and it works offline as far as the cached sales go.
+    final productLines = (isLoading || error != null)
+        ? const <ClientProductLine>[]
+        : aggregateClientProducts(
+            salesAsync.valueOrNull ?? const [],
+            client.id,
+            unitById: {
+              for (final p in (productsAsync.valueOrNull ?? const []))
+                p.id: p.unit,
+            },
+          );
+
     if (!isLoading && error == null) {
-      // 1. Credit sales rows
       final sales = salesAsync.valueOrNull ?? const [];
-      for (final sale in sales) {
-        if (sale.shopId != client.id) continue;
-        if ((sale.paymentMethod?.toUpperCase() ?? '') != 'CREDIT') continue;
-        final tailId = sale.id.length >= 6
-            ? sale.id.substring(sale.id.length - 6).toUpperCase()
-            : sale.id.toUpperCase();
-        rows.add(_StatementRow(
-          date: sale.date ?? '',
-          description: 'Credit Sale #$tailId',
-          debit: sale.totalAmount ?? 0,
-          credit: 0,
-          type: 'SALE',
-        ));
+      // sale id → payment method, to distinguish upfront-paid sales from
+      // CREDIT sales settled later (those payments live in client_payments).
+      final saleMethodById = <String, String>{
+        for (final s in sales) s.id: (s.paymentMethod ?? '').toUpperCase(),
+      };
+      // An invoice settled at the POS carries paidAmount 0 — the money sits on
+      // the SALE row. Crediting the invoice's own 0 against its full total
+      // showed the whole bill as owed. Fall back to the sale, same as web.
+      final salePaidById = <String, double>{
+        for (final s in sales) s.id: (s.paidAmount ?? 0),
+      };
+      final invoicedSaleIds = <String>{};
+
+      // saleId -> its ledger rows, so a credit can be dated by when it landed.
+      final receiptsBySale = <String, List<Map<String, dynamic>>>{};
+      for (final r in (receiptsAsync.valueOrNull ?? const <Map<String, dynamic>>[])) {
+        final id = (r['ref_id'] ?? '').toString();
+        if (id.isEmpty) continue;
+        (receiptsBySale[id] ??= []).add(r);
       }
 
-      // 2. Invoice rows
+      /// Credit rows for one sale. The dating rule lives in
+      /// data/statement_credits.dart so it can be tested without the widget.
+      List<_StatementRow> creditRows({
+        required String saleId,
+        required double fallbackAmount,
+        required String fallbackDate,
+        required String label,
+      }) =>
+          creditsForSale(
+            saleId: saleId,
+            fallbackAmount: fallbackAmount,
+            fallbackDate: fallbackDate,
+            receipts: receiptsBySale[saleId] ?? const [],
+          )
+              .map((c) => _StatementRow(
+                    date: c.date,
+                    description: c.collectedLater ? '$label — collected later' : label,
+                    debit: 0,
+                    credit: c.amount,
+                    type: 'PAYMENT',
+                  ))
+              .toList();
+
+      // 1. Invoice rows (single source of truth for DR).
+      //    Credit sales that also appear as invoices must NOT be added as
+      //    a separate "Credit Sale" row — that causes double-counting.
       final invoices = invoicesAsync.valueOrNull ?? const [];
       for (final inv in invoices) {
         if (inv.clientId != client.id) continue;
+        if (inv.saleId != null) invoicedSaleIds.add(inv.saleId!);
         final dateStr = inv.invoiceDate ??
             inv.createdAt?.toIso8601String().substring(0, 10) ??
             '';
@@ -132,18 +207,74 @@ class ClientStatementSheet extends ConsumerWidget {
           debit: inv.grandTotal,
           credit: 0,
           type: 'INVOICE',
+          bill: inv,
         ));
+
+        // Inline payment CR — ONLY for upfront-paid (non-CREDIT) sales, whose
+        // payment never reaches client_payments. For CREDIT sales the later
+        // collection IS in client_payments; synthesizing here double-counted
+        // the same payment (same bug web fixed — see ClientSettlement.jsx).
+        final saleMethod = saleMethodById[inv.saleId] ?? '';
+        final invPaid = inv.paidAmount > 0
+            ? inv.paidAmount
+            : (salePaidById[inv.saleId] ?? 0);
+        if (invPaid > 0 && saleMethod != 'CREDIT' && saleMethod.isNotEmpty) {
+          rows.addAll(creditRows(
+            saleId: inv.saleId ?? '',
+            fallbackAmount: invPaid,
+            fallbackDate: dateStr,
+            label: 'Payment received (${_methodLabel(saleMethod)})',
+          ));
+        }
       }
 
-      // 3. Payment rows
+      // 1b. CASH/UPI sales with no invoice, SETTLED OR NOT. Debit the full
+      //     amount + credit what was paid, same as web (includeSettled in
+      //     src/lib/clientStatement.js).
+      //
+      //     Settled bills used to be skipped, so a customer who pays at the
+      //     counter every time had a statement with nothing on it — no record
+      //     of what they had bought. A paid bill enters as a debit AND its
+      //     payment, which nets to zero, so the running balance and the
+      //     closing figure are unchanged. Crediting less than the debit here
+      //     would invent a debt they do not owe.
+      for (final s in sales) {
+        if (s.shopId != client.id) continue;
+        final method = (s.paymentMethod ?? '').toUpperCase();
+        if (method == 'CREDIT') continue;
+        if (invoicedSaleIds.contains(s.id)) continue;
+        final saleDate = s.date ?? s.createdAt?.toIso8601String().substring(0, 10) ?? '';
+        final total = s.totalAmount ?? 0;
+        final paid  = s.paidAmount ?? 0;
+        rows.add(_StatementRow(
+          date: saleDate,
+          description: 'Bill #${s.id.split('-').last}',
+          debit: total,
+          credit: 0,
+          type: 'SALE',
+          bill: Invoice.fromSale(s),
+        ));
+        if (paid > 0) {
+          rows.addAll(creditRows(
+            saleId: s.id,
+            fallbackAmount: paid,
+            fallbackDate: saleDate,
+            label: 'Payment received (${_methodLabel(method)})',
+          ));
+        }
+      }
+
+      // 2. Client payment rows (post-sale cash collections).
       final payments = paymentsAsync.valueOrNull ?? const [];
       for (final payment in payments) {
         final notesSuffix = (payment.notes != null && payment.notes!.isNotEmpty)
             ? ' — ${payment.notes}'
             : '';
+        final label = _methodLabel(payment.paymentMethod);
+        final base = label.isEmpty ? 'Payment received' : 'Payment received ($label)';
         rows.add(_StatementRow(
           date: payment.date,
-          description: 'Payment (${_methodLabel(payment.paymentMethod)})$notesSuffix',
+          description: '$base$notesSuffix',
           debit: 0,
           credit: payment.amount,
           type: 'PAYMENT',
@@ -193,6 +324,7 @@ class ClientStatementSheet extends ConsumerWidget {
                       : _StatementBody(
                           client: client,
                           rows: rows,
+                          productLines: productLines,
                           scrollController: scrollController,
                         ),
             ),
@@ -204,20 +336,45 @@ class ClientStatementSheet extends ConsumerWidget {
 }
 
 // ─── Statement body ───────────────────────────────────────────────────────────
-class _StatementBody extends StatelessWidget {
+class _StatementBody extends StatefulWidget {
   final Client client;
   final List<_StatementRow> rows;
+  final List<ClientProductLine> productLines;
   final ScrollController scrollController;
 
   const _StatementBody({
     required this.client,
     required this.rows,
+    required this.productLines,
     required this.scrollController,
   });
 
   @override
+  State<_StatementBody> createState() => _StatementBodyState();
+}
+
+class _StatementBodyState extends State<_StatementBody> {
+  // Same two controls as the web ledger, with the same meanings — 'ALL',
+  // 'SALE' (bills), 'PAYMENT' — so one statement reads the same on either
+  // screen. Nothing beyond what web already shows.
+  String _rowKind = 'ALL';
+  bool _newestFirst = true;
+
+  @override
   Widget build(BuildContext context) {
+    final client = widget.client;
+    final productLines = widget.productLines;
+    final scrollController = widget.scrollController;
     final balance = client.outstandingBalance ?? 0;
+
+    final filtered = widget.rows.where((r) {
+      if (_rowKind == 'SALE') return r.type != 'PAYMENT';
+      if (_rowKind == 'PAYMENT') return r.type == 'PAYMENT';
+      return true;
+    }).toList();
+    // The rows arrive oldest-first with the running balance already on them,
+    // so reversing is a view choice and does not touch the arithmetic.
+    final rows = _newestFirst ? filtered.reversed.toList() : filtered;
 
     return ListView(
       controller: scrollController,
@@ -232,8 +389,8 @@ class _StatementBody extends StatelessWidget {
         Row(
           children: [
             _KpiTile(
-              label: 'TOTAL OUTSTANDING',
-              value: compactAmount(balance),
+              label: balance < 0 ? 'ADVANCE (PAID EXTRA)' : 'TOTAL OUTSTANDING',
+              value: compactAmount(balance.abs()),
               valueColor: balance > 0 ? AppColors.danger : AppColors.success,
               icon: balance > 0 ? LucideIcons.alertCircle : LucideIcons.checkCircle2,
               iconColor: balance > 0 ? AppColors.danger : AppColors.success,
@@ -251,13 +408,20 @@ class _StatementBody extends StatelessWidget {
 
         const SizedBox(height: 24),
 
+        // ── What they buy ─────────────────────────────────────────────────────
+        // Above the ledger deliberately: the ledger is unbounded, so anything
+        // under it is unreachable for a client with a long history.
+        ClientProductsCard(lines: productLines),
+
+        const SizedBox(height: 24),
+
         // ── Ledger section label ──────────────────────────────────────────────
         Row(
           children: [
             const Icon(LucideIcons.bookOpen, size: 13, color: AppColors.inkTertiary),
             const SizedBox(width: 6),
             Text(
-              'TRANSACTION LEDGER',
+              'BILLS & PAYMENTS',
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
@@ -265,8 +429,53 @@ class _StatementBody extends StatelessWidget {
                 letterSpacing: 1.2,
               ),
             ),
+            const Spacer(),
+            Text(
+              '${rows.length} ${rows.length == 1 ? 'row' : 'rows'}',
+              style: GoogleFonts.manrope(
+                fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.inkTertiary,
+              ),
+            ),
           ],
         ),
+
+        const SizedBox(height: 8),
+
+        // Filter + order, the same two controls as the web ledger.
+        Row(
+          children: [
+            for (final e in const [['ALL', 'All'], ['SALE', 'Bills'], ['PAYMENT', 'Payments']])
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: _FilterPill(
+                  label: e[1],
+                  selected: _rowKind == e[0],
+                  onTap: () => setState(() => _rowKind = e[0]),
+                ),
+              ),
+            const Spacer(),
+            _FilterPill(
+              label: _newestFirst ? 'Newest' : 'Oldest',
+              selected: false,
+              icon: _newestFirst ? LucideIcons.arrowDown : LucideIcons.arrowUp,
+              onTap: () => setState(() => _newestFirst = !_newestFirst),
+            ),
+          ],
+        ),
+
+        // The balance on each row is the running figure from the WHOLE ledger.
+        // Filtering hides rows but not their effect, so on Payments it can
+        // climb across consecutive credits. Recomputing over what is visible
+        // would show a balance this client never had — same wording as web.
+        if (_rowKind != 'ALL') ...[
+          const SizedBox(height: 6),
+          Text(
+            'Balance still counts the ${_rowKind == 'PAYMENT' ? 'bills' : 'payments'} hidden by this filter.',
+            style: GoogleFonts.manrope(
+              fontSize: 10.5, fontWeight: FontWeight.w500, color: AppColors.inkTertiary,
+            ),
+          ),
+        ],
 
         const SizedBox(height: 10),
 
@@ -486,11 +695,14 @@ class _LedgerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDebit    = row.type == 'SALE' || row.type == 'INVOICE';
-    final isCr       = row.balance <= 0;
-    final balColor   = isCr ? AppColors.success : AppColors.danger;
-    final balLabel   = isCr ? 'Cr' : 'Dr';
+    final balColor   = row.balance > 0.005 ? AppColors.danger : AppColors.success;
+    final balLabel   = row.balance > 0.005
+        ? 'Still owes ${_fmtRupee(row.balance)}'
+        : row.balance < -0.005
+            ? 'Advance ${_fmtRupee(row.balance.abs())}'
+            : 'Fully paid';
 
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -513,7 +725,20 @@ class _LedgerCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              _TypePill(type: row.type),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _TypePill(type: row.type),
+                  // Only bill rows open anything, so only they get the hint.
+                  // A chevron on a payment row would promise a screen that
+                  // does not exist.
+                  if (row.bill != null) ...[
+                    const SizedBox(width: 4),
+                    const Icon(LucideIcons.chevronRight,
+                        size: 13, color: AppColors.inkTertiary),
+                  ],
+                ],
+              ),
             ],
           ),
 
@@ -546,7 +771,7 @@ class _LedgerCard extends StatelessWidget {
             children: [
               if (isDebit && row.debit > 0) ...[
                 Text(
-                  'Dr ${_fmtRupee(row.debit)}',
+                  'Billed ${_fmtRupee(row.debit)}',
                   style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -557,7 +782,7 @@ class _LedgerCard extends StatelessWidget {
               ],
               if (!isDebit && row.credit > 0) ...[
                 Text(
-                  'Cr ${_fmtRupee(row.credit)}',
+                  'Paid ${_fmtRupee(row.credit)}',
                   style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -567,7 +792,7 @@ class _LedgerCard extends StatelessWidget {
                 const SizedBox(width: 12),
               ],
               const Spacer(),
-              // Running balance chip
+              // Running balance chip — plain wording instead of Dr/Cr.
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -575,8 +800,8 @@ class _LedgerCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'Bal ${_fmtRupee(row.balance.abs())} $balLabel',
-                  style: GoogleFonts.jetBrainsMono(
+                  balLabel,
+                  style: GoogleFonts.manrope(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: balColor,
@@ -587,6 +812,19 @@ class _LedgerCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    // A bill row opens the bill. Without this the statement tells you a bill
+    // exists and then makes you go and find it in the invoice list — with the
+    // date and amount held in your head. Payment rows have no bill to open, so
+    // they stay inert rather than pretending to be tappable.
+    if (row.bill == null) return card;
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => InvoiceDetailScreen(invoice: row.bill!)),
+      ),
+      borderRadius: BorderRadius.circular(16),
+      child: card,
     );
   }
 
@@ -618,6 +856,9 @@ class _TypePill extends StatelessWidget {
         ? AppColors.success.withValues(alpha: 0.12)
         : AppColors.danger.withValues(alpha: 0.10);
     final fg    = isPayment ? AppColors.success : AppColors.danger;
+    // Plain words instead of accounting terms — this screen is read by
+    // shopkeepers, not accountants.
+    final label = isPayment ? 'PAYMENT' : 'BILL';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -626,7 +867,7 @@ class _TypePill extends StatelessWidget {
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
-        type,
+        label,
         style: GoogleFonts.jetBrainsMono(
           fontSize: 9,
           fontWeight: FontWeight.w700,
@@ -709,6 +950,58 @@ class _ErrorView extends StatelessWidget {
               message,
               style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
               textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+// ─── Filter / order pill — mirrors the web ledger's controls ─────────────────
+class _FilterPill extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final IconData? icon;
+  final VoidCallback onTap;
+  const _FilterPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected
+                ? Colors.transparent
+                : AppColors.outlineVariant.withValues(alpha: 0.7),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 11, color: selected ? Colors.white : AppColors.inkSecondary),
+              const SizedBox(width: 3),
+            ],
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : AppColors.inkSecondary,
+              ),
             ),
           ],
         ),

@@ -19,49 +19,14 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:mobile_app/core/print/web_print_service.dart';
+import 'package:mobile_app/core/print/pos_receipt_pdf.dart' as pos_pdf;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ─── Line item ────────────────────────────────────────────────────────────────
-
-class _Item {
-  final String name;
-  final String sku;
-  final String unit;
-  final int qty;
-  final double price;
-  final double taxRate;
-  _Item({
-    required this.name,
-    this.sku = '',
-    this.unit = 'PCS',
-    required this.qty,
-    required this.price,
-    this.taxRate = 0,
-  });
-  double get lineTotal => qty * price;
-  double get taxAmount => lineTotal * taxRate / 100;
-}
-
-List<_Item> _parseItems(Invoice invoice) {
-  final raw = invoice.items;
-  if (raw == null || raw.isEmpty) return [];
-  return raw.map((item) {
-    final m = item as Map<String, dynamic>? ?? {};
-    return _Item(
-      name: m['name']?.toString() ?? m['productName']?.toString() ?? m['product_name']?.toString() ?? 'Item',
-      sku: m['sku']?.toString() ?? '',
-      unit: m['unit']?.toString() ?? 'PCS',
-      qty: int.tryParse((m['quantity'] ?? m['qty'])?.toString() ?? '1') ?? 1,
-      // Web saves `rate`; old sales saved `price`. Also fall back to unitPrice/sellingPrice.
-      price: double.tryParse(
-            (m['rate'] ?? m['price'] ?? m['unitPrice'] ?? m['unit_price'] ?? m['sellingPrice'])
-                ?.toString() ?? '0',
-          ) ??
-          0.0,
-      taxRate: double.tryParse(m['taxRate']?.toString() ?? '0') ?? 0.0,
-    );
-  }).toList();
-}
+// Shared with add_sale_screen.dart's checkout fallback — see core/print/pos_receipt_pdf.dart.
+typedef _Item = pos_pdf.PdfLineItem;
+List<_Item> _parseItems(Invoice invoice) => pos_pdf.parsePdfItems(invoice);
+String _fmtAmount(double v) => pos_pdf.fmtReceiptAmount(v);
 
 String _fmtDate(String? iso) {
   if (iso == null) return '—';
@@ -91,8 +56,6 @@ String _computeDueDateStr(String? iso) {
     return '—';
   }
 }
-
-String _fmtAmount(double v) => v.toStringAsFixed(2);
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -158,7 +121,19 @@ class InvoiceDetailScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _InvoiceCard(invoice: invoice, profile: profile),
+            _InvoiceCard(
+              invoice: invoice,
+              profile: profile,
+              clientOutstanding: () {
+                final cid = invoice.clientId;
+                if (cid == null || cid.isEmpty) return 0.0;
+                final cs = ref.read(clientsProvider).valueOrNull ?? const [];
+                for (final c in cs) {
+                  if (c.id == cid) return c.outstandingBalance ?? 0.0;
+                }
+                return 0.0;
+              }(),
+            ),
             const SizedBox(height: 20),
 
             // GST Invoice print/share — only when this view is a real GST invoice.
@@ -393,11 +368,11 @@ class InvoiceDetailScreen extends ConsumerWidget {
         // and mobile can be diagnosed by the user instead of being
         // hidden behind a "looks different" complaint.
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Using local layout — web render failed: $e'),
-            backgroundColor: AppColors.danger,
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Printed using standard layout (offline-friendly).'),
+            backgroundColor: AppColors.secondary,
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 6),
+            duration: Duration(seconds: 3),
           ));
         }
       }
@@ -424,11 +399,11 @@ class InvoiceDetailScreen extends ConsumerWidget {
         // and mobile can be diagnosed by the user instead of being
         // hidden behind a "looks different" complaint.
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Using local layout — web render failed: $e'),
-            backgroundColor: AppColors.danger,
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Printed using standard layout (offline-friendly).'),
+            backgroundColor: AppColors.secondary,
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 6),
+            duration: Duration(seconds: 3),
           ));
         }
       }
@@ -460,11 +435,11 @@ class InvoiceDetailScreen extends ConsumerWidget {
         // and mobile can be diagnosed by the user instead of being
         // hidden behind a "looks different" complaint.
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Using local layout — web render failed: $e'),
-            backgroundColor: AppColors.danger,
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Printed using standard layout (offline-friendly).'),
+            backgroundColor: AppColors.secondary,
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 6),
+            duration: Duration(seconds: 3),
           ));
         }
       }
@@ -634,19 +609,20 @@ class InvoiceDetailScreen extends ConsumerWidget {
         // and mobile can be diagnosed by the user instead of being
         // hidden behind a "looks different" complaint.
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Using local layout — web render failed: $e'),
-            backgroundColor: AppColors.danger,
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Printed using standard layout (offline-friendly).'),
+            backgroundColor: AppColors.secondary,
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 6),
+            duration: Duration(seconds: 3),
           ));
         }
       }
       bytes ??= await _buildPosReceiptPdf(profile);
-      await Printing.layoutPdf(
-        onLayout: (_) async => bytes!,
-        format: PdfPageFormat.roll80, // 80mm thermal
-      );
+      // roll80 has an infinite height and the plugin passes dimensions
+      // straight to Android's PrintManager, which needs finite values —
+      // that produced a blank page. The PDF already carries its own page
+      // size, so let the print dialog's paper picker choose the roll.
+      await Printing.layoutPdf(onLayout: (_) async => bytes!);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -741,7 +717,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                 style: GoogleFonts.manrope(
                     fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
             const SizedBox(height: 4),
-            Text('Outstanding: ₹${outstanding.toStringAsFixed(2)}',
+            Text('Balance due: ₹${outstanding.toStringAsFixed(2)}',
                 style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
             const SizedBox(height: 20),
             Container(
@@ -772,16 +748,70 @@ class InvoiceDetailScreen extends ConsumerWidget {
                   final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
                   if (amt <= 0) return;
                   try {
-                    final newPaid = invoice.paidAmount + amt;
-                    final newStatus = newPaid >= invoice.grandTotal ? 'PAID' : 'PARTIAL';
                     final supabase = Supabase.instance.client;
-                    await supabase.from('invoices').update({
-                      'paid_amount': newPaid.clamp(0, invoice.grandTotal),
-                      'payment_status': newStatus,
-                    }).eq('id', invoice.id);
+                    // Resolve the underlying SALE — that's what the
+                    // outstanding + Cash & Bank triggers read. Updating only
+                    // the invoice row (old behaviour) never adjusted the
+                    // client's outstanding, and did nothing at all for raw
+                    // sales without an invoice.
+                    final saleId = invoice.saleId ??
+                        (invoice.id.startsWith('INV-') ? null : invoice.id);
+                    final saleRow = saleId == null
+                        ? null
+                        : await supabase
+                            .from('sales')
+                            .select('id, tenant_id, "shopId", "paymentMethod", "totalAmount", "paidAmount"')
+                            .eq('id', saleId)
+                            .maybeSingle();
+
+                    final method = ((saleRow?['paymentMethod'] as String?) ?? '').toUpperCase();
+                    final clientId = saleRow?['shopId'] as String?;
+
+                    if (saleRow != null && method == 'CREDIT' && clientId != null) {
+                      // Credit sale with a registered client: record a
+                      // client payment — the DB replay allocates it FIFO,
+                      // posts Cash & Bank and recomputes outstanding.
+                      await supabase.from('client_payments').insert({
+                        'id': 'CP-${DateTime.now().millisecondsSinceEpoch}',
+                        'tenant_id': saleRow['tenant_id'],
+                        'client_id': clientId,
+                        'amount': amt,
+                        'date': DateTime.now().toIso8601String().substring(0, 10),
+                        'payment_method': 'CASH',
+                        'recorded_by': supabase.auth.currentUser?.id,
+                      });
+                    } else if (saleRow != null) {
+                      // Cash/UPI sale (or walk-in credit): bump the sale's
+                      // paid amount directly — the sale-ledger trigger
+                      // reposts Cash & Bank and outstanding recalcs. No
+                      // client_payments row (the replay would double-count).
+                      final total = ((saleRow['totalAmount'] as num?)?.toDouble() ?? 0);
+                      final paid  = ((saleRow['paidAmount'] as num?)?.toDouble() ?? 0);
+                      final newPaid = (paid + amt).clamp(0, total);
+                      final newStatus = newPaid >= total ? 'PAID' : 'PARTIAL';
+                      await supabase.from('sales').update({
+                        'paidAmount': newPaid,
+                        'paymentStatus': newStatus,
+                      }).eq('id', saleId as Object);
+                      await supabase.from('invoices').update({
+                        'paid_amount': newPaid,
+                        'payment_status': newStatus,
+                      }).eq('id', 'INV-$saleId');
+                    } else {
+                      // Legacy invoice with no linked sale — old behaviour.
+                      final newPaid = invoice.paidAmount + amt;
+                      final newStatus = newPaid >= invoice.grandTotal ? 'PAID' : 'PARTIAL';
+                      await supabase.from('invoices').update({
+                        'paid_amount': newPaid.clamp(0, invoice.grandTotal),
+                        'payment_status': newStatus,
+                      }).eq('id', invoice.id);
+                    }
+                    final newStatus = (invoice.paidAmount + amt) >= invoice.grandTotal ? 'PAID' : 'PARTIAL';
                     if (ctx.mounted) {
                       Navigator.pop(ctx);
                       ref.invalidate(invoicesProvider);
+                      ref.invalidate(recentSalesProvider);
+                      try { ref.invalidate(clientsProvider); } catch (_) {}
                       if (context.mounted) {
                         Navigator.pop(context); // go back to list
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -824,221 +854,38 @@ class InvoiceDetailScreen extends ConsumerWidget {
   // ── PDF Builder ─────────────────────────────────────────────────────────────
 
   // ─── POS Receipt PDF (80mm thermal — standard receipt style) ────────────────
+  // Delegates to the shared builder in core/print/pos_receipt_pdf.dart so
+  // checkout (add_sale_screen.dart) produces an identical fallback slip.
   Future<Uint8List> _buildPosReceiptPdf(BusinessProfile? biz) async {
-    final regular = await PdfGoogleFonts.robotoMonoRegular();
-    final bold    = await PdfGoogleFonts.robotoMonoBold();
-    final theme   = pw.ThemeData.withFont(base: regular, bold: bold);
-
-    final pdf   = pw.Document(theme: theme);
-    final items = _parseItems(invoice);
-    final isPaid    = invoice.paymentStatus == 'PAID';
-    final isPartial = invoice.paymentStatus == 'PARTIAL';
-    final invoiceNo = invoice.displayNumber;
-    final custName  = invoice.displayClientName;
-    final dateStr   = _fmtDate(invoice.invoiceDate);
-
-    final double subtotal   = items.fold(0.0, (s, i) => s + i.lineTotal);
-    final double totalTax   = items.fold(0.0, (s, i) => s + i.taxAmount);
-    final double grandTotal = invoice.grandTotal > 0 ? invoice.grandTotal : subtotal + totalTax;
-    final double paidAmount = invoice.paidAmount;
-    final double balance    = (grandTotal - paidAmount).clamp(0, double.infinity);
-
-    const ink    = PdfColors.black;
-    const subtle = PdfColor.fromInt(0xFF555555);
-
-    // Dashed divider — authentic thermal receipt look
-    pw.Widget dashedLine() => pw.Divider(height: 8, thickness: 0.6, color: subtle);
-    pw.Widget solidLine() => pw.Divider(height: 8, thickness: 1.0, color: ink);
-
-    // Right-aligned amount row
-    pw.Widget amtRow(String label, String value, {bool isBold = false, double fs = 8}) =>
-        pw.Padding(
-          padding: const pw.EdgeInsets.symmetric(vertical: 1),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text(label, style: pw.TextStyle(fontSize: fs, color: isBold ? ink : subtle)),
-              pw.Text(value,
-                  style: isBold
-                      ? pw.TextStyle(fontSize: fs, fontWeight: pw.FontWeight.bold, color: ink)
-                      : pw.TextStyle(fontSize: fs, color: ink)),
-            ],
-          ),
-        );
-
-    final docLabel = (biz?.invoiceTerms?.toLowerCase().contains('estimate') == true)
-        ? 'ESTIMATE'
-        : invoice.isSaleSource ? 'SALE RECEIPT' : 'TAX INVOICE';
-
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.roll80.copyWith(
-          marginLeft: 8, marginRight: 8, marginTop: 12, marginBottom: 16,
-        ),
-        build: (ctx) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-          children: [
-
-            // ── Business header ──────────────────────────────────────────
-            pw.Center(child: pw.Text(
-              (biz?.name ?? 'YOUR BUSINESS').toUpperCase(),
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: ink),
-            )),
-            if (biz?.address?.isNotEmpty == true) ...[
-              pw.SizedBox(height: 2),
-              pw.Center(child: pw.Text(biz!.address!,
-                  textAlign: pw.TextAlign.center,
-                  style: pw.TextStyle(fontSize: 8, color: subtle))),
-            ],
-            if (biz?.phone?.isNotEmpty == true)
-              pw.Center(child: pw.Text('(${biz!.phone!})',
-                  style: pw.TextStyle(fontSize: 8, color: subtle))),
-            if (biz?.gstNo?.isNotEmpty == true) ...[
-              pw.SizedBox(height: 1),
-              pw.Center(child: pw.Text('GSTIN: ${biz!.gstNo!}',
-                  style: pw.TextStyle(fontSize: 8, color: subtle))),
-            ],
-
-            dashedLine(),
-
-            // ── Document type ────────────────────────────────────────────
-            pw.Center(child: pw.Text(docLabel,
-                style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: ink,
-                    letterSpacing: 1.5))),
-
-            dashedLine(),
-
-            // ── Meta: receipt# left, date right ─────────────────────────
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Receipt #: $invoiceNo',
-                    style: pw.TextStyle(fontSize: 8, color: subtle)),
-                pw.Text(dateStr, style: pw.TextStyle(fontSize: 8, color: subtle)),
-              ],
-            ),
-            if (custName.isNotEmpty && custName != 'Walk-in Customer' && custName != 'Unknown') ...[
-              pw.SizedBox(height: 2),
-              pw.Row(children: [
-                pw.Text('Bill To: ', style: pw.TextStyle(fontSize: 8, color: subtle)),
-                pw.Text(custName,
-                    style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink)),
-              ]),
-            ],
-
-            dashedLine(),
-
-            // ── Column headers ───────────────────────────────────────────
-            pw.Row(children: [
-              pw.Expanded(child: pw.Text('Item',
-                  style: pw.TextStyle(fontSize: 8, color: subtle))),
-              pw.SizedBox(width: 22, child: pw.Text('Qty',
-                  textAlign: pw.TextAlign.right,
-                  style: pw.TextStyle(fontSize: 8, color: subtle))),
-              pw.SizedBox(width: 46, child: pw.Text('Price',
-                  textAlign: pw.TextAlign.right,
-                  style: pw.TextStyle(fontSize: 8, color: subtle))),
-              pw.SizedBox(width: 46, child: pw.Text('Amount',
-                  textAlign: pw.TextAlign.right,
-                  style: pw.TextStyle(fontSize: 8, color: subtle))),
-            ]),
-            dashedLine(),
-
-            // ── Items — single line per item ─────────────────────────────
-            ...items.map((it) => pw.Padding(
-              padding: const pw.EdgeInsets.symmetric(vertical: 2),
-              child: pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Expanded(child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(it.name,
-                          style: pw.TextStyle(fontSize: 8, color: ink)),
-                      if (it.taxRate > 0)
-                        pw.Text('GST ${it.taxRate.toStringAsFixed(0)}%',
-                            style: pw.TextStyle(fontSize: 7, color: subtle)),
-                    ],
-                  )),
-                  pw.SizedBox(width: 22, child: pw.Text(it.qty.toString(),
-                      textAlign: pw.TextAlign.right,
-                      style: pw.TextStyle(fontSize: 8, color: ink))),
-                  pw.SizedBox(width: 46, child: pw.Text(_fmtAmount(it.price),
-                      textAlign: pw.TextAlign.right,
-                      style: pw.TextStyle(fontSize: 8, color: subtle))),
-                  pw.SizedBox(width: 46, child: pw.Text(_fmtAmount(it.lineTotal),
-                      textAlign: pw.TextAlign.right,
-                      style: pw.TextStyle(fontSize: 8, color: ink))),
-                ],
-              ),
-            )),
-
-            dashedLine(),
-
-            // ── Subtotal + tax ───────────────────────────────────────────
-            amtRow('Subtotal', 'Rs.${_fmtAmount(subtotal)}'),
-            if (totalTax > 0) ...[
-              amtRow('CGST (${(totalTax / subtotal * 50).toStringAsFixed(1)}%)',
-                  'Rs.${_fmtAmount(totalTax / 2)}'),
-              amtRow('SGST (${(totalTax / subtotal * 50).toStringAsFixed(1)}%)',
-                  'Rs.${_fmtAmount(totalTax / 2)}'),
-            ],
-
-            solidLine(),
-
-            // ── Grand total ──────────────────────────────────────────────
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Total',
-                    style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: ink)),
-                pw.Text('Rs.${_fmtAmount(grandTotal)}',
-                    style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: ink)),
-              ],
-            ),
-
-            solidLine(),
-
-            // ── Paid / balance ───────────────────────────────────────────
-            if (isPartial || (paidAmount > 0 && !isPaid)) ...[
-              amtRow('Paid', 'Rs.${_fmtAmount(paidAmount)}', isBold: true),
-              amtRow('Balance Due', 'Rs.${_fmtAmount(balance)}', isBold: true, fs: 9),
-              dashedLine(),
-            ],
-
-            // ── Payment method ───────────────────────────────────────────
-            if (invoice.paymentMethod?.isNotEmpty == true) ...[
-              pw.Text('Payment Method:',
-                  style: pw.TextStyle(fontSize: 8, color: subtle)),
-              pw.SizedBox(height: 1),
-              pw.Text(invoice.paymentMethod!.toUpperCase(),
-                  style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink)),
-              dashedLine(),
-            ],
-
-            pw.SizedBox(height: 4),
-
-            // ── Footer ───────────────────────────────────────────────────
-            pw.Center(child: pw.Text(
-              biz?.footerMessage ?? 'Thank you for shopping with us!',
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(fontSize: 8, color: subtle),
-            )),
-            if (biz?.upiId?.isNotEmpty == true) ...[
-              pw.SizedBox(height: 3),
-              pw.Center(child: pw.Text('UPI: ${biz!.upiId!}',
-                  style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink))),
-            ],
-
-            pw.SizedBox(height: 8),
-            dashedLine(),
-          ],
-        ),
-      ),
+    // Pull the account context so the offline slip carries the same
+    // "YOU OWE NOW" / advance summary as the web-rendered receipt.
+    double? clientOutstanding;
+    double? amountReceived;
+    bool noGst = false;
+    try {
+      final supabase = Supabase.instance.client;
+      final cid = invoice.clientId;
+      if (cid != null && cid.isNotEmpty) {
+        final cRow = await supabase
+            .from('clients').select('outstanding_balance').eq('id', cid).maybeSingle();
+        clientOutstanding = (cRow?['outstanding_balance'] as num?)?.toDouble() ?? 0;
+      }
+      final saleId = invoice.saleId ?? (invoice.id.startsWith('SAL-') ? invoice.id : null);
+      if (saleId != null) {
+        final sRow = await supabase
+            .from('sales').select('amount_received').eq('id', saleId).maybeSingle();
+        amountReceived = (sRow?['amount_received'] as num?)?.toDouble();
+      }
+      noGst = (biz?.taxMode ?? '').toUpperCase() == 'NONE';
+    } catch (e) {
+      debugPrint('[print] account context lookup failed: $e'); // slip still prints
+    }
+    return pos_pdf.buildPosReceiptPdf(
+      invoice, biz,
+      clientOutstanding: clientOutstanding,
+      amountReceived: amountReceived,
+      noGst: noGst,
     );
-
-    return pdf.save();
   }
 
   Future<Uint8List> _buildPdf(BusinessProfile? biz) async {
@@ -1647,7 +1494,10 @@ class InvoiceDetailScreen extends ConsumerWidget {
 class _InvoiceCard extends StatelessWidget {
   final Invoice invoice;
   final BusinessProfile? profile;
-  const _InvoiceCard({required this.invoice, required this.profile});
+  // The client's TOTAL across all their bills, so this bill's balance is not
+  // mistaken for the whole account. 0 when unknown or walk-in.
+  final double clientOutstanding;
+  const _InvoiceCard({required this.invoice, required this.profile, this.clientOutstanding = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -1738,9 +1588,13 @@ class _InvoiceCard extends StatelessWidget {
                             color: const Color(0xFF64748B),
                           ),
                         ),
-                        if (invoice.dueDate != null && !isPaid)
+                        // Only worth showing when it differs from the bill
+                        // date. On a same-day sale it repeats the line above
+                        // and reads as a second "Due" next to the balance.
+                        if (invoice.dueDate != null && !isPaid &&
+                            invoice.dueDate != invoice.invoiceDate)
                           Text(
-                            'Due: ${_fmtDate(invoice.dueDate)}',
+                            'Payment due ${_fmtDate(invoice.dueDate)}',
                             style: GoogleFonts.manrope(fontSize: 11, color: const Color(0xFF64748B)),
                           ),
                       ],
@@ -1771,7 +1625,7 @@ class _InvoiceCard extends StatelessWidget {
                 if (invoice.paidAmount > 0 && !isPaid) ...[
                   const SizedBox(height: 6),
                   Text(
-                    'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Due ₹${invoice.outstanding.toStringAsFixed(0)}',
+                    'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Balance ₹${invoice.outstanding.toStringAsFixed(0)}',
                     style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFFD97706)),
                   ),
                 ],
@@ -1927,6 +1781,68 @@ class _InvoiceCard extends StatelessWidget {
                     ),
                   ],
                 ),
+
+                // Payment breakdown. Only rendered when there is something to
+                // say: paidAmount is capped at the bill, so a customer who
+                // handed over more leaves no trace without amountReceived.
+                // That value is null on historical sales and on phones older
+                // than v1.5.73, and showing paidAmount relabelled as
+                // "received" would assert a tender nobody captured.
+                if (invoice.paidAmount > 0) ...[
+                  const SizedBox(height: 8),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  _TaxRow(label: 'Paid on this bill', value: invoice.paidAmount),
+                  if (invoice.amountReceived != null && invoice.amountReceived! > 0) ...[
+                    _TaxRow(label: 'Amount received', value: invoice.amountReceived!),
+                    if (invoice.amountReceived! - grandTotal > 0.5)
+                      // "Excess received" covered two opposite outcomes and so
+                      // told the reader neither: on a cash sale it reads as
+                      // money the shop is holding when it may have been handed
+                      // back, and crediting that against dues pays the same
+                      // rupees out twice. The fate is NOT implied by the
+                      // method — checkout lets the cashier apply a surplus to
+                      // the outstanding OR give it as change, and nothing on
+                      // the sale records which. Only a CREDIT sale is knowable:
+                      // it collects nothing at the till, so anything over the
+                      // bill went against older dues. Mirrors surplusLabel() in
+                      // src/pages/sales/lib/checkoutMoney.js — change both.
+                      _TaxRow(
+                        label: (invoice.paymentMethod ?? '').toUpperCase() == 'CREDIT'
+                            ? 'Credited to account'
+                            : 'Paid over this bill',
+                        value: invoice.amountReceived! - grandTotal,
+                      ),
+                  ],
+                  if (invoice.outstanding > 0.5)
+                    _TaxRow(label: 'Balance due (this bill)', value: invoice.outstanding),
+                ],
+                // Account total, shown only when it differs from this bill —
+                // "Outstanding" alone read as everything the client owes.
+                if (invoice.outstanding > 0.5 &&
+                    clientOutstanding > 0.5 &&
+                    (clientOutstanding - invoice.outstanding).abs() > 0.5) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${invoice.displayClientName} — total outstanding',
+                          style: GoogleFonts.manrope(
+                              fontSize: 11, color: AppColors.inkTertiary),
+                        ),
+                      ),
+                      Text(
+                        '₹${_fmtAmount(clientOutstanding)}',
+                        style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.warning),
+                      ),
+                    ],
+                  ),
+                ],
 
                 const SizedBox(height: 4),
               ],

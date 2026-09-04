@@ -3,13 +3,27 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/database/database.dart';
+import 'package:mobile_app/core/database/offline_reads.dart';
+import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
+import 'package:mobile_app/main.dart' show databaseProvider;
 import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
-  const InventoryScreen({super.key});
+  /// Whether this screen supplies its own Add button.
+  ///
+  /// False when embedded in the phone shell. That shell draws its bottom nav as
+  /// a Positioned overlay rather than Scaffold.bottomNavigationBar, so Scaffold
+  /// never offsets a FAB above it -- this screen's own button rendered at the
+  /// default position and sat UNDERNEATH the nav bar, invisible. The shell owns
+  /// the offset, so the shell owns the button there.
+  const InventoryScreen({super.key, this.showAddButton = true});
+
+  final bool showAddButton;
 
   @override
   ConsumerState<InventoryScreen> createState() => _InventoryScreenState();
@@ -65,7 +79,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         toolbarHeight: 0,
         actions: const [],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: !widget.showAddButton ? null : FloatingActionButton(
         heroTag: null,
         onPressed: () => Navigator.push(
           context,
@@ -138,7 +152,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 separatorBuilder: (context, index) => const SizedBox(width: 8),
                 itemBuilder: (context, i) {
                   final isActive = _filterIndex == i;
-                  return GestureDetector(
+                  return AppTappable(
+                    ripple: false,
                     onTap: () => setState(() => _filterIndex = i),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
@@ -331,7 +346,22 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                     statusLabel = 'In Stock';
                                   }
 
-                                  return GestureDetector(
+                                  // Current margin on the latest prices — sell
+                                  // vs weighted-average cost. Null when no sell
+                                  // price, so it reads "—" not a bogus 0%.
+                                  final double? marginPct = product.sellingPrice > 0
+                                      ? (product.sellingPrice - product.costPrice) / product.sellingPrice * 100
+                                      : null;
+                                  final Color marginColor = marginPct == null
+                                      ? AppColors.inkTertiary
+                                      : marginPct < 0
+                                          ? AppColors.error
+                                          : marginPct < 10
+                                              ? AppColors.warning
+                                              : AppColors.success;
+
+                                  return AppTappable(
+                                    ripple: false,
                                     onTap: () => _showProductSheet(context, product),
                                     child: Container(
                                       padding: const EdgeInsets.all(16),
@@ -389,6 +419,15 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                                   fontSize: 15,
                                                   fontWeight: FontWeight.w700,
                                                   color: AppColors.inkPrimary,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                marginPct == null ? '—' : '${marginPct.toStringAsFixed(1)}% margin',
+                                                style: GoogleFonts.manrope(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: marginColor,
                                                 ),
                                               ),
                                               const SizedBox(height: 4),
@@ -530,6 +569,53 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
     // Typeable new-stock value; +/- keep it in sync.
     final stockCtrl = TextEditingController(text: '$currentStock');
 
+    // Last price actually PAID for this product — the newest batch tracing to a
+    // purchase. Adjustments used to fall back to products.costPrice (a blend of
+    // open batches, or a typed number), so stock added by hand was costed from
+    // an average rather than a bill. Defaulting to the real last price makes the
+    // figure answerable, and it stays editable.
+    double? lastCost;
+    String? lastDate;
+    String? lastRef;
+    Map<String, dynamic>? lastBatch;
+    try {
+      final rows = await supabase
+          .from('product_batches')
+          .select('unit_cost, received_date, purchase_id')
+          .eq('product_id', widget.product.id)
+          .not('purchase_id', 'is', null)
+          .order('received_date', ascending: false)
+          .limit(1);
+      if (rows.isNotEmpty) lastBatch = Map<String, dynamic>.from(rows.first);
+    } catch (e) {
+      // Offline this silently fell back to the stored average, which is the very
+      // guess the last-purchase default exists to replace. The cache holds the
+      // batches, so use them.
+      debugPrint('[adjust] last price online failed, using Drift cache: $e');
+      try {
+        final ctx = await ref.read(tenantContextProvider.future);
+        if (ctx != null) {
+          final cached = await cachedProductBatches(
+              ref.read(databaseProvider), ctx.tenantId, productId: widget.product.id);
+          final billed = cached.where((b) => b['purchase_id'] != null).toList();
+          if (billed.isNotEmpty) lastBatch = billed.last; // cache is oldest-first
+        }
+      } catch (_) {/* no last price — fall back to the saved cost as before */}
+    }
+    if (lastBatch != null) {
+      lastCost = (lastBatch['unit_cost'] as num?)?.toDouble();
+      lastDate = lastBatch['received_date'] as String?;
+      lastRef = lastBatch['purchase_id'] as String?;
+    }
+
+    // Optional purchase price for a manual stock-add (creates a cost batch),
+    // pre-filled with what was last paid.
+    final costCtrl = TextEditingController(
+      text: (lastCost != null && lastCost > 0) ? lastCost.toStringAsFixed(2) : '',
+    );
+
+    if (!mounted) return;
+
     await showDialog(
       context: context,
       builder: (ctx) {
@@ -625,6 +711,33 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                // Purchase price — only when adding stock. Blank = use saved cost.
+                if (adjustment > 0) ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: costCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
+                    decoration: InputDecoration(
+                      prefixText: '₹ ',
+                      labelText: lastRef != null
+                          ? 'Purchase price / unit · last paid'
+                          : 'Purchase price / unit (optional)',
+                      labelStyle: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkSecondary),
+                      hintText: 'Cost each — blank uses saved ₹${widget.product.costPrice.toStringAsFixed(2)}',
+                      hintStyle: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    lastRef != null
+                        ? 'Defaulted to ₹${lastCost!.toStringAsFixed(2)} — last bought ${lastDate ?? ''} on $lastRef. Change it if this lot cost something else.'
+                        : 'Enter what you paid so profit on these units is exact.',
+                    style: GoogleFonts.manrope(fontSize: 10.5, color: AppColors.inkTertiary),
+                  ),
+                ],
               ],
             ),
             actions: [
@@ -640,7 +753,11 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                         Navigator.pop(ctx);
                         try {
                           final repo = ref.read(productRepositoryProvider);
-                          await repo.updateStock(widget.product.id, newStockVal);
+                          final cost = double.tryParse(costCtrl.text.trim());
+                          await repo.updateStock(
+                            widget.product.id, newStockVal,
+                            unitCost: (adjustment > 0 && cost != null && cost > 0) ? cost : null,
+                          );
                           ref.invalidate(productsProvider);
                           if (mounted) {
                             Navigator.pop(context); // close sheet
@@ -774,8 +891,35 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
 
           // Details grid
           _DetailRow(label: 'Category', value: p.category ?? 'N/A'),
-          _DetailRow(label: 'Cost Price', value: '₹${p.costPrice.toStringAsFixed(2)}'),
-          _DetailRow(label: 'Selling Price', value: '₹${p.sellingPrice.toStringAsFixed(2)}'),
+          // Cost and price are held per base unit. A product bought by weight
+          // and sold in packets is judged per packet, so show that too rather
+          // than making the shopkeeper divide in their head. Margin is a ratio,
+          // so it reads the same either way and is not duplicated.
+          _DetailRow(
+            label: 'Cost Price',
+            value: _packSuffix(p) == null
+                ? '₹${p.costPrice.toStringAsFixed(2)}'
+                : '₹${p.costPrice.toStringAsFixed(2)}  ·  ₹${(p.costPrice * p.conversionFactor!).toStringAsFixed(2)}/${p.secondaryUnit}',
+          ),
+          _DetailRow(
+            label: 'Selling Price',
+            value: _packSuffix(p) == null
+                ? '₹${p.sellingPrice.toStringAsFixed(2)}'
+                : '₹${p.sellingPrice.toStringAsFixed(2)}  ·  ₹${(p.sellingPrice * p.conversionFactor!).toStringAsFixed(2)}/${p.secondaryUnit}',
+          ),
+          _DetailRow(
+            label: 'Margin',
+            value: p.sellingPrice > 0
+                ? '${((p.sellingPrice - p.costPrice) / p.sellingPrice * 100).toStringAsFixed(1)}%'
+                : '—',
+            valueColor: p.sellingPrice <= 0
+                ? AppColors.inkTertiary
+                : (p.sellingPrice - p.costPrice) < 0
+                    ? AppColors.error
+                    : ((p.sellingPrice - p.costPrice) / p.sellingPrice * 100) < 10
+                        ? AppColors.warning
+                        : AppColors.success,
+          ),
           _DetailRow(label: 'Stock', value: '${p.stock.toInt()} ${p.unit ?? "pcs"}'),
           _DetailRow(label: 'Tax Rate', value: '${p.taxRate.toStringAsFixed(0)}%'),
 
@@ -857,10 +1001,17 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
 
 // ── Helper widgets ───────────────────────────────────────────────────────────
 
+String? _packSuffix(dynamic p) {
+  final c = p.conversionFactor as double?;
+  final u = p.secondaryUnit as String?;
+  return (u != null && u.isNotEmpty && c != null && c > 0) ? u : null;
+}
+
 class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
-  const _DetailRow({required this.label, required this.value});
+  final Color? valueColor;
+  const _DetailRow({required this.label, required this.value, this.valueColor});
 
   @override
   Widget build(BuildContext context) {
@@ -878,7 +1029,7 @@ class _DetailRow extends StatelessWidget {
             style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.inkPrimary,
+              color: valueColor ?? AppColors.inkPrimary,
             ),
           ),
         ],
@@ -894,7 +1045,8 @@ class _StockAdjustBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: () {
         HapticFeedback.lightImpact();
         onTap();

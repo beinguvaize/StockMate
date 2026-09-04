@@ -30,6 +30,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The gate that nothing was running. `prebuild` only fires before
+      # `npm run build`; electron:publish is `vite build && electron-builder`,
+      # so npm never invoked it and every release so far shipped without the
+      # crash lint or a single test. It was enforced only by whoever happened to
+      # run a local build first — which is not enforcement.
+      - name: Crash lint and unit tests
+        run: npm run lint:crash && npm run test:unit
+
       - name: Build and publish
         env:
           # GitHub token — auto-provided, used by electron-builder to upload
@@ -43,58 +51,14 @@ jobs:
           VITE_ENV: production
         run: npm run electron:publish
 
-  android:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          # Pin to the version used locally — newer Flutter (3.44+) made
-          # IconData a `final` class which breaks lucide_icons 0.257.0.
-          flutter-version: '3.41.6'
-          channel: stable
-          cache: true
-
-      - name: Pub get
-        working-directory: mobile_app
-        run: flutter pub get
-
-      - name: Decode signing keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > mobile_app/android/upload-keystore.jks
-          cat > mobile_app/android/key.properties <<EOF
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          storeFile=upload-keystore.jks
-          EOF
-
-      - name: Build release APK
-        working-directory: mobile_app
-        run: flutter build apk --release
-
-      - name: Rename APK with version tag
-        working-directory: mobile_app
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          mv build/app/outputs/flutter-apk/app-release.apk \
-             build/app/outputs/flutter-apk/StockMate-${TAG}.apk
-
-      - name: Attach APK to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: mobile_app/build/app/outputs/flutter-apk/StockMate-*.apk
-          fail_on_unmatched_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # The android job lived here and built an APK on every desktop tag. Nothing
+  # installed it: the in-app updater (mobile_app/lib/core/update/auto_updater.dart)
+  # lists releases and matches `mobile-v*` only, taking the version FROM the tag.
+  # An APK attached to a `v1.6.16` release is therefore invisible to it -- and
+  # pointing the updater at `v*` would compare tag 1.6.16 against an installed
+  # 1.7.8 and read it as a downgrade, because desktop and mobile version
+  # independently.
+  #
+  # So it was several minutes of build per release producing 93 MB nobody could
+  # reach. Mobile ships through `mobile-v*`, cut separately -- see
+  # feedback-mobile-release-flow.

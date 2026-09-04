@@ -7,29 +7,10 @@ import {
   Package, AlertTriangle, DollarSign, ShoppingBag,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { KPI, SectionHead } from './ReportBits';
 import { formatCurrency } from '../../lib/utils';
 
 const DEFAULT_THRESHOLD = 10;
-
-const SectionHead = ({ title, sub }) => (
-  <div className="flex items-baseline gap-3 mb-4">
-    <h2 className="text-base font-black text-ink-primary">{title}</h2>
-    {sub && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{sub}</span>}
-  </div>
-);
-
-const KPI = ({ label, value, icon: Icon, color = '#D97706', loading }) => (
-  <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
-    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
-      <Icon size={16} style={{ color }} />
-    </div>
-    {loading
-      ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="text-2xl font-black text-ink-primary tabular-nums leading-none">{value}</div>
-    }
-    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</div>
-  </div>
-);
 
 const LowStockReport = () => {
   const { data: products, loading: pLoading } = useReportData({
@@ -78,28 +59,28 @@ const LowStockReport = () => {
   }, [products, stockByProduct]);
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-4 pb-16">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-black text-ink-primary leading-none">
-          Low Stock Alert<span className="text-accent-signature">.</span>
+        <h1 className="text-base font-semibold text-foreground tracking-tight">
+          Low Stock Alert
         </h1>
-        <p className="text-xs text-gray-400 font-medium mt-1">Current inventory snapshot</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Current inventory snapshot</p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <KPI label="Items Low / Below Threshold" loading={loading} value={kpis.itemsLow}                           icon={AlertTriangle} color="#f59e0b" />
         <KPI label="Items Out of Stock"          loading={loading} value={kpis.itemsOut}                           icon={Package}       color="#ef4444" />
-        <KPI label="Total Reorder Value"         loading={loading} value={formatCurrency(kpis.reorderValue)}       icon={DollarSign}    color="#D97706" />
+        <KPI label="Total Reorder Value"         loading={loading} value={formatCurrency(kpis.reorderValue)}       icon={DollarSign}    color="var(--color-accent-signature)" />
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
+        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
           <SectionHead title="Low Stock Products" sub="sorted by lowest stock first" />
           {!loading && (
-            <span className="text-[10px] font-black text-gray-400 bg-canvas px-2 py-1 rounded-full">
+            <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">
               {lowItems.length} products
             </span>
           )}
@@ -112,34 +93,34 @@ const LowStockReport = () => {
         ) : lowItems.length === 0 ? (
           <div className="py-16 text-center">
             <Package size={32} className="mx-auto mb-3 text-emerald-300" />
-            <p className="text-sm font-bold text-emerald-600">All products are well-stocked</p>
+            <p className="text-sm font-semibold text-emerald-600">All products are well-stocked</p>
           </div>
         ) : (
           <div>
-            <div className="grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-2 bg-canvas/50 border-b border-black/5">
+            <div className="grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-2 bg-canvas/50 border-b border-border/60">
               {['Product','SKU','Category','Stock','Threshold','Shortfall','Stock Value'].map(h => (
-                <span key={h} className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{h}</span>
+                <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
               ))}
             </div>
             {lowItems.map((p, i) => {
               const isOut = p.totalStock === 0;
               return (
                 <div key={p.id || i}
-                  className={`grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors ${isOut ? 'bg-red-50/40' : ''}`}>
+                  className={`grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors ${isOut ? 'bg-red-50/40' : ''}`}>
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${isOut ? 'bg-red-500' : 'bg-amber-400'}`} />
-                    <span className="text-sm font-bold text-ink-primary truncate">{p.name || '—'}</span>
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${isOut ? 'bg-red-500' : 'bg-accent-signature/70'}`} />
+                    <span className="text-sm font-semibold text-foreground truncate">{p.name || '—'}</span>
                   </div>
-                  <span className="text-xs font-mono text-ink-secondary truncate">{p.sku || '—'}</span>
-                  <span className="text-xs font-bold text-ink-secondary truncate">{p.category || '—'}</span>
-                  <span className={`text-sm font-black tabular-nums ${isOut ? 'text-red-500' : 'text-amber-600'}`}>
+                  <span className="text-xs tabular-nums text-ink-secondary truncate">{p.sku || '—'}</span>
+                  <span className="text-xs font-semibold text-ink-secondary truncate">{p.category || '—'}</span>
+                  <span className={`text-sm font-semibold tabular-nums ${isOut ? 'text-red-500' : 'text-accent-signature'}`}>
                     {p.totalStock}
                   </span>
-                  <span className="text-sm font-bold text-ink-secondary tabular-nums">{p.threshold}</span>
-                  <span className={`text-sm font-black tabular-nums ${p.shortfall > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                  <span className="text-sm font-semibold text-ink-secondary tabular-nums">{p.threshold}</span>
+                  <span className={`text-sm font-semibold tabular-nums ${p.shortfall > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
                     {p.shortfall > 0 ? `-${p.shortfall}` : '0'}
                   </span>
-                  <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(p.stockValue)}</span>
+                  <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(p.stockValue)}</span>
                 </div>
               );
             })}

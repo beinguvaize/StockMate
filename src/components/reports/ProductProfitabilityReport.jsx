@@ -1,5 +1,8 @@
 import React, { useMemo } from 'react';
+import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
+import PLTieOut from './PLTieOut';
 import PremiumReportView from './PremiumReportView';
 import {
   Tag, Package, TrendingUp, TrendingDown, DollarSign,
@@ -15,15 +18,14 @@ import { formatINR, round2 } from '../../utils/financialCalculations';
  *
  *   units_sold     = Σ quantity across all sales.items matching productId
  *   revenue        = Σ (quantity × price)            ← realized sale price
- *   cogs           = Σ (quantity × product.costPrice) ← using current cost as proxy
+ *   cogs           = FIFO batch cost actually consumed + costPrice fallback
  *   gross_profit   = revenue − cogs
  *   margin_pct     = gross_profit / revenue × 100
  *   avg_sell_price = revenue / units_sold
  *
  * Caveats:
- *  - `costPrice` is the CURRENT product cost, not the historical cost at time
- *    of sale. For a more accurate COGS we'd need a purchase ledger / moving
- *    average. Sufficient for an operational profitability view.
+ *  - COGS uses the sale's actual FIFO batch consumption where a trail exists;
+ *    only the uncovered remainder falls back to the CURRENT costPrice.
  *  - Products never sold in the date range appear with zero revenue but still
  *    show in the "Unsold Inventory" tab so you can spot dead stock.
  */
@@ -40,16 +42,30 @@ const marginTier = (pct) => {
 };
 
 const ProductProfitabilityReport = () => {
+  // Financial year to date by default. The dated queries below passed
+  // dateColumn without filters, so they read the whole table each load.
+  const win = useDateWindow('YEAR');
   const { data: products, loading: productsLoading } = useReportData({
     table: 'products',
     select: '*',
-    dateColumn: 'created_at',
+    // Dimension table: never date-windowed. Products created before the
+    // window still have sales inside it, and would lose their cost basis.
   });
 
-  const { data: sales, loading: salesLoading } = useReportData({
+  const { data: salesRaw, loading: salesLoading } = useReportData({
     table: 'sales',
-    select: 'id, date, items, status',
-    dateColumn: 'date',
+    select: 'id, date, items, status, voided_at, paymentStatus',
+    dateColumn: 'date', filters: win.filters,
+  });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
+
+  // FIFO truth: what each sale actually consumed, at the batch cost of that
+  // moment. Using today's costPrice as COGS misstated every margin whenever
+  // a product's cost moved (and costs did move — the July batch reconciles).
+  const { data: consumption } = useReportData({
+    table: 'sale_batch_consumption',
+    select: 'sale_id, product_id, qty_taken, unit_cost',
   });
 
   const loading = productsLoading || salesLoading;
@@ -57,6 +73,16 @@ const ProductProfitabilityReport = () => {
   // --- Aggregate sales per product ---
   const perProduct = useMemo(() => {
     if (!products?.length) return [];
+
+    // (sale, product) → actual FIFO qty + cost consumed. The covered part of
+    // a line uses this; any remainder falls back to current costPrice —
+    // mirroring how process_sale computes sales.totalCogs server-side.
+    const fifoQty = {}; const fifoVal = {};
+    (consumption || []).forEach((c) => {
+      const k = `${c.sale_id}|${c.product_id}`;
+      fifoQty[k] = (fifoQty[k] || 0) + Number(c.qty_taken || 0);
+      fifoVal[k] = (fifoVal[k] || 0) + Number(c.qty_taken || 0) * Number(c.unit_cost || 0);
+    });
 
     // Build product lookup
     const productById = new Map();
@@ -94,7 +120,7 @@ const ProductProfitabilityReport = () => {
     // Walk sales.items
     (sales || []).forEach((s) => {
       const status = String(s.status || '').toUpperCase();
-      if (status === 'CANCELLED' || status === 'VOID' || status === 'REFUNDED') return;
+      if (status === 'CANCELLED' || status === 'VOIDED' || status === 'FAILED' || status === 'REFUNDED') return;
       const items = Array.isArray(s.items) ? s.items : [];
       items.forEach((it) => {
         const qty = Number(it?.quantity ?? it?.qty ?? 0);
@@ -115,7 +141,12 @@ const ProductProfitabilityReport = () => {
 
         bucket.units_sold += qty;
         bucket.revenue += qty * unitPrice;
-        bucket.cogs += qty * Number(prod.costPrice || 0);
+        // Real cost: FIFO-consumed portion at its batch cost, remainder at
+        // current costPrice (fallback, same as the server-side COGS rule).
+        const fk = `${s.id}|${prod.id}`;
+        const covered = Math.min(qty, fifoQty[fk] || 0);
+        const fifoShare = (fifoQty[fk] || 0) > 0 ? (fifoVal[fk] || 0) * (covered / fifoQty[fk]) : 0;
+        bucket.cogs += fifoShare + Math.max(0, qty - covered) * Number(prod.costPrice || 0);
         bucket.num_orders += 1;
       });
     });
@@ -138,7 +169,7 @@ const ProductProfitabilityReport = () => {
         tier_color: tier.color,
       };
     });
-  }, [products, sales]);
+  }, [products, sales, consumption]);
 
   // --- Split: active sellers vs dead stock ---
   const activeRows = useMemo(
@@ -197,8 +228,8 @@ const ProductProfitabilityReport = () => {
         id: 'margin',
         label: 'Blended Margin',
         value: `${totals.margin_pct.toFixed(1)}%`,
-        trend: 2.5,
-        trendDir: totals.margin_pct >= 20 ? 'up' : 'down',
+        trend: 0,
+        trendDir: 'none',
         color: totals.margin_pct >= 20 ? 'sky' : 'amber',
         chartData: sparkline,
       },
@@ -206,8 +237,8 @@ const ProductProfitabilityReport = () => {
         id: 'units',
         label: 'Units Sold',
         value: totals.units,
-        trend: 4.8,
-        trendDir: 'up',
+        trend: 0,
+        trendDir: 'none',
         color: 'indigo',
         chartData: activeRows.slice(0, 12).map((r) => ({ value: r.units_sold })),
       },
@@ -239,13 +270,13 @@ const ProductProfitabilityReport = () => {
     const tierConfig = {
       HIGH:       { bg: 'bg-emerald-50', text: 'text-emerald-600', dot: '#10b981' },
       HEALTHY:    { bg: 'bg-sky-50',     text: 'text-sky-600',     dot: '#0ea5e9' },
-      THIN:       { bg: 'bg-amber-50',   text: 'text-amber-600',   dot: '#f59e0b' },
+      THIN:       { bg: 'bg-accent-signature/10',   text: 'text-accent-signature',   dot: '#f59e0b' },
       'BREAK-EVEN': { bg: 'bg-orange-50', text: 'text-orange-600', dot: '#f97316' },
       LOSS:       { bg: 'bg-rose-50',    text: 'text-rose-600',    dot: '#ef4444' },
     };
     const c = tierConfig[label] || tierConfig.THIN;
     return (
-      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase ${c.bg} ${c.text}`}>
+      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-semibold uppercase ${c.bg} ${c.text}`}>
         <div className="w-1 h-1 rounded-full" style={{ backgroundColor: c.dot }} />
         {label}
       </div>
@@ -273,8 +304,8 @@ const ProductProfitabilityReport = () => {
         width: 240,
         render: (val, row) => (
           <div className="flex flex-col gap-0.5">
-            <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>
-            <span className="text-[9px] text-gray-400 font-mono">{row.sku}</span>
+            <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
+            <span className="text-[9px] text-muted-foreground tabular-nums">{row.sku}</span>
           </div>
         ),
       },
@@ -283,7 +314,7 @@ const ProductProfitabilityReport = () => {
         label: 'Category',
         sortable: true,
         width: 140,
-        render: (val) => <span className="text-[10px] font-bold text-gray-500 uppercase">{val}</span>,
+        render: (val) => <span className="text-[10px] font-semibold text-muted-foreground uppercase">{val}</span>,
       },
       {
         key: 'units_sold',
@@ -291,7 +322,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 110,
-        render: (val) => <span className="font-black tabular-nums">{val.toLocaleString('en-IN')}</span>,
+        render: (val) => <span className="font-semibold tabular-nums">{val.toLocaleString('en-IN')}</span>,
       },
       {
         key: 'avg_sell_price',
@@ -299,7 +330,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 120,
-        render: (val) => <span className="text-[10px] font-bold text-gray-500 tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'cost_price',
@@ -307,7 +338,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 110,
-        render: (val) => <span className="text-[10px] text-gray-400 tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="text-[10px] text-muted-foreground tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'revenue',
@@ -316,7 +347,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 140,
-        render: (val) => <span className="font-black text-ink-primary tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-foreground tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'cogs',
@@ -325,7 +356,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 130,
-        render: (val) => <span className="text-gray-500 tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="text-muted-foreground tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'gross_profit',
@@ -335,7 +366,7 @@ const ProductProfitabilityReport = () => {
         sortable: true,
         width: 140,
         render: (val) => (
-          <span className={`font-black tabular-nums ${val >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          <span className={`font-semibold tabular-nums ${val >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
             {formatINR(val)}
           </span>
         ),
@@ -347,7 +378,7 @@ const ProductProfitabilityReport = () => {
         sortable: true,
         width: 100,
         render: (val) => (
-          <span className={`font-black tabular-nums ${val >= 20 ? 'text-emerald-600' : val >= 5 ? 'text-amber-600' : 'text-rose-600'}`}>
+          <span className={`font-semibold tabular-nums ${val >= 20 ? 'text-emerald-600' : val >= 5 ? 'text-accent-signature' : 'text-rose-600'}`}>
             {PCT(val)}
           </span>
         ),
@@ -366,7 +397,7 @@ const ProductProfitabilityReport = () => {
       data: categoryRollup,
       series: [
         { key: 'gross_profit', name: 'Gross Profit', color: '#10b981' },
-        { key: 'revenue', name: 'Revenue', color: '#D97706' },
+        { key: 'revenue', name: 'Revenue', color: 'var(--color-accent-signature)' },
       ],
     },
     detailFields: [
@@ -405,13 +436,13 @@ const ProductProfitabilityReport = () => {
         width: 260,
         render: (val, row) => (
           <div className="flex flex-col gap-0.5">
-            <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>
-            <span className="text-[9px] text-gray-400 font-mono">{row.sku}</span>
+            <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
+            <span className="text-[9px] text-muted-foreground tabular-nums">{row.sku}</span>
           </div>
         ),
       },
       { key: 'category', label: 'Category', sortable: true, width: 140 },
-      { key: 'stock', label: 'On Hand', align: 'right', sortable: true, width: 100, render: (v) => <span className="font-black tabular-nums">{v}</span> },
+      { key: 'stock', label: 'On Hand', align: 'right', sortable: true, width: 100, render: (v) => <span className="font-semibold tabular-nums">{v}</span> },
       { key: 'cost_price', label: 'Unit Cost', type: 'currency', align: 'right', sortable: true, width: 120, render: (v) => formatINR(v) },
       {
         key: 'capital_locked',
@@ -420,7 +451,7 @@ const ProductProfitabilityReport = () => {
         sortable: true,
         width: 160,
         render: (_, row) => (
-          <span className="font-black text-rose-600 tabular-nums">
+          <span className="font-semibold text-rose-600 tabular-nums">
             {formatINR(row.stock * row.cost_price)}
           </span>
         ),
@@ -432,7 +463,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 120,
-        render: (v) => <span className="text-gray-500 tabular-nums">{formatINR(v)}</span>,
+        render: (v) => <span className="text-muted-foreground tabular-nums">{formatINR(v)}</span>,
       },
     ],
     kpis: [
@@ -474,7 +505,14 @@ const ProductProfitabilityReport = () => {
   // Only show dead stock tab if there is any
   const tabs = deadStockRows.length > 0 ? [profitabilityTab, deadStockTab] : [profitabilityTab];
 
-  return <PremiumReportView title="Product Profitability" tabs={tabs} />;
+  return (
+    <div>
+      <PremiumReportView dateWindow={win} title="Product Profitability" tabs={tabs} />
+      {/* all-time report — reconcile against the P&L over all time */}
+      <PLTieOut from="2000-01-01" to="2100-01-01" revenue={totals.revenue} cogs={totals.cogs}
+        note="SKU rows are pre-discount — small differences are bill discounts and returns." />
+    </div>
+  );
 };
 
 export default ProductProfitabilityReport;

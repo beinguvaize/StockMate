@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
@@ -10,6 +11,7 @@ import 'package:mobile_app/core/database/realtime_sync.dart';
 import 'package:mobile_app/core/update/auto_updater.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/features/auth/data/auth_provider.dart';
 import 'package:mobile_app/features/auth/presentation/login_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/dashboard_screen.dart';
@@ -131,31 +133,94 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
         scaffoldBackgroundColor: AppColors.canvas,
         useMaterial3: true,
         textTheme: GoogleFonts.manropeTextTheme().copyWith(
-          displayLarge: GoogleFonts.manrope(fontSize: 48, fontWeight: FontWeight.w700, letterSpacing: -0.02 * 48, color: AppColors.onSurface),
+          displayLarge:  GoogleFonts.manrope(fontSize: 48, fontWeight: FontWeight.w600, letterSpacing: -0.02 * 48, color: AppColors.onSurface),
           displayMedium: GoogleFonts.manrope(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.01 * 32, color: AppColors.onSurface),
-          displaySmall: GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          headlineLarge: GoogleFonts.manrope(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.3, color: AppColors.onSurface),
-          headlineMedium: GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          headlineSmall: GoogleFonts.manrope(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          titleLarge: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.onSurface),
-          titleMedium: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          titleSmall: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          bodyLarge: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w400, color: AppColors.onSurface),
-          bodyMedium: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.onSurface),
-          bodySmall: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w400, color: AppColors.inkSecondary),
-          labelLarge: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          labelMedium: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.05 * 12, color: AppColors.inkSecondary),
-          labelSmall: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w500, letterSpacing: 0.05 * 10, color: AppColors.inkSecondary),
+          displaySmall:  GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          headlineLarge: GoogleFonts.manrope(fontSize: 28, fontWeight: FontWeight.w600, letterSpacing: -0.3, color: AppColors.onSurface),
+          headlineMedium:GoogleFonts.manrope(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          headlineSmall: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          titleLarge:    GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          titleMedium:   GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          titleSmall:    GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          bodyLarge:     GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w400, color: AppColors.onSurface),
+          bodyMedium:    GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w400, color: AppColors.onSurface),
+          bodySmall:     GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w400, color: AppColors.inkSecondary),
+          labelLarge:    GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          labelMedium:   GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.inkSecondary),
+          labelSmall:    GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w500, letterSpacing: 0.04 * 10, color: AppColors.inkSecondary),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.onPrimary,
+            disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+            disabledForegroundColor: AppColors.onPrimary.withValues(alpha: 0.6),
             elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-            shape: const StadiumBorder(),
-            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 15),
+            padding: const EdgeInsets.symmetric(horizontal: Gap.xl, vertical: 14),
+            shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
+            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 14),
           ),
+        ),
+        // Absent before, so all 32 OutlinedButton sites styled themselves.
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.onSurface,
+            side: const BorderSide(color: AppColors.outline),
+            padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: 12),
+            shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
+            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.onPrimary,
+            padding: const EdgeInsets.symmetric(horizontal: Gap.xl, vertical: 14),
+            shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
+            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+        ),
+        // 15 screens each declared this same iconTheme on their own AppBar.
+        appBarTheme: AppBarTheme(
+          backgroundColor: AppColors.canvas,
+          surfaceTintColor: Colors.transparent,
+          foregroundColor: AppColors.onSurface,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          iconTheme: const IconThemeData(color: AppColors.onSurface),
+          titleTextStyle: GoogleFonts.manrope(
+            fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+        ),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.onPrimary,
+          elevation: 2,
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: AppColors.surfaceContainer,
+          selectedColor: AppColors.primaryContainer,
+          side: const BorderSide(color: AppColors.outlineVariant),
+          shape: const RoundedRectangleBorder(borderRadius: Radii.rPill),
+          labelStyle: GoogleFonts.manrope(
+            fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.onSurface),
+        ),
+        dividerTheme: const DividerThemeData(
+          color: AppColors.outlineVariant, thickness: 1, space: 1),
+        dialogTheme: DialogThemeData(
+          backgroundColor: AppColors.canvas,
+          surfaceTintColor: Colors.transparent,
+          shape: const RoundedRectangleBorder(borderRadius: Radii.rLg),
+          titleTextStyle: GoogleFonts.manrope(
+            fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          contentTextStyle: GoogleFonts.manrope(
+            fontSize: 14, height: 1.5, color: AppColors.onSurfaceVariant),
+        ),
+        snackBarTheme: SnackBarThemeData(
+          backgroundColor: AppColors.onSurface,
+          contentTextStyle: GoogleFonts.manrope(
+            fontSize: 13, color: AppColors.canvas),
+          behavior: SnackBarBehavior.floating,
+          shape: const RoundedRectangleBorder(borderRadius: Radii.rSm),
         ),
         cardTheme: CardThemeData(
           color: AppColors.surface,
@@ -303,23 +368,50 @@ class _SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Logo — horizontally centered
-              Image(
-                image: AssetImage('assets/images/logo.png'),
-                width: 180,
-                fit: BoxFit.contain,
+        child: Stack(
+          children: [
+            const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Logo — horizontally centered
+                  Image(
+                    image: AssetImage('assets/images/logo.png'),
+                    width: 180,
+                    fit: BoxFit.contain,
+                  ),
+                  SizedBox(height: 32),
+                  CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                ],
               ),
-              SizedBox(height: 32),
-              CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
-            ],
-          ),
+            ),
+            // App version — pinned bottom-center, read from the build's pubspec.
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: FutureBuilder<PackageInfo>(
+                  future: PackageInfo.fromPlatform(),
+                  builder: (context, snap) {
+                    final v = snap.hasData
+                        ? 'v${snap.data!.version} (${snap.data!.buildNumber})'
+                        : '';
+                    return Text(
+                      v,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.inkTertiary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -74,15 +74,15 @@ final _navItems = [
     screen: FinanceScreen(),
   ),
   const _NavItem(
-    id: 'hr',
-    label: 'HR & Payroll',
+    id: 'payroll',
+    label: 'Payroll',
     icon: LucideIcons.briefcase,
-    feature: 'hr',
+    feature: 'payroll',
     screen: HRScreen(),
   ),
   const _NavItem(
     id: 'logistics',
-    label: 'Fleet',
+    label: 'Vehicles',
     icon: LucideIcons.truck,
     feature: 'logistics',
     screen: LogisticsScreen(),
@@ -485,7 +485,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                     loading: () => const Center(
                       child: CircularProgressIndicator(),
                     ),
-                    error: (e, _) => Center(child: Text('Error: $e')),
+                    error: (e, _) => Center(child: Text('Could not load. Check your internet and try again.')),
                   ),
                 ),
               ],

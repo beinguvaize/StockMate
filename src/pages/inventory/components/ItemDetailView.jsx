@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useDialogClose } from '../../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft, ScanLine, SlidersHorizontal, Pencil, Trash2,
@@ -21,15 +22,26 @@ const TABS = [
   { id: 'PRICES',  label: 'Client Wise Prices', icon: Tags },
 ];
 
+// Where a batch came from when no supplier is linked (hand-added stock, or a
+// cost-layer reconciliation). Keeps the note readable instead of showing "—".
+const batchSource = (b) => {
+  const note = (b.note || '').trim();
+  if (!note) return b.purchase_id ? 'Purchase' : 'Added by hand';
+  if (/^reconcile/i.test(note)) return 'Stock reconciliation';
+  return note;
+};
+
 const ItemDetailView = ({
   product, locations = [], balances = [], tenantId,
   onClose, onEdit, onAdjust, onPrintBarcode, onDelete, currencySymbol = '₹',
   items = [], onSelect, onCreate,
 }) => {
+  useDialogClose(onClose); // only mounted while a product is being viewed
   const [tab, setTab] = useState('DETAILS');
   const [listSearch, setListSearch] = useState('');
   const detailRef = React.useRef(null);
   const [batches, setBatches] = useState([]);
+  const [movements, setMovements] = useState([]);
   const [sales, setSales] = useState([]);
   const [clients, setClients] = useState({});
   const [suppliers, setSuppliers] = useState({});
@@ -50,8 +62,8 @@ const ItemDetailView = ({
     let cancelled = false;
     setLoading(true);
     (async () => {
-      const [b, s, c, pl, sup] = await Promise.all([
-        supabase.from('product_batches').select('id, unit_cost, qty_remaining, qty_received, received_date, expiry_date, supplier_id, purchase_id')
+      const [b, s, c, pl, sup, mv] = await Promise.all([
+        supabase.from('product_batches').select('id, unit_cost, qty_remaining, qty_received, received_date, expiry_date, supplier_id, purchase_id, note')
           .eq('product_id', pid).eq('tenant_id', tenantId).is('deleted_at', null)
           .order('received_date', { ascending: false }),
         supabase.from('sales').select('"shopId", items, date, "totalAmount"')
@@ -59,9 +71,16 @@ const ItemDetailView = ({
         supabase.from('clients').select('id, name').eq('tenant_id', tenantId).is('deleted_at', null),
         supabase.from('price_lists').select('*').eq('product_id', pid).eq('tenant_id', tenantId),
         supabase.from('suppliers').select('id, name').eq('tenant_id', tenantId).is('deleted_at', null),
+        // Every stock in/out for this item — purchases, sales, and manual
+        // adjustments — so the user can track exactly what moved and why.
+        supabase.from('movement_log').select('id, date, type, quantity, reason')
+          .is('deleted_at', null)
+          .eq('product_id', pid).eq('tenant_id', tenantId)
+          .order('date', { ascending: false }).limit(200),
       ]);
       if (cancelled) return;
       setBatches(b.data || []);
+      setMovements(mv.data || []);
       // Keep only sales that contain this product.
       setSales((s.data || []).filter(row =>
         Array.isArray(row.items) && row.items.some(it => (it.id || it.productId) === pid)));
@@ -104,16 +123,35 @@ const ItemDetailView = ({
   }, [sales, clients, pid]);
 
   const cost = Number(product?.costPrice ?? 0);
+
+  // Stock value from the batches themselves, not products.costPrice.
+  //
+  // costPrice is a weighted average; FIFO consumes real batch costs, so valuing
+  // stock at the average made this card disagree with the COGS the same stock
+  // will produce (LD Cover 0: card ₹8,859.17 vs batches ₹8,595.70).
+  //
+  // Batches can also under-cover the balance — that item shows 66 in stock with
+  // 65 across its batches. Rather than hide the gap, value what the batches
+  // cover at their own cost and the remainder at costPrice, and say so.
+  const stockValue = useMemo(() => {
+    const qty = batches.reduce((s, b) => s + Number(b.qty_remaining || 0), 0);
+    const val = batches.reduce((s, b) => s + Number(b.qty_remaining || 0) * Number(b.unit_cost || 0), 0);
+    if (!batches.length) return { value: totalStock * cost, uncosted: 0 };
+    const uncosted = totalStock - qty;                 // stock no batch accounts for
+    return { value: val + Math.max(uncosted, 0) * cost, uncosted };
+  }, [batches, totalStock, cost]);
+
   const sell = Number(product?.sellingPrice ?? 0);
   const margin = sell > 0 ? ((sell - cost) / sell) * 100 : 0;
   const itemCode = product?.sku || product?.barcode || '—';
   const lowThreshold = product?.low_stock_threshold ?? product?.lowStockThreshold ?? 10;
   const inStock = totalStock > 0;
 
-  const Field = ({ label, value, accent }) => (
-    <div className="rounded-xl border border-black/[0.06] bg-white p-3.5">
-      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</div>
-      <div className={`text-sm font-bold mt-1 ${accent || 'text-ink-primary'}`}>{value}</div>
+  const Field = ({ label, value, accent, hint }) => (
+    <div className="rounded-xl border border-border/60 bg-card p-3.5">
+      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
+      <div className={`text-sm font-semibold mt-1 ${accent || 'text-foreground'}`}>{value}</div>
+      {hint && <div className="text-[10px] mt-1 text-amber-600 font-medium">{hint}</div>}
     </div>
   );
 
@@ -131,17 +169,17 @@ const ItemDetailView = ({
   return createPortal((
     <div className="fixed inset-0 z-[200] bg-canvas flex">
       {/* Master list */}
-      <aside className="w-72 shrink-0 border-r border-black/[0.07] bg-white flex flex-col">
+      <aside className="w-72 shrink-0 border-r border-border/60 bg-card flex flex-col">
         <div className="p-3 border-b border-black/[0.05] space-y-2">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input value={listSearch} onChange={e => setListSearch(e.target.value)}
               placeholder="Search item"
-              className="w-full bg-canvas border border-black/[0.06] rounded-lg pl-9 pr-3 py-2 text-xs font-semibold outline-none focus:border-black/20" />
+              className="w-full bg-canvas border border-border/60 rounded-lg pl-9 pr-3 py-2 text-xs font-semibold outline-none focus:border-black/20" />
           </div>
           {onCreate && (
             <button onClick={onCreate}
-              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-accent-signature/50 text-accent-signature text-xs font-bold hover:bg-accent-signature/5 transition-colors">
+              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-accent-signature/50 text-accent-signature text-xs font-semibold hover:bg-accent-signature/5 transition-colors">
               <Plus size={14} /> Create Item
             </button>
           )}
@@ -150,14 +188,14 @@ const ItemDetailView = ({
           {filteredItems.map(it => (
             <button key={it.id} onClick={() => onSelect?.(it)}
               className={`w-full text-left rounded-xl border p-3 transition-colors ${
-                it.id === pid ? 'border-accent-signature bg-accent-signature/5' : 'border-black/[0.06] hover:border-black/15 bg-white'
+                it.id === pid ? 'border-accent-signature bg-accent-signature/5' : 'border-border/60 hover:border-black/15 bg-card'
               }`}>
-              <div className="text-[13px] font-bold text-ink-primary truncate">{it.name}</div>
-              <div className="text-[10px] font-mono text-gray-400 mt-0.5 uppercase">{it.sku || it.barcode || ''}</div>
+              <div className="text-[13px] font-semibold text-foreground truncate">{it.name}</div>
+              <div className="text-[10px] tabular-nums text-muted-foreground mt-0.5 uppercase">{it.sku || it.barcode || ''}</div>
             </button>
           ))}
           {filteredItems.length === 0 && (
-            <div className="px-3 py-8 text-center text-[11px] text-gray-400 font-semibold">No items</div>
+            <div className="px-3 py-8 text-center text-[11px] text-muted-foreground font-semibold">No items</div>
           )}
         </div>
       </aside>
@@ -167,39 +205,39 @@ const ItemDetailView = ({
       <div className="max-w-4xl mx-auto p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
-          <button onClick={onClose} className="w-9 h-9 rounded-lg border border-black/10 flex items-center justify-center text-gray-600 hover:bg-white transition-colors">
+          <button onClick={onClose} className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:bg-card transition-colors">
             <ArrowLeft size={16} />
           </button>
-          <h1 className="text-[20px] font-black text-ink-primary">{product?.name}</h1>
-          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide ${inStock ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+          <h1 className="text-[20px] font-semibold text-foreground">{product?.name}</h1>
+          <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${inStock ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
             {inStock ? 'In Stock' : 'Out of Stock'}
           </span>
           <div className="flex items-center gap-2 ml-auto">
-            <button onClick={() => onPrintBarcode?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-black/10 text-xs font-bold text-gray-700 hover:bg-white transition-colors">
+            <button onClick={() => onPrintBarcode?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
               <ScanLine size={14} /> Print Barcode
             </button>
             {onAdjust && (
-              <button onClick={() => onAdjust(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-black/10 text-xs font-bold text-gray-700 hover:bg-white transition-colors">
+              <button onClick={() => onAdjust(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
                 <SlidersHorizontal size={14} /> Adjust Stock
               </button>
             )}
-            <button onClick={() => onEdit?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-black/10 text-xs font-bold text-gray-700 hover:bg-white transition-colors">
+            <button onClick={() => onEdit?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
               <Pencil size={14} /> Edit
             </button>
-            <button onClick={() => onDelete?.(product)} className="w-9 h-9 rounded-lg border border-black/10 flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors">
+            <button onClick={() => onDelete?.(product)} className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors">
               <Trash2 size={14} />
             </button>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-black/[0.07] mb-5 overflow-x-auto">
+        <div className="flex gap-1 border-b border-border/60 mb-5 overflow-x-auto">
           {TABS.map(t => {
             const Icon = t.icon;
             return (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`inline-flex items-center gap-2 px-3.5 py-2.5 text-[13px] font-bold whitespace-nowrap border-b-2 -mb-px transition-colors ${
-                  tab === t.id ? 'border-accent-signature text-accent-signature' : 'border-transparent text-gray-400 hover:text-ink-primary'
+                className={`inline-flex items-center gap-2 px-3.5 py-2.5 text-[13px] font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors ${
+                  tab === t.id ? 'border-accent-signature text-accent-signature' : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}>
                 <Icon size={15} /> {t.label}
               </button>
@@ -231,19 +269,58 @@ const ItemDetailView = ({
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Field label="Total Stock" value={`${totalStock} ${product?.unit || ''}`} accent={inStock ? 'text-emerald-600' : 'text-red-600'} />
-              <Field label="Stock Value (cost)" value={formatCurrency(totalStock * cost, currencySymbol)} />
+              <Field label="Stock Value (cost)" value={formatCurrency(stockValue.value, currencySymbol)}
+                hint={stockValue.uncosted > 0
+                  ? `${stockValue.uncosted} ${product?.unit || ''} not in any batch — valued at average cost`
+                  : null} />
               <Field label="Batches" value={batches.length} />
               <Field label="Low-Stock Alert" value={lowThreshold} />
             </div>
             <Card title="Batches">
               {loading ? <Empty text="Loading…" /> : batches.length === 0 ? <Empty text="No batch records" /> : (
-                <Tbl head={['Received', 'Supplier', 'Expiry', 'Received Qty', 'Remaining', 'Unit Cost']}
+                <Tbl head={['Received', 'Source', 'Expiry', 'Received Qty', 'Remaining', 'Unit Cost']}
                   rows={batches.map(b => [
-                    b.received_date || '—', suppliers[b.supplier_id] || '—', b.expiry_date || '—',
+                    b.received_date || '—',
+                    // Not every batch comes from a supplier — stock added by
+                    // hand, or by a cost reconciliation, has no supplier_id and
+                    // rendered a bare "—" with no way to tell where it came
+                    // from. Fall back to the batch note.
+                    suppliers[b.supplier_id] || batchSource(b), b.expiry_date || '—',
                     b.qty_received ?? '—', b.qty_remaining ?? 0, formatCurrency(b.unit_cost, currencySymbol),
                   ])} />
               )}
             </Card>
+
+            {/* Manual adjustments only — hand corrections to stock. */}
+            {(() => {
+              // Anything NOT written by an automated flow is a hand correction.
+              // Matching /manual|adjust/ on the reason hid almost everything:
+              // none of the Adjust Stock presets ("Data correction", "Physical
+              // stock count", "Internal use", …) contain those words, so real
+              // adjustments looked like "No manual adjustments". Exclude the
+              // system-generated reasons instead — that also covers free text
+              // and any preset added later.
+              const SYSTEM_REASON = /^(sale|purchase|van |loaded on vehicle|dispatch to vehicle|void sale|unvoid sale)/i;
+              const manual = movements.filter(m => {
+                const reason = (m.reason || '').trim();
+                return reason !== '' && !SYSTEM_REASON.test(reason);
+              });
+              return (
+                <Card title="Manual Adjustments">
+                  {loading ? <Empty text="Loading…" /> : manual.length === 0 ? <Empty text="No manual adjustments" /> : (
+                    <Tbl head={['Date', 'Reason', 'Qty']}
+                      rows={manual.map(m => {
+                        const isIn = String(m.type).toUpperCase() === 'IN';
+                        return [
+                          m.date ? String(m.date).slice(0, 10) : '—',
+                          m.reason || '—',
+                          <span key="q" className={`font-semibold ${isIn ? 'text-emerald-600' : 'text-red-500'}`}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</span>,
+                        ];
+                      })} />
+                  )}
+                </Card>
+              );
+            })()}
           </div>
         )}
 
@@ -288,24 +365,24 @@ const ItemDetailView = ({
 };
 
 const Card = ({ title, children }) => (
-  <div className="rounded-2xl border border-black/[0.07] bg-white overflow-hidden">
-    <div className="px-4 py-3 border-b border-black/[0.05] text-[11px] font-black text-gray-500 uppercase tracking-wider">{title}</div>
+  <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+    <div className="px-4 py-3 border-b border-black/[0.05] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{title}</div>
     {children}
   </div>
 );
-const Empty = ({ text }) => <div className="px-4 py-10 text-center text-xs font-semibold text-gray-400">{text}</div>;
+const Empty = ({ text }) => <div className="px-4 py-10 text-center text-xs font-semibold text-muted-foreground">{text}</div>;
 const Tbl = ({ head, rows }) => (
   <div className="overflow-x-auto">
     <table className="w-full text-left">
       <thead>
-        <tr className="text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-black/[0.05]">
+        <tr className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-black/[0.05]">
           {head.map((h, i) => <th key={i} className={`px-4 py-2.5 ${i >= head.length - 1 ? 'text-right' : ''}`}>{h}</th>)}
         </tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
           <tr key={i} className="border-b border-black/[0.04] last:border-0">
-            {r.map((c, j) => <td key={j} className={`px-4 py-2.5 text-xs font-semibold text-gray-700 ${j >= r.length - 1 ? 'text-right font-bold text-ink-primary' : ''}`}>{c}</td>)}
+            {r.map((c, j) => <td key={j} className={`px-4 py-2.5 text-xs font-semibold text-ink-secondary ${j >= r.length - 1 ? 'text-right font-semibold text-foreground' : ''}`}>{c}</td>)}
           </tr>
         ))}
       </tbody>

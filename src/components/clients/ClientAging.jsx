@@ -61,7 +61,7 @@ const ClientAging = ({ clients, sales, clientPayments, businessProfile}) => {
  </div>
  <span className="text-[10px] font-semibold opacity-[0.85]">{bucket.count} Accounts</span>
  </div>
- <div className="text-sm font-semibold text-gray-700 mb-1">{bucket.label}</div>
+ <div className="text-sm font-semibold text-ink-secondary mb-1">{bucket.label}</div>
  <div className="text-3xl font-semibold text-ink-primary tabular-nums">
  {businessProfile?.currencySymbol || '₹'}{Math.round(bucket.amount).toLocaleString()}
  </div>
@@ -81,12 +81,12 @@ const ClientAging = ({ clients, sales, clientPayments, businessProfile}) => {
  <table className="w-full text-left border-collapse">
  <thead>
  <tr className="bg-canvas/50">
- <th className="py-2 px-6 text-[10px] font-semibold text-gray-700">Client Name</th>
- <th className="py-2 px-6 text-[10px] font-semibold text-gray-700 text-right">Current</th>
- <th className="py-2 px-6 text-[10px] font-semibold text-gray-700 text-right">31-60 Days</th>
- <th className="py-2 px-6 text-[10px] font-semibold text-gray-700 text-right">61-90 Days</th>
- <th className="py-2 px-6 text-[10px] font-semibold text-gray-700 text-right">90+ Days</th>
- <th className="py-2 px-6 text-[10px] font-semibold text-gray-700 text-right">Total Owed</th>
+ <th className="py-2 px-6 text-[10px] font-semibold text-ink-secondary">Client Name</th>
+ <th className="py-2 px-6 text-[10px] font-semibold text-ink-secondary text-right">Current</th>
+ <th className="py-2 px-6 text-[10px] font-semibold text-ink-secondary text-right">31-60 Days</th>
+ <th className="py-2 px-6 text-[10px] font-semibold text-ink-secondary text-right">61-90 Days</th>
+ <th className="py-2 px-6 text-[10px] font-semibold text-ink-secondary text-right">90+ Days</th>
+ <th className="py-2 px-6 text-[10px] font-semibold text-ink-secondary text-right">Total Owed</th>
  </tr>
  </thead>
  <tbody className="divide-y divide-black/5">
@@ -97,15 +97,15 @@ const ClientAging = ({ clients, sales, clientPayments, businessProfile}) => {
  <td className="py-2 px-6">
  <div className="flex flex-col">
  <span className="text-sm font-semibold text-ink-primary">{client.name}</span>
- <span className="text-[9px] font-bold text-gray-700 opacity-60">{client.contact}</span>
+ <span className="text-[9px] font-bold text-ink-secondary opacity-60">{client.contact}</span>
  </div>
  </td>
- <td className="py-2 px-6 text-right font-semibold font-mono text-sm tabular-nums text-ink-primary">{client.aging.current > 0 ? Math.round(client.aging.current).toLocaleString() : '-'}</td>
- <td className="py-2 px-6 text-right font-semibold font-mono text-sm tabular-nums text-red-400">{client.aging.overdue30 > 0 ? Math.round(client.aging.overdue30).toLocaleString() : '-'}</td>
- <td className="py-2 px-6 text-right font-semibold font-mono text-sm tabular-nums text-red-600">{client.aging.overdue60 > 0 ? Math.round(client.aging.overdue60).toLocaleString() : '-'}</td>
- <td className="py-2 px-6 text-right font-semibold font-mono text-sm tabular-nums text-red-800 bg-red-50/30">{client.aging.overdue90 > 0 ? Math.round(client.aging.overdue90).toLocaleString() : '-'}</td>
+ <td className="py-2 px-6 text-right font-semibold text-sm tabular-nums text-ink-primary">{client.aging.current > 0 ? Math.round(client.aging.current).toLocaleString() : '-'}</td>
+ <td className="py-2 px-6 text-right font-semibold text-sm tabular-nums text-red-400">{client.aging.overdue30 > 0 ? Math.round(client.aging.overdue30).toLocaleString() : '-'}</td>
+ <td className="py-2 px-6 text-right font-semibold text-sm tabular-nums text-red-600">{client.aging.overdue60 > 0 ? Math.round(client.aging.overdue60).toLocaleString() : '-'}</td>
+ <td className="py-2 px-6 text-right font-semibold text-sm tabular-nums text-red-800 bg-red-50/30">{client.aging.overdue90 > 0 ? Math.round(client.aging.overdue90).toLocaleString() : '-'}</td>
  <td className="py-2 px-6 text-right">
- <span className="px-3 py-1 rounded-lg bg-ink-primary text-accent-signature font-semibold font-mono text-sm tabular-nums">
+ <span className="px-3 py-1 rounded-lg bg-ink-primary text-accent-signature font-semibold text-sm tabular-nums">
  {Math.round(total).toLocaleString()}
  </span>
  </td>

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase, restInsert, restUpdate } from '../lib/supabase';
+import { supabase, restInsert, restUpdate, restRpc } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { normalizeNumericRows } from '../lib/numeric';
-import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
+import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate, isElectron } from '../lib/offline/hookAdapter';
 import { generateUUID } from '../lib/utils';
 
 const DEFAULT_PERMISSIONS = {
@@ -61,7 +61,7 @@ export const usePeople = (tenantId) => {
         ),
         readCacheThenRevalidate(
           'users',
-          () => supabase.from('users').select('*').eq('tenant_id', tenantId).order('name'),
+          () => supabase.from('users').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
           (rows) => setUsers(rows),
         ),
       ]);
@@ -89,6 +89,12 @@ export const usePeople = (tenantId) => {
   const addSupplier = async (supplier) => {
     const id = supplier.id || generateUUID();
     const row = { id, ...supplier, tenant_id: tenantId };
+    if (isElectron()) {
+      await queueMutation({ table: 'suppliers', type: 'insert', payload: row });
+      await upsertCachedRow('suppliers', row);
+      setSuppliers(prev => normalizeNumericRows([row, ...prev], SUPPLIER_NUMERIC));
+      return { success: true, error: null, queued: true };
+    }
     const { error } = await restInsert('suppliers', row);
     if (!error) { await fetchPeopleData(); return { success: true, error: null }; }
     if (isOfflineError(error)) {
@@ -104,13 +110,31 @@ export const usePeople = (tenantId) => {
 
   const updateSupplier = async (supplier) => {
     const { id, ...data } = supplier;
+    if (isElectron()) {
+      await queueMutation({ table: 'suppliers', type: 'update', payload: { ...data, id } });
+      setSuppliers(prev => prev.map(x => x.id === id ? { ...x, ...data } : x));
+      return { success: true, error: null, queued: true };
+    }
     const { error } = await restUpdate('suppliers', data, { id, tenant_id: tenantId });
     if (!error) await fetchPeopleData();
     return { success: !error, error };
   };
 
   const deleteSupplier = async (id) => {
-    const { error } = await restUpdate('suppliers', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
+    if (typeof id !== 'string' || !id) {
+      const err = new Error(`deleteSupplier expects a supplier id, received ${typeof id}.`);
+      console.error('deleteSupplier: bad id', id);
+      return { success: false, error: err };
+    }
+    const deleted_at = new Date().toISOString();
+    // Same hole as deleteClient: add and edit queued on desktop, delete did not.
+    if (isElectron()) {
+      await queueMutation({ table: 'suppliers', type: 'update', payload: { id, deleted_at } });
+      await upsertCachedRow('suppliers', { id, deleted_at });
+      setSuppliers(prev => prev.filter(x => x.id !== id));
+      return { success: true, error: null, queued: true };
+    }
+    const { error } = await restUpdate('suppliers', { deleted_at }, { id, tenant_id: tenantId }, { expectRow: true });
     if (!error) await fetchPeopleData();
     return { success: !error, error };
   };
@@ -122,6 +146,12 @@ export const usePeople = (tenantId) => {
   const addClient = async (client) => {
     const id = generateUUID();
     const row = { id, ...toClientRow(client), tenant_id: tenantId };
+    if (isElectron()) {
+      await queueMutation({ table: 'clients', type: 'insert', payload: row });
+      await upsertCachedRow('clients', row);
+      setClients(prev => normalizeNumericRows([row, ...prev], CLIENT_NUMERIC));
+      return { success: true, error: null, queued: true };
+    }
     const { error } = await restInsert('clients', row);
     if (!error) {
       fetchPeopleData().catch(e => console.error('addClient refetch error:', e));
@@ -141,6 +171,12 @@ export const usePeople = (tenantId) => {
 
   const updateClient = async (client) => {
     const { id, ...data } = client;
+    if (isElectron()) {
+      const payload = { ...toClientRow(data), id };
+      await queueMutation({ table: 'clients', type: 'update', payload });
+      setClients(prev => prev.map(x => x.id === id ? { ...x, ...payload } : x));
+      return { success: true, error: null, queued: true };
+    }
     const { error } = await restUpdate('clients', toClientRow(data), { id, tenant_id: tenantId });
     if (error) console.error('updateClient error:', error);
     else fetchPeopleData().catch(e => console.error('updateClient refetch error:', e));
@@ -148,7 +184,30 @@ export const usePeople = (tenantId) => {
   };
 
   const deleteClient = async (id) => {
-    const { error } = await restUpdate('clients', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
+    // Callers pass an ID. One passed the whole client object, which stringified
+    // into the query as id=[object Object] and matched nothing -- a delete that
+    // silently did nothing, then reported a confusing permissions error once
+    // the write started checking. Refuse the bad shape here so the next caller
+    // that gets it wrong finds out immediately.
+    if (typeof id !== 'string' || !id) {
+      const err = new Error(`deleteClient expects a client id, received ${typeof id}.`);
+      console.error('deleteClient: bad id', id);
+      return { success: false, error: err };
+    }
+    const deleted_at = new Date().toISOString();
+    // Desktop is offline-first: adding and editing a client already queue, but
+    // deleting did not -- it went straight to the network. Off the network the
+    // PATCH failed, the caller discarded the error, and the client stayed on
+    // screen. That is the SKYTECH report: two duplicates that would not delete.
+    if (isElectron()) {
+      await queueMutation({ table: 'clients', type: 'update', payload: { id, deleted_at } });
+      await upsertCachedRow('clients', { id, deleted_at });
+      setClients(prev => prev.filter(c => c.id !== id));
+      return { success: true, error: null, queued: true };
+    }
+    // expectRow: a PATCH matching nothing answers 204 and would otherwise look
+    // like a successful delete.
+    const { error } = await restUpdate('clients', { deleted_at }, { id, tenant_id: tenantId }, { expectRow: true });
     if (!error) fetchPeopleData().catch(e => console.error('deleteClient refetch error:', e));
     return { success: !error, error };
   };
@@ -223,16 +282,37 @@ export const usePeople = (tenantId) => {
   };
 
   const deleteUser = async (userId) => {
-    // Prevent deletion of GLOBAL_ADMIN accounts
+    if (typeof userId !== 'string' || !userId) {
+      return { success: false, error: new Error(`deleteUser expects a user id, received ${typeof userId}.`) };
+    }
+    // Prevent removal of GLOBAL_ADMIN accounts. It used to return undefined
+    // here, so the screen could not tell "refused" from "done".
     const target = users.find(u => u.id === userId);
-    if (target?.roles?.includes('GLOBAL_ADMIN')) return;
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', userId)
-      .eq('tenant_id', tenantId);
+    if (target?.roles?.includes('GLOBAL_ADMIN')) {
+      return { success: false, error: new Error('A global admin cannot be removed from here.') };
+    }
+
+    // SOFT delete, where this used to hard-delete the row. 72 client payments
+    // carry recorded_by pointing at users; destroying the row leaves every one
+    // of them attributed to an id that no longer exists, and there is no way
+    // back. Everything else in this app soft-deletes; staff records were the
+    // exception for no reason.
+    //
+    // The list read above now filters deleted_at, and AuthContext refuses a
+    // removed profile, so a soft delete actually removes access -- otherwise
+    // "removing" someone would only hide them while they kept signing in.
+    const deleted_at = new Date().toISOString();
+    if (isElectron()) {
+      await queueMutation({ table: 'users', type: 'delete', payload: { id: userId } });
+      await upsertCachedRow('users', { id: userId, deleted_at });
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      return { success: true, error: null, queued: true };
+    }
+    const { error } = await restUpdate('users', { deleted_at }, { id: userId, tenant_id: tenantId },
+      { expectRow: true });
     if (error) console.error('deleteUser error:', error);
     else await fetchPeopleData();
+    return { success: !error, error };
   };
 
   return {
@@ -254,6 +334,33 @@ export const usePeople = (tenantId) => {
     deleteClient,
 
     recordClientPayment: async (clientId, amount, date, notes, invoiceIds, paymentMethod = 'CASH') => {
+      // Desktop offline-first: queue the server-side settle RPC. It runs at
+      // sync time AFTER any queued sale RPCs (outbox is FIFO), so allocation
+      // sees the sale that may have just been made offline. The old JS
+      // orchestration below would race the unsynced sale and allocate nothing.
+      if (isElectron()) {
+        const payId = generateUUID();
+        await queueMutation({
+          table: 'settle_client_payment', type: 'rpc',
+          payload: {
+            p_id: payId, p_tenant_id: tenantId, p_client_id: clientId,
+            p_amount: Number(amount), p_date: date, p_method: paymentMethod,
+            p_notes: notes || null, p_recorded_by: currentUser?.id || null,
+          },
+        });
+        // Optimistic: reflect the collection on the client's balance locally —
+        // BOTH React state and the IDB cache, otherwise an app reload/offline
+        // read serves the stale cached balance and the number "jumps back".
+        const cur = clients.find(c => c.id === clientId);
+        if (cur) {
+          const updated = { ...cur, outstanding_balance: Math.max(0, Number(cur.outstanding_balance || 0) - Number(amount)) };
+          await upsertCachedRow('clients', updated);
+        }
+        setClients(prev => prev.map(c => c.id === clientId
+          ? { ...c, outstanding_balance: Math.max(0, Number(c.outstanding_balance || 0) - Number(amount)) }
+          : c));
+        return { success: true, queued: true };
+      }
       try {
         setLoading(true);
 
@@ -261,15 +368,22 @@ export const usePeople = (tenantId) => {
         //    unpaid/partial credit sales when no invoices are selected).
         //    Always update the linked sale so outstanding stays accurate.
         if (invoiceIds && invoiceIds.length > 0) {
-          const { data: invRows } = await supabase
-            .from('invoices')
-            .select('id, grand_total, paid_amount, sale_id')
-            .in('id', invoiceIds)
-            .eq('tenant_id', tenantId);
+          // Selection may mix real invoices and SALE:-prefixed synthetic rows
+          // (part-paid cash sales without an invoice, listed alongside).
+          const realInvoiceIds = invoiceIds.filter(x => !String(x).startsWith('SALE:'));
+          const saleOnlyIds    = invoiceIds.filter(x => String(x).startsWith('SALE:')).map(x => String(x).slice(5));
+          let remaining = amount;
 
-          if (invRows && invRows.length > 0) {
-            let remaining = amount;
-            for (const inv of invRows) {
+          if (realInvoiceIds.length > 0) {
+            const { data: invRows } = await supabase
+              .from('invoices')
+              .select('id, grand_total, paid_amount, sale_id')
+              // Money must never be allocated against a deleted document.
+              .is('deleted_at', null)
+              .in('id', realInvoiceIds)
+              .eq('tenant_id', tenantId);
+
+            for (const inv of (invRows || [])) {
               const alreadyPaid = Number(inv.paid_amount) || 0;
               const owed = Number(inv.grand_total) - alreadyPaid;
               const allocating = Math.min(remaining, owed);
@@ -290,23 +404,26 @@ export const usePeople = (tenantId) => {
               if (remaining <= 0) break;
             }
           }
-        } else {
-          // No invoices selected — FIFO-allocate across unpaid/partial CREDIT
-          // sales so outstanding is always updated even for general payments.
-          const { data: unpaidSales } = await supabase
-            .from('sales')
-            .select('id, "totalAmount", "paidAmount", "paymentStatus"')
-            .eq('tenant_id', tenantId)
-            .eq('"customerInfo"->>\'id\'', clientId)
-            .in('"paymentStatus"', ['UNPAID', 'PARTIAL'])
-            .eq('"paymentMethod"', 'CREDIT')
-            .is('deleted_at', null)
-            .order('date', { ascending: true });
 
-          if (unpaidSales && unpaidSales.length > 0) {
-            let remaining = amount;
-            for (const sale of unpaidSales) {
-              if (remaining <= 0) break;
+          // Selected cash sales (no invoice) — allocate the rest directly on
+          // the sale rows; the outstanding trigger recomputes from these and
+          // the sale-ledger trigger reposts Cash & Bank for the new paid
+          // amount. This portion must stay OUT of the client_payments audit
+          // row below: the FIFO replay trigger re-allocates the whole
+          // client_payments pool across CREDIT sales, so including it would
+          // hand the same money to credit sales again (double-count), and
+          // the payment-ledger trigger would double-post Cash & Bank.
+          let saleAllocated = 0;
+          if (saleOnlyIds.length > 0 && remaining > 0) {
+            const { data: saleRows } = await supabase
+              .from('sales')
+              .select('id, "totalAmount", "paidAmount"')
+              // Same: a voided sale owes nothing and must not absorb a receipt.
+              .is('deleted_at', null)
+              .in('id', saleOnlyIds)
+              .eq('tenant_id', tenantId);
+
+            for (const sale of (saleRows || [])) {
               const alreadyPaid = Number(sale.paidAmount) || 0;
               const owed = Number(sale.totalAmount) - alreadyPaid;
               if (owed <= 0) continue;
@@ -316,35 +433,53 @@ export const usePeople = (tenantId) => {
               await restUpdate('sales',
                 { paymentStatus: newStatus, paidAmount: newPaid, lastPaymentDate: date },
                 { id: sale.id, tenant_id: tenantId });
-              // Mirror onto linked invoice so UI outstanding (from invoices table) stays accurate.
-              const invId = `INV-${sale.id}`;
-              await restUpdate('invoices',
-                { payment_status: newStatus, paid_amount: newPaid },
-                { id: invId, tenant_id: tenantId });
+              saleAllocated += allocating;
               remaining -= allocating;
+              if (remaining <= 0) break;
             }
           }
+
+          // 2. Audit record — credit/invoice portion only (see note above).
+          const auditAmount = Math.max(0, Number(amount) - saleAllocated);
+          if (auditAmount > 0) {
+            const { error: payErr } = await restInsert('client_payments', {
+              id:             generateUUID(),
+              tenant_id:      tenantId,
+              client_id:      clientId,
+              amount:         auditAmount,
+              date,
+              payment_method: paymentMethod,
+              notes:          notes || null,
+              recorded_by:    currentUser?.id || null,
+            });
+            if (payErr) console.warn('Payment audit insert failed:', payErr);
+          }
+
+          await fetchPeopleData();
+          return { success: true };
+        } else {
+          // No invoices selected — allocation now lives server-side in the
+          // settle_client_payment RPC (FIFO across ALL unpaid/partial sales,
+          // credit AND part-paid cash/UPI, oldest first). One implementation
+          // for web, desktop outbox and mobile. The RPC also inserts the
+          // client_payments audit row, so return directly from this branch.
+          const { error: rpcErr } = await restRpc('settle_client_payment', {
+            p_id: generateUUID(),
+            p_tenant_id: tenantId,
+            p_client_id: clientId,
+            p_amount: Number(amount),
+            p_date: date,
+            p_method: paymentMethod,
+            p_notes: notes || null,
+            p_recorded_by: currentUser?.id || null,
+          });
+          if (rpcErr) throw new Error(rpcErr.message || 'Settlement failed');
+          await fetchPeopleData();
+          return { success: true };
         }
 
-        // clients.outstanding_balance is recomputed by the DB trigger off the
-        // sales updates above — never write it directly here (that races the
-        // trigger and drifts the balance).
-
-        // 2. Insert audit record into client_payments
-        const { error: payErr } = await restInsert('client_payments', {
-          id:             generateUUID(),
-          tenant_id:      tenantId,
-          client_id:      clientId,
-          amount,
-          date,
-          payment_method: paymentMethod,
-          notes:          notes || null,
-          recorded_by:    currentUser?.id || null,
-        });
-        if (payErr) console.warn('Payment audit insert failed:', payErr);
-
-        await fetchPeopleData();
-        return { success: true };
+        // (Both branches above return; clients.outstanding_balance is always
+        // recomputed by DB triggers — never written directly here.)
       } catch (err) {
         console.error('recordClientPayment Error:', err);
         return { success: false, error: err.message };
@@ -355,60 +490,54 @@ export const usePeople = (tenantId) => {
 
     // Soft-delete a client payment and recompute all credit sales FIFO so
     // outstanding stays accurate after the reversal.
-    deleteClientPayment: async (paymentId, clientId) => {
+    // Edits the receipt in place and replays the client's allocations. NOT
+    // reverse-and-re-settle: settle_client_payment only writes a receipt row
+    // for the part not absorbed by a cash sale, so re-settling could apply the
+    // money and leave no record of the receipt.
+    editClientPayment: async (paymentId, { amount, method, date, notes } = {}) => {
+      const { data, error } = await supabase.rpc('edit_client_payment', {
+        p_tenant_id: tenantId,
+        p_payment_id: paymentId,
+        p_amount: Number(amount),
+        p_method: method ?? null,
+        p_date: date ?? null,
+        p_notes: notes ?? null,
+      });
+      if (error) {
+        console.error('editClientPayment error:', error);
+        return { success: false, error };
+      }
+      await fetchPeopleData();
+      return { success: true, amount: Number(data) || 0 };
+    },
+
+    deleteClientPayment: async (paymentId) => {
+      // Desktop offline-first: queue the same server-side RPC rather than
+      // running it here. The outbox is FIFO, so a delete queued after the
+      // payment that created it replays in that order and the reversal sees
+      // the receipt it is reversing.
+      if (isElectron()) {
+        await queueMutation({
+          table: 'delete_client_payment', type: 'rpc',
+          payload: { p_tenant_id: tenantId, p_payment_id: paymentId },
+        });
+        return { success: true, queued: true };
+      }
+      // One statement on the server. This used to soft-delete the receipt, then
+      // re-read, recompute and write each affected sale in a loop from here --
+      // so a failure part-way left the receipt gone and the sales still showing
+      // it, with outstanding matching neither.
       try {
-        // 1. Soft-delete the payment row.
-        const { error } = await restUpdate('client_payments',
-          { deleted_at: new Date().toISOString() },
-          { id: paymentId, tenant_id: tenantId });
-        if (error) return { error };
-
-        // 2. Reload remaining active payments for this client (oldest first).
-        const { data: remaining = [] } = await supabase
-          .from('client_payments')
-          .select('amount, date, created_at')
-          .eq('client_id', clientId)
-          .eq('tenant_id', tenantId)
-          .is('deleted_at', null)
-          .order('date', { ascending: true })
-          .order('created_at', { ascending: true });
-
-        // 3. Get all unpaid/partial CREDIT sales for this client (oldest first).
-        const { data: creditSales = [] } = await supabase
-          .from('sales')
-          .select('id, "totalAmount", "paidAmount"')
-          .eq('tenant_id', tenantId)
-          .filter('"customerInfo"->>\'id\'', 'eq', clientId)
-          .eq('"paymentMethod"', 'CREDIT')
-          .is('deleted_at', null)
-          .order('date', { ascending: true });
-
-        // 4. Reset all credit sales to 0, then replay remaining payments FIFO.
-        const newPaidBySale = Object.fromEntries(creditSales.map(s => [s.id, 0]));
-        let pool = remaining.reduce((t, p) => t + (Number(p.amount) || 0), 0);
-        for (const sale of creditSales) {
-          if (pool <= 0) break;
-          const owed = Number(sale.totalAmount) || 0;
-          const allocating = Math.min(pool, owed);
-          newPaidBySale[sale.id] = allocating;
-          pool -= allocating;
+        const { data, error } = await supabase.rpc('delete_client_payment', {
+          p_tenant_id: tenantId,
+          p_payment_id: paymentId,
+        });
+        if (error) {
+          console.error('deleteClientPayment error:', error);
+          return { success: false, error };
         }
-
-        // 5. Write updated paidAmount + status back to sales + invoices.
-        for (const sale of creditSales) {
-          const newPaid = newPaidBySale[sale.id];
-          const total = Number(sale.totalAmount) || 0;
-          const newStatus = newPaid >= total ? 'PAID' : newPaid > 0 ? 'PARTIAL' : 'UNPAID';
-          await restUpdate('sales',
-            { paidAmount: newPaid, paymentStatus: newStatus },
-            { id: sale.id, tenant_id: tenantId });
-          await restUpdate('invoices',
-            { paid_amount: newPaid, payment_status: newStatus },
-            { id: `INV-${sale.id}`, tenant_id: tenantId });
-        }
-
         await fetchPeopleData();
-        return { success: true };
+        return { success: true, reversed: Number(data) || 0 };
       } catch (err) {
         console.error('deleteClientPayment Error:', err);
         return { success: false, error: err.message };

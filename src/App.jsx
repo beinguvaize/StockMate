@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { goHref } from './lib/nav';
 
 // Electron loads via file:// — BrowserRouter breaks there, use HashRouter.
@@ -9,6 +9,7 @@ const Router = (typeof window !== 'undefined' && window.electron?.isElectron)
 import { useAuth } from './context/AuthContext';
 import { useTenant } from './context/TenantContext';
 import AppLayout from './components/AppLayout';
+import AccountNotProvisioned from './components/AccountNotProvisioned';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalLoading from './components/GlobalLoading';
@@ -54,6 +55,7 @@ const Estimates        = lazy(() => import('./pages/Estimates'));
 const LabelPrinting    = lazy(() => import('./pages/LabelPrinting'));
 const BulkAdd          = lazy(() => import('./pages/BulkAdd'));
 const ClientSettlement = lazy(() => import('./pages/ClientSettlement'));
+const CashCollection   = lazy(() => import('./pages/CashCollection'));
 const AdminPanel       = lazy(() => import('./pages/AdminPanel'));
 const TenantSetup      = lazy(() => import('./pages/TenantSetup'));
 const SuperAdminPortal = lazy(() => import('./pages/admin/SuperAdminPortal'));
@@ -89,11 +91,22 @@ const GuestRoute = ({ children }) => {
  * If user already has a tenant, skip setup and go to dashboard.
  */
 const AuthRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading, logout } = useAuth();
   const { currentTenant, isSyncComplete } = useTenant();
 
   if (loading || !isSyncComplete) return <GlobalLoading />;
   if (!currentUser) return <Navigate to="/login" replace />;
+  // Signed in, but the database has no profile for this account. Every write
+  // would be denied by RLS and silently do nothing, so stop here rather than
+  // render an app that looks like it works. See AuthContext for how this state
+  // used to be papered over with an invented profile.
+  //
+  // Only a REMOVED account is turned away here. This route exists for users who
+  // have no profile yet — turning them away for the very condition the route is
+  // meant to resolve is what broke signup.
+  if (currentUser.accountRemoved) {
+    return <AccountNotProvisioned email={currentUser.email} onSignOut={logout} removed />;
+  }
   // Already has workspace → skip setup
   if (currentTenant) return <Navigate to="/dashboard" replace />;
   return children;
@@ -165,11 +178,41 @@ const RootRedirect = () => {
 };
 
 function AppRoutes() {
-  const { isOwner, hasRole, loading: authLoading } = useAuth();
+  const { isOwner, hasRole, currentUser, logout, loading: authLoading } = useAuth();
   const { loading: tenantLoading } = useTenant();
   const location = useLocation();
+  const isWorkspaceSetup = location.pathname === '/welcome';
+
+  React.useEffect(() => {
+    if (!currentUser) return;
+    const id = requestIdleCallback(() => {
+      Promise.all([
+        import('./pages/inventory/index.jsx'),
+        import('./pages/sales/index.jsx'),
+        import('./pages/Expenses'),
+        import('./pages/Clients'),
+        import('./pages/DayBook'),
+        import('./pages/purchases'),
+      ]).catch(() => {});
+    });
+    return () => cancelIdleCallback(id);
+  }, [!!currentUser]);
 
   if (authLoading || tenantLoading) return <GlobalLoading />;
+
+  // Signed in, but the database has no profile for this account, so RLS denies
+  // every write while cached reads still look normal. Caught at the top of the
+  // app so no route can render a workspace that cannot save anything.
+  //
+  // /welcome is the exception, and has to be: a new signup has an auth session
+  // and no users row until TenantSetup calls create-tenant, so this guard
+  // caught every new customer and showed them "account not provisioned" on the
+  // one page that would have provisioned them. Signup could not complete at
+  // all. A removed account is still blocked here — that one has a profile and
+  // lost it, which is not the same thing as never having had one.
+  if (currentUser?.profileMissing && !(isWorkspaceSetup && !currentUser.accountRemoved)) {
+    return <AccountNotProvisioned email={currentUser.email} onSignOut={logout} removed={!!currentUser.accountRemoved} />;
+  }
 
   return (
     <Suspense fallback={<GlobalLoading />}>
@@ -223,6 +266,7 @@ function AppRoutes() {
         <Route path="labels" element={<ProtectedRoute><LabelPrinting /></ProtectedRoute>} />
         <Route path="bulk-add" element={<ProtectedRoute><BulkAdd /></ProtectedRoute>} />
         <Route path="clients/settle/:id" element={<ProtectedRoute><ClientSettlement /></ProtectedRoute>} />
+        <Route path="clients/collect"   element={<ProtectedRoute><CashCollection /></ProtectedRoute>} />
         <Route path="data-tools" element={<ProtectedRoute><DataToolsPage /></ProtectedRoute>} />
       </Route>
 
@@ -249,12 +293,71 @@ const FloatingChrome = () => {
   );
 };
 
+// Desktop Troubleshoot menu (Electron menu bar) → in-app actions.
+function TroubleshootListener() {
+  const navigate = useNavigate();
+  // This component sits outside the providers, so it cannot reach the
+  // notification context. It carries its own toast rather than being moved --
+  // and rather than calling alert(), which on the desktop build opens an OS
+  // dialog titled "cashbook" that has to be dismissed before anything else can
+  // be done. A sync finishing is not worth blocking the app for.
+  const [toast, setToast] = React.useState(null);
+  React.useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), toast.tone === 'error' ? 8000 : 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  React.useEffect(() => {
+    const api = typeof window !== 'undefined' ? window.electron?.troubleshoot : null;
+    if (!api?.onAction) return;
+    const off = api.onAction(async ({ action }) => {
+      try {
+        if (action === 'sync-now') {
+          const { syncNow } = await import('./lib/offline/syncEngine.js');
+          await syncNow();
+          setToast({ msg: 'Sync complete.', tone: 'ok' });
+        } else if (action === 'diagnostics') {
+          navigate('/sync-diagnostics');
+        } else if (action === 'reset-cache') {
+          const ok = confirm(
+            'Clear local data and re-download everything from the cloud?\n\n' +
+            'Unsynced offline changes will be lost. Use this only if the app shows wrong or stale numbers.'
+          );
+          if (!ok) return;
+          const { clearOps } = await import('./lib/offline/outbox.js');
+          const { clearAll } = await import('./lib/offline/cache.js');
+          await clearOps();
+          await clearAll();
+          window.location.reload();
+        }
+      } catch (err) {
+        setToast({ msg: 'Troubleshoot action failed: ' + (err?.message || err), tone: 'error' });
+      }
+    });
+    return off;
+  }, [navigate]);
+
+  if (!toast) return null;
+  return (
+    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none">
+      <div className={`px-4 py-2.5 rounded-xl text-[13px] font-medium shadow-lg border ${
+        toast.tone === 'error'
+          ? 'bg-[color:var(--color-neg)] text-white border-black/10'
+          : 'bg-ink-primary text-white border-black/10'}`}>
+        {toast.msg}
+      </div>
+    </div>
+  );
+}
+
 function App() {
   return (
     <Router>
       <ErrorBoundary>
         <AppRoutes />
       </ErrorBoundary>
+      <TroubleshootListener />
       <FloatingChrome />
     </Router>
   );

@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react';
+import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import {
   ArrowDownCircle, ArrowUpCircle, Wallet, Briefcase,
@@ -16,10 +18,15 @@ import { formatINR, round2 } from '../../utils/financialCalculations';
  *   3. Financing activities (owner contributions, loans — placeholder)
  */
 const CashFlowReport = () => {
-  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, paymentMethod, date', dateColumn: 'date' });
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date' });
-  const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: 'amount, processed_at', dateColumn: 'processed_at' });
-  const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date' });
+  // Financial year to date by default. These queries were previously
+  // unfiltered and read the whole table on every load.
+  const win = useDateWindow('YEAR');
+  const { data: salesRaw, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, paymentMethod, date, voided_at, status, paymentStatus', dateColumn: 'date', filters: win.filters });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
+  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date', filters: win.filters });
+  const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: 'amount, processed_at', dateColumn: 'processed_at', filters: win.filters });
+  const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, payment_type', dateColumn: 'date', filters: win.filters });
   const { data: vehicles, loading: l5 } = useReportData({ table: 'vehicles', select: '*' });
 
   const loading = l1 || l2 || l3 || l4 || l5;
@@ -131,13 +138,13 @@ const CashFlowReport = () => {
   const kpis = [
     {
       id: 'opening', label: 'Operating Cash Flow', value: cashFlow.operatingNet,
-      trend: 8, trendDir: cashFlow.operatingNet >= 0 ? 'up' : 'down',
+      trend: 0, trendDir: 'none',
       color: cashFlow.operatingNet >= 0 ? 'emerald' : 'rose',
       chartData: cashFlow.monthly.map((m) => ({ value: m.Net })),
     },
     {
       id: 'investing', label: 'Investing Cash Flow', value: cashFlow.investingNet,
-      trend: 2, trendDir: 'down', color: 'amber',
+      trend: 0, trendDir: 'none', color: 'amber',
       chartData: cashFlow.monthly.map((m) => ({ value: m.Outflow * 0.1 })),
     },
     {
@@ -157,12 +164,12 @@ const CashFlowReport = () => {
   const renderSectionBadge = (val) => {
     const colors = {
       OPERATING: 'bg-emerald-50 text-emerald-600',
-      INVESTING: 'bg-amber-50 text-amber-600',
-      FINANCING: 'bg-amber-50 text-amber-600',
+      INVESTING: 'bg-accent-signature/10 text-accent-signature',
+      FINANCING: 'bg-accent-signature/10 text-accent-signature',
       SUMMARY: 'bg-ink-primary text-white',
     };
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase ${colors[val] || 'bg-gray-50 text-gray-600'}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${colors[val] || 'bg-muted text-ink-secondary'}`}>
         {val}
       </span>
     );
@@ -180,7 +187,7 @@ const CashFlowReport = () => {
       {
         key: 'label', label: 'Line Item', sortable: false, width: 420,
         render: (val, row) => (
-          <span className={`${row.isSubtotal ? 'font-black text-ink-primary uppercase tracking-tight' : 'font-bold text-gray-600'} ${row.isTotal ? 'text-[13px]' : 'text-[11px]'}`}>
+          <span className={`${row.isSubtotal ? 'font-semibold text-foreground uppercase tracking-tight' : 'font-semibold text-ink-secondary'} ${row.isTotal ? 'text-[13px]' : 'text-[11px]'}`}>
             {val}
           </span>
         ),
@@ -188,9 +195,9 @@ const CashFlowReport = () => {
       {
         key: 'amount', label: 'Amount', type: 'currency', align: 'right', sortable: false, width: 200,
         render: (val, row) => {
-          const cls = val > 0 ? 'text-emerald-600' : val < 0 ? 'text-rose-500' : 'text-gray-400';
+          const cls = val > 0 ? 'text-emerald-600' : val < 0 ? 'text-rose-500' : 'text-muted-foreground';
           return (
-            <span className={`${row.isSubtotal ? 'font-black' : 'font-bold'} ${cls} ${row.isTotal ? 'text-[14px]' : ''}`}>
+            <span className={`${row.isSubtotal ? 'font-semibold' : 'font-semibold'} ${cls} ${row.isTotal ? 'text-[14px]' : ''}`}>
               {formatINR(val)}
             </span>
           );
@@ -222,7 +229,7 @@ const CashFlowReport = () => {
     ],
   };
 
-  return <PremiumReportView title="Cash Flow" tabs={[cashTab]} />;
+  return <PremiumReportView dateWindow={win} title="Cash Flow" tabs={[cashTab]} />;
 };
 
 export default CashFlowReport;

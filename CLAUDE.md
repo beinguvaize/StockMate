@@ -92,6 +92,111 @@ mobile sale from syncing.
 
 ---
 
+## Always filter by tenant_id. RLS is not the filter.
+
+Nearly every tenant-table policy reads:
+
+```sql
+is_global_admin() OR tenant_id = (SELECT current_tenant_id())
+```
+
+A global admin is therefore **entitled to every tenant's rows**. Leaning on RLS
+alone means any list, aggregate, or delete silently spans all tenants the moment
+an admin — or anyone impersonating — runs it. Every Supabase query against a
+tenant table gets an explicit `.eq('tenant_id', currentTenantId)`, including
+deletes and upserts.
+
+These are not hypothetical; all four shipped:
+
+| Bug | Effect |
+|---|---|
+| `ExpiryAlertCard` | dashboard totalled every tenant's expiring stock into one figure |
+| `AuditLog` | tenant activity trail showed all tenants' entries to an admin |
+| `budgetRepo.fetchBudget` | merged all tenants' lines into one category-keyed map, colliding |
+| `budgetRepo.upsertBudgetLine` | setting a line to 0 **deleted that category for every tenant** |
+
+Two traps that go with it:
+
+- **Never rely on the `tenant_id` column default.** 22 tables default it to
+  `a0000000-0000-0000-0000-000000000001`, which belongs to no tenant. Omitting
+  `tenant_id` on an insert orphans the row: invisible to the shop that created
+  it, visible only to global admins. This is how 14 budget lines were stranded.
+- **Put `currentTenantId` in the dependency array.** A query that filters
+  correctly but never re-runs shows the previous tenant's data after a switch or
+  an impersonation, which looks identical to the unfiltered bug.
+
+Deliberate exceptions, all admin surfaces: `AdminPanel`, `SuperAdminPortal`,
+`useBugReports` in `adminMode`. Cross-tenant is the point there — leave them.
+
+### SECURITY DEFINER functions must guard the tenant arg
+
+A `SECURITY DEFINER` RPC runs **past RLS**. If it takes `p_tenant_id` and acts
+on it without checking the caller owns it, any authenticated user reads or
+writes any tenant by passing a different uuid. This is wider than the RLS-lean
+bug — it leaks to *every* user, not just admins.
+
+Every DEFINER function that accepts `p_tenant_id` and is client-callable opens
+with:
+
+```sql
+IF p_tenant_id <> public.current_tenant_id() AND NOT public.is_global_admin() THEN
+  RAISE EXCEPTION 'Access denied';
+END IF;
+```
+
+`get_pl_ranged`, `get_gl_balances`, `get_dashboard_kpis`, `edit_purchase`,
+`resync_purchase_batch`, `reconcile_purchase_money`, `settle_client_payment`,
+`settle_sale_payment`, `issue_invoice_number`, `lock_van_opening_stock`,
+`submit_van_eod`, `complete_production_order`, `dispatch_vehicle_route` all
+carry it. Writes that resolve tenant from `p_user_id` + a `GLOBAL_ADMIN` role
+check (`process_sale`, `process_purchase`, …) are already safe — they don't
+trust the arg.
+
+Two rules that go with it:
+
+- **A DEFINER function with no client caller should be revoked, not left
+  callable.** `create_staff_account` (mints an account in any tenant with any
+  roles), `consume_fifo`, `next_invoice_number`, `recompute_client_outstanding`
+  are `REVOKE EXECUTE … FROM authenticated, anon, public`. Internal DEFINER
+  callers still reach them — the call runs as the postgres owner, so the
+  EXECUTE check only bites a direct client call.
+- **The guard is transparent to internal callers.** `current_tenant_id()`
+  reads `auth.uid()`, which is preserved across DEFINER-to-DEFINER calls, so a
+  guarded helper called inside another DEFINER function still sees the real
+  session user's tenant.
+
+---
+
+## Data repairs: snapshot first, in `snap`
+
+Any repair that writes to prod takes a before-image first. Snapshots live in
+the **`snap` schema — never in `public`**, where seventeen of them once piled
+up over eleven days, reachable by PostgREST and indistinguishable from real
+tables.
+
+```sql
+SELECT snap.take(
+  'purchase_transfer',                                    -- lower_snake_case slug
+  $$SELECT * FROM purchases WHERE id = 'PUR-E6PRCT'$$,    -- what to capture
+  'before moving the batch to 13*16 Pkt Cover',           -- why (required)
+  30);                                                    -- keep days, default 30
+-- -> snap.purchase_transfer_20260722
+```
+
+- `snap.registry` — one row per snapshot: reason, row count, who, expiry.
+- `snap.pin('<table>')` — sets `expires_at` NULL so the sweep skips it. Pin
+  anything backing work that is not yet settled.
+- `snap.sweep()` — drops everything past expiry and returns what it removed.
+  Runs weekly via the `snapshot-sweep` cron job (Sun 03:30).
+- `snap.unregistered` — tables created by hand that never registered, and so
+  would never expire. Should stay empty.
+
+`snap.take()` executes the SQL it is handed, so it is **not** granted to
+`authenticated` — it is a repair tool, not something the app may call. The
+slug is validated against `^[a-z][a-z0-9_]*$` before it reaches the table
+name. Snapshots are verbatim copies carrying none of the source table's RLS,
+which is why `anon` and `authenticated` have no access to the schema at all.
+
 ## Environment + deploy
 
 - Dev first, prod after sign-off. Two Supabase projects:

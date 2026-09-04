@@ -8,7 +8,7 @@ import { Loader2, AlertTriangle, Inbox, RefreshCcw } from 'lucide-react';
 
 /* ── Spinner ─────────────────────────────────────────────────────────────── */
 export const Spinner = ({ size = 16, className = '' }) => (
-  <Loader2 size={size} className={`animate-spin text-amber-600 ${className}`} />
+  <Loader2 size={size} className={`animate-spin text-accent-signature ${className}`} />
 );
 
 /* ── Skeleton shimmer ────────────────────────────────────────────────────── */
@@ -46,7 +46,7 @@ export const SkeletonCards = ({ count = 4, className = '' }) => (
 export const LoadingBlock = ({ label = 'Loading…', className = '' }) => (
   <div className={`flex flex-col items-center justify-center gap-3 py-20 text-center ${className}`}>
     <Spinner size={24} />
-    <p className="text-[13px] font-bold text-gray-400 tracking-wide">{label}</p>
+    <p className="text-[13px] font-bold text-muted-foreground tracking-wide">{label}</p>
   </div>
 );
 
@@ -81,15 +81,15 @@ export const EmptyState = ({
   className = '',
 }) => (
   <div className={`flex flex-col items-center justify-center text-center px-6 py-16 sm:py-20 ${className}`}>
-    <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center mb-4">
-      <Icon size={26} className="text-amber-500" strokeWidth={1.6} />
+    <div className="w-14 h-14 rounded-2xl bg-accent-signature/10 border border-accent-signature/15 flex items-center justify-center mb-4">
+      <Icon size={26} className="text-accent-signature" strokeWidth={1.6} />
     </div>
     <p className="text-sm font-bold text-ink-primary">{title}</p>
-    {description && <p className="text-[12px] font-medium text-gray-400 mt-1 max-w-sm">{description}</p>}
+    {description && <p className="text-[12px] font-medium text-muted-foreground mt-1 max-w-sm">{description}</p>}
     {action && (
       <button
         onClick={action.onClick}
-        className="mt-5 inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 shadow-md shadow-amber-600/25 transition-colors"
+        className="mt-5 inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-accent-signature text-white text-xs font-bold hover:bg-accent-signature-hover shadow-md shadow-accent-signature/25 transition-colors"
       >
         {action.icon}{action.label}
       </button>
@@ -109,7 +109,7 @@ export const ErrorState = ({
       <AlertTriangle size={26} className="text-rose-500" strokeWidth={1.6} />
     </div>
     <p className="text-sm font-bold text-ink-primary">{title}</p>
-    <p className="text-[12px] font-medium text-gray-400 mt-1 max-w-sm">{description}</p>
+    <p className="text-[12px] font-medium text-muted-foreground mt-1 max-w-sm">{description}</p>
     {onRetry && (
       <button
         onClick={onRetry}

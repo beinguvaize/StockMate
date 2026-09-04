@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
+import { isElectron, fetchWithCache } from '../lib/offline/hookAdapter';
+import { realtimeEnabled } from '../lib/realtime';
 
 const ORDER_NUMERIC = ['subtotal', 'discount', 'grand_total'];
 
@@ -24,28 +26,34 @@ export const useOrders = (tenantId) => {
     if (!tenantId) { setLoading(false); return; }
     if (!initialLoadDone.current) setLoading(true);
     try {
-      const [
-        { data: ordData, error: ordErr },
-        { data: plData,  error: plErr  },
-      ] = await Promise.all([
-        supabase
+      // Reads go through the offline cache on desktop; the cache holds whole
+      // tables, so re-apply the filters and ordering the queries carried.
+      const mine = (rows) => (rows || []).filter(r => r && r.tenant_id === tenantId);
+
+      const [ordRes, plRes] = await Promise.all([
+        fetchWithCache('orders', () => supabase
           .from('orders')
           .select('*').is('deleted_at', null)
           .eq('tenant_id', tenantId)
           .order('created_at', { ascending: false })
-          .limit(500),
-        supabase
+          .limit(500)),
+        fetchWithCache('price_lists', () => supabase
           .from('price_lists')
           .select('*')
           .eq('tenant_id', tenantId)
-          .order('tier, product_id, min_qty'),
+          .order('tier, product_id, min_qty')),
       ]);
 
-      if (ordErr) throw ordErr;
-      if (plErr)  console.warn('price_lists fetch warn:', plErr);
+      const ordData = mine(ordRes.data).filter(o => !o.deleted_at)
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+        .slice(0, 500);
+      const plData = mine(plRes.data).sort((a, b) =>
+        String(a.tier || '').localeCompare(String(b.tier || '')) ||
+        String(a.product_id || '').localeCompare(String(b.product_id || '')) ||
+        (Number(a.min_qty) || 0) - (Number(b.min_qty) || 0));
 
       setOrders(normalize(ordData));
-      setPriceLists(plData || []);
+      setPriceLists(plData);
     } catch (err) {
       console.error('useOrders fetch error:', err);
       setError(err.message);
@@ -63,7 +71,7 @@ export const useOrders = (tenantId) => {
 
   // ── Realtime ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !realtimeEnabled('orders')) return;
     const channel = supabase
       .channel(`orders-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {

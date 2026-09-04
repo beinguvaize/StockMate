@@ -34,6 +34,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   String _gstRate = '18';
   late final TextEditingController _gstinController;
   bool _repeatMonthly = false;
+  bool _excludeFromPl = false;
   String? _storeId; // store/till this expense was paid from (multi-store)
 
   bool get _isEditMode => widget.expense != null;
@@ -63,6 +64,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     _selectedDate = e?.date != null
         ? DateTime.tryParse(e!.date!) ?? DateTime.now()
         : DateTime.now();
+    _excludeFromPl = e?.excludeFromPl ?? false;
     _gstinController = TextEditingController();
   }
 
@@ -233,6 +235,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           'gst_amount': gstAmount,
           'vendor_gstin': vendorGstin,
           'location_id': _storeId,
+          'exclude_from_pl': _excludeFromPl,
         };
         await supabase
             .from('expenses')
@@ -266,6 +269,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           'gst_amount': gstAmount,
           'vendor_gstin': vendorGstin,
           'location_id': _storeId,
+          'exclude_from_pl': _excludeFromPl,
           'tenant_id': tenantCtx.tenantId,
         };
 
@@ -637,6 +641,27 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           title: Text('Repeat monthly', style: GoogleFonts.publicSans(
                             fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
                           subtitle: Text('Auto-logs on day ${_selectedDate.day.clamp(1, 28)} every month', style: GoogleFonts.publicSans(
+                            fontSize: 11, color: AppColors.inkTertiary)),
+                        ),
+                      ),
+                    ),
+
+                    // ── NOT A BUSINESS EXPENSE (drawing / loan / capital) ──
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.outlineVariant),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: SwitchListTile(
+                          value: _excludeFromPl,
+                          onChanged: (v) => setState(() => _excludeFromPl = v),
+                          activeThumbColor: AppColors.primary,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                          title: Text('Not a business expense', style: GoogleFonts.publicSans(
+                            fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
+                          subtitle: Text('Owner drawing, loan repayment or capital — kept out of profit', style: GoogleFonts.publicSans(
                             fontSize: 11, color: AppColors.inkTertiary)),
                         ),
                       ),

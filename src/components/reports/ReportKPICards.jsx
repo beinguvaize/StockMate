@@ -42,8 +42,8 @@ const ReportKPICards = ({
             key={card.id || idx}
             onClick={() => onCardClick(card.id)}
             className={`
-              glass-panel !p-6 !rounded-[2.5rem] relative group cursor-pointer transition-all border border-black/5 flex flex-col justify-between overflow-hidden
-              ${isActive ? 'bg-ink-primary text-white shadow-2xl scale-[1.02] ring-8 ring-ink-primary/10' : 'bg-white hover:border-black/10 hover:shadow-premium'}
+              glass-panel !p-6 !rounded-[2.5rem] relative group cursor-pointer transition-all border border-border/60 flex flex-col justify-between overflow-hidden
+              ${isActive ? 'bg-card text-foreground font-semibold shadow-sm' : 'bg-card hover:border-black/10 hover:shadow-premium'}
             `}
           >
             {/* Background Glow */}
@@ -51,12 +51,12 @@ const ReportKPICards = ({
 
             <div className="relative z-10">
               <div className="flex justify-between items-start mb-4">
-                <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-white/60' : 'text-gray-400'}`}>
+                <span className="text-[11px] font-medium text-muted-foreground">
                   {card.label}
                 </span>
                 <div className={`
-                  flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black
-                  ${isActive ? 'bg-white/10 text-white' : isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}
+                  flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold
+                  ${isPositive ? 'text-emerald-700' : 'text-rose-600'}
                 `}>
                   {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                   {card.trend}%
@@ -64,12 +64,12 @@ const ReportKPICards = ({
               </div>
 
               <div className="group/value relative mb-6">
-                <h3 className="text-3xl lg:text-4xl font-black font-sora tracking-tighter leading-none truncate">
+                <h3 className="text-3xl lg:text-4xl font-semibold  tracking-tighter leading-none truncate">
                   {typeof card.value === 'number' ? formatCompact(card.value) : card.value}
                 </h3>
                 {/* Rule 3: Full value in tooltip on hover */}
                 {typeof card.value === 'number' && card.value > 100000 && (
-                  <div className="absolute top-full left-0 mt-2 px-3 py-1.5 bg-ink-primary text-white text-[10px] font-bold rounded-lg opacity-0 pointer-events-none group-hover/value:opacity-100 transition-opacity z-50 shadow-2xl whitespace-nowrap border border-white/10">
+                  <div className="absolute top-full left-0 mt-2 px-3 py-1.5 bg-ink-primary text-white text-[10px] font-semibold rounded-lg opacity-0 pointer-events-none group-hover/value:opacity-100 transition-opacity z-50 shadow-2xl whitespace-nowrap border border-white/10">
                     {formatCurrency(card.value)}
                   </div>
                 )}

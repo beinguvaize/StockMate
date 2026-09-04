@@ -100,6 +100,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
 
       if (mounted) {
         ref.invalidate(suppliersProvider);
+        ref.invalidate(supplierOutstandingProvider);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
