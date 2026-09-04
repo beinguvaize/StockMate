@@ -28,7 +28,6 @@
   }}}
 </script>
 <style>
-  .parallax{background-attachment:fixed;background-position:center;background-size:cover;background-repeat:no-repeat}
   @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
   .logo-track{display:flex;width:max-content;animation:scroll 32s linear infinite}
   .mono{font-variant-numeric:tabular-nums}
@@ -47,6 +46,8 @@
 {"@type":"Question","name":"Do I need a card to try it?","acceptedAnswer":{"@type":"Answer","text":"No. Start a free trial with just an email. No card, cancel anytime."}}
 ]}]}
 </script>
+<link rel="stylesheet" href="reveal.css"/>
+<script>document.documentElement.classList.add('js')</script>
 </head>
 <body class="bg-canvas text-primary font-sans antialiased">
 
@@ -101,7 +102,7 @@
   </section>
 
   <!-- Hero product mockup (real UI, not stock art) -->
-  <section class="px-6 lg:px-8 pb-24">
+  <section data-reveal="off" class="px-6 lg:px-8 pb-24">
     <div class="max-w-[1080px] mx-auto rounded-[20px] bg-canvas border border-line shadow-2xl overflow-hidden">
       <!-- window chrome -->
       <div class="flex items-center gap-2 px-4 py-3 border-b border-line bg-surface">
@@ -460,4 +461,5 @@
   </div>
 </footer>
 
+<script defer src="reveal.js"></script>
 </body></html>

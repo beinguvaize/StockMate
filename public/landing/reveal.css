@@ -1,0 +1,33 @@
+/* Scroll reveals for the marketing pages.
+   ==========================================================================
+
+   The hidden state is scoped to `.js`, a class the page adds inline in <head>.
+   If the script is blocked, fails, or the browser is too old, that class is
+   never added and every section renders normally — a broken enhancement can
+   never blank the page.
+
+   Two things are deliberately left alone: the first section on a page, and
+   anything marked data-reveal="off". Both are above the fold, and animating
+   the largest visible element delays Largest Contentful Paint, which Google
+   measures as a ranking signal. Polish below the fold, never above it. */
+
+.js section:not(:first-of-type):not([data-reveal="off"]) {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity   .7s cubic-bezier(.16, 1, .3, 1),
+              transform .7s cubic-bezier(.16, 1, .3, 1);
+}
+
+.js section.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Motion-sensitive users get the content, not the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .js section:not(:first-of-type):not([data-reveal="off"]) {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
