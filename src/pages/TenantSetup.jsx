@@ -4,9 +4,11 @@ import { supabase } from '../lib/supabase';
 import {
   ArrowRight, Loader2, ChevronLeft, Check, Zap, Shield, Star,
   Store, UtensilsCrossed, Briefcase, ShieldCheck, CreditCard, CalendarClock,
+  MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { goHref } from '../lib/nav';
+import { supportWhatsAppLink, SUPPORT_NAME, SUPPORT_WHATSAPP_DISPLAY } from '../lib/support';
 
 const PLANS = [
   {
@@ -338,6 +340,18 @@ const TenantSetup = () => {
           </div>
         </div>
       )}
+
+      {/* Shown on both steps: a signup that stalls is a customer lost in
+          silence, and the person who can unstick them is one tap away. */}
+      <a
+        href={supportWhatsAppLink(`Hi ${SUPPORT_NAME}, I need help setting up my bookledger workspace.`)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="relative z-10 mt-7 flex items-center gap-2 text-[11px] font-semibold text-muted-foreground hover:text-white transition-colors"
+      >
+        <MessageCircle size={13} className="text-accent-signature" />
+        Need a hand? WhatsApp {SUPPORT_NAME} on {SUPPORT_WHATSAPP_DISPLAY}
+      </a>
     </div>
   );
 };
