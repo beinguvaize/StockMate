@@ -1,13 +1,19 @@
 # Nightly safety-net for clients.outstanding_balance.
 #
-# Calls audit_outstanding_drift() on prod. The RPC logs any drift > ₹1
-# to audit_log so the owner sees it in their Audit Log tab the next day,
-# and any rows returned cause the workflow to fail loudly so we get
-# email/Slack notifications from GitHub.
+# Calls audit_outstanding_drift() on prod. The RPC logs any drift > Rs 1 to
+# audit_log so the owner sees it in their Audit Log tab the next day, and any
+# rows returned fail the workflow loudly so GitHub sends a notification.
+#
+# The response is validated before it is counted. This job spent weeks
+# reporting "2 client(s) have outstanding-balance drift" that did not exist:
+# the service_role key had stopped authenticating, and `jq length` over the
+# resulting {"message":..,"hint":..} error counted its two KEYS as two drifting
+# clients. A monitor that turns its own outage into a finding is worse than one
+# that stays silent, because someone goes looking for the wrong problem.
 #
 # Required repo secrets:
 #   SUPABASE_URL                   https://lmviftlynuhopzmvaxeu.supabase.co
-#   SUPABASE_SERVICE_ROLE_KEY      service_role JWT (Settings → API)
+#   SUPABASE_SERVICE_ROLE_KEY      service_role JWT (Settings -> API)
 
 name: Nightly · Outstanding-balance drift audit
 
@@ -21,23 +27,26 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Call audit_outstanding_drift on prod
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          resp=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/audit_outstanding_drift" \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{"p_threshold": 1.0}')
-          echo "Response: $resp"
-          count=$(echo "$resp" | jq 'length')
+          . scripts/lib/supabase_rpc.sh
+
+          # exit 2 = the call failed; never confusable with exit 1 = drift found
+          resp=$(rpc_array "$SUPABASE_URL" "$SUPABASE_SERVICE_ROLE_KEY" \
+                   audit_outstanding_drift '{"p_threshold": 1.0}') || exit 2
+
+          count=$(printf '%s' "$resp" | jq 'length')
           echo "Drift rows: $count"
+
           if [ "$count" -gt 0 ]; then
-            echo "::error::$count client(s) have outstanding-balance drift > ₹1. See audit_log."
-            echo "$resp" | jq
+            echo "::error::$count client(s) have outstanding-balance drift > Rs 1. See audit_log."
+            printf '%s' "$resp" | jq
             exit 1
           fi
           echo "✓ All client outstanding balances reconcile."
