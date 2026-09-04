@@ -100,8 +100,12 @@ const AuthRoute = ({ children }) => {
   // would be denied by RLS and silently do nothing, so stop here rather than
   // render an app that looks like it works. See AuthContext for how this state
   // used to be papered over with an invented profile.
-  if (currentUser.profileMissing) {
-    return <AccountNotProvisioned email={currentUser.email} onSignOut={logout} removed={!!currentUser.accountRemoved} />;
+  //
+  // Only a REMOVED account is turned away here. This route exists for users who
+  // have no profile yet — turning them away for the very condition the route is
+  // meant to resolve is what broke signup.
+  if (currentUser.accountRemoved) {
+    return <AccountNotProvisioned email={currentUser.email} onSignOut={logout} removed />;
   }
   // Already has workspace → skip setup
   if (currentTenant) return <Navigate to="/dashboard" replace />;
@@ -177,6 +181,7 @@ function AppRoutes() {
   const { isOwner, hasRole, currentUser, logout, loading: authLoading } = useAuth();
   const { loading: tenantLoading } = useTenant();
   const location = useLocation();
+  const isWorkspaceSetup = location.pathname === '/welcome';
 
   React.useEffect(() => {
     if (!currentUser) return;
@@ -198,7 +203,14 @@ function AppRoutes() {
   // Signed in, but the database has no profile for this account, so RLS denies
   // every write while cached reads still look normal. Caught at the top of the
   // app so no route can render a workspace that cannot save anything.
-  if (currentUser?.profileMissing) {
+  //
+  // /welcome is the exception, and has to be: a new signup has an auth session
+  // and no users row until TenantSetup calls create-tenant, so this guard
+  // caught every new customer and showed them "account not provisioned" on the
+  // one page that would have provisioned them. Signup could not complete at
+  // all. A removed account is still blocked here — that one has a profile and
+  // lost it, which is not the same thing as never having had one.
+  if (currentUser?.profileMissing && !(isWorkspaceSetup && !currentUser.accountRemoved)) {
     return <AccountNotProvisioned email={currentUser.email} onSignOut={logout} removed={!!currentUser.accountRemoved} />;
   }
 
