@@ -225,6 +225,25 @@ export const AuthProvider = ({ children }) => {
             .eq('id', session.user.id)
             .maybeSingle();
 
+          // A removed staff member must not get back in. The initial getSession
+          // path checks this, but a fresh credential login arrives here instead
+          // — so without this check, soft-deleting someone hid them from the
+          // user list while they kept their tenant, their roles and full access
+          // the moment they signed in again.
+          if (profile?.deleted_at) {
+            console.warn('[auth] %s was removed from this workspace', session.user.email);
+            setCurrentUser({
+              id: session.user.id,
+              email: session.user.email,
+              name: session.user.email.split('@')[0],
+              roles: [],
+              status: 'REMOVED',
+              profileMissing: true,
+              accountRemoved: true,
+            });
+            return;
+          }
+
           if (profile) {
             const enrichedProfile = { ...profile, email: session.user.email };
             if (isSuperUser && !enrichedProfile.roles?.includes('GLOBAL_ADMIN')) {
