@@ -35,6 +35,18 @@
   .reveal{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s ease}
   .group:hover .reveal{grid-template-rows:1fr}
 </style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"Organization","@id":"https://bookledger.in/#org","name":"bookledger","url":"https://bookledger.in/","logo":"https://bookledger.in/bookledger-logo.png","description":"GST billing, inventory and POS software for Indian retailers and distributors.","areaServed":{"@type":"Country","name":"India"}},
+{"@type":"WebSite","@id":"https://bookledger.in/#site","url":"https://bookledger.in/","name":"bookledger","publisher":{"@id":"https://bookledger.in/#org"},"inLanguage":"en-IN"},
+{"@type":"SoftwareApplication","name":"bookledger","operatingSystem":"Android, iOS, Windows, macOS, Web","applicationCategory":"BusinessApplication","description":"Create GST invoices, track stock, recover dues and export GSTR reports. Works offline. Free mobile app.","url":"https://bookledger.in/","publisher":{"@id":"https://bookledger.in/#org"},"offers":{"@type":"Offer","price":"0","priceCurrency":"INR","description":"Free plan. Paid plans from Rs 2,999/year."},"featureList":["GST invoicing with CGST/SGST/IGST and HSN","Offline billing and automatic sync","Inventory and batch tracking","Point of sale","GSTR-1 and GSTR-3B export","Client dues and collections","Van sales and logistics"]},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Does it really work offline?","acceptedAnswer":{"@type":"Answer","text":"Yes. Sales, billing and stock all run fully offline. An outbox queues every change and syncs automatically when you reconnect - nothing is lost."}},
+{"@type":"Question","name":"Is it GST compliant?","acceptedAnswer":{"@type":"Answer","text":"CGST/SGST/IGST, HSN, inclusive/exclusive tax, and GSTR-1/3B exports are built in. Invoices follow Indian GST formatting."}},
+{"@type":"Question","name":"Can I use it on my phone?","acceptedAnswer":{"@type":"Answer","text":"Yes - a free iOS and Android app mirrors the web app, including offline billing and print-perfect invoices."}},
+{"@type":"Question","name":"Do I need a card to try it?","acceptedAnswer":{"@type":"Answer","text":"No. Start a free trial with just an email. No card, cancel anytime."}}
+]}]}
+</script>
 </head>
 <body class="bg-canvas text-primary font-sans antialiased">
 
