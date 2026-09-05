@@ -331,7 +331,10 @@ class _TenantGateState extends ConsumerState<_TenantGate> {
       }
       _timer?.cancel();
       if (ctx == null) return const _ContactAdminScreen();
-      if (ctx.isTrialExpired) return const _TrialExpiredScreen();
+      // Grace, not the bare end date: the web app keeps working through the
+      // warning window, and locking the till seven days earlier than the
+      // browser reads as an outage rather than a billing event.
+      if (ctx.isTrialLapsed) return const _TrialExpiredScreen();
 
       // One-time-per-tenant: spin up realtime channel + pull-sync local cache.
       if (_startedTenantId != ctx.tenantId) {

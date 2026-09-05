@@ -74,7 +74,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   // Jump to a tab by feature key (used by in-dashboard shortcuts).
   void _switchToFeature(String feature) {
     final ctx = ref.read(tenantContextProvider).value;
-    final visible = _visibleTabs(ctx?.roles ?? [], ctx?.plan ?? 'STARTER', ctx?.permissions);
+    final visible = _visibleTabs(ctx?.roles ?? [], ctx?.plan ?? 'FREE', ctx?.permissions);
     final idx = visible.indexWhere((t) => t.feature == feature);
     if (idx >= 0) setState(() => _selectedIndex = idx);
   }
@@ -83,7 +83,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final ctx = ref.watch(tenantContextProvider).value;
     final tabs = _visibleTabs(
-        ctx?.roles ?? [], ctx?.plan ?? 'STARTER', ctx?.permissions);
+        ctx?.roles ?? [], ctx?.plan ?? 'FREE', ctx?.permissions);
     final selIdx = tabs.isEmpty ? 0 : _selectedIndex.clamp(0, tabs.length - 1);
     final currentFeature = tabs.isEmpty ? '' : tabs[selIdx].feature;
 
@@ -402,7 +402,7 @@ class _AppDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tenantAsync = ref.watch(tenantContextProvider);
     final roles = tenantAsync.value?.roles ?? [];
-    final plan = tenantAsync.value?.plan ?? 'STARTER';
+    final plan = tenantAsync.value?.plan ?? 'FREE';
     final permissions = tenantAsync.value?.permissions;
     // Filter drawer by RBAC — drop items and empty sections the user can't access.
     final sections = _sections

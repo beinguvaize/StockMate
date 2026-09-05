@@ -1,6 +1,11 @@
 // Plan hierarchy — aligned with web tenancy.js + bookledger.in pricing.
-// FREE < GROWTH < PRO < ENTERPRISE. STARTER = legacy alias of GROWTH
-// (grandfathered until the tenants.plan DB migration lands everywhere).
+// FREE < GROWTH < PRO < ENTERPRISE.
+//
+// STARTER is kept here only for a raw caller that has not been through
+// Tenant.effectivePlan. That resolves any unrecognised plan — STARTER
+// included — to FREE, matching the web and the database's plan gate. Mobile
+// used to rank STARTER as GROWTH and offer modules the server then refused
+// to write.
 const planOrder = {
   'FREE': 0,
   'STARTER': 1, // legacy alias — treated as GROWTH
