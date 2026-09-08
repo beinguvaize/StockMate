@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { goHref } from '../lib/nav';
 import { supportWhatsAppLink, SUPPORT_NAME, SUPPORT_WHATSAPP_DISPLAY } from '../lib/support';
+import { INDIAN_STATES, stateCodeFor } from '../lib/gstStates';
 
 const PLANS = [
   {
@@ -69,6 +70,7 @@ const TenantSetup = () => {
   const [businessName, setBusinessName] = useState('');
   const [businessPhone, setBusinessPhone] = useState('');
   const [businessAddress, setBusinessAddress] = useState('');
+  const [businessState, setBusinessState] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const { currentUser } = useAuth();
@@ -109,6 +111,8 @@ const TenantSetup = () => {
           businessType,
           phone: businessPhone.trim(),
           address: businessAddress.trim(),
+          state: businessState,
+          stateCode: stateCodeFor(businessState),
         }),
       });
       const data = await res.json();
@@ -356,6 +360,28 @@ const TenantSetup = () => {
                 />
               </div>
 
+              {/* Picked by name, never typed as a number. The state decides
+                  CGST+SGST versus IGST and is the first two digits of a GSTIN,
+                  but no shopkeeper knows their own code — so we show the name
+                  and derive the code from it. */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-0.5 block mb-2">
+                  State <span className="text-ink-secondary normal-case font-medium tracking-normal">— sets CGST/SGST vs IGST on your bills</span>
+                </label>
+                <select
+                  value={businessState}
+                  onChange={(e) => setBusinessState(e.target.value)}
+                  className="w-full h-14 bg-black/40 border border-white/10 text-white px-5 rounded-xl outline-none focus:border-accent-signature/60 focus:ring-4 focus:ring-accent-signature/10 transition-all text-sm appearance-none"
+                  required
+                  disabled={isLoading}
+                >
+                  <option value="" disabled>Select your state</option>
+                  {INDIAN_STATES.map((st) => (
+                    <option key={st.code} value={st.name} className="bg-[#111]">{st.name}</option>
+                  ))}
+                </select>
+              </div>
+
               {error && (
                 <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold text-center">
                   {error}
@@ -365,7 +391,7 @@ const TenantSetup = () => {
               <button
                 type="submit"
                 className="w-full h-14 bg-accent-signature hover:bg-accent-signature-hover text-black font-black rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99]"
-                disabled={isLoading || !businessName.trim() || !businessPhone.trim() || !businessAddress.trim()}
+                disabled={isLoading || !businessName.trim() || !businessPhone.trim() || !businessAddress.trim() || !businessState}
               >
                 {isLoading ? (
                   <><Loader2 className="w-5 h-5 animate-spin" /> Creating your workspace…</>
