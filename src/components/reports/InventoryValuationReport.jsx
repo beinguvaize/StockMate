@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { isRaw, isStocked } from '../../lib/productTypes';
 import useReportData from './useReportData';
 import ReportShell from './ReportShell';
 import { Package, Smartphone, Layers, AlertCircle, TrendingUp, DollarSign, Tag, Info } from 'lucide-react';
@@ -21,12 +22,13 @@ const InventoryValuationReport = () => {
     // read as a loss — three RAW items held Rs 83,994 against Rs 0 of retail.
     // Potential and profit are measured over sellable stock only; totalCost
     // still covers everything on hand.
-    const isRaw = (p) => (p.product_type || 'STANDARD').toUpperCase() === 'RAW';
     const sellable = rawData.filter(p => !isRaw(p));
     const sellableCost = sellable.reduce((acc, p) => acc + ((p.stock || 0) * (p.costPrice || 0)), 0);
     const totalPotential = sellable.reduce((acc, p) => acc + ((p.stock || 0) * (p.sellingPrice || 0)), 0);
     const totalProfit = totalPotential - sellableCost;
-    const lowStockItems = rawData.filter(p => (p.stock || 0) <= (p.lowStockThreshold || 5));
+    // Services have no stock to be low on: they sit at 0 forever, so every
+    // threshold test matched and they were reported as needing replenishment.
+    const lowStockItems = rawData.filter(p => isStocked(p) && (p.stock || 0) <= (p.lowStockThreshold || 5));
     const lowStockCount = lowStockItems.length;
 
     // Group by Category for Pie Chart
