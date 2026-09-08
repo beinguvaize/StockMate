@@ -67,6 +67,8 @@ const TenantSetup = () => {
   const [selectedPlan, setSelectedPlan] = useState('GROWTH');
   const [businessType, setBusinessType] = useState('RETAIL'); // industry / vertical
   const [businessName, setBusinessName] = useState('');
+  const [businessPhone, setBusinessPhone] = useState('');
+  const [businessAddress, setBusinessAddress] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const { currentUser } = useAuth();
@@ -101,7 +103,13 @@ const TenantSetup = () => {
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ businessName: businessName.trim(), plan: selectedPlan, businessType }),
+        body: JSON.stringify({
+          businessName: businessName.trim(),
+          plan: selectedPlan,
+          businessType,
+          phone: businessPhone.trim(),
+          address: businessAddress.trim(),
+        }),
       });
       const data = await res.json();
       if (res.status === 401) {
@@ -314,6 +322,40 @@ const TenantSetup = () => {
                 />
               </div>
 
+              {/* Both print on every GST invoice. Asked here rather than left to
+                  Settings, where most tenants never went: of the first twelve,
+                  three had an address and three had a phone. */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-0.5 block mb-2">
+                  Phone <span className="text-ink-secondary normal-case font-medium tracking-normal">— mobile or landline, shown on invoices</span>
+                </label>
+                <input
+                  value={businessPhone}
+                  onChange={(e) => setBusinessPhone(e.target.value)}
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="e.g. 98765 43210"
+                  className="w-full h-14 bg-black/40 border border-white/10 text-white px-5 rounded-xl outline-none focus:border-accent-signature/60 focus:ring-4 focus:ring-accent-signature/10 transition-all text-sm"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-0.5 block mb-2">
+                  Business address <span className="text-ink-secondary normal-case font-medium tracking-normal">— required on a GST invoice</span>
+                </label>
+                <textarea
+                  value={businessAddress}
+                  onChange={(e) => setBusinessAddress(e.target.value)}
+                  rows={3}
+                  placeholder={'Shop 12, MG Road\nKochi, Kerala 682001'}
+                  className="w-full bg-black/40 border border-white/10 text-white px-5 py-4 rounded-xl outline-none focus:border-accent-signature/60 focus:ring-4 focus:ring-accent-signature/10 transition-all text-sm resize-none"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
               {error && (
                 <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold text-center">
                   {error}
@@ -323,7 +365,7 @@ const TenantSetup = () => {
               <button
                 type="submit"
                 className="w-full h-14 bg-accent-signature hover:bg-accent-signature-hover text-black font-black rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99]"
-                disabled={isLoading || !businessName.trim()}
+                disabled={isLoading || !businessName.trim() || !businessPhone.trim() || !businessAddress.trim()}
               >
                 {isLoading ? (
                   <><Loader2 className="w-5 h-5 animate-spin" /> Creating your workspace…</>
