@@ -1,17 +1,23 @@
-# Nightly generation of due recurring expenses (rent, salary, subs).
+# Nightly generation of due recurring expenses and invoices.
 #
-# Calls generate_due_recurring_expenses() on prod. The RPC is idempotent
-# within a month, so re-runs are safe. Any rows it returns are echoed for
-# the run log.
+# Calls the generate_due_recurring_* RPCs on prod. Both are idempotent within a
+# month, so re-runs are safe.
 #
-# Required repo secrets (already used by nightly-audit):
+# The response is validated before it is counted. This job printed "Generated 2
+# recurring invoice(s)" on a night it generated none: the service_role key had
+# stopped authenticating, and `jq length` over the resulting error object
+# counted its two KEYS. Claiming work that did not happen is the worst failure
+# mode a scheduled job has -- nobody goes looking for invoices that the log says
+# were already sent.
+#
+# Required repo secrets:
 #   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
 name: Nightly · Generate recurring expenses + invoices
 
 on:
   schedule:
-    # 01:00 UTC = 06:30 IST — before shops open, after midnight rollover.
+    # 01:00 UTC = 06:30 IST -- before shops open, after midnight rollover.
     - cron: '0 1 * * *'
   workflow_dispatch:
 
@@ -19,20 +25,19 @@ jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Generate due recurring expenses (prod)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          resp=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/generate_due_recurring_expenses" \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{}')
-          count=$(echo "$resp" | jq 'length')
-          echo "Generated $count recurring expense(s)."
-          echo "$resp" | jq
+          . scripts/lib/supabase_rpc.sh
+          resp=$(rpc_array "$SUPABASE_URL" "$SUPABASE_SERVICE_ROLE_KEY" \
+                   generate_due_recurring_expenses) || exit 2
+          echo "Generated $(printf '%s' "$resp" | jq 'length') recurring expense(s)."
+          printf '%s' "$resp" | jq
 
       - name: Generate due recurring invoices (prod)
         env:
@@ -40,11 +45,8 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          resp=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/generate_due_recurring_invoices" \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{}')
-          count=$(echo "$resp" | jq 'length')
-          echo "Generated $count recurring invoice(s)."
-          echo "$resp" | jq '[.[] | {invoice_number, client_name, grand_total}]'
+          . scripts/lib/supabase_rpc.sh
+          resp=$(rpc_array "$SUPABASE_URL" "$SUPABASE_SERVICE_ROLE_KEY" \
+                   generate_due_recurring_invoices) || exit 2
+          echo "Generated $(printf '%s' "$resp" | jq 'length') recurring invoice(s)."
+          printf '%s' "$resp" | jq '[.[] | {invoice_number, client_name, grand_total}]'

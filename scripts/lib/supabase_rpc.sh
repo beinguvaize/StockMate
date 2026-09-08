@@ -17,14 +17,15 @@
 # So: check the status, check the shape, and say what actually came back.
 
 rpc_array() {
-  local url="$1" key="$2" fn="$3"
+  local url="$1" key="$2" fn="$3" payload="${4:-}"
   local resp status body
+  [ -n "$payload" ] || payload='{}'
 
   resp=$(curl -sS -m 30 -w $'\n%{http_code}' -X POST "$url/rest/v1/rpc/$fn" \
     -H "apikey: $key" \
     -H "Authorization: Bearer $key" \
     -H "Content-Type: application/json" \
-    -d '{}') || { echo "::error::$fn: request to $url failed" >&2; return 1; }
+    -d "$payload") || { echo "::error::$fn: request to $url failed" >&2; return 1; }
 
   status=${resp##*$'\n'}
   body=${resp%$'\n'*}
