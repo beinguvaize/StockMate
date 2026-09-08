@@ -52,7 +52,7 @@ class MenuScreen extends ConsumerWidget {
               tenantAsync.when(
                 data: (ctx) {
                   final roles = ctx?.userRoles ?? [];
-                  final plan = ctx?.plan ?? 'STARTER';
+                  final plan = ctx?.plan ?? 'FREE';
                   final permissions = ctx?.permissions;
                   final name = ctx?.userProfile.name ?? ctx?.userProfile.email ?? 'User';
 

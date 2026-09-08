@@ -187,7 +187,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                   child: tenantAsync.when(
                     data: (ctx) {
                       final roles = ctx?.roles ?? ['STAFF'];
-                      final plan = ctx?.plan ?? 'STARTER';
+                      final plan = ctx?.plan ?? 'FREE';
                       final permissions = ctx?.permissions;
                       return ListView(
                         padding: const EdgeInsets.symmetric(
@@ -371,7 +371,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    ctx?.plan ?? 'STARTER',
+                                    ctx?.storedPlan ?? 'FREE',
                                     style: const TextStyle(
                                       color: AppColors.accentSignature,
                                       fontSize: 10,
@@ -473,7 +473,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                   child: tenantAsync.when(
                     data: (ctx) {
                       final roles = ctx?.roles ?? ['STAFF'];
-                      final plan = ctx?.plan ?? 'STARTER';
+                      final plan = ctx?.plan ?? 'FREE';
                       final permissions = ctx?.permissions;
                       final item = _navItems[_selectedIndex];
                       if (!canAccess(item.feature,
