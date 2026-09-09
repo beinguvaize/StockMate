@@ -61,3 +61,18 @@ export const stockFieldsFor = (form = {}) =>
         stock: parseInt(form.stock, 10) || 0,
         lowStockThreshold: parseInt(form.lowStockThreshold, 10) || 10,
       };
+
+/**
+ * What type a NEW item should start as, given the tenant's vertical.
+ *
+ * The form seeded 'STANDARD' unconditionally (and its reset branch omitted the
+ * field altogether, leaving it undefined). In a SERVICES tenant the form then
+ * *looked* like a service form — cost price hidden, duration shown — while the
+ * saved row said STANDARD. Every row-level check downstream reads the stored
+ * type, so the POS badge, the stock-gate bypass and the report guards would all
+ * have missed it. Saveable but mis-typed is not fixed.
+ *
+ * Editing never calls this: an existing item keeps the type it was saved with.
+ */
+export const defaultProductType = (businessType) =>
+  String(businessType || '').toUpperCase() === 'SERVICES' ? 'SERVICE' : 'STANDARD';

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isServiceForm, validateItemPricing, stockFieldsFor } from './itemForm';
+import { isServiceForm, validateItemPricing, stockFieldsFor, defaultProductType } from './itemForm';
 
 describe('isServiceForm', () => {
   it('is true for a services tenant, whatever the item', () => {
@@ -66,5 +66,25 @@ describe('stockFieldsFor', () => {
   it('defaults the threshold when blank', () => {
     expect(stockFieldsFor({ businessType: 'RETAIL' }))
       .toEqual({ stock: 0, lowStockThreshold: 10 });
+  });
+});
+
+describe('defaultProductType', () => {
+  it('starts a services tenant on SERVICE', () => {
+    // The form seeded STANDARD unconditionally, so a services tenant saved
+    // STANDARD rows through a form that looked like a service form — and every
+    // row-level check downstream reads the stored type.
+    expect(defaultProductType('SERVICES')).toBe('SERVICE');
+  });
+
+  it('starts everyone else on STANDARD', () => {
+    expect(defaultProductType('RETAIL')).toBe('STANDARD');
+    expect(defaultProductType('RESTAURANT')).toBe('STANDARD');
+    expect(defaultProductType(undefined)).toBe('STANDARD');
+  });
+
+  it('round-trips into service mode', () => {
+    const businessType = 'SERVICES';
+    expect(isServiceForm({ businessType, product_type: defaultProductType(businessType) })).toBe(true);
   });
 });

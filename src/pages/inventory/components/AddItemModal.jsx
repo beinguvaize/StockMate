@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { validateItemPricing, stockFieldsFor, isServiceForm } from '../../../lib/itemForm';
+import { validateItemPricing, stockFieldsFor, isServiceForm, defaultProductType } from '../../../lib/itemForm';
 import { ImagePlus, CheckCircle2, Percent, Camera, Images, Upload, X, Loader2, Wand2 } from 'lucide-react';
 import { ean13CheckDigit } from '../../../lib/labelPrint';
 import Modal from '../../../shared/Modal';
@@ -22,7 +22,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
     costPrice: '', sellingPrice: '', wholesale_price: '', distributor_price: '', price_inclusive: false, tax_status: 'TAXABLE', stock: '', taxRate: 0, cess_rate: 0, hsn_code: '', taxSlab: 'Exempt', tags: '', image: '',
-    lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: 'STANDARD',
+    lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: defaultProductType(businessType),
     secondary_unit: '', conversion_factor: '',
     food_type: '', is_available: true, station: '', modifier_groups: [],   // menu (restaurant)
     duration_min: '',   // service catalog
@@ -113,7 +113,12 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         name: '', sku: '', category: '', unit: UNITS[0],
         costPrice: '', sellingPrice: '', wholesale_price: '', distributor_price: '', price_inclusive: false, tax_status: 'TAXABLE', stock: '', taxRate: 0, cess_rate: 0, hsn_code: '', taxSlab: 'Exempt', tags: '', image: '',
         lowStockThreshold: 10, min_margin: 0, barcode: '',
-        food_type: '', is_available: true, station: '',
+        // Omitted entirely before, so a new item started undefined and a
+        // services tenant saved STANDARD rows through a service-looking form.
+        product_type: defaultProductType(businessType),
+        secondary_unit: '', conversion_factor: '',
+        food_type: '', is_available: true, station: '', modifier_groups: [],
+        duration_min: '',
         track_serial: false,
       });
       setImagePreview(null);
