@@ -1,8 +1,11 @@
 // Stage C — Services vertical: appointments.
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, restRpc } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import { todayISOInAppTZ } from '../lib/utils';
 
 export function useAppointments(tenantId) {
+  const { currentUser } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -66,6 +69,34 @@ export function useAppointments(tenantId) {
     return { error };
   };
 
+  /**
+   * Mark a booking done AND record the money, in one server-side transaction.
+   *
+   * Completing used to write a status and nothing else, so the service, the
+   * client and the price had to be re-keyed into the POS by hand — with
+   * nothing stopping a booking being billed twice, or never.
+   *
+   * The RPC calls process_sale itself, so the money path is unchanged and the
+   * sale is built from the product rather than from whatever this client
+   * believed when the slot was booked. Pressing Complete twice returns the
+   * same sale id instead of billing again.
+   */
+  const complete = async ({ id, paymentMethod = 'CASH', paidAmount = null, locationId = null } = {}) => {
+    if (!currentUser?.id) return { error: new Error('You are not signed in.') };
+    const { data, error } = await restRpc('complete_appointment', {
+      p_appointment_id: id,
+      p_user_id: currentUser.id,
+      p_payment_method: paymentMethod,
+      p_paid_amount: paidAmount,
+      p_location_id: locationId,
+      p_date: todayISOInAppTZ(),
+    });
+    // The status is only true once the sale exists, so nothing is painted
+    // optimistically here — a failure must not leave COMPLETED on screen.
+    if (!error) await fetchAll();
+    return { error, saleId: data };
+  };
+
   const setStatus = async (id, status) => {
     // Optimistic, but reverted on failure. It used to paint the new status and
     // leave it there when the write failed, so a booking could read COMPLETED
@@ -85,5 +116,5 @@ export function useAppointments(tenantId) {
     return { error };
   };
 
-  return { appointments, loading, refresh: fetchAll, book, update, setStatus, remove };
+  return { appointments, loading, refresh: fetchAll, book, update, complete, setStatus, remove };
 }
