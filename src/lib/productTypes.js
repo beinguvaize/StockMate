@@ -14,10 +14,11 @@ export const isRaw = (p) => typeOf(p) === 'RAW';
 /**
  * Labour, repair, a tuition hour. Has a price and no stock.
  *
- * process_sale still writes a movement row and an inventory balance for these,
- * clamped at zero — so their stock reads 0 forever and every threshold test
- * matches. Excluded from stock reporting until the sale path knows the
- * difference; that fix touches the money path and is its own change.
+ * The database no longer records stock movements for these: a BEFORE INSERT
+ * trigger on movement_log and inventory_balances drops those rows, so the four
+ * money functions stay byte-identical while the ledger stops describing goods
+ * that do not exist. Their stock still reads 0 because there is nothing to
+ * count, which is why they remain excluded from stock reporting.
  */
 export const isService = (p) => typeOf(p) === 'SERVICE';
 
