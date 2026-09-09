@@ -7,6 +7,7 @@ import { useInventory } from '../hooks/useInventory';
 import { useNotifications } from '../context/NotificationContext';
 import { SkeletonRows } from '../components/ui/States';
 import { formatCurrency } from '../lib/utils';
+import { goHref } from '../lib/nav';
 import { isService } from '../lib/productTypes';
 import { iso, parseISO } from '../lib/reportPeriods';
 import {
@@ -14,7 +15,7 @@ import {
 } from '../lib/appointmentCalendar';
 import {
   CalendarClock, Plus, X, Clock, User2, Check, Ban, ChevronLeft, ChevronRight,
-  CalendarDays, List, AlertTriangle,
+  CalendarDays, List, AlertTriangle, Receipt,
 } from 'lucide-react';
 
 const STATUS_CHIP = {
@@ -36,7 +37,7 @@ const longDay = (d) => parseISO(d).toLocaleDateString(undefined, { weekday: 'lon
 
 const Appointments = () => {
   const { currentTenantId } = useTenant();
-  const { appointments, loading, book, update, setStatus, remove } = useAppointments(currentTenantId);
+  const { appointments, loading, book, update, complete, setStatus, remove } = useAppointments(currentTenantId);
   // Staff are EMPLOYEES, not app logins. This used to read `users`, so a
   // barber or tutor without an account could never be assigned the work.
   const { clients = [], employees = [] } = usePeople(currentTenantId);
@@ -72,6 +73,17 @@ const Appointments = () => {
   const changeStatus = async (id, status) => {
     const { error } = await setStatus(id, status);
     if (error) addNotification('Could not update: ' + error.message, 'error');
+  };
+
+  /**
+   * Completing is a money action, not a status change, so it is confirmed and
+   * its failure is surfaced. The booking stays BOOKED unless the sale exists.
+   */
+  const completeAndBill = async (a) => {
+    if (!window.confirm(`Complete this appointment and record a ${formatCurrency(a.price || 0)} sale?`)) return;
+    const { error, saleId } = await complete({ id: a.id });
+    if (error) { addNotification('Could not complete: ' + error.message, 'error'); return; }
+    addNotification(`Completed — sale ${saleId} recorded`, 'success');
   };
 
   return (
@@ -159,7 +171,7 @@ const Appointments = () => {
               <div className="space-y-2">
                 {dayList.map(a => (
                   <Row key={a.id} a={a} staffName={staffName}
-                    onEdit={() => setEditing(a)} onStatus={changeStatus}
+                    onEdit={() => setEditing(a)} onStatus={changeStatus} onComplete={completeAndBill}
                     onDelete={() => { if (window.confirm('Delete this appointment?')) remove(a.id); }} />
                 ))}
               </div>
@@ -179,7 +191,7 @@ const Appointments = () => {
             <div className="space-y-2">
               {list.map(a => (
                 <Row key={a.id} a={a} staffName={staffName}
-                  onEdit={() => setEditing(a)} onStatus={changeStatus}
+                  onEdit={() => setEditing(a)} onStatus={changeStatus} onComplete={completeAndBill}
                   onDelete={() => { if (window.confirm('Delete this appointment?')) remove(a.id); }} />
               ))}
             </div>
@@ -201,7 +213,7 @@ const Appointments = () => {
 };
 
 /** One booking, in either view. Clicking the body opens it for editing. */
-const Row = ({ a, staffName, onEdit, onStatus, onDelete }) => {
+const Row = ({ a, staffName, onEdit, onStatus, onComplete, onDelete }) => {
   const dimmed = a.status === 'CANCELLED' || a.status === 'NOSHOW';
   return (
     <div className={`bg-white rounded-2xl border border-black/5 shadow-sm flex items-center gap-4 px-5 py-3 ${dimmed ? 'opacity-60' : ''}`}>
@@ -218,10 +230,16 @@ const Row = ({ a, staffName, onEdit, onStatus, onDelete }) => {
         </div>
       </button>
       {a.price > 0 && <div className="tabular-nums text-[13px] font-bold text-ink-primary shrink-0">{formatCurrency(a.price)}</div>}
+      {a.sale_id && (
+        <a href={goHref('/sales')} title={`Billed as ${a.sale_id}`}
+          className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-1">
+          <Receipt size={10} /> Billed
+        </a>
+      )}
       <span className={`text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border shrink-0 ${STATUS_CHIP[a.status] || STATUS_CHIP.BOOKED}`}>{a.status}</span>
       {a.status === 'BOOKED' && (
         <div className="flex items-center gap-1 shrink-0">
-          <button onClick={() => onStatus(a.id, 'COMPLETED')} title="Complete"
+          <button onClick={() => onComplete(a)} title="Complete & bill"
             className="w-7 h-7 rounded-lg grid place-items-center text-emerald-600 hover:bg-emerald-50"><Check size={14} /></button>
           <button onClick={() => onStatus(a.id, 'NOSHOW')} title="No-show"
             className="w-7 h-7 rounded-lg grid place-items-center text-muted-foreground hover:bg-red-50 hover:text-red-500"><Ban size={13} /></button>
