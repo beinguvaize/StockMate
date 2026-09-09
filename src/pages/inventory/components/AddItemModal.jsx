@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { validateItemPricing, stockFieldsFor, isServiceForm, defaultProductType } from '../../../lib/itemForm';
 import { ImagePlus, CheckCircle2, Percent, Camera, Images, Upload, X, Loader2, Wand2 } from 'lucide-react';
 import { ean13CheckDigit } from '../../../lib/labelPrint';
 import Modal from '../../../shared/Modal';
@@ -21,7 +22,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
     costPrice: '', sellingPrice: '', wholesale_price: '', distributor_price: '', price_inclusive: false, tax_status: 'TAXABLE', stock: '', taxRate: 0, cess_rate: 0, hsn_code: '', taxSlab: 'Exempt', tags: '', image: '',
-    lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: 'STANDARD',
+    lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: defaultProductType(businessType),
     secondary_unit: '', conversion_factor: '',
     food_type: '', is_available: true, station: '', modifier_groups: [],   // menu (restaurant)
     duration_min: '',   // service catalog
@@ -62,7 +63,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
 
   // A SERVICE product (labor / repair, no stock) gets the service UX in ANY
   // business mode — lets a retail shop keep products and add services together.
-  const isService = businessType === 'SERVICES' || formData.product_type === 'SERVICE';
+  // Same rule the save path and the tests use — a services tenant, or a
+  // service item inside a retail one. Kept in one place so the fields the
+  // form hides and the fields the save demands can never disagree again.
+  const isService = isServiceForm({ businessType, product_type: formData.product_type });
 
   const [imageFile, setImageFile]     = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -109,7 +113,12 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         name: '', sku: '', category: '', unit: UNITS[0],
         costPrice: '', sellingPrice: '', wholesale_price: '', distributor_price: '', price_inclusive: false, tax_status: 'TAXABLE', stock: '', taxRate: 0, cess_rate: 0, hsn_code: '', taxSlab: 'Exempt', tags: '', image: '',
         lowStockThreshold: 10, min_margin: 0, barcode: '',
-        food_type: '', is_available: true, station: '',
+        // Omitted entirely before, so a new item started undefined and a
+        // services tenant saved STANDARD rows through a service-looking form.
+        product_type: defaultProductType(businessType),
+        secondary_unit: '', conversion_factor: '',
+        food_type: '', is_available: true, station: '', modifier_groups: [],
+        duration_min: '',
         track_serial: false,
       });
       setImagePreview(null);
@@ -153,14 +162,15 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     setSaveError(null);
 
     try {
-      // Mandatory price validation
-      if (!(parseFloat(formData.costPrice) > 0)) {
-        setSaveError('Cost price is required and must be greater than 0.');
-        setUploading(false);
-        return;
-      }
-      if (formData.product_type !== 'RAW' && !(parseFloat(formData.sellingPrice) > 0)) {
-        setSaveError('Selling price is required and must be greater than 0.');
+      // Pricing rules live in src/lib/itemForm.js so they can be tested
+      // rather than only observed by opening this modal. A service has no cost
+      // of goods and its Cost Price input is not rendered; demanding one anyway
+      // made every save fail with an error naming a field that was not on
+      // screen, and since service mode covers EVERY item in a SERVICES tenant,
+      // that tenant could not add a single thing to its catalogue.
+      const priceError = validateItemPricing({ ...formData, businessType });
+      if (priceError) {
+        setSaveError(priceError);
         setUploading(false);
         return;
       }
@@ -185,8 +195,8 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         distributor_price: parseFloat(formData.distributor_price) || null,
         price_inclusive:  !!formData.price_inclusive,
         tax_status:       formData.tax_status || 'TAXABLE',
-        stock:            parseInt(formData.stock)              || 0,
-        lowStockThreshold: parseInt(formData.lowStockThreshold) || 10,
+        // Services hold no stock and get a null threshold — see itemForm.js.
+        ...stockFieldsFor({ ...formData, businessType }),
         taxRate:          parseFloat(formData.taxRate)          || 0,
         cess_rate:        parseFloat(formData.cess_rate)        || 0,
         hsn_code:         (formData.hsn_code || '').trim()      || null,
@@ -202,7 +212,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         station: formData.station?.trim() || null,
         modifier_groups: Array.isArray(formData.modifier_groups) ? formData.modifier_groups : [],
         duration_min: Number(formData.duration_min) || null,
-        track_serial: !!formData.track_serial,
+        track_serial: isService ? false : !!formData.track_serial,
       };
 
       // Bound the save so a stalled request can't leave the button stuck on
@@ -334,7 +344,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               </div>
             </div>
 
-            {/* Serialized stock — track each unit by IMEI / serial number */}
+            {/* Serialized stock — track each unit by IMEI / serial number.
+                Never offered for a service: InvoiceBuilder demands a serial per
+                unit at checkout, and a repair hour has no IMEI to give. */}
+            {!isService && (
             <label className="flex items-center gap-3 mt-1 cursor-pointer select-none">
               <button
                 type="button"
@@ -350,6 +363,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 <span className="text-[11px] text-muted-foreground">Phones, electronics — capture the serial on purchase &amp; sale</span>
               </span>
             </label>
+            )}
 
             {/* Menu details — restaurant only */}
             {isResto && (
