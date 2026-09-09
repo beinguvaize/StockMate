@@ -38,11 +38,44 @@ export function useAppointments(tenantId) {
     return { error };
   };
 
-  const setStatus = async (id, status, extra = {}) => {
-    setAppointments(prev => prev.map(a => a.id === id ? { ...a, status, ...extra } : a));
+  /**
+   * Edit a booking in place — reschedule, change the service, reassign staff.
+   *
+   * The page had no edit at all: setStatus took an `extra` object that nothing
+   * ever passed, which is dead code sitting exactly where this belongs.
+   *
+   * Only the columns a person can actually change are accepted. Spreading a
+   * whole row back would carry tenant_id and sale_id along with it, and the
+   * update policy now has a WITH CHECK that would reject a moved tenant_id
+   * rather than silently obey it.
+   */
+  const update = async (id, patch = {}) => {
+    const allowed = [
+      'client_id', 'client_name', 'service_id', 'service_name',
+      'staff_id', 'start_at', 'duration_min', 'price', 'notes',
+    ];
+    const row = {};
+    for (const k of allowed) if (k in patch) row[k] = patch[k];
+    if (Object.keys(row).length === 0) return { error: null };
+
     const { error } = await supabase.from('appointments')
-      .update({ status, ...extra }).eq('id', id).eq('tenant_id', tenantId);
+      .update(row).eq('id', id).eq('tenant_id', tenantId);
+    // Refetch on success only. On failure the caller surfaces the real reason
+    // and the list still shows what the database actually holds.
     if (!error) await fetchAll();
+    return { error };
+  };
+
+  const setStatus = async (id, status) => {
+    // Optimistic, but reverted on failure. It used to paint the new status and
+    // leave it there when the write failed, so a booking could read COMPLETED
+    // on screen while the database still said BOOKED.
+    const before = appointments;
+    setAppointments(prev => prev.map(a => (a.id === id ? { ...a, status } : a)));
+    const { error } = await supabase.from('appointments')
+      .update({ status }).eq('id', id).eq('tenant_id', tenantId);
+    if (error) setAppointments(before);
+    else await fetchAll();
     return { error };
   };
 
@@ -52,5 +85,5 @@ export function useAppointments(tenantId) {
     return { error };
   };
 
-  return { appointments, loading, refresh: fetchAll, book, setStatus, remove };
+  return { appointments, loading, refresh: fetchAll, book, update, setStatus, remove };
 }
