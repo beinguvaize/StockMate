@@ -40,7 +40,7 @@ const Appointments = () => {
   const { appointments, loading, book, update, complete, setStatus, remove } = useAppointments(currentTenantId);
   // Staff are EMPLOYEES, not app logins. This used to read `users`, so a
   // barber or tutor without an account could never be assigned the work.
-  const { clients = [], employees = [] } = usePeople(currentTenantId);
+  const { clients = [], employees = [], addClient } = usePeople(currentTenantId);
   const { products = [] } = useInventory(currentTenantId);
   const { addNotification } = useNotifications();
 
@@ -203,7 +203,7 @@ const Appointments = () => {
         <BookModal
           appointment={editing === 'new' ? null : editing}
           defaultDay={selectedDay}
-          clients={clients} staff={employees} services={services}
+          clients={clients} staff={employees} services={services} onAddClient={addClient}
           existing={appointments}
           onClose={() => setEditing(null)}
           onSave={save} />
@@ -255,10 +255,13 @@ const Row = ({ a, staffName, onEdit, onStatus, onComplete, onDelete }) => {
   );
 };
 
+/** Sentinel for the "add a new one" row in the client picker. */
+const NEW_CLIENT = '__new__';
+
 const inputCls = 'w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10';
 const lblCls = 'block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5';
 
-const BookModal = ({ appointment, defaultDay, clients, staff, services, existing, onClose, onSave }) => {
+const BookModal = ({ appointment, defaultDay, clients, staff, services, existing, onAddClient, onClose, onSave }) => {
   useDialogClose(onClose);
   const isEdit = !!appointment;
 
@@ -270,14 +273,16 @@ const BookModal = ({ appointment, defaultDay, clients, staff, services, existing
   const [day, setDay]   = useState(() => (appointment ? dayOf(appointment.start_at) : (defaultDay || iso(new Date()))));
   const [time, setTime] = useState(() => (appointment ? new Date(appointment.start_at).toTimeString().slice(0, 5) : '10:00'));
   const [notes, setNotes] = useState(appointment?.notes || '');
+  const [newClient, setNewClient] = useState({ name: '', phone: '' });
   const [saving, setSaving] = useState(false);
+  const addingClient = clientId === NEW_CLIENT;
 
   const service  = services.find(s => s.id === serviceId);
   const duration = service?.duration_min || appointment?.duration_min || 30;
   const price    = service?.sellingPrice ?? appointment?.price ?? 0;
   const startAt  = localDateTime(day, time);
   const validAt  = !Number.isNaN(startAt.getTime());
-  const canSave  = serviceId && validAt;
+  const canSave  = serviceId && validAt && (!addingClient || newClient.name.trim());
 
   // Warn, never block: a shop may deliberately double-book, and refusing would
   // just get worked around by leaving staff unassigned.
@@ -318,7 +323,18 @@ const BookModal = ({ appointment, defaultDay, clients, staff, services, existing
             <select className={inputCls} value={clientId} onChange={e => setClientId(e.target.value)}>
               <option value="">Walk-in</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {/* Booking a first-time customer used to mean leaving the page,
+                  creating the client, and coming back to start again. */}
+              <option value={NEW_CLIENT}>+ Add new client…</option>
             </select>
+            {addingClient && (
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <input autoFocus className={inputCls} placeholder="Client name"
+                  value={newClient.name} onChange={e => setNewClient({ ...newClient, name: e.target.value })} />
+                <input className={inputCls} placeholder="Phone (optional)" inputMode="tel"
+                  value={newClient.phone} onChange={e => setNewClient({ ...newClient, phone: e.target.value })} />
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className={lblCls}>Date</label><input type="date" className={inputCls} value={day} onChange={e => setDay(e.target.value)} /></div>
@@ -346,9 +362,23 @@ const BookModal = ({ appointment, defaultDay, clients, staff, services, existing
           <button disabled={!canSave || saving}
             onClick={async () => {
               setSaving(true);
+              // Create the client first: the booking has to reference a real
+              // row, and addClient returns the id it generated.
+              let useClientId = clientId === NEW_CLIENT ? '' : clientId;
+              let useClientName = clients.find(c => c.id === useClientId)?.name || null;
+              if (addingClient) {
+                const res = await onAddClient({ name: newClient.name.trim(), phone: newClient.phone.trim() || null });
+                if (!res?.success) {
+                  setSaving(false);
+                  window.alert('Could not add the client: ' + (res?.error?.message || 'unknown error'));
+                  return;
+                }
+                useClientId = res.id;
+                useClientName = newClient.name.trim();
+              }
               const common = {
                 serviceId, serviceName: service?.name || appointment?.service_name,
-                clientId, clientName: clients.find(c => c.id === clientId)?.name || null,
+                clientId: useClientId, clientName: useClientName,
                 staffId, startAt: startAt.toISOString(),
                 durationMin: duration, price, notes,
               };
@@ -357,7 +387,7 @@ const BookModal = ({ appointment, defaultDay, clients, staff, services, existing
                 // The hook only accepts real column names on edit.
                 patch: {
                   service_id: serviceId, service_name: common.serviceName,
-                  client_id: clientId || null, client_name: common.clientName,
+                  client_id: useClientId || null, client_name: common.clientName,
                   staff_id: staffId || null, start_at: common.startAt,
                   duration_min: duration, price, notes: notes || null,
                 },
