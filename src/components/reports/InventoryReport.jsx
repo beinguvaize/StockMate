@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { isRaw, isStocked } from '../../lib/productTypes';
 import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
 import useDateWindow from './useDateWindow';
@@ -73,12 +74,12 @@ const InventoryReport = () => {
     // read as a loss — three RAW items held Rs 83,994 against Rs 0 of retail.
     // Potential and profit are measured over sellable stock only; totalCost
     // still covers everything on hand.
-    const isRaw = (p) => (p.product_type || 'STANDARD').toUpperCase() === 'RAW';
     const sellable = products.filter(p => !isRaw(p));
     const sellableCost = sellable.reduce((acc, p) => acc + ((p.stock || 0) * (p.costPrice || 0)), 0);
     const totalPotential = sellable.reduce((acc, p) => acc + ((p.stock || 0) * (p.sellingPrice || 0)), 0);
     const totalProfit = totalPotential - sellableCost;
-    const lowStockItems = products.filter(p => (p.stock || 0) <= (p.lowStockThreshold || 5));
+    // A service is never low on stock — it has none. See productTypes.js.
+    const lowStockItems = products.filter(p => isStocked(p) && (p.stock || 0) <= (p.lowStockThreshold || 5));
     const lowStockCount = lowStockItems.length;
 
     const categoryMap = products.reduce((acc, p) => {

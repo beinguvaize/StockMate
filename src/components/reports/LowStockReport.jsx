@@ -3,6 +3,7 @@
  * Current snapshot — not date-ranged.
  */
 import React, { useMemo } from 'react';
+import { isStocked } from '../../lib/productTypes';
 import {
   Package, AlertTriangle, DollarSign, ShoppingBag,
 } from 'lucide-react';
@@ -15,7 +16,7 @@ const DEFAULT_THRESHOLD = 10;
 const LowStockReport = () => {
   const { data: products, loading: pLoading } = useReportData({
     table: 'products',
-    select: 'id, name, sku, costPrice, sellingPrice, lowStockThreshold, stock, category',
+    select: 'id, name, sku, costPrice, sellingPrice, lowStockThreshold, stock, category, product_type',
   });
 
   const { data: balances, loading: bLoading } = useReportData({
@@ -47,8 +48,10 @@ const LowStockReport = () => {
       return { ...p, totalStock, threshold, shortfall, stockValue };
     });
 
+    // Services have no stock, so they sit at 0 and matched every threshold —
+    // this report listed them as needing reorder forever. See productTypes.js.
     const lowItems = enriched
-      .filter(p => p.totalStock <= p.threshold)
+      .filter(p => isStocked(p) && p.totalStock <= p.threshold)
       .sort((a, b) => a.totalStock - b.totalStock);
 
     const itemsLow     = lowItems.length;
