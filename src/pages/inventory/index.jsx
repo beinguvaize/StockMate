@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { isRaw, isStocked } from '../../lib/productTypes';
 import { useDialogClose } from '../../hooks/useDialogClose';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -90,6 +91,9 @@ const Inventory = () => {
         if ((p.product_type || 'STANDARD').toUpperCase() !== typeFilter) return false;
       }
       if (categoryFilter && (p.category || '') !== categoryFilter) return false;
+      // The stock chips ask a question a service cannot answer, so it is not
+      // in any of the three answers rather than always being "Out".
+      if (stockFilter !== 'ALL' && !isStocked(p)) return false;
       const stk = Number(p.stock || 0);
       if (stockFilter === 'IN'  && stk <= 0) return false;
       if (stockFilter === 'LOW' && !(stk > 0 && stk <= 5)) return false;
@@ -115,11 +119,12 @@ const Inventory = () => {
     // Retail is now measured over sellable stock only, and the raw material is
     // shown as its own figure rather than hidden — it is real money, just not
     // money that has a retail price.
-    // Normalised the same way the type filter above does — a lowercase 'raw'
-    // from an import would otherwise slip through and be counted as sellable.
-    const isRaw    = p => (p.product_type || 'STANDARD').toUpperCase() === 'RAW';
+    // isRaw/isStocked come from lib/productTypes.js; this file used to
+    // re-derive isRaw inline and had no notion of a service at all.
     const sellable = products.filter(p => !isRaw(p));
     const raw      = products.filter(isRaw);
+    // Only things that can actually run out belong in a stock count.
+    const stocked  = products.filter(isStocked);
 
     const val = (list, field) => list.reduce((s, p) => s + (p[field] || 0) * (p.stock || 0), 0);
 
@@ -129,9 +134,11 @@ const Inventory = () => {
     const rawValue      = val(raw, 'costPrice');
     const marginValue   = retailValue - sellableCost;
 
-    const lowStock     = products.filter(p => (p.stock || 0) > 0 && (p.stock || 0) <= 5).length;
-    const outOfStock   = products.filter(p => (p.stock || 0) === 0).length;
-    const totalUnits   = products.reduce((s, p) => s + (p.stock || 0), 0);
+    const lowStock     = stocked.filter(p => (p.stock || 0) > 0 && (p.stock || 0) <= 5).length;
+    // Every service reads 0, so this counted the whole service catalogue as
+    // out of stock.
+    const outOfStock   = stocked.filter(p => (p.stock || 0) === 0).length;
+    const totalUnits   = stocked.reduce((s, p) => s + (p.stock || 0), 0);
     const uniqueCats   = new Set(products.map(p => p.category).filter(Boolean)).size;
     return {
       stockValue, retailValue, rawValue, marginValue, sellableCost,

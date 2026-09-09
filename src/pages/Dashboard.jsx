@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { isStocked } from '../lib/productTypes';
 import useRefetchOnFocus from '../hooks/useRefetchOnFocus';
 import { useAuth } from '../context/AuthContext';
 import BannerCarousel from '../components/BannerCarousel';
@@ -251,6 +252,10 @@ const Dashboard = () => {
 
  const lowStockProducts = useMemo(
    () => (products || []).filter(p => {
+     // A service has no stock to run low on. It sits at 0 forever, so it
+     // matched every threshold and arrived here with a Restock button
+     // pointing at /purchases — for a tuition hour.
+     if (!isStocked(p)) return false;
      const threshold = p.low_stock_threshold ?? p.lowStockThreshold ?? 10;
      const balances = (inventoryBalances || []).filter(b => b.product_id === p.id);
      const totalQty = balances.length > 0
