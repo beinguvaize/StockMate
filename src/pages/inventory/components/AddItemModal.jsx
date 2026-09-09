@@ -787,19 +787,25 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 <p className="text-[10px] text-muted-foreground mt-1">GST + Compensation Cess. Applied on invoice & POS checkout.</p>
               </div>
 
-              {/* HSN / SAC code */}
+              {/* HSN for goods, SAC for services — one column, see lib/hsn.js.
+                  Asking a tuition centre for an "HSN code" and showing them an
+                  8-digit plastics example is how the field gets left blank. */}
               <div>
-                <label className={labelCls}>HSN / SAC Code</label>
+                <label className={labelCls}>{isService ? 'SAC Code' : 'HSN Code'}</label>
                 <input
                   type="text"
                   inputMode="numeric"
                   value={formData.hsn_code || ''}
                   onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value.replace(/[^0-9]/g, '') })}
-                  placeholder="e.g. 39231090"
+                  placeholder={isService ? 'e.g. 998313' : 'e.g. 39231090'}
                   maxLength={8}
                   className="w-full px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground focus:outline-none focus:border-accent-signature/40"
                 />
-                <p className="text-[10px] text-muted-foreground mt-1">Required for GSTR-1 HSN summary (Table 12).</p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {isService
+                    ? 'Services use a 6-digit SAC. Required for the GSTR-1 summary (Table 12).'
+                    : 'Required for GSTR-1 HSN summary (Table 12).'}
+                </p>
               </div>
             </div>
             )}

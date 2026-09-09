@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { isService } from '../../../lib/productTypes';
 import { useDialogClose } from '../../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import {
@@ -145,6 +146,9 @@ const ItemDetailView = ({
   const margin = sell > 0 ? ((sell - cost) / sell) * 100 : 0;
   const itemCode = product?.sku || product?.barcode || '—';
   const lowThreshold = product?.low_stock_threshold ?? product?.lowStockThreshold ?? 10;
+  // A service is neither in stock nor out of it. Showing a red "Out of Stock"
+  // badge on a tuition hour reads as a problem the shop cannot fix.
+  const svc = isService(product);
   const inStock = totalStock > 0;
 
   const Field = ({ label, value, accent, hint }) => (
@@ -209,8 +213,8 @@ const ItemDetailView = ({
             <ArrowLeft size={16} />
           </button>
           <h1 className="text-[20px] font-semibold text-foreground">{product?.name}</h1>
-          <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${inStock ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-            {inStock ? 'In Stock' : 'Out of Stock'}
+          <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${svc ? 'bg-violet-50 text-violet-600' : inStock ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+            {svc ? 'Service' : inStock ? 'In Stock' : 'Out of Stock'}
           </span>
           <div className="flex items-center gap-2 ml-auto">
             <button onClick={() => onPrintBarcode?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
@@ -251,7 +255,7 @@ const ItemDetailView = ({
             <Field label="Item Name" value={product?.name || '—'} />
             <Field label="Item Code" value={itemCode} />
             <Field label="Category" value={product?.category || '—'} />
-            <Field label="Stock Quantity" value={`${totalStock} ${product?.unit || ''}`} accent={inStock ? 'text-emerald-600' : 'text-red-600'} />
+            {!svc && <Field label="Stock Quantity" value={`${totalStock} ${product?.unit || ''}`} accent={inStock ? 'text-emerald-600' : 'text-red-600'} />}
             <Field label="Purchase Price" value={formatCurrency(cost, currencySymbol)} />
             <Field label="Selling Price" value={formatCurrency(sell, currencySymbol)} />
             <Field label="Margin" value={`${margin.toFixed(1)}%`} accent={margin >= 0 ? 'text-emerald-600' : 'text-red-600'} />
@@ -259,7 +263,7 @@ const ItemDetailView = ({
             <Field label="HSN Code" value={product?.hsn_code || product?.hsn || '—'} />
             <Field label="Barcode" value={product?.barcode || '—'} />
             <Field label="Unit" value={product?.unit || '—'} />
-            <Field label="Low-Stock Alert" value={`${lowThreshold} ${product?.unit || ''}`} />
+            {!svc && <Field label="Low-Stock Alert" value={`${lowThreshold} ${product?.unit || ''}`} />}
             <Field label="Serialized" value={product?.track_serial ? 'Yes (IMEI/Serial)' : 'No'} />
           </div>
         )}
@@ -268,13 +272,13 @@ const ItemDetailView = ({
         {tab === 'STOCK' && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Field label="Total Stock" value={`${totalStock} ${product?.unit || ''}`} accent={inStock ? 'text-emerald-600' : 'text-red-600'} />
+              {!svc && <Field label="Total Stock" value={`${totalStock} ${product?.unit || ''}`} accent={inStock ? 'text-emerald-600' : 'text-red-600'} />}
               <Field label="Stock Value (cost)" value={formatCurrency(stockValue.value, currencySymbol)}
                 hint={stockValue.uncosted > 0
                   ? `${stockValue.uncosted} ${product?.unit || ''} not in any batch — valued at average cost`
                   : null} />
               <Field label="Batches" value={batches.length} />
-              <Field label="Low-Stock Alert" value={lowThreshold} />
+              {!svc && <Field label="Low-Stock Alert" value={lowThreshold} />}
             </div>
             <Card title="Batches">
               {loading ? <Empty text="Loading…" /> : batches.length === 0 ? <Empty text="No batch records" /> : (

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { isService } from '../../../lib/productTypes';
 import { PackagePlus, Eye, Trash2, SlidersHorizontal, Pencil } from 'lucide-react';
 import { useTenant } from '../../../context/TenantContext';
 
@@ -72,7 +73,10 @@ const lastBuyCls = (last, cost) => {
 const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit, onDelete, onAdjust, onBatches, onBulkEdit, onBulkDelete, currencySymbol = '₹' }) => {
   const { businessType } = useTenant();
   const isResto = businessType === 'RESTAURANT';
-  const isService = businessType === 'SERVICES';
+  // Tenant-level: decides the COLUMN HEADINGS only. Whether a given ROW is a
+  // service is a property of that row — a retail shop billing repair labour
+  // has both kinds in one table, which is the case this used to get wrong.
+  const isServiceTenant = businessType === 'SERVICES';
   const [sort, setSort] = useState({ key: null, dir: 'asc' });
   const [selected, setSelected] = useState(() => new Set());
   const stockOf = (product) =>
@@ -166,15 +170,15 @@ const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit,
                     className="w-3.5 h-3.5 rounded border-border accent-accent-signature cursor-pointer" />
                 </th>
               )}
-              <TH extra="pl-5 w-full" sortKey="name">{isService ? 'Service' : 'Product'}</TH>
+              <TH extra="pl-5 w-full" sortKey="name">{isServiceTenant ? 'Service' : 'Product'}</TH>
               <TH sortKey="sku">SKU</TH>
-              <TH align="right" sortKey={isService ? null : 'stock'}>{isService ? 'Duration' : 'Stock'}</TH>
-              <TH align="right" sortKey={isService ? null : 'reorder'}>{isService ? '' : 'Reorder'}</TH>
-              <TH align="right" sortKey={isService ? null : 'cost'}>{isService ? '' : 'Cost'}</TH>
-              <TH align="right" sortKey={isService ? null : 'lastbuy'}>{isService ? '' : 'Last buy'}</TH>
-              <TH align="right" sortKey="sell">{isService ? 'Price' : 'Sell'}</TH>
-              <TH align="right" sortKey={isService ? null : 'margin'}>{isService ? '' : 'Margin'}</TH>
-              <TH align="right" sortKey={isService ? null : 'value'}>{isService ? '' : 'Value'}</TH>
+              <TH align="right" sortKey={isServiceTenant ? null : 'stock'}>{isServiceTenant ? 'Duration' : 'Stock'}</TH>
+              <TH align="right" sortKey={isServiceTenant ? null : 'reorder'}>{isServiceTenant ? '' : 'Reorder'}</TH>
+              <TH align="right" sortKey={isServiceTenant ? null : 'cost'}>{isServiceTenant ? '' : 'Cost'}</TH>
+              <TH align="right" sortKey={isServiceTenant ? null : 'lastbuy'}>{isServiceTenant ? '' : 'Last buy'}</TH>
+              <TH align="right" sortKey="sell">{isServiceTenant ? 'Price' : 'Sell'}</TH>
+              <TH align="right" sortKey={isServiceTenant ? null : 'margin'}>{isServiceTenant ? '' : 'Margin'}</TH>
+              <TH align="right" sortKey={isServiceTenant ? null : 'value'}>{isServiceTenant ? '' : 'Value'}</TH>
               <TH align="center"> </TH>
               <TH align="right"> </TH>
             </tr>
@@ -198,6 +202,7 @@ const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit,
                   const st = statusOf(qty, reorder);
                   const sell = toNum(product.sellingPrice);
                   const margin = marginPct(product);
+                  const svc = isServiceTenant || isService(product);
                   return (
                     <tr key={product.id}
                       onClick={onView ? () => onView(product) : undefined}
@@ -229,20 +234,20 @@ const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit,
                       </td>
                       <td className="px-3 py-2.5 tabular-nums text-[11px] text-muted-foreground uppercase whitespace-nowrap">{product.sku || '—'}</td>
                       <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                        {(isService || product.product_type === 'SERVICE') ? (
+                        {svc ? (
                           <span className="tabular-nums text-[12px] font-semibold text-violet-500">{product.duration_min ? `${product.duration_min}m` : 'Service'}</span>
                         ) : (<>
                           <span className={`tabular-nums text-[13px] font-semibold ${qtyCls(st)}`}>{qty}</span>
                           <span className="text-[9px] text-muted-foreground uppercase ml-0.5">{product.unit || 'pcs'}</span>
                         </>)}
                       </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">{isService ? '' : (reorder > 0 ? reorder : '—')}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">{svc ? '' : (reorder > 0 ? reorder : '—')}</td>
                       {/* Cost is held per base unit (per KG). A product bought by
                           weight and sold in packets is priced and judged per
                           packet, so show that underneath rather than making the
                           shopkeeper divide in their head. */}
                       <td className="px-3 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">
-                        {isService ? '' : <>
+                        {svc ? '' : <>
                           {currencySymbol}{toNum(product.costPrice).toFixed(2)}
                           {packConv(product) > 0 && (
                             <div className="text-[10px] text-muted-foreground/70">
@@ -255,7 +260,7 @@ const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit,
                           rising restock price stands out: red above avg, green
                           below, muted when equal or unknown. */}
                       <td className={`px-3 py-2.5 text-right tabular-nums text-[12px] whitespace-nowrap ${lastBuyCls(lastBuy[product.id], product.costPrice)}`}>
-                        {isService ? '' : (lastBuy[product.id] == null ? '—' : `${currencySymbol}${toNum(lastBuy[product.id]).toFixed(2)}`)}
+                        {svc ? '' : (lastBuy[product.id] == null ? '—' : `${currencySymbol}${toNum(lastBuy[product.id]).toFixed(2)}`)}
                       </td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-[12px] font-semibold whitespace-nowrap">
                         <span className="text-accent-signature/70">{currencySymbol}</span>{sell.toFixed(2)}
@@ -265,9 +270,9 @@ const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit,
                           </div>
                         )}
                       </td>
-                      <td className={`px-3 py-2.5 text-right tabular-nums text-[12px] font-semibold whitespace-nowrap ${marginCls(margin)}`}>{isService ? '' : (margin == null ? '—' : `${margin.toFixed(1)}%`)}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-[13px] font-semibold whitespace-nowrap">{isService ? '' : <><span className="text-accent-signature/70">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
-                      <td className="px-3 py-2.5 text-center">{isService ? null : <span className={`inline-block w-2 h-2 rounded-full ${dotCls(st)}`} />}</td>
+                      <td className={`px-3 py-2.5 text-right tabular-nums text-[12px] font-semibold whitespace-nowrap ${marginCls(margin)}`}>{svc ? '' : (margin == null ? '—' : `${margin.toFixed(1)}%`)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[13px] font-semibold whitespace-nowrap">{svc ? '' : <><span className="text-accent-signature/70">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
+                      <td className="px-3 py-2.5 text-center">{svc ? null : <span className={`inline-block w-2 h-2 rounded-full ${dotCls(st)}`} />}</td>
                       <td className="px-4 py-2.5 w-px" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {onAdjust && (

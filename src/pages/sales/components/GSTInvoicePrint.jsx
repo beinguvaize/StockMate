@@ -96,7 +96,7 @@ const GSTInvoicePrint = ({ sale, client = {}, business = {}, onClose }) => {
             <tr className="bg-zinc-100">
               <th className="border border-black px-1 py-1 text-center w-8">#</th>
               <th className="border border-black px-2 py-1 text-left">Description</th>
-              <th className="border border-black px-1 py-1 text-center w-16">HSN</th>
+              <th className="border border-black px-1 py-1 text-center w-16">HSN/SAC</th>
               <th className="border border-black px-1 py-1 text-right w-12">Qty</th>
               <th className="border border-black px-1 py-1 text-right w-20">Rate</th>
               <th className="border border-black px-1 py-1 text-right w-20">Taxable</th>
@@ -154,11 +154,11 @@ const GSTInvoicePrint = ({ sale, client = {}, business = {}, onClose }) => {
         {/* HSN tax summary + grand totals */}
         <div className="grid grid-cols-2 gap-0 mt-0">
           <div className="border border-black border-t-0 p-0">
-            <div className="text-[10px] font-semibold uppercase px-2 py-1 bg-zinc-100 border-b border-black">Tax Summary (HSN-wise)</div>
+            <div className="text-[10px] font-semibold uppercase px-2 py-1 bg-zinc-100 border-b border-black">Tax Summary (HSN/SAC-wise)</div>
             <table className="w-full text-[10px]">
               <thead>
                 <tr>
-                  <th className="border-b border-r border-black px-1 py-1 text-left">HSN</th>
+                  <th className="border-b border-r border-black px-1 py-1 text-left">HSN/SAC</th>
                   <th className="border-b border-r border-black px-1 py-1 text-right">Taxable</th>
                   {gst.isInterstate ? (
                     <th className="border-b border-black px-1 py-1 text-right">IGST</th>

@@ -1,5 +1,11 @@
 // HSN / SAC codes.
 //
+// Goods carry an HSN code and services carry a SAC. Both live in the SAME
+// `hsn_code` column, deliberately: GSTR-1 Table 12 reports them in one
+// summary, so a second column would only have to be merged back together at
+// every read. The forms label the field by product type; storage does not
+// care, and a SAC is simply the 6-digit case this file already accepts.
+//
 // A valid code is 4, 6 or 8 digits. Nothing else is accepted by the GST portal,
 // and an invalid one flows straight into the GSTR-1 HSN summary (Table 12) and
 // onto printed invoices and vouchers.
