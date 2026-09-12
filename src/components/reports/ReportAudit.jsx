@@ -36,7 +36,7 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  return (
  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
  {/* Audit Controls */}
- <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-surface/80 backdrop-blur-xl border border-black/5 rounded-xl p-4 shadow-premium">
+ <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-surface/80 backdrop-blur-xl border border-border/60 rounded-xl p-4 shadow-premium">
  <div className="flex items-center gap-4 w-full md:w-auto">
  <div className="w-12 h-12 rounded-lg bg-ink-primary text-accent-signature flex items-center justify-center shrink-0">
  <Shield size={24} />
@@ -48,23 +48,23 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  </div>
  
  <div className="flex flex-1 w-full md:w-auto items-center gap-3 justify-end">
- <div className="flex bg-white border border-gray-300 shadow-sm rounded-lg p-1 shrink-0">
+ <div className="flex bg-card border border-border shadow-sm rounded-lg p-1 shrink-0">
  {['ALL', 'IN', 'OUT', 'ADJUST'].map(t => (
  <button
  key={t}
  onClick={() => setTypeFilter(t)}
- className={`px-4 py-2 rounded-xl text-[9px] font-semibold transition-all ${typeFilter === t ? 'bg-ink-primary text-accent-signature shadow-lg' : 'text-gray-700 hover:bg-black/5'}`}
+ className={`px-4 py-2 rounded-xl text-[9px] font-semibold transition-all ${typeFilter === t ? 'bg-ink-primary text-accent-signature shadow-lg' : 'text-ink-secondary hover:bg-black/5'}`}
  >
  {t}
  </button>
  ))}
  </div>
  <div className="relative group w-full md:w-64">
- <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-tertiary group-focus-within:text-ink-primary transition-colors" />
+ <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-tertiary group-focus-within:text-foreground transition-colors" />
  <input 
  type="text" 
  placeholder="Filter activities..." 
- className="input-field !pl-10 !h-12 !py-0 !rounded-lg bg-white border border-gray-300 shadow-sm shadow-inner text-[10px] font-bold"
+ className="input-field !pl-10 !h-12 !py-0 !rounded-lg bg-card border border-border shadow-sm shadow-inner text-[10px] font-semibold"
  value={searchTerm}
  onChange={e => setSearchTerm(e.target.value)}
  />
@@ -80,17 +80,17 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  </div>
 
  {/* Timeline */}
- <div className="glass-panel !p-0 rounded-[2.5rem] border border-black/5 overflow-hidden">
+ <div className="glass-panel !p-0 rounded-[2.5rem] border border-border/60 overflow-hidden">
  <div className="overflow-x-auto">
  <table className="w-full text-left border-collapse">
  <thead>
  <tr className="bg-canvas/50">
- <th className="py-2 px-6 text-[9px] font-semibold text-gray-700">Timestamp</th>
- <th className="py-2 px-6 text-[9px] font-semibold text-gray-700">Actor</th>
- <th className="py-2 px-6 text-[9px] font-semibold text-gray-700">Activity</th>
- <th className="py-2 px-6 text-[9px] font-semibold text-gray-700">Product / Item</th>
- <th className="py-2 px-6 text-[9px] font-semibold text-gray-700 text-right">Quantity Change</th>
- <th className="py-2 px-6 text-[9px] font-semibold text-gray-700">Notes</th>
+ <th className="py-2 px-6 text-[9px] font-semibold text-ink-secondary">Timestamp</th>
+ <th className="py-2 px-6 text-[9px] font-semibold text-ink-secondary">Actor</th>
+ <th className="py-2 px-6 text-[9px] font-semibold text-ink-secondary">Activity</th>
+ <th className="py-2 px-6 text-[9px] font-semibold text-ink-secondary">Product / Item</th>
+ <th className="py-2 px-6 text-[9px] font-semibold text-ink-secondary text-right">Quantity Change</th>
+ <th className="py-2 px-6 text-[9px] font-semibold text-ink-secondary">Notes</th>
  </tr>
  </thead>
  <tbody className="divide-y divide-black/5">
@@ -109,17 +109,17 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  <td className="py-2 px-6">
  <div className="flex items-center gap-2">
  <Clock size={12} className="text-ink-tertiary" />
- <span className="text-[10px] font-semibold text-ink-primary tabular-nums">
+ <span className="text-[10px] font-semibold text-foreground tabular-nums">
  {new Date(log.created_at || log.date).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'})}
  </span>
  </div>
  </td>
  <td className="py-2 px-6">
  <div className="flex items-center gap-2">
- <div className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center border border-black/5">
+ <div className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center border border-border/60">
  <User size={10} className="text-ink-tertiary" />
  </div>
- <span className="text-[10px] font-semibold text-ink-primary truncate max-w-[120px]">
+ <span className="text-[10px] font-semibold text-foreground truncate max-w-[120px]">
  {log.userName}
  </span>
  </div>
@@ -137,12 +137,12 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  </div>
  </td>
  <td className="py-2 px-6">
- <span className="text-[11px] font-semibold text-ink-primary truncate max-w-[180px]">
+ <span className="text-[11px] font-semibold text-foreground truncate max-w-[180px]">
  {log.productName}
  </span>
  </td>
  <td className="py-2 px-6 text-right">
- <span className={`text-sm font-semibold font-mono tabular-nums ${
+ <span className={`text-sm font-semibold tabular-nums ${
  log.type === 'IN' ? 'text-green-600' :
  log.type === 'OUT' ? 'text-red-600' :
  'text-blue-600'
@@ -151,7 +151,7 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  </span>
  </td>
  <td className="py-2 px-6">
- <p className="text-[10px] font-bold text-ink-tertiary italic truncate max-w-[200px]">
+ <p className="text-[10px] font-semibold text-ink-tertiary italic truncate max-w-[200px]">
  {log.notes || '—'}
  </p>
  </td>

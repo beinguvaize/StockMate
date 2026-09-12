@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react';
+import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import { 
   Truck, Navigation, Fuel, Timer, MapPin, 
@@ -7,17 +9,22 @@ import {
 } from 'lucide-react';
 
 const LogisticsReport = () => {
+  // Financial year to date by default. These queries were previously
+  // unfiltered and read the whole table on every load.
+  const win = useDateWindow('YEAR');
   // 1. Fetch Logistics Master Data
-  const { data: sales, loading: salesLoading } = useReportData({
+  const { data: salesRaw, loading: salesLoading } = useReportData({
     table: 'sales',
-    select: 'totalAmount, vehicleId, routeId',
-    dateColumn: 'date'
+    select: 'totalAmount, vehicleId, routeId, voided_at, status, paymentStatus',
+    dateColumn: 'date', filters: win.filters
   });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
 
   const { data: vehicles, loading: vehiclesLoading } = useReportData({
     table: 'vehicles',
     select: '*',
-    dateColumn: 'created_at'
+    dateColumn: 'created_at', filters: win.filters
   });
 
   const { data: routes, loading: routesLoading } = useReportData({
@@ -47,7 +54,7 @@ const LogisticsReport = () => {
     }).sort((a, b) => b.revenue - a.revenue);
 
     const kpis = [
-      { id: 'util', label: 'Fleet Utilization', value: `${utilization.toFixed(1)}%`, trend: 2, trendDir: 'up', color: 'indigo', chartData: [{ value: 60 }, { value: 70 }, { value: utilization }] },
+      { id: 'util', label: 'Fleet Utilization', value: `${utilization.toFixed(1)}%`, trend: 0, trendDir: 'none', color: 'indigo', chartData: [{ value: 60 }, { value: 70 }, { value: utilization }] },
       { id: 'active', label: 'Active Units', value: activeCount, trend: 0, trendDir: 'none', color: 'emerald', chartData: [] }
     ];
 
@@ -85,22 +92,22 @@ const LogisticsReport = () => {
     columns: [
       { key: 'name', label: 'Authorized Unit', sortable: true, width: 220, render: (val, row) => (
         <div className="flex flex-col">
-          <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>
-          <span className="text-[10px] font-bold text-gray-400 font-mono">{row.model}</span>
+          <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
+          <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">{row.model}</span>
         </div>
       )},
-      { key: 'deliveries', label: 'Service Events', align: 'right', sortable: true, width: 150, render: (val) => <span className="font-mono font-bold text-gray-400">{val} Drops</span> },
+      { key: 'deliveries', label: 'Service Events', align: 'right', sortable: true, width: 150, render: (val) => <span className="tabular-nums font-semibold text-muted-foreground">{val} Drops</span> },
       { key: 'revenue', label: 'Revenue Magnitude', type: 'currency', align: 'right', sortable: true, width: 180 },
       { key: 'efficiency', label: 'Load Factor', align: 'right', width: 120, render: (_, row) => (
         <div className="flex flex-col items-end">
-          <span className="text-[10px] font-black text-emerald-500">{(row.revenue / (row.deliveries || 1)).toFixed(0)} / DROP</span>
+          <span className="text-[10px] font-semibold text-emerald-500">{(row.revenue / (row.deliveries || 1)).toFixed(0)} / DROP</span>
         </div>
       )}
     ],
     kpis: fleetMetrics.kpis,
     chartConfig: { 
       title: "Revenue by vehicle node", type: 'bar', data: fleetMetrics.performance.slice(0, 10).map(v => ({ name: v.name, value: v.revenue })),
-      series: [{ key: 'value', name: 'Revenue Contribution', color: '#D97706' }] 
+      series: [{ key: 'value', name: 'Revenue Contribution', color: 'var(--color-accent-signature)' }] 
     }
   };
 
@@ -112,7 +119,7 @@ const LogisticsReport = () => {
     loading: loading,
     totals: { revenue: routeMetrics.routeStats.reduce((acc, r) => acc + r.revenue, 0) },
     columns: [
-      { key: 'name', label: 'Territory Domain', sortable: true, width: 250, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
+      { key: 'name', label: 'Territory Domain', sortable: true, width: 250, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
       { key: 'deliveries', label: 'Volume', align: 'right', sortable: true, width: 150 },
       { key: 'revenue', label: 'Account Yield', type: 'currency', align: 'right', sortable: true, width: 180 },
       { key: 'density', label: 'Territory Density', align: 'right', width: 120, render: (_, row) => (
@@ -127,7 +134,7 @@ const LogisticsReport = () => {
     }
   };
 
-  return <PremiumReportView title="Logistics Report" tabs={[fleetTab, routeTab]} />;
+  return <PremiumReportView dateWindow={win} title="Logistics Report" tabs={[fleetTab, routeTab]} />;
 };
 
 export default LogisticsReport;

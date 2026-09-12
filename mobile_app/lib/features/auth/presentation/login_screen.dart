@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -7,6 +8,7 @@ import 'package:mobile_app/core/auth/biometric_service.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile_app/features/auth/presentation/phone_login_screen.dart';
 
 // Keystore-backed credential storage for the "Remember me" + biometric
 // unlock features. Both rely on the device hardware-backed keystore so the
@@ -113,10 +115,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final email = _emailController.text.trim();
     final pass  = _passwordController.text.trim();
     try {
-      final response = await supabase.auth.signInWithPassword(
-        email: email,
-        password: pass,
-      );
+      // Timeout guard: on a weak connection the auth request can stall
+      // forever, leaving the button spinning with no feedback. Fail fast
+      // with a clear retry message instead.
+      final response = await supabase.auth
+          .signInWithPassword(email: email, password: pass)
+          .timeout(const Duration(seconds: 20));
 
       if (response.session != null) {
         await _persistRemembered(email, pass);
@@ -127,10 +131,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           // AuthGateScreen (via sessionProvider stream) will handle navigation automatically
         }
       }
-    } catch (e) {
+    } on TimeoutException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: AppColors.danger),
+          const SnackBar(
+            content: Text('Slow or no internet. Please check your connection and try again.'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        final msg = e.message.toLowerCase().contains('invalid login credentials')
+            ? 'Wrong email or password. Please try again.'
+            : e.message;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: AppColors.danger),
+        );
+      }
+    } catch (e) {
+      debugPrint('[login] failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not sign in. Check your internet and try again.'),
+            backgroundColor: AppColors.danger,
+          ),
         );
       }
     } finally {
@@ -357,6 +383,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     fontSize: 16,
                                   ),
                                 ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Passwords are the main way people get locked out of
+                      // this app. A number they already have on WhatsApp is
+                      // the fallback.
+                      SizedBox(
+                        height: 50,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading
+                              ? null
+                              : () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const PhoneLoginScreen()),
+                                  ),
+                          icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                          label: Text(
+                            'Sign in with WhatsApp',
+                            style: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 14),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.inkPrimary,
+                            side: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.8)),
+                            shape: const StadiumBorder(),
+                          ),
                         ),
                       ),
 

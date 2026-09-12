@@ -3,17 +3,29 @@ import { useNavigate} from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { isElectron as isDesktopApp, loadBootstrap, isGraceValid, isSubscriptionActive, OFFLINE_GRACE_MS } from '../lib/offline/authGuard';
+import { sendLoginOtp, verifyLoginOtp, formatPhone, toE164 } from '../lib/phoneAuth';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({ email: '', password: ''});
+  // Typing a password blind on a phone keyboard at a counter is how people
+  // get locked out. Default hidden; revealing is the user's choice.
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [btnClicked, setBtnClicked] = useState(false);
   const [markSpin, setMarkSpin] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const [lastClickTime, setLastClickTime] = useState(0);
-  const { login, logout, loading} = useAuth();
+  const { login, logout, loading, currentUser } = useAuth();
   const navigate = useNavigate();
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Already signed in (e.g. clicked "Sign In" on the landing page in a new
+  // tab while a session exists) → don't show the form; hand off to
+  // RootRedirect, which routes global admins to /nexus-hq and everyone else
+  // to their tenant dashboard.
+  useEffect(() => {
+    if (!loading && currentUser) navigate('/', { replace: true });
+  }, [loading, currentUser, navigate]);
 
   // Inline signup — same page, right panel swaps between login and register.
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
@@ -60,6 +72,69 @@ const Login = () => {
   // Desktop offline status: track navigator.onLine + cached bootstrap so we can
   // (a) show a clear "first sign-in requires internet" warning to fresh users,
   // (b) tell returning users how many days of offline grace remain.
+  // ── WhatsApp OTP sign-in ────────────────────────────────────────────
+  // Two steps in one mode: enter the number, then the code. Kept here rather
+  // than as a separate route so a half-finished login cannot be reached by URL
+  // and so "back" returns to the password form the user came from.
+  const [phoneStep, setPhoneStep] = useState('number'); // 'number' | 'code'
+  const [phoneInput, setPhoneInput] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [phoneLoading, setPhoneLoading] = useState(false);
+  const [sentTo, setSentTo] = useState('');
+  const [resendIn, setResendIn] = useState(0);
+
+  // Supabase rate-limits OTP sends. Counting down is kinder than letting
+  // someone press Send four times and then be told they are locked out.
+  useEffect(() => {
+    if (resendIn <= 0) return undefined;
+    const t = setTimeout(() => setResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
+
+  const goPhoneMode = () => {
+    setMode('phone'); setPhoneStep('number');
+    setError(''); setInfo(''); setOtpCode(''); setSentTo('');
+  };
+
+  const handleSendOtp = async (e) => {
+    e?.preventDefault();
+    if (phoneLoading || resendIn > 0) return;
+    setError(''); setInfo(''); setPhoneLoading(true);
+
+    const { error: err, phone } = await sendLoginOtp(phoneInput);
+    setPhoneLoading(false);
+
+    if (err) {
+      // describeOtpError already turned this into something readable, and
+      // kept the original on .cause for the console.
+      if (err.cause) console.error('[phone-login] send failed', err.cause);
+      setError(err.message);
+      return;
+    }
+    setSentTo(phone);
+    setPhoneStep('code');
+    setResendIn(60);
+    setInfo(`Code sent on WhatsApp to ${formatPhone(phone)}`);
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e?.preventDefault();
+    if (phoneLoading) return;
+    setError(''); setPhoneLoading(true);
+
+    const { error: err } = await verifyLoginOtp(sentTo || phoneInput, otpCode);
+    setPhoneLoading(false);
+
+    if (err) {
+      if (err.cause) console.error('[phone-login] verify failed', err.cause);
+      setError(err.message);
+      return;
+    }
+    // Nothing to navigate here: verifyOtp puts the session on the client,
+    // AuthContext's onAuthStateChange loads the profile, and the redirect
+    // effect at the top of this component takes it from there.
+  };
+
   const [offlineState, setOfflineState] = useState({
     desktop: false, online: true, bootstrap: null,
   });
@@ -199,10 +274,11 @@ const Login = () => {
 
  <div className="relative z-1 w-[370px] form-card m-auto py-10">
  <h1 className="font-space font-bold text-[26px] text-white text-center mb-[10px]">
- {mode === 'login' ? 'WELCOME BACK' : mode === 'signup' ? 'CREATE ACCOUNT' : 'RESET PASSWORD'}
+ {mode === 'login' ? 'WELCOME BACK' : mode === 'signup' ? 'CREATE ACCOUNT' : mode === 'phone' ? 'SIGN IN WITH WHATSAPP' : 'RESET PASSWORD'}
  </h1>
  <p className="text-center text-[12px] text-[#747576] mb-[24px]">
  {mode === 'login' ? 'Sign in to your workspace'
+   : mode === 'phone' ? (phoneStep === 'number' ? 'We will send a code to your WhatsApp' : `Enter the 6-digit code sent to ${formatPhone(sentTo)}`)
    : mode === 'signup' ? '60 days free. No credit card required.'
    : 'Enter your email — we\'ll send a reset link.'}
  </p>
@@ -211,7 +287,7 @@ const Login = () => {
    <div className={`mb-5 px-4 py-3 rounded-xl border text-[12px] leading-snug ${
      desktopOfflineFirstSignIn || desktopOfflineGraceExpired || desktopOfflineSubscriptionBlocked
        ? 'bg-red-500/10 border-red-500/30 text-red-300'
-       : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+       : 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature/40'
    }`}>
      {desktopOfflineFirstSignIn && (
        <span><strong>Offline.</strong> First sign-in requires internet. Connect, then sign in.</span>
@@ -244,7 +320,7 @@ const Login = () => {
  placeholder="Email Address" 
  autoComplete="off"
  required
- className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-gray-700/30"
+ className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-ink-secondary/30"
  value={credentials.email}
  onChange={(e) => setCredentials({ ...credentials, email: e.target.value})}
  />
@@ -261,14 +337,38 @@ const Login = () => {
  </svg>
  </span>
  <input 
- type="password" 
+ type={showPassword ? 'text' : 'password'}
  placeholder="Password" 
  autoComplete="off"
  required
- className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-gray-700/30"
+ className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-ink-secondary/30"
  value={credentials.password}
  onChange={(e) => setCredentials({ ...credentials, password: e.target.value})}
  />
+ {/* type=button so it never submits the form, and aria-pressed so a screen
+     reader says whether the password is currently visible. */}
+ <button
+   type="button"
+   onClick={() => setShowPassword(v => !v)}
+   aria-label={showPassword ? 'Hide password' : 'Show password'}
+   aria-pressed={showPassword}
+   title={showPassword ? 'Hide password' : 'Show password'}
+   className="px-[13px] py-[13px] text-[#747576] hover:text-[#38e0a0] transition-colors shrink-0"
+ >
+   {showPassword ? (
+     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+       <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+       <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+       <line x1="1" y1="1" x2="23" y2="23"/>
+     </svg>
+   ) : (
+     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+       <circle cx="12" cy="12" r="3"/>
+     </svg>
+   )}
+ </button>
  </div>
  <button type="button"
   onClick={() => { setMode('forgot'); setError(''); setInfo(''); }}
@@ -297,6 +397,102 @@ const Login = () => {
  >
  <span className="font-arial font-bold text-[15px] text-[#111] relative z-1">LOG IN</span>
  </button>
+
+ {/* Passwords are the main way people get locked out of this app. A number
+     they already have on WhatsApp is the fallback. */}
+ <button
+   type="button"
+   onClick={goPhoneMode}
+   className="w-full mt-[12px] h-[50px] bg-transparent border-[1.5px] border-[#253028] rounded-[6px] cursor-pointer flex items-center justify-center gap-[9px] text-[#747576] hover:border-[#38e0a0]/45 hover:text-white transition-colors"
+ >
+   <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+     <path d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.25-.46-2.38-1.47-.88-.78-1.47-1.75-1.65-2.05-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.53.15-.18.2-.3.3-.5.1-.2.05-.38-.02-.53-.08-.15-.67-1.6-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.22 3.08c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.63.71.22 1.36.19 1.87.12.57-.09 1.75-.72 2-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/>
+     <path d="M12 2a10 10 0 0 0-8.6 15.07L2 22l5.05-1.32A10 10 0 1 0 12 2zm0 18.2a8.17 8.17 0 0 1-4.17-1.14l-.3-.18-3 .78.8-2.92-.2-.31A8.2 8.2 0 1 1 12 20.2z"/>
+   </svg>
+   <span className="font-inter font-semibold text-[13.5px]">Sign in with WhatsApp</span>
+ </button>
+ </form>
+ ) : mode === 'phone' ? (
+ <form onSubmit={phoneStep === 'number' ? handleSendOtp : handleVerifyOtp}>
+   {phoneStep === 'number' ? (
+     <div className="mb-[18px]">
+       <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">Mobile Number</label>
+       <div className="flex items-center bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] transition-colors focus-within:border-[#38e0a0]/45">
+         {/* The country code is shown, not typed. Every user is in India and a
+             free-text +91 is one more thing to get wrong at a counter. */}
+         <span className="pl-[13px] pr-[10px] text-[#747576] text-[14px] shrink-0 border-r border-[#253028] py-[13px]">+91</span>
+         <input
+           type="tel"
+           inputMode="numeric"
+           autoComplete="tel"
+           placeholder="98765 43210"
+           required
+           autoFocus
+           className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] p-[13px] placeholder:text-ink-secondary/30 tracking-[0.5px]"
+           value={phoneInput}
+           onChange={(e) => setPhoneInput(e.target.value)}
+         />
+       </div>
+     </div>
+   ) : (
+     <div className="mb-[18px]">
+       <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">WhatsApp Code</label>
+       <div className="flex items-center bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] transition-colors focus-within:border-[#38e0a0]/45">
+         <input
+           type="text"
+           inputMode="numeric"
+           autoComplete="one-time-code"
+           placeholder="000000"
+           maxLength={8}
+           required
+           autoFocus
+           className="flex-1 bg-transparent border-none outline-none text-white font-inter text-[20px] tracking-[8px] text-center p-[13px] placeholder:text-ink-secondary/30"
+           value={otpCode}
+           onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+         />
+       </div>
+       <div className="flex items-center justify-between mt-[9px]">
+         <button type="button"
+           onClick={() => { setPhoneStep('number'); setError(''); setInfo(''); setOtpCode(''); }}
+           className="text-[#747576] text-[12.5px] underline underline-offset-[3px] bg-transparent border-0 cursor-pointer hover:text-white transition-all">
+           Change number
+         </button>
+         <button type="button"
+           disabled={resendIn > 0 || phoneLoading}
+           onClick={handleSendOtp}
+           className="text-[#747576] text-[12.5px] underline underline-offset-[3px] bg-transparent border-0 cursor-pointer hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline">
+           {resendIn > 0 ? `Resend in ${resendIn}s` : 'Resend code'}
+         </button>
+       </div>
+     </div>
+   )}
+
+   {info && !error && (
+     <div className="mb-4 p-3 rounded-xl bg-[#38e0a0]/10 border border-[#38e0a0]/20">
+       <p className="text-[11px] font-bold text-[#38e0a0]/90 uppercase tracking-tight leading-tight">{info}</p>
+     </div>
+   )}
+   {error && (
+     <div className="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+       <p className="text-[11px] font-bold text-red-500/90 uppercase tracking-tight leading-tight">{error}</p>
+     </div>
+   )}
+
+   <button
+     type="submit"
+     disabled={phoneLoading || (phoneStep === 'number' && !toE164(phoneInput))}
+     className="btn-login w-full mt-[26px] bg-white border-none rounded-[6px] cursor-pointer h-[54px] flex items-center justify-center hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+   >
+     <span className="font-arial font-bold text-[15px] text-[#111] relative z-1">
+       {phoneLoading ? 'PLEASE WAIT…' : phoneStep === 'number' ? 'SEND CODE' : 'VERIFY & SIGN IN'}
+     </span>
+   </button>
+
+   <button type="button"
+     onClick={() => { setMode('login'); setError(''); setInfo(''); }}
+     className="block mx-auto mt-[18px] text-[#747576] text-[12.5px] underline underline-offset-[3px] bg-transparent border-0 cursor-pointer hover:text-white transition-all">
+     Use email and password instead
+   </button>
  </form>
  ) : mode === 'signup' ? (
  <form onSubmit={handleSignUp}>
@@ -314,7 +510,7 @@ const Login = () => {
            placeholder={f.ph}
            autoComplete="off"
            required
-           className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] p-[13px] placeholder:text-gray-700/30"
+           className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] p-[13px] placeholder:text-ink-secondary/30"
            value={signup[f.key]}
            onChange={(e) => setSignup({ ...signup, [f.key]: e.target.value })}
          />
@@ -363,7 +559,7 @@ const Login = () => {
          autoComplete="email"
          required
          autoFocus
-         className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-gray-700/30"
+         className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-ink-secondary/30"
          value={credentials.email}
          onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
        />
@@ -399,7 +595,9 @@ const Login = () => {
  </form>
  )}
 
- {mode !== 'forgot' && (<>
+ {/* Phone mode carries its own way back to the password form, and the
+     "Already have an account?" toggle below reads as nonsense there. */}
+ {mode !== 'forgot' && mode !== 'phone' && (<>
  {/* Divider */}
  <div className="flex items-center gap-3 mt-[22px] mb-[18px]">
    <div className="flex-1 h-px bg-white/10" />

@@ -12,11 +12,13 @@ const Table = ({
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-canvas border-b border-black/5">
+            {/* Sticky: a long list whose column headers scroll away stops being
+                readable, and these tables run to hundreds of rows. */}
+            <tr className="bg-canvas border-b border-black/5 sticky top-0 z-10">
               {headers.map((header, idx) => (
                 <th 
                   key={idx} 
-                  className={`px-4 py-3 text-sm font-semibold text-gray-700 opacity-80 ${header.className || ''}`}
+                  className={`px-4 py-3 text-sm font-semibold text-ink-secondary opacity-80 ${header.className || ''}`}
                 >
                   {header.label}
                 </th>

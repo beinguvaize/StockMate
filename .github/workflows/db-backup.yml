@@ -15,6 +15,16 @@
 #   R2_BUCKET              target bucket name (e.g. stockmate-backups)
 #
 # Restore: download the .sql.gz, `gunzip`, then `psql "<conn>" -f dump.sql`.
+#
+# THIS RAN AND FAILED EVERY NIGHT FOR WEEKS. The secrets below were never added,
+# so pg_dump received an empty connection string, fell back to a local socket and
+# died in 19 seconds. A red cross on a scheduled job is easy not to look at, and
+# the result was the appearance of a backup with no file behind it -- worse than
+# no backup at all, because it stops you worrying.
+#
+# So this workflow now: refuses to start with a clear message naming any missing
+# secret, checks the dump actually contains data rather than just headers, and
+# confirms the uploaded object exists in R2 before reporting success.
 
 name: Nightly · DB backup to R2
 
@@ -45,12 +55,48 @@ jobs:
           R2_BUCKET:            ${{ secrets.R2_BUCKET }}
         run: |
           set -euo pipefail
+
+          # Fail with a sentence a human can act on, not a socket error.
+          missing=""
+          [ -z "${SUPABASE_DB_URL:-}"      ] && missing="$missing SUPABASE_DB_URL"
+          [ -z "${R2_ACCOUNT_ID:-}"        ] && missing="$missing R2_ACCOUNT_ID"
+          [ -z "${AWS_ACCESS_KEY_ID:-}"    ] && missing="$missing R2_ACCESS_KEY_ID"
+          [ -z "${AWS_SECRET_ACCESS_KEY:-}" ] && missing="$missing R2_SECRET_ACCESS_KEY"
+          [ -z "${R2_BUCKET:-}"            ] && missing="$missing R2_BUCKET"
+          if [ -n "$missing" ]; then
+            echo "::error::No backup was taken. These repo secrets are empty or unset:$missing"
+            echo "::error::Add them at Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
           stamp=$(date -u +%Y-%m-%d_%H%M)
           file="ledgrpro-prod-${stamp}.sql.gz"
+
           echo "Dumping prod database…"
           /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges | gzip > "$file"
-          ls -lh "$file"
+
+          # A dump that connected but returned nothing still gzips to a valid
+          # file. Check it holds real schema before calling it a backup.
+          size=$(stat -c%s "$file")
+          echo "Dump size: $size bytes"
+          if [ "$size" -lt 20000 ]; then
+            echo "::error::Dump is only ${size} bytes — too small to be a real backup. Not uploading."
+            exit 1
+          fi
+          if ! gunzip -c "$file" | grep -q 'CREATE TABLE public.sales'; then
+            echo "::error::Dump does not contain the sales table. Refusing to upload a partial backup."
+            exit 1
+          fi
+
           echo "Uploading to R2…"
           aws s3 cp "$file" "s3://${R2_BUCKET}/daily/${file}" \
             --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
-          echo "✓ Backup uploaded: daily/${file}"
+
+          # Confirm it is actually there. An upload that silently no-ops would
+          # otherwise report success, which is the fault this job already had.
+          if ! aws s3 ls "s3://${R2_BUCKET}/daily/${file}" \
+                 --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" | grep -q "$file"; then
+            echo "::error::Upload reported success but the object is not in the bucket."
+            exit 1
+          fi
+          echo "✓ Backup verified in R2: daily/${file} (${size} bytes)"

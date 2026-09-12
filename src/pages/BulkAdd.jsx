@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, RotateCcw, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../context/TenantContext';
+import { normalizeHsn } from '../lib/hsn';
 
 // Bulk Add — in-app spreadsheet (myBillBook-style). Type directly or paste
 // straight from Excel / Google Sheets (TSV clipboard): no file needed.
@@ -38,8 +39,8 @@ const ENTITIES = {
     cols: [
       { key: 'name', label: 'Product Name*', w: 220, required: true },
       { key: 'category', label: 'Category', w: 120 },
-      { key: 'sellingPrice', label: 'Selling Price*', w: 110, num: true, required: true },
-      { key: 'costPrice', label: 'Cost Price', w: 100, num: true },
+      { key: 'sellingPrice', label: 'Selling Price*', w: 110, num: true, required: true, validate: v => Number(v) > 0 || 'Must be > 0' },
+      { key: 'costPrice', label: 'Cost Price*', w: 100, num: true, required: true, validate: v => Number(v) > 0 || 'Must be > 0' },
       { key: 'stock', label: 'Opening Stock', w: 105, num: true },
       { key: 'taxRate', label: 'GST %', w: 75, num: true },
       { key: 'unit', label: 'Unit', w: 70 },
@@ -115,6 +116,8 @@ const BulkAdd = () => {
     setStatus('saving');
     let inserted = 0, failed = 0;
 
+    // HSN values dropped for not being a legal code — reported, never silent.
+    const badHsn = [];
     const payloads = validRows.map(({ row }) => {
       if (type === 'clients') return {
         id: genId('CLI'), tenant_id: currentTenantId,
@@ -146,7 +149,12 @@ const BulkAdd = () => {
         stock: Number(row.stock) || 0,
         taxRate: Number(row.taxRate) || 0,
         unit: row.unit?.trim() || 'pcs',
-        hsn_code: row.hsn?.trim() || null,
+        // Same rule as the importer: a SKU is not a tax code.
+        hsn_code: (() => {
+          const h = normalizeHsn(row.hsn);
+          if (h.status === 'invalid') badHsn.push(`${row.name?.trim() || '?'} (${h.raw})`);
+          return h.code;
+        })(),
         barcode: row.barcode?.trim() || null,
       };
     });
@@ -163,7 +171,7 @@ const BulkAdd = () => {
         e2 ? failed++ : inserted++;
       }
     }
-    setResult({ inserted, failed });
+    setResult({ inserted, failed, badHsn });
     setStatus('done');
   };
 
@@ -173,22 +181,22 @@ const BulkAdd = () => {
     setResult(null);
   };
 
-  const inputCls = 'w-full bg-transparent px-2.5 py-2 text-[13px] text-gray-900 placeholder:text-gray-300 outline-none focus:bg-gray-50';
+  const inputCls = 'w-full bg-transparent px-2.5 py-2 text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:bg-muted';
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       {/* Header */}
-      <header className="flex flex-wrap items-center gap-3 mb-6 pb-5 border-b border-gray-200">
+      <header className="flex flex-wrap items-center gap-3 mb-6 pb-5 border-b border-border">
         <button onClick={() => navigate(-1)}
-          className="w-9 h-9 rounded-md border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors">
+          className="w-9 h-9 rounded-md border border-border flex items-center justify-center text-ink-secondary hover:bg-muted transition-colors">
           <ArrowLeft size={15} />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-[20px] font-semibold text-gray-900">{cfg.title}</h1>
-          <p className="text-[13px] text-gray-500 mt-0.5">Type directly, or copy rows in Excel / Google Sheets and paste anywhere in the grid — columns fill automatically.</p>
+          <h1 className="text-[20px] font-semibold text-foreground">{cfg.title}</h1>
+          <p className="text-[13px] text-muted-foreground mt-0.5">Type directly, or copy rows in Excel / Google Sheets and paste anywhere in the grid — columns fill automatically.</p>
         </div>
         <button onClick={reset}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-gray-300 text-[13px] font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-border text-[13px] font-semibold text-ink-secondary hover:bg-muted transition-colors">
           <RotateCcw size={13} /> Reset
         </button>
         <button
@@ -202,42 +210,53 @@ const BulkAdd = () => {
       </header>
 
       {invalidCount > 0 && (
-        <div className="mb-3 px-3.5 py-2.5 rounded-md bg-amber-50 border border-amber-200 text-[12.5px] text-amber-700 font-medium">
+        <div className="mb-3 px-3.5 py-2.5 rounded-md bg-accent-signature/10 border border-accent-signature/25 text-[12.5px] text-accent-signature-hover font-medium">
           {invalidCount} row{invalidCount === 1 ? '' : 's'} have errors (red cells) — they'll be skipped.
         </div>
       )}
 
       {status === 'done' && result && (
-        <div className="mb-3 px-3.5 py-2.5 rounded-md bg-emerald-50 border border-emerald-200 text-[12.5px] text-emerald-700 font-medium flex items-center gap-2">
-          <CheckCircle2 size={15} />
-          {result.inserted} added{result.failed > 0 ? ` · ${result.failed} failed` : ''}.
-          <button onClick={reset} className="underline ml-1">Add more</button>
+        <div className="mb-3 px-3.5 py-2.5 rounded-md bg-emerald-50 border border-emerald-200 text-[12.5px] text-emerald-700 font-medium">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={15} />
+            {result.inserted} added{result.failed > 0 ? ` · ${result.failed} failed` : ''}.
+            <button onClick={reset} className="underline ml-1">Add more</button>
+          </div>
+          {/* The row still saved; only the bad HSN was dropped. Say which, so it
+              can be corrected now rather than at filing time. */}
+          {result.badHsn?.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-emerald-200 text-amber-700 font-normal">
+              {result.badHsn.length} HSN {result.badHsn.length === 1 ? 'code was' : 'codes were'} not valid (must be 4, 6 or 8 digits) and left blank:{' '}
+              {result.badHsn.slice(0, 6).join(', ')}
+              {result.badHsn.length > 6 ? ` and ${result.badHsn.length - 6} more` : ''}.
+            </div>
+          )}
         </div>
       )}
 
       {/* Grid */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-auto max-h-[68vh]">
+      <div className="bg-white rounded-lg border border-border overflow-auto max-h-[68vh]">
         <table className="border-collapse w-max min-w-full">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-gray-50">
-              <th className="w-10 border-b border-r border-gray-200 text-[11px] text-gray-400 font-medium px-1 py-2.5">#</th>
+            <tr className="bg-muted">
+              <th className="w-10 border-b border-r border-border text-[11px] text-muted-foreground font-medium px-1 py-2.5">#</th>
               {cfg.cols.map(c => (
-                <th key={c.key} style={{ minWidth: c.w }} className="border-b border-r border-gray-200 text-[12.5px] font-semibold text-gray-700 px-2.5 py-2.5 text-left">
+                <th key={c.key} style={{ minWidth: c.w }} className="border-b border-r border-border text-[12.5px] font-semibold text-ink-secondary px-2.5 py-2.5 text-left">
                   {c.label}
                 </th>
               ))}
-              <th className="w-9 border-b border-gray-200" />
+              <th className="w-9 border-b border-border" />
             </tr>
           </thead>
           <tbody>
             {rows.map((row, r) => {
               const errs = filled.some(f => f.i === r) ? errorsFor(row) : {};
               return (
-                <tr key={r} className="hover:bg-gray-50/40">
-                  <td className="border-b border-r border-gray-100 text-center text-[11px] text-gray-300">{r + 1}</td>
+                <tr key={r} className="hover:bg-muted/40">
+                  <td className="border-b border-r border-border text-center text-[11px] text-muted-foreground">{r + 1}</td>
                   {cfg.cols.map((c, ci) => (
                     <td key={c.key} title={errs[c.key] || ''}
-                      className={`border-b border-r ${errs[c.key] ? 'border-red-300 bg-red-50' : 'border-gray-100'} p-0`}>
+                      className={`border-b border-r ${errs[c.key] ? 'border-red-300 bg-red-50' : 'border-border'} p-0`}>
                       <input
                         className={inputCls}
                         value={row[c.key]}
@@ -246,7 +265,7 @@ const BulkAdd = () => {
                       />
                     </td>
                   ))}
-                  <td className="border-b border-gray-100 text-center">
+                  <td className="border-b border-border text-center">
                     <button onClick={() => setRows(rs => rs.map((x, i) => i === r ? blankRow(cfg.cols) : x))}
                       className="text-gray-200 hover:text-red-500 p-1 transition-colors" title="Clear row">
                       <Trash2 size={12} />
@@ -260,7 +279,7 @@ const BulkAdd = () => {
       </div>
 
       <button onClick={() => setRows(rs => [...rs, ...Array.from({ length: 10 }, () => blankRow(cfg.cols))])}
-        className="mt-3 px-3.5 py-2 rounded-md border border-dashed border-gray-300 text-[12.5px] font-medium text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors">
+        className="mt-3 px-3.5 py-2 rounded-md border border-dashed border-border text-[12.5px] font-medium text-muted-foreground hover:border-gray-400 hover:text-ink-secondary transition-colors">
         + 10 more rows
       </button>
     </div>

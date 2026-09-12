@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, restInsert } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
+import { isElectron, queueMutation, upsertCachedRow, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
 
 const NUMERIC = ['taxable_amount','tax_total','cgst_amount','sgst_amount','igst_amount','discount_total','round_off','grand_total'];
 
@@ -14,11 +15,15 @@ export function useEstimates(tenantId) {
   const fetchAll = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
     setLoading(true);
-    const { data, error } = await supabase
-      .from('estimates').select('*')
-      .eq('tenant_id', tenantId).is('deleted_at', null)
-      .order('created_at', { ascending: false }).limit(300);
-    if (!error) setEstimates(normalizeNumericRows(data || [], NUMERIC));
+    const rows = await readCacheThenRevalidate(
+      'estimates',
+      () => supabase
+        .from('estimates').select('*')
+        .eq('tenant_id', tenantId).is('deleted_at', null)
+        .order('created_at', { ascending: false }).limit(300),
+      (fresh) => setEstimates(normalizeNumericRows(fresh, NUMERIC)),
+    );
+    setEstimates(normalizeNumericRows(rows || [], NUMERIC));
     setLoading(false);
   }, [tenantId]);
 
@@ -58,6 +63,13 @@ export function useEstimates(tenantId) {
       notes: est.notes || null,
     };
     try {
+      // Desktop offline-first: queue + cache; sync engine pushes later.
+      if (isElectron()) {
+        await queueMutation({ table: 'estimates', type: 'insert', payload: row });
+        await upsertCachedRow('estimates', row);
+        setEstimates(prev => normalizeNumericRows([row, ...prev], NUMERIC));
+        return { error: null, id, queued: true };
+      }
       // restInsert (direct PostgREST, timeout-guarded) — supabase.from() can
       // hang under the auth-deadlock, leaving Save with no response.
       const { error } = await restInsert('estimates', row);
@@ -70,6 +82,11 @@ export function useEstimates(tenantId) {
 
   const update = async (id, patch) => {
     try {
+      if (isElectron()) {
+        await queueMutation({ table: 'estimates', type: 'update', payload: { ...patch, id } });
+        setEstimates(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
+        return { error: null, queued: true };
+      }
       const { error } = await supabase.from('estimates')
         .update({ ...patch, updated_at: new Date().toISOString() })
         .eq('id', id).eq('tenant_id', tenantId);
@@ -79,6 +96,11 @@ export function useEstimates(tenantId) {
   };
 
   const setStatus = async (id, status, extra = {}) => {
+    if (isElectron()) {
+      await queueMutation({ table: 'estimates', type: 'update', payload: { status, ...extra, id } });
+      setEstimates(prev => prev.map(e => e.id === id ? { ...e, status, ...extra } : e));
+      return { error: null, queued: true };
+    }
     const { error } = await supabase.from('estimates')
       .update({ status, updated_at: new Date().toISOString(), ...extra })
       .eq('id', id).eq('tenant_id', tenantId);
@@ -87,6 +109,11 @@ export function useEstimates(tenantId) {
   };
 
   const remove = async (id) => {
+    if (isElectron()) {
+      await queueMutation({ table: 'estimates', type: 'delete', payload: { id } });
+      setEstimates(prev => prev.filter(e => e.id !== id));
+      return { error: null, queued: true };
+    }
     const { error } = await supabase.from('estimates')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', id).eq('tenant_id', tenantId);

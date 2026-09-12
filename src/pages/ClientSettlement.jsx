@@ -1,37 +1,30 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { buildClientStatement } from '../lib/clientStatement';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { useSales } from '../hooks/useSales';
-import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { supabase } from '../lib/supabase';
 import { PageSkeleton } from '../components/ui/States';
 import {
-  ArrowLeft, Calendar, FileText,
-  CheckCircle2, AlertCircle, Search, Clock, Receipt,
-  Wallet, CreditCard, Smartphone, Landmark, History, BookOpen,
-  TrendingUp, TrendingDown, Phone, MapPin, Trash2
+  ArrowLeft, CheckCircle2, AlertCircle, Search,
+  Wallet, CreditCard, Smartphone, Landmark,
+  Phone, MapPin, Trash2, Pencil
 } from 'lucide-react';
-import { todayISOInAppTZ, formatDate, formatDateTime, formatCurrency } from '../lib/utils';
+import { todayISOInAppTZ, formatDate, formatCurrency } from '../lib/utils';
 
 const METHOD_ICON = {
   CASH: Wallet, CARD: CreditCard, UPI: Smartphone,
   BANK: Landmark, CHEQUE: Landmark,
 };
-const METHOD_LABEL = {
-  CASH: 'Cash', CARD: 'Card', UPI: 'UPI',
-  BANK: 'Bank Transfer', CHEQUE: 'Cheque',
-};
-
 const ClientSettlement = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
-  const { clients, recordClientPayment, deleteClientPayment, loading: peoLoading } = usePeople(currentTenantId);
+  const { clients, recordClientPayment, deleteClientPayment, editClientPayment, loading: peoLoading } = usePeople(currentTenantId);
   const { invoices, sales, loading: salesLoading } = useSales(currentTenantId);
-  const { accounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
 
   const loading = peoLoading || salesLoading;
 
@@ -46,14 +39,26 @@ const ClientSettlement = () => {
     notes: '',
     paymentMethod: 'CASH'
   });
-  const depAcc = accountForMethod(accounts, paymentData.paymentMethod);
-  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([]);
   const [paymentError, setPaymentError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState([]);
-  const [bottomTab, setBottomTab] = useState('HISTORY'); // HISTORY | STATEMENT
+  // Sale ledger rows for this client's sales — one per payment event, each with
+  // the date the money actually arrived. Without them the statement credits a
+  // sale's whole paidAmount on the BILL's date, so a 1,185 collected on 31 Aug
+  // against a 10 Aug bill shows up on the 10th.
+  const [saleReceipts, setSaleReceipts] = useState([]);
+  const [expandedRow, setExpandedRow] = useState(null); // ledger row showing its products
+  // ── Ledger view, matching the supplier ledger ───────────────────────────
+  // The statement was a tab at the bottom of a third column. It is the thing
+  // this page is about, so it now leads — same controls, same columns and the
+  // same running balance the supplier side uses, so one screen teaches both.
+  // Opens on this month. Older entries are not lost — the brought-forward
+  // row carries their balance in, so the running figures stay true.
+  const [range, setRange] = useState('1M');             // 1M | 3M | FY | ALL
+  const [rowKind, setRowKind] = useState('ALL');        // ALL | SALE | PAYMENT
+  const [newestFirst, setNewestFirst] = useState(false);
 
   // Fetch payment history + resolve collector names separately (no FK on recorded_by).
   useEffect(() => {
@@ -80,103 +85,144 @@ const ClientSettlement = () => {
       });
   }, [id, currentTenantId, success]); // refetch after successful payment
 
-  // Full statement ledger: credit sales + invoices + payments, sorted by date, with running balance
-  const statementRows = useMemo(() => {
-    if (!client) return [];
-    const rows = [];
-
-    // Credit POS sales
-    (sales || [])
-      .filter(s => String(s.clientId) === String(client.id) && s.paymentMethod === 'CREDIT')
-      .forEach(s => rows.push({
-        id: s.id,
-        date: s.date || s.created_at?.slice(0, 10),
-        created_at: s.created_at,
-        description: `Credit Sale #${String(s.id).split('-').pop()}`,
-        debit: Number(s.totalAmount) || 0,
-        credit: 0,
-        type: 'SALE',
-      }));
-
-    // Invoices — debit row only; credit comes from client_payments entries
-    (invoices || [])
-      .filter(inv => String(inv.client_id) === String(client.id))
-      .forEach(inv => {
-        const num = String(inv.invoice_number || '').replace(/^#+/, '');
-        rows.push({
-          id: inv.id,
-          date: inv.invoice_date || inv.created_at?.slice(0, 10),
-          created_at: inv.created_at,
-          description: `Invoice #${num}`,
-          debit: Number(inv.grand_total) || 0,
-          credit: 0,
-          type: 'INVOICE',
-        });
+  // Ledger rows for this client's sales. Fetched by the sale ids already in
+  // scope rather than by client, because account_transactions has no client
+  // column — it references the sale. Kept separate from the payment-history
+  // effect so a failure here degrades to the old single-credit behaviour
+  // (buildClientStatement falls back) instead of emptying the statement.
+  useEffect(() => {
+    if (!id || !currentTenantId) { setSaleReceipts([]); return; }
+    const saleIds = (sales || [])
+      .filter(s => String(s.shopId ?? s.clientId ?? '') === String(id))
+      .map(s => s.id)
+      .filter(Boolean);
+    if (!saleIds.length) { setSaleReceipts([]); return; }
+    let alive = true;
+    supabase
+      .from('account_transactions')
+      .select('id, tenant_id, date, amount, mode, ref_type, ref_id, note')
+      .eq('tenant_id', currentTenantId)
+      .eq('ref_type', 'SALE')
+      .in('ref_id', saleIds)
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) { console.error('sale receipts fetch error:', error); setSaleReceipts([]); return; }
+        setSaleReceipts(data || []);
       });
+    return () => { alive = false; };
+  }, [id, currentTenantId, sales, success]);
 
-    // Payments
-    paymentHistory.forEach(p => rows.push({
-      id: p.id,
-      date: p.date,
-      created_at: p.created_at,
-      description: `Payment (${METHOD_LABEL[p.payment_method] || p.payment_method})${p.notes ? ' — ' + p.notes : ''}`,
-      debit: 0,
-      credit: Number(p.amount) || 0,
-      type: 'PAYMENT',
-    }));
+  // Sales and invoices both store their lines the same way: {id, name, rate,
+  // quantity}. Either can arrive as a JSON string depending on the path that
+  // wrote it, so parse defensively rather than assuming an array.
+  // Full statement ledger. The arithmetic lives in src/lib/clientStatement.js
+  // so it can be tested without opening this page -- the double-credit rule
+  // here (a credit sale's money arrives as a receipt; a cash sale's does not)
+  // is the same class of mistake that reached production on the supplier side.
+  const statementRows = useMemo(
+    // includeSettled: a customer who pays at the counter every time used to
+    // get a nearly empty statement — settled bills were dropped, so there was
+    // no record of what they had actually bought. A paid bill enters as a
+    // debit AND its payment, so the closing balance is unchanged.
+    () => buildClientStatement({ client, sales, invoices, paymentHistory, saleReceipts, includeSettled: true }),
+    [client, sales, invoices, paymentHistory, saleReceipts]);
 
-    rows.sort((a, b) => {
-      const da = a.date || a.created_at || '';
-      const db = b.date || b.created_at || '';
-      return da < db ? -1 : da > db ? 1 : 0;
+  // ── Period window ────────────────────────────────────────────────────────
+  // Same shape as the supplier ledger: a window, plus a brought-forward row so
+  // the running balance stays true when history is hidden. Without that the
+  // first visible row would start from zero and every balance under it would be
+  // wrong.
+  const rangeStart = useMemo(() => {
+    if (range === 'ALL') return null;
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    if (range === '1M') return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+    if (range === '3M') { const d = new Date(now); d.setMonth(d.getMonth() - 3); return fmt(d); }
+    // Indian financial year — the window a GST filing is reconciled against.
+    const fy = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    return `${fy}-04-01`;
+  }, [range]);
+
+  const ledgerOpening = useMemo(() => {
+    if (!rangeStart) return 0;
+    let bal = 0;
+    statementRows.forEach(r => { if (String(r.date || '') < rangeStart) bal = r.balance; });
+    return bal;
+  }, [statementRows, rangeStart]);
+
+  const ledgerInRange = useMemo(
+    () => (rangeStart ? statementRows.filter(r => String(r.date || '') >= rangeStart) : statementRows),
+    [statementRows, rangeStart]);
+  const ledgerHiddenBefore = statementRows.length - ledgerInRange.length;
+
+  const ledgerFiltered = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return ledgerInRange.filter(r => {
+      if (rowKind === 'SALE'    && r.type === 'PAYMENT') return false;
+      if (rowKind === 'PAYMENT' && r.type !== 'PAYMENT') return false;
+      if (!q) return true;
+      return `${r.description} ${r.id}`.toLowerCase().includes(q);
     });
+  }, [ledgerInRange, rowKind, searchTerm]);
 
-    let balance = 0;
-    return rows.map(r => {
-      balance += r.debit - r.credit;
-      return { ...r, balance };
-    });
-  }, [client, sales, invoices, paymentHistory]);
+  const ledgerRowsView = useMemo(
+    () => (newestFirst ? [...ledgerFiltered].reverse() : ledgerFiltered),
+    [ledgerFiltered, newestFirst]);
+
+  // Closing is always across all history — what the client owes today does not
+  // change because a narrower period was chosen.
+  const ledgerClosing = statementRows.length ? statementRows[statementRows.length - 1].balance : 0;
+  const ledgerTotals = useMemo(() => ({
+    debit:  ledgerInRange.reduce((s, r) => s + (r.debit || 0), 0),
+    credit: ledgerInRange.reduce((s, r) => s + (r.credit || 0), 0),
+  }), [ledgerInRange]);
 
   const clientInvoices = useMemo(() => {
     if (!client) return [];
-    return (invoices || [])
-      .filter(inv => inv.client_id === client.id && inv.payment_status !== 'PAID')
+    const invRows = (invoices || [])
+      .filter(inv => inv.client_id === client.id && inv.payment_status !== 'PAID');
+    const invoicedSaleIds = new Set(invRows.map(i => i.sale_id).filter(Boolean));
+
+    // Part-paid / unpaid CASH-type sales with no invoice — they carry a real
+    // balance too, so the cashier must be able to see and settle them here,
+    // not just credit invoices. Synthetic rows use a SALE: id prefix so the
+    // allocation path knows to update the sale row directly.
+    const saleRows = (sales || [])
+      .filter(s => String(s.shopId) === String(client.id) || String(s.clientId) === String(client.id))
+      .filter(s => (s.paymentMethod || '').toUpperCase() !== 'CREDIT')
+      .filter(s => ['PARTIAL', 'UNPAID', 'PENDING'].includes((s.paymentStatus || s.status || '').toUpperCase()))
+      .filter(s => !invoicedSaleIds.has(s.id))
+      .filter(s => !s.deleted_at)
+      .map(s => ({
+        id: `SALE:${s.id}`,
+        invoice_number: `Sale ${String(s.id).split('-').pop()}`,
+        invoice_date: s.date,
+        created_at: s.created_at,
+        grand_total: Number(s.totalAmount) || 0,
+        paid_amount: Number(s.paidAmount) || 0,
+        payment_status: (s.paymentStatus || 'UNPAID').toUpperCase(),
+        items: s.items,
+        isSale: true,
+      }));
+
+    return [...invRows, ...saleRows]
       .filter(inv =>
         inv.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(inv.grand_total).includes(searchTerm)
       )
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  }, [client, invoices, searchTerm]);
-
-  const toggleInvoice = (inv) => {
-    const isSelected = selectedInvoiceIds.includes(inv.id);
-    const newSelection = isSelected
-      ? selectedInvoiceIds.filter(x => x !== inv.id)
-      : [...selectedInvoiceIds, inv.id];
-    const due = Math.max(0, (Number(inv.grand_total) || 0) - (Number(inv.paid_amount) || 0));
-    const newAmt = isSelected
-      ? Math.max(0, Math.round(((parseFloat(paymentData.amount) || 0) - due) * 100) / 100)
-      : Math.round(((parseFloat(paymentData.amount) || 0) + due) * 100) / 100;
-    setSelectedInvoiceIds(newSelection);
-    setPaymentData({ ...paymentData, amount: newAmt > 0 ? newAmt.toString() : '' });
-  };
-
-  const toggleAll = () => {
-    if (selectedInvoiceIds.length === clientInvoices.length) {
-      setSelectedInvoiceIds([]);
-      setPaymentData({ ...paymentData, amount: '0' });
-    } else {
-      setSelectedInvoiceIds(clientInvoices.map(i => i.id));
-      setPaymentData({ ...paymentData, amount: clientInvoices.reduce((s, i) => s + Math.max(0, (Number(i.grand_total) || 0) - (Number(i.paid_amount) || 0)), 0).toString() });
-    }
-  };
+  }, [client, invoices, sales, searchTerm]);
 
   const [deletingPaymentId, setDeletingPaymentId] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
   const handleDeletePayment = async (paymentId) => {
     if (!window.confirm('Delete this payment? Outstanding balance will be recalculated.')) return;
     setDeletingPaymentId(paymentId);
-    const res = await deleteClientPayment(paymentId, client.id);
+    const res = await deleteClientPayment(paymentId);
     setDeletingPaymentId(null);
     if (res?.error) { alert(`Delete failed: ${res.error.message || res.error}`); return; }
     // Refetch payment history after delete.
@@ -201,18 +247,23 @@ const ClientSettlement = () => {
     setPaymentError('');
     const amt = parseFloat(paymentData.amount);
     if (isNaN(amt) || amt <= 0) { setPaymentError('Enter a valid payment amount.'); return; }
+    // Explicit confirmation before money is recorded. window.confirm blocks the
+    // thread, so it also serialises a rapid double-tap into a single commit —
+    // the double-payment complaint was recording the same collection twice.
+    const cur = businessProfile?.currencySymbol || '₹';
+    if (!window.confirm(`Record ${cur}${amt.toLocaleString('en-IN')} received from ${client.name} (${paymentData.paymentMethod})?`)) return;
     setIsSubmitting(true);
     try {
-      const res = await recordClientPayment(client.id, amt, paymentData.date, paymentData.notes, selectedInvoiceIds, paymentData.paymentMethod);
+      // No invoice ids: settle_client_payment allocates FIFO across the oldest
+      // unpaid bills server-side. Picking invoices by hand was removed, and the
+      // allocation was always the database's job anyway.
+      const res = await recordClientPayment(client.id, amt, paymentData.date, paymentData.notes, [], paymentData.paymentMethod);
       if (res?.success === false) {
         setPaymentError(res.error || 'Payment failed. Try again.');
       } else {
-        // Money received → post to the chosen Cash/Bank account (non-blocking).
-        if (depAcc) {
-          try {
-            await addAccountTxn({ account_id: depAcc, direction: 'IN', amount: amt, mode: paymentData.paymentMethod, ref_type: 'PAYMENT', ref_id: client.id, note: `Receipt · ${client.name}`, date: paymentData.date });
-          } catch { /* ledger non-blocking */ }
-        }
+        // Money-received posting to Cash & Bank now happens in the DB
+        // (trg_client_payments_post_ledger on client_payments) — one place,
+        // every platform, instead of duplicated per client here.
         setSuccess(true);
         setTimeout(() => navigate(-1), 1200);
       }
@@ -230,7 +281,7 @@ const ClientSettlement = () => {
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-12">
         <AlertCircle size={48} className="mx-auto mb-4 text-red-400 opacity-50" />
         <h2 className="text-2xl font-bold text-ink-primary mb-2">Client Not Found</h2>
-        <p className="text-sm text-gray-500 mb-6">This client record may have been deleted.</p>
+        <p className="text-sm text-muted-foreground mb-6">This client record may have been deleted.</p>
         <button onClick={() => navigate(-1)} className="btn-signature px-8 h-11 !rounded-xl text-xs font-bold uppercase tracking-widest">
           Back to Clients
         </button>
@@ -238,465 +289,430 @@ const ClientSettlement = () => {
     );
   }
 
-  // Remaining due on an invoice = grand total minus what's already paid.
-  // The screen previously used the gross grand_total, so a partial payment
-  // never reduced the displayed due / outstanding.
-  const invoiceDue = (i) =>
-    Math.max(0, (Number(i.grand_total) || 0) - (Number(i.paid_amount) || 0));
+  // Use DB-maintained outstanding_balance (kept accurate by triggers) so this
+  // card matches the client list. Invoice-computed value misses CASH partial
+  // sales with no invoice row.
+  const outstanding = Number(client?.outstanding_balance) || 0;
 
-  const selectedTotal = clientInvoices
-    .filter(i => selectedInvoiceIds.includes(i.id))
-    .reduce((s, i) => s + invoiceDue(i), 0);
-
-  // Outstanding = sum of remaining due across the client's unpaid invoices
-  // (net of partial payments), not the cached clients.outstanding_balance
-  // column which can drift.
-  const outstanding = clientInvoices.reduce((s, i) => s + invoiceDue(i), 0);
+  // Column height: fills viewport minus AppLayout nav/header (~120px) and page padding
+  const colH = 'h-[calc(100vh-140px)]';
 
   return (
-    <div className="animate-fade-in pb-16">
+    <div className="animate-fade-in -mt-2 md:-mt-6 -mx-4 sm:-mx-6 lg:-mx-12">
 
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-black/5">
-        <button
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 shrink-0 rounded-xl border border-black/10 bg-white flex items-center justify-center text-ink-primary hover:bg-black/5 transition-all group"
-        >
-          <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+      {/* ── Compact sticky header ── */}
+      <div className="sticky top-0 z-20 flex items-center gap-3 px-4 sm:px-6 lg:px-8 py-3 bg-white/95 backdrop-blur border-b border-black/5">
+        <button onClick={() => navigate(-1)}
+          className="w-9 h-9 shrink-0 rounded-xl border border-black/10 bg-white flex items-center justify-center text-ink-primary hover:bg-black/5 transition-all group">
+          <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
         </button>
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">
-            Clients <span className="opacity-40">/</span> <span className="text-amber-600">Settle</span>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="hidden sm:inline text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Clients /</span>
+          <h1 className="text-base font-extrabold text-ink-primary truncate">
+            {client.name}<span className="text-accent-signature">.</span>
+          </h1>
+          {(client.gstin || client.gst_no) && (
+            <span className="hidden md:inline shrink-0 text-[10px] font-bold text-muted-foreground bg-canvas border border-black/5 rounded-full px-2 py-0.5">
+              {client.gstin || client.gst_no}
+            </span>
+          )}
+          {client.phone && (
+            <span className="hidden lg:flex items-center gap-1 text-[11px] font-semibold text-muted-foreground shrink-0">
+              <Phone size={11} />{client.phone}
+            </span>
+          )}
+        </div>
+        {/* Outstanding — headline metric in header */}
+        <div className="shrink-0 text-right">
+          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{outstanding < 0 ? 'Advance' : 'Outstanding'}</div>
+          <div className={`text-lg font-black tabular-nums leading-none ${outstanding > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+            {formatCurrency(Math.abs(outstanding))}
           </div>
-          <h1 className="text-xl font-extrabold text-ink-primary leading-none truncate">{client.name}<span className="text-amber-500">.</span></h1>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* ── 3-column body ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 p-3">
 
-        {/* Left panel */}
-        <div className="lg:col-span-4 space-y-5">
+        {/* ── LEFT: Client info + Payment form ── */}
+        <aside className="lg:col-span-4 order-1 flex flex-col gap-3">
 
           {/* Client card */}
-          <div className="bg-white rounded-2xl border border-black/5 p-5">
-            <div className="flex items-center gap-4 mb-5 pb-5 border-b border-black/5">
-              <div className="w-14 h-14 shrink-0 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 font-mono text-lg font-bold">
+          <div className="bg-white rounded-2xl border border-black/5 p-4">
+            <div className="flex items-center gap-3 mb-3 pb-3 border-b border-black/5">
+              <div className="w-10 h-10 shrink-0 rounded-xl bg-accent-signature/10 border border-accent-signature/25 flex items-center justify-center text-accent-signature tabular-nums text-sm font-bold">
                 {client.name.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <div className="text-base font-extrabold text-ink-primary leading-tight truncate">{client.name}</div>
-                <div className="text-[10px] text-gray-400 font-semibold mt-0.5">{client.gstin || client.gst_no || 'Unregistered'}</div>
+                <div className="text-sm font-extrabold text-ink-primary leading-tight truncate">{client.name}</div>
+                <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">{client.gstin || client.gst_no || 'Unregistered'}</div>
               </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className={`rounded-xl p-3 border ${outstanding > 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50/60 border-emerald-100'}`}>
-                <div className={`text-[9px] font-bold uppercase tracking-widest mb-1 ${outstanding > 0 ? 'text-red-400' : 'text-emerald-500'}`}>Outstanding</div>
-                <div className={`text-xl font-bold font-mono tabular-nums ${outstanding > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatCurrency(outstanding)}</div>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className={`rounded-xl p-2.5 border ${outstanding > 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50/60 border-emerald-100'}`}>
+                <div className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${outstanding > 0 ? 'text-red-400' : 'text-emerald-500'}`}>{outstanding < 0 ? 'Advance' : 'Outstanding'}</div>
+                <div className={`text-base font-black tabular-nums ${outstanding > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatCurrency(Math.abs(outstanding))}</div>
               </div>
-              <div className="bg-canvas rounded-xl p-3 border border-black/5">
-                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Unpaid Invoices</div>
-                <div className="text-xl font-bold font-mono text-ink-primary font-mono tabular-nums">{clientInvoices.length}</div>
+              <div className="bg-canvas rounded-xl p-2.5 border border-black/5">
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Unpaid</div>
+                <div className="text-base font-black tabular-nums text-ink-primary">{clientInvoices.length}</div>
               </div>
             </div>
-
-            <div className="space-y-2 text-[13px] font-semibold text-gray-600">
-              {client.phone && <div className="flex items-center gap-2"><Phone size={13} className="text-gray-300 shrink-0" />{client.phone}</div>}
-              {client.address && <div className="flex items-start gap-2"><MapPin size={13} className="text-gray-300 shrink-0 mt-0.5" />{client.address}</div>}
+            <div className="space-y-1.5 text-xs font-semibold text-muted-foreground">
+              {client.phone && <div className="flex items-center gap-2"><Phone size={11} className="text-muted-foreground shrink-0" />{client.phone}</div>}
+              {client.address && <div className="flex items-start gap-2"><MapPin size={11} className="text-muted-foreground shrink-0 mt-0.5" />{client.address}</div>}
             </div>
           </div>
 
           {/* Payment form */}
-          <div className="bg-white rounded-2xl border border-black/5 p-5">
-            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-5">Record Payment</h4>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="bg-white rounded-2xl border border-black/5 p-4">
+            <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Record Payment</h4>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               {paymentError && (
-                <div className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2">
-                  <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                <div className="p-2.5 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2">
+                  <AlertCircle size={13} className="text-red-500 shrink-0 mt-0.5" />
                   <p className="text-xs font-semibold text-red-600">{paymentError}</p>
                 </div>
               )}
-
               {success && (
-                <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-2">
-                  <CheckCircle2 size={14} className="text-emerald-600" />
+                <div className="p-2.5 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-2">
+                  <CheckCircle2 size={13} className="text-emerald-600" />
                   <p className="text-xs font-semibold text-emerald-700">Payment recorded!</p>
                 </div>
               )}
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Payment Date</label>
-                <input
-                  required type="date"
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-3 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              <div>
+                <label className="block text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Date</label>
+                <input required type="date"
+                  className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
                   value={paymentData.date}
-                  onChange={e => setPaymentData({ ...paymentData, date: e.target.value })}
-                />
+                  onChange={e => setPaymentData({ ...paymentData, date: e.target.value })} />
               </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Amount Received</label>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Amount</label>
                   {outstanding > 0 && (
-                    <button
-                      type="button"
+                    <button type="button"
                       onClick={() => setPaymentData({ ...paymentData, amount: outstanding.toString() })}
-                      className="text-[10px] font-bold text-accent-signature hover:underline"
-                    >
-                      Fill outstanding ({formatCurrency(outstanding)})
+                      className="text-[9px] font-bold text-accent-signature hover:underline">
+                      Fill {formatCurrency(outstanding)}
                     </button>
                   )}
                 </div>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-gray-400">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-muted-foreground">
                     {businessProfile?.currencySymbol || '₹'}
                   </span>
-                  <input
-                    required type="number" step="0.01" placeholder="0.00"
-                    className="w-full bg-white border border-gray-300 shadow-sm rounded-xl pl-8 pr-4 py-3 text-xl font-black text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 font-mono tabular-nums"
+                  <input required type="number" step="0.01" placeholder="0.00"
+                    className="w-full bg-white border border-border shadow-sm rounded-xl pl-7 pr-3 py-2.5 text-xl font-black text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
                     value={paymentData.amount}
-                    onChange={e => setPaymentData({ ...paymentData, amount: e.target.value })}
-                    onWheel={e => {
-                      e.preventDefault();
-                      const cur = parseFloat(paymentData.amount) || 0;
-                      const delta = e.deltaY < 0 ? 1 : -1;
-                      const next = Math.max(0, Math.round((cur + delta) * 100) / 100);
-                      setPaymentData({ ...paymentData, amount: next.toString() });
-                    }}
-                  />
+                    onChange={e => setPaymentData({ ...paymentData, amount: e.target.value })} />
                 </div>
-                {selectedTotal > 0 && (
-                  <div className="text-[10px] text-accent-signature font-bold">
-                    Selected invoices total: {formatCurrency(selectedTotal)}
-                  </div>
-                )}
               </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Payment Method</label>
+              <div>
+                <label className="block text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Method</label>
                 <select
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-3 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
                   value={paymentData.paymentMethod}
-                  onChange={e => setPaymentData({ ...paymentData, paymentMethod: e.target.value })}
-                >
+                  onChange={e => setPaymentData({ ...paymentData, paymentMethod: e.target.value })}>
                   <option value="CASH">Cash</option>
                   <option value="BANK">Bank Transfer</option>
                   <option value="UPI">UPI</option>
                   <option value="CHEQUE">Cheque</option>
                 </select>
               </div>
-
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Notes (optional)</label>
+              <div>
+                <label className="block text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Notes</label>
                 <textarea
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 resize-none h-20 placeholder:text-gray-300"
-                  placeholder="Cheque no, reference ID…"
+                  className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 resize-none h-16 placeholder:text-muted-foreground"
+                  placeholder="Cheque no, reference…"
                   value={paymentData.notes}
-                  onChange={e => setPaymentData({ ...paymentData, notes: e.target.value })}
-                />
+                  onChange={e => setPaymentData({ ...paymentData, notes: e.target.value })} />
               </div>
-
-              <button
-                type="submit"
+              <button type="submit"
                 disabled={isSubmitting || !hasPermission('clients', 'edit') || success}
-                className="w-full btn-signature h-12 !rounded-xl flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest disabled:opacity-50"
-              >
-                <CheckCircle2 size={15} />
+                className="w-full btn-signature h-11 !rounded-xl flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest disabled:opacity-50">
+                <CheckCircle2 size={14} />
                 {isSubmitting ? 'Saving…' : 'Record Payment'}
               </button>
-              <p className="text-[10px] text-gray-400 text-center leading-snug">
-                Payment reduces outstanding balance directly.<br />
-                Select invoices above to also mark them as paid.
-              </p>
             </form>
           </div>
-        </div>
+        </aside>
 
-        {/* Right panel — invoice list */}
-        <div className="lg:col-span-8">
-          <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
+        {/* ── RIGHT: the ledger, in the supplier's shape ──────────────── */}
+        <section className={`lg:col-span-8 order-2 min-w-0 flex flex-col bg-white rounded-2xl border border-black/5 overflow-hidden ${colH}`}>
 
-            {/* Section header */}
-            <div className="px-4 pt-4 pb-0">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Unpaid Invoices</span>
-                <span className="text-[10px] font-semibold text-gray-400 italic">Optional — select to mark specific invoices as paid</span>
+          {/* Controls. Same set as the supplier ledger so the two screens are
+              one thing to learn: a period, a row type, a sort, a count. */}
+          <div className="no-print p-3 border-b border-black/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="relative flex-1 min-w-0 max-w-[220px]">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Search…"
+                  className="w-full h-8 pl-9 pr-3 rounded-lg bg-white border border-border text-[12px] font-semibold outline-none focus:border-accent-signature" />
               </div>
             </div>
 
-            {/* Toolbar */}
-            <div className="p-4 border-b border-black/5 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-              <div className="relative flex-1 sm:max-w-xs">
-                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search invoices…"
-                  className="w-full bg-canvas rounded-xl py-2.5 pl-9 pr-4 border border-black/5 text-xs font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] font-semibold text-gray-500">
-                  {selectedInvoiceIds.length} of {clientInvoices.length} selected
-                </span>
-                <button
-                  onClick={toggleAll}
-                  className="px-4 py-2 rounded-lg bg-ink-primary text-white text-[11px] font-bold hover:opacity-90 transition-opacity"
-                >
-                  {selectedInvoiceIds.length === clientInvoices.length && clientInvoices.length > 0 ? 'Deselect All' : 'Select All'}
+            {(
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
+                  {[['1M','Month'],['3M','3 months'],['FY','This FY'],['ALL','All']].map(([v,label]) => (
+                    <button key={v} onClick={() => setRange(v)}
+                      className={`px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                        range === v ? 'bg-ink-primary text-white shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
+                  {[['ALL','All'],['SALE','Bills'],['PAYMENT','Payments']].map(([v,label]) => (
+                    <button key={v} onClick={() => setRowKind(v)}
+                      className={`px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                        rowKind === v ? 'bg-accent-signature text-white shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setNewestFirst(v => !v)}
+                  className="h-7 px-2.5 rounded-lg border border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-ink-primary transition-all">
+                  {newestFirst ? 'Newest ↑' : 'Oldest ↓'}
                 </button>
-              </div>
-            </div>
-
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-canvas/50 border-b border-black/5">
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-8">#</th>
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Invoice</th>
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount Due</th>
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Select</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black/5">
-                  {clientInvoices.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="py-20 text-center">
-                        <CheckCircle2 size={40} className="mx-auto mb-3 text-emerald-400 opacity-40" />
-                        <p className="text-sm font-bold text-gray-400">No outstanding invoices</p>
-                        <p className="text-xs text-gray-400 mt-1">This client has no pending payments.</p>
-                      </td>
-                    </tr>
-                  ) : clientInvoices.map((inv, idx) => {
-                    const isSelected = selectedInvoiceIds.includes(inv.id);
-                    return (
-                      <tr
-                        key={inv.id}
-                        onClick={() => toggleInvoice(inv)}
-                        className={`cursor-pointer transition-colors ${isSelected ? 'bg-accent-signature/5' : 'hover:bg-canvas/60'}`}
-                      >
-                        <td className="py-4 px-4 text-[11px] font-semibold text-gray-400">{idx + 1}</td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${isSelected ? 'bg-ink-primary text-accent-signature' : 'bg-white border border-gray-300 shadow-sm text-gray-400'}`}>
-                              <Receipt size={15} />
-                            </div>
-                            <div>
-                              <div className="text-sm font-bold text-ink-primary">#{String(inv.invoice_number || '').replace(/^#+/, '')}</div>
-                              <div className="text-[10px] text-gray-400 font-semibold mt-0.5">
-                                {inv.payment_status === 'PARTIAL' ? 'Partial' : 'Unpaid'}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm font-semibold text-ink-primary">{formatDate(inv.invoice_date || inv.created_at)}</div>
-                          <div className="text-[10px] text-gray-400 font-medium mt-0.5 flex items-center gap-1">
-                            <Clock size={10} />
-                            {new Date(inv.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-right">
-                          <div className={`text-sm font-black font-mono tabular-nums ${isSelected ? 'text-ink-primary' : 'text-gray-700'}`}>
-                            {formatCurrency(invoiceDue(inv))}
-                          </div>
-                          {inv.paid_amount > 0 && (
-                            <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                              Paid: {formatCurrency(inv.paid_amount)} of {formatCurrency(inv.grand_total)}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className={`w-6 h-6 mx-auto rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-accent-signature border-accent-signature' : 'border-black/10 bg-white'}`}>
-                            {isSelected && <CheckCircle2 size={14} className="text-ink-primary" />}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Footer summary */}
-            {clientInvoices.length > 0 && (
-              <div className="border-t border-black/5 bg-ink-primary px-6 py-4 flex items-center justify-between rounded-b-2xl">
-                <div>
-                  <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-0.5">Selected Total</div>
-                  <div className="text-2xl font-black text-white font-mono tabular-nums">{formatCurrency(selectedTotal)}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-0.5">Remaining After</div>
-                  <div className="text-xl font-black text-accent-signature font-mono tabular-nums">
-                    {formatCurrency(Math.max(0, outstanding - selectedTotal))}
-                  </div>
-                </div>
+                <span className="text-[11px] font-bold text-muted-foreground">
+                  {ledgerRowsView.length} {ledgerRowsView.length === 1 ? 'row' : 'rows'}
+                </span>
+                {/* Without this the balance column looks broken: on Payments it
+                    can rise across three consecutive credits, because the bills
+                    that raised it are filtered out of view. */}
+                {rowKind !== 'ALL' && (
+                  <span className="text-[11px] text-muted-foreground">
+                    · balance still counts the {rowKind === 'PAYMENT' ? 'bills' : 'payments'} hidden by this filter
+                  </span>
+                )}
               </div>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* Bottom Tabs: Payment History + Statement */}
-      <div className="mt-6">
-        <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
-          {/* Tab switcher */}
-          <div className="px-5 py-3 border-b border-black/5 flex items-center gap-2">
-            {[
-              { id: 'HISTORY',   label: 'Payment History', icon: History },
-              { id: 'STATEMENT', label: 'Statement',        icon: BookOpen },
-            ].map(({ id: tid, label, icon: Icon }) => (
-              <button
-                key={tid}
-                onClick={() => setBottomTab(tid)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                  bottomTab === tid
-                    ? 'bg-ink-primary text-accent-signature'
-                    : 'text-gray-400 hover:text-ink-primary hover:bg-canvas'
-                }`}
-              >
-                <Icon size={12} /> {label}
-              </button>
-            ))}
-            <span className="ml-auto text-[10px] font-semibold text-gray-400">
-              {bottomTab === 'HISTORY' ? `${paymentHistory.length} records` : `${statementRows.length} entries`}
-            </span>
-          </div>
-
-          {/* Payment History */}
-          {bottomTab === 'HISTORY' && (
-            paymentHistory.length === 0 ? (
-              <div className="py-10 text-center text-xs font-semibold text-gray-400">No payments recorded yet</div>
-            ) : (
+          {(
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
               <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-canvas/50 border-b border-black/5">
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Method</th>
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Collected By</th>
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Notes</th>
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                <thead className="bg-canvas/70 sticky top-0 z-10 border-b border-black/5">
+                  <tr>
+                    <th className="py-3 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date</th>
+                    <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Type</th>
+                    <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Reference</th>
+                    <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Debit</th>
+                    <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Credit</th>
+                    {/* The balance is the running figure from the WHOLE ledger,
+                        carried on each row. Filtering to Bills or Payments hides
+                        the rows in between but not their effect, so the column
+                        appears to jump — three payments in a row can leave it
+                        higher than it started because the bills that raised it
+                        are not on screen. Recomputing over the visible subset
+                        would be worse: it would show a balance this client never
+                        had. Say what the number is instead. */}
+                    <th className="py-3 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">
+                      {rowKind === 'ALL' ? 'Balance' : 'Balance (all activity)'}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
-                  {paymentHistory.map(p => {
-                    const Icon = METHOD_ICON[p.payment_method] || Wallet;
+                  {/* Balance carried in, so the figures below are not understated
+                      by whatever the hidden history left behind. */}
+                  {ledgerHiddenBefore > 0 && !newestFirst && (
+                    <tr className="bg-canvas/60">
+                      <td className="py-2.5 px-4 text-[11px] font-bold text-muted-foreground tabular-nums whitespace-nowrap">{formatDate(rangeStart)}</td>
+                      <td colSpan="4" className="py-2.5 px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Balance brought forward
+                        <span className="ml-2 normal-case font-semibold text-muted-foreground/70">{ledgerHiddenBefore} earlier {ledgerHiddenBefore === 1 ? 'entry' : 'entries'} not shown</span>
+                      </td>
+                      <td className="py-2.5 px-4 text-right text-xs font-bold tabular-nums text-ink-primary">{formatCurrency(ledgerOpening)}</td>
+                    </tr>
+                  )}
+
+                  {ledgerRowsView.length === 0 ? (
+                    <tr><td colSpan="6" className="py-20 text-center">
+                      <div className="text-sm font-bold text-ink-primary mb-1">Nothing to show</div>
+                      <div className="text-xs text-muted-foreground">
+                        {statementRows.length === 0 ? 'No bills or payments recorded yet.' : 'Try a wider period or another filter.'}
+                      </div>
+                    </td></tr>
+                  ) : ledgerRowsView.map(r => {
+                    const isPay = r.type === 'PAYMENT';
+                    const items = r.items || [];
+                    const canOpen = !isPay && items.length > 0;
+                    const open = expandedRow === r.id;
                     return (
-                      <tr key={p.id} className="hover:bg-canvas/40 transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="text-sm font-semibold text-ink-primary">{formatDate(p.date)}</div>
-                          <div className="text-[10px] text-gray-400 mt-0.5">{new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <React.Fragment key={r.id}>
+                      <tr
+                        className={`${isPay ? 'hover:bg-emerald-50/30' : 'hover:bg-canvas/60'} ${canOpen ? 'cursor-pointer' : ''} ${open ? 'bg-canvas' : ''}`}
+                        onClick={() => canOpen && setExpandedRow(open ? null : r.id)}>
+                        <td className="py-3 px-4 text-xs font-semibold text-ink-primary tabular-nums whitespace-nowrap">{formatDate(r.date)}</td>
+                        <td className="py-3 px-3">
+                          <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            isPay ? 'bg-emerald-100 text-emerald-700' : 'bg-accent-signature/10 text-accent-signature-hover'}`}>
+                            {isPay ? 'Payment' : r.type === 'INVOICE' ? 'Invoice' : 'Sale'}
+                          </span>
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <Icon size={13} className="text-gray-400" />
-                            <span className="text-xs font-semibold text-ink-primary">{METHOD_LABEL[p.payment_method] || p.payment_method}</span>
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {canOpen && (
+                              <span className={`text-[10px] shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
+                            )}
+                            <span className="text-xs font-semibold text-ink-primary truncate max-w-[220px]">{r.description}</span>
+                            {items.length > 0 && (
+                              <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-black/[0.06] text-ink-secondary">
+                                {items.length} item{items.length === 1 ? '' : 's'}
+                              </span>
+                            )}
+                            {/* Deleting a mistaken receipt lived on the old
+                                History tab. Only real client_payments rows can
+                                go — the synthetic credits derived from a sale's
+                                paidAmount have no row of their own. */}
+                            {isPay && paymentHistory.some(h => h.id === r.id) && hasPermission('clients', 'edit') !== false && (
+                              <button
+                                onClick={() => {
+                                  setEditAmount(String(Math.round(r.credit)));
+                                  setEditError('');
+                                  setEditTarget({ id: r.id, amount: r.credit, date: r.date });
+                                }}
+                                title="Edit this payment"
+                                className="no-print shrink-0 text-muted-foreground hover:text-accent-signature-hover transition-colors"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                            )}
+                            {isPay && paymentHistory.some(h => h.id === r.id) && hasPermission('clients', 'edit') !== false && (
+                              <button
+                                onClick={() => handleDeletePayment(r.id)}
+                                disabled={deletingPaymentId === r.id}
+                                title="Delete this payment"
+                                className="no-print shrink-0 text-muted-foreground hover:text-red-600 disabled:opacity-40 transition-colors"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-xs text-gray-500">{p.collector?.name || '—'}</td>
-                        <td className="py-3 px-4 text-xs text-gray-500 max-w-[200px] truncate">{p.notes || '—'}</td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-3">
-                            <span className="text-sm font-black text-emerald-600 font-mono tabular-nums">{formatCurrency(p.amount)}</span>
-                            <button
-                              onClick={() => handleDeletePayment(p.id)}
-                              disabled={deletingPaymentId === p.id}
-                              className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-40"
-                              title="Delete payment"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
+                        <td className="py-3 px-3 text-right text-xs font-bold tabular-nums text-ink-primary">
+                          {r.debit > 0 ? formatCurrency(r.debit) : '—'}
+                        </td>
+                        <td className="py-3 px-3 text-right text-xs font-bold tabular-nums text-emerald-600">
+                          {r.credit > 0 ? formatCurrency(r.credit) : '—'}
+                        </td>
+                        <td className={`py-3 px-4 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>
+                          {formatCurrency(r.balance)}
                         </td>
                       </tr>
+
+                      {/* What the customer actually bought on this bill — the
+                          same detail the supplier ledger opens on a purchase.
+                          It was only reachable from the removed invoice list. */}
+                      {open && (
+                        <tr className="bg-canvas/60">
+                          <td colSpan="6" className="px-5 py-3 border-l-2 border-accent-signature">
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                              Products on this bill
+                            </div>
+                            <table className="w-full">
+                              <tbody className="divide-y divide-black/5">
+                                {items.map((it, i) => {
+                                  const qty  = Number(it.quantity) || 0;
+                                  const rate = Number(it.rate) || 0;
+                                  return (
+                                    <tr key={`${r.id}-${it.id || i}`}>
+                                      <td className="py-2 text-[12px] font-semibold text-ink-primary">{it.name || '—'}</td>
+                                      <td className="py-2 text-right text-[12px] tabular-nums text-muted-foreground whitespace-nowrap">
+                                        {qty} × {formatCurrency(rate)}
+                                      </td>
+                                      <td className="py-2 text-right text-[12px] font-semibold tabular-nums text-ink-primary whitespace-nowrap">
+                                        {formatCurrency(qty * rate)}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
                   })}
-                </tbody>
-                <tfoot className="border-t-2 border-black/10">
-                  <tr>
-                    <td colSpan="4" className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Total Collected</td>
-                    <td className="py-3 px-4 text-right">
-                      <span className="text-sm font-black text-emerald-600 font-mono tabular-nums">
-                        {formatCurrency(paymentHistory.reduce((s, p) => s + Number(p.amount), 0))}
-                      </span>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            )
-          )}
 
-          {/* Statement Ledger */}
-          {bottomTab === 'STATEMENT' && (
-            statementRows.length === 0 ? (
-              <div className="py-10 text-center text-xs font-semibold text-gray-400">No transactions on record</div>
-            ) : (
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-canvas/50 border-b border-black/5">
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Debit</th>
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Credit</th>
-                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Balance</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black/5">
-                  {statementRows.map(row => (
-                    <tr key={row.id} className="hover:bg-canvas/40 transition-colors">
-                      <td className="py-3 px-4 text-sm font-semibold text-ink-primary whitespace-nowrap">{formatDate(row.date)}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${row.type === 'PAYMENT' ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                          <span className="text-xs font-semibold text-ink-primary">{row.description}</span>
-                        </div>
+                  {ledgerHiddenBefore > 0 && newestFirst && ledgerRowsView.length > 0 && (
+                    <tr className="bg-canvas/60">
+                      <td className="py-2.5 px-4 text-[11px] font-bold text-muted-foreground tabular-nums whitespace-nowrap">{formatDate(rangeStart)}</td>
+                      <td colSpan="4" className="py-2.5 px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Balance brought forward
+                        <span className="ml-2 normal-case font-semibold text-muted-foreground/70">{ledgerHiddenBefore} earlier {ledgerHiddenBefore === 1 ? 'entry' : 'entries'} not shown</span>
                       </td>
-                      <td className="py-3 px-4 text-right text-sm font-semibold font-mono tabular-nums text-red-500">
-                        {row.debit > 0 ? formatCurrency(row.debit) : '—'}
+                      <td className="py-2.5 px-4 text-right text-xs font-bold tabular-nums text-ink-primary">{formatCurrency(ledgerOpening)}</td>
+                    </tr>
+                  )}
+                </tbody>
+
+                {statementRows.length > 0 && rowKind === 'ALL' && !searchTerm.trim() && (
+                  <tfoot>
+                    <tr className="bg-canvas border-t-2 border-black/10">
+                      <td colSpan="3" className="py-3 px-4 text-[10px] font-black uppercase tracking-wider text-ink-primary">
+                        Closing balance
+                        {ledgerHiddenBefore > 0 && (
+                          <span className="ml-2 normal-case font-semibold text-muted-foreground">
+                            · debit/credit cover {formatDate(rangeStart)} onwards
+                          </span>
+                        )}
                       </td>
-                      <td className="py-3 px-4 text-right text-sm font-semibold font-mono tabular-nums text-emerald-600">
-                        {row.credit > 0 ? formatCurrency(row.credit) : '—'}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <span className={`text-sm font-black font-mono tabular-nums ${row.balance > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
-                          {formatCurrency(Math.abs(row.balance))}
-                          {row.balance > 0 ? ' Dr' : row.balance < 0 ? ' Cr' : ''}
-                        </span>
+                      <td className="py-3 px-3 text-right text-[11px] font-bold tabular-nums text-muted-foreground">{formatCurrency(ledgerTotals.debit)}</td>
+                      <td className="py-3 px-3 text-right text-[11px] font-bold tabular-nums text-muted-foreground">{formatCurrency(ledgerTotals.credit)}</td>
+                      <td className={`py-3 px-4 text-right text-sm font-black tabular-nums ${ledgerClosing > 0.01 ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {formatCurrency(ledgerClosing)}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot className="border-t-2 border-black/10 bg-ink-primary">
-                  <tr>
-                    <td colSpan="2" className="py-3 px-4 text-xs font-bold text-white/60 uppercase tracking-widest">Closing Balance</td>
-                    <td className="py-3 px-4 text-right text-xs font-black text-red-300 font-mono tabular-nums">
-                      {formatCurrency(statementRows.reduce((s, r) => s + r.debit, 0))}
-                    </td>
-                    <td className="py-3 px-4 text-right text-xs font-black text-emerald-300 font-mono tabular-nums">
-                      {formatCurrency(statementRows.reduce((s, r) => s + r.credit, 0))}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      {(() => {
-                        const last = statementRows[statementRows.length - 1];
-                        return (
-                          <span className={`text-sm font-black font-mono tabular-nums ${last.balance > 0 ? 'text-red-300' : 'text-emerald-300'}`}>
-                            {formatCurrency(Math.abs(last.balance))} {last.balance > 0 ? 'Dr' : 'Cr'}
-                          </span>
-                        );
-                      })()}
-                    </td>
-                  </tr>
-                </tfoot>
+                  </tfoot>
+                )}
               </table>
-            )
+            </div>
           )}
-        </div>
+        </section>
       </div>
+
+      {/* Editing a receipt updates it in place and replays the client's
+          allocations, so the outstanding balance follows without the receipt
+          disappearing from the statement. */}
+      {editTarget && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink-primary/10 backdrop-blur-md no-print"
+          onClick={() => !editSaving && setEditTarget(null)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm bg-white rounded-2xl border border-black/[0.06] shadow-[0_24px_70px_-20px_rgba(0,0,0,0.35)] p-5">
+            <h2 className="text-base font-black text-ink-primary">Edit payment</h2>
+            <p className="text-[12px] text-muted-foreground mt-1">
+              Received {formatDate(editTarget.date)} · currently {formatCurrency(editTarget.amount)}
+            </p>
+            <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mt-4 mb-2">New amount</label>
+            <input type="number" inputMode="decimal" value={editAmount} autoFocus
+              onChange={(e) => setEditAmount(e.target.value)}
+              className="w-full bg-white border border-border shadow-sm rounded-xl px-3.5 py-3 text-sm font-black text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 tabular-nums" />
+            {editError && (
+              <div className="mt-3 text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{editError}</div>
+            )}
+            <div className="flex gap-2 mt-4">
+              <button disabled={editSaving || !(Number(editAmount) > 0)}
+                onClick={async () => {
+                  setEditSaving(true); setEditError('');
+                  const res = await editClientPayment(editTarget.id, { amount: Number(editAmount) });
+                  setEditSaving(false);
+                  if (res?.success) setEditTarget(null);
+                  else setEditError(res?.error?.message || 'Could not save the change.');
+                }}
+                className="flex-1 h-10 rounded-xl bg-ink-primary text-white text-[13px] font-bold disabled:opacity-60">
+                {editSaving ? 'Saving…' : 'Save'}
+              </button>
+              <button disabled={editSaving} onClick={() => setEditTarget(null)}
+                className="h-10 px-4 rounded-xl border border-black/10 text-[13px] font-bold text-muted-foreground">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

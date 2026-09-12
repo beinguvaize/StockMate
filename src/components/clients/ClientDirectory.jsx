@@ -43,46 +43,46 @@ const ClientDirectory = ({
       <div className="grid grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr] gap-3">
         {/* Hero: total receivables */}
         <div className="rounded-2xl bg-ink-primary px-4 py-3.5 relative overflow-hidden">
-          <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-amber-500/20 blur-2xl pointer-events-none" />
-          <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-amber-400">
+          <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-accent-signature/20 blur-2xl pointer-events-none" />
+          <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-accent-signature/70">
             <TrendingUp size={11} /> Total Receivables
           </div>
-          <div className="font-mono tabular-nums text-[26px] font-bold text-white mt-1 leading-none">
-            <span className="text-base text-amber-400/70 mr-0.5">{sym}</span>{Math.round(topMetrics.totalReceivables || 0).toLocaleString('en-IN')}
+          <div className="tabular-nums text-[26px] font-bold text-white mt-1 leading-none">
+            <span className="text-base text-accent-signature/70 mr-0.5">{sym}</span>{Math.round(topMetrics.totalReceivables || 0).toLocaleString('en-IN')}
           </div>
-          <div className="text-[10px] text-white/40 font-mono mt-1.5">
+          <div className="text-[10px] text-white/40 tabular-nums mt-1.5">
             {topMetrics.pendingCollections || 0} accounts pending
           </div>
         </div>
 
         {/* Total clients */}
         <div className="rounded-2xl bg-white border border-black/5 px-4 py-3.5 flex items-center gap-3">
-          <div className="w-8 h-8 shrink-0 rounded-lg bg-gray-100 grid place-items-center text-gray-500"><Users size={14} /></div>
+          <div className="w-8 h-8 shrink-0 rounded-lg bg-muted grid place-items-center text-muted-foreground"><Users size={14} /></div>
           <div className="min-w-0">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Total Clients</div>
-            <div className="font-mono tabular-nums text-xl font-bold leading-none text-ink-primary mt-0.5">{filteredClients.length}</div>
+            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Total Clients</div>
+            <div className="tabular-nums text-xl font-bold leading-none text-ink-primary mt-0.5">{filteredClients.length}</div>
           </div>
         </div>
 
         {/* Top debtor */}
         <div className="rounded-2xl bg-white border border-black/5 px-4 py-3.5 flex items-center gap-3">
-          <div className="w-8 h-8 shrink-0 rounded-lg bg-amber-50 grid place-items-center text-amber-600"><CreditCard size={14} /></div>
+          <div className="w-8 h-8 shrink-0 rounded-lg bg-accent-signature/10 grid place-items-center text-accent-signature"><CreditCard size={14} /></div>
           <div className="min-w-0">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Top Debtor</div>
-            <div className="font-mono tabular-nums text-lg font-bold leading-none text-red-600 mt-0.5">
+            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Top Debtor</div>
+            <div className="tabular-nums text-lg font-bold leading-none text-red-600 mt-0.5">
               <span className="text-sm text-red-400 mr-0.5">{sym}</span>{Math.round(topMetrics.topDebtor?.amount || 0).toLocaleString('en-IN')}
             </div>
-            <div className="text-[10px] text-gray-400 truncate mt-0.5">{topMetrics.topDebtor?.name && topMetrics.topDebtor.name !== 'None' ? topMetrics.topDebtor.name : 'No exposure'}</div>
+            <div className="text-[10px] text-muted-foreground truncate mt-0.5">{topMetrics.topDebtor?.name && topMetrics.topDebtor.name !== 'None' ? topMetrics.topDebtor.name : 'No exposure'}</div>
           </div>
         </div>
 
         {/* Pending collections */}
         <div className="rounded-2xl bg-white border border-black/5 px-4 py-3.5 flex items-center gap-3">
-          <div className="w-8 h-8 shrink-0 rounded-lg bg-gray-100 grid place-items-center text-gray-500"><Clock size={14} /></div>
+          <div className="w-8 h-8 shrink-0 rounded-lg bg-muted grid place-items-center text-muted-foreground"><Clock size={14} /></div>
           <div className="min-w-0">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Pending</div>
-            <div className="font-mono tabular-nums text-xl font-bold leading-none text-ink-primary mt-0.5">{topMetrics.pendingCollections || 0}</div>
-            <div className="text-[10px] text-gray-400 mt-0.5">collections</div>
+            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Pending</div>
+            <div className="tabular-nums text-xl font-bold leading-none text-ink-primary mt-0.5">{topMetrics.pendingCollections || 0}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">collections</div>
           </div>
         </div>
       </div>
@@ -96,7 +96,7 @@ const ClientDirectory = ({
               key={f}
               onClick={() => setStatusFilter(f)}
               className={`px-4 py-1.5 rounded-lg text-[12px] font-bold capitalize transition-all ${
-                statusFilter === f ? 'bg-white text-ink-primary shadow-sm' : 'text-gray-500 hover:text-ink-primary'
+                statusFilter === f ? 'bg-white text-ink-primary shadow-sm' : 'text-muted-foreground hover:text-ink-primary'
               }`}
             >
               {f.toLowerCase()}
@@ -113,7 +113,7 @@ const ClientDirectory = ({
               className={`px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
                 dueFilter === k
                   ? (k === 'DUE' ? 'bg-white text-red-600 shadow-sm' : k === 'CLEARED' ? 'bg-white text-emerald-600 shadow-sm' : 'bg-white text-ink-primary shadow-sm')
-                  : 'text-gray-500 hover:text-ink-primary'
+                  : 'text-muted-foreground hover:text-ink-primary'
               }`}
             >
               {lbl}
@@ -124,11 +124,11 @@ const ClientDirectory = ({
         <div className="flex items-center gap-2">
           {/* Search */}
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search clients"
-              className="h-10 w-56 pl-9 pr-3 rounded-xl bg-white border border-gray-200 text-[13px] text-ink-primary placeholder:text-gray-400 outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 transition-all"
+              className="h-10 w-56 pl-9 pr-3 rounded-xl bg-white border border-border text-[13px] text-ink-primary placeholder:text-muted-foreground outline-none focus:border-accent-signature/70 focus:ring-4 focus:ring-accent-signature/10 transition-all"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
@@ -140,11 +140,19 @@ const ClientDirectory = ({
           >
             Bulk Add
           </button>
+          {(topMetrics?.pendingCollections > 0) && (
+            <button
+              onClick={() => navigate('/clients/collect')}
+              className="h-10 px-4 rounded-xl bg-emerald-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-emerald-700 transition-all"
+            >
+              <CreditCard size={15} strokeWidth={2.6} /> Collect Cash
+            </button>
+          )}
           {/* Add button */}
           {hasPermission('clients', 'edit') && (
             <button
               onClick={openAdd}
-              className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all"
+              className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all"
             >
               <Plus size={15} strokeWidth={2.6} /> New client
             </button>
@@ -166,10 +174,10 @@ const ClientDirectory = ({
         <div className="bg-white rounded-2xl border border-black/5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-14px_rgba(0,0,0,0.10)] overflow-hidden">
           {/* Column head */}
           <div className="grid grid-cols-[2fr_1.5fr_1.2fr_auto] gap-4 px-6 py-3 border-b border-black/5">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Client</span>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contact</span>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Outstanding</span>
-            <span className="w-32 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right" />
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Client</span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Contact</span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">Outstanding</span>
+            <span className="w-32 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right" />
           </div>
 
           <div className="divide-y divide-black/5">
@@ -188,15 +196,15 @@ const ClientDirectory = ({
               >
                 {/* Client + meta */}
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200/70 flex items-center justify-center text-[13px] font-mono font-bold text-amber-700">
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-accent-signature/10 to-accent-signature/15 border border-accent-signature/20 flex items-center justify-center text-[13px] tabular-nums font-bold text-accent-signature-hover">
                     {client.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-ink-primary truncate leading-tight">{client.name}</div>
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap text-[12px] text-gray-400">
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap text-[12px] text-muted-foreground">
                       {client.state && <span className="capitalize">{client.state.toLowerCase()}</span>}
                       {client.state && <span className="opacity-40">·</span>}
-                      <span className="font-mono">{sym}{Math.round(stats.totalSales).toLocaleString('en-IN')}</span>
+                      <span className="tabular-nums">{sym}{Math.round(stats.totalSales).toLocaleString('en-IN')}</span>
                       <span>lifetime</span>
                       {inTransitCount > 0 && (
                         <span className="flex items-center gap-0.5 text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full ml-0.5">
@@ -204,7 +212,7 @@ const ClientDirectory = ({
                         </span>
                       )}
                       {pendingDelivCount > 0 && (
-                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
+                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-accent-signature bg-accent-signature/10 border border-accent-signature/15 px-1.5 py-0.5 rounded-full">
                           <Truck size={8} /> {pendingDelivCount}
                         </span>
                       )}
@@ -220,35 +228,45 @@ const ClientDirectory = ({
                 {/* Contact */}
                 <div className="min-w-0">
                   {client.phone ? (
-                    <div className="flex items-center gap-2 text-[13px] text-gray-600">
-                      <Phone size={12} className="text-gray-300 shrink-0" />
-                      <span className="font-mono truncate">{client.phone}</span>
+                    <div className="flex items-center gap-2 text-[13px] text-ink-secondary">
+                      <Phone size={12} className="text-muted-foreground shrink-0" />
+                      <span className="tabular-nums truncate">{client.phone}</span>
                     </div>
                   ) : client.email ? (
-                    <div className="flex items-center gap-2 text-[13px] text-gray-600 min-w-0">
-                      <Mail size={12} className="text-gray-300 shrink-0" />
+                    <div className="flex items-center gap-2 text-[13px] text-ink-secondary min-w-0">
+                      <Mail size={12} className="text-muted-foreground shrink-0" />
                       <span className="truncate">{client.email}</span>
                     </div>
                   ) : client.address ? (
-                    <div className="flex items-center gap-2 text-[13px] text-gray-500 min-w-0">
-                      <MapPin size={12} className="text-gray-300 shrink-0" />
+                    <div className="flex items-center gap-2 text-[13px] text-muted-foreground min-w-0">
+                      <MapPin size={12} className="text-muted-foreground shrink-0" />
                       <span className="truncate">{client.address}</span>
                     </div>
                   ) : (
-                    <span className="text-[13px] text-gray-300">—</span>
+                    <span className="text-[13px] text-muted-foreground">—</span>
                   )}
                 </div>
 
-                {/* Outstanding — dot + word */}
+                {/* Outstanding — dot + word (negative = advance credit) */}
                 <div className="text-right">
-                  {cleared ? (
+                  {outstanding < 0 ? (
+                    <>
+                      <div className="text-[15px] font-bold tabular-nums text-emerald-600 leading-none">
+                        {sym}{Math.round(Math.abs(outstanding)).toLocaleString('en-IN')}
+                      </div>
+                      <div className="flex items-center justify-end gap-1.5 mt-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span className="text-[11px] font-semibold text-emerald-600">Advance</span>
+                      </div>
+                    </>
+                  ) : cleared ? (
                     <div className="flex items-center justify-end gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      <span className="text-[12px] font-semibold text-gray-400">Cleared</span>
+                      <span className="text-[12px] font-semibold text-muted-foreground">Cleared</span>
                     </div>
                   ) : (
                     <>
-                      <div className="font-mono text-[15px] font-bold tabular-nums text-ink-primary leading-none">
+                      <div className="text-[15px] font-bold tabular-nums text-ink-primary leading-none">
                         {sym}{Math.round(outstanding).toLocaleString('en-IN')}
                       </div>
                       <div className="flex items-center justify-end gap-1.5 mt-1">
@@ -274,14 +292,14 @@ const ClientDirectory = ({
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => openEdit(client)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-all"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-all"
                         title="Edit"
                       >
                         <Edit3 size={12} />
                       </button>
                       <button
-                        onClick={() => { if (window.confirm('Delete this client permanently?')) handleDelete(client.id); }}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
+                        onClick={() => { if (window.confirm('Delete this client?')) handleDelete(client.id); }}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-all"
                         title="Delete"
                       >
                         <Trash2 size={12} />

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import { BookOpen, TrendingUp, TrendingDown, Calendar, Receipt, Tag, Landmark } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
@@ -20,10 +21,13 @@ import { formatDate } from '../../lib/utils';
  *   PURCHASE      : DR Inventory       CR Accounts Payable (or Cash)
  */
 const GeneralLedgerReport = () => {
-  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: '*', dateColumn: 'date' });
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: '*', dateColumn: 'date' });
-  const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: '*', dateColumn: 'processed_at' });
-  const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date' });
+  // Financial year to date by default. These queries were previously
+  // unfiltered and read the whole table on every load.
+  const win = useDateWindow('YEAR');
+  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'id, date, totalAmount, totalCogs, paymentMethod, customerInfo, shopId, paymentStatus, status, voided_at', dateColumn: 'date', filters: win.filters });
+  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: '*', dateColumn: 'date', filters: win.filters });
+  const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: '*', dateColumn: 'processed_at', filters: win.filters });
+  const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, supplier_name, payment_type', dateColumn: 'date', filters: win.filters });
 
   const loading = l1 || l2 || l3 || l4;
 
@@ -207,13 +211,13 @@ const GeneralLedgerReport = () => {
   const renderTypeBadge = (val) => {
     const colors = {
       SALE: 'bg-emerald-50 text-emerald-600',
-      COGS: 'bg-amber-50 text-amber-600',
+      COGS: 'bg-accent-signature/10 text-accent-signature',
       EXPENSE: 'bg-rose-50 text-rose-600',
-      PAYROLL: 'bg-amber-50 text-amber-600',
+      PAYROLL: 'bg-accent-signature/10 text-accent-signature',
       PURCHASE: 'bg-sky-50 text-sky-600',
     };
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase ${colors[val] || 'bg-gray-50 text-gray-600'}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${colors[val] || 'bg-muted text-ink-secondary'}`}>
         {val}
       </span>
     );
@@ -228,14 +232,14 @@ const GeneralLedgerReport = () => {
     totals: { debit: totals.debit, credit: totals.credit },
     columns: [
       { key: 'date', label: 'Date', type: 'date', sortable: true, width: 120 },
-      { key: 'id', label: 'Entry #', sortable: true, width: 130, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 font-bold">{val}</span> },
-      { key: 'reference', label: 'Reference', sortable: true, width: 150, render: (val) => <span className="font-mono text-[10px] font-bold text-gray-500">{val}</span> },
+      { key: 'id', label: 'Entry #', sortable: true, width: 130, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
+      { key: 'reference', label: 'Reference', sortable: true, width: 150, render: (val) => <span className="tabular-nums text-[10px] font-semibold text-muted-foreground">{val}</span> },
       { key: 'type', label: 'Type', width: 110, render: renderTypeBadge },
-      { key: 'accountCode', label: 'GL', width: 80, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 font-bold">{val}</span> },
-      { key: 'account', label: 'Account', sortable: true, width: 200, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
-      { key: 'description', label: 'Description', width: 220, render: (val) => <span className="text-[11px] text-gray-600">{val}</span> },
-      { key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-black text-amber-600">{formatINR(val)}</span> : <span className="text-gray-300">—</span> },
-      { key: 'credit', label: 'Credit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-black text-emerald-600">{formatINR(val)}</span> : <span className="text-gray-300">—</span> },
+      { key: 'accountCode', label: 'GL', width: 80, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
+      { key: 'account', label: 'Account', sortable: true, width: 200, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
+      { key: 'description', label: 'Description', width: 220, render: (val) => <span className="text-[11px] text-ink-secondary">{val}</span> },
+      { key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : <span className="text-muted-foreground">—</span> },
+      { key: 'credit', label: 'Credit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-semibold text-emerald-600">{formatINR(val)}</span> : <span className="text-muted-foreground">—</span> },
     ],
     kpis: kpis,
     chartConfig: {
@@ -252,7 +256,7 @@ const GeneralLedgerReport = () => {
         return Object.values(byDay).sort((a, b) => a.name.localeCompare(b.name));
       })(),
       series: [
-        { key: 'Debits', name: 'Debits', color: '#D97706' },
+        { key: 'Debits', name: 'Debits', color: 'var(--color-accent-signature)' },
         { key: 'Credits', name: 'Credits', color: '#10b981' },
       ],
     },
@@ -292,13 +296,13 @@ const GeneralLedgerReport = () => {
       balance: round2(totals.debit - totals.credit),
     },
     columns: [
-      { key: 'accountCode', label: 'Code', sortable: true, width: 100, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 font-bold">{val}</span> },
-      { key: 'account', label: 'Account Name', sortable: true, width: 280, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
-      { key: 'entries', label: 'Entries', align: 'right', sortable: true, width: 110, render: (val) => <span className="font-mono font-bold text-gray-500">{val}</span> },
-      { key: 'debit', label: 'Total Debits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-black text-amber-600">{formatINR(val)}</span> },
-      { key: 'credit', label: 'Total Credits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-black text-emerald-600">{formatINR(val)}</span> },
+      { key: 'accountCode', label: 'Code', sortable: true, width: 100, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
+      { key: 'account', label: 'Account Name', sortable: true, width: 280, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
+      { key: 'entries', label: 'Entries', align: 'right', sortable: true, width: 110, render: (val) => <span className="tabular-nums font-semibold text-muted-foreground">{val}</span> },
+      { key: 'debit', label: 'Total Debits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-semibold text-accent-signature">{formatINR(val)}</span> },
+      { key: 'credit', label: 'Total Credits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-semibold text-emerald-600">{formatINR(val)}</span> },
       { key: 'balance', label: 'Net Balance', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => (
-        <span className={`font-black ${val >= 0 ? 'text-ink-primary' : 'text-rose-500'}`}>{formatINR(val)}</span>
+        <span className={`font-semibold ${val >= 0 ? 'text-foreground' : 'text-rose-500'}`}>{formatINR(val)}</span>
       )},
     ],
     kpis: kpis,
@@ -306,7 +310,7 @@ const GeneralLedgerReport = () => {
       title: 'Net Balance by Account',
       type: 'bar',
       data: accountSummary.map((a) => ({ name: `${a.accountCode}`, value: a.balance })),
-      series: [{ key: 'value', name: 'Balance', color: '#D97706' }],
+      series: [{ key: 'value', name: 'Balance', color: 'var(--color-accent-signature)' }],
     },
     detailFields: [
       { key: 'balance', label: 'Net Balance', type: 'currency', isHero: true },
@@ -318,7 +322,7 @@ const GeneralLedgerReport = () => {
     ],
   };
 
-  return <PremiumReportView title="General Ledger" tabs={[journalTab, accountTab]} />;
+  return <PremiumReportView dateWindow={win} title="General Ledger" tabs={[journalTab, accountTab]} />;
 };
 
 export default GeneralLedgerReport;

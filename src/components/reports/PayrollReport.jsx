@@ -1,13 +1,18 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import ReportShell from './ReportShell';
+import { PRESETS } from './reportUtils';
 import { User, Briefcase, DollarSign, Calendar, Info, Tag, Hash } from 'lucide-react';
 
 const PayrollReport = () => {
+  // Financial year to date by default. These queries were previously
+  // unfiltered and read the whole table on every load.
+  const win = useDateWindow('YEAR');
   const { data: rawData, loading } = useReportData({
     table: 'payroll',
     select: '*',
-    dateColumn: 'processed_at'
+    dateColumn: 'processed_at', filters: win.filters
   });
 
   const metrics = useMemo(() => {
@@ -25,7 +30,7 @@ const PayrollReport = () => {
     const chartData = Object.entries(monthMap).map(([name, value]) => ({ name, value }));
 
     const kpis = [
-      { id: 'disb', label: 'Disbursements', value: total, trend: 1.5, trendDir: 'up', color: 'indigo', chartData: chartData.map(d => ({ value: d.value })) },
+      { id: 'disb', label: 'Disbursements', value: total, trend: 0, trendDir: 'none', color: 'indigo', chartData: chartData.map(d => ({ value: d.value })) },
       { id: 'staff', label: 'Active Personnel', value: uniqueStaff, trend: 0, trendDir: 'none', color: 'emerald', chartData: [{ value: 50 }, { value: 50 }] },
       { id: 'avg', label: 'Average Payload', value: total / (uniqueStaff || 1), trend: 0.5, trendDir: 'up', color: 'amber', chartData: chartData.map(d => ({ value: d.value / uniqueStaff })) }
     ];
@@ -42,13 +47,13 @@ const PayrollReport = () => {
     totals: { amount: metrics.total },
     columns: [
       { key: 'processed_at', label: 'Disbursement Date', type: 'date', sortable: true, width: 180 },
-      { key: 'employeeId', label: 'Authorized Node (Staff)', width: 220, render: (val) => <div className="flex items-center gap-2 text-ink-primary font-black uppercase"><User size={12} className="text-accent-signature" /> {(val || '').slice(0, 10).toUpperCase()}...</div> },
-      { key: 'month', label: 'Fiscal Period', sortable: true, width: 150, render: (val) => <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">{val || 'CURRENT'}</span> },
+      { key: 'employeeId', label: 'Authorized Node (Staff)', width: 220, render: (val) => <div className="flex items-center gap-2 text-foreground font-semibold uppercase"><User size={12} className="text-accent-signature" /> {(val || '').slice(0, 10).toUpperCase()}...</div> },
+      { key: 'month', label: 'Fiscal Period', sortable: true, width: 150, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'CURRENT'}</span> },
       { key: 'amount', label: 'Magnitude (Salary)', type: 'currency', align: 'right', sortable: true, width: 160 },
-      { key: 'processed_by', label: 'Validator ID', width: 140, render: (val) => <span className="text-[10px] font-bold text-gray-400 font-mono uppercase">{val || 'SYSTEM'}</span> }
+      { key: 'processed_by', label: 'Validator ID', width: 140, render: (val) => <span className="text-[10px] font-semibold text-muted-foreground tabular-nums uppercase">{val || 'SYSTEM'}</span> }
     ],
     kpis: metrics.kpis,
-    chartConfig: { title: "Fiscal Period Expenditure Trend", type: 'line', data: metrics.chartData, series: [{ key: 'value', name: 'Disbursements', color: '#D97706' }] },
+    chartConfig: { title: "Fiscal Period Expenditure Trend", type: 'line', data: metrics.chartData, series: [{ key: 'value', name: 'Disbursements', color: 'var(--color-accent-signature)' }] },
     detailFields: [
       { key: 'amount', label: 'Disbursement value', type: 'currency', isHero: true },
       { key: 'employeeId', label: 'Personnel Identifier', icon: <Hash size={12} /> },
@@ -58,7 +63,27 @@ const PayrollReport = () => {
     ]
   };
 
-  return <ReportShell tabs={[payrollTab]} />;
+  // ReportShell has no filter slot, so the window is surfaced above it —
+  // otherwise the report would be silently filtered with no way to change it.
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <p className="text-xs text-muted-foreground">Showing {win.subtitle}</p>
+        <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
+          {PRESETS.map(p => (
+            <button key={p.id} onClick={() => win.headerProps.onPreset(p.id)}
+              className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                win.preset === p.id
+                  ? 'bg-card text-foreground font-semibold shadow-sm'
+                  : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <ReportShell tabs={[payrollTab]} />
+    </div>
+  );
 };
 
 export default PayrollReport;

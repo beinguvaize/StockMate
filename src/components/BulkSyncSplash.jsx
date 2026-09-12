@@ -55,7 +55,7 @@ const BulkSyncSplash = ({ tenantId, onDone }) => {
     <div className="fixed inset-0 z-[9999] bg-[#0f1f17]/95 backdrop-blur-sm flex items-center justify-center">
       <div className="w-[420px] bg-white rounded-3xl shadow-2xl p-8">
         <div className="flex flex-col items-center text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#D97706]/15 flex items-center justify-center mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-accent-signature/15 flex items-center justify-center mb-4">
             {phase === 'running' && <Loader2 size={28} className="text-[#0f1f17] animate-spin" />}
             {phase === 'done'    && <CheckCircle2 size={28} className="text-emerald-500" />}
             {phase === 'error'   && <AlertTriangle size={28} className="text-red-500" />}
@@ -66,7 +66,7 @@ const BulkSyncSplash = ({ tenantId, onDone }) => {
              phase === 'done'    ? 'You\'re ready' :
                                    'Sync incomplete'}
           </h2>
-          <p className="text-sm text-gray-500 mb-6">
+          <p className="text-sm text-muted-foreground mb-6">
             {phase === 'running'
               ? 'Downloading your tenant data so every tab works without internet.'
               : phase === 'done'
@@ -75,13 +75,13 @@ const BulkSyncSplash = ({ tenantId, onDone }) => {
           </p>
 
           {/* Progress bar */}
-          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+          <div className="w-full h-2 bg-muted rounded-full overflow-hidden mb-3">
             <div
-              className="h-full bg-[#D97706] transition-all duration-300"
+              className="h-full bg-accent-signature transition-all duration-300"
               style={{ width: `${phase === 'done' ? 100 : pct}%` }}
             />
           </div>
-          <div className="flex items-center justify-between w-full text-[11px] font-mono text-gray-500">
+          <div className="flex items-center justify-between w-full text-[11px] tabular-nums text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <Download size={12} />
               {progress.table || '…'}
@@ -90,14 +90,14 @@ const BulkSyncSplash = ({ tenantId, onDone }) => {
           </div>
 
           {errors.length > 0 && (
-            <div className="mt-4 w-full px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 text-left">
+            <div className="mt-4 w-full px-3 py-2 rounded-lg bg-accent-signature/10 border border-accent-signature/25 text-[11px] text-accent-signature-hover text-left">
               {errors.length} table{errors.length === 1 ? '' : 's'} couldn't be cached. They'll retry next time you sync.
             </div>
           )}
 
           {phase === 'running' && (
             <button onClick={onDone}
-              className="mt-6 text-[11px] font-bold text-gray-400 hover:text-ink-primary underline underline-offset-4">
+              className="mt-6 text-[11px] font-bold text-muted-foreground hover:text-ink-primary underline underline-offset-4">
               Skip — I'll work online for now
             </button>
           )}

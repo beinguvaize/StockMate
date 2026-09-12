@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { realtimeEnabled } from '../lib/realtime';
 
 // Reject a pending request after `ms` so a hung network call can never
 // freeze the app on the loading screen.
@@ -79,9 +80,45 @@ export const AuthProvider = ({ children }) => {
           }
         }
 
+        // A removed staff member must not be able to sign in. deleteUser now
+        // soft-deletes, so without this the row still loads and they keep full
+        // access -- "removing" someone would only hide them from the list.
+        if (profile?.deleted_at) {
+          console.warn('[auth] %s was removed from this workspace', session.user.email);
+          profile = null;
+          setCurrentUser({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.email.split('@')[0],
+            roles: [],
+            status: 'REMOVED',
+            profileMissing: true,
+            accountRemoved: true,
+          });
+        }
+
         if (profile) {
           // Merge session email into profile to ensure bypass logic always has the data
           const enrichedProfile = { ...profile, email: session.user.email };
+
+          // Desktop: the offline cache + outbox are keyed per app, NOT per
+          // tenant. If a different tenant logs in, wipe both — otherwise the
+          // UI serves the previous tenant's cached rows (numbers "flicker")
+          // and, far worse, the previous tenant's queued writes would replay
+          // under the new login.
+          if (isDesktop && enrichedProfile.tenant_id) {
+            try {
+              const { getMeta, setMeta, clearAll } = await import('../lib/offline/cache.js');
+              const prevTenant = await getMeta('cacheTenantId');
+              if (prevTenant && prevTenant !== enrichedProfile.tenant_id) {
+                console.info('[auth] tenant switch — clearing offline cache + outbox');
+                const { clearOps } = await import('../lib/offline/outbox.js');
+                await clearOps();
+                await clearAll(); // wipes records + meta (incl. bulkSync flag → fresh download)
+              }
+              await setMeta('cacheTenantId', enrichedProfile.tenant_id);
+            } catch (_) {/* cache guard is best-effort */}
+          }
 
           // Ensure bootstrap admins always have their roles in state even if DB is out of sync
           if (isSuperUser && !enrichedProfile.roles?.includes('GLOBAL_ADMIN')) {
@@ -113,19 +150,46 @@ export const AuthProvider = ({ children }) => {
               } catch (_) {/* ignore — bootstrap is best-effort */}
             })();
           }
-        } else {
-          // Provision superuser if match
+        } else if (isSuperUser) {
+          // A bootstrap admin is provisioned for real -- the row is written, so
+          // the database agrees with what is in state.
           const newUserProfile = {
             id: session.user.id,
             email: session.user.email,
             name: session.user.email.split('@')[0],
-            roles: isSuperUser ? ['GLOBAL_ADMIN', 'OWNER'] : ['STAFF'],
-            status: 'ACTIVE'
+            roles: ['GLOBAL_ADMIN', 'OWNER'],
+            status: 'ACTIVE',
           };
-          setCurrentUser(newUserProfile);
-          if (isSuperUser) {
-            await supabase.from('users').upsert(newUserProfile);
+          const { error: provErr } = await supabase.from('users').upsert(newUserProfile);
+          if (provErr) {
+            console.error('[auth] superuser provisioning failed:', provErr);
+            setCurrentUser({ ...newUserProfile, roles: [], status: 'NO_PROFILE', profileMissing: true });
+          } else {
+            setCurrentUser(newUserProfile);
           }
+        } else {
+          // NO PROFILE ROW, and we are not allowed to create one.
+          //
+          // This used to invent a profile in memory -- roles STAFF, status
+          // ACTIVE, no tenant -- and carry on as though the account were set up.
+          // The app then rendered normally while the DATABASE had no record of
+          // the user, so current_tenant_id() was null, is_global_admin() was
+          // false, and every RLS policy denied. Reads still looked fine because
+          // the cache served rows; writes matched nothing and did nothing.
+          //
+          // A signed-in account the database does not know about is not a
+          // working account, and pretending otherwise is what made this take a
+          // customer report and three fixes to find.
+          console.error('[auth] signed in as %s but no users row exists — account not provisioned',
+            session.user.email);
+          setCurrentUser({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.email.split('@')[0],
+            roles: [],
+            status: 'NO_PROFILE',
+            profileMissing: true,
+          });
         }
       }
       } catch (err) {
@@ -160,6 +224,25 @@ export const AuthProvider = ({ children }) => {
             .select('*')
             .eq('id', session.user.id)
             .maybeSingle();
+
+          // A removed staff member must not get back in. The initial getSession
+          // path checks this, but a fresh credential login arrives here instead
+          // — so without this check, soft-deleting someone hid them from the
+          // user list while they kept their tenant, their roles and full access
+          // the moment they signed in again.
+          if (profile?.deleted_at) {
+            console.warn('[auth] %s was removed from this workspace', session.user.email);
+            setCurrentUser({
+              id: session.user.id,
+              email: session.user.email,
+              name: session.user.email.split('@')[0],
+              roles: [],
+              status: 'REMOVED',
+              profileMissing: true,
+              accountRemoved: true,
+            });
+            return;
+          }
 
           if (profile) {
             const enrichedProfile = { ...profile, email: session.user.email };
@@ -213,6 +296,8 @@ export const AuthProvider = ({ children }) => {
   // Realtime: watch own profile row for role/permission changes made by admin
   useEffect(() => {
     if (!currentUser?.id) return;
+    // Realtime policy: see src/lib/realtime.js
+    if (!realtimeEnabled('auth')) return;
     const channel = supabase
       .channel(`user-profile-${currentUser.id}`)
       .on('postgres_changes', {
@@ -253,6 +338,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
+    // Fresh sign-in always starts clean: drop any impersonation left in this
+    // tab's sessionStorage — otherwise a global admin who impersonated a
+    // tenant earlier gets silently dumped back into that tenant (possibly a
+    // suspended one) instead of Nexus HQ.
+    try {
+      sessionStorage.removeItem('nexus_impersonating');
+      sessionStorage.removeItem('nexus_impersonated_tenant');
+    } catch (_) {/* storage unavailable — ignore */}
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { success: false, error: error.message };
 
@@ -299,6 +393,11 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     await supabase.auth.signOut();
     setCurrentUser(null);
+    // Impersonation must not outlive the session that started it.
+    try {
+      sessionStorage.removeItem('nexus_impersonating');
+      sessionStorage.removeItem('nexus_impersonated_tenant');
+    } catch (_) {/* ignore */}
     // Clear desktop offline bootstrap so next launch requires online sign-in
     try {
       const { clearBootstrap, isElectron } = await import('../lib/offline/authGuard.js');

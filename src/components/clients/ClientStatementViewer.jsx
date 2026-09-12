@@ -19,12 +19,12 @@ const ClientStatementViewer = ({
  <div className="flex justify-between items-start shrink-0 border-b border-black/5 pb-6">
  <div className="flex flex-col">
  <h2 className="text-4xl font-semibold text-ink-primary leading-none mb-1">Account Statement</h2>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">
+ <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-6 uppercase">
  Generated on {new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric'})}
  </p>
  </div>
  <div className="flex gap-2">
- <button className="p-3 bg-white border border-gray-300 shadow-sm rounded-lg hover:bg-black/5 transition-all" title="Print Statement">
+ <button className="p-3 bg-white border border-border shadow-sm rounded-lg hover:bg-black/5 transition-all" title="Print Statement">
  <Printer size={18} />
  </button>
  <button className="p-3 bg-ink-primary text-accent-signature rounded-lg hover:scale-105 transition-all flex items-center gap-2 px-6">
@@ -53,12 +53,12 @@ const ClientStatementViewer = ({
  <div className="grid grid-cols-2 gap-3">
  <div className="p-6 bg-ink-primary rounded-xl text-surface flex flex-col justify-center">
  <span className="text-[8px] font-semibold opacity-60 mb-1">TOTAL OUTSTANDING</span>
- <div className={`text-3xl font-semibold font-mono tabular-nums leading-none ${(client.outstanding_balance || 0) > 0 ? 'text-accent-signature' : 'text-green-500'}`}>
+ <div className={`text-3xl font-semibold tabular-nums leading-none ${(client.outstanding_balance || 0) > 0 ? 'text-accent-signature' : 'text-green-500'}`}>
  {businessProfile?.currencySymbol || '₹'}{Math.round(client.outstanding_balance || 0).toLocaleString()}
  </div>
  </div>
  <div className="p-6 bg-canvas/50 rounded-xl flex flex-col justify-center border border-black/5">
- <span className="text-[8px] font-semibold text-gray-700 opacity-60 mb-1">TRANSACTION COUNT</span>
+ <span className="text-[8px] font-semibold text-ink-secondary opacity-60 mb-1">TRANSACTION COUNT</span>
  <div className="text-3xl font-semibold text-ink-primary tabular-nums leading-none">
  {statement.length} <span className="text-sm font-semibold opacity-60">TXNS</span>
  </div>
@@ -112,19 +112,19 @@ const ClientStatementViewer = ({
  <span className="text-[11px] font-semibold text-ink-primary leading-tight">
  {txn.description}
  </span>
- <span className="text-[8px] font-bold text-gray-700 opacity-60">
+ <span className="text-[8px] font-bold text-ink-secondary opacity-60">
  {formatDate(txn.date)}
  </span>
  </div>
  </td>
- <td className="py-2 px-6 text-right font-semibold font-mono text-sm tabular-nums text-red-500">
+ <td className="py-2 px-6 text-right font-semibold text-sm tabular-nums text-red-500">
  {txn.debit > 0 ? `${Math.round(txn.debit).toLocaleString()}` : '-'}
  </td>
- <td className="py-2 px-6 text-right font-semibold font-mono text-sm tabular-nums text-green-600">
+ <td className="py-2 px-6 text-right font-semibold text-sm tabular-nums text-green-600">
  {txn.credit > 0 ? `${Math.round(txn.credit).toLocaleString()}` : '-'}
  </td>
  <td className="py-2 px-6 text-right">
- <span className={`text-base font-semibold font-mono tabular-nums leading-none ${txn.balance > 0 ? 'text-red-500' : 'text-green-500'}`}>
+ <span className={`text-base font-semibold tabular-nums leading-none ${txn.balance > 0 ? 'text-red-500' : 'text-green-500'}`}>
  {businessProfile?.currencySymbol || '₹'}{Math.round(txn.balance).toLocaleString()}
  </span>
  </td>
@@ -144,7 +144,7 @@ const ClientStatementViewer = ({
  </div>
  </div>
  <div className="text-right">
- <p className="text-[8px] font-bold text-gray-700 opacity-70">Official Business Document • Not an Invoice</p>
+ <p className="text-[8px] font-bold text-ink-secondary opacity-70">Official Business Document • Not an Invoice</p>
  </div>
  </div>
  </div>

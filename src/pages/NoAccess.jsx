@@ -76,14 +76,14 @@ const NoAccess = () => {
 
           <a 
             href="mailto:support@ledgr.pro"
-            className="w-full py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-white transition-all text-center"
+            className="w-full py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-white transition-all text-center"
           >
             Infrastructure Support
           </a>
         </div>
 
         <div className="mt-10 pt-8 border-t border-white/5 flex flex-col items-center gap-2">
-          <p className="text-[8px] text-gray-500 font-bold uppercase tracking-[0.3em]">
+          <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-[0.3em]">
             Ledgr Infrastructure Governance
           </p>
           <div className="flex gap-4">

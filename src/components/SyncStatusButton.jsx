@@ -47,18 +47,18 @@ const SyncStatusButton = () => {
 
   if (!online) {
     StatusIcon = WifiOff;
-    statusColor = 'text-gray-500';
-    statusBg = 'bg-gray-100 border-gray-200';
+    statusColor = 'text-muted-foreground';
+    statusBg = 'bg-muted border-border';
     label = 'Offline';
   } else if (pendingCount > 0) {
     StatusIcon = AlertCircle;
-    statusColor = 'text-amber-600';
-    statusBg = 'bg-amber-50 border-amber-200';
+    statusColor = 'text-accent-signature';
+    statusBg = 'bg-accent-signature/10 border-accent-signature/25';
     label = `${pendingCount} pending`;
   } else if (syncing) {
     StatusIcon = RefreshCw;
-    statusColor = 'text-amber-500';
-    statusBg = 'bg-amber-50 border-amber-200';
+    statusColor = 'text-accent-signature';
+    statusBg = 'bg-accent-signature/10 border-accent-signature/25';
     label = 'Syncing';
   }
 
@@ -75,7 +75,7 @@ const SyncStatusButton = () => {
           <StatusIcon size={13} className={syncing ? 'animate-spin' : ''} />
           <span className="hidden md:inline">{label}</span>
           {online && !syncing && (
-            <span className="hidden lg:inline text-gray-400 font-medium normal-case text-[10px] ml-1">
+            <span className="hidden lg:inline text-muted-foreground font-medium normal-case text-[10px] ml-1">
               {fmtRelative(lastSyncAt)}
             </span>
           )}
@@ -88,14 +88,14 @@ const SyncStatusButton = () => {
 
       {menuOpen && (
         <div className="absolute right-0 top-full mt-2 z-50 w-64 bg-white rounded-2xl border border-black/8 shadow-xl p-3 text-ink-primary">
-          <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">Sync Settings</div>
+          <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2 px-1">Sync Settings</div>
 
           <div className="flex items-center justify-between px-1 py-2 rounded-lg hover:bg-canvas/40">
             <div className="flex items-start gap-2.5">
               <Zap size={14} className="text-accent-signature shrink-0 mt-0.5" />
               <div>
                 <div className="text-[11px] font-black uppercase tracking-wider">Auto sync</div>
-                <div className="text-[10px] text-gray-500 font-medium">Every 10 minutes</div>
+                <div className="text-[10px] text-muted-foreground font-medium">Every 10 minutes</div>
               </div>
             </div>
             <button type="button" onClick={() => setAutoSync(!autoSync)}
@@ -104,7 +104,7 @@ const SyncStatusButton = () => {
             </button>
           </div>
 
-          <div className="px-1 py-2 text-[10px] font-bold text-gray-400">
+          <div className="px-1 py-2 text-[10px] font-bold text-muted-foreground">
             <div>Status: {online ? 'Online' : 'Offline'}</div>
             <div>Pending: {pendingCount}</div>
             <div>Last sync: {fmtRelative(lastSyncAt)}</div>

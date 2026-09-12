@@ -104,7 +104,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       _selectedTaxSlab = match['label'] as String;
       supabase
           .from('products')
-          .select('barcode')
+          .select('barcode').isFilter('deleted_at', null)
           .eq('id', p.id)
           .maybeSingle()
           .then((row) {

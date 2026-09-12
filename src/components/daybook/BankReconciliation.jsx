@@ -91,19 +91,19 @@ const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = 
   const candidates = useMemo(() => {
     const list = [];
     daySales
-      .filter(s => ['BANK','UPI','TRANSFER','NEFT','RTGS'].includes((s.paymentMethod || '').toUpperCase()))
+      .filter(s => ['BANK','UPI','TRANSFER','NEFT','RTGS','CARD','CHEQUE'].includes((s.paymentMethod || '').toUpperCase()))
       .forEach(s => list.push({
         kind: 'sale', id: s.id, date: s.date, amount: Number(s.totalAmount || s.paidAmount || 0),
         label: `Sale ${s.id?.slice(0, 8)} · ${s.paymentMethod}`,
       }));
     dayCollect
-      .filter(p => ['BANK','UPI','TRANSFER','NEFT','RTGS'].includes((p.payment_method || '').toUpperCase()))
+      .filter(p => ['BANK','UPI','TRANSFER','NEFT','RTGS','CARD','CHEQUE'].includes((p.payment_method || '').toUpperCase()))
       .forEach(p => list.push({
         kind: 'payment', id: p.id, date: p.date, amount: Number(p.amount || 0),
         label: `Collection ${(p.id || '').slice(0, 8)} · ${p.payment_method}`,
       }));
     dayExpenses
-      .filter(e => ['BANK','UPI','TRANSFER','NEFT','RTGS'].includes((e.paymentMethod || e.payment_method || '').toUpperCase()))
+      .filter(e => ['BANK','UPI','TRANSFER','NEFT','RTGS','CARD','CHEQUE'].includes((e.paymentMethod || e.payment_method || '').toUpperCase()))
       .forEach(e => list.push({
         kind: 'expense', id: e.id, date: e.date, amount: Number(e.amount || 0),
         label: `Expense ${(e.id || '').slice(0, 8)} · ${e.category || ''}`,
@@ -274,7 +274,7 @@ const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = 
       </div>
 
       {/* Variance chips */}
-      <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] font-mono tabular-nums">
+      <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] tabular-nums">
         <div>
           <div className="text-[10px] font-bold text-slate-500 uppercase">Bank In (app)</div>
           <div className="text-sm font-bold text-slate-900">{formatCurrency(bankInApp)}</div>
@@ -291,7 +291,7 @@ const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = 
         </div>
         <div>
           <div className="text-[10px] font-bold text-slate-500 uppercase">Unmatched</div>
-          <div className={`text-sm font-bold ${unmatchedCount === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+          <div className={`text-sm font-bold ${unmatchedCount === 0 ? 'text-emerald-600' : 'text-accent-signature'}`}>
             {unmatchedCount}
           </div>
         </div>
@@ -331,14 +331,14 @@ const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = 
               : candidates.filter(c => c.kind === 'expense');
             return (
               <tr key={tx.id} className={`border-b border-slate-100 hover:bg-slate-50 ${matched ? 'bg-emerald-50/30' : ''}`}>
-                <td className="px-4 py-3 text-slate-700 font-mono tabular-nums">{tx.date}</td>
+                <td className="px-4 py-3 text-slate-700 tabular-nums">{tx.date}</td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                     tx.type === 'CREDIT' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
                   }`}>{tx.type}</span>
                 </td>
-                <td className="px-4 py-3 text-right font-mono tabular-nums font-semibold">{formatCurrency(tx.amount)}</td>
-                <td className="px-4 py-3 text-slate-600 text-xs font-mono">{tx.reference_no || '—'}</td>
+                <td className="px-4 py-3 text-right tabular-nums font-semibold">{formatCurrency(tx.amount)}</td>
+                <td className="px-4 py-3 text-slate-600 text-xs tabular-nums">{tx.reference_no || '—'}</td>
                 <td className="px-4 py-3 text-slate-600 text-xs truncate max-w-[260px]" title={tx.description || ''}>
                   {tx.description || '—'}
                 </td>

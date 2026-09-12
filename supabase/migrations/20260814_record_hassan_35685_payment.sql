@@ -1,0 +1,18 @@
+-- Applied via apply_migration; recorded here for history.
+--
+-- The 10 Aug HASSAN bill (bill_id PUR-1786354022680-01, Rs 35,685) had been set
+-- to paid_amount = 0 earlier the same day, inferred from it carrying no payment
+-- rows. The user confirmed the cash WAS paid, on the bill date. So the record is
+-- the payment itself, not a flag -- it leaves an audit trail, appears on the
+-- supplier statement, and reaches DayBook for 10 August.
+--
+-- One handover, three slices (one per bill line, since settle_purchase_payment
+-- settles a single purchase row). Ids follow the existing slice convention so
+-- paymentRoot() in src/lib/bills.js groups them back into one payment.
+--
+-- Not posted to account_transactions: no supplier payment on this tenant ever
+-- has been. Posting only this one would move the cash account by Rs 35,685 while
+-- none of its siblings did.
+--
+-- After: HASSAN balance 4,010 = open due 4,010. All 13 suppliers satisfy the
+-- invariant, gap 0.00.

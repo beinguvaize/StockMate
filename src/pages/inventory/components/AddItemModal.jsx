@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { validateItemPricing, stockFieldsFor, isServiceForm, defaultProductType } from '../../../lib/itemForm';
 import { ImagePlus, CheckCircle2, Percent, Camera, Images, Upload, X, Loader2, Wand2 } from 'lucide-react';
 import { ean13CheckDigit } from '../../../lib/labelPrint';
 import Modal from '../../../shared/Modal';
@@ -21,16 +22,51 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
     costPrice: '', sellingPrice: '', wholesale_price: '', distributor_price: '', price_inclusive: false, tax_status: 'TAXABLE', stock: '', taxRate: 0, cess_rate: 0, hsn_code: '', taxSlab: 'Exempt', tags: '', image: '',
-    lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: 'STANDARD',
+    lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: defaultProductType(businessType),
     secondary_unit: '', conversion_factor: '',
     food_type: '', is_available: true, station: '', modifier_groups: [],   // menu (restaurant)
     duration_min: '',   // service catalog
     track_serial: false,   // serialized stock (IMEI / serial per unit)
   });
+  // Base units in one packet (0.25 KG for a 250 g pack). 0 when the product
+  // is not sold by an alternate unit.
+  const packConv = (() => {
+    const c = parseFloat(formData.conversion_factor);
+    return (formData.secondary_unit && c > 0) ? c : 0;
+  })();
+  // Text of the per-packet price box, kept separate so typing "3" on the
+  // way to "30" is not rewritten under the cursor.
+  const [packSell, setPackSell] = useState('');
+  const packSellRef = React.useRef(false);
+  // Pack-size solver: the shop starts from a shelf price and a margin, not from
+  // a weight. Given both, the pack size is fixed — this works it out instead of
+  // leaving them to guess a weight and check the margin afterwards.
+  const [wantPrice, setWantPrice] = useState('');
+  const [wantMargin, setWantMargin] = useState('25');
+  // Pack size typed in grams / millilitres. The stored conversion is in the base
+  // unit (0.25 KG), but nobody says "nought point two five of a kilo" — they say
+  // 250 grams. This is the same number in the unit people actually speak.
+  const [packSize, setPackSize] = useState('');
+  const packSizeRef = React.useRef(false);
+  const baseUnitUC = String(formData.unit || '').toUpperCase();
+  const subUnit = baseUnitUC === 'KG' ? 'g' : baseUnitUC === 'LITRE' ? 'ml' : null;
+  React.useEffect(() => {
+    if (packSizeRef.current) { packSizeRef.current = false; return; }
+    const c = parseFloat(formData.conversion_factor);
+    setPackSize(subUnit && c > 0 ? String(Number((c * 1000).toFixed(3))) : '');
+  }, [formData.conversion_factor, subUnit]);
+  React.useEffect(() => {
+    if (packSellRef.current) { packSellRef.current = false; return; }  // user typed here
+    const base = parseFloat(formData.sellingPrice);
+    setPackSell(packConv > 0 && base > 0 ? String(Number((base * packConv).toFixed(2))) : '');
+  }, [formData.sellingPrice, packConv]);
 
   // A SERVICE product (labor / repair, no stock) gets the service UX in ANY
   // business mode — lets a retail shop keep products and add services together.
-  const isService = businessType === 'SERVICES' || formData.product_type === 'SERVICE';
+  // Same rule the save path and the tests use — a services tenant, or a
+  // service item inside a retail one. Kept in one place so the fields the
+  // form hides and the fields the save demands can never disagree again.
+  const isService = isServiceForm({ businessType, product_type: formData.product_type });
 
   const [imageFile, setImageFile]     = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -77,7 +113,12 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         name: '', sku: '', category: '', unit: UNITS[0],
         costPrice: '', sellingPrice: '', wholesale_price: '', distributor_price: '', price_inclusive: false, tax_status: 'TAXABLE', stock: '', taxRate: 0, cess_rate: 0, hsn_code: '', taxSlab: 'Exempt', tags: '', image: '',
         lowStockThreshold: 10, min_margin: 0, barcode: '',
-        food_type: '', is_available: true, station: '',
+        // Omitted entirely before, so a new item started undefined and a
+        // services tenant saved STANDARD rows through a service-looking form.
+        product_type: defaultProductType(businessType),
+        secondary_unit: '', conversion_factor: '',
+        food_type: '', is_available: true, station: '', modifier_groups: [],
+        duration_min: '',
         track_serial: false,
       });
       setImagePreview(null);
@@ -121,6 +162,19 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     setSaveError(null);
 
     try {
+      // Pricing rules live in src/lib/itemForm.js so they can be tested
+      // rather than only observed by opening this modal. A service has no cost
+      // of goods and its Cost Price input is not rendered; demanding one anyway
+      // made every save fail with an error naming a field that was not on
+      // screen, and since service mode covers EVERY item in a SERVICES tenant,
+      // that tenant could not add a single thing to its catalogue.
+      const priceError = validateItemPricing({ ...formData, businessType });
+      if (priceError) {
+        setSaveError(priceError);
+        setUploading(false);
+        return;
+      }
+
       let imageUrl = formData.image || '';
       if (imageFile) {
         const { url, error } = await uploadProductImage(imageFile, tenantId);
@@ -141,8 +195,8 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         distributor_price: parseFloat(formData.distributor_price) || null,
         price_inclusive:  !!formData.price_inclusive,
         tax_status:       formData.tax_status || 'TAXABLE',
-        stock:            parseInt(formData.stock)              || 0,
-        lowStockThreshold: parseInt(formData.lowStockThreshold) || 10,
+        // Services hold no stock and get a null threshold — see itemForm.js.
+        ...stockFieldsFor({ ...formData, businessType }),
         taxRate:          parseFloat(formData.taxRate)          || 0,
         cess_rate:        parseFloat(formData.cess_rate)        || 0,
         hsn_code:         (formData.hsn_code || '').trim()      || null,
@@ -158,7 +212,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         station: formData.station?.trim() || null,
         modifier_groups: Array.isArray(formData.modifier_groups) ? formData.modifier_groups : [],
         duration_min: Number(formData.duration_min) || null,
-        track_serial: !!formData.track_serial,
+        track_serial: isService ? false : !!formData.track_serial,
       };
 
       // Bound the save so a stalled request can't leave the button stuck on
@@ -198,19 +252,19 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       subtitle={editingProduct ? 'Update product details' : 'Add new product to inventory'}
     >
       {(() => {
-        const inputCls = "w-full bg-white border border-gray-300 rounded-xl px-3.5 py-3 text-xs font-bold text-ink-primary placeholder:text-gray-400 placeholder:font-medium outline-none transition-all hover:border-gray-300 focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 shadow-sm";
-        const labelCls = "block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2";
+        const inputCls = "w-full bg-card border border-border rounded-xl px-3.5 py-3 text-xs font-semibold text-foreground placeholder:text-muted-foreground placeholder:font-medium outline-none transition-all hover:border-border focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 shadow-sm";
+        const labelCls = "block text-[10px] font-semibold text-ink-secondary uppercase tracking-wider mb-2";
         const Section = ({ children }) => (
           <div className="flex items-center gap-2 pt-1.5">
             <span className="w-1 h-3.5 rounded-full bg-accent-signature" />
-            <span className="text-[11px] font-black text-ink-primary uppercase tracking-widest">{children}</span>
+            <span className="text-[11px] font-semibold text-foreground uppercase tracking-widest">{children}</span>
           </div>
         );
         const c = parseFloat(formData.costPrice);
         const s = parseFloat(formData.sellingPrice);
         const showMargin = c > 0 && !isNaN(s);
         const margin = showMargin ? ((s - c) / c) * 100 : 0;
-        const marginColor = margin < 0 ? 'text-red-600' : margin < 10 ? 'text-amber-600' : 'text-emerald-600';
+        const marginColor = margin < 0 ? 'text-red-600' : margin < 10 ? 'text-accent-signature' : 'text-emerald-600';
 
         return (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -237,7 +291,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       setFormData({ ...formData, sku });
                     }}
                     title="Auto-generate a SKU"
-                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-bold hover:bg-accent-signature/10">
+                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
                     <Wand2 size={13} /> Assign
                   </button>
                 </div>
@@ -263,7 +317,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               <div>
                 <label className={labelCls}>Barcode (EAN-13 / UPC / custom)</label>
                 <div className="flex gap-2">
-                  <input type="text" className={`${inputCls} font-mono flex-1`} placeholder="Scan or type barcode…"
+                  <input type="text" className={`${inputCls} tabular-nums flex-1`} placeholder="Scan or type barcode…"
                     value={formData.barcode || ''}
                     onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
                   <button type="button"
@@ -273,7 +327,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       setFormData({ ...formData, barcode: body + ean13CheckDigit(body) });
                     }}
                     title="Auto-generate an EAN-13 barcode"
-                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-bold hover:bg-accent-signature/10">
+                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
                     <Wand2 size={13} /> Assign
                   </button>
                 </div>
@@ -290,7 +344,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               </div>
             </div>
 
-            {/* Serialized stock — track each unit by IMEI / serial number */}
+            {/* Serialized stock — track each unit by IMEI / serial number.
+                Never offered for a service: InvoiceBuilder demands a serial per
+                unit at checkout, and a repair hour has no IMEI to give. */}
+            {!isService && (
             <label className="flex items-center gap-3 mt-1 cursor-pointer select-none">
               <button
                 type="button"
@@ -299,13 +356,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 onClick={() => setFormData({ ...formData, track_serial: !formData.track_serial })}
                 className={`relative w-10 h-6 rounded-full transition-colors ${formData.track_serial ? 'bg-accent-signature' : 'bg-gray-300'}`}
               >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${formData.track_serial ? 'translate-x-4' : ''}`} />
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-card shadow transition-transform ${formData.track_serial ? 'translate-x-4' : ''}`} />
               </button>
               <span className="flex flex-col">
-                <span className="text-[13px] font-bold text-ink-primary">Track IMEI / serial per unit</span>
-                <span className="text-[11px] text-gray-400">Phones, electronics — capture the serial on purchase &amp; sale</span>
+                <span className="text-[13px] font-semibold text-foreground">Track IMEI / serial per unit</span>
+                <span className="text-[11px] text-muted-foreground">Phones, electronics — capture the serial on purchase &amp; sale</span>
               </span>
             </label>
+            )}
 
             {/* Menu details — restaurant only */}
             {isResto && (
@@ -318,16 +376,16 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       {[
                         { v: 'VEG', label: 'Veg', dot: 'bg-green-600' },
                         { v: 'NONVEG', label: 'Non-veg', dot: 'bg-red-600' },
-                        { v: 'EGG', label: 'Egg', dot: 'bg-amber-500' },
+                        { v: 'EGG', label: 'Egg', dot: 'bg-accent-signature' },
                       ].map(o => (
                         <button
                           key={o.v}
                           type="button"
                           onClick={() => setFormData({ ...formData, food_type: formData.food_type === o.v ? '' : o.v })}
-                          className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border text-xs font-bold transition-all ${
+                          className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border text-xs font-semibold transition-all ${
                             formData.food_type === o.v
-                              ? 'border-amber-500 bg-amber-50 text-ink-primary'
-                              : 'border-black/10 text-gray-500 hover:border-black/20'
+                              ? 'border-accent-signature bg-accent-signature/10 text-foreground'
+                              : 'border-border text-muted-foreground hover:border-black/20'
                           }`}
                         >
                           <span className={`w-2.5 h-2.5 rounded-sm ${o.dot}`} />{o.label}
@@ -336,61 +394,61 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     </div>
                   </div>
                   <div>
-                    <label className={labelCls}>Kitchen Station <span className="text-gray-400 font-normal">— optional</span></label>
+                    <label className={labelCls}>Kitchen Station <span className="text-muted-foreground font-normal">— optional</span></label>
                     <input type="text" className={inputCls} placeholder="Tandoor, Bar, Grill…"
                       value={formData.station || ''} onChange={e => setFormData({ ...formData, station: e.target.value })} />
                   </div>
                 </div>
                 <label className="flex items-center gap-3 cursor-pointer select-none">
-                  <input type="checkbox" className="w-4 h-4 rounded accent-amber-600"
+                  <input type="checkbox" className="w-4 h-4 rounded accent-accent-signature"
                     checked={formData.is_available !== false}
                     onChange={e => setFormData({ ...formData, is_available: e.target.checked })} />
-                  <span className="text-sm font-semibold text-ink-primary">Available on menu</span>
-                  <span className="text-[11px] text-gray-400">— uncheck to 86 (mark out of stock)</span>
+                  <span className="text-sm font-semibold text-foreground">Available on menu</span>
+                  <span className="text-[11px] text-muted-foreground">— uncheck to 86 (mark out of stock)</span>
                 </label>
 
                 {/* Modifier groups */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className={labelCls}>Modifiers <span className="text-gray-400 font-normal normal-case">— add-ons / variations</span></label>
+                    <label className={labelCls}>Modifiers <span className="text-muted-foreground font-normal normal-case">— add-ons / variations</span></label>
                     <button type="button" onClick={addGroup}
-                      className="text-[11px] font-bold text-amber-600 hover:underline">+ Add group</button>
+                      className="text-[11px] font-semibold text-accent-signature hover:underline">+ Add group</button>
                   </div>
                   <div className="space-y-3">
                     {mgroups.map((g, i) => (
-                      <div key={g.id || i} className="rounded-xl border border-black/10 p-3 bg-canvas/40">
+                      <div key={g.id || i} className="rounded-xl border border-border p-3 bg-canvas/40">
                         <div className="flex items-center gap-2 mb-2">
                           <input value={g.name} onChange={e => updateGroup(i, { name: e.target.value })}
                             placeholder="Group name (Size, Add-ons…)"
-                            className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold outline-none focus:border-amber-500" />
-                          <label className="flex items-center gap-1 text-[11px] font-bold text-gray-500 whitespace-nowrap">
-                            <input type="checkbox" checked={!!g.multi} onChange={e => updateGroup(i, { multi: e.target.checked })} className="accent-amber-600" />
+                            className="flex-1 bg-card border border-border rounded-lg px-3 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature" />
+                          <label className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                            <input type="checkbox" checked={!!g.multi} onChange={e => updateGroup(i, { multi: e.target.checked })} className="accent-accent-signature" />
                             multi
                           </label>
-                          <button type="button" onClick={() => removeGroup(i)} className="text-gray-300 hover:text-red-500"><X size={14} /></button>
+                          <button type="button" onClick={() => removeGroup(i)} className="text-muted-foreground hover:text-red-500"><X size={14} /></button>
                         </div>
                         <div className="space-y-1.5">
                           {(g.options || []).map((o, oi) => (
                             <div key={oi} className="flex items-center gap-2">
                               <input value={o.name} onChange={e => updateOption(i, oi, { name: e.target.value })}
                                 placeholder="Option (Large, Extra cheese…)"
-                                className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-amber-500" />
+                                className="flex-1 bg-card border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-accent-signature" />
                               <div className="flex items-center gap-1">
-                                <span className="text-[11px] text-gray-400">₹</span>
+                                <span className="text-[11px] text-muted-foreground">₹</span>
                                 <input type="number" step="1" value={o.price}
                                   onChange={e => updateOption(i, oi, { price: parseFloat(e.target.value) || 0 })}
-                                  className="w-16 bg-white border border-black/10 rounded-lg px-2 py-1.5 text-xs font-mono outline-none focus:border-amber-500" />
+                                  className="w-16 bg-card border border-border rounded-lg px-2 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature" />
                               </div>
-                              <button type="button" onClick={() => removeOption(i, oi)} className="text-gray-300 hover:text-red-500"><X size={13} /></button>
+                              <button type="button" onClick={() => removeOption(i, oi)} className="text-muted-foreground hover:text-red-500"><X size={13} /></button>
                             </div>
                           ))}
                           <button type="button" onClick={() => addOption(i)}
-                            className="text-[11px] font-bold text-gray-400 hover:text-amber-600">+ Option</button>
+                            className="text-[11px] font-semibold text-muted-foreground hover:text-accent-signature">+ Option</button>
                         </div>
                       </div>
                     ))}
                     {mgroups.length === 0 && (
-                      <p className="text-[11px] text-gray-400">No modifiers. Add a group for sizes or add-ons.</p>
+                      <p className="text-[11px] text-muted-foreground">No modifiers. Add a group for sizes or add-ons.</p>
                     )}
                   </div>
                 </div>
@@ -423,7 +481,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               )}
               <div>
                 <label className={labelCls}>
-                  {isService ? 'Service Price (₹)' : 'Selling Price (₹)'}{formData.product_type === 'RAW' && <span className="text-gray-400 font-normal"> — optional</span>}
+                  {isService ? 'Service Price (₹)' : 'Selling Price (₹)'}{formData.product_type === 'RAW' && <span className="text-muted-foreground font-normal"> — optional</span>}
                 </label>
                 <input required={formData.product_type !== 'RAW'} type="number" step="0.01" className={inputCls} placeholder="0.00"
                   value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value})} />
@@ -439,11 +497,163 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               )}
             </div>
 
+            {/* Per-packet pricing.
+                Cost and price are stored PER BASE UNIT, because stock, COGS and
+                the below-cost guard all work in the base unit. But a shop selling
+                250 g packets thinks "₹30 a packet", not "₹120 a kilo", and was
+                left dividing by hand. This is the same numbers seen from the
+                packet end, and the packet price is editable: type 30 and the
+                per-KG price becomes 120. Nothing extra is stored. */}
+            {!isService && packConv > 0 && (
+              <div className="mt-3 rounded-xl border border-accent-signature/25 bg-accent-signature/[0.04] p-3.5">
+                <div className="text-[10px] font-bold text-accent-signature-hover uppercase tracking-wider mb-2.5">
+                  Per {formData.secondary_unit} · 1 {formData.secondary_unit} = {Number(packConv.toFixed(4))} {formData.unit}
+                </div>
+                <div className={`grid grid-cols-1 ${subUnit ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-3`}>
+                  {subUnit && (
+                    <div>
+                      <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                        Pack size ({subUnit})
+                      </label>
+                      <input type="number" step="1" min="0" placeholder="250"
+                        className="w-full h-9 px-2.5 rounded-lg border border-border bg-card text-[14px] font-bold tabular-nums outline-none focus:border-accent-signature/50"
+                        value={packSize}
+                        onChange={e => {
+                          const v = e.target.value;
+                          packSizeRef.current = true;
+                          setPackSize(v);
+                          const n = parseFloat(v);
+                          // Blank clears the conversion rather than writing 0,
+                          // which would make one packet equal nothing.
+                          setFormData(f => ({
+                            ...f,
+                            conversion_factor: v === '' ? '' : (n > 0 ? String(Number((n / 1000).toFixed(6))) : f.conversion_factor),
+                          }));
+                        }} />
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Costs you</div>
+                    <div className="text-[15px] font-bold tabular-nums text-foreground h-9 flex items-center">
+                      ₹{((parseFloat(formData.costPrice) || 0) * packConv).toFixed(2)}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                      Sell at (₹ / {formData.secondary_unit})
+                    </label>
+                    <input type="number" step="0.01" placeholder="0.00"
+                      className="w-full h-9 px-2.5 rounded-lg border border-border bg-card text-[14px] font-bold tabular-nums outline-none focus:border-accent-signature/50"
+                      value={packSell}
+                      onChange={e => {
+                        const v = e.target.value;
+                        packSellRef.current = true;
+                        setPackSell(v);
+                        const n = parseFloat(v);
+                        // Blank clears rather than writing 0 — an empty box must
+                        // not silently make the product free.
+                        setFormData(f => ({
+                          ...f,
+                          sellingPrice: v === '' ? '' : (n > 0 ? String(Number((n / packConv).toFixed(4))) : f.sellingPrice),
+                        }));
+                      }} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Margin</div>
+                    <div className={`text-[15px] font-bold tabular-nums h-9 flex items-center ${marginColor}`}>
+                      {showMargin ? `${margin.toFixed(1)}%` : '—'}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-2">
+                  Margin is the same per {formData.unit} or per {formData.secondary_unit} — it is a ratio.
+                </div>
+
+                {/* Work the pack size out from the shelf price.
+                    A shop decides "I want to sell at Rs 30 and keep 25%" long
+                    before it decides on a weight — and given a cost per base
+                    unit, those two answers FIX the weight. Solving it here beats
+                    guessing a weight and checking the margin afterwards. */}
+                {(parseFloat(formData.costPrice) > 0) && (() => {
+                  const price  = parseFloat(wantPrice);
+                  const marginPc = parseFloat(wantMargin);
+                  const cost   = parseFloat(formData.costPrice);
+                  // Use the SAME definition of margin as the rest of this screen:
+                  // (sell − cost) / COST, i.e. markup on cost. The first version
+                  // used the accounting margin (÷ sell), so the two boxes on one
+                  // screen meant different things by the same word — and at 100
+                  // it divided to zero and silently rendered nothing.
+                  //   sell = cost × size × (1 + m/100)  ⇒  size = sell ÷ (cost × (1 + m/100))
+                  const ok = price > 0 && marginPc >= 0;
+                  const size = ok ? price / (cost * (1 + marginPc / 100)) : null;
+                  const isWeight = ['KG', 'LITRE'].includes(String(formData.unit || '').toUpperCase());
+                  return (
+                    <div className="mt-3 pt-3 border-t border-accent-signature/20">
+                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                        Not sure of the pack size? Enter what you want to charge
+                      </div>
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div className="w-28">
+                          <label className="block text-[9px] font-semibold text-muted-foreground uppercase mb-1">Sell at ₹</label>
+                          <input type="number" step="0.01" placeholder="30" value={wantPrice}
+                            onChange={e => setWantPrice(e.target.value)}
+                            className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[13px] font-semibold tabular-nums outline-none focus:border-accent-signature/50" />
+                        </div>
+                        <div className="w-24">
+                          <label className="block text-[9px] font-semibold text-muted-foreground uppercase mb-1">Margin % on cost</label>
+                          <input type="number" step="1" placeholder="25" value={wantMargin}
+                            onChange={e => setWantMargin(e.target.value)}
+                            className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[13px] font-semibold tabular-nums outline-none focus:border-accent-signature/50" />
+                        </div>
+                        {!(size > 0) && (wantPrice !== '' || wantMargin !== '') && (
+                          <div className="text-[11px] font-semibold text-muted-foreground pb-1.5">
+                            {!(price > 0)
+                              ? 'Enter the price you want to charge.'
+                              : 'Margin cannot be negative.'}
+                          </div>
+                        )}
+                        {size > 0 && (
+                          <>
+                            <div className="text-[13px] font-bold tabular-nums text-foreground pb-1.5">
+                              = {isWeight ? `${Math.round(size * 1000)} g` : `${Number(size.toFixed(4))} ${formData.unit}`}
+                              <span className="text-[11px] font-semibold text-muted-foreground ml-1.5">
+                                ({Number(size.toFixed(4))} {formData.unit}) per {formData.secondary_unit}
+                              </span>
+                            </div>
+                            <button type="button"
+                              onClick={() => {
+                                setFormData(f => ({
+                                  ...f,
+                                  conversion_factor: String(Number(size.toFixed(4))),
+                                  sellingPrice: String(Number((price / size).toFixed(4))),
+                                }));
+                                packSellRef.current = true;
+                                setPackSell(String(Number(price.toFixed(2))));
+                                packSizeRef.current = true;
+                                setPackSize(subUnit ? String(Math.round(size * 1000)) : '');
+                              }}
+                              className="h-8 px-3 rounded-lg bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-bold transition-colors">
+                              Use this
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      {size > 0 && (
+                        <div className="text-[10px] text-muted-foreground mt-1.5 tabular-nums">
+                          That pack costs ₹{(size * cost).toFixed(2)} and sells at ₹{price.toFixed(2)} — ₹{(price / size).toFixed(2)} per {formData.unit}.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
             {!isService && (
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Price tiers</span>
-                  <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Price tiers</span>
+                  <label className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
                     <input type="checkbox" checked={!!formData.price_inclusive}
                       onChange={e => setFormData({ ...formData, price_inclusive: e.target.checked })} />
                     Prices include tax
@@ -451,16 +661,16 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className={labelCls}>Wholesale (₹) <span className="text-gray-400 font-normal">— bulk</span></label>
+                    <label className={labelCls}>Wholesale (₹) <span className="text-muted-foreground font-normal">— bulk</span></label>
                     <input type="number" step="0.01" className={inputCls} placeholder="0.00"
                       value={formData.wholesale_price} onChange={e => setFormData({ ...formData, wholesale_price: e.target.value })} />
                   </div>
                   <div>
-                    <label className={labelCls}>Distributor (₹) <span className="text-gray-400 font-normal">— reseller</span></label>
+                    <label className={labelCls}>Distributor (₹) <span className="text-muted-foreground font-normal">— reseller</span></label>
                     <input type="number" step="0.01" className={inputCls} placeholder="0.00"
                       value={formData.distributor_price} onChange={e => setFormData({ ...formData, distributor_price: e.target.value })} />
                   </div>
-                  <div className="flex items-end pb-2 text-[11px] text-gray-400">
+                  <div className="flex items-end pb-2 text-[11px] text-muted-foreground">
                     Retail = Selling Price above. Distributor is your lowest (reseller) rate.
                   </div>
                 </div>
@@ -472,7 +682,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>
-                  Alternate Unit <span className="text-gray-400 font-normal">— optional</span>
+                  Alternate Unit <span className="text-muted-foreground font-normal">— optional</span>
                 </label>
                 <select className={inputCls} value={formData.secondary_unit || ''}
                   onChange={e => setFormData({ ...formData, secondary_unit: e.target.value })}>
@@ -485,20 +695,36 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   Conversion {formData.secondary_unit && `(1 ${formData.secondary_unit} = ? ${formData.unit})`}
                 </label>
                 <input type="number" step="0.0001" min="0"
-                  className={`${inputCls} ${!formData.secondary_unit ? 'opacity-60 cursor-not-allowed !bg-gray-50 hover:!border-gray-200' : ''}`}
+                  className={`${inputCls} ${!formData.secondary_unit ? 'opacity-60 cursor-not-allowed !bg-muted hover:!border-border' : ''}`}
                   placeholder={`e.g. 24`}
                   disabled={!formData.secondary_unit}
                   value={formData.conversion_factor}
                   onChange={e => setFormData({ ...formData, conversion_factor: e.target.value })} />
+                {/* Live two-way readout — confirms the factor the moment it's
+                    typed, and shows the reciprocal so a fraction like 0.25 reads
+                    plainly ("4 PACK = 1 KG"). */}
+                {(() => {
+                  const f = parseFloat(formData.conversion_factor);
+                  if (!formData.secondary_unit || !(f > 0)) return null;
+                  const tidy = (n) => Number(n.toFixed(4)).toLocaleString('en-IN');
+                  return (
+                    <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+                      1 {formData.secondary_unit} = <span className="font-semibold text-foreground">{tidy(f)} {formData.unit}</span>
+                      {subUnit && <span className="font-semibold text-foreground"> ({tidy(f * 1000)} {subUnit})</span>}
+                      <span className="mx-1.5 opacity-40">·</span>
+                      {tidy(1 / f)} {formData.secondary_unit} = 1 {formData.unit}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
             {/* Margin indicator + floor guard */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {showMargin && (
-                <div className="flex items-center justify-between bg-white border border-gray-300 rounded-xl px-4 py-3 shadow-sm self-end">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Current Margin</span>
-                  <span className={`text-sm font-black tabular-nums ${marginColor}`}>
+                <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3 shadow-sm self-end">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Current Margin</span>
+                  <span className={`text-sm font-semibold tabular-nums ${marginColor}`}>
                     {margin.toFixed(1)}%{margin < 0 ? ' · loss' : margin < 10 ? ' · low' : ''}
                   </span>
                 </div>
@@ -509,9 +735,9 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <input type="number" step="1" min="0" max="100" className={inputCls} placeholder="e.g. 15"
                     value={formData.min_margin}
                     onChange={e => setFormData({ ...formData, min_margin: e.target.value })} />
-                  <Percent size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <Percent size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1">POS warns / blocks if margin drops below this</p>
+                <p className="text-[10px] text-muted-foreground mt-1">POS warns / blocks if margin drops below this</p>
               </div>
             </div>
             </>)}
@@ -527,10 +753,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 ].map(s => (
                   <button key={s.id} type="button"
                     onClick={() => setFormData({ ...formData, tax_status: s.id, ...(s.id !== 'TAXABLE' ? { taxRate: 0, cess_rate: 0 } : {}) })}
-                    className={`px-3 py-2 rounded-lg text-xs font-black border transition-all ${
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${
                       (formData.tax_status || 'TAXABLE') === s.id
                         ? 'bg-accent-signature text-button-text border-accent-signature shadow-md'
-                        : 'bg-white border-gray-200 text-gray-500 hover:border-accent-signature/40'
+                        : 'bg-card border-border text-muted-foreground hover:border-accent-signature/40'
                     }`}>{s.label}</button>
                 ))}
               </div>
@@ -548,7 +774,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     const s = TAX_SLABS_WITH_CESS[Number(e.target.value)];
                     if (s) setFormData({ ...formData, taxRate: s.value, cess_rate: s.cess });
                   }}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white border border-gray-200 shadow-sm text-xs font-bold text-ink-primary focus:outline-none focus:border-accent-signature/40"
+                  className="w-full px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground focus:outline-none focus:border-accent-signature/40"
                 >
                   {/* When the saved combo isn't a standard slab, findIndex returns -1 */}
                   {TAX_SLABS_WITH_CESS.findIndex(s => s.value === Number(formData.taxRate) && s.cess === Number(formData.cess_rate || 0)) === -1 && (
@@ -558,22 +784,28 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     <option key={i} value={i}>{s.label}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-gray-400 mt-1">GST + Compensation Cess. Applied on invoice & POS checkout.</p>
+                <p className="text-[10px] text-muted-foreground mt-1">GST + Compensation Cess. Applied on invoice & POS checkout.</p>
               </div>
 
-              {/* HSN / SAC code */}
+              {/* HSN for goods, SAC for services — one column, see lib/hsn.js.
+                  Asking a tuition centre for an "HSN code" and showing them an
+                  8-digit plastics example is how the field gets left blank. */}
               <div>
-                <label className={labelCls}>HSN / SAC Code</label>
+                <label className={labelCls}>{isService ? 'SAC Code' : 'HSN Code'}</label>
                 <input
                   type="text"
                   inputMode="numeric"
                   value={formData.hsn_code || ''}
                   onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value.replace(/[^0-9]/g, '') })}
-                  placeholder="e.g. 39231090"
+                  placeholder={isService ? 'e.g. 998313' : 'e.g. 39231090'}
                   maxLength={8}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white border border-gray-200 shadow-sm text-xs font-bold text-ink-primary focus:outline-none focus:border-accent-signature/40"
+                  className="w-full px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground focus:outline-none focus:border-accent-signature/40"
                 />
-                <p className="text-[10px] text-gray-400 mt-1">Required for GSTR-1 HSN summary (Table 12).</p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {isService
+                    ? 'Services use a 6-digit SAC. Required for the GSTR-1 summary (Table 12).'
+                    : 'Required for GSTR-1 HSN summary (Table 12).'}
+                </p>
               </div>
             </div>
             )}
@@ -583,7 +815,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             <div>
               <div className="flex gap-3 items-start">
                 {/* Preview */}
-                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-white border border-gray-300 shadow-sm flex-shrink-0 flex items-center justify-center">
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-card border border-border shadow-sm flex-shrink-0 flex items-center justify-center">
                   {imagePreview ? (
                     <>
                       <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
@@ -596,7 +828,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       </button>
                     </>
                   ) : (
-                    <Camera size={20} className="text-gray-300" />
+                    <Camera size={20} className="text-muted-foreground" />
                   )}
                 </div>
 
@@ -605,18 +837,18 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-gray-300 shadow-sm text-xs font-bold text-ink-primary hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
                   >
                     <Upload size={13} /> Upload New Photo
                   </button>
                   <button
                     type="button"
                     onClick={openPhotoLib}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-gray-300 shadow-sm text-xs font-bold text-ink-primary hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
                   >
                     <Images size={13} /> Choose from Library
                   </button>
-                  <p className="text-[10px] text-gray-400">Max 5 MB · JPG, PNG, WEBP</p>
+                  <p className="text-[10px] text-muted-foreground">Max 5 MB · JPG, PNG, WEBP</p>
                 </div>
 
                 <input
@@ -630,19 +862,19 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
 
               {/* ── Photo Library Panel ── */}
               {showPhotoLib && (
-                <div className="mt-3 bg-white border border-gray-300 shadow-sm rounded-xl p-3">
+                <div className="mt-3 bg-card border border-border shadow-sm rounded-xl p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Recent Photos</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Recent Photos</span>
                     <button type="button" onClick={() => setShowPhotoLib(false)}>
-                      <X size={14} className="text-gray-400 hover:text-ink-primary" />
+                      <X size={14} className="text-muted-foreground hover:text-foreground" />
                     </button>
                   </div>
                   {libLoading ? (
                     <div className="flex items-center justify-center py-6">
-                      <Loader2 size={18} className="animate-spin text-gray-400" />
+                      <Loader2 size={18} className="animate-spin text-muted-foreground" />
                     </div>
                   ) : libPhotos.length === 0 ? (
-                    <div className="text-center py-6 text-xs text-gray-400">
+                    <div className="text-center py-6 text-xs text-muted-foreground">
                       No photos uploaded yet. Upload your first photo above.
                     </div>
                   ) : (
@@ -671,7 +903,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <button
                     type="button"
                     onClick={() => { fileInputRef.current?.click(); setShowPhotoLib(false); }}
-                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-black/10 text-[10px] font-bold text-gray-500 hover:border-accent-signature hover:text-accent-signature transition-colors"
+                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-border text-[10px] font-semibold text-muted-foreground hover:border-accent-signature hover:text-accent-signature transition-colors"
                   >
                     <Upload size={11} /> Upload new photo
                   </button>
@@ -680,7 +912,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             </div>
 
             {saveError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs font-bold text-red-600">
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs font-semibold text-red-600">
                 {saveError}
               </div>
             )}

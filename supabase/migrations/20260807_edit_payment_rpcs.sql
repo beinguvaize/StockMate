@@ -1,0 +1,31 @@
+-- Applied via apply_migration; recorded here for history.
+--
+-- 1. delete_supplier_payment becomes group-aware.
+--
+-- settle_supplier_payment writes one row per bill it allocates to (SUPP-X,
+-- SUPP-X-1, SUPP-X-2) and apply_supplier_advances appends -APPn. The ledger
+-- shows those slices as the single payment they are, so a delete driven from
+-- that row must remove all of them. The first version took one id and reversed
+-- only that slice: deleting a Rs 30,000 payment would have undone Rs 290 and
+-- left the rest, with the ledger then disagreeing with the bills. Passing any
+-- slice now reverses the whole group.
+--
+-- 2. edit_supplier_payment: reverse the group, then re-apply through
+-- settle_supplier_payment so the new amount is allocated by the same FIFO rule
+-- that placed the original, rather than a second implementation of allocation.
+--
+-- 3. edit_client_payment updates the receipt IN PLACE and replays.
+--
+-- It first re-settled, like the supplier one. That was wrong here:
+-- settle_client_payment only writes a client_payments row for the part NOT
+-- absorbed by a non-credit sale (p_amount - v_noncredit_alloc). THOLIKUZHI's
+-- open sales are cash-partial, so editing a Rs 32 receipt to Rs 100 allocated
+-- the whole 100 onto those sales and wrote no receipt at all -- the money still
+-- reduced the debt, but the record of it vanished. Dropped and recreated
+-- because the return type changed from text to numeric.
+--
+-- Verified in rolled-back transactions against production:
+--   · delete group   HASSAN  balance 4,010 -> 34,010, 0 slices left
+--   · edit supplier  30,000 -> 25,000, balance 9,010, old slices gone
+--   · edit client    32 -> 100, receipt survives at 100, receipts 420,
+--                    outstanding 238 -> 138

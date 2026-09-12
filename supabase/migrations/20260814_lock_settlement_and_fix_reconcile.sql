@@ -1,0 +1,25 @@
+-- Applied via apply_migration; recorded here for history.
+--
+-- 1) settle_supplier_payment / settle_purchase_payment now lock the supplier
+--    row before reading anything. The FIFO loop in settle_supplier_payment read
+--    open bills with no lock, so two concurrent settlements both saw the same
+--    paid_amount and both allocated to the same bills. The FIFO select also
+--    takes FOR UPDATE on the rows it is about to modify.
+--    settle_purchase_payment additionally refuses to pay a bill past its total,
+--    because a lock alone changes nothing there -- its updates were already
+--    atomic; what was missing was anyone checking. Verified first: zero
+--    overpaid bills exist on any tenant.
+--
+-- 2) reconcile_purchase_money now resets paid_amount on a cash/credit switch.
+--    It moved the supplier balance and wrote the reversing cash entry but left
+--    paid_amount alone, so a bill switched CASH -> CREDIT went back to being
+--    owed while still displaying "Paid - Settled".
+--    CASH -> CREDIT sets paid_amount to 0; CREDIT -> CASH sets it to the new
+--    total; a same-type amount change leaves it alone, because part payments
+--    are real payment rows and not this function's to rewrite.
+--
+-- 3) Repaired the one bill this had already damaged: HASSAN KOUSER's 3-line
+--    Rs 35,685 bill, which had paid_amount = total on every line and ZERO
+--    supplier_payments rows. Set to 0, which closes the invariant at
+--    39,695 = 39,695 without touching the balance. Guarded to abort unless it
+--    found exactly those 3 rows.

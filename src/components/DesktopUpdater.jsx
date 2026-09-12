@@ -43,7 +43,7 @@ const DesktopUpdater = () => {
     case 'checking':
       icon = <RefreshCw size={16} className="animate-spin" />;
       title = 'Checking for updates…';
-      accent = 'text-gray-500';
+      accent = 'text-muted-foreground';
       break;
     case 'downloading':
       icon = <Download size={16} />;
@@ -64,7 +64,7 @@ const DesktopUpdater = () => {
     case 'dev':
       icon = <RefreshCw size={16} />;
       title = 'Updates are disabled in development';
-      accent = 'text-gray-500';
+      accent = 'text-muted-foreground';
       break;
     case 'error':
       icon = <AlertTriangle size={16} />;
@@ -82,12 +82,12 @@ const DesktopUpdater = () => {
         <div className={`mt-0.5 ${accent}`}>{icon}</div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-black text-ink-primary">{title}</div>
-          {body && <div className="text-[11px] text-gray-400 font-medium mt-0.5 break-words">{body}</div>}
+          {body && <div className="text-[11px] text-muted-foreground font-medium mt-0.5 break-words">{body}</div>}
         </div>
         {dismissable && (
           <button
             onClick={() => setStatus(null)}
-            className="text-gray-300 hover:text-ink-primary transition-colors shrink-0"
+            className="text-muted-foreground hover:text-ink-primary transition-colors shrink-0"
           >
             <X size={14} />
           </button>
@@ -113,7 +113,7 @@ const DesktopUpdater = () => {
           </button>
           <button
             onClick={() => setStatus(null)}
-            className="h-10 px-4 rounded-xl border border-black/10 text-xs font-bold text-gray-500 hover:bg-canvas transition-all"
+            className="h-10 px-4 rounded-xl border border-black/10 text-xs font-bold text-muted-foreground hover:bg-canvas transition-all"
           >
             Later
           </button>

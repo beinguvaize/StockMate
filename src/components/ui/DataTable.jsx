@@ -1,29 +1,28 @@
 /**
- * DataTable — vendflow-style report table primitive.
+ * DataTable — minimal report table primitive.
  *
- * Design contract:
- *   - Sora (font-display via inline) for headers / titles.
- *   - Inter for body text (default sans).
- *   - JetBrains Mono w/ tabular-nums for every number cell so columns
- *     align without grid hacks.
- *   - Monochrome neutrals + a single accent colour per row family
- *     (green = positive, red = negative).
- *   - Hover row tint, optional expandable nested row.
- *   - No bg-card glassmorphism, no shadow on rows — flat + clean.
+ * Design contract (approved report redesign):
+ *   - Theme tokens only (foreground / muted-foreground / border / card /
+ *     muted) so every theme — amber, Zinc, dark — renders correctly. No
+ *     hardcoded slate/hex.
+ *   - System sans everywhere; numbers align via tabular-nums, not a mono font.
+ *   - th: 11px medium muted, sentence case. td: 13px. Money right-aligned.
+ *   - Optional `totalsRow`: a final semibold muted row inside the table
+ *     (replaces the old separate totals strip).
+ *   - Hover tint, optional expandable nested row. Flat, hairline borders.
  *
  * Usage:
  *   <DataTable
  *     title="Machine P&L"
- *     subtitle="Click a row to expand product breakdown"
  *     columns={[
  *       { key: 'name',    label: 'Machine',  align: 'left' },
  *       { key: 'revenue', label: 'Revenue',  align: 'right', numeric: true, fmt: inr },
- *       { key: 'cogs',    label: 'COGS',     align: 'right', numeric: true, fmt: inr },
  *       { key: 'margin',  label: 'Margin',   align: 'right', numeric: true,
  *         fmt: (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`,
- *         className: (v) => v >= 0 ? 'text-emerald-600' : 'text-red-600' },
+ *         className: (v) => v >= 0 ? 'text-[color:var(--color-pos)]' : 'text-[color:var(--color-neg)]' },
  *     ]}
  *     rows={machines}
+ *     totalsRow={{ name: 'Totals', revenue: 171554, margin: 14.5 }}
  *     getRowKey={(r) => r.id}
  *     renderExpanded={(r) => <ProductBreakdown rows={r.products} />}
  *   />
@@ -31,8 +30,7 @@
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 
-const NUM_CLS = 'font-mono tabular-nums';
-const DISPLAY = '"Sora", Inter, sans-serif';
+const NUM_CLS = 'tabular-nums';
 
 const cellAlign = (a) =>
   a === 'right' ? 'text-right' :
@@ -40,16 +38,21 @@ const cellAlign = (a) =>
 
 const Cell = ({ col, value, isHeader = false }) => {
   const align = cellAlign(col.align);
-  const numeric = col.numeric;
   const formatted = col.fmt ? col.fmt(value) : value;
   const colourFn = typeof col.className === 'function' ? col.className : null;
   const colourClass = colourFn ? colourFn(value) : (col.className || '');
-  const base = isHeader
-    ? `text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 py-3 px-4 ${align}`
-    : `text-sm py-3.5 px-4 ${align} ${numeric ? NUM_CLS + ' text-slate-900' : 'text-slate-900'} ${colourClass}`;
-  return isHeader
-    ? <th className={base} style={{ fontFamily: DISPLAY }}>{col.label}</th>
-    : <td className={base}>{formatted}</td>;
+  if (isHeader) {
+    return (
+      <th className={`text-[11px] font-medium text-muted-foreground py-2.5 px-4 ${align}`}>
+        {col.label}
+      </th>
+    );
+  }
+  return (
+    <td className={`text-[13px] py-2.5 px-4 ${align} ${col.numeric ? NUM_CLS : ''} text-foreground ${colourClass}`}>
+      {formatted}
+    </td>
+  );
 };
 
 const DataTable = ({
@@ -57,6 +60,7 @@ const DataTable = ({
   subtitle,
   columns,
   rows = [],
+  totalsRow = null,          // optional { [colKey]: value } — rendered as final semibold row
   getRowKey = (r, i) => r?.id ?? i,
   renderExpanded,            // optional fn(row) → JSX inside expanded panel
   emptyMessage = 'No data',
@@ -66,24 +70,21 @@ const DataTable = ({
   const toggle = (k) =>
     setOpen((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
 
+  const span = columns.length + (renderExpanded ? 1 : 0);
+
   return (
-    <div className={`bg-white rounded-2xl border border-slate-200 overflow-hidden ${className}`}>
+    <div className={`bg-card rounded-[10px] border border-border overflow-hidden ${className}`}>
       {(title || subtitle) && (
-        <div className="px-5 pt-5 pb-3">
-          {title && (
-            <h3 className="text-lg font-bold text-slate-900 tracking-tight"
-                style={{ fontFamily: DISPLAY }}>{title}</h3>
-          )}
-          {subtitle && (
-            <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
-          )}
+        <div className="px-4 pt-4 pb-2.5">
+          {title && <h3 className="text-sm font-semibold text-foreground">{title}</h3>}
+          {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
       )}
 
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-slate-50 border-y border-slate-200">
-            <tr>
+          <thead>
+            <tr className="border-b border-border">
               {renderExpanded && <th className="w-8" />}
               {columns.map((c) => <Cell key={c.key} col={c} isHeader />)}
             </tr>
@@ -91,8 +92,7 @@ const DataTable = ({
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={columns.length + (renderExpanded ? 1 : 0)}
-                    className="text-center text-sm text-slate-400 py-12">
+                <td colSpan={span} className="text-center text-sm text-muted-foreground py-12">
                   {emptyMessage}
                 </td>
               </tr>
@@ -104,12 +104,12 @@ const DataTable = ({
                 <React.Fragment key={k}>
                   <tr
                     onClick={renderExpanded ? () => toggle(k) : undefined}
-                    className={`border-b border-slate-100 transition-colors
-                                ${renderExpanded ? 'cursor-pointer hover:bg-slate-50' : ''}
-                                ${isOpen ? 'bg-slate-50' : ''}`}
+                    className={`border-b border-border/60 last:border-b-0 transition-colors
+                                ${renderExpanded ? 'cursor-pointer hover:bg-muted/50' : 'hover:bg-muted/40'}
+                                ${isOpen ? 'bg-muted/50' : ''}`}
                   >
                     {renderExpanded && (
-                      <td className="w-8 pl-4 text-slate-400">
+                      <td className="w-8 pl-4 text-muted-foreground">
                         <ChevronRight
                           size={14}
                           className={`transition-transform ${isOpen ? 'rotate-90' : ''}`}
@@ -121,8 +121,8 @@ const DataTable = ({
                     ))}
                   </tr>
                   {isOpen && renderExpanded && (
-                    <tr className="bg-slate-50/60">
-                      <td colSpan={columns.length + 1} className="px-4 py-3">
+                    <tr className="bg-muted/40">
+                      <td colSpan={span} className="px-4 py-3">
                         {renderExpanded(row)}
                       </td>
                     </tr>
@@ -130,6 +130,22 @@ const DataTable = ({
                 </React.Fragment>
               );
             })}
+            {totalsRow && rows.length > 0 && (
+              <tr className="bg-muted/40 border-t border-border">
+                {renderExpanded && <td className="w-8" />}
+                {columns.map((c) => {
+                  const v = totalsRow[c.key];
+                  const colourFn = typeof c.className === 'function' ? c.className : null;
+                  const colour = v != null && colourFn ? colourFn(v) : '';
+                  return (
+                    <td key={c.key}
+                        className={`text-[13px] font-semibold py-2.5 px-4 ${cellAlign(c.align)} ${c.numeric ? NUM_CLS : ''} text-foreground ${colour}`}>
+                      {v == null ? '' : (c.fmt ? c.fmt(v) : v)}
+                    </td>
+                  );
+                })}
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -137,19 +153,15 @@ const DataTable = ({
   );
 };
 
-/**
- * Nested mini-table for the expanded row body — same vendflow aesthetic
- * but tighter padding + lighter header.
- */
+/** Nested mini-table for the expanded row body — tighter padding. */
 DataTable.Inner = ({ columns, rows = [], emptyMessage = 'No items' }) => (
-  <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
+  <div className="rounded-lg border border-border overflow-hidden bg-card">
     <table className="w-full">
       <thead>
-        <tr className="bg-slate-50 border-b border-slate-200">
+        <tr className="border-b border-border">
           {columns.map((c) => (
             <th key={c.key}
-                className={`text-[10px] font-semibold uppercase tracking-wider text-slate-500 py-2 px-3 ${cellAlign(c.align)}`}
-                style={{ fontFamily: DISPLAY }}>
+                className={`text-[10px] font-medium text-muted-foreground py-2 px-3 ${cellAlign(c.align)}`}>
               {c.label}
             </th>
           ))}
@@ -157,17 +169,17 @@ DataTable.Inner = ({ columns, rows = [], emptyMessage = 'No items' }) => (
       </thead>
       <tbody>
         {rows.length === 0 && (
-          <tr><td colSpan={columns.length} className="text-center text-xs text-slate-400 py-5">{emptyMessage}</td></tr>
+          <tr><td colSpan={columns.length} className="text-center text-xs text-muted-foreground py-5">{emptyMessage}</td></tr>
         )}
         {rows.map((row, i) => (
-          <tr key={row?.id ?? i} className="border-b border-slate-100 last:border-b-0">
+          <tr key={row?.id ?? i} className="border-b border-border/60 last:border-b-0">
             {columns.map((c) => {
               const v = row[c.key];
               const f = c.fmt ? c.fmt(v) : v;
               const colour = typeof c.className === 'function' ? c.className(v) : (c.className || '');
               return (
                 <td key={c.key}
-                    className={`text-xs py-2 px-3 ${cellAlign(c.align)} ${c.numeric ? NUM_CLS : ''} ${colour} text-slate-700`}>
+                    className={`text-xs py-2 px-3 ${cellAlign(c.align)} ${c.numeric ? NUM_CLS : ''} ${colour} text-foreground`}>
                   {f}
                 </td>
               );
@@ -188,6 +200,6 @@ export const pct = (n) => {
   return `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
 };
 
-export const signedColour = (v) => (Number(v) >= 0 ? 'text-emerald-600' : 'text-red-600');
+export const signedColour = (v) => (Number(v) >= 0 ? 'text-[color:var(--color-pos)]' : 'text-[color:var(--color-neg)]');
 
 export default DataTable;

@@ -11,6 +11,9 @@ class Invoice {
   final String? dueDate;      // YYYY-MM-DD — used for overdue detection
   final double grandTotal;    // total including tax
   final double paidAmount;    // amount already paid (partial or full)
+  /// Actual tender, when recorded. Null on historical sales and on
+  /// anything rung from a phone older than v1.5.73.
+  final double? amountReceived;
   final String paymentStatus; // 'PAID' | 'PARTIAL' | 'UNPAID'
   final double? taxableAmount;
   final double? cgstAmount;
@@ -49,6 +52,7 @@ class Invoice {
     this.dueDate,
     this.grandTotal = 0,
     this.paidAmount = 0,
+    this.amountReceived,
     this.paymentStatus = 'UNPAID',
     this.taxableAmount,
     this.cgstAmount,
@@ -84,8 +88,10 @@ class Invoice {
   ///   so it's never mistaken for a tax-invoice number.
   String get displayNumber {
     if (invoiceNumber != null && invoiceNumber!.isNotEmpty) return invoiceNumber!;
-    final tail = id.substring(id.length - 6).toUpperCase();
-    return isSaleSource ? 'SAL-$tail' : '#$tail';
+    // Show the COMPLETE reference. Truncating to a 6-char tail dropped digits
+    // and could make two different sales print the same number on a receipt.
+    final full = id.toUpperCase();
+    return isSaleSource ? full : '#$full';
   }
 
   /// Human-friendly document type label for headers / cards.
@@ -112,7 +118,11 @@ class Invoice {
       invoiceDate:   s.date,
       dueDate:       s.date,
       grandTotal:    total,
-      paidAmount:    (s.paymentStatus?.toUpperCase() == 'PAID') ? total : 0.0,
+      // Use the sale's real paidAmount so a PARTIAL sale shows the correct
+      // balance due (was zeroed for anything not fully PAID — the Record
+      // Payment sheet then showed the full total, not the remaining due).
+      paidAmount:    s.paidAmount ?? ((s.paymentStatus?.toUpperCase() == 'PAID') ? total : 0.0),
+      amountReceived: s.amountReceived,
       paymentStatus: s.paymentStatus?.toUpperCase() ?? 'UNPAID',
       taxableAmount: taxable,
       igstAmount:    taxAmt > 0 ? taxAmt : null,
@@ -137,6 +147,7 @@ class Invoice {
       dueDate:       j['due_date'] as String?,
       grandTotal:    toNum(j['grand_total']),
       paidAmount:    toNum(j['paid_amount']),
+      amountReceived: j['amount_received'] != null ? toNum(j['amount_received']) : null,
       paymentStatus: (j['payment_status'] as String? ?? 'UNPAID').toUpperCase(),
       taxableAmount: j['taxable_amount'] != null ? toNum(j['taxable_amount']) : null,
       cgstAmount:    j['cgst_amount']    != null ? toNum(j['cgst_amount'])    : null,

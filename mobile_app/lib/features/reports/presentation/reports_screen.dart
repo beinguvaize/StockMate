@@ -41,19 +41,19 @@ final _reportSummaryProvider = FutureProvider.family<_ReportSummary,
 
   final salesData = await supabase
       .from('sales')
-      .select('totalAmount')
+      .select('totalAmount').isFilter('deleted_at', null)
       .gte('date', start)
       .lte('date', end);
 
   final expensesData = await supabase
       .from('expenses')
-      .select('amount')
+      .select('amount').isFilter('deleted_at', null)
       .gte('date', start)
       .lte('date', end);
 
   final purchasesData = await supabase
       .from('purchases')
-      .select('total_amount')
+      .select('total_amount').isFilter('deleted_at', null)
       .gte('date', start)
       .lte('date', end);
 
@@ -100,9 +100,9 @@ class _HubItem {
 final _reportHubItems = <_HubItem>[
   _HubItem('Sales Summary', 'Revenue, COGS, margin by day',
       LucideIcons.trendingUp, const Color(0xFF059669), () => const SalesSummaryScreen()),
-  _HubItem('AR Aging', 'Receivables by overdue bucket',
+  _HubItem('Money to Collect', 'Client dues by how overdue',
       LucideIcons.users, const Color(0xFF2563EB), () => const ArAgingScreen()),
-  _HubItem('AP Aging', 'Payables to suppliers',
+  _HubItem('Money to Pay', 'Supplier dues by how overdue',
       LucideIcons.truck, const Color(0xFF7C3AED), () => const ApAgingScreen()),
   _HubItem('Inventory', 'Stock value + dead stock',
       LucideIcons.package, const Color(0xFFF59E0B), () => const InventoryReportScreen()),

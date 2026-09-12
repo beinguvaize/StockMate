@@ -41,10 +41,10 @@ const SalesReturnsList = ({ returns = [], onReverse = null }) => {
 
   if (!returns.length) {
     return (
-      <div className="text-center py-16 bg-white rounded-2xl border border-black/5">
-        <RotateCcw size={28} className="mx-auto text-gray-300 mb-3" />
-        <div className="text-sm font-bold text-gray-500">No returns yet</div>
-        <div className="text-xs font-medium text-gray-400 mt-1">
+      <div className="text-center py-16 bg-card rounded-2xl border border-border/60">
+        <RotateCcw size={28} className="mx-auto text-muted-foreground mb-3" />
+        <div className="text-sm font-semibold text-muted-foreground">No returns yet</div>
+        <div className="text-xs font-medium text-muted-foreground mt-1">
           Processed sales returns (credit notes) appear here.
         </div>
       </div>
@@ -55,24 +55,24 @@ const SalesReturnsList = ({ returns = [], onReverse = null }) => {
     <div className="space-y-3">
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Search returns…"
-            className="w-full bg-white border border-black/8 rounded-lg pl-9 pr-3 py-2 text-xs font-semibold outline-none focus:border-black/20"
+            className="w-full bg-card border border-border rounded-lg pl-9 pr-3 py-2 text-xs font-semibold outline-none focus:border-black/20"
           />
         </div>
         <div className="flex items-center gap-2 bg-rose-50 border border-rose-100 px-3 py-2 rounded-lg">
-          <span className="text-[11px] font-bold text-rose-500 uppercase tracking-wider">Total Returned</span>
-          <span className="text-sm font-black text-rose-600">{formatCurrency(total)}</span>
+          <span className="text-[11px] font-semibold text-rose-500 uppercase tracking-wider">Total Returned</span>
+          <span className="text-sm font-semibold text-rose-600">{formatCurrency(total)}</span>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border/60 overflow-hidden">
         <table className="w-full text-left">
           <thead>
-            <tr className="border-b border-black/5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            <tr className="border-b border-border/60 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
               <th className="w-8 px-2 py-3" />
               <th className="px-4 py-3">Credit Note</th>
               <th className="px-4 py-3">Date</th>
@@ -91,26 +91,26 @@ const SalesReturnsList = ({ returns = [], onReverse = null }) => {
               <React.Fragment key={r.id}>
               <tr
                 onClick={() => setOpenId(open ? null : r.id)}
-                className="border-b border-black/5 last:border-0 hover:bg-canvas/50 cursor-pointer"
+                className="border-b border-border/60 last:border-0 hover:bg-canvas/50 cursor-pointer"
               >
-                <td className="px-2 py-3 text-gray-300">
+                <td className="px-2 py-3 text-muted-foreground">
                   {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                 </td>
-                <td className="px-4 py-3 text-xs font-black text-ink-primary">
+                <td className="px-4 py-3 text-xs font-semibold text-foreground">
                   #{String(r.id).split('-').pop()}
                 </td>
-                <td className="px-4 py-3 text-xs font-semibold text-gray-500">{r.date || '—'}</td>
-                <td className="px-4 py-3 text-xs font-semibold text-gray-700">{r.client_name || 'Walk-in'}</td>
-                <td className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">{itemCount(r)}</td>
-                <td className="px-4 py-3 text-xs font-medium text-gray-400 max-w-[200px] truncate">{r.reason || '—'}</td>
-                <td className="px-4 py-3 text-xs font-black text-rose-600 text-right">{formatCurrency(r.total_amount)}</td>
+                <td className="px-4 py-3 text-xs font-semibold text-muted-foreground">{r.date || '—'}</td>
+                <td className="px-4 py-3 text-xs font-semibold text-ink-secondary">{r.client_name || 'Walk-in'}</td>
+                <td className="px-4 py-3 text-xs font-semibold text-muted-foreground text-center">{itemCount(r)}</td>
+                <td className="px-4 py-3 text-xs font-medium text-muted-foreground max-w-[200px] truncate">{r.reason || '—'}</td>
+                <td className="px-4 py-3 text-xs font-semibold text-rose-600 text-right">{formatCurrency(r.total_amount)}</td>
                 {onReverse && (
                   <td className="px-4 py-3 text-right">
                     <button
                       onClick={(e) => { e.stopPropagation(); reverse(r); }}
                       disabled={busyId === r.id}
                       title="Undo return — re-deducts stock, restores balance"
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-gray-500 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition-colors"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition-colors"
                     >
                       <Undo2 size={13} /> {busyId === r.id ? 'Undoing…' : 'Undo'}
                     </button>
@@ -118,22 +118,22 @@ const SalesReturnsList = ({ returns = [], onReverse = null }) => {
                 )}
               </tr>
               {open && (
-                <tr className="border-b border-black/5 bg-canvas/40">
+                <tr className="border-b border-border/60 bg-canvas/40">
                   <td />
                   <td colSpan={onReverse ? 7 : 6} className="px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-2 text-[11px] font-semibold text-gray-500">
-                      <span>Credit Note <span className="text-ink-primary font-black">#{String(r.id).split('-').pop()}</span></span>
-                      {r.sale_id && <span>Against sale <span className="text-ink-primary font-bold">#{String(r.sale_id).split('-').pop()}</span></span>}
-                      {r.invoice_id && <span>Invoice <span className="text-ink-primary font-bold">#{String(r.invoice_id).split('-').pop()}</span></span>}
-                      <span>Date <span className="text-ink-primary font-bold">{r.date || '—'}</span></span>
-                      {r.reason && <span>Reason <span className="text-ink-primary font-bold">{r.reason}</span></span>}
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-2 text-[11px] font-semibold text-muted-foreground">
+                      <span>Credit Note <span className="text-foreground font-semibold">#{String(r.id).split('-').pop()}</span></span>
+                      {r.sale_id && <span>Against sale <span className="text-foreground font-semibold">#{String(r.sale_id).split('-').pop()}</span></span>}
+                      {r.invoice_id && <span>Invoice <span className="text-foreground font-semibold">#{String(r.invoice_id).split('-').pop()}</span></span>}
+                      <span>Date <span className="text-foreground font-semibold">{r.date || '—'}</span></span>
+                      {r.reason && <span>Reason <span className="text-foreground font-semibold">{r.reason}</span></span>}
                     </div>
                     {lines.length === 0 ? (
-                      <div className="text-[11px] font-medium text-gray-400">No line detail stored on this return.</div>
+                      <div className="text-[11px] font-medium text-muted-foreground">No line detail stored on this return.</div>
                     ) : (
                       <table className="w-full">
                         <thead>
-                          <tr className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                          <tr className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">
                             <th className="text-left py-1">Item</th>
                             <th className="text-center py-1">Qty Returned</th>
                             <th className="text-right py-1">Rate</th>
@@ -146,10 +146,10 @@ const SalesReturnsList = ({ returns = [], onReverse = null }) => {
                             const rate = Number(it.rate ?? it.price ?? 0);
                             return (
                               <tr key={(it.id || i) + '-' + i} className="text-xs">
-                                <td className="py-1 font-semibold text-ink-primary">{it.name || it.productName || 'Item'}</td>
-                                <td className="py-1 text-center font-bold text-gray-600">{qty}</td>
-                                <td className="py-1 text-right font-semibold text-gray-500">{formatCurrency(rate)}</td>
-                                <td className="py-1 text-right font-black text-rose-600">{formatCurrency(qty * rate)}</td>
+                                <td className="py-1 font-semibold text-foreground">{it.name || it.productName || 'Item'}</td>
+                                <td className="py-1 text-center font-semibold text-muted-foreground">{qty}</td>
+                                <td className="py-1 text-right font-semibold text-muted-foreground">{formatCurrency(rate)}</td>
+                                <td className="py-1 text-right font-semibold text-rose-600">{formatCurrency(qty * rate)}</td>
                               </tr>
                             );
                           })}

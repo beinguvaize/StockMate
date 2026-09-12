@@ -40,13 +40,31 @@ export async function readCacheThenRevalidate(table, queryFn, onRefresh) {
   if (!isElectron()) {
     // Web: skip cache. Block until the network resolves so the existing
     // hook contract stays the same.
-    try {
+    const run = async () => {
       const res = await queryFn();
       if (res?.error) throw res.error;
       return Array.isArray(res?.data) ? res.data : [];
+    };
+    try {
+      return await run();
     } catch (err) {
-      console.warn(`[hookAdapter] ${table} web fetch failed:`, err);
-      return [];
+      // First-load races (auth token mid-refresh, momentary network blip)
+      // used to settle the hook on an empty list with no retry — the page
+      // stayed blank until a manual refresh. Retry once after a beat, and
+      // if that also fails push the data in via onRefresh when it recovers.
+      console.warn(`[hookAdapter] ${table} web fetch failed, retrying:`, err?.message || err);
+      try {
+        await new Promise((r) => setTimeout(r, 1200));
+        return await run();
+      } catch (err2) {
+        console.warn(`[hookAdapter] ${table} web retry failed:`, err2?.message || err2);
+        if (typeof onRefresh === 'function') {
+          setTimeout(async () => {
+            try { onRefresh(await run()); } catch (_) { /* stays empty */ }
+          }, 4000);
+        }
+        return [];
+      }
     }
   }
 
@@ -143,12 +161,54 @@ export async function fetchWithCache(table, queryFn) {
 /**
  * Enqueue a write for later replay by the sync engine.
  * Returns the outbox opId.
+ *
+ * Every queued op also schedules a debounced sync (~3s) when online, so the
+ * server catches up within seconds instead of waiting for the 10-min auto
+ * interval — otherwise background revalidates serve stale server rows and
+ * optimistic balances appear to "jump back".
  */
+let _syncSoonTimer = null;
+function scheduleSyncSoon() {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  clearTimeout(_syncSoonTimer);
+  _syncSoonTimer = setTimeout(async () => {
+    try {
+      const { syncNow } = await import('./syncEngine.js');
+      await syncNow();
+    } catch (_) {/* next auto/manual sync will retry */}
+  }, 3000);
+}
+
 export async function queueMutation({ table, type = 'insert', payload }) {
   // Outbox queue only meaningful on desktop. Web hooks should never call
   // this — if they do, no-op so we don't grow web's IDB silently.
   if (!isElectron()) return null;
-  return enqueue({ table, type, payload });
+  const opId = await enqueue({ table, type, payload });
+  scheduleSyncSoon();
+  return opId;
+}
+
+/**
+ * Local-first write. On desktop the write NEVER waits for the network:
+ * it is queued to the outbox and (optionally) applied to the IDB cache
+ * immediately, then pushed to supabase by the sync engine (auto every
+ * 10 min, on the Sync Now button, or on reconnect). On web it simply
+ * runs the provided online write so web behaviour is byte-for-byte
+ * unchanged.
+ *
+ *   return localFirstWrite({
+ *     table: 'expenses', type: 'insert', payload: row,
+ *     cacheRow: row,                      // optimistic IDB upsert (optional)
+ *     onlineWrite: () => restInsert('expenses', row),   // web path
+ *   });
+ */
+export async function localFirstWrite({ table, type = 'insert', payload, cacheRow, onlineWrite }) {
+  if (!isElectron()) return onlineWrite();
+  await enqueue({ table, type, payload });
+  if (cacheRow) {
+    try { await putRecords(table, [cacheRow]); } catch (_) {/* best-effort */}
+  }
+  return { success: true, queued: true, error: null };
 }
 
 /**

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import { useTenant } from '../context/TenantContext';
 import { useInventory } from '../hooks/useInventory';
 import { useManufacturing } from '../hooks/useManufacturing';
@@ -31,14 +32,14 @@ const Manufacturing = () => {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center">
-            <Factory size={18} className="text-amber-600" />
+          <div className="w-9 h-9 rounded-xl bg-accent-signature/10 border border-accent-signature/25 flex items-center justify-center">
+            <Factory size={18} className="text-accent-signature" />
           </div>
           <div>
             <h1 className="text-xl font-black text-ink-primary leading-none">
               Manufacturing<span className="text-accent-signature">.</span>
             </h1>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
               {recipeWord} · production · costing
             </p>
           </div>
@@ -59,7 +60,7 @@ const Manufacturing = () => {
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
-              tab === t.id ? 'bg-ink-primary text-white' : 'text-gray-500 hover:text-ink-primary'
+              tab === t.id ? 'bg-ink-primary text-white' : 'text-muted-foreground hover:text-ink-primary'
             }`}>
             <t.icon size={13} /> {t.label}
           </button>
@@ -72,7 +73,7 @@ const Manufacturing = () => {
       {!loading && tab === 'PRODUCTION' && (
         <div className="space-y-3">
           {orders.length === 0 && (
-            <div className="py-16 text-center text-sm text-gray-400 bg-white rounded-2xl border border-black/5">
+            <div className="py-16 text-center text-sm text-muted-foreground bg-white rounded-2xl border border-black/5">
               No production orders yet. Create a build to manufacture a product.
             </div>
           )}
@@ -84,21 +85,21 @@ const Manufacturing = () => {
               <div key={o.id} className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
                 <div className="flex items-center gap-4 px-5 py-3.5 border-b border-black/5">
                   <div className="w-9 h-9 rounded-xl bg-canvas flex items-center justify-center shrink-0">
-                    <Package size={16} className="text-gray-400" />
+                    <Package size={16} className="text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-black text-ink-primary truncate">{productName(o.finished_product_id)}</div>
-                    <div className="text-[10px] text-gray-400 font-medium">
+                    <div className="text-[10px] text-muted-foreground font-medium">
                       {o.production_date} · {o.qty_produced} units
                     </div>
                   </div>
                   <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
-                    done ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                    done ? 'bg-emerald-50 text-emerald-700' : 'bg-accent-signature/10 text-accent-signature-hover'
                   }`}>{o.status}</span>
                   {done ? (
                     <div className="text-right">
-                      <div className="text-sm font-black text-ink-primary font-mono tabular-nums">{formatCurrency(o.unit_cost)}</div>
-                      <div className="text-[9px] text-gray-400 font-bold uppercase">unit cost</div>
+                      <div className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(o.unit_cost)}</div>
+                      <div className="text-[9px] text-muted-foreground font-bold uppercase">unit cost</div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
@@ -111,7 +112,7 @@ const Manufacturing = () => {
                           if (q > 0) await setProducedQty(o.id, q);
                         }}
                         title="Edit quantity"
-                        className="text-[10px] font-bold text-gray-400 hover:text-ink-primary px-2"
+                        className="text-[10px] font-bold text-muted-foreground hover:text-ink-primary px-2"
                       >
                         Edit qty
                       </button>
@@ -135,7 +136,7 @@ const Manufacturing = () => {
                         Complete
                       </button>
                       <button onClick={() => deleteOrder(o.id)}
-                        className="text-gray-300 hover:text-red-400 transition-colors">
+                        className="text-muted-foreground hover:text-red-400 transition-colors">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -146,7 +147,7 @@ const Manufacturing = () => {
                   {mats.map(m => (
                     <div key={m.id} className="flex justify-between text-[11px]">
                       <span className="text-ink-secondary truncate">{productName(m.raw_product_id)}</span>
-                      <span className="font-bold text-ink-primary font-mono tabular-nums">
+                      <span className="font-bold text-ink-primary tabular-nums">
                         ×{m.qty_consumed}{done && m.line_cost > 0 ? ` · ${formatCurrency(m.line_cost)}` : ''}
                       </span>
                     </div>
@@ -154,15 +155,15 @@ const Manufacturing = () => {
                   {costs.map(c => (
                     <div key={c.id} className="flex justify-between text-[11px]">
                       <span className="text-ink-secondary truncate">{c.label || c.cost_type}</span>
-                      <span className="font-bold text-amber-600 font-mono tabular-nums">{formatCurrency(c.amount)}</span>
+                      <span className="font-bold text-accent-signature tabular-nums">{formatCurrency(c.amount)}</span>
                     </div>
                   ))}
                 </div>
                 {done && (
                   <div className="px-5 py-2.5 bg-canvas/50 border-t border-black/5 flex justify-end gap-6 text-[11px]">
-                    <span className="text-gray-400">Material <b className="text-ink-primary">{formatCurrency(o.material_cost)}</b></span>
-                    <span className="text-gray-400">Other <b className="text-ink-primary">{formatCurrency(o.other_cost)}</b></span>
-                    <span className="text-gray-400">Total <b className="text-ink-primary">{formatCurrency(o.total_cost)}</b></span>
+                    <span className="text-muted-foreground">Material <b className="text-ink-primary">{formatCurrency(o.material_cost)}</b></span>
+                    <span className="text-muted-foreground">Other <b className="text-ink-primary">{formatCurrency(o.other_cost)}</b></span>
+                    <span className="text-muted-foreground">Total <b className="text-ink-primary">{formatCurrency(o.total_cost)}</b></span>
                   </div>
                 )}
               </div>
@@ -175,7 +176,7 @@ const Manufacturing = () => {
       {!loading && tab === 'RECIPES' && (
         <div className="space-y-3">
           {boms.length === 0 && (
-            <div className="py-16 text-center text-sm text-gray-400 bg-white rounded-2xl border border-black/5">
+            <div className="py-16 text-center text-sm text-muted-foreground bg-white rounded-2xl border border-black/5">
               No recipes yet. A recipe defines the raw materials for a product.
             </div>
           )}
@@ -185,18 +186,18 @@ const Manufacturing = () => {
               <div key={b.id} className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
                 <div className="flex items-center gap-4 px-5 py-3.5 border-b border-black/5">
                   <div className="w-9 h-9 rounded-xl bg-canvas flex items-center justify-center shrink-0">
-                    <Layers size={16} className="text-gray-400" />
+                    <Layers size={16} className="text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-black text-ink-primary truncate">
                       {b.name || productName(b.finished_product_id)}
                     </div>
-                    <div className="text-[10px] text-gray-400 font-medium">
+                    <div className="text-[10px] text-muted-foreground font-medium">
                       Yields {b.output_qty} · {comps.length} components
                     </div>
                   </div>
                   <button onClick={() => deleteBom(b.id)}
-                    className="text-gray-300 hover:text-red-400 transition-colors">
+                    className="text-muted-foreground hover:text-red-400 transition-colors">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -204,7 +205,7 @@ const Manufacturing = () => {
                   {comps.map(c => (
                     <div key={c.id} className="flex justify-between text-[11px]">
                       <span className="text-ink-secondary truncate">{productName(c.raw_product_id)}</span>
-                      <span className="font-bold text-ink-primary font-mono tabular-nums">×{c.quantity}</span>
+                      <span className="font-bold text-ink-primary tabular-nums">×{c.quantity}</span>
                     </div>
                   ))}
                 </div>
@@ -272,15 +273,15 @@ const RecipeModal = ({ products, onClose, onSave, recipeWord = 'Recipe' }) => {
       </div>
 
       {/* Raw materials card */}
-      <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-canvas/40 to-white shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 bg-white">
+      <div className="rounded-2xl border border-border bg-gradient-to-br from-canvas/40 to-white shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-white">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-accent-signature/10 flex items-center justify-center">
               <Factory size={13} className="text-accent-signature" />
             </div>
             <div>
               <div className="text-xs font-black text-ink-primary uppercase tracking-wider">Raw Materials</div>
-              <div className="text-[10px] text-gray-400 font-medium">{rows.filter(r => r.productId && Number(r.quantity) > 0).length} component{rows.length === 1 ? '' : 's'}</div>
+              <div className="text-[10px] text-muted-foreground font-medium">{rows.filter(r => r.productId && Number(r.quantity) > 0).length} component{rows.length === 1 ? '' : 's'}</div>
             </div>
           </div>
           <button onClick={addRow} type="button"
@@ -290,10 +291,10 @@ const RecipeModal = ({ products, onClose, onSave, recipeWord = 'Recipe' }) => {
         </div>
 
         {/* Column header */}
-        <div className="grid grid-cols-[1fr_110px_110px_40px] gap-3 px-5 py-2 bg-canvas/40 border-b border-gray-200">
-          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Material</span>
-          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Quantity</span>
-          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Unit</span>
+        <div className="grid grid-cols-[1fr_110px_110px_40px] gap-3 px-5 py-2 bg-canvas/40 border-b border-border">
+          <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Material</span>
+          <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest text-center">Quantity</span>
+          <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest text-center">Unit</span>
           <span />
         </div>
 
@@ -306,7 +307,7 @@ const RecipeModal = ({ products, onClose, onSave, recipeWord = 'Recipe' }) => {
                   <option value="">Material…</option>
                   {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
-                <input type="number" min="0" placeholder="0" className={`${selCls} text-center font-mono tabular-nums`}
+                <input type="number" min="0" placeholder="0" className={`${selCls} text-center tabular-nums`}
                   value={r.quantity} onChange={e => setRow(i, 'quantity', e.target.value)} />
                 <select className={selCls} value={r.unit} onChange={e => setRow(i, 'unit', e.target.value)}
                   disabled={!rp?.secondary_unit}>
@@ -386,10 +387,10 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave, recipeWord
         </select>
       </Field>
       {bom && (
-        <div className="flex items-center gap-2 -mt-2 mb-3 text-xs text-gray-500">
-          <Package size={13} className="text-amber-600" />
+        <div className="flex items-center gap-2 -mt-2 mb-3 text-xs text-muted-foreground">
+          <Package size={13} className="text-accent-signature" />
           Produces <span className="font-bold text-ink-primary">{Number(qty) > 0 ? Number(qty) : bom.output_qty} × {productName(bom.finished_product_id)}</span>
-          <span className="text-gray-400">· yields {bom.output_qty}/batch</span>
+          <span className="text-muted-foreground">· yields {bom.output_qty}/batch</span>
         </div>
       )}
       <Field label="Quantity to Produce">
@@ -398,28 +399,28 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave, recipeWord
 
       {bom && (
         <div className="bg-canvas rounded-2xl border border-black/5 p-4 mb-4">
-          <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+          <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">
             Materials Consumed
           </div>
           {materials.length === 0
-            ? <div className="text-[11px] text-gray-400">Enter a quantity to see materials.</div>
+            ? <div className="text-[11px] text-muted-foreground">Enter a quantity to see materials.</div>
             : <div className="space-y-1.5">
                 {materials.map(m => (
                   <div key={m.productId} className="flex items-center justify-between text-xs gap-2">
                     <span className="text-ink-secondary truncate flex-1">{productName(m.productId)}</span>
-                    <span className={`font-mono tabular-nums text-[10px] font-bold ${m.short ? 'text-red-500' : 'text-gray-400'}`}>
+                    <span className={` tabular-nums text-[10px] font-bold ${m.short ? 'text-red-500' : 'text-muted-foreground'}`}>
                       {m.short ? `short · have ${m.available}${m.unit}` : `have ${m.available}${m.unit}`}
                     </span>
-                    <span className="font-black text-ink-primary font-mono tabular-nums w-14 text-right">×{m.quantity}</span>
-                    <span className="font-mono tabular-nums text-gray-500 w-16 text-right">{formatCurrency(m.cost)}</span>
+                    <span className="font-black text-ink-primary tabular-nums w-14 text-right">×{m.quantity}</span>
+                    <span className="tabular-nums text-muted-foreground w-16 text-right">{formatCurrency(m.cost)}</span>
                   </div>
                 ))}
                 {/* Cost roll-up */}
                 <div className="pt-2 mt-1 border-t border-black/5 space-y-1">
-                  <div className="flex justify-between text-[11px] text-gray-400"><span>Material cost</span><span className="font-mono tabular-nums">{formatCurrency(materialCost)}</span></div>
-                  {otherCostSum > 0 && <div className="flex justify-between text-[11px] text-gray-400"><span>Other costs</span><span className="font-mono tabular-nums">{formatCurrency(otherCostSum)}</span></div>}
-                  <div className="flex justify-between text-xs font-black text-ink-primary"><span>Est. total</span><span className="font-mono tabular-nums">{formatCurrency(estTotal)}</span></div>
-                  {Number(qty) > 0 && <div className="flex justify-between text-[11px] text-amber-700 font-bold"><span>Unit cost</span><span className="font-mono tabular-nums">{formatCurrency(estUnit)}</span></div>}
+                  <div className="flex justify-between text-[11px] text-muted-foreground"><span>Material cost</span><span className="tabular-nums">{formatCurrency(materialCost)}</span></div>
+                  {otherCostSum > 0 && <div className="flex justify-between text-[11px] text-muted-foreground"><span>Other costs</span><span className="tabular-nums">{formatCurrency(otherCostSum)}</span></div>}
+                  <div className="flex justify-between text-xs font-black text-ink-primary"><span>Est. total</span><span className="tabular-nums">{formatCurrency(estTotal)}</span></div>
+                  {Number(qty) > 0 && <div className="flex justify-between text-[11px] text-accent-signature-hover font-bold"><span>Unit cost</span><span className="tabular-nums">{formatCurrency(estUnit)}</span></div>}
                 </div>
               </div>}
           {anyShort && (
@@ -431,7 +432,7 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave, recipeWord
       )}
 
       <div className="flex items-center justify-between mt-1 mb-2">
-        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Other Costs</span>
+        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Other Costs</span>
         <button onClick={() => setCosts(cs => [...cs, { label: '', amount: '' }])} type="button"
           className="flex items-center gap-1 text-[11px] font-black text-accent-signature hover:underline">
           <Plus size={12} /> Add
@@ -472,7 +473,7 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave, recipeWord
         className="w-full mt-6 py-3.5 rounded-2xl bg-ink-primary text-white font-black text-sm hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-ink-primary/20">
         {saving ? 'Saving…' : 'Create Build (Draft)'}
       </button>
-      <p className="text-[10px] text-gray-400 text-center mt-3 flex items-center justify-center gap-1">
+      <p className="text-[10px] text-muted-foreground text-center mt-3 flex items-center justify-center gap-1">
         <AlertTriangle size={10} /> Stock is consumed only when you Complete the build.
       </p>
     </Modal>
@@ -480,13 +481,13 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave, recipeWord
 };
 
 /* ── Shared bits ──────────────────────────────────────────────────── */
-const selCls = 'w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3.5 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/25 focus:border-accent-signature/30 transition-all placeholder:text-gray-400 placeholder:font-normal';
+const selCls = 'w-full bg-white border border-border shadow-sm rounded-xl px-3.5 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/25 focus:border-accent-signature/30 transition-all placeholder:text-muted-foreground placeholder:font-normal';
 
 const Field = ({ label, hint, children }) => (
   <div className="mb-4">
     <label className="flex items-baseline gap-2 mb-1.5">
-      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
-      {hint && <span className="text-[10px] text-gray-300 font-medium">{hint}</span>}
+      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{label}</span>
+      {hint && <span className="text-[10px] text-muted-foreground font-medium">{hint}</span>}
     </label>
     {children}
   </div>
@@ -495,26 +496,28 @@ const Field = ({ label, hint, children }) => (
 // Compact icon button for removing a row.
 const RowX = ({ onClick }) => (
   <button onClick={onClick} type="button"
-    className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all shrink-0">
+    className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all shrink-0">
     <X size={14} strokeWidth={2.5} />
   </button>
 );
 
 const Modal = ({ title, subtitle, onClose, children, size = 'lg' }) => {
+  // Wraps this page's New Recipe / New Build modals.
+  useDialogClose(onClose);
   const widthCls = size === 'xl' ? 'max-w-4xl' : size === 'md' ? 'max-w-xl' : 'max-w-2xl';
   return (
     <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-      <div className={`w-full ${widthCls} bg-white rounded-[2rem] shadow-2xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200`}>
+      <div role="dialog" aria-modal="true" aria-label={title} className={`w-full ${widthCls} bg-white rounded-[2rem] shadow-2xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200`}>
         <div className="flex items-center gap-4 px-8 py-6 border-b border-black/5 sticky top-0 bg-white/95 backdrop-blur z-10">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent-signature/15 to-accent-signature/5 border border-accent-signature/10 flex items-center justify-center shrink-0 shadow-sm">
             <Factory size={20} className="text-accent-signature" />
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-black text-ink-primary leading-tight">{title}</h2>
-            {subtitle && <p className="text-xs text-gray-400 font-medium mt-0.5">{subtitle}</p>}
+            {subtitle && <p className="text-xs text-muted-foreground font-medium mt-0.5">{subtitle}</p>}
           </div>
           <button onClick={onClose}
-            className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center text-gray-400 hover:text-ink-primary hover:border-black/25 hover:rotate-90 transition-all shrink-0">
+            className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:border-black/25 hover:rotate-90 transition-all shrink-0">
             <X size={16} />
           </button>
         </div>

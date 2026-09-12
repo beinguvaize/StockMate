@@ -8,9 +8,22 @@
  *  - startSync() / stopSync() manage the 5-min interval + online listener.
  */
 
-import { supabase } from '../supabase.js';
+import { supabase, restRpc, restInsert, restUpdate } from '../supabase.js';
 import { allOps, removeOp, bumpAttempts } from './outbox.js';
 import { putRecords, getMeta, setMeta } from './cache.js';
+
+// Hard ceiling per network call during sync. supabase-js's auth queue can
+// deadlock on a stuck token refresh and hang a .from()/.rpc() call forever —
+// which froze isSyncing=true, greyed out Sync Now, and left the outbox
+// pending count stuck. Every sync call is either a timeout-guarded rest*
+// helper or wrapped in this.
+const SYNC_CALL_TIMEOUT_MS = 15000;
+const withTimeout = (promise, ms = SYNC_CALL_TIMEOUT_MS, label = 'sync call') =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ]);
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -37,6 +50,23 @@ export const SYNCED_TABLES = [
   'client_payments',
   'purchase_returns',
   'business_profile',
+  'accounts',
+  'account_transactions',
+  'estimates',
+  'payroll',
+  'attendance',
+  'supplier_payments',
+  'sales_returns',
+  // Orders and manufacturing. All carry tenant_id and updated_at, which
+  // pullOne requires -- it filters on updated_at, so a table without one is
+  // skipped with a warning and silently never syncs.
+  'orders',
+  'price_lists',
+  'bom',
+  'bom_components',
+  'production_orders',
+  'production_order_materials',
+  'production_costs',
 ];
 
 // Default off. UI toggles auto-sync via startSync({ intervalMs }).
@@ -71,19 +101,20 @@ export async function pushOutbox() {
     const ops = await allOps();
     for (const op of ops) {
       try {
+        // rest* helpers hit PostgREST directly with their own timeout guard —
+        // never the supabase-js auth queue (which can deadlock and hang sync).
         let result;
         if (op.type === 'rpc') {
           // op.table holds the RPC function name (e.g. "process_sale")
-          result = await supabase.rpc(op.table, op.payload);
+          result = await withTimeout(restRpc(op.table, op.payload), SYNC_CALL_TIMEOUT_MS, `rpc ${op.table}`);
         } else if (op.type === 'insert') {
-          result = await supabase.from(op.table).insert(op.payload);
+          result = await withTimeout(restInsert(op.table, op.payload), SYNC_CALL_TIMEOUT_MS, `insert ${op.table}`);
         } else if (op.type === 'update') {
-          result = await supabase.from(op.table).update(op.payload).eq('id', op.payload.id);
+          result = await withTimeout(restUpdate(op.table, op.payload, { id: op.payload.id }), SYNC_CALL_TIMEOUT_MS, `update ${op.table}`);
         } else if (op.type === 'delete') {
-          result = await supabase
-            .from(op.table)
-            .update({ deleted_at: new Date().toISOString() })
-            .eq('id', op.payload.id);
+          result = await withTimeout(
+            restUpdate(op.table, { deleted_at: new Date().toISOString() }, { id: op.payload.id }),
+            SYNC_CALL_TIMEOUT_MS, `delete ${op.table}`);
         }
 
         if (result?.error) {
@@ -126,43 +157,54 @@ export async function pushOutbox() {
 
 // ─── Pull deltas ← Supabase ──────────────────────────────────────────────────
 
-export async function pullDeltas() {
-  if (!supabase) return;
+// Tables are pulled in parallel batches — sequentially, a slow/erroring
+// table ate its full timeout before the next started, so one cycle over
+// 40+ tables could take many minutes with isSyncing stuck true (blocking
+// every manual Sync Now in the meantime).
+const PULL_BATCH = 8;
+const PULL_TIMEOUT_MS = 8000;
 
-  for (const table of SYNCED_TABLES) {
-    try {
-      const metaKey = `lastSync:${table}`;
-      const lastSync = (await getMeta(metaKey)) || '1970-01-01T00:00:00.000Z';
+async function pullOne(table) {
+  try {
+    const metaKey = `lastSync:${table}`;
+    const lastSync = (await getMeta(metaKey)) || '1970-01-01T00:00:00.000Z';
 
-      const { data, error } = await supabase
+    const { data, error } = await withTimeout(
+      supabase
         .from(table)
         .select('*')
         .gt('updated_at', lastSync)
         .order('updated_at', { ascending: true })
-        .limit(1000);
+        .limit(1000),
+      PULL_TIMEOUT_MS, `pull ${table}`);
 
-      if (error) {
-        // Table might not exist or RLS blocks it — log and continue
-        console.warn(`[offline/sync] pullDeltas error for table "${table}":`, error.message);
-        continue;
-      }
-
-      if (data && data.length > 0) {
-        await putRecords(table, data);
-
-        // Advance the watermark to the latest updated_at seen
-        const maxTs = data.reduce(
-          (max, row) => (row.updated_at > max ? row.updated_at : max),
-          ''
-        );
-        if (maxTs) {
-          await setMeta(metaKey, maxTs);
-        }
-      }
-    } catch (err) {
-      console.error(`[offline/sync] pullDeltas threw for table "${table}":`, err);
-      // continue with next table
+    if (error) {
+      // Table might not exist or RLS blocks it — log and continue
+      console.warn(`[offline/sync] pullDeltas error for table "${table}":`, error.message);
+      return;
     }
+
+    if (data && data.length > 0) {
+      await putRecords(table, data);
+
+      // Advance the watermark to the latest updated_at seen
+      const maxTs = data.reduce(
+        (max, row) => (row.updated_at > max ? row.updated_at : max),
+        ''
+      );
+      if (maxTs) {
+        await setMeta(metaKey, maxTs);
+      }
+    }
+  } catch (err) {
+    console.error(`[offline/sync] pullDeltas threw for table "${table}":`, err);
+  }
+}
+
+export async function pullDeltas() {
+  if (!supabase) return;
+  for (let i = 0; i < SYNCED_TABLES.length; i += PULL_BATCH) {
+    await Promise.allSettled(SYNCED_TABLES.slice(i, i + PULL_BATCH).map(pullOne));
   }
 }
 
@@ -194,7 +236,7 @@ export async function bulkSync(tenantId, onProgress) {
         let q = supabase.from(table).select('*').range(from, from + PAGE_SIZE - 1);
         // tenant filter where applicable
         try {
-          const { data, error } = await q.eq('tenant_id', tenantId);
+          const { data, error } = await withTimeout(q.eq('tenant_id', tenantId), SYNC_CALL_TIMEOUT_MS, `bulk ${table}`);
           if (error) throw error;
           if (data && data.length) {
             await putRecords(table, data);
@@ -243,21 +285,47 @@ export async function isBulkSyncDone() {
 
 /**
  * Run a full sync cycle: push outbox, then pull deltas.
- * Guarded by `isSyncing` so concurrent calls are no-ops.
- * Returns the ISO timestamp of when this sync completed, or null if skipped.
+ *
+ * Single-flight with follow-up: if a cycle is already running, the call
+ * doesn't silently no-op (that made "Sync Now" claim success while newly
+ * queued ops sat untouched) — it schedules one follow-up cycle after the
+ * current one and resolves when that finishes, so the caller's ops are
+ * guaranteed a push attempt.
  */
-export async function syncNow() {
-  if (isSyncing) return null;
+let _running = null;
+let _followUp = false;
+
+async function _cycle() {
   isSyncing = true;
   try {
     await pushOutbox();
     await pullDeltas();
     return new Date().toISOString();
   } catch (err) {
-    console.error('[offline/sync] syncNow threw unexpectedly:', err);
+    console.error('[offline/sync] sync cycle threw unexpectedly:', err);
     return null;
   } finally {
     isSyncing = false;
+  }
+}
+
+export async function syncNow() {
+  if (_running) {
+    _followUp = true;
+    return _running;
+  }
+  _running = (async () => {
+    let ts = await _cycle();
+    while (_followUp) {
+      _followUp = false;
+      ts = await _cycle();
+    }
+    return ts;
+  })();
+  try {
+    return await _running;
+  } finally {
+    _running = null;
   }
 }
 

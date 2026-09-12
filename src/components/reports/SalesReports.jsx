@@ -76,59 +76,59 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
     return { totalNetSales, activeAccounts, avgTicketSize, topDebtor };
   }, [sales, clients]);
 
- const COLORS = ['#D97706', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b'];
+ const COLORS = ['var(--color-accent-signature)', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b'];
 
  return (
  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Sales Premium Ribbon */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Net Sales Card */}
-        <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+        <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
           <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-accent-signature-hover">
             <ShoppingBag size={40} strokeWidth={2} />
           </div>
           <div className="relative z-10 flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Total Net Sales</span>
-            <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-              <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile.currencySymbol}</span>
+            <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Total Net Sales</span>
+            <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
+              <span className="text-[16px] text-foreground/30 mr-1">{businessProfile.currencySymbol}</span>
               {Math.round(ribbonMetrics.totalNetSales).toLocaleString()}
             </div>
             <div className="flex items-center gap-1.5 text-green-500/70 mt-3">
               <ArrowUpRight size={14} />
-              <span className="text-[9px] font-bold uppercase tracking-wider">Performance Growth</span>
+              <span className="text-[9px] font-semibold uppercase tracking-wider">Performance Growth</span>
             </div>
           </div>
         </div>
 
         {/* Active Accounts Card */}
-        <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
-          <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-ink-primary">
+        <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+          <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-foreground">
             <Users size={40} strokeWidth={2} />
           </div>
           <div className="relative z-10 flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Active Accounts</span>
-            <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-              {ribbonMetrics.activeAccounts} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">Entities</span>
+            <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Active Accounts</span>
+            <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
+              {ribbonMetrics.activeAccounts} <span className="text-sm font-semibold opacity-30 text-foreground tracking-wider ml-1">Entities</span>
             </div>
-            <div className="flex items-center gap-1.5 text-gray-400 mt-3">
-              <span className="text-[9px] font-bold uppercase tracking-wider">Transacting Partners</span>
+            <div className="flex items-center gap-1.5 text-muted-foreground mt-3">
+              <span className="text-[9px] font-semibold uppercase tracking-wider">Transacting Partners</span>
             </div>
           </div>
         </div>
 
         {/* Top Debtor Exposure Card */}
-        <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+        <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
           <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-red-500">
             <ShieldAlert size={40} strokeWidth={2} />
           </div>
           <div className="relative z-10 flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Top Debtor Exposure</span>
-            <div className="text-3xl font-black text-red-500 tabular-nums tracking-tight leading-none mt-0.5">
+            <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Top Debtor Exposure</span>
+            <div className="text-3xl font-semibold text-red-500 tabular-nums tracking-tight leading-none mt-0.5">
               <span className="text-[16px] text-red-500/30 mr-1">{businessProfile.currencySymbol}</span>
               {Math.round(ribbonMetrics.topDebtor?.balance || 0).toLocaleString()}
             </div>
             <div className="mt-3">
-              <span className="text-[11px] font-bold text-ink-primary truncate block max-w-full">
+              <span className="text-[11px] font-semibold text-foreground truncate block max-w-full">
                 {ribbonMetrics.topDebtor?.name || 'N/A (No Debt)'}
               </span>
             </div>
@@ -136,18 +136,18 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
         </div>
 
         {/* Ticket Size Card */}
-        <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+        <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
           <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-purple-500">
             <Target size={40} strokeWidth={2} />
           </div>
           <div className="relative z-10 flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Avg Ticket Size</span>
-            <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-              <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile.currencySymbol}</span>
+            <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Avg Ticket Size</span>
+            <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
+              <span className="text-[16px] text-foreground/30 mr-1">{businessProfile.currencySymbol}</span>
               {Math.round(ribbonMetrics.avgTicketSize).toLocaleString()}
             </div>
             <div className="flex items-center gap-1.5 text-purple-500/70 mt-3">
-              <span className="text-[9px] font-bold uppercase tracking-wider">Revenue Per Order</span>
+              <span className="text-[9px] font-semibold uppercase tracking-wider">Revenue Per Order</span>
             </div>
           </div>
         </div>
@@ -155,9 +155,9 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
 
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
  {/* 30-Day Trend */}
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
- <h3 className="text-xl font-semibold text-ink-primary mb-2">Revenue Velocity.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">Daily sales performance (30D Overvview)</p>
+ <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <h3 className="text-xl font-semibold text-foreground mb-2">Revenue Velocity.</h3>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">Daily sales performance (30D Overvview)</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
  <LineChart data={salesTrends}>
@@ -178,7 +178,7 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
  <Line 
  type="monotone" 
  dataKey="amount" 
- stroke="#D97706" 
+ stroke="var(--color-accent-signature)" 
  strokeWidth={4} 
  dot={false} 
  activeDot={{ r: 8, strokeWidth: 0}} 
@@ -189,9 +189,9 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
  </div>
 
  {/* Category Sales */}
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
- <h3 className="text-xl font-semibold text-ink-primary mb-2">Category Dominance.</h3>
- <p className="text-[10px] font-semibold text-gray-700 mb-8">Revenue distribution by catalog grouping</p>
+ <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <h3 className="text-xl font-semibold text-foreground mb-2">Category Dominance.</h3>
+ <p className="text-[10px] font-semibold text-ink-secondary mb-8">Revenue distribution by catalog grouping</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
  <PieChart>
@@ -226,11 +226,11 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
  </div>
 
  {/* Top Customers Leaderboard */}
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <div className="flex justify-between items-center mb-10">
  <div>
- <h3 className="text-2xl font-semibold text-ink-primary leading-none mb-2">Premium Client Board.</h3>
- <p className="text-[10px] font-semibold text-gray-700">Top revenue generating partners</p>
+ <h3 className="text-2xl font-semibold text-foreground leading-none mb-2">Premium Client Board.</h3>
+ <p className="text-[10px] font-semibold text-ink-secondary">Top revenue generating partners</p>
  </div>
  <button 
  onClick={() => exportSalesCSV(sales, businessProfile.name, (id) => clients.find(c => c.id === id)?.name || id)}
@@ -244,11 +244,11 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
 
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
  {topCustomers.map((customer, index) => (
- <div key={customer.id} className="p-6 bg-canvas/40 rounded-[1.5rem] border border-black/5 hover:bg-white hover:shadow-xl transition-all group relative overflow-hidden">
+ <div key={customer.id} className="p-6 bg-canvas/40 rounded-[1.5rem] border border-border/60 hover:bg-card hover:shadow-xl transition-all group relative overflow-hidden">
  <div className="absolute top-2 right-4 text-4xl font-semibold opacity-5 group-hover:opacity-10">#{index + 1}</div>
- <h4 className="text-xs font-semibold text-ink-primary mb-1 truncate">{customer.name}</h4>
+ <h4 className="text-xs font-semibold text-foreground mb-1 truncate">{customer.name}</h4>
  <p className="text-[9px] font-semibold text-accent-signature-hover mb-4">{customer.count} Transactions</p>
- <div className="text-2xl font-semibold text-ink-primary">
+ <div className="text-2xl font-semibold text-foreground">
  {businessProfile.currencySymbol}{Math.round(customer.revenue).toLocaleString()}
  </div>
  </div>

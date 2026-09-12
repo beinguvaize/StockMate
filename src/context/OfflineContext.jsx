@@ -24,6 +24,7 @@ import {
 } from '../lib/offline/syncEngine.js';
 import { probeConnectivity } from '../lib/supabase.js';
 import { pendingCount as outboxPendingCount } from '../lib/offline/outbox.js';
+import { isElectron } from '../lib/offline/hookAdapter.js';
 
 const AUTO_SYNC_LS_KEY = 'ledgr.autoSync';
 
@@ -54,11 +55,16 @@ export function OfflineProvider({ children }) {
   const [lastSyncAt, setLastSyncAt] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
 
-  // Auto-sync preference persisted in localStorage. Default OFF — user
-  // explicitly asked for manual sync + optional 10-min auto.
+  // Auto-sync preference persisted in localStorage. Desktop is offline-first
+  // so auto-sync defaults ON there (every 10 min); web default stays OFF.
+  // A saved user choice always wins.
   const [autoSync, setAutoSyncState] = useState(() => {
-    try { return localStorage.getItem(AUTO_SYNC_LS_KEY) === '1'; }
-    catch (_) { return false; }
+    try {
+      const saved = localStorage.getItem(AUTO_SYNC_LS_KEY);
+      if (saved === '1') return true;
+      if (saved === '0') return false;
+      return isElectron();
+    } catch (_) { return false; }
   });
   const setAutoSync = useCallback((v) => {
     setAutoSyncState(!!v);

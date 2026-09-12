@@ -1,16 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useDialogClose } from '../../../hooks/useDialogClose';
 import { ChevronLeft, X, TrendingUp, TrendingDown, RotateCcw, Search, Filter, History } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 
 const TYPE_CONFIG = {
   IN:       { label: 'Stock In',    color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', Icon: TrendingUp },
   OUT:      { label: 'Stock Out',   color: 'text-rose-600',    bg: 'bg-rose-50',    border: 'border-rose-200',    Icon: TrendingDown },
-  ADJUST:   { label: 'Adjustment', color: 'text-amber-600',  bg: 'bg-amber-50',  border: 'border-amber-200',  Icon: RotateCcw },
+  ADJUST:   { label: 'Adjustment', color: 'text-accent-signature',  bg: 'bg-accent-signature/10',  border: 'border-accent-signature/25',  Icon: RotateCcw },
   TRANSFER: { label: 'Transfer',   color: 'text-blue-600',    bg: 'bg-blue-50',    border: 'border-blue-200',    Icon: RotateCcw },
 };
 
-const typeFor = (type = '') => TYPE_CONFIG[type.toUpperCase()] || TYPE_CONFIG.ADJUST;
+// movement_log.type is only ever IN or OUT. "Adjustment" and "Transfer" are
+// distinguished by the reason text, so classify on that first.
+const classify = (row) => {
+  const reason = (row.reason || '').toLowerCase();
+  if (/manual|adjust/.test(reason)) return 'ADJUST';
+  if (/transfer|godown|to location|relocat/.test(reason)) return 'TRANSFER';
+  return (row.type || '').toUpperCase() === 'OUT' ? 'OUT' : 'IN';
+};
+const typeFor = (kind = '') => TYPE_CONFIG[kind.toUpperCase()] || TYPE_CONFIG.ADJUST;
 
 const fmt = (iso) => {
   if (!iso) return '—';
@@ -19,6 +28,7 @@ const fmt = (iso) => {
 };
 
 export default function StockHistoryModal({ tenantId, products, onClose }) {
+  useDialogClose(onClose);
   const [log,     setLog]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState('');
@@ -30,6 +40,7 @@ export default function StockHistoryModal({ tenantId, products, onClose }) {
     supabase
       .from('movement_log')
       .select('*')
+      .is('deleted_at', null)
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(500)
@@ -50,7 +61,7 @@ export default function StockHistoryModal({ tenantId, products, onClose }) {
       const name = (r.product_name || productName(r.product_id, '')).toLowerCase();
       const reason = (r.reason || '').toLowerCase();
       const matchSearch = !q || name.includes(q) || reason.includes(q);
-      const matchType = typeFilter === 'ALL' || (r.type || '').toUpperCase() === typeFilter;
+      const matchType = typeFilter === 'ALL' || classify(r) === typeFilter;
       return matchSearch && matchType;
     });
   }, [log, search, typeFilter]);
@@ -59,30 +70,30 @@ export default function StockHistoryModal({ tenantId, products, onClose }) {
     <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
 
       {/* Top bar */}
-      <div className="flex items-center gap-4 px-6 py-4 border-b border-black/5 bg-white shrink-0">
-        <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full border border-black/5 hover:bg-canvas transition-all text-ink-primary shrink-0">
+      <div className="flex items-center gap-4 px-6 py-4 border-b border-border/60 bg-card shrink-0">
+        <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
           <ChevronLeft size={18} />
         </button>
         <div className="min-w-0">
-          <h1 className="text-lg font-black text-ink-primary leading-tight">Stock History</h1>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+          <h1 className="text-lg font-semibold text-foreground leading-tight">Stock History</h1>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mt-0.5">
             {loading ? 'Loading…' : `${filtered.length} movements`}
           </p>
         </div>
-        <button onClick={onClose} className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-gray-400 shrink-0">
+        <button onClick={onClose} className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-muted-foreground shrink-0">
           <X size={16} />
         </button>
       </div>
 
       {/* Filters */}
-      <div className="px-6 py-3 border-b border-black/5 bg-white shrink-0 flex items-center gap-3">
+      <div className="px-6 py-3 border-b border-border/60 bg-card shrink-0 flex items-center gap-3">
         <div className="relative flex-1 max-w-xs">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search product or reason…"
-            className="w-full pl-8 pr-4 py-2 text-xs font-semibold bg-white border border-gray-300 shadow-sm rounded-xl outline-none focus:ring-2 focus:ring-accent-signature/25"
+            className="w-full pl-8 pr-4 py-2 text-xs font-semibold bg-card border border-border shadow-sm rounded-xl outline-none focus:ring-2 focus:ring-accent-signature/25"
           />
         </div>
         <div className="flex gap-1.5">
@@ -90,10 +101,10 @@ export default function StockHistoryModal({ tenantId, products, onClose }) {
             <button
               key={t}
               onClick={() => setTypeFilter(t)}
-              className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all border ${
+              className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all border ${
                 typeFilter === t
-                  ? 'bg-ink-primary text-white border-transparent'
-                  : 'bg-canvas border-black/8 text-gray-500 hover:border-black/20'
+                  ? 'bg-foreground text-background border-transparent'
+                  : 'bg-canvas border-black/8 text-muted-foreground hover:border-black/20'
               }`}
             >
               {t}
@@ -106,25 +117,25 @@ export default function StockHistoryModal({ tenantId, products, onClose }) {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-6 py-4">
           {loading ? (
-            <div className="flex items-center justify-center py-24 text-gray-300">
-              <div className="w-8 h-8 border-2 border-gray-200 border-t-accent-signature rounded-full animate-spin" />
+            <div className="flex items-center justify-center py-24 text-muted-foreground">
+              <div className="w-8 h-8 border-2 border-border border-t-accent-signature rounded-full animate-spin" />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-gray-300">
+            <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
               <History size={48} strokeWidth={1.5} />
-              <p className="text-sm font-bold mt-4 text-gray-400">No movements found</p>
-              <p className="text-xs text-gray-300 mt-1">Stock adjustments and sales will appear here</p>
+              <p className="text-sm font-semibold mt-4 text-muted-foreground">No movements found</p>
+              <p className="text-xs text-muted-foreground mt-1">Stock adjustments and sales will appear here</p>
             </div>
           ) : (
             <div className="space-y-2">
               {filtered.map(row => {
-                const cfg = typeFor(row.type);
+                const cfg = typeFor(classify(row));
                 const Icon = cfg.Icon;
                 const name = productName(row.product_id, row.product_name);
                 const qty = Number(row.quantity) || 0;
                 const isOut = (row.type || '').toUpperCase() === 'OUT';
                 return (
-                  <div key={row.id} className="flex items-center gap-4 px-4 py-3.5 bg-white rounded-2xl border border-black/5 hover:border-black/10 transition-all">
+                  <div key={row.id} className="flex items-center gap-4 px-4 py-3.5 bg-card rounded-2xl border border-border/60 hover:border-border transition-all">
                     {/* Icon */}
                     <div className={`w-9 h-9 rounded-xl ${cfg.bg} ${cfg.border} border flex items-center justify-center shrink-0`}>
                       <Icon size={15} className={cfg.color} />
@@ -132,24 +143,24 @@ export default function StockHistoryModal({ tenantId, products, onClose }) {
 
                     {/* Product + reason */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-black text-ink-primary truncate">{name}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{name}</p>
                       {row.reason && (
-                        <p className="text-[10px] text-gray-400 font-medium truncate mt-0.5">{row.reason}</p>
+                        <p className="text-[10px] text-muted-foreground font-medium truncate mt-0.5">{row.reason}</p>
                       )}
                     </div>
 
                     {/* Type badge */}
-                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color} border ${cfg.border} hidden sm:inline`}>
+                    <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color} border ${cfg.border} hidden sm:inline`}>
                       {cfg.label}
                     </span>
 
                     {/* Qty */}
-                    <span className={`text-base font-black tabular-nums w-16 text-right ${isOut ? 'text-rose-500' : 'text-emerald-600'}`}>
+                    <span className={`text-base font-semibold tabular-nums w-16 text-right ${isOut ? 'text-rose-500' : 'text-emerald-600'}`}>
                       {isOut ? '-' : '+'}{qty}
                     </span>
 
                     {/* Date */}
-                    <span className="text-[10px] text-gray-400 font-medium w-36 text-right hidden md:block">
+                    <span className="text-[10px] text-muted-foreground font-medium w-36 text-right hidden md:block">
                       {fmt(row.created_at || row.date)}
                     </span>
                   </div>

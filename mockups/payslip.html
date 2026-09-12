@@ -1,0 +1,141 @@
+<title>Salary Slip</title>
+<style>
+  :root{
+    --ink:#101828; --muted:#667085; --rule:rgba(16,24,40,.14);
+    --ground:#eceef2; --paper:#fff;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ground:#15171c;}}
+  :root[data-theme="dark"]{--ground:#15171c;}
+  body{background:var(--ground);margin:0;padding:28px 16px;
+       font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);}
+  .wrap{max-width:1120px;margin:0 auto;}
+  .lede{max-width:640px;margin:0 auto 24px;color:var(--muted);font-size:13px;line-height:1.6;text-align:center;}
+  .lede b{color:var(--ink);}
+  .row{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+  .sheet{background:var(--paper);color:var(--ink);width:360px;padding:26px;border-radius:10px;
+         box-shadow:0 1px 2px rgba(16,24,40,.06),0 10px 30px -12px rgba(16,24,40,.22);}
+  .hd{text-align:center;border-bottom:1px solid var(--rule);padding-bottom:11px;}
+  .biz{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
+  .adr{font-size:9.5px;color:var(--muted);margin-top:2px;}
+  .doc{font-size:10.5px;font-weight:600;margin-top:8px;letter-spacing:.16em;text-transform:uppercase;}
+  .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;padding:12px 0;
+        border-bottom:1px solid rgba(16,24,40,.09);font-size:10.5px;}
+  .lbl{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);}
+  .val{margin-top:1px;} .val.s{font-weight:600;}
+  table{width:100%;border-collapse:collapse;font-size:10.5px;margin:12px 0;}
+  th{font-size:8.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+     font-weight:600;text-align:left;padding:6px 0;border-bottom:1px solid rgba(16,24,40,.09);}
+  th.r,td.r{text-align:right;} td{padding:6px 0;vertical-align:top;
+     font-variant-numeric:tabular-nums;}
+  .note{font-size:9px;color:var(--muted);}
+  .sub td{border-top:1px solid rgba(16,24,40,.09);font-weight:600;}
+  .net{display:flex;justify-content:space-between;align-items:center;
+       border-top:2px solid rgba(16,24,40,.7);border-bottom:1px solid var(--rule);padding:9px 0;}
+  .net b{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;}
+  .net span{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .words{font-size:9.5px;font-style:italic;color:var(--muted);padding-top:5px;}
+  .nil{text-align:center;padding:26px 8px;}
+  .nil b{font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;}
+  .nil p{font-size:10.5px;color:var(--muted);margin:6px 14px 0;line-height:1.5;}
+  .sig{display:grid;grid-template-columns:1fr 1fr;gap:30px;padding-top:36px;font-size:9.5px;}
+  .sig div{border-top:1px solid rgba(16,24,40,.4);padding-top:4px;text-align:center;color:var(--muted);}
+  .foot{text-align:center;font-size:8px;color:var(--muted);padding-top:14px;}
+  .cap{text-align:center;font-size:11px;color:var(--muted);margin-top:10px;}
+</style>
+
+<div class="wrap">
+  <p class="lede">
+    Salary slip, A5. Real figures from the <b>17 Aug 2026</b> pay run — nothing here is invented.
+    Third slip is <b>Parthipan</b>, who has marked days but no daily rate: it prints as
+    <b>NIL</b> with the reason, rather than as an ordinary slip showing ₹0.
+  </p>
+
+  <div class="row">
+
+    <!-- Akbar -->
+    <div>
+    <div class="sheet">
+      <div class="hd">
+        <div class="biz">Future Dispo Industries</div>
+        <div class="adr">Mannamparambu, Chadayamangalam, Kollam Dist</div>
+        <div class="doc">Salary Slip</div>
+      </div>
+      <div class="meta">
+        <div><div class="lbl">Employee</div><div class="val s">Akbar</div></div>
+        <div><div class="lbl">Pay period</div><div class="val s">17 Aug</div></div>
+        <div><div class="lbl">Department</div><div class="val">Management</div></div>
+        <div><div class="lbl">Paid on</div><div class="val">17 Aug 2026</div></div>
+        <div><div class="lbl">Reference</div><div class="val">186379E2</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Earnings</th><th class="r">Amount</th></tr></thead>
+        <tbody>
+          <tr><td>Basic pay<div class="note">1 day × ₹900</div></td><td class="r">₹900</td></tr>
+          <tr class="sub"><td>Gross earnings</td><td class="r">₹900</td></tr>
+        </tbody>
+      </table>
+      <div class="net"><b>Net pay</b><span>₹900</span></div>
+      <div class="words">Nine Hundred Rupees Only</div>
+      <div class="sig"><div>Employee signature</div><div>For Future Dispo Industries</div></div>
+      <div class="foot">Computer-generated salary slip.</div>
+    </div>
+    <div class="cap">Akbar · paid</div>
+    </div>
+
+    <!-- Nadirsha, with extras to show the fuller shape -->
+    <div>
+    <div class="sheet">
+      <div class="hd">
+        <div class="biz">Future Dispo Industries</div>
+        <div class="adr">Mannamparambu, Chadayamangalam, Kollam Dist</div>
+        <div class="doc">Salary Slip</div>
+      </div>
+      <div class="meta">
+        <div><div class="lbl">Employee</div><div class="val s">Nadirsha</div></div>
+        <div><div class="lbl">Pay period</div><div class="val s">17 Aug</div></div>
+        <div><div class="lbl">Department</div><div class="val">Delivery</div></div>
+        <div><div class="lbl">Paid on</div><div class="val">17 Aug 2026</div></div>
+        <div><div class="lbl">Reference</div><div class="val">186379E2</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Earnings</th><th class="r">Amount</th></tr></thead>
+        <tbody>
+          <tr><td>Basic pay<div class="note">1 day × ₹900</div></td><td class="r">₹900</td></tr>
+          <tr class="sub"><td>Gross earnings</td><td class="r">₹900</td></tr>
+        </tbody>
+      </table>
+      <div class="net"><b>Net pay</b><span>₹900</span></div>
+      <div class="words">Nine Hundred Rupees Only</div>
+      <div class="sig"><div>Employee signature</div><div>For Future Dispo Industries</div></div>
+      <div class="foot">Computer-generated salary slip.</div>
+    </div>
+    <div class="cap">Nadirsha · paid</div>
+    </div>
+
+    <!-- Parthipan: the nil case -->
+    <div>
+    <div class="sheet">
+      <div class="hd">
+        <div class="biz">Future Dispo Industries</div>
+        <div class="adr">Mannamparambu, Chadayamangalam, Kollam Dist</div>
+        <div class="doc">Salary Slip</div>
+      </div>
+      <div class="meta">
+        <div><div class="lbl">Employee</div><div class="val s">Parthipan</div></div>
+        <div><div class="lbl">Pay period</div><div class="val s">17 Aug</div></div>
+        <div><div class="lbl">Department</div><div class="val">Warehouse</div></div>
+        <div><div class="lbl">Paid on</div><div class="val">17 Aug 2026</div></div>
+        <div><div class="lbl">Reference</div><div class="val">186379E2</div></div>
+      </div>
+      <div class="nil">
+        <b>Nil — nothing payable</b>
+        <p>No days were marked for this period.</p>
+      </div>
+      <div class="sig"><div>Employee signature</div><div>For Future Dispo Industries</div></div>
+      <div class="foot">Computer-generated salary slip.</div>
+    </div>
+    <div class="cap">Parthipan · nil</div>
+    </div>
+
+  </div>
+</div>

@@ -1,67 +1,18 @@
 /**
  * ItemPartyReport — Item × Party cross report.
  * Two views:
- *   "By Customer" — pick a customer → table of items they bought
- *   "By Item"     — pick a product  → table of customers who bought it
+ * "By Customer" — pick a customer → table of items they bought
+ * "By Item"     — pick a product  → table of customers who bought it
  */
 import React, { useState, useMemo } from 'react';
 import {
-  Users, Package, Search, Calendar, TrendingUp, Hash, BarChart3,
+  Users, Package, Search, TrendingUp, Hash, BarChart3,
 } from 'lucide-react';
 import useReportData from './useReportData';
-import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
-
-const today = todayISOInAppTZ();
-
-const PRESETS = [
-  { id: 'TODAY',   label: 'Today' },
-  { id: 'WEEK',    label: 'This Week' },
-  { id: 'MONTH',   label: 'This Month' },
-  { id: 'QUARTER', label: 'Quarter' },
-  { id: 'YEAR',    label: 'This Year' },
-];
-
-function presetRange(id) {
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  switch (id) {
-    case 'TODAY': return { start: today, end: today };
-    case 'WEEK': {
-      const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
-      return { start: fmt(mon), end: today };
-    }
-    case 'MONTH':
-      return { start: `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`, end: today };
-    case 'QUARTER': {
-      const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth()/3)*3, 1);
-      return { start: fmt(qStart), end: today };
-    }
-    case 'YEAR':
-      return { start: `${now.getFullYear()}-01-01`, end: today };
-    default: return { start: today, end: today };
-  }
-}
-
-const SectionHead = ({ title, sub }) => (
-  <div className="flex items-baseline gap-3 mb-4">
-    <h2 className="text-base font-black text-ink-primary">{title}</h2>
-    {sub && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{sub}</span>}
-  </div>
-);
-
-const KPI = ({ label, value, icon: Icon, color = '#D97706', loading }) => (
-  <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
-    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
-      <Icon size={16} style={{ color }} />
-    </div>
-    {loading
-      ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="text-2xl font-black text-ink-primary tabular-nums leading-none">{value}</div>
-    }
-    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</div>
-  </div>
-);
+import ReportHeader from './ReportHeader';
+import { KPI, SectionHead } from './ReportBits';
+import { isCountableSale, presetRange } from './reportUtils';
+import { formatCurrency } from '../../lib/utils';
 
 // Searchable picker shared by both views
 const EntityPicker = ({ label, items, selectedId, onSelect, loading, displayKey = 'name', subKey }) => {
@@ -73,34 +24,34 @@ const EntityPicker = ({ label, items, selectedId, onSelect, loading, displayKey 
   const selected = items.find(c => c.id === selectedId);
 
   return (
-    <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-6">
+    <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-6">
       <SectionHead title={label} sub="search to select" />
       <div className="relative max-w-sm">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <input
           type="text"
           placeholder={`Search ${label.toLowerCase()}...`}
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-300 shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
+          className="w-full pl-9 pr-4 py-2.5 bg-card border border-border shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
         />
       </div>
       {search && (
-        <div className="mt-2 bg-white border border-black/8 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+        <div className="mt-2 bg-card border border-black/8 rounded-xl shadow-lg max-h-56 overflow-y-auto">
           {loading
-            ? <div className="p-4 text-xs text-gray-400">Loading...</div>
+            ? <div className="p-4 text-xs text-muted-foreground">Loading...</div>
             : filtered.length === 0
-            ? <div className="p-4 text-xs text-gray-400">No results found</div>
+            ? <div className="p-4 text-xs text-muted-foreground">No results found</div>
             : filtered.map(item => (
               <button key={item.id}
                 onClick={() => { onSelect(item.id); setSearch(''); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-black/5 last:border-0 ${selectedId === item.id ? 'bg-accent-signature/5' : ''}`}>
+                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-border/60 last:border-0 ${selectedId === item.id ? 'bg-accent-signature/5' : ''}`}>
                 <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
-                  <span className="text-[10px] font-black text-accent-signature">{((item[displayKey]||'?')[0]).toUpperCase()}</span>
+                  <span className="text-[10px] font-semibold text-accent-signature">{((item[displayKey]||'?')[0]).toUpperCase()}</span>
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-ink-primary">{item[displayKey]}</div>
-                  {subKey && item[subKey] && <div className="text-[10px] text-gray-400">{item[subKey]}</div>}
+                  <div className="text-sm font-semibold text-foreground">{item[displayKey]}</div>
+                  {subKey && item[subKey] && <div className="text-[10px] text-muted-foreground">{item[subKey]}</div>}
                 </div>
               </button>
             ))
@@ -110,14 +61,14 @@ const EntityPicker = ({ label, items, selectedId, onSelect, loading, displayKey 
       {selected && !search && (
         <div className="mt-3 flex items-center gap-3 p-3 bg-accent-signature/5 rounded-xl border border-accent-signature/10">
           <div className="w-9 h-9 rounded-full bg-accent-signature/15 flex items-center justify-center shrink-0">
-            <span className="text-[11px] font-black text-accent-signature">{((selected[displayKey]||'?')[0]).toUpperCase()}</span>
+            <span className="text-[11px] font-semibold text-accent-signature">{((selected[displayKey]||'?')[0]).toUpperCase()}</span>
           </div>
           <div className="flex-1">
-            <div className="text-sm font-black text-ink-primary">{selected[displayKey]}</div>
-            {subKey && selected[subKey] && <div className="text-[10px] text-gray-400">{selected[subKey]}</div>}
+            <div className="text-sm font-semibold text-foreground">{selected[displayKey]}</div>
+            {subKey && selected[subKey] && <div className="text-[10px] text-muted-foreground">{selected[subKey]}</div>}
           </div>
           <button onClick={() => onSelect('')}
-            className="text-[10px] font-black text-gray-400 hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50">
+            className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50">
             Change
           </button>
         </div>
@@ -138,7 +89,8 @@ const ItemPartyReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: sales,    loading: sLoading } = useReportData({ table: 'sales',    select: '*',            dateColumn: 'date', filters });
+  const { data: salesRaw,    loading: sLoading } = useReportData({ table: 'sales',    select: '*',            dateColumn: 'date', filters });
+  const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
   const { data: clients,  loading: cLoading } = useReportData({ table: 'clients',  select: 'id, name, phone' });
   const { data: products, loading: pLoading } = useReportData({ table: 'products', select: 'id, name, sku' });
 
@@ -212,63 +164,33 @@ const ItemPartyReport = () => {
   const entitySelected = isCustomerView ? !!clientId : !!productId;
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-ink-primary leading-none">
-            Item × Party<span className="text-accent-signature">.</span>
-          </h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">
-            {range.start === range.end ? range.start : `${range.start} → ${range.end}`}
-          </p>
-        </div>
-        <div className="flex-1" />
-        <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1 flex-wrap">
-          {PRESETS.map(p => (
-            <button key={p.id} onClick={() => applyPreset(p.id)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-                preset === p.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
-              }`}>{p.label}</button>
-          ))}
-          <button onClick={() => applyPreset('CUSTOM')}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-              preset === 'CUSTOM' ? 'bg-ink-primary text-white' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
-            }`}>
-            <Calendar size={11} /> Custom
-          </button>
-        </div>
-      </div>
-
-      {/* Custom date inputs */}
-      {showCustom && (
-        <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-black/5 shadow-sm">
-          <Calendar size={14} className="text-gray-400 shrink-0" />
-          <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
-          <span className="text-gray-400 text-xs font-bold">to</span>
-          <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
-          <button onClick={applyCustom}
-            className="px-4 py-2 rounded-xl bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all">
-            Apply
-          </button>
-        </div>
-      )}
+    <div className="space-y-4 pb-16">
+      <ReportHeader
+        title="Item × Party"
+        subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
+        preset={preset}
+        onPreset={applyPreset}
+        showCustom={showCustom}
+        customStart={customStart}
+        customEnd={customEnd}
+        setCustomStart={setCustomStart}
+        setCustomEnd={setCustomEnd}
+        onApplyCustom={applyCustom}
+      />
 
       {/* View toggle */}
       <div className="flex items-center gap-3">
-        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">View:</span>
-        <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">View:</span>
+        <div className="flex items-center gap-1 bg-card border border-border shadow-sm rounded-xl p-1">
           <button onClick={() => { setView('customer'); setProductId(''); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-black transition-all ${
-              view === 'customer' ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+              view === 'customer' ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
             }`}>
             <Users size={12} /> By Customer
           </button>
           <button onClick={() => { setView('item'); setClientId(''); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-black transition-all ${
-              view === 'item' ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+              view === 'item' ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
             }`}>
             <Package size={12} /> By Item
           </button>
@@ -304,13 +226,13 @@ const ItemPartyReport = () => {
           {isCustomerView ? (
             <>
               <KPI label="Unique Items"   loading={sLoading} value={tableKpis.uniqueItems}             icon={Package}    color="#8b5cf6" />
-              <KPI label="Total Qty"      loading={sLoading} value={tableKpis.totalQty}                icon={Hash}       color="#D97706" />
+              <KPI label="Total Qty"      loading={sLoading} value={tableKpis.totalQty}                icon={Hash}       color="var(--color-accent-signature)" />
               <KPI label="Total Revenue"  loading={sLoading} value={formatCurrency(tableKpis.totalRevenue)} icon={TrendingUp} color="#10b981" />
             </>
           ) : (
             <>
               <KPI label="Customers"      loading={sLoading} value={tableKpis.uniqueCustomers}          icon={Users}      color="#8b5cf6" />
-              <KPI label="Total Qty Sold" loading={sLoading} value={tableKpis.totalQty}                icon={Hash}       color="#D97706" />
+              <KPI label="Total Qty Sold" loading={sLoading} value={tableKpis.totalQty}                icon={Hash}       color="var(--color-accent-signature)" />
               <KPI label="Total Revenue"  loading={sLoading} value={formatCurrency(tableKpis.totalRevenue)} icon={TrendingUp} color="#10b981" />
             </>
           )}
@@ -319,15 +241,15 @@ const ItemPartyReport = () => {
 
       {/* Table */}
       {entitySelected && (
-        <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-          <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+        <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
+          <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
             <SectionHead
               title={isCustomerView
                 ? `Items — ${selectedEntity?.name || ''}`
                 : `Customers — ${selectedEntity?.name || ''}`}
               sub="ranked by revenue"
             />
-            <span className="text-[10px] font-black text-gray-400 bg-canvas px-2 py-1 rounded-full">
+            <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">
               {tableRows.length} {isCustomerView ? 'items' : 'customers'}
             </span>
           </div>
@@ -337,30 +259,30 @@ const ItemPartyReport = () => {
               {[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}
             </div>
           ) : tableRows.length === 0 ? (
-            <div className="py-16 text-center text-sm text-gray-400">
+            <div className="py-16 text-center text-sm text-muted-foreground">
               No data for selected {isCustomerView ? 'customer' : 'product'} in this period
             </div>
           ) : (
             <div>
-              <div className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-6 py-2 bg-canvas/50 border-b border-black/5">
+              <div className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
                 {['#', isCustomerView ? 'Item' : 'Customer', 'Qty', 'Revenue'].map(h => (
-                  <span key={h} className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{h}</span>
+                  <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
                 ))}
               </div>
               {tableRows.map((row, i) => (
                 <div key={row.name}
-                  className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
-                  <span className={`text-sm font-black tabular-nums ${i===0?'text-amber-500':i===1?'text-gray-400':i===2?'text-amber-700':'text-ink-tertiary'}`}>
+                  className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
+                  <span className={`text-sm font-semibold tabular-nums ${i===0?'text-accent-signature':i===1?'text-muted-foreground':i===2?'text-accent-signature-hover':'text-ink-tertiary'}`}>
                     {i + 1}
                   </span>
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-7 h-7 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
-                      <span className="text-[9px] font-black text-accent-signature">{((row.name||'?')[0]).toUpperCase()}</span>
+                      <span className="text-[9px] font-semibold text-accent-signature">{((row.name||'?')[0]).toUpperCase()}</span>
                     </div>
-                    <span className="text-sm font-bold text-ink-primary truncate">{row.name}</span>
+                    <span className="text-sm font-semibold text-foreground truncate">{row.name}</span>
                   </div>
-                  <span className="text-sm font-black text-ink-primary tabular-nums">{row.qty}</span>
-                  <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(row.revenue)}</span>
+                  <span className="text-sm font-semibold text-foreground tabular-nums">{row.qty}</span>
+                  <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(row.revenue)}</span>
                 </div>
               ))}
             </div>
@@ -370,10 +292,10 @@ const ItemPartyReport = () => {
 
       {/* Prompt when nothing selected */}
       {!entitySelected && !loading && (
-        <div className="py-20 text-center text-sm text-gray-400 bg-white rounded-2xl border border-black/5 shadow-sm">
+        <div className="py-20 text-center text-sm text-muted-foreground bg-card rounded-[10px] border border-border/60 shadow-sm">
           {isCustomerView
-            ? <><Users size={32} className="mx-auto mb-3 text-gray-300" />Select a customer above to see their items</>
-            : <><Package size={32} className="mx-auto mb-3 text-gray-300" />Select a product above to see its customers</>
+            ? <><Users size={32} className="mx-auto mb-3 text-muted-foreground" />Select a customer above to see their items</>
+            : <><Package size={32} className="mx-auto mb-3 text-muted-foreground" />Select a product above to see its customers</>
           }
         </div>
       )}

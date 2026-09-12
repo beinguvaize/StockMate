@@ -7,6 +7,16 @@ import { NotificationProvider } from './context/NotificationContext'
 import { OfflineProvider } from './context/OfflineContext'
 import App from './App.jsx'
 
+// Chunk load failure = stale service worker after deploy. Reload forces SW to fetch fresh manifest.
+window.addEventListener('vite:preloadError', () => window.location.reload());
+
+// Prevent mouse scroll from changing number input values anywhere in the app.
+document.addEventListener('wheel', (e) => {
+  if (document.activeElement === e.target && e.target.type === 'number') {
+    e.target.blur();
+  }
+}, { passive: true });
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>

@@ -1,18 +1,36 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, restInsert, restUpdate } from '../lib/supabase';
+import { isElectron, queueMutation, upsertCachedRow, fetchWithCache } from '../lib/offline/hookAdapter';
 
-// Resolve which account a payment lands in from its method — so there's one
-// choice (the method), not a separate "deposit to" picker. CASH→CASH, UPI→UPI,
-// CARD/BANK→BANK; falls back to the default account, then first non-loan.
-export const accountForMethod = (accounts = [], method = 'CASH') => {
-  const live = accounts.filter((a) => a.type !== 'LOAN');
-  const want = { CASH: 'CASH', UPI: 'UPI', CARD: 'BANK', BANK: 'BANK' }[String(method || '').toUpperCase()] || 'CASH';
-  return (
-    live.find((a) => a.type === want)
+// Resolve which account a payment lands in.
+// Pass an account ID directly (from dynamic POS buttons) → returns it as-is
+// after resolving UPI linked_bank_account_id. Pass a method string (CASH/UPI/
+// BANK/CARD) → picks the DEFAULT account of that type first, then any account
+// of that type, then any default account, then the first account overall.
+export const accountForMethod = (accounts = [], methodOrId = 'CASH') => {
+  const live = accounts.filter((a) => !a.deleted_at && a.type !== 'LOAN');
+  // Direct account ID passed — resolve UPI→linked bank, else return as-is.
+  const byId = live.find((a) => a.id === methodOrId);
+  if (byId) return byId.linked_bank_account_id || byId.id;
+  // Method string path.
+  const want = { CASH: 'CASH', UPI: 'UPI', CARD: 'BANK', BANK: 'BANK' }[String(methodOrId || '').toUpperCase()] || 'CASH';
+  const acc = live.find((a) => a.type === want && a.is_default)
+    || live.find((a) => a.type === want)
     || live.find((a) => a.is_default)
-    || live[0]
-    || null
-  )?.id || '';
+    || live[0] || null;
+  if (!acc) return '';
+  return acc.linked_bank_account_id || acc.id;
+};
+
+// Build dynamic POS payment method buttons from accounts.
+// Returns [{key, label, type, icon?}] ordered CASH → UPI → BANK → CARD,
+// plus CREDIT appended by caller. Each key = account.id for precise routing.
+export const buildPaymentMethods = (accounts = []) => {
+  const live = accounts.filter((a) => !a.deleted_at && !['LOAN'].includes(a.type));
+  const order = ['CASH', 'UPI', 'BANK', 'CARD'];
+  return order.flatMap((t) =>
+    live.filter((a) => a.type === t).map((a) => ({ key: a.id, label: a.name, type: t, upi_id: a.upi_id || null }))
+  );
 };
 
 // Reducing-balance EMI for a loan. r = monthly rate. Returns rounded EMI.
@@ -52,17 +70,42 @@ export function useAccounts(tenantId) {
   const [accounts, setAccounts] = useState([]);
   const [txns, setTxns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Reads go through the offline cache on desktop.
+  //
+  // Writes here already queued offline, but the reads went straight to
+  // Supabase. With no network the queries returned nothing, both lists came
+  // back empty, and every balance derived from them read zero -- the desktop
+  // app showed "Cash Balance ₹0" while the money was sitting in the local
+  // cache the whole time. Cached-read, not cached-write, was the gap.
+  //
+  // fetchWithCache is a no-op on web, so the browser behaves exactly as before.
   const fetchAll = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
     setLoading(true);
-    const [{ data: acc }, { data: tx }] = await Promise.all([
-      supabase.from('accounts').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('created_at'),
-      supabase.from('account_transactions').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }),
-    ]);
-    setAccounts(acc || []);
-    setTxns(tx || []);
-    setLoading(false);
+    // finally, not a trailing call: a rejected fetch used to leave `loading`
+    // true forever, which is why the desktop app sat on "Loading accounts…"
+    // indefinitely instead of showing an empty state or an error.
+    try {
+      const [accRes, txRes] = await Promise.all([
+        fetchWithCache('accounts', () =>
+          supabase.from('accounts').select('*').is('deleted_at', null)
+            .eq('tenant_id', tenantId).order('created_at')),
+        fetchWithCache('account_transactions', () =>
+          supabase.from('account_transactions').select('*')
+            .eq('tenant_id', tenantId).order('date', { ascending: false })),
+      ]);
+      // Cached rows are whole-table, so re-apply what the query would have done.
+      setAccounts((accRes.data || []).filter(a => a.tenant_id === tenantId && !a.deleted_at));
+      setTxns((txRes.data || []).filter(t => t.tenant_id === tenantId));
+      setError(null);
+    } catch (e) {
+      console.error('accounts fetch failed:', e);
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
   }, [tenantId]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -84,6 +127,8 @@ export function useAccounts(tenantId) {
       id: genId('ACC'), tenant_id: tenantId,
       name: a.name, type: a.type || 'BANK',
       bank_name: a.bank_name || null, account_no: a.account_no || null, ifsc: a.ifsc || null,
+      upi_id: a.upi_id || null,
+      linked_bank_account_id: a.linked_bank_account_id || null,
       opening_balance: Number(a.opening_balance) || 0, is_default: !!a.is_default,
       lender: a.lender || null,
       loan_principal: isLoan ? Number(a.loan_principal) || 0 : null,
@@ -92,19 +137,52 @@ export function useAccounts(tenantId) {
       loan_start: isLoan ? (a.loan_start || new Date().toISOString().slice(0, 10)) : null,
       loan_emi: isLoan ? emiOf(a.loan_principal, a.loan_rate, a.loan_tenure_months) : null,
     };
+    if (isElectron()) {
+      await queueMutation({ table: 'accounts', type: 'insert', payload: row });
+      await upsertCachedRow('accounts', row);
+      fetchAll();
+      return { error: null, queued: true };
+    }
     const { error } = await restInsert('accounts', row);
     if (!error) fetchAll();
     return { error };
   };
 
   const updateAccount = async (id, patch) => {
-    const { error } = await restUpdate('accounts', { ...patch, updated_at: new Date().toISOString() }, { id, tenant_id: tenantId });
+    const row = { ...patch, updated_at: new Date().toISOString() };
+    if ('linked_bank_account_id' in row) row.linked_bank_account_id = row.linked_bank_account_id || null;
+    if (isElectron()) {
+      await queueMutation({ table: 'accounts', type: 'update', payload: { ...row, id } });
+      fetchAll();
+      return { error: null, queued: true };
+    }
+    const { error } = await restUpdate('accounts', row, { id, tenant_id: tenantId });
     if (!error) fetchAll();
     return { error };
   };
 
   const removeAccount = async (id) => {
+    if (isElectron()) {
+      await queueMutation({ table: 'accounts', type: 'delete', payload: { id } });
+      fetchAll();
+      return { error: null, queued: true };
+    }
     const { error } = await restUpdate('accounts', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
+    if (!error) fetchAll();
+    return { error };
+  };
+
+  // Mark one account as default for its type; clears is_default on siblings first.
+  const setDefaultAccount = async (id) => {
+    const acc = accounts.find(a => a.id === id);
+    if (!acc) return { error: new Error('Account not found') };
+    // Clear default on all same-type accounts in this tenant
+    await supabase.from('accounts')
+      .update({ is_default: false })
+      .eq('tenant_id', tenantId)
+      .eq('type', acc.type)
+      .is('deleted_at', null);
+    const { error } = await restUpdate('accounts', { is_default: true }, { id, tenant_id: tenantId });
     if (!error) fetchAll();
     return { error };
   };
@@ -118,6 +196,12 @@ export function useAccounts(tenantId) {
       mode: t.mode || null, ref_type: t.ref_type || 'MANUAL', ref_id: t.ref_id || null,
       counter_account_id: t.counter_account_id || null, note: t.note || null,
     };
+    if (isElectron()) {
+      await queueMutation({ table: 'account_transactions', type: 'insert', payload: row });
+      await upsertCachedRow('account_transactions', row);
+      fetchAll();
+      return { error: null, queued: true };
+    }
     const { error } = await restInsert('account_transactions', row);
     if (!error) fetchAll();
     return { error };
@@ -131,6 +215,13 @@ export function useAccounts(tenantId) {
     const d = date || new Date().toISOString().slice(0, 10);
     const out = { id: genId('ATX'), tenant_id: tenantId, account_id: from, date: d, direction: 'OUT', amount: amt, ref_type: 'TRANSFER', counter_account_id: to, note: note || 'Transfer out' };
     const inn = { id: genId('ATX'), tenant_id: tenantId, account_id: to,   date: d, direction: 'IN',  amount: amt, ref_type: 'TRANSFER', counter_account_id: from, note: note || 'Transfer in' };
+    if (isElectron()) {
+      await queueMutation({ table: 'account_transactions', type: 'insert', payload: [out, inn] });
+      await upsertCachedRow('account_transactions', out);
+      await upsertCachedRow('account_transactions', inn);
+      fetchAll();
+      return { error: null, queued: true };
+    }
     const { error } = await restInsert('account_transactions', [out, inn]);
     if (!error) fetchAll();
     return { error };
@@ -176,5 +267,5 @@ export function useAccounts(tenantId) {
     return { error: null };
   };
 
-  return { accounts, txns, balances, loading, refetch: fetchAll, createAccount, updateAccount, removeAccount, addTxn, transfer, loanPayments, payEMI };
+  return { accounts, txns, balances, loading, error, refetch: fetchAll, createAccount, updateAccount, removeAccount, setDefaultAccount, addTxn, transfer, loanPayments, payEMI };
 }

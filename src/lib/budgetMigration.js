@@ -45,6 +45,12 @@ export const migrateLocalBudgetsOnce = async () => {
         const parts = k.split(':');
         if (parts.length < 3) return;
         const period = parts[parts.length - 1];
+        // The owning tenant is right there in the key. It used to be discarded
+        // in favour of the column default — a placeholder uuid matching no real
+        // tenant — so migrated budgets landed on a phantom tenant and were
+        // invisible to the shop that entered them.
+        const keyTenantId = parts[1];
+        if (!keyTenantId) return;
         const raw = localStorage.getItem(k);
         if (!raw) return;
         const payload = JSON.parse(raw);
@@ -54,6 +60,7 @@ export const migrateLocalBudgetsOnce = async () => {
           const amount = Number(v?.amount);
           if (!Number.isFinite(amount) || amount <= 0) return;
           rows.push({
+            tenant_id: keyTenantId,
             period,
             category,
             amount,
@@ -71,7 +78,7 @@ export const migrateLocalBudgetsOnce = async () => {
       return 0;
     }
 
-    // tenant_id is filled by the column default / RLS WITH CHECK
+    // tenant_id comes from the localStorage key, never from the column default.
     const { error } = await supabase
       .from('budgets')
       .upsert(rows, { onConflict: 'tenant_id,period,category' });

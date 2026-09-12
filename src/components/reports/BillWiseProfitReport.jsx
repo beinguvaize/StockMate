@@ -3,64 +3,14 @@
  * Item revenue = qty * rate (fallback sellingPrice). Item cost = qty * costPrice.
  */
 import React, { useState, useMemo } from 'react';
-import {
-  TrendingUp, DollarSign, BarChart3, Calendar, Download,
-} from 'lucide-react';
 import useReportData from './useReportData';
-import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
+import { StatStrip } from './ReportBits';
+import ReportHeader from './ReportHeader';
+import ReportFilterRow from './ReportFilterRow';
+import PLTieOut from './PLTieOut';
+import { isCountableSale, presetRange } from './reportUtils';
+import { formatCurrency } from '../../lib/utils';
 import DataTable, { inr, pct, signedColour } from '../ui/DataTable';
-
-const today = todayISOInAppTZ();
-
-const PRESETS = [
-  { id: 'TODAY',   label: 'Today' },
-  { id: 'WEEK',    label: 'This Week' },
-  { id: 'MONTH',   label: 'This Month' },
-  { id: 'QUARTER', label: 'Quarter' },
-  { id: 'YEAR',    label: 'This Year' },
-];
-
-function presetRange(id) {
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  switch (id) {
-    case 'TODAY': return { start: today, end: today };
-    case 'WEEK': {
-      const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
-      return { start: fmt(mon), end: today };
-    }
-    case 'MONTH':
-      return { start: `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`, end: today };
-    case 'QUARTER': {
-      const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth()/3)*3, 1);
-      return { start: fmt(qStart), end: today };
-    }
-    case 'YEAR':
-      return { start: `${now.getFullYear()}-01-01`, end: today };
-    default: return { start: today, end: today };
-  }
-}
-
-const SectionHead = ({ title, sub }) => (
-  <div className="flex items-baseline gap-3 mb-4">
-    <h2 className="text-base font-black text-ink-primary">{title}</h2>
-    {sub && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{sub}</span>}
-  </div>
-);
-
-const KPI = ({ label, value, icon: Icon, color = '#D97706', loading }) => (
-  <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
-    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
-      <Icon size={16} style={{ color }} />
-    </div>
-    {loading
-      ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="text-2xl font-black text-ink-primary tabular-nums leading-none">{value}</div>
-    }
-    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</div>
-  </div>
-);
 
 function calcItemRevenue(item) {
   const qty  = Number(item.quantity || 0);
@@ -82,18 +32,31 @@ const BillWiseProfitReport = () => {
   const [customStart, setCustomStart] = useState('');
   const [customEnd,   setCustomEnd]   = useState('');
   const [showCustom,  setShowCustom]  = useState(false);
+  const [q,           setQ]           = useState('');
+  const [customer,    setCustomer]    = useState('ALL');
+  const [outcome,     setOutcome]     = useState('ALL');
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: sales, loading } = useReportData({
-    table: 'sales', select: 'id, date, totalAmount, customerInfo, shopId, items',
+  const { data: salesRaw, loading } = useReportData({
+    table: 'sales', select: 'id, date, totalAmount, totalCogs, customerInfo, shopId, items, status, paymentStatus, voided_at',
     dateColumn: 'date', filters,
   });
+  // Voided / cancelled sales owe nothing — keep them out of profit rows.
+  const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
   const { data: products } = useReportData({ table: 'products', select: 'id, costPrice' });
   // FIFO actual costs from batch consumption (where available). Per-sale
   // COGS uses these first, falls back to products.costPrice otherwise.
   const { data: consumption } = useReportData({
     table: 'sale_batch_consumption', select: 'sale_id, qty_taken, unit_cost',
+  });
+  // Returns credit the customer AND give the sale's cost back — process_sales_return
+  // reduces sales.totalCogs by the exact cost the sale booked. Revenue has to be
+  // netted the same way or a part-returned bill reads as more profitable than it
+  // was: full revenue against reduced cost. get_pl_ranged already nets returns,
+  // so this also brings bill-level agreement with the P&L.
+  const { data: returns } = useReportData({
+    table: 'sales_returns', select: 'sale_id, total_amount',
   });
 
   const applyPreset = (id) => {
@@ -106,7 +69,7 @@ const BillWiseProfitReport = () => {
     if (customStart && customEnd) { setRange({ start: customStart, end: customEnd }); setShowCustom(false); }
   };
 
-  const { rows, totals } = useMemo(() => {
+  const { allRows } = useMemo(() => {
     const costById = {};
     products.forEach(p => { costById[p.id] = Number(p.costPrice || 0); });
     // sale_id → actual FIFO COGS from batch consumption rows.
@@ -115,28 +78,70 @@ const BillWiseProfitReport = () => {
       const v = Number(c.qty_taken || 0) * Number(c.unit_cost || 0);
       fifoBySale[c.sale_id] = (fifoBySale[c.sale_id] || 0) + v;
     });
+    // sale_id → value returned against that bill.
+    const returnedBySale = {};
+    (returns || []).forEach(r => {
+      if (!r.sale_id) return;   // credit note with no originating sale
+      returnedBySale[r.sale_id] = (returnedBySale[r.sale_id] || 0) + Number(r.total_amount || 0);
+    });
+
     const rows = sales.map(s => {
       const items   = Array.isArray(s.items) ? s.items : [];
-      const revenue = items.length > 0
-        ? items.reduce((acc, it) => acc + calcItemRevenue(it), 0)
-        : Number(s.totalAmount || 0);
-      const cost = fifoBySale[s.id] != null
-        ? fifoBySale[s.id]
-        : items.reduce((acc, it) => acc + calcItemCost(it, costById), 0);
+      // totalAmount is the post-discount amount actually billed — summing
+      // qty×rate overstated revenue (and profit) by every bill discount.
+      const billed  = Number(s.totalAmount)
+        || items.reduce((acc, it) => acc + calcItemRevenue(it), 0);
+      const returned = returnedBySale[s.id] || 0;
+      const revenue = billed - returned;   // what the customer actually kept
+      // sales.totalCogs is the source of truth (process_sale computes it,
+      // including the cost-price fallback for unbatched stock). The batch
+      // rows alone undercount when only part of a sale had batch coverage.
+      const stored = Number(s.totalCogs);
+      const cost = Number.isFinite(stored) && stored > 0
+        ? stored
+        : fifoBySale[s.id] != null
+          ? fifoBySale[s.id]
+          : items.reduce((acc, it) => acc + calcItemCost(it, costById), 0);
       const profit  = revenue - cost;
       const margin  = revenue > 0 ? (profit / revenue) * 100 : 0;
       const customer = s.customerInfo?.name || 'Walk-in';
-      const ref      = `SALE-${(s.id || '').slice(0,8).toUpperCase()}`;
-      return { date: s.date || '', ref, customer, revenue, cost, profit, margin };
+      const ref      = (s.id || '').toUpperCase(); // id already SAL-prefixed — no double wrap / truncation
+      return { date: s.date || '', ref, customer, revenue, cost, profit, margin, returned };
     }).sort((a, b) => b.date.localeCompare(a.date));
 
+    return { allRows: rows };
+  }, [sales, products, consumption]);
+
+  const rows = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return allRows.filter(r => {
+      if (customer !== 'ALL' && r.customer !== customer) return false;
+      if (outcome === 'LOSS'   && r.profit >= 0) return false;
+      if (outcome === 'PROFIT' && r.profit < 0)  return false;
+      if (!needle) return true;
+      return r.ref.toLowerCase().includes(needle) || r.customer.toLowerCase().includes(needle);
+    });
+  }, [allRows, q, customer, outcome]);
+
+  // Totals reflect the filtered set: filtering to loss-making bills should
+  // total those bills, not the whole period.
+  const totals = useMemo(() => {
     const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
     const totalCost    = rows.reduce((s, r) => s + r.cost, 0);
     const totalProfit  = totalRevenue - totalCost;
-    const blendedMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    return { totalRevenue, totalCost, totalProfit,
+             blendedMargin: totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0 };
+  }, [rows]);
 
-    return { rows, totals: { totalRevenue, totalCost, totalProfit, blendedMargin } };
-  }, [sales, products, consumption]);
+  const customerOptions = useMemo(() => {
+    const m = new Map();
+    allRows.forEach(r => m.set(r.customer, (m.get(r.customer) || 0) + 1));
+    return [...m.entries()].sort((a, b) => b[1] - a[1])
+      .map(([value, n]) => ({ value, label: `${value} (${n})` }));
+  }, [allRows]);
+
+  const lossCount = useMemo(() => allRows.filter(r => r.profit < 0).length, [allRows]);
+  const clearFilters = () => { setQ(''); setCustomer('ALL'); setOutcome('ALL'); };
 
   const exportCSV = () => {
     const r = [
@@ -152,66 +157,47 @@ const BillWiseProfitReport = () => {
   };
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-ink-primary leading-none">
-            Bill-wise Profit<span className="text-accent-signature">.</span>
-          </h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">
-            {range.start === range.end ? range.start : `${range.start} → ${range.end}`}
-          </p>
-        </div>
-        <div className="flex-1" />
-        <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1 flex-wrap">
-          {PRESETS.map(p => (
-            <button key={p.id} onClick={() => applyPreset(p.id)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-                preset === p.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
-              }`}>{p.label}</button>
-          ))}
-          <button onClick={() => applyPreset('CUSTOM')}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-              preset === 'CUSTOM' ? 'bg-ink-primary text-white' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
-            }`}>
-            <Calendar size={11} /> Custom
-          </button>
-        </div>
-        <button onClick={exportCSV}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-black/8 bg-white text-xs font-black text-ink-primary hover:border-black/20 hover:shadow-sm transition-all">
-          <Download size={13} /> Export CSV
-        </button>
-      </div>
+    <div className="space-y-4 pb-16">
+      <ReportHeader
+        title="Bill-wise Profit"
+        subtitle={`${range.start === range.end ? range.start : `${range.start} → ${range.end}`}${loading ? '' : ` · ${rows.length} bill${rows.length === 1 ? '' : 's'}`}`}
+        preset={preset}
+        onPreset={applyPreset}
+        showCustom={showCustom}
+        customStart={customStart}
+        customEnd={customEnd}
+        setCustomStart={setCustomStart}
+        setCustomEnd={setCustomEnd}
+        onApplyCustom={applyCustom}
+        onExport={exportCSV}
+        exportLabel="Export CSV"
+      />
 
-      {/* Custom date inputs */}
-      {showCustom && (
-        <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-black/5 shadow-sm">
-          <Calendar size={14} className="text-gray-400 shrink-0" />
-          <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
-          <span className="text-gray-400 text-xs font-bold">to</span>
-          <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
-          <button onClick={applyCustom}
-            className="px-4 py-2 rounded-xl bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all">
-            Apply
-          </button>
-        </div>
-      )}
+      <ReportFilterRow
+        search={q}
+        onSearch={setQ}
+        searchPlaceholder="Bill number or customer"
+        selects={[
+          { key: 'customer', label: 'All customers', value: customer, onChange: setCustomer, options: customerOptions },
+          { key: 'outcome',  label: 'All bills',     value: outcome,  onChange: setOutcome,
+            options: [
+              { value: 'LOSS',   label: `Sold at a loss${lossCount ? ` (${lossCount})` : ''}` },
+              { value: 'PROFIT', label: 'Profitable' },
+            ] },
+        ]}
+        resultCount={rows.length}
+        totalCount={allRows.length}
+        onClear={clearFilters}
+      />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPI label="Total Revenue" loading={loading} value={formatCurrency(totals.totalRevenue)}      icon={TrendingUp}  color="#D97706" />
-        <KPI label="Total Cost"    loading={loading} value={formatCurrency(totals.totalCost)}         icon={DollarSign}  color="#f59e0b" />
-        <KPI label="Total Profit"  loading={loading} value={formatCurrency(totals.totalProfit)}       icon={BarChart3}   color="#10b981" />
-        <KPI label="Blended Margin" loading={loading} value={`${totals.blendedMargin.toFixed(1)}%`}  icon={TrendingUp}  color="#8b5cf6" />
-      </div>
+      <StatStrip loading={loading} items={[
+        { label: 'Revenue',       value: formatCurrency(totals.totalRevenue) },
+        { label: 'Cost of goods', value: formatCurrency(totals.totalCost) },
+        { label: 'Gross profit',  value: formatCurrency(totals.totalProfit), tone: totals.totalProfit >= 0 ? 'pos' : 'neg' },
+        { label: 'Margin',        value: `${totals.blendedMargin.toFixed(1)}%` },
+      ]} />
 
-      {/* Table — vendflow-style DataTable */}
       <DataTable
-        title="Bill-wise Breakdown"
-        subtitle={loading ? 'Loading…' : `${rows.length} bill${rows.length === 1 ? '' : 's'} for selected period`}
         emptyMessage={loading ? 'Loading bills…' : 'No bills in this period.'}
         columns={[
           { key: 'date',     label: 'Date',      align: 'left'  },
@@ -226,35 +212,10 @@ const BillWiseProfitReport = () => {
         ]}
         rows={rows}
         getRowKey={(r) => r.ref}
+        totalsRow={{ date: 'Totals', revenue: totals.totalRevenue, cost: totals.totalCost, profit: totals.totalProfit, margin: totals.blendedMargin }}
       />
-
-      {/* Totals footer — single matching strip below the table */}
-      {!loading && rows.length > 0 && (
-        <div className="bg-slate-50 rounded-2xl border border-slate-200 px-5 py-4 flex flex-wrap items-center gap-x-8 gap-y-2"
-             style={{ fontFamily: '"Sora", Inter, sans-serif' }}>
-          <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Totals</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Revenue</span>
-            <span className="text-sm font-bold text-slate-900 font-mono tabular-nums">{inr(totals.totalRevenue)}</span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">COGS</span>
-            <span className="text-sm font-bold text-slate-900 font-mono tabular-nums">{inr(totals.totalCost)}</span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Gross Profit</span>
-            <span className={`text-sm font-bold font-mono tabular-nums ${signedColour(totals.totalProfit)}`}>
-              {inr(totals.totalProfit)}
-            </span>
-          </div>
-          <div className="flex items-baseline gap-2 ml-auto">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Blended Margin</span>
-            <span className={`text-base font-bold font-mono tabular-nums ${signedColour(totals.blendedMargin)}`}>
-              {pct(totals.blendedMargin)}
-            </span>
-          </div>
-        </div>
-      )}
+      <PLTieOut from={range.start} to={range.end} revenue={totals.totalRevenue} cogs={totals.totalCost}
+        note="Differences are usually sales returns in the period." />
     </div>
   );
 };

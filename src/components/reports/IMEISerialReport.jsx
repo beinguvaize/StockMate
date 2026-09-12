@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
 import { Smartphone, CheckCircle2, Package } from 'lucide-react';
@@ -14,7 +15,9 @@ const IMEISerialReport = () => {
     select: 'id, product_id, serial, status, sale_id, purchase_id, created_at',
   });
   const { data: products } = useReportData({ table: 'products', select: 'id, name, sku' });
-  const { data: sales } = useReportData({ table: 'sales', select: 'id, "shopId", date' });
+  const { data: salesRaw } = useReportData({ table: 'sales', select: 'id, "shopId", date, voided_at, status, paymentStatus' });
+  // Voided and cancelled sales are not revenue and were being counted here.
+  const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
   const { data: clients } = useReportData({ table: 'clients', select: 'id, name, phone' });
 
   const rows = useMemo(() => {
@@ -62,16 +65,16 @@ const IMEISerialReport = () => {
     loading,
     onExport: exportExcel,
     columns: [
-      { key: 'serial', label: 'IMEI / Serial', sortable: true, width: 200, render: (v) => <span className="font-mono text-[11px] font-bold text-ink-primary">{v}</span> },
-      { key: '_product', label: 'Product', sortable: true, width: 200, render: (v) => <span className="font-semibold text-gray-700">{v}</span> },
+      { key: 'serial', label: 'IMEI / Serial', sortable: true, width: 200, render: (v) => <span className="tabular-nums text-[11px] font-semibold text-foreground">{v}</span> },
+      { key: '_product', label: 'Product', sortable: true, width: 200, render: (v) => <span className="font-semibold text-ink-secondary">{v}</span> },
       { key: 'status', label: 'Status', width: 110, render: (v) => {
         const s = (v || '').toUpperCase();
         const sold = s === 'SOLD';
-        return <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase ${sold ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{v || '—'}</span>;
+        return <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${sold ? 'bg-emerald-50 text-emerald-600' : 'bg-accent-signature/10 text-accent-signature'}`}>{v || '—'}</span>;
       } },
-      { key: '_saleRef', label: 'Sale', width: 100, render: (v) => <span className="font-mono text-[11px] text-gray-500">{v}</span> },
-      { key: '_date', label: 'Date', width: 110, render: (v) => <span className="text-xs font-semibold text-gray-500">{v}</span> },
-      { key: '_buyer', label: 'Buyer', width: 200, render: (v) => <span className="text-xs font-semibold text-gray-700">{v}</span> },
+      { key: '_saleRef', label: 'Sale', width: 100, render: (v) => <span className="tabular-nums text-[11px] text-muted-foreground">{v}</span> },
+      { key: '_date', label: 'Date', width: 110, render: (v) => <span className="text-xs font-semibold text-muted-foreground">{v}</span> },
+      { key: '_buyer', label: 'Buyer', width: 200, render: (v) => <span className="text-xs font-semibold text-ink-secondary">{v}</span> },
     ],
     kpis: [
       { id: 'total', label: 'Total Units', value: rows.length, isCount: true, trendDir: 'none', color: 'indigo', chartData: [] },

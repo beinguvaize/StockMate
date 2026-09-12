@@ -28,11 +28,42 @@ serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
-    const { businessName, plan = "STARTER", businessType = "RETAIL" } = await req.json();
+    const {
+      businessName,
+      // STARTER was the default here long after it stopped being a plan we
+      // sell, which is how the one legacy STARTER tenant got written. FREE is
+      // the bottom of the current ladder.
+      plan = "FREE",
+      businessType = "RETAIL",
+      phone = "",
+      address = "",
+      state = "",
+      stateCode = "",
+    } = await req.json();
 
     if (!businessName) {
       throw new Error("Business name is required");
     }
+
+    // Both are printed on every GST invoice, so they are captured at signup
+    // rather than left to a Settings page most tenants never open: of the
+    // first twelve, three had an address and three had a phone.
+    //
+    // Deliberately NOT normalised through toE164: that rejects anything but a
+    // mobile, and a shop's landline is a perfectly good number to print on an
+    // invoice. Store what they typed, minus obvious padding.
+    const bizPhone = String(phone || "").trim().slice(0, 20);
+    const bizAddress = String(address || "").trim().slice(0, 500);
+
+    // The state decides CGST+SGST versus IGST, and calculateGST falls back to
+    // intra-state whenever the seller's state is blank — so a missing state
+    // silently taxes every interstate sale as if it were local. The client
+    // sends the name it showed and the code it derived; the code is kept to
+    // two digits and never invented here.
+    const bizState = String(state || "").trim().slice(0, 60);
+    const bizStateCode = /^\d{2}$/.test(String(stateCode || "").trim())
+      ? String(stateCode).trim()
+      : null;
 
     // Vertical identity (Stage A). Guard to the allowed set; default RETAIL.
     const VALID_TYPES = ["RETAIL", "RESTAURANT", "SERVICES"];
@@ -100,6 +131,10 @@ serve(async (req) => {
         tenant_id: tenant.id,
         invoice_prefix: "INV",
         invoice_counter: 1,
+        phone: bizPhone || null,
+        address: bizAddress || null,
+        state: bizState || null,
+        state_code: bizStateCode,
       });
 
     if (bizError) throw bizError;

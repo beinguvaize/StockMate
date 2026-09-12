@@ -1,0 +1,15 @@
+-- Applied via apply_migration; recorded here for history.
+--
+-- The 3 Aug day_book row held a hand-entered opening of Rs 35,489 against a
+-- carry-forward from the 1 Aug count of Rs 21,064 -- a gap of Rs 14,425. The app
+-- keeps a typed figure over a computed one, so while that row existed the cash
+-- chain was broken at the 3rd. The user confirmed the typed figure was a guess.
+--
+-- The day was never closed and never counted, so the only thing lost is that
+-- guess. Snapshotted verbatim to snap.day_book_20260815 first, and guarded to
+-- abort if the row turned out to be closed or counted.
+--
+-- HARD delete because neither useDayBookData nor useFinance filtered deleted_at
+-- when this ran -- a soft-deleted row would still have been read and would still
+-- have supplied its opening. Both reads now filter it (same commit), so future
+-- deletes can be soft.

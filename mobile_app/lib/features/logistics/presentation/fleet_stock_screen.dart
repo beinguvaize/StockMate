@@ -47,11 +47,11 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
 
       final vehicles = await supabase
           .from('vehicles')
-          .select('id, name')
+          .select('id, name').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId);
       final vLocs = await supabase
           .from('inventory_locations')
-          .select('id, reference_id')
+          .select('id, reference_id').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId)
           .eq('type', 'VEHICLE');
       final bals = await supabase

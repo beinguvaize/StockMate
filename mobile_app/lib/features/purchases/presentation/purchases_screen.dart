@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -89,10 +90,12 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
   static const _filters = ['All Orders', 'Cash', 'Credit'];
 
   static String _compact(double v) {
-    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(1)}Cr';
-    if (v >= 100000)   return '₹${(v / 100000).toStringAsFixed(1)}L';
-    if (v >= 1000)     return '₹${(v / 1000).toStringAsFixed(1)}K';
-    return '₹${v.toStringAsFixed(0)}';
+    final whole = v.round();
+    final s = whole.abs().toString();
+    final grouped = s.length <= 3
+        ? s
+        : '${s.substring(0, s.length - 3).replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},')},${s.substring(s.length - 3)}';
+    return '${whole < 0 ? '-' : ''}₹$grouped';
   }
 
   static String _fmtDate(String? d) {
@@ -433,13 +436,13 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
             loading: () =>
                 const Center(child: CircularProgressIndicator(color: AppColors.primary)),
             error: (e, _) => Center(
-                child: Text('Error: $e',
+                child: Text('Could not load purchases. Check your internet and try again.',
                     style: GoogleFonts.manrope(color: AppColors.danger))),
           );
         },
         loading: () =>
             const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text('Could not load. Check your internet and try again.')),
       ),
     );
   }
@@ -692,6 +695,10 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   DateTime _date = DateTime.now();
   final _notesCtrl = TextEditingController();
   final _billNoCtrl = TextEditingController(); // supplier bill no — GSTR-2B match
+  // Money down on a credit bill. The web form has had this since the start
+  // ('Paid now'); the phone could only record a bill as wholly cash or wholly
+  // credit, so a part payment at the supplier's door had nowhere to go.
+  final _paidNowCtrl = TextEditingController();
 
   // Lines
   final List<_PurchaseLine> _lines = [_PurchaseLine()];
@@ -974,6 +981,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   void dispose() {
     _notesCtrl.dispose();
     _billNoCtrl.dispose();
+    _paidNowCtrl.dispose();
     for (final l in _lines) {
       l.dispose();
     }
@@ -1075,6 +1083,16 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
       // network and falls back to the local queue on transient failure.
       final svc = ref.read(syncServiceProvider);
       int queuedCount = 0;
+
+      // Money down on a credit bill, spread across the lines oldest-first --
+      // the same allocation the web form uses, so a bill entered on either
+      // surface settles identically. Only for CREDIT: a cash or bank bill is
+      // already paid in full at entry.
+      final paidNow = _paymentType == 'CREDIT'
+          ? (double.tryParse(_paidNowCtrl.text.trim()) ?? 0).clamp(0, _grandTotal)
+          : 0.0;
+      double paidLeft = paidNow.toDouble();
+
       for (int i = 0; i < validLines.length; i++) {
         final line = validLines[i];
         final id = 'PUR-${DateTime.now().millisecondsSinceEpoch}-${i.toString().padLeft(2, '0')}';
@@ -1092,6 +1110,14 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
           'p_tenant_id':    widget.tenantId,
           'p_bill_no':      _billNoCtrl.text.trim().isEmpty ? null : _billNoCtrl.text.trim(),
         };
+
+        if (paidNow > 0) {
+          final linePaid = paidLeft < line.totalVal ? paidLeft : line.totalVal;
+          // Round to paise as it goes, so the last line cannot inherit a
+          // floating-point remainder and overpay the bill by a fraction.
+          params['p_paid_amount'] = (linePaid * 100).round() / 100;
+          paidLeft = ((paidLeft - linePaid) * 100).round() / 100;
+        }
         final queued = await svc.rpcOnlineOrQueue('process_purchase', params);
         if (queued) queuedCount++;
 
@@ -1130,8 +1156,14 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
       }
     } catch (e) {
       if (mounted) {
+        // Show the real reason — a server rejection is not an internet problem,
+        // and blaming the connection hides genuine DB errors.
+        debugPrint('[purchases] save failed: $e');
+        final msg = e is PostgrestException
+            ? 'Could not save: ${e.message}'
+            : 'Could not save. Check your internet and try again.';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
+          content: Text(msg),
           backgroundColor: AppColors.danger,
           duration: const Duration(seconds: 6),
         ));
@@ -1269,6 +1301,37 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                       onTap: () => setState(() => _paymentType = 'BANK')),
                                   ],
                                 ),
+
+                                // Money down on a credit bill. Only meaningful
+                                // for CREDIT: a cash or bank bill is paid in
+                                // full at entry, so a part figure there would
+                                // contradict the payment type.
+                                if (_paymentType == 'CREDIT') ...[
+                                  const SizedBox(height: 12),
+                                  _label('PAID NOW (OPTIONAL)'),
+                                  TextField(
+                                    controller: _paidNowCtrl,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    onChanged: (_) => setState(() {}),
+                                    decoration: InputDecoration(
+                                      hintText: 'Leave blank if nothing paid yet',
+                                      isDense: true,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                  if ((double.tryParse(_paidNowCtrl.text.trim()) ?? 0) > 0)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: Text(
+                                        'Rs ${((_grandTotal) - (double.tryParse(_paidNowCtrl.text.trim()) ?? 0)).clamp(0, double.infinity).toStringAsFixed(2)} stays on credit',
+                                        style: GoogleFonts.inter(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.inkSecondary),
+                                      ),
+                                    ),
+                                ],
                                 const SizedBox(height: 12),
                                 _label('DATE'),
                                 GestureDetector(

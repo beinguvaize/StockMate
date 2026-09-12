@@ -4,40 +4,26 @@
  * clean header, expandable day cards) as BusinessReport.
  */
 import React, { useState, useMemo } from 'react';
-import { Calendar } from 'lucide-react';
 import useReportData from './useReportData';
-import { todayISOInAppTZ } from '../../lib/utils';
-import { DailySalesDetail } from './BusinessReport';
+import ReportHeader from './ReportHeader';
+import ReportFilterRow from './ReportFilterRow';
+import { isCountableSale, presetRange } from './reportUtils';
+import DailySalesDetail from './DailySalesDetail';
 
-const today = todayISOInAppTZ();
-
-const PRESETS = [
-  { id: 'TODAY',   label: 'Today' },
-  { id: 'WEEK',    label: 'This Week' },
-  { id: 'MONTH',   label: 'This Month' },
-  { id: 'QUARTER', label: 'Quarter' },
-  { id: 'YEAR',    label: 'This Year' },
-];
-
-function presetRange(id) {
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  switch (id) {
-    case 'TODAY': return { start: today, end: today };
-    case 'WEEK': {
-      const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
-      return { start: fmt(mon), end: today };
-    }
-    case 'MONTH': return { start: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, end: today };
-    case 'QUARTER': {
-      const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
-      return { start: fmt(qStart), end: today };
-    }
-    case 'YEAR': return { start: `${now.getFullYear()}-01-01`, end: today };
-    default: return { start: today, end: today };
-  }
-}
+/** Counts per option value, so the dropdowns show how much is behind each. */
+const tally = (rows, pick) => {
+  const m = new Map();
+  rows.forEach((r) => {
+    const v = pick(r);
+    if (v == null || v === '') return;
+    m.set(v, (m.get(v) || 0) + 1);
+  });
+  return m;
+};
+const toOptions = (m, label = (k) => k) =>
+  [...m.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([value, n]) => ({ value, label: `${label(value)} (${n})` }));
 
 const DailySalesReport = () => {
   const [preset, setPreset] = useState('TODAY');
@@ -46,9 +32,17 @@ const DailySalesReport = () => {
   const [customEnd, setCustomEnd] = useState('');
   const [showCustom, setShowCustom] = useState(false);
 
+  // Filters
+  const [q, setQ]             = useState('');
+  const [customer, setCustomer] = useState('ALL');
+  const [method, setMethod]   = useState('ALL');
+  const [status, setStatus]   = useState('ALL');
+  const [source, setSource]   = useState('ALL');
+
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: sales, loading } = useReportData({ table: 'sales', select: '*', dateColumn: 'date', filters });
+  const { data: salesRaw, loading } = useReportData({ table: 'sales', select: '*', dateColumn: 'date', filters });
+  const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
   const { data: clients } = useReportData({ table: 'clients', select: 'id, name' });
   const { data: vehicles } = useReportData({ table: 'vehicles', select: 'id, plateNumber, name' });
   const { data: users } = useReportData({ table: 'users', select: 'id, name, email' });
@@ -62,49 +56,84 @@ const DailySalesReport = () => {
     if (customStart && customEnd) { setRange({ start: customStart, end: customEnd }); setShowCustom(false); }
   };
 
+  const nameOf = useMemo(() => {
+    const byId = new Map(clients.map((c) => [c.id, c.name]));
+    return (s) => {
+      const cid = s.customerInfo?.id || s.shopId || null;
+      return (cid && byId.get(cid)) || s.customerInfo?.name || 'Walk-in';
+    };
+  }, [clients]);
+
+  // Van sales carry a vehicle/route rather than a distinct source_app value,
+  // so they are surfaced as their own source option.
+  const sourceOf = (s) =>
+    (s.routeId || s.vehicleId || s.source_app === 'VAN') ? 'VAN' : (s.source_app || 'WEB');
+
+  const options = useMemo(() => ({
+    customers: toOptions(tally(sales, nameOf)),
+    methods:   toOptions(tally(sales, (s) => (s.paymentMethod || 'CASH').toUpperCase())),
+    statuses:  toOptions(tally(sales, (s) => (s.paymentStatus || s.status || '').toUpperCase())),
+    sources:   toOptions(tally(sales, sourceOf)),
+  }), [sales, nameOf]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return sales.filter((s) => {
+      if (customer !== 'ALL' && nameOf(s) !== customer) return false;
+      if (method   !== 'ALL' && (s.paymentMethod || 'CASH').toUpperCase() !== method) return false;
+      if (status   !== 'ALL' && (s.paymentStatus || s.status || '').toUpperCase() !== status) return false;
+      if (source   !== 'ALL' && sourceOf(s) !== source) return false;
+      if (!needle) return true;
+      // Bill reference, customer, or any product on the bill.
+      if ((s.id || '').toLowerCase().includes(needle)) return true;
+      if (nameOf(s).toLowerCase().includes(needle)) return true;
+      return (Array.isArray(s.items) ? s.items : [])
+        .some((i) => (i.name || '').toLowerCase().includes(needle));
+    });
+  }, [sales, q, customer, method, status, source, nameOf]);
+
+  const clearFilters = () => { setQ(''); setCustomer('ALL'); setMethod('ALL'); setStatus('ALL'); setSource('ALL'); };
+
   return (
-    <div className="space-y-6 pb-16">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-ink-primary leading-none">
-            Daily Sales<span className="text-accent-signature">.</span>
-          </h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">
-            {range.start === range.end ? range.start : `${range.start} → ${range.end}`}
-          </p>
-        </div>
-        <div className="flex-1" />
-        <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1 flex-wrap">
-          {PRESETS.map(p => (
-            <button key={p.id} onClick={() => applyPreset(p.id)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-                preset === p.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
-              }`}>{p.label}</button>
-          ))}
-          <button onClick={() => applyPreset('CUSTOM')}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-              preset === 'CUSTOM' ? 'bg-ink-primary text-white' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
-            }`}>
-            <Calendar size={11} /> Custom
+    <div className="space-y-4 pb-16">
+      <ReportHeader
+        title="Daily Sales"
+        subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
+        preset={preset}
+        onPreset={applyPreset}
+        showCustom={showCustom}
+        customStart={customStart}
+        customEnd={customEnd}
+        setCustomStart={setCustomStart}
+        setCustomEnd={setCustomEnd}
+        onApplyCustom={applyCustom}
+      />
+
+      <ReportFilterRow
+        search={q}
+        onSearch={setQ}
+        searchPlaceholder="Bill no, customer or product"
+        selects={[
+          { key: 'customer', label: 'All customers', value: customer, onChange: setCustomer, options: options.customers },
+          { key: 'method',   label: 'All payments',  value: method,   onChange: setMethod,   options: options.methods },
+          { key: 'status',   label: 'All statuses',  value: status,   onChange: setStatus,   options: options.statuses },
+          { key: 'source',   label: 'All sources',   value: source,   onChange: setSource,   options: options.sources },
+        ]}
+        resultCount={filtered.length}
+        totalCount={sales.length}
+        onClear={clearFilters}
+      />
+
+      {!loading && sales.length > 0 && filtered.length === 0 ? (
+        <div className="bg-card rounded-[10px] border border-border/60 py-16 text-center">
+          <p className="text-sm text-foreground">No sales match these filters</p>
+          <button onClick={clearFilters} className="text-[11px] text-muted-foreground hover:text-foreground mt-1">
+            Clear filters
           </button>
         </div>
-      </div>
-
-      {showCustom && (
-        <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-black/5 shadow-sm">
-          <Calendar size={14} className="text-gray-400 shrink-0" />
-          <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
-          <span className="text-gray-400 text-xs font-bold">to</span>
-          <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
-          <button onClick={applyCustom}
-            className="px-4 py-2 rounded-xl bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all">Apply</button>
-        </div>
+      ) : (
+        <DailySalesDetail sales={filtered} clients={clients} vehicles={vehicles} users={users} loading={loading} />
       )}
-
-      <DailySalesDetail sales={sales} clients={clients} vehicles={vehicles} users={users} loading={loading} />
     </div>
   );
 };

@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Clients &amp; Suppliers — redesign sample</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Current house style: white canvas, Manrope, no monospace — figures align
+     with tabular-nums instead. Matches the app after today's style sweep. */
+  :root{
+    --amber:#D97706; --amber-deep:#B45309;
+    --ink:#111111; --ink-2:#444444; --ink-3:#6B7280;
+    --canvas:#FFFFFF; --surface:#F9F9F9; --line:rgba(0,0,0,.08);
+    --pos:#15803D; --neg:#DC2626; --warn:#9A5B0A;
+  }
+  body{ font-family:'Manrope',sans-serif; background:var(--canvas); color:var(--ink); }
+  .num{ font-variant-numeric:tabular-nums; }
+  .card{ background:var(--canvas); border:1px solid var(--line); border-radius:14px; }
+  .chip{ font-size:10px; font-weight:700; padding:2px 8px; border-radius:9999px; border:1px solid; }
+  .row:hover{ background:#00000004; }
+  .row.sel{ background:var(--amber)0d; box-shadow:inset 3px 0 0 var(--amber); }
+  .seg{ font-size:12px; font-weight:600; padding:6px 12px; border-radius:8px; color:var(--ink-3); }
+  .seg.on{ background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .btn{ height:36px; padding:0 14px; border-radius:10px; font-size:13px; font-weight:700; }
+  .btn-primary{ background:var(--amber); color:#fff; }
+  .btn-ghost{ border:1px solid var(--line); color:var(--ink-2); background:#fff; }
+  .lbl{ font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
+  .tab{ font-size:13px; font-weight:700; padding:10px 2px; color:var(--ink-3); border-bottom:2px solid transparent; }
+  .tab.on{ color:var(--ink); border-bottom-color:var(--amber); }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-[1180px] mx-auto">
+
+  <!-- switch between the two screens -->
+  <div class="flex items-center gap-2 mb-5">
+    <button onclick="show('cli')" id="t-cli" class="seg on">Clients</button>
+    <button onclick="show('sup')" id="t-sup" class="seg">Suppliers</button>
+    <span class="ml-3 text-[11px]" style="color:var(--ink-3)">same skeleton, mirrored — money owed to you vs money you owe</span>
+  </div>
+
+  <!-- ══════════════════ CLIENTS ══════════════════ -->
+  <section id="cli">
+    <div class="flex items-end justify-between mb-4">
+      <div>
+        <h1 class="text-[22px] font-extrabold leading-none">Clients</h1>
+        <p class="text-[12px] font-medium mt-1.5" style="color:var(--ink-3)">Who owes you, and how long it has been</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn btn-ghost">Statement</button>
+        <button class="btn btn-primary">+ Add client</button>
+      </div>
+    </div>
+
+    <!-- One joined strip. Receivable leads because that is the job. -->
+    <div class="card overflow-hidden mb-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 divide-x" style="border-color:var(--line)">
+        <div class="p-4">
+          <div class="lbl">Receivable</div>
+          <div class="text-[20px] font-bold num mt-1">₹47,218</div>
+          <div class="text-[10px] mt-0.5" style="color:var(--ink-3)">18 of 28 clients</div>
+        </div>
+        <div class="p-4">
+          <div class="lbl">Overdue 30+ days</div>
+          <div class="text-[20px] font-bold num mt-1" style="color:var(--neg)">₹12,480</div>
+          <div class="text-[10px] mt-0.5" style="color:var(--ink-3)">4 clients</div>
+        </div>
+        <div class="p-4">
+          <div class="lbl">Collected this month</div>
+          <div class="text-[20px] font-bold num mt-1" style="color:var(--pos)">₹1,86,300</div>
+          <div class="text-[10px] mt-0.5" style="color:var(--ink-3)">42 receipts</div>
+        </div>
+        <div class="p-4">
+          <div class="lbl">Oldest unpaid</div>
+          <div class="text-[20px] font-bold num mt-1">63 <span class="text-[12px] font-semibold" style="color:var(--ink-3)">days</span></div>
+          <div class="text-[10px] mt-0.5" style="color:var(--ink-3)">Akbar Traders</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 items-start">
+      <!-- list -->
+      <div class="card overflow-hidden">
+        <div class="p-3 flex items-center gap-2 border-b" style="border-color:var(--line)">
+          <input placeholder="Search name, phone, GSTIN…" class="flex-1 h-9 px-3 rounded-lg text-[13px] outline-none" style="background:var(--surface)">
+          <div class="flex items-center gap-1 p-1 rounded-lg" style="background:var(--surface)">
+            <button class="seg on">Owing</button>
+            <button class="seg">Overdue</button>
+            <button class="seg">All</button>
+          </div>
+        </div>
+
+        <table class="w-full">
+          <thead>
+            <tr class="text-left" style="border-bottom:1px solid var(--line)">
+              <th class="lbl font-medium px-4 py-2.5">Client</th>
+              <th class="lbl font-medium px-4 py-2.5">Last activity</th>
+              <th class="lbl font-medium px-4 py-2.5 text-right">Outstanding</th>
+              <th class="lbl font-medium px-4 py-2.5 text-right">Age</th>
+              <th class="px-4 py-2.5"></th>
+            </tr>
+          </thead>
+          <tbody class="text-[13px]">
+            <tr class="row sel" style="border-bottom:1px solid var(--line)">
+              <td class="px-4 py-3">
+                <div class="font-bold">Akbar Traders</div>
+                <div class="text-[11px]" style="color:var(--ink-3)">Ramesh · 98470 11223</div>
+              </td>
+              <td class="px-4 py-3 text-[12px]" style="color:var(--ink-3)">Invoice · 28 May</td>
+              <td class="px-4 py-3 text-right font-bold num">₹12,400</td>
+              <td class="px-4 py-3 text-right">
+                <span class="chip num" style="color:var(--neg);background:#fee2e2;border-color:#fecaca">63d</span>
+              </td>
+              <td class="px-4 py-3 text-right"><button class="btn btn-primary" style="height:30px;font-size:12px">Collect</button></td>
+            </tr>
+            <tr class="row" style="border-bottom:1px solid var(--line)">
+              <td class="px-4 py-3">
+                <div class="font-bold">Chandru Wholesale</div>
+                <div class="text-[11px]" style="color:var(--ink-3)">98950 44120</div>
+              </td>
+              <td class="px-4 py-3 text-[12px]" style="color:var(--ink-3)">Payment · 12 Jul</td>
+              <td class="px-4 py-3 text-right font-bold num">₹5,100</td>
+              <td class="px-4 py-3 text-right">
+                <span class="chip num" style="color:var(--warn);background:#fef3c7;border-color:#fde68a">18d</span>
+              </td>
+              <td class="px-4 py-3 text-right"><button class="btn btn-ghost" style="height:30px;font-size:12px">Collect</button></td>
+            </tr>
+            <tr class="row" style="border-bottom:1px solid var(--line)">
+              <td class="px-4 py-3">
+                <div class="font-bold">THOLIKUZHI Stores</div>
+                <div class="text-[11px]" style="color:var(--ink-3)">Suresh · 90370 88214</div>
+              </td>
+              <td class="px-4 py-3 text-[12px]" style="color:var(--ink-3)">Invoice · 26 Jul</td>
+              <td class="px-4 py-3 text-right font-bold num">₹120</td>
+              <td class="px-4 py-3 text-right">
+                <span class="chip num" style="color:var(--ink-3);background:var(--surface);border-color:var(--line)">4d</span>
+              </td>
+              <td class="px-4 py-3 text-right"><button class="btn btn-ghost" style="height:30px;font-size:12px">Collect</button></td>
+            </tr>
+            <tr class="row">
+              <td class="px-4 py-3">
+                <div class="font-bold">Ramesh Store</div>
+                <div class="text-[11px]" style="color:var(--ink-3)">94470 20031</div>
+              </td>
+              <td class="px-4 py-3 text-[12px]" style="color:var(--ink-3)">Payment · 29 Jul</td>
+              <td class="px-4 py-3 text-right font-bold num" style="color:var(--pos)">Settled</td>
+              <td class="px-4 py-3 text-right"><span class="text-[11px]" style="color:var(--ink-3)">—</span></td>
+              <td class="px-4 py-3 text-right"><button class="btn btn-ghost" style="height:30px;font-size:12px">New sale</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- detail panel: replaces tab-hopping -->
+      <div class="card p-4">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-[15px] font-extrabold leading-tight">Akbar Traders</div>
+            <div class="text-[11px] mt-0.5" style="color:var(--ink-3)">Ramesh Kumar · 98470 11223</div>
+          </div>
+          <span class="chip" style="color:var(--neg);background:#fee2e2;border-color:#fecaca">Overdue</span>
+        </div>
+
+        <div class="rounded-xl p-3 mt-3" style="background:var(--surface)">
+          <div class="lbl">Outstanding</div>
+          <div class="text-[24px] font-extrabold num leading-none mt-1">₹12,400</div>
+          <div class="text-[11px] mt-1" style="color:var(--ink-3)">Oldest bill 63 days · limit ₹25,000</div>
+          <div class="h-1.5 rounded-full mt-2.5" style="background:#00000010">
+            <div class="h-1.5 rounded-full" style="width:50%;background:var(--amber)"></div>
+          </div>
+        </div>
+
+        <div class="flex gap-2 mt-3">
+          <button class="btn btn-primary flex-1">Collect payment</button>
+          <button class="btn btn-ghost">Statement</button>
+        </div>
+
+        <div class="flex gap-4 mt-4 border-b" style="border-color:var(--line)">
+          <span class="tab on">Bills</span><span class="tab">Payments</span><span class="tab">Details</span>
+        </div>
+
+        <div class="text-[12px] mt-2">
+          <div class="flex justify-between py-2" style="border-bottom:1px solid var(--line)">
+            <div><div class="font-semibold">SAL-4A0027</div><div class="text-[11px]" style="color:var(--ink-3)">28 May</div></div>
+            <div class="text-right"><div class="font-bold num">₹8,900</div><div class="text-[10px]" style="color:var(--neg)">unpaid</div></div>
+          </div>
+          <div class="flex justify-between py-2" style="border-bottom:1px solid var(--line)">
+            <div><div class="font-semibold">SAL-30B7AE</div><div class="text-[11px]" style="color:var(--ink-3)">14 Jun</div></div>
+            <div class="text-right"><div class="font-bold num">₹3,500</div><div class="text-[10px]" style="color:var(--warn)">part-paid</div></div>
+          </div>
+          <div class="flex justify-between py-2">
+            <div><div class="font-semibold">SAL-1C2C34</div><div class="text-[11px]" style="color:var(--ink-3)">02 Jul</div></div>
+            <div class="text-right"><div class="font-bold num" style="color:var(--pos)">₹0</div><div class="text-[10px]" style="color:var(--pos)">paid</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ SUPPLIERS ══════════════════ -->
+  <section id="sup" class="hidden">
+    <div class="flex items-end justify-between mb-4">
+      <div>
+        <h1 class="text-[22px] font-extrabold leading-none">Suppliers</h1>
+        <p class="text-[12px] font-medium mt-1.5" style="color:var(--ink-3)">Who you owe, and what is due next</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn btn-ghost">Ledger</button>
+        <button class="btn btn-primary">+ Add supplier</button>
+      </div>
+    </div>
+
+    <div class="card overflow-hidden mb-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 divide-x" style="border-color:var(--line)">
+        <div class="p-4">
+          <div class="lbl">Payable</div>
+          <div class="text-[20px] font-bold num mt-1" style="color:var(--neg)">₹6,24,711</div>
+          <div class="text-[10px] mt-0.5" style="color:var(--ink-3)">13 suppliers</div>
+        </div>
+        <div class="p-4">
+          <div class="lbl">Due this week</div>
+          <div class="text-[20px] font-bold num mt-1">₹84,200</div>
+          <div class="text-[10px] mt-0.5" style="color:var(--ink-3)">3 bills</div>
+        </div>
+        <div class="p-4">
+          <div class="lbl">Paid this month</div>
+          <div class="text-[20px] font-bold num mt-1" style="color:var(--pos)">₹2,41,900</div>
+          <div class="text-[10px] mt-0.5" style="color:var(--ink-3)">17 payments</div>
+        </div>
+        <div class="p-4">
+          <div class="lbl">Purchased this month</div>
+          <div class="text-[20px] font-bold num mt-1">₹3,18,450</div>
+          <div class="text-[10px] mt-0.5" style="color:var(--ink-3)">24 bills</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 items-start">
+      <div class="card overflow-hidden">
+        <div class="p-3 flex items-center gap-2 border-b" style="border-color:var(--line)">
+          <input placeholder="Search supplier, phone, GSTIN…" class="flex-1 h-9 px-3 rounded-lg text-[13px] outline-none" style="background:var(--surface)">
+          <div class="flex items-center gap-1 p-1 rounded-lg" style="background:var(--surface)">
+            <button class="seg on">Owing</button><button class="seg">All</button>
+          </div>
+        </div>
+        <table class="w-full">
+          <thead>
+            <tr class="text-left" style="border-bottom:1px solid var(--line)">
+              <th class="lbl font-medium px-4 py-2.5">Supplier</th>
+              <th class="lbl font-medium px-4 py-2.5">Last bill</th>
+              <th class="lbl font-medium px-4 py-2.5 text-right">Payable</th>
+              <th class="lbl font-medium px-4 py-2.5 text-right">Bills</th>
+              <th class="px-4 py-2.5"></th>
+            </tr>
+          </thead>
+          <tbody class="text-[13px]">
+            <tr class="row sel" style="border-bottom:1px solid var(--line)">
+              <td class="px-4 py-3"><div class="font-bold">MADEENA AGENCY KOLLAM</div><div class="text-[11px]" style="color:var(--ink-3)">GSTIN 32AAB…1Z5</div></td>
+              <td class="px-4 py-3 text-[12px]" style="color:var(--ink-3)">10 Jul · PUR-6EI5RO</td>
+              <td class="px-4 py-3 text-right font-bold num" style="color:var(--neg)">₹2,84,000</td>
+              <td class="px-4 py-3 text-right num text-[12px]">9</td>
+              <td class="px-4 py-3 text-right"><button class="btn btn-primary" style="height:30px;font-size:12px">Pay</button></td>
+            </tr>
+            <tr class="row" style="border-bottom:1px solid var(--line)">
+              <td class="px-4 py-3"><div class="font-bold">SAJJAD ALAMCODU</div><div class="text-[11px]" style="color:var(--ink-3)">98470 33110</div></td>
+              <td class="px-4 py-3 text-[12px]" style="color:var(--ink-3)">03 Jul · PUR-L9BNIM</td>
+              <td class="px-4 py-3 text-right font-bold num" style="color:var(--neg)">₹1,92,300</td>
+              <td class="px-4 py-3 text-right num text-[12px]">6</td>
+              <td class="px-4 py-3 text-right"><button class="btn btn-ghost" style="height:30px;font-size:12px">Pay</button></td>
+            </tr>
+            <tr class="row">
+              <td class="px-4 py-3"><div class="font-bold">SURYA ADICHENALLUR</div><div class="text-[11px]" style="color:var(--ink-3)">90370 21188</div></td>
+              <td class="px-4 py-3 text-[12px]" style="color:var(--ink-3)">23 Jun · PUR-MXN19I</td>
+              <td class="px-4 py-3 text-right font-bold num" style="color:var(--pos)">Settled</td>
+              <td class="px-4 py-3 text-right num text-[12px]">2</td>
+              <td class="px-4 py-3 text-right"><button class="btn btn-ghost" style="height:30px;font-size:12px">New bill</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card p-4">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-[15px] font-extrabold leading-tight">MADEENA AGENCY</div>
+            <div class="text-[11px] mt-0.5" style="color:var(--ink-3)">Kollam · GSTIN 32AAB…1Z5</div>
+          </div>
+          <span class="chip" style="color:var(--neg);background:#fee2e2;border-color:#fecaca">Owing</span>
+        </div>
+
+        <div class="rounded-xl p-3 mt-3" style="background:var(--surface)">
+          <div class="lbl">Payable</div>
+          <div class="text-[24px] font-extrabold num leading-none mt-1">₹2,84,000</div>
+          <div class="text-[11px] mt-1" style="color:var(--ink-3)">Across 9 bills · oldest 30 May</div>
+        </div>
+
+        <div class="flex gap-2 mt-3">
+          <button class="btn btn-primary flex-1">Record payment</button>
+          <button class="btn btn-ghost">Ledger</button>
+        </div>
+
+        <div class="flex gap-4 mt-4 border-b" style="border-color:var(--line)">
+          <span class="tab on">Bills</span><span class="tab">Payments</span><span class="tab">Details</span>
+        </div>
+
+        <div class="text-[12px] mt-2">
+          <div class="flex justify-between py-2" style="border-bottom:1px solid var(--line)">
+            <div><div class="font-semibold">PUR-6EI5RO</div><div class="text-[11px]" style="color:var(--ink-3)">10 Jul · LD Cover 0 ×20</div></div>
+            <div class="text-right"><div class="font-bold num">₹3,000</div><div class="text-[10px]" style="color:var(--neg)">unpaid</div></div>
+          </div>
+          <div class="flex justify-between py-2">
+            <div><div class="font-semibold">PUR-V2AARR</div><div class="text-[11px]" style="color:var(--ink-3)">30 May · LD Cover 0 ×15</div></div>
+            <div class="text-right"><div class="font-bold num" style="color:var(--pos)">₹0</div><div class="text-[10px]" style="color:var(--pos)">paid</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  function show(id){
+    document.getElementById('cli').classList.toggle('hidden', id !== 'cli');
+    document.getElementById('sup').classList.toggle('hidden', id !== 'sup');
+    document.getElementById('t-cli').classList.toggle('on', id === 'cli');
+    document.getElementById('t-sup').classList.toggle('on', id === 'sup');
+  }
+</script>
+</body>
+</html>

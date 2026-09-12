@@ -2,12 +2,21 @@
  * Budget repository — Supabase-backed budget plan storage.
  *
  * Replaces the earlier `utils/budgetStorage.js` localStorage layer.
- * All writes go through Supabase with tenant RLS enforcement; realtime
- * subscriptions give us live updates across devices and users.
+ *
+ * Every query here passes tenant_id EXPLICITLY. RLS alone is not enough: the
+ * budgets policies read `tenant_id = current_tenant_id() OR is_global_admin()`,
+ * so a global admin is entitled to every tenant's rows. Relying on the policy
+ * meant fetchBudget() merged all tenants into one category-keyed map, and the
+ * delete branch of upsertBudgetLine() removed a category's line for EVERY
+ * tenant at once.
+ *
+ * The column default on budgets.tenant_id is a placeholder uuid that matches no
+ * real tenant, so writes that omitted tenant_id landed on a phantom tenant and
+ * were invisible to the shop that entered them.
  *
  * Schema (public.budgets):
  *   id         text        (uuid default)
- *   tenant_id  uuid        (RLS-enforced)
+ *   tenant_id  uuid        (passed explicitly — see note below)
  *   period     text        'YYYY-MM'
  *   category   text
  *   amount     numeric(14,2)
@@ -21,10 +30,12 @@ import { supabase } from './supabase';
  * Fetch the full budget for a period.
  * @returns {Promise<Record<string, { amount:number, type:'REVENUE'|'EXPENSE', id:string }>>}
  */
-export const fetchBudget = async (period) => {
+export const fetchBudget = async (tenantId, period) => {
+  if (!tenantId) return {};
   const { data, error } = await supabase
     .from('budgets')
     .select('id, category, amount, type')
+    .eq('tenant_id', tenantId)
     .eq('period', period);
 
   if (error) {
@@ -46,25 +57,27 @@ export const fetchBudget = async (period) => {
  * Upsert a single budget line. Zero / falsy amount deletes the row.
  * Relies on the (tenant_id, period, category) unique index.
  */
-export const upsertBudgetLine = async (period, category, amount, type = 'EXPENSE') => {
+export const upsertBudgetLine = async (tenantId, period, category, amount, type = 'EXPENSE') => {
+  if (!tenantId) return false;
   const num = Number(amount);
 
   if (!Number.isFinite(num) || num <= 0) {
     const { error } = await supabase
       .from('budgets')
       .delete()
+      .eq('tenant_id', tenantId)
       .eq('period', period)
       .eq('category', category);
     if (error) console.warn('[budgetRepo] delete failed', error);
     return !error;
   }
 
-  // Upsert on the unique (tenant_id, period, category) — tenant_id is filled
-  // by the column default (or the RLS policy's WITH CHECK will reject it).
+  // tenant_id is written explicitly. The column default is a placeholder uuid
+  // belonging to no tenant, so omitting it silently orphaned the row.
   const { error } = await supabase
     .from('budgets')
     .upsert(
-      { period, category, amount: num, type, updated_at: new Date().toISOString() },
+      { tenant_id: tenantId, period, category, amount: num, type, updated_at: new Date().toISOString() },
       { onConflict: 'tenant_id,period,category' }
     );
 
@@ -79,9 +92,11 @@ export const upsertBudgetLine = async (period, category, amount, type = 'EXPENSE
  * Copy every budget line from one period to another. Overwrites the target
  * period's existing lines for the same categories.
  */
-export const copyBudget = async (fromPeriod, toPeriod) => {
-  const src = await fetchBudget(fromPeriod);
+export const copyBudget = async (tenantId, fromPeriod, toPeriod) => {
+  if (!tenantId) return false;
+  const src = await fetchBudget(tenantId, fromPeriod);
   const rows = Object.entries(src).map(([category, v]) => ({
+    tenant_id: tenantId,
     period: toPeriod,
     category,
     amount: v.amount,
@@ -105,11 +120,13 @@ export const copyBudget = async (fromPeriod, toPeriod) => {
  * Bulk upsert — used by "Suggest from 3-mo average" and the one-time
  * localStorage → Supabase migration.
  */
-export const bulkUpsertBudget = async (period, entries) => {
+export const bulkUpsertBudget = async (tenantId, period, entries) => {
+  if (!tenantId) return false;
   // entries: Array<{ category, amount, type }>
   const rows = entries
     .filter((e) => Number(e.amount) > 0)
     .map((e) => ({
+      tenant_id: tenantId,
       period,
       category: e.category,
       amount: Number(e.amount),

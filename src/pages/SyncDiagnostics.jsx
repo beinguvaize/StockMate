@@ -23,7 +23,7 @@ const statusStyle = (s) => {
     case 'FAILED':     return 'bg-red-50 text-red-700 border-red-200';
     case 'PROCESSING': return 'bg-orange-50 text-orange-700 border-orange-200';
     case 'PENDING':
-    default:           return 'bg-amber-50 text-amber-700 border-amber-200';
+    default:           return 'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25';
   }
 };
 
@@ -44,7 +44,7 @@ const SyncDiagnostics = () => {
   if (!isElectron()) {
     return (
       <div className="p-10">
-        <p className="text-sm text-gray-600">Sync Diagnostics is desktop-only.</p>
+        <p className="text-sm text-ink-secondary">Sync Diagnostics is desktop-only.</p>
       </div>
     );
   }
@@ -111,14 +111,14 @@ const SyncDiagnostics = () => {
   return (
     <div className="p-6 md:p-10 max-w-5xl mx-auto">
       <button onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-sm text-gray-600 mb-6 hover:text-ink-primary">
+        className="flex items-center gap-2 text-sm text-ink-secondary mb-6 hover:text-ink-primary">
         <ArrowLeft size={16} /> Back
       </button>
 
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-black text-ink-primary tracking-tight">Sync Diagnostics</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             {jobs.length} job{jobs.length === 1 ? '' : 's'} in the outbox.
             Retry, replay individual jobs, or export the queue.
           </p>
@@ -150,7 +150,7 @@ const SyncDiagnostics = () => {
         <div className="bg-white rounded-2xl border border-black/5 p-12 text-center">
           <CheckCircle2 size={40} className="mx-auto text-emerald-500 mb-3" />
           <p className="text-sm font-bold text-ink-primary">Outbox is empty</p>
-          <p className="text-xs text-gray-500 mt-1">All writes have been synced to Supabase.</p>
+          <p className="text-xs text-muted-foreground mt-1">All writes have been synced to Supabase.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -163,8 +163,8 @@ const SyncDiagnostics = () => {
                     <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-widest border ${statusStyle(s)}`}>
                       {s}
                     </span>
-                    <span className="text-xs font-mono text-gray-400">#{op.opId.slice(0, 8)}</span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs tabular-nums text-muted-foreground">#{op.opId.slice(0, 8)}</span>
+                    <span className="text-xs text-muted-foreground">
                       {op.attempts || 0} attempt{op.attempts === 1 ? '' : 's'}
                     </span>
                   </div>
@@ -178,7 +178,7 @@ const SyncDiagnostics = () => {
                 <div className="text-sm font-bold text-ink-primary">
                   {op.type === 'rpc' ? `RPC: ${op.table}` : `${op.type.toUpperCase()} ${op.table}`}
                 </div>
-                <div className="text-[11px] text-gray-500 mt-1">
+                <div className="text-[11px] text-muted-foreground mt-1">
                   Created {op.createdAt ? new Date(op.createdAt).toLocaleString() : 'unknown'}
                   {op.lastAttemptAt && <> · Last attempt {new Date(op.lastAttemptAt).toLocaleString()}</>}
                 </div>
@@ -187,7 +187,7 @@ const SyncDiagnostics = () => {
                   <div className="mt-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200">
                     <div className="flex items-start gap-2">
                       <AlertTriangle size={13} className="text-red-500 mt-0.5 shrink-0" />
-                      <div className="text-[11px] font-mono text-red-700 break-all">
+                      <div className="text-[11px] tabular-nums text-red-700 break-all">
                         {op.lastError}
                       </div>
                     </div>
@@ -195,10 +195,10 @@ const SyncDiagnostics = () => {
                 )}
 
                 <details className="mt-2">
-                  <summary className="text-[11px] text-gray-500 cursor-pointer hover:text-ink-primary">
+                  <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-ink-primary">
                     payload
                   </summary>
-                  <pre className="mt-2 px-3 py-2 rounded-lg bg-canvas/40 text-[10px] font-mono text-gray-700 overflow-x-auto">
+                  <pre className="mt-2 px-3 py-2 rounded-lg bg-canvas/40 text-[10px] tabular-nums text-ink-secondary overflow-x-auto">
                     {JSON.stringify(op.payload, null, 2)}
                   </pre>
                 </details>

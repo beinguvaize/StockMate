@@ -1,0 +1,255 @@
+<title>Salary Slip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;450;500;600&family=IBM+Plex+Mono:wght@400;450;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#fff; --ink:#0f1319; --ink-2:#6b7480; --ink-3:#98a1ac;
+    --hair:#e4e7ec; --hair-strong:#0f1319;
+    --accent:#1b3a5c; --tint:#f7f8fa; --ground:#e8eaee;
+    --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ground:#14171b;}}
+  :root[data-theme="dark"]{--ground:#14171b;}
+  *{box-sizing:border-box;}
+  body{margin:0;padding:34px 16px 64px;background:var(--ground);font-family:var(--sans);
+       color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:860px;margin:0 auto;}
+  .intro{max-width:600px;margin:0 auto 28px;text-align:center;}
+  .intro h1{font-weight:600;font-size:18px;margin:0 0 7px;letter-spacing:-.01em;}
+  .intro p{margin:0;font-size:12.5px;line-height:1.65;color:var(--ink-2);}
+  .lbl{font-size:11px;color:var(--ink-2);margin:0 0 9px;text-align:center;letter-spacing:.02em;}
+  .lbl b{color:var(--ink);font-weight:600;}
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]) .intro h1{color:#eceff3;}
+    :root:not([data-theme="light"]) .intro p,:root:not([data-theme="light"]) .lbl{color:#98a1ae;}
+    :root:not([data-theme="light"]) .lbl b{color:#dfe4ea;}}
+  :root[data-theme="dark"] .intro h1{color:#eceff3;}
+  :root[data-theme="dark"] .intro p,:root[data-theme="dark"] .lbl{color:#98a1ae;}
+  :root[data-theme="dark"] .lbl b{color:#dfe4ea;}
+
+  .sheet{width:210mm;height:148.5mm;background:var(--paper);margin:0 auto 30px;
+         padding:11mm 12mm 8mm;display:flex;flex-direction:column;
+         box-shadow:0 1px 2px rgba(15,19,25,.07),0 18px 44px -20px rgba(15,19,25,.28);}
+
+  /* ── masthead ── */
+  .mast{display:flex;justify-content:space-between;align-items:flex-start;}
+  .co{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;}
+  .co-sub{font-size:8px;color:var(--ink-2);margin-top:3px;line-height:1.5;}
+  .doc{text-align:right;}
+  .doc .t{font-size:8px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-2);}
+  .doc .p{font-size:14px;font-weight:600;margin-top:2px;letter-spacing:-.01em;}
+  .hr{height:1px;background:var(--hair-strong);margin-top:5mm;}
+
+  /* ── identity line ── */
+  .who{display:flex;justify-content:space-between;align-items:flex-end;padding:4mm 0 4.5mm;}
+  .who .nm{font-size:16px;font-weight:600;letter-spacing:-.015em;line-height:1.1;}
+  .who .rl{font-size:9px;color:var(--ink-2);margin-top:3px;}
+  .facts{display:flex;gap:9mm;text-align:right;}
+  .fact .k{font-size:7px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);}
+  .fact .v{font-size:9.5px;font-weight:500;margin-top:2px;}
+  .fact .v.mono{font-family:var(--mono);font-weight:450;}
+
+  /* ── body: detail left, summary right ── */
+  .body{display:grid;grid-template-columns:1fr 62mm;gap:9mm;flex:1;min-height:0;}
+
+  .sec+.sec{margin-top:4.5mm;}
+  .sec .h{font-size:7px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
+          padding-bottom:2mm;border-bottom:1px solid var(--hair);}
+  .ln{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+      padding:2.6mm 0;border-bottom:1px solid var(--hair);font-size:10.5px;}
+  .ln .d{font-size:8px;color:var(--ink-3);margin-top:1.5px;}
+  .ln .a{font-family:var(--mono);font-weight:450;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .ln.sum{border-bottom:0;padding-top:2.4mm;font-weight:600;}
+  .ln.sum .a{font-weight:500;}
+  .ln.none{color:var(--ink-3);font-style:italic;}
+
+  /* summary rail */
+  .rail{display:flex;flex-direction:column;}
+  .netblk{border-top:2px solid var(--hair-strong);padding-top:3mm;}
+  .netblk .k{font-size:7px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);}
+  .netblk .a{font-family:var(--mono);font-weight:500;font-size:27px;letter-spacing:-.02em;
+             margin-top:1.5mm;line-height:1;}
+  .netblk .w{font-size:8px;color:var(--ink-2);margin-top:2.5mm;line-height:1.45;font-style:italic;}
+  .paid{margin-top:3.5mm;font-size:8.5px;color:var(--ink-2);}
+  .paid b{color:var(--ink);font-weight:500;}
+
+  .mtd{margin-top:auto;background:var(--tint);padding:3mm 3.5mm;}
+  .mtd .k{font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);}
+  .mtd .row{display:flex;justify-content:space-between;align-items:baseline;margin-top:2mm;}
+  .mtd .big{font-family:var(--mono);font-weight:500;font-size:14px;letter-spacing:-.01em;}
+  .mtd .d{font-size:8px;color:var(--ink-2);}
+  .mtd .note{font-size:7.5px;color:var(--ink-3);margin-top:1.5mm;}
+
+  /* ── foot ── */
+  .foot{display:flex;justify-content:space-between;align-items:flex-end;
+        margin-top:5mm;padding-top:3mm;border-top:1px solid var(--hair);}
+  .gen{font-size:6.5px;color:var(--ink-3);line-height:1.5;}
+  .sigs{display:flex;gap:16mm;}
+  .sigs div{width:40mm;border-top:1px solid var(--ink-2);padding-top:2px;font-size:7px;
+            color:var(--ink-3);text-align:center;letter-spacing:.05em;}
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>Salary slip — enterprise, restrained</h1>
+    <p>Detail on the left, a summary rail on the right. Month-to-date is one quiet block
+    rather than a column on every line. Real August figures.</p>
+  </div>
+
+  <p class="lbl"><b>Daily wage</b> · Akbar · 17 Aug 2026</p>
+
+  <div class="sheet">
+    <div class="mast">
+      <div>
+        <div class="co">Future Dispo Industries</div>
+        <div class="co-sub">Mannamparambu, Chadayamangalam, Kollam District, Kerala 691534<br>
+          GSTIN 32CXQPA6767H1Z7</div>
+      </div>
+      <div class="doc">
+        <div class="t">Salary Slip</div>
+        <div class="p">17 August 2026</div>
+      </div>
+    </div>
+    <div class="hr"></div>
+
+    <div class="who">
+      <div>
+        <div class="nm">Akbar</div>
+        <div class="rl">Sales · Management · Full time since 2 Mar 2026</div>
+      </div>
+      <div class="facts">
+        <div class="fact"><div class="k">Pay basis</div><div class="v">Daily · ₹900</div></div>
+        <div class="fact"><div class="k">Paid on</div><div class="v">17 Aug 2026</div></div>
+        <div class="fact"><div class="k">Reference</div><div class="v mono">186379E2</div></div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div>
+        <div class="sec">
+          <div class="h">Earnings</div>
+          <div class="ln">
+            <span>Basic pay<div class="d">1 day × ₹900.00</div></span>
+            <span class="a">900.00</span>
+          </div>
+          <div class="ln sum"><span>Gross earnings</span><span class="a">900.00</span></div>
+        </div>
+
+        <div class="sec">
+          <div class="h">Deductions</div>
+          <div class="ln none"><span>None</span><span class="a">—</span></div>
+          <div class="ln sum"><span>Total deductions</span><span class="a">0.00</span></div>
+        </div>
+      </div>
+
+      <div class="rail">
+        <div class="netblk">
+          <div class="k">Net pay</div>
+          <div class="a">₹900.00</div>
+          <div class="w">Nine Hundred Rupees Only</div>
+        </div>
+        <div class="paid">Paid in <b>cash</b> on 17 Aug 2026</div>
+
+        <div class="mtd">
+          <div class="k">August to date</div>
+          <div class="row">
+            <span class="big">₹7,200.00</span>
+            <span class="d">8 days</span>
+          </div>
+          <div class="note">Including ₹6,300.00 paid earlier this month</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div class="gen">Computer-generated · no signature required for validity<br>Generated 18 Aug 2026</div>
+      <div class="sigs">
+        <div>Received by</div>
+        <div>For Future Dispo Industries</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="lbl"><b>Monthly salary</b> · with loss of pay · illustrative</p>
+
+  <div class="sheet">
+    <div class="mast">
+      <div>
+        <div class="co">Future Dispo Industries</div>
+        <div class="co-sub">Mannamparambu, Chadayamangalam, Kollam District, Kerala 691534<br>
+          GSTIN 32CXQPA6767H1Z7</div>
+      </div>
+      <div class="doc">
+        <div class="t">Salary Slip</div>
+        <div class="p">August 2026</div>
+      </div>
+    </div>
+    <div class="hr"></div>
+
+    <div class="who">
+      <div>
+        <div class="nm">Suresh Kumar</div>
+        <div class="rl">Supervisor · Management · Full time</div>
+      </div>
+      <div class="facts">
+        <div class="fact"><div class="k">Pay basis</div><div class="v">Monthly · ₹31,000</div></div>
+        <div class="fact"><div class="k">Paid on</div><div class="v">31 Aug 2026</div></div>
+        <div class="fact"><div class="k">Reference</div><div class="v mono">4A17C9B2</div></div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div>
+        <div class="sec">
+          <div class="h">Earnings</div>
+          <div class="ln">
+            <span>Salary<div class="d">31 days × ₹1,000.00</div></span>
+            <span class="a">31,000.00</span>
+          </div>
+          <div class="ln sum"><span>Gross earnings</span><span class="a">31,000.00</span></div>
+        </div>
+
+        <div class="sec">
+          <div class="h">Deductions</div>
+          <div class="ln">
+            <span>Loss of pay<div class="d">2.5 days absent × ₹1,000.00</div></span>
+            <span class="a">2,500.00</span>
+          </div>
+          <div class="ln">
+            <span>Advance recovered</span>
+            <span class="a">500.00</span>
+          </div>
+          <div class="ln sum"><span>Total deductions</span><span class="a">3,000.00</span></div>
+        </div>
+      </div>
+
+      <div class="rail">
+        <div class="netblk">
+          <div class="k">Net pay</div>
+          <div class="a">₹28,000.00</div>
+          <div class="w">Twenty Eight Thousand Rupees Only</div>
+        </div>
+        <div class="paid">Paid by <b>bank transfer</b> on 31 Aug 2026</div>
+
+        <div class="mtd">
+          <div class="k">Attendance</div>
+          <div class="row">
+            <span class="big">28.5</span>
+            <span class="d">of 31 days paid</span>
+          </div>
+          <div class="note">2 days absent, 1 half day</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div class="gen">Computer-generated · no signature required for validity<br>Generated 18 Aug 2026</div>
+      <div class="sigs">
+        <div>Received by</div>
+        <div>For Future Dispo Industries</div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -282,7 +282,7 @@ class ClientAgingScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Aging Report',
+            'Overdue Report',
             style: GoogleFonts.manrope(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -291,7 +291,7 @@ class ClientAgingScreen extends ConsumerWidget {
             ),
           ),
           Text(
-            'Outstanding credit balances by age',
+            'Who owes you, and for how long',
             style: GoogleFonts.manrope(
               fontSize: 11,
               color: AppColors.inkTertiary,

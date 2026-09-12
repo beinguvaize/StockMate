@@ -27,7 +27,7 @@ const STAGES = [
 ];
 
 const STAGE_STYLES = {
-  gray:   { badge: 'bg-gray-100   text-gray-600   border-gray-200',   dot: 'bg-gray-400',   bar: 'bg-gray-200'   },
+  gray:   { badge: 'bg-muted   text-ink-secondary   border-border',   dot: 'bg-gray-400',   bar: 'bg-border'   },
   blue:   { badge: 'bg-blue-50    text-blue-700   border-blue-200',   dot: 'bg-blue-500',   bar: 'bg-blue-500'   },
   yellow: { badge: 'bg-yellow-50  text-yellow-700 border-yellow-200', dot: 'bg-yellow-500', bar: 'bg-yellow-400' },
   orange: { badge: 'bg-orange-50  text-orange-700 border-orange-200', dot: 'bg-orange-500', bar: 'bg-orange-500' },
@@ -98,7 +98,7 @@ const Orders = () => {
   const { products } = useInventory(currentTenantId);
 
   const navigate = useNavigate();
-  const sym = businessProfile?.currencySymbol || '';
+  const sym = businessProfile?.currencySymbol || '₹';
 
   // ── Merge orders + invoices into unified pipeline ─────────────────────
   const allItems = useMemo(() => {
@@ -313,11 +313,11 @@ const Orders = () => {
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="flex justify-between items-center gap-3 pb-3 border-b border-black/5 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
-          <h1 className="text-xl font-extrabold text-ink-primary leading-none">Orders<span className="text-amber-500">.</span></h1>
-          <span className="text-[11px] font-semibold text-gray-400 hidden sm:block">Track orders you fulfil later — confirm → dispatch → deliver → invoice</span>
+          <h1 className="text-xl font-extrabold text-ink-primary leading-none">Orders<span className="text-accent-signature">.</span></h1>
+          <span className="text-[11px] font-semibold text-muted-foreground hidden sm:block">Track orders you fulfil later — confirm → dispatch → deliver → invoice</span>
         </div>
         <button onClick={openNew}
-          className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all shrink-0">
+          className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all shrink-0">
           <Plus size={15} strokeWidth={2.6} /> New order
         </button>
       </div>
@@ -331,9 +331,9 @@ const Orders = () => {
           { label: 'To dispatch', value: counts.CONFIRMED || 0 },
         ].map((m) => (
           <div key={m.label} className="bg-white px-4 py-3.5">
-            <div className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{m.label}</div>
-            <div className="font-mono text-xl font-bold text-ink-primary tabular-nums leading-none mt-1">
-              {m.money && <span className="text-sm text-amber-400 mr-0.5">{sym || '₹'}</span>}{m.value}
+            <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{m.label}</div>
+            <div className="text-xl font-bold text-ink-primary tabular-nums leading-none mt-1">
+              {m.money && <span className="text-sm text-accent-signature/70 mr-0.5">{sym || '₹'}</span>}{m.value}
             </div>
           </div>
         ))}
@@ -347,10 +347,10 @@ const Orders = () => {
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[10px] font-black transition-all whitespace-nowrap ${
             activeStage === 'ALL'
               ? 'bg-ink-primary text-surface border-ink-primary'
-              : 'bg-white border-black/5 text-gray-500 hover:border-black/15'
+              : 'bg-white border-black/5 text-muted-foreground hover:border-black/15'
           }`}
         >
-          All <span className={`text-[8px] px-1.5 py-0.5 rounded-full tabular-nums ${activeStage === 'ALL' ? 'bg-white/20 text-white' : 'bg-black/5 text-gray-400'}`}>{counts.ALL}</span>
+          All <span className={`text-[8px] px-1.5 py-0.5 rounded-full tabular-nums ${activeStage === 'ALL' ? 'bg-white/20 text-white' : 'bg-black/5 text-muted-foreground'}`}>{counts.ALL}</span>
         </button>
 
         {STAGES.map((stage, idx) => {
@@ -359,16 +359,16 @@ const Orders = () => {
           const active = activeStage === stage.id;
           return (
             <React.Fragment key={stage.id}>
-              {idx > 0 && <ArrowRight size={10} className="text-gray-300 shrink-0" />}
+              {idx > 0 && <ArrowRight size={10} className="text-muted-foreground shrink-0" />}
               <button
                 onClick={() => setActiveStage(stage.id)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[10px] font-black transition-all whitespace-nowrap ${
-                  active ? `${st.badge} shadow-sm` : 'bg-white border-black/5 text-gray-500 hover:border-black/15'
+                  active ? `${st.badge} shadow-sm` : 'bg-white border-black/5 text-muted-foreground hover:border-black/15'
                 }`}
               >
                 <Icon size={10} />
                 {stage.label}
-                <span className={`text-[8px] px-1.5 py-0.5 rounded-full tabular-nums ${active ? 'bg-black/10' : 'bg-black/5 text-gray-400'}`}>
+                <span className={`text-[8px] px-1.5 py-0.5 rounded-full tabular-nums ${active ? 'bg-black/10' : 'bg-black/5 text-muted-foreground'}`}>
                   {counts[stage.id] || 0}
                 </span>
               </button>
@@ -379,11 +379,11 @@ const Orders = () => {
 
       {/* ── Search ──────────────────────────────────────────────────────── */}
       <div className="relative w-full max-w-sm">
-        <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <input
           type="text"
           placeholder="Order # or client name..."
-          className="w-full h-10 pl-10 pr-4 rounded-full bg-white border border-black/5 text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-black/20 transition-all"
+          className="w-full h-10 pl-10 pr-4 rounded-full bg-white border border-black/5 text-xs font-bold text-ink-primary placeholder:text-muted-foreground outline-none focus:border-black/20 transition-all"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
         />
@@ -393,15 +393,15 @@ const Orders = () => {
       <div className="space-y-2">
         {filtered.length === 0 && (
           <div className="py-16 px-6 text-center bg-white rounded-[2rem] border border-black/5 max-w-xl mx-auto">
-            <Package size={44} className="mx-auto mb-4 text-amber-500 opacity-30" strokeWidth={1.5} />
+            <Package size={44} className="mx-auto mb-4 text-accent-signature opacity-30" strokeWidth={1.5} />
             <p className="text-base font-bold text-ink-primary">No open orders</p>
-            <p className="text-[13px] text-gray-500 mt-2 leading-relaxed">
+            <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed">
               Use <b>Orders</b> when a customer orders today but you deliver &amp; bill later
               (B2B, wholesale, van sales). Track each through <b>Confirmed → Dispatched →
               Delivered → Invoiced</b>, then convert to a sale.
             </p>
-            <p className="text-[12px] text-gray-400 mt-3">For instant counter sales, use <b>Sales</b> instead.</p>
-            <button onClick={openNew} className="mt-5 h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold hover:bg-amber-700 inline-flex items-center gap-2">
+            <p className="text-[12px] text-muted-foreground mt-3">For instant counter sales, use <b>Sales</b> instead.</p>
+            <button onClick={openNew} className="mt-5 h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold hover:bg-accent-signature-hover inline-flex items-center gap-2">
               <Plus size={15} strokeWidth={2.6} /> Create first order
             </button>
           </div>
@@ -437,7 +437,7 @@ const Orders = () => {
                     <span className="text-sm font-black text-ink-primary">{order.order_number}</span>
                     <StageBadge status={order.status} />
                     {isInvoice ? (
-                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-1">
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25 flex items-center gap-1">
                         <FileText size={8} /> INVOICE
                       </span>
                     ) : (
@@ -448,22 +448,22 @@ const Orders = () => {
                       }`}>{order.order_type}</span>
                     )}
                     {!isInvoice && (
-                      <span className="text-[9px] font-bold bg-white border border-gray-300 shadow-sm px-2 py-0.5 rounded-full text-gray-500">
+                      <span className="text-[9px] font-bold bg-white border border-border shadow-sm px-2 py-0.5 rounded-full text-muted-foreground">
                         {TIER_LABELS[order.price_tier] || order.price_tier}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                    <span className="text-[10px] font-semibold text-gray-400 flex items-center gap-1">
+                    <span className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
                       <User size={9} /> {order.client_name || 'Walk-in'}
                     </span>
                     {order.requested_date && (
-                      <span className="text-[10px] font-semibold text-gray-400 flex items-center gap-1">
+                      <span className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
                         <Calendar size={9} /> {order.requested_date}
                       </span>
                     )}
                     {items.length > 0 && (
-                      <span className="text-[10px] font-semibold text-gray-400">
+                      <span className="text-[10px] font-semibold text-muted-foreground">
                         {items.length} item{items.length > 1 ? 's' : ''}
                       </span>
                     )}
@@ -484,7 +484,7 @@ const Orders = () => {
                     <button
                       onClick={() => handleAdvance(order)}
                       disabled={isSaving}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black hover:opacity-90 transition-all disabled:opacity-50 ${stage.next === 'INVOICED' ? 'bg-amber-600 text-white' : 'bg-ink-primary text-surface'}`}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black hover:opacity-90 transition-all disabled:opacity-50 ${stage.next === 'INVOICED' ? 'bg-accent-signature text-white' : 'bg-ink-primary text-surface'}`}
                     >
                       {isSaving ? '...' : (stage.next === 'INVOICED' ? '₹ Convert to sale' : `→ ${stageOf(stage.next).label}`)}
                     </button>
@@ -498,7 +498,7 @@ const Orders = () => {
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[9px] font-black transition-all ${
                         order._delivery_required
                           ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                          : 'bg-canvas border-black/10 text-gray-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
+                          : 'bg-canvas border-black/10 text-muted-foreground hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
                       }`}
                     >
                       <Truck size={9} />
@@ -510,7 +510,7 @@ const Orders = () => {
                   {isInvoice && (
                     <a
                       href="/invoices"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-black hover:bg-amber-100 transition-all"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-signature/10 border border-accent-signature/25 text-accent-signature-hover text-[9px] font-black hover:bg-accent-signature/15 transition-all"
                       title="Manage on Invoices page"
                     >
                       <FileText size={9} /> View Invoice
@@ -521,7 +521,7 @@ const Orders = () => {
                   {!isInvoice && order.status === 'DRAFT' && (
                     <button
                       onClick={() => openEdit(order)}
-                      className="w-8 h-8 rounded-xl bg-white border border-gray-300 shadow-sm flex items-center justify-center text-gray-500 hover:text-ink-primary hover:bg-black/5 transition-all"
+                      className="w-8 h-8 rounded-xl bg-white border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:bg-black/5 transition-all"
                     >
                       <Edit3 size={13} />
                     </button>
@@ -531,7 +531,7 @@ const Orders = () => {
                   {!isInvoice && !['INVOICED', 'CANCELLED'].includes(order.status) && (
                     <button
                       onClick={() => handleCancel(order)}
-                      className="w-8 h-8 rounded-xl bg-white border border-gray-300 shadow-sm flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
+                      className="w-8 h-8 rounded-xl bg-white border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
                       title="Cancel order"
                     >
                       <X size={13} />
@@ -542,7 +542,7 @@ const Orders = () => {
                   {!isInvoice && ['DRAFT', 'CANCELLED'].includes(order.status) && (
                     <button
                       onClick={() => handleDelete(order)}
-                      className="w-8 h-8 rounded-xl bg-white border border-gray-300 shadow-sm flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
+                      className="w-8 h-8 rounded-xl bg-white border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
                       title="Delete order"
                     >
                       <Trash2 size={13} />
@@ -553,7 +553,7 @@ const Orders = () => {
                   {items.length > 0 && (
                     <button
                       onClick={() => setExpandedId(expanded ? null : order.id)}
-                      className="w-8 h-8 rounded-xl bg-white border border-gray-300 shadow-sm flex items-center justify-center text-gray-400 hover:text-ink-primary transition-all"
+                      className="w-8 h-8 rounded-xl bg-white border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-ink-primary transition-all"
                     >
                       {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                     </button>
@@ -565,14 +565,14 @@ const Orders = () => {
               {expanded && items.length > 0 && (
                 <div className="border-t border-black/5 bg-canvas/40 px-5 py-4">
                   {order.notes && (
-                    <p className="text-[9px] font-semibold text-gray-400 mb-3 italic">"{order.notes}"</p>
+                    <p className="text-[9px] font-semibold text-muted-foreground mb-3 italic">"{order.notes}"</p>
                   )}
                   <div className="space-y-1.5">
                     {items.map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between gap-4 bg-white rounded-xl px-4 py-2.5 border border-black/5">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-6 h-6 rounded-lg bg-white border border-gray-300 shadow-sm flex items-center justify-center shrink-0">
-                            <Package size={10} className="text-gray-400" />
+                          <div className="w-6 h-6 rounded-lg bg-white border border-border shadow-sm flex items-center justify-center shrink-0">
+                            <Package size={10} className="text-muted-foreground" />
                           </div>
                           <span className="text-xs font-semibold text-ink-primary truncate">
                             {item.productName || item.name || 'Item'}
@@ -587,8 +587,8 @@ const Orders = () => {
                           const has = amount > 0 || rate > 0;
                           return (
                             <div className="flex items-center gap-6 shrink-0 text-right">
-                              <span className="text-[10px] font-semibold text-gray-400 tabular-nums">× {qty}</span>
-                              <span className="text-[10px] font-semibold text-gray-400 tabular-nums w-20 text-right">{has ? `${sym}${Math.round(rate).toLocaleString()}` : '—'}</span>
+                              <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">× {qty}</span>
+                              <span className="text-[10px] font-semibold text-muted-foreground tabular-nums w-20 text-right">{has ? `${sym}${Math.round(rate).toLocaleString()}` : '—'}</span>
                               <span className="text-xs font-black text-ink-primary tabular-nums w-24 text-right">{has ? `${sym}${Math.round(amount).toLocaleString()}` : '—'}</span>
                             </div>
                           );
@@ -598,7 +598,7 @@ const Orders = () => {
                   </div>
                   <div className="flex justify-end mt-3 pt-3 border-t border-black/5">
                     <div className="text-right">
-                      <div className="text-[9px] font-semibold text-gray-400">Total</div>
+                      <div className="text-[9px] font-semibold text-muted-foreground">Total</div>
                       <div className="text-base font-black text-ink-primary tabular-nums">
                         {sym}{(order.grand_total || 0).toLocaleString()}
                       </div>
@@ -622,7 +622,7 @@ const Orders = () => {
                 <h1 className="text-4xl font-black font-sora text-ink-primary leading-none tracking-tight uppercase">
                   {editingOrder ? 'EDIT ORDER' : 'NEW ORDER'}<span className="text-accent-signature">.</span>
                 </h1>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mt-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mt-1">
                   B2B / B2C sales order
                 </p>
               </div>
@@ -640,9 +640,9 @@ const Orders = () => {
                 {/* Client + type */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
-                    <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Client</label>
+                    <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Client</label>
                     <select
-                      className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all appearance-none"
+                      className="w-full bg-white border border-border shadow-sm rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all appearance-none"
                       value={form.clientId}
                       onChange={e => onClientChange(e.target.value)}
                     >
@@ -657,7 +657,7 @@ const Orders = () => {
 
                   {/* Order type toggle */}
                   <div>
-                    <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Order Type</label>
+                    <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Order Type</label>
                     <div className="flex gap-2">
                       {['B2B', 'B2C'].map(t => (
                         <button
@@ -677,9 +677,9 @@ const Orders = () => {
 
                   {/* Price tier */}
                   <div>
-                    <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Price Tier</label>
+                    <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Price Tier</label>
                     <select
-                      className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all appearance-none"
+                      className="w-full bg-white border border-border shadow-sm rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all appearance-none"
                       value={form.priceTier}
                       onChange={e => setForm(prev => ({ ...prev, priceTier: e.target.value }))}
                     >
@@ -691,10 +691,10 @@ const Orders = () => {
 
                   {/* Requested date */}
                   <div>
-                    <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Requested Date</label>
+                    <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Requested Date</label>
                     <input
                       type="date"
-                      className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
+                      className="w-full bg-white border border-border shadow-sm rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
                       value={form.requestedDate}
                       onChange={e => setForm(prev => ({ ...prev, requestedDate: e.target.value }))}
                     />
@@ -702,10 +702,10 @@ const Orders = () => {
 
                   {/* Notes */}
                   <div>
-                    <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Notes</label>
+                    <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Notes</label>
                     <input
                       type="text"
-                      className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
+                      className="w-full bg-white border border-border shadow-sm rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
                       placeholder="Special instructions..."
                       value={form.notes}
                       onChange={e => setForm(prev => ({ ...prev, notes: e.target.value }))}
@@ -716,7 +716,7 @@ const Orders = () => {
                 {/* Line items */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Line Items</p>
+                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">Line Items</p>
                     <button
                       type="button"
                       onClick={addItem}
@@ -729,7 +729,7 @@ const Orders = () => {
                   {form.items.length === 0 && (
                     <div className="py-8 text-center border-2 border-dashed border-black/10 rounded-xl">
                       <Package size={24} className="mx-auto mb-2 opacity-20" />
-                      <p className="text-[10px] font-semibold text-gray-400">No items — click "Add Item"</p>
+                      <p className="text-[10px] font-semibold text-muted-foreground">No items — click "Add Item"</p>
                     </div>
                   )}
 
@@ -751,16 +751,16 @@ const Orders = () => {
 
                         {/* Qty */}
                         <div className="flex items-center gap-0 rounded-lg overflow-hidden border border-black/10 shrink-0">
-                          <button type="button" className="w-7 h-8 flex items-center justify-center bg-canvas text-gray-500 hover:bg-black/5 text-sm font-bold"
+                          <button type="button" className="w-7 h-8 flex items-center justify-center bg-canvas text-muted-foreground hover:bg-black/5 text-sm font-bold"
                             onClick={() => updateItem(idx, 'qty', Math.max(1, (item.qty || 1) - 1))}>−</button>
                           <span className="w-10 text-center text-xs font-bold tabular-nums bg-white" style={{ lineHeight: '32px' }}>{item.qty || 1}</span>
-                          <button type="button" className="w-7 h-8 flex items-center justify-center bg-canvas text-gray-500 hover:bg-black/5 text-sm font-bold"
+                          <button type="button" className="w-7 h-8 flex items-center justify-center bg-canvas text-muted-foreground hover:bg-black/5 text-sm font-bold"
                             onClick={() => updateItem(idx, 'qty', (item.qty || 1) + 1)}>+</button>
                         </div>
 
                         {/* Unit price */}
                         <div className="relative shrink-0 w-28">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">{sym}</span>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs pointer-events-none">{sym}</span>
                           <input
                             type="number" step="0.01" min="0"
                             className="w-full bg-white border border-black/8 rounded-lg pl-6 pr-2 py-2 font-bold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 tabular-nums"
@@ -776,7 +776,7 @@ const Orders = () => {
 
                         {/* Remove */}
                         <button type="button" onClick={() => removeItem(idx)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all shrink-0">
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all shrink-0">
                           <X size={12} />
                         </button>
                       </div>
@@ -787,7 +787,7 @@ const Orders = () => {
                   {form.items.length > 0 && (
                     <div className="flex justify-end mt-3 pt-3 border-t border-black/5">
                       <div className="text-right">
-                        <div className="text-[9px] font-semibold text-gray-400">Grand Total</div>
+                        <div className="text-[9px] font-semibold text-muted-foreground">Grand Total</div>
                         <div className="text-lg font-black text-ink-primary tabular-nums">
                           {sym}{formTotals.grandTotal.toLocaleString()}
                         </div>

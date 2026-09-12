@@ -23,7 +23,7 @@ final invoicesProvider = FutureProvider<List<Invoice>>((ref) async {
   // diverge between phone and browser even on the same data.
   final response = await supabase
       .from('invoices')
-      .select()
+      .select().isFilter('deleted_at', null)
       .order('invoice_date', ascending: false)
       .order('invoice_number', ascending: false)
       .limit(500);
@@ -99,7 +99,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
       ),
       body: invoicesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => Center(child: Text('Error: $e', style: GoogleFonts.manrope(color: AppColors.danger))),
+        error: (e, _) => Center(child: Text('Could not load invoices. Check your internet and try again.', style: GoogleFonts.manrope(color: AppColors.danger))),
         data: (allInvoices) {
           // ── Stats — matching web logic ──────────────────────────────────────
           // Outstanding = sum of (grand_total - paid_amount) for unpaid invoices
@@ -527,9 +527,12 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
   }
 
   String _formatAmount(double v) {
-    if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
-    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
-    return v.toStringAsFixed(0);
+    final whole = v.round();
+    final s = whole.abs().toString();
+    final grouped = s.length <= 3
+        ? s
+        : '${s.substring(0, s.length - 3).replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},')},${s.substring(s.length - 3)}';
+    return '${whole < 0 ? '-' : ''}$grouped';
   }
 }
 
@@ -704,7 +707,7 @@ class _InvoiceCard extends StatelessWidget {
                 // Partial payment indicator
                 if (invoice.paidAmount > 0 && status != _InvoiceStatus.paid)
                   Text(
-                    'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Due ₹${invoice.outstanding.toStringAsFixed(0)}',
+                    'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Balance ₹${invoice.outstanding.toStringAsFixed(0)}',
                     style: GoogleFonts.manrope(
                       fontSize: 10,
                       color: AppColors.warning,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:uuid/uuid.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
@@ -105,7 +106,12 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             .update(payload)
             .eq('id', widget.employee!.id);
       } else {
+        // employees.id is text NOT NULL with no database default, so every
+        // client has to mint one. Web does (crypto.randomUUID in usePayroll);
+        // this did not, so every Add Employee on mobile failed outright with
+        // "null value in column id violates not-null constraint".
         await supabase.from('employees').insert({
+          'id': const Uuid().v4(),
           ...payload,
           'tenant_id': tenantCtx?.tenantId,
         });

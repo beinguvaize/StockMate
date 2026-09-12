@@ -1,17 +1,30 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile_app/core/database/database.dart';
+import 'package:mobile_app/core/database/offline_reads.dart';
 import 'daybook_models.dart';
 
 class DaybookRepository {
   final SupabaseClient _client;
-  DaybookRepository(this._client);
+  // Optional so existing construction keeps working; when supplied, reads fall
+  // back to the local cache instead of throwing with no connection.
+  final AppDatabase? _db;
+  DaybookRepository(this._client, [this._db]);
 
   Future<List<DayBookRecord>> fetchDayBookList(String tenantId) async {
-    final data = await _client.from('day_book')
-        .select()
-        .eq('tenant_id', tenantId)
-        .order('date', ascending: false)
-        .limit(60);
-    return (data as List).map((m) => DayBookRecord.fromMap(m as Map<String, dynamic>)).toList();
+    try {
+      final data = await _client.from('day_book')
+          .select()
+          .eq('tenant_id', tenantId)
+          .order('date', ascending: false)
+          .limit(60);
+      return (data as List).map((m) => DayBookRecord.fromMap(m as Map<String, dynamic>)).toList();
+    } catch (e) {
+      if (_db == null) rethrow;
+      debugPrint('[daybook] list online failed, using Drift cache: $e');
+      final rows = await cachedDayBook(_db, tenantId);
+      return rows.map(DayBookRecord.fromMap).toList();
+    }
   }
 
   Future<DayBookLedger> buildLedger({
@@ -29,24 +42,39 @@ class DaybookRepository {
     final prev = sorted.where((r) => r.date.compareTo(date) < 0).firstOrNull;
     final prevClosing = prev?.closingBalance;
 
-    // Fetch all transactions for this date in parallel
-    final results = await Future.wait([
-      _client.from('sales').select('id, totalAmount, paymentMethod, customerInfo, items, created_at')
-          .eq('tenant_id', tenantId).eq('date', date),
-      _client.from('expenses').select('id, amount, category, note, created_at')
-          .eq('tenant_id', tenantId).eq('date', date),
-      _client.from('client_payments').select('id, amount, payment_method, notes, client_id, created_at')
-          .eq('tenant_id', tenantId).eq('date', date),
-      _client.from('purchases').select('id, total_amount, payment_type, supplier_id, created_at')
-          .eq('tenant_id', tenantId).eq('date', date),
-    ]);
+    // Fetch all transactions for this date in parallel.
+    List<Map<String, dynamic>> sales, expenses, collections, purchases;
+    var servedFromCache = false;
+    try {
+      final results = await Future.wait([
+        _client.from('sales').select('id, totalAmount, paymentMethod, customerInfo, items, created_at')
+            .eq('tenant_id', tenantId).eq('date', date).isFilter('deleted_at', null),
+        _client.from('expenses').select('id, amount, category, note, created_at')
+            .eq('tenant_id', tenantId).eq('date', date).isFilter('deleted_at', null),
+        _client.from('client_payments').select('id, amount, payment_method, notes, client_id, created_at')
+            .eq('tenant_id', tenantId).eq('date', date).isFilter('deleted_at', null),
+        _client.from('purchases').select('id, total_amount, payment_type, supplier_id, created_at').isFilter('deleted_at', null)
+            .eq('tenant_id', tenantId).eq('date', date),
+      ]);
+      sales = (results[0] as List).cast<Map<String, dynamic>>();
+      expenses = (results[1] as List).cast<Map<String, dynamic>>();
+      collections = (results[2] as List).cast<Map<String, dynamic>>();
+      purchases = (results[3] as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      if (_db == null) rethrow;
+      debugPrint('[daybook] ledger online failed, using Drift cache: $e');
+      servedFromCache = true;
+      // Only client_payments gained a cache in v6; sales, expenses and purchases
+      // were already cached but without a date column to filter on, so they are
+      // filtered here. An empty list is honest — it means nothing was cached for
+      // that day, not that nothing happened.
+      collections = await cachedClientPayments(_db, tenantId, date: date);
+      sales = await cachedSalesForDate(_db, tenantId, date);
+      expenses = await cachedExpensesForDate(_db, tenantId, date);
+      purchases = await cachedPurchasesForDate(_db, tenantId, date);
+    }
 
-    final sales = (results[0] as List).cast<Map<String, dynamic>>();
-    final expenses = (results[1] as List).cast<Map<String, dynamic>>();
-    final collections = (results[2] as List).cast<Map<String, dynamic>>();
-    final purchases = (results[3] as List).cast<Map<String, dynamic>>();
-
-    const bankMethods = ['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS'];
+    const bankMethods = ['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS', 'CARD', 'CHEQUE'];
 
     // Compute aggregates
     double cashSales = 0, bankSales = 0, creditSales = 0;
@@ -165,6 +193,7 @@ class DaybookRepository {
     }
 
     return DayBookLedger(
+      fromCache: servedFromCache,
       date: date,
       openingBal: openingBal,
       cashSales: cashSales, bankSales: bankSales, creditSales: creditSales,

@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, Download, BarChart3, FileSpreadsheet, Printer, FileText, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { PRESETS } from './reportUtils';
 import { useTenant } from '../../context/TenantContext';
 import ReportTable from './ReportTable';
 import { exportToCSV, exportExcel, printReport, letterheadFrom, safeFilename } from '../../lib/reportExport';
@@ -25,10 +26,10 @@ import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 
 /* ─── Colour tokens ───────────────────────────────────────────────────────── */
 const COLOR_HEX = {
-  indigo: '#D97706', emerald: '#10b981', amber: '#f59e0b', rose: '#ef4444',
+  indigo: 'var(--color-accent-signature)', emerald: '#10b981', amber: '#f59e0b', rose: '#ef4444',
   orange: '#f97316', sky: '#0ea5e9', violet: '#8b5cf6', blue: '#3b82f6',
 };
-const PIE_COLORS = ['#D97706', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+const PIE_COLORS = ['var(--color-accent-signature)', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
 /* ─── Value formatting ────────────────────────────────────────────────────── */
 const MONEY_RE = /value|revenue|profit|capital|payroll|disburs|outstanding|magnitude|burn|salary|\brev\b|balance|amount|spend|yield|cost/i;
@@ -45,7 +46,7 @@ const kpiDisplay = (label, value) => {
 };
 
 /* ─── Mini sparkline ──────────────────────────────────────────────────────── */
-const Spark = ({ data = [], color = '#D97706' }) => {
+const Spark = ({ data = [], color = 'var(--color-accent-signature)' }) => {
   if (!data || data.length < 2) return <div className="h-9" />;
   const id = `prk_${color.replace('#', '')}`;
   return (
@@ -69,15 +70,15 @@ const KPI = ({ card, loading }) => {
   const color = COLOR_HEX[card.color] || COLOR_HEX.indigo;
   const dir   = card.trendDir;
   const TrendIcon = dir === 'up' ? TrendingUp : dir === 'down' ? TrendingDown : Minus;
-  const trendCls = dir === 'up' ? 'text-emerald-500' : dir === 'down' ? 'text-red-400' : 'text-gray-400';
+  const trendCls = dir === 'up' ? 'text-emerald-500' : dir === 'down' ? 'text-red-400' : 'text-muted-foreground';
   return (
-    <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-card rounded-[10px] border border-border/60 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
         </div>
         {dir && (
-          <span className={`text-[10px] font-black flex items-center gap-0.5 ${trendCls}`}>
+          <span className={`text-[10px] font-semibold flex items-center gap-0.5 ${trendCls}`}>
             <TrendIcon size={11} />
             {dir !== 'none' ? `${Math.abs(Number(card.trend) || 0)}%` : '—'}
           </span>
@@ -85,11 +86,11 @@ const KPI = ({ card, loading }) => {
       </div>
       {loading
         ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-        : <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums leading-none truncate">
+        : <div className="tabular-nums text-2xl font-semibold text-foreground tabular-nums leading-none truncate">
             {kpiDisplay(card.label, card.value)}
           </div>
       }
-      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{card.label}</div>
+      <div className="text-[11px] font-medium text-muted-foreground">{card.label}</div>
       <Spark data={card.chartData} color={color} />
     </div>
   );
@@ -98,8 +99,8 @@ const KPI = ({ card, loading }) => {
 /* ─── Section header ──────────────────────────────────────────────────────── */
 const SectionHead = ({ title, sub }) => (
   <div className="flex items-baseline gap-3">
-    <h2 className="text-base font-black text-ink-primary">{title}</h2>
-    {sub && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{sub}</span>}
+    <h2 className="text-base font-semibold text-foreground">{title}</h2>
+    {sub && <span className="text-[11px] font-medium text-muted-foreground">{sub}</span>}
   </div>
 );
 
@@ -107,13 +108,13 @@ const SectionHead = ({ title, sub }) => (
 const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-black/8 rounded-xl px-3 py-2 shadow-lg text-xs">
-      <div className="font-bold text-ink-secondary mb-1">{label || payload[0]?.payload?.name}</div>
+    <div className="bg-card border border-black/8 rounded-xl px-3 py-2 shadow-lg text-xs">
+      <div className="font-semibold text-ink-secondary mb-1">{label || payload[0]?.payload?.name}</div>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-          <span className="text-gray-500">{p.name}:</span>
-          <span className="font-black text-ink-primary tabular-nums">
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="font-semibold text-foreground tabular-nums">
             {typeof p.value === 'number' ? p.value.toLocaleString('en-IN') : p.value}
           </span>
         </div>
@@ -126,7 +127,7 @@ const ChartTip = ({ active, payload, label }) => {
 const ChartPanel = ({ config, loading }) => {
   if (!config) return null;
   const { title, type = 'bar', data = [], series } = config;
-  const ser = series && series.length ? series : [{ key: 'value', name: 'Value', color: '#D97706' }];
+  const ser = series && series.length ? series : [{ key: 'value', name: 'Value', color: 'var(--color-accent-signature)' }];
 
   const axisTick = { fontSize: 10, fill: '#9ca3af', fontWeight: 600 };
   const yFmt = v => (v >= 100000 ? `₹${(v/100000).toFixed(1)}L` : v >= 1000 ? `₹${(v/1000).toFixed(0)}k` : v);
@@ -136,9 +137,9 @@ const ChartPanel = ({ config, loading }) => {
     chart = <div className="h-[280px] bg-canvas animate-pulse rounded-xl" />;
   } else if (!data.length) {
     chart = (
-      <div className="h-[280px] flex flex-col items-center justify-center gap-3 text-gray-300">
+      <div className="h-[280px] flex flex-col items-center justify-center gap-3 text-muted-foreground">
         <BarChart3 size={40} strokeWidth={1.5} />
-        <span className="text-[10px] font-black uppercase tracking-widest">No data for this view</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest">No data for this view</span>
       </div>
     );
   } else if (type === 'pie') {
@@ -193,7 +194,7 @@ const ChartPanel = ({ config, loading }) => {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-black/5 p-6 shadow-sm">
+    <div className="bg-card rounded-[10px] border border-border/60 p-6 shadow-sm">
       <div className="mb-4"><SectionHead title={title || 'Analysis'} sub="visual" /></div>
       {chart}
     </div>
@@ -203,7 +204,7 @@ const ChartPanel = ({ config, loading }) => {
 /* ════════════════════════════════════════════════════════════════════════════
    MAIN
    ════════════════════════════════════════════════════════════════════════════ */
-const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
+const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow = null }) => {
   const { hasPermission } = useAuth();
   const { businessProfile, currentTenant } = useTenant();
   const [exportOpen, setExportOpen] = useState(false);
@@ -227,9 +228,9 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
 
   if (!activeTab) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 text-gray-300">
+      <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
         <BarChart3 size={56} strokeWidth={1} />
-        <p className="text-sm font-black uppercase mt-5 tracking-widest">Access Denied</p>
+        <p className="text-sm font-semibold uppercase mt-5 tracking-widest">Access Denied</p>
       </div>
     );
   }
@@ -286,24 +287,40 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
       {/* ── HEADER ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-ink-primary leading-none">
-            {title}<span className="text-accent-signature">.</span>
+          <h1 className="text-base font-semibold text-foreground tracking-tight">
+            {title}
           </h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {subtitle || `${activeTab.label} — ${businessProfile?.name || 'Business intelligence'}`}
           </p>
         </div>
         <div className="flex-1" />
 
+        {/* Optional date window (useDateWindow). Reports that pass this were
+            previously unfiltered — they read whole tables on every load. */}
+        {dateWindow && (
+          <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
+            {PRESETS.map(p => (
+              <button key={p.id} onClick={() => dateWindow.headerProps.onPreset(p.id)}
+                className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                  dateWindow.preset === p.id
+                    ? 'bg-card text-foreground font-semibold shadow-sm'
+                    : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Tab pills */}
         {allowedTabs.length > 1 && (
-          <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1 flex-wrap">
+          <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
             {allowedTabs.map(t => (
               <button key={t.id} onClick={() => setActiveId(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] transition-colors ${
                   activeTab.id === t.id
-                    ? 'bg-ink-primary text-white shadow-sm'
-                    : 'text-gray-500 hover:text-ink-primary hover:bg-white'
+                    ? 'bg-card text-foreground font-semibold shadow-sm'
+                    : 'text-muted-foreground font-medium hover:text-foreground'
                 }`}>
                 {t.icon}{t.label}
               </button>
@@ -313,19 +330,19 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
 
         <div className="relative no-print" ref={exportMenuRef}>
           <button onClick={() => setExportOpen(o => !o)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 text-white text-xs font-black hover:bg-amber-700 shadow-md shadow-amber-600/25 transition-all">
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md shadow-accent-signature/25 transition-all">
             <Download size={13} /> Export <ChevronDown size={12} className={`transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
           </button>
           {exportOpen && (
-            <div className="absolute right-0 mt-2 w-44 rounded-xl bg-white border border-black/10 shadow-xl overflow-hidden z-40 py-1">
-              <button onClick={doExcel} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
+            <div className="absolute right-0 mt-2 w-44 rounded-xl bg-card border border-black/10 shadow-xl overflow-hidden z-40 py-1">
+              <button onClick={doExcel} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
                 <FileSpreadsheet size={15} className="text-emerald-600" /> Excel (.xlsx)
               </button>
-              <button onClick={doPDF} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
-                <Printer size={15} className="text-amber-600" /> PDF / Print
+              <button onClick={doPDF} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
+                <Printer size={15} className="text-accent-signature" /> PDF / Print
               </button>
-              <button onClick={doCSV} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
-                <FileText size={15} className="text-gray-400" /> CSV
+              <button onClick={doCSV} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
+                <FileText size={15} className="text-muted-foreground" /> CSV
               </button>
             </div>
           )}
@@ -343,8 +360,8 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
       <ChartPanel config={activeTab.chartConfig} loading={loading} />
 
       {/* ── DATA TABLE ─────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-black/5">
+      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
+        <div className="px-6 pt-6 pb-4 border-b border-border/60">
           <SectionHead title={activeTab.label} sub={`${(activeTab.data || []).length} records`} />
         </div>
         <div className="p-4">

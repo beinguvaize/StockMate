@@ -1,5 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/database/offline_reads.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/main.dart' show databaseProvider;
 import 'package:mobile_app/features/logistics/data/models/route.dart';
 import 'package:mobile_app/features/logistics/data/models/route_stop.dart';
 import 'package:mobile_app/features/logistics/data/models/van_stock.dart';
@@ -46,12 +50,23 @@ final driverEmployeeIdProvider = FutureProvider<String?>((ref) async {
   try {
     final row = await supabase
         .from('employees')
-        .select('id')
+        .select('id').isFilter('deleted_at', null)
         .eq('user_id', userId)
         .maybeSingle();
     return row?['id']?.toString();
-  } catch (_) {
-    return null;
+  } catch (e) {
+    // Returning null here reads as "this user is not a driver", which hides the
+    // route entirely. A driver with no signal is the normal case, not the edge.
+    debugPrint('[driverEmployeeId] online failed, using Drift cache: $e');
+    try {
+      final ctx = await ref.read(tenantContextProvider.future);
+      if (ctx == null) return null;
+      final rows = await cachedEmployees(ref.read(databaseProvider), ctx.tenantId);
+      final me = rows.where((e) => e['user_id'] == userId);
+      return me.isEmpty ? null : me.first['id']?.toString();
+    } catch (_) {
+      return null;
+    }
   }
 });
 
@@ -64,7 +79,7 @@ final activeRouteProvider = StreamProvider<LogisticRoute?>((ref) {
   if (userId == null) return Stream.value(null);
 
   final empId = ref.watch(driverEmployeeIdProvider).asData?.value;
-  final driverIds = <String>{userId, ?empId};
+  final driverIds = <String>{userId, if (empId != null) empId};
 
   const activeStatuses = {'ACTIVE', 'IN_TRANSIT'};
 
@@ -83,8 +98,22 @@ final activeRouteProvider = StreamProvider<LogisticRoute?>((ref) {
 });
 
 // ── Route stops for active route ─────────────────────────────────────────────
-final routeStopsProvider = StreamProvider.family<List<RouteStop>, String>((ref, routeId) {
-  return supabase
+final routeStopsProvider = StreamProvider.family<List<RouteStop>, String>((ref, routeId) async* {
+  // Cache first, then live. A stream that never connects simply never emits, so
+  // without this the driver stares at a spinner instead of the stops they were
+  // given before losing signal.
+  try {
+    final ctx = await ref.read(tenantContextProvider.future);
+    if (ctx != null) {
+      final cached = await cachedRouteStops(
+          ref.read(databaseProvider), ctx.tenantId, routeId: routeId);
+      if (cached.isNotEmpty) yield cached.map(RouteStop.fromJson).toList();
+    }
+  } catch (e) {
+    debugPrint('[routeStops] cache preload failed: $e');
+  }
+
+  yield* supabase
       .from('route_stops')
       .stream(primaryKey: ['id'])
       .eq('route_id', routeId)
@@ -96,22 +125,62 @@ final routeStopsProvider = StreamProvider.family<List<RouteStop>, String>((ref, 
 // StreamProvider: live-updates whenever inventory_balances change so VanSaleScreen
 // always shows fresh quantities after a sale without needing a manual refresh.
 final vanStockProvider = StreamProvider.family<List<VanStockItem>, String>((ref, vehicleId) async* {
-  // 1. Resolve the inventory_location id for this vehicle (one-time lookup)
-  final locRes = await supabase
-      .from('inventory_locations')
-      .select('id')
-      .eq('type', 'VEHICLE')
-      .eq('reference_id', vehicleId)
-      .maybeSingle();
+  // 1. Resolve the inventory_location id for this vehicle (one-time lookup).
+  // This await is what breaks the whole stream offline — it throws before a
+  // single item is yielded, so the van shows nothing rather than last-known stock.
+  String? locationId;
+  try {
+    final locRes = await supabase
+        .from('inventory_locations')
+        .select('id').isFilter('deleted_at', null)
+        .eq('type', 'VEHICLE')
+        .eq('reference_id', vehicleId)
+        .maybeSingle();
+    locationId = locRes?['id'] as String?;
+  } catch (e) {
+    debugPrint('[vanStock] location lookup failed, using Drift cache: $e');
+  }
 
-  if (locRes == null) { yield []; return; }
-  final locationId = locRes['id'] as String;
+  if (locationId == null) {
+    final ctx = await ref.read(tenantContextProvider.future);
+    if (ctx == null) { yield []; return; }
+    final locs = await cachedInventoryLocations(
+        ref.read(databaseProvider), ctx.tenantId, type: 'VEHICLE');
+    final match = locs.where((l) => l['reference_id'] == vehicleId);
+    if (match.isEmpty) { yield []; return; }
+    locationId = match.first['id'] as String;
+    final locId = locationId;
+
+    // Serve last-known van stock from the cache, then still try the live stream
+    // below in case the connection comes back mid-route.
+    final balances = await cachedInventoryBalances(
+        ref.read(databaseProvider), ctx.tenantId, locationId: locationId);
+    final withStock =
+        balances.where((r) => ((r['quantity'] as num?)?.toDouble() ?? 0) > 0).toList();
+    if (withStock.isNotEmpty) {
+      final db = ref.read(databaseProvider);
+      final prods = await db.select(db.products).get();
+      final byId = {for (final p in prods) p.id: p};
+      yield withStock.map((r) {
+        final pid = r['product_id'] as String;
+        return VanStockItem(
+          productId:    pid,
+          productName:  byId[pid]?.name ?? pid,
+          quantity:     (r['quantity'] as num?)?.toDouble() ?? 0,
+          sellingPrice: byId[pid]?.sellingPrice ?? 0,
+          locationId:   locId,
+        );
+      }).toList()
+        ..sort((a, b) => a.productName.compareTo(b.productName));
+    }
+  }
 
   // 2. Stream inventory_balances for this location; re-fetch products on every change
+  final liveLocationId = locationId;
   await for (final rows in supabase
       .from('inventory_balances')
       .stream(primaryKey: ['product_id', 'location_id'])
-      .eq('location_id', locationId)) {
+      .eq('location_id', liveLocationId)) {
 
     final withStock = (rows).where((r) => ((r['quantity'] as num?)?.toDouble() ?? 0) > 0).toList();
     if (withStock.isEmpty) { yield []; continue; }
@@ -120,7 +189,7 @@ final vanStockProvider = StreamProvider.family<List<VanStockItem>, String>((ref,
     final productIds = withStock.map((r) => r['product_id'] as String).toList();
     final prodRes = await supabase
         .from('products')
-        .select('id, name, "sellingPrice"')
+        .select('id, name, "sellingPrice"').isFilter('deleted_at', null)
         .inFilter('id', productIds);
 
     final prodMap = <String, Map<String, dynamic>>{
@@ -134,7 +203,7 @@ final vanStockProvider = StreamProvider.family<List<VanStockItem>, String>((ref,
         productName:  prod?['name'] as String? ?? r['product_id'] as String,
         quantity:     (r['quantity'] as num?)?.toDouble() ?? 0,
         sellingPrice: (prod?['sellingPrice'] as num?)?.toDouble() ?? 0,
-        locationId:   locationId,
+        locationId:   liveLocationId,
       );
     }).toList()
       ..sort((a, b) => a.productName.compareTo(b.productName));
@@ -152,8 +221,8 @@ Future<void> updateStopStatus(
   final updates = <String, dynamic>{
     'status':     status,
     'visited_at': DateTime.now().toIso8601String(),
-    'cash_collected': ?cashCollected,
-    'notes': ?notes,
+    if (cashCollected != null) 'cash_collected': cashCollected,
+    if (notes != null) 'notes': notes,
   };
   await supabase.from('route_stops').update(updates).eq('id', stopId);
 
@@ -189,7 +258,7 @@ Future<({bool success, String? error})> placeVanSale({
   // Resolve van inventory location
   final locRes = await supabase
       .from('inventory_locations')
-      .select('id')
+      .select('id').isFilter('deleted_at', null)
       .eq('type', 'VEHICLE')
       .eq('reference_id', vehicleId)
       .maybeSingle();
@@ -216,6 +285,22 @@ Future<({bool success, String? error})> placeVanSale({
       'p_route_id':       routeId,
       'p_source_app':     'VAN',
     });
+
+    // Record the tender, matching the POS path in add_sale_screen.dart. Van
+    // sales went through process_sale only, so amount_received was never
+    // written for them — leaving cash reporting to infer collection from
+    // payment status. A credit sale hands over nothing at the van; anything
+    // else is settled on the spot.
+    final tendered = paymentMethod == 'CREDIT' ? 0.0 : totalAmount;
+    try {
+      await supabase.from('sales')
+          .update({'amount_received': tendered}).eq('id', saleId);
+    } catch (e) {
+      // Non-fatal: the sale is already recorded. Logged, never swallowed —
+      // a silent failure here is how the column stayed empty in the first place.
+      debugPrint('[VAN SALE] amount_received save failed: $e');
+    }
+
     return (success: true, error: null);
   } catch (e) {
     return (success: false, error: e.toString());

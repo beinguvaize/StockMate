@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import { 
   User, Briefcase, DollarSign, Calendar, Info, 
@@ -7,17 +8,21 @@ import {
 } from 'lucide-react';
 
 const HRReport = () => {
+  // Financial year to date by default. The dated queries below passed
+  // dateColumn without filters, so they read the whole table each load.
+  const win = useDateWindow('YEAR');
   // 1. Fetch Employees & Payroll Data
   const { data: employees, loading: employeesLoading } = useReportData({
     table: 'employees',
     select: '*',
-    dateColumn: 'created_at'
+    // Dimension table: never date-windowed. Filtering by created_at would
+    // drop everyone hired before the window from the roster.
   });
 
   const { data: payroll, loading: payrollLoading } = useReportData({
     table: 'payroll',
     select: '*',
-    dateColumn: 'processed_at'
+    dateColumn: 'processed_at', filters: win.filters
   });
 
   const loading = employeesLoading || payrollLoading;
@@ -40,8 +45,8 @@ const HRReport = () => {
     const deptStats = Object.values(deptMap).sort((a, b) => b.cost - a.cost);
 
     const kpis = [
-      { id: 'hc', label: 'Active Personnel', value: headCount, trend: 2.5, trendDir: 'up', color: 'indigo', chartData: deptStats.map(d => ({ value: d.count })) },
-      { id: 'load', label: 'Monthly Payroll', value: totalSalary, trend: 1.2, trendDir: 'up', color: 'emerald', chartData: deptStats.map(d => ({ value: d.cost })) }
+      { id: 'hc', label: 'Active Personnel', value: headCount, trend: 0, trendDir: 'none', color: 'indigo', chartData: deptStats.map(d => ({ value: d.count })) },
+      { id: 'load', label: 'Monthly Payroll', value: totalSalary, trend: 0, trendDir: 'none', color: 'emerald', chartData: deptStats.map(d => ({ value: d.cost })) }
     ];
 
     return { totalSalary, headCount, deptStats, kpis };
@@ -71,14 +76,14 @@ const HRReport = () => {
     columns: [
       { key: 'name', label: 'Personnel Entity', sortable: true, width: 220, render: (val, row) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 font-black text-[10px] uppercase">{val.slice(0, 1)}</div>
-          <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>
+          <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center text-accent-signature font-semibold text-[10px] uppercase">{val.slice(0, 1)}</div>
+          <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
         </div>
       )},
-      { key: 'department', label: 'Operational Node', sortable: true, width: 150, render: (val) => <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{val || 'OPERATIONS'}</span> },
+      { key: 'department', label: 'Operational Node', sortable: true, width: 150, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'OPERATIONS'}</span> },
       { key: 'salary', label: 'Monthly Delta (Salary)', type: 'currency', align: 'right', sortable: true, width: 180 },
       { key: 'status', label: 'Integrity', width: 120, render: (val) => (
-        <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase w-fit border border-emerald-100">
+        <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-semibold uppercase w-fit border border-emerald-100">
           <div className="w-1 h-1 rounded-full bg-emerald-600" /> ACTIVE
         </div>
       )}
@@ -86,7 +91,7 @@ const HRReport = () => {
     kpis: workforceMetrics.kpis,
     chartConfig: { 
       title: "Cost distribution by department", type: 'pie', data: workforceMetrics.deptStats.map(d => ({ name: d.name, value: d.cost })),
-      series: [{ key: 'value', name: 'Authorized Salary', color: '#D97706' }] 
+      series: [{ key: 'value', name: 'Authorized Salary', color: 'var(--color-accent-signature)' }] 
     }
   };
 
@@ -99,10 +104,10 @@ const HRReport = () => {
     totals: { amount: payrollMetrics.totalDisbursed },
     columns: [
       { key: 'processed_at', label: 'Sync Date', type: 'date', sortable: true, width: 150 },
-      { key: 'employeeId', label: 'Personnel Reference', width: 200, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 uppercase font-bold">{(val || '').slice(0, 10)}</span> },
-      { key: 'month', label: 'Fiscal Period', width: 120, render: (val) => <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">{val || 'CURRENT'}</span> },
+      { key: 'employeeId', label: 'Personnel Reference', width: 200, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-semibold">{(val || '').slice(0, 10)}</span> },
+      { key: 'month', label: 'Fiscal Period', width: 120, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'CURRENT'}</span> },
       { key: 'amount', label: 'Magnitude', type: 'currency', align: 'right', sortable: true, width: 160 },
-      { key: 'processed_by', label: 'Validator', width: 140, render: (val) => <span className="text-[10px] font-bold text-gray-400 font-mono uppercase">{val || 'SYSTEM'}</span> }
+      { key: 'processed_by', label: 'Validator', width: 140, render: (val) => <span className="text-[10px] font-semibold text-muted-foreground tabular-nums uppercase">{val || 'SYSTEM'}</span> }
     ],
     kpis: payrollMetrics.kpis,
     chartConfig: { 
@@ -111,7 +116,7 @@ const HRReport = () => {
     }
   };
 
-  return <PremiumReportView title="HR & Payroll" tabs={[workforceTab, auditTab]} />;
+  return <PremiumReportView dateWindow={win} title="HR & Payroll" tabs={[workforceTab, auditTab]} />;
 };
 
 export default HRReport;

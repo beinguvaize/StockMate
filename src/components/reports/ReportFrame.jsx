@@ -56,10 +56,10 @@ const ReportFrame = ({ title, subtitle, filename, exportData, actions, children 
     <div>
       <div className="flex items-start justify-between gap-4 mb-5 flex-wrap no-print">
         <div>
-          <h1 className="text-2xl font-black font-sora text-ink-primary leading-none tracking-tight">
-            {title}<span className="text-amber-500">.</span>
+          <h1 className="text-2xl font-semibold  text-foreground leading-none tracking-tight">
+            {title}<span className="text-accent-signature">.</span>
           </h1>
-          {subtitle && <p className="text-[12px] font-medium text-gray-400 mt-1.5 font-mono">{subtitle}</p>}
+          {subtitle && <p className="text-[12px] font-medium text-muted-foreground mt-1.5 tabular-nums">{subtitle}</p>}
         </div>
         <div className="flex items-center gap-2">
           {actions}
@@ -67,20 +67,20 @@ const ReportFrame = ({ title, subtitle, filename, exportData, actions, children 
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setOpen(o => !o)}
-                className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 shadow-md shadow-amber-600/25 transition-colors"
+                className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md shadow-accent-signature/25 transition-colors"
               >
                 <Download size={15} /> Export <ChevronDown size={13} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
               </button>
               {open && (
-                <div className="absolute right-0 mt-2 w-44 rounded-xl bg-white border border-black/10 shadow-xl overflow-hidden z-30 py-1">
-                  <button onClick={doExcel} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
+                <div className="absolute right-0 mt-2 w-44 rounded-xl bg-card border border-black/10 shadow-xl overflow-hidden z-30 py-1">
+                  <button onClick={doExcel} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
                     <FileSpreadsheet size={15} className="text-emerald-600" /> Excel (.xlsx)
                   </button>
-                  <button onClick={doPDF} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
-                    <Printer size={15} className="text-amber-600" /> PDF / Print
+                  <button onClick={doPDF} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
+                    <Printer size={15} className="text-accent-signature" /> PDF / Print
                   </button>
-                  <button onClick={doCSV} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
-                    <FileText size={15} className="text-gray-400" /> CSV
+                  <button onClick={doCSV} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
+                    <FileText size={15} className="text-muted-foreground" /> CSV
                   </button>
                 </div>
               )}

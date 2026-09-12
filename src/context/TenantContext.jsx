@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
-import { isModuleAvailable } from '../lib/tenancy';
+import { isModuleAvailable, effectivePlan, trialNotice } from '../lib/tenancy';
 import { normalizeType, resolveModules, isModuleEnabled, term } from '../lib/verticals';
 import { cacheClear as libCacheClear } from '../lib/cache';
 import { setAppTZ } from '../lib/utils';
@@ -193,10 +193,17 @@ export const TenantProvider = ({ children }) => {
     goHref('/nexus-hq');
   };
 
-  const isModuleAllowed = (moduleKey) => {
+    // Trial state, exposed so the shell can warn before access changes rather
+  // than letting a shop discover it mid-sale.
+  const trial = currentTenant ? trialNotice(currentTenant) : null;
+  const planInEffect = currentTenant ? effectivePlan(currentTenant) : null;
+
+const isModuleAllowed = (moduleKey) => {
     if (currentUser?.roles?.includes('GLOBAL_ADMIN')) return true;
     if (!currentTenant) return true;
-    return isModuleAvailable(currentTenant.plan || 'STARTER', moduleKey);
+    // The EFFECTIVE plan, not the stored one: a running trial grants more than
+    // the row says, and a lapsed one grants less. See tenancy.effectivePlan.
+    return isModuleAvailable(effectivePlan(currentTenant), moduleKey);
   };
 
   // ── Vertical layer (Stage A) ──────────────────────────────────────────────
@@ -256,6 +263,8 @@ export const TenantProvider = ({ children }) => {
     impersonateTenant,
     stopImpersonating,
     isModuleAllowed,
+    trial,
+    planInEffect,
     businessType,
     tenantModules,
     isModuleOn,

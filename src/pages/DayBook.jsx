@@ -1,13 +1,16 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { receivedOnDay, carriedOpening, isBankMethod, saleReceiptsByMode } from '../lib/dayBook';
+import { useDialogClose } from '../hooks/useDialogClose';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useDayBookData } from '../hooks/useDayBookData';
+import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { useNotifications } from '../context/NotificationContext';
 import { useInventory } from '../hooks/useInventory';
 import { PageSkeleton } from '../components/ui/States';
 import {
   Calendar, Save, ChevronLeft, ChevronRight,
-  ArrowUpRight, ArrowDownRight, RefreshCcw,
+  ArrowUpRight, ArrowDownRight, RefreshCcw, X,
   FileText, ShieldCheck, Lock, Unlock,
   Banknote, CreditCard, Building2, Receipt,
   TrendingUp, TrendingDown, Clock, AlertTriangle,
@@ -20,6 +23,13 @@ import { todayISOInAppTZ } from '../lib/utils';
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n) =>
   (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Non-cash methods that settle to a bank/UPI account rather than the physical
+// drawer. One shared list so sales, client collections and purchases can't
+// drift apart — CARD, NEFT, RTGS and CHEQUE used to be missing from one bucket
+// or another, so a card sale or card collection fell into neither cash nor
+// bank and vanished from the day's totals. CREDIT is deliberately absent: a
+// credit purchase is settled later as a supplier payment, not counted here.
 
 const addDays = (dateStr, n) => {
   const d = new Date(dateStr + 'T00:00:00');
@@ -38,8 +48,8 @@ const MethodBadge = ({ method = '' }) => {
   if (m === 'CREDIT')
     return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[8px] font-bold uppercase tracking-wider"><CreditCard size={9} />Credit</span>;
   if (['BANK','UPI','TRANSFER','NEFT','RTGS'].includes(m))
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100 text-[8px] font-bold uppercase tracking-wider"><Building2 size={9} />{m === 'UPI' ? 'UPI' : 'Bank'}</span>;
-  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-canvas text-gray-500 border border-black/5 text-[8px] font-bold uppercase tracking-wider"><Banknote size={9} />Cash</span>;
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent-signature/10 text-accent-signature border border-accent-signature/15 text-[8px] font-bold uppercase tracking-wider"><Building2 size={9} />{m === 'UPI' ? 'UPI' : 'Bank'}</span>;
+  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-canvas text-muted-foreground border border-black/5 text-[8px] font-bold uppercase tracking-wider"><Banknote size={9} />Cash</span>;
 };
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
@@ -51,7 +61,7 @@ const KpiCard = ({ label, value, sub, icon, color = 'default', cy }) => {
     dark:     'bg-ink-primary border-transparent text-accent-signature',
     darkred:  'bg-red-600 border-transparent text-white',
   };
-  const labelColor = { default: 'text-gray-400', green: 'text-emerald-500/70', red: 'text-red-500/70', dark: 'text-white/40', darkred: 'text-red-200' };
+  const labelColor = { default: 'text-muted-foreground', green: 'text-emerald-500/70', red: 'text-red-500/70', dark: 'text-white/40', darkred: 'text-red-200' };
   const isDark = color === 'dark' || color === 'darkred';
   return (
     <div className={`p-5 rounded-2xl border flex flex-col gap-2 ${styles[color]}`}>
@@ -59,7 +69,7 @@ const KpiCard = ({ label, value, sub, icon, color = 'default', cy }) => {
         <p className={`text-[9px] font-bold uppercase tracking-widest ${labelColor[color]}`}>{label}</p>
         {icon && <span className={isDark ? 'opacity-40' : 'opacity-60'}>{icon}</span>}
       </div>
-      <p className="font-mono text-2xl font-bold tabular-nums leading-none">
+      <p className="text-2xl font-bold tabular-nums leading-none">
         <span className="text-xs opacity-40 mr-0.5">{cy}</span>
         {value}
       </p>
@@ -75,7 +85,7 @@ const DayBook = () => {
   const currentUserId = currentUser?.id || null;
   const [selectedDate,  setSelectedDate]  = useState(todayISOInAppTZ());
   const {
-    sales, expenses, clientPayments, purchases, supplierPayments, dayBook,
+    sales, expenses, clientPayments, purchases, supplierPayments, saleReceipts, dayBook,
     loading: dbLoading, updateDayBook, getDayBookForDate, getPrevDayBook,
   } = useDayBookData(currentTenantId, selectedDate);
   const { addNotification } = useNotifications();
@@ -86,13 +96,16 @@ const DayBook = () => {
 
   const cy = businessProfile?.currencySymbol || '₹';
   const today = todayISOInAppTZ();
-  const [storeFilter,   setStoreFilter]   = useState(ALL_STORES); // ALL_STORES = whole business
-  const [openingInput,  setOpeningInput]  = useState('');
-  const [physicalCash,  setPhysicalCash]  = useState('');
-  const [isSaving,      setIsSaving]      = useState(false);
-  const [isClosing,     setIsClosing]     = useState(false);
-  const [showReport,    setShowReport]    = useState(false);
-  const [showHistory,   setShowHistory]   = useState(false);
+  const { accounts, addTxn } = useAccounts(currentTenantId);
+
+  const [storeFilter,    setStoreFilter]   = useState(ALL_STORES); // ALL_STORES = whole business
+  const [openingInput,   setOpeningInput]  = useState('');
+  const [physicalCash,   setPhysicalCash]  = useState('');
+  const [isSaving,       setIsSaving]      = useState(false);
+  const [isClosing,      setIsClosing]     = useState(false);
+  const [showReport,     setShowReport]    = useState(false);
+  const [showHistory,    setShowHistory]   = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
 
   // ── Ledger computation ────────────────────────────────────────────────────
   const ledger = useMemo(() => {
@@ -107,22 +120,31 @@ const DayBook = () => {
     // the table → business-wide, shown in every store view (like collections).
     const daySupPays    = (supplierPayments || []).filter(p => p.date === selectedDate);
 
+    const isCashM = (m) => (m || 'CASH').toUpperCase() === 'CASH';
+
     // ── Receipts ─────────────────────────────────────────────────────────────
     const paidOf = (s) => Number(s.paidAmount ?? s.paid_amount) || 0;
-    // Amount actually collected today for a sale: full bill when paid, else the
-    // received (partial) portion — so a part-paid cash sale counts only what
-    // came in, not the whole bill.
-    const recv = (s) => {
-      const t = Number(s.totalAmount) || 0;
-      const st = (s.paymentStatus ?? s.status ?? '').toUpperCase();
-      if (st === 'PAID' || st === 'COMPLETED') return t;
-      return Math.min(paidOf(s), t);
-    };
-    const isBank = (m) => ['BANK','UPI','TRANSFER'].includes((m || '').toUpperCase());
-    const cashSales   = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CASH')
-                                .reduce((t, s) => t + recv(s), 0);
-    const bankSales   = daySales.filter(s => isBank(s.paymentMethod))
-                                .reduce((t, s) => t + recv(s), 0);
+    // Amount actually collected for a sale.
+    // CASH/BANK with no explicit paidAmount → assume fully received (old sales
+    // recorded before paidAmount was tracked). CREDIT always uses explicit value.
+    // receivedOnDay lives in src/lib/dayBook.js so the rule that separates
+    // counter cash from a later settlement can be tested without opening this
+    // page. It was the reason closed days grew after the fact.
+    const recv = receivedOnDay;
+    const isBank = isBankMethod;
+    // Sale receipts come from the LEDGER, not from the day's sales rows.
+    // A sale is dated when the bill was raised, so money collected later
+    // against an older bill is not in this day's sales at all — while the
+    // sale's own day counted the whole paidAmount, later collections
+    // included. That is how a closed day grew after it was signed off.
+    // account_transactions carries one row per payment event with its own
+    // date, so it answers "what came in today"; the rule is in
+    // saleReceiptsByMode so it can be tested without opening this page.
+    // Ledger rows carry the sale's location_id, so the per-store view still
+    // segments correctly (FUTURE DISPO runs two).
+    const receipts    = saleReceiptsByMode((saleReceipts || []).filter(storeMatch));
+    const cashSales   = receipts.cash;
+    const bankSales   = receipts.bank;
     // Receivable = the UNPAID remainder of EVERY sale (any method) — incl. partial
     // cash/UPI sales, not just credit-method ones.
     const creditSales = daySales.reduce((t, s) => t + Math.max(0, (Number(s.totalAmount) || 0) - recv(s)), 0);
@@ -131,7 +153,7 @@ const DayBook = () => {
                                 .reduce((t, s) => t + recv(s), 0);
     const cashCollect = dayCollect.filter(p => (p.payment_method || '').toUpperCase() === 'CASH')
                                   .reduce((t, p) => t + (Number(p.amount) || 0), 0);
-    const bankCollect = dayCollect.filter(p => ['BANK','UPI','TRANSFER','NEFT','RTGS'].includes((p.payment_method || '').toUpperCase()))
+    const bankCollect = dayCollect.filter(p => isBankMethod(p.payment_method))
                                   .reduce((t, p) => t + (Number(p.amount) || 0), 0);
     // cashIn = money that hits the physical cash drawer (incl. amounts paid up
     // front on partial credit sales).
@@ -153,7 +175,7 @@ const DayBook = () => {
       .filter(p => (p.payment_type || 'CASH').toUpperCase() === 'CASH')
       .reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
     const bankPurchPaid   = dayPurchases
-      .filter(p => ['BANK','UPI','TRANSFER'].includes((p.payment_type || '').toUpperCase()))
+      .filter(p => isBankMethod(p.payment_type))
       .reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
     // Supplier repayments (credit purchases settled later). Cash → drawer.
     const cashSupPay      = daySupPays.filter(p => isCash(p.payment_method))
@@ -166,9 +188,31 @@ const DayBook = () => {
     const totalPayments  = cashOut + bankPurchPaid + bankSupPay + bankExpenses; // full display total
 
     // ── Balances ─────────────────────────────────────────────────────────────
+    // ── Net cash movement per day ────────────────────────────────────────────
+    // Needed to carry a balance across days nobody opened. Same rules as the
+    // selected-day figures above: only what touches the physical drawer.
+    const netByDay = {};
+    const bump = (d, v) => { const k = String(d || '').slice(0, 10); if (k) netByDay[k] = (netByDay[k] || 0) + v; };
+    (sales || []).filter(storeMatch).forEach(s => {
+      const m = (s.paymentMethod || '').toUpperCase();
+      if (m === 'CASH' || m === 'CREDIT') bump(s.date, recv(s));
+    });
+    (clientPayments || []).filter(p => isCashM(p.payment_method)).forEach(p => bump(p.date, Number(p.amount) || 0));
+    (expenses || []).filter(storeMatch).filter(e => isCashM(e.payment_method)).forEach(e => bump(e.date, -(Number(e.amount) || 0)));
+    (purchases || []).filter(p => (p.payment_type || 'CASH').toUpperCase() === 'CASH')
+      .forEach(p => bump(p.date, -(Number(p.total_amount) || 0)));
+    (supplierPayments || []).filter(p => isCashM(p.payment_method))
+      .forEach(p => bump(p.date, -(Number(p.amount) || 0)));
+
     const record      = getDayBookForDate(selectedDate, storeFilter);
     const prevRecord  = getPrevDayBook(selectedDate, storeFilter);
-    const openingBal  = Number(record?.opening_balance) || 0;
+    // A day nobody opened used to begin at ZERO, so its whole cash position was
+    // wrong. Only 2 of 14 days in August had a row, while twelve moved cash.
+    // Carry from the last COUNTED day and replay everything since.
+    const carried     = record?.id ? null : carriedOpening(selectedDate, dayBook || [], netByDay);
+    const openingBal  = record?.id
+      ? (Number(record.opening_balance) || 0)
+      : (carried ? carried.opening : 0);
     // Closing = cash only (bank receipts/payments don't move the cash drawer)
     const closingBal  = openingBal + cashIn - cashOut;
     const isLocked          = !!record?.is_closed;
@@ -193,6 +237,7 @@ const DayBook = () => {
           note:      due > 0 ? `${items}${items ? ' · ' : ''}Paid ${got} of ${tot} · due ${due}` : items,
           method:    s.paymentMethod || 'CASH',
           amount:    got,
+          invoiceAmount: tot,
           createdAt: s.created_at || selectedDate,
         };
       }),
@@ -250,7 +295,7 @@ const DayBook = () => {
     });
 
     return {
-      openingBal, closingBal, isLocked, closedAt, hasOpening,
+      openingBal, closingBal, isLocked, closedAt, hasOpening, carried,
       savedPhysicalCash, savedVariance,
       cashSales, bankSales, creditSales,
       cashCollect, bankCollect,
@@ -319,25 +364,43 @@ const DayBook = () => {
     });
   };
 
-  const handleCloseDay = async () => {
-    if (isClosing || !window.confirm(`Close ${displayDate(selectedDate)}? This locks the ledger.`)) return;
+  const handleCloseDay = async (physicalCount, note) => {
+    if (isClosing) return;
     setIsClosing(true);
-    const pc = parseFloat(physicalCash);
+    const pc  = typeof physicalCount === 'number' ? physicalCount : parseFloat(physicalCash);
+    const v   = isNaN(pc) ? null : Math.round((pc - ledger.closingBal) * 100) / 100;
     const { error } = await updateDayBook({
       date:             selectedDate,
       location_id:      storeFilter,
       opening_balance:  ledger.openingBal,
       closing_balance:  ledger.closingBal,
       total_sales:      ledger.cashSales + ledger.bankSales + ledger.creditSales,
-      total_expenses:   ledger.totalExpenses + ledger.totalPurchPaid, // expenses + all purchases
+      total_expenses:   ledger.totalExpenses + ledger.totalPurchPaid,
       is_closed:        true,
       closed_at:        new Date().toISOString(),
-      ...(isNaN(pc) ? {} : {
-        physical_cash: pc,
-        variance:      Math.round((pc - ledger.closingBal) * 100) / 100,
-      }),
+      closed_by:        currentUserId,
+      ...(v != null ? { physical_cash: pc, variance: v } : {}),
     });
-    if (error) console.error('Close day error:', error);
+    if (!error && v != null && Math.abs(v) >= 0.01) {
+      const cashAccId = accountForMethod(accounts, 'CASH');
+      if (cashAccId) {
+        await addTxn({
+          account_id: cashAccId,
+          date:       selectedDate,
+          direction:  v > 0 ? 'IN' : 'OUT',
+          amount:     Math.abs(v),
+          mode:       'CASH',
+          ref_type:   'DAY_CLOSE_VARIANCE',
+          note:       note ? `Day close variance · ${note}` : `Day close variance ${selectedDate}`,
+        });
+      }
+    }
+    if (error) {
+      console.error('Close day error:', error);
+      addNotification?.(`Close failed: ${error.message || 'error'}`, 'error');
+    } else {
+      addNotification?.('Day closed & locked', 'success');
+    }
     setIsClosing(false);
   };
 
@@ -368,10 +431,10 @@ const DayBook = () => {
               <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
                 Day Book History<span className="text-accent-signature">.</span>
               </h1>
-              <span className="text-[10px] font-semibold text-gray-400">Click any day to view its ledger</span>
+              <span className="text-[10px] font-semibold text-muted-foreground">Click any day to view its ledger</span>
             </div>
           </div>
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{totalDays} records</span>
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{totalDays} records</span>
         </div>
 
         {/* Summary strip */}
@@ -405,7 +468,7 @@ const DayBook = () => {
                 <thead>
                   <tr className="bg-canvas/60 border-b border-black/[0.04]">
                     {['Date', 'Opening', 'Sales', 'Expenses', 'Closing', 'Net', 'Discrepancy', 'Status', 'Closed At'].map(h => (
-                      <th key={h} className="py-3 px-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                      <th key={h} className="py-3 px-4 text-[9px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -434,7 +497,7 @@ const DayBook = () => {
                                 <span className="text-[8px] font-bold text-accent-signature uppercase tracking-widest">Today</span>
                               )}
                               {isSel && !isToday && (
-                                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Viewing</span>
+                                <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Viewing</span>
                               )}
                             </div>
                           </td>
@@ -459,7 +522,7 @@ const DayBook = () => {
                           </td>
                           <td className="py-3.5 px-4">
                             {recVar == null ? (
-                              <span className="text-[9px] text-gray-300 font-bold">—</span>
+                              <span className="text-[9px] text-muted-foreground font-bold">—</span>
                             ) : !hasDiscrep ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[8px] font-bold">
                                 <CheckCircle2 size={8} /> Balanced
@@ -481,12 +544,12 @@ const DayBook = () => {
                                 <Lock size={8} /> Closed
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent-signature/10 text-accent-signature border border-accent-signature/15 rounded-full text-[8px] font-bold uppercase tracking-wider">
                                 <Unlock size={8} /> Open
                               </span>
                             )}
                           </td>
-                          <td className="py-3.5 px-4 text-[9px] font-bold text-gray-400 whitespace-nowrap">
+                          <td className="py-3.5 px-4 text-[9px] font-bold text-muted-foreground whitespace-nowrap">
                             {rec.closed_at
                               ? new Date(rec.closed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
                               : '—'}
@@ -512,7 +575,7 @@ const DayBook = () => {
           <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
             Day Book<span className="text-accent-signature">.</span>
           </h1>
-          <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Cash & transaction ledger</span>
+          <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">Cash & transaction ledger</span>
           {/* Store filter — per-store cash drawer when the tenant has >1 store. */}
           {posStores.length > 1 && (
             <select
@@ -533,7 +596,7 @@ const DayBook = () => {
             <ChevronLeft size={16} />
           </button>
           <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-black/5 shadow-sm min-w-[200px] justify-center">
-            <Calendar size={13} className="text-gray-400" />
+            <Calendar size={13} className="text-muted-foreground" />
             <input type="date"
               className="bg-transparent border-none text-xs font-black outline-none cursor-pointer text-ink-primary"
               value={selectedDate}
@@ -547,12 +610,12 @@ const DayBook = () => {
           </button>
           {selectedDate !== today && (
             <button onClick={() => setSelectedDate(today)}
-              className="px-3 h-9 text-[9px] font-black uppercase tracking-widest bg-white border border-gray-300 shadow-sm rounded-full hover:bg-white transition-all text-gray-500">
+              className="px-3 h-9 text-[9px] font-black uppercase tracking-widest bg-white border border-border shadow-sm rounded-full hover:bg-white transition-all text-muted-foreground">
               Today
             </button>
           )}
           <button onClick={() => setShowHistory(true)}
-            className="flex items-center gap-2 px-4 h-9 bg-white border border-gray-300 shadow-sm text-gray-600 text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-white transition-all shadow-sm">
+            className="flex items-center gap-2 px-4 h-9 bg-white border border-border shadow-sm text-ink-secondary text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-white transition-all shadow-sm">
             <History size={12} />
             History
           </button>
@@ -573,12 +636,12 @@ const DayBook = () => {
           </span>
         )}
         {!ledger.hasOpening && !isFuture && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[9px] font-black uppercase tracking-widest">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent-signature/10 text-accent-signature border border-accent-signature/15 rounded-full text-[9px] font-black uppercase tracking-widest">
             <AlertTriangle size={10} /> Opening not set
           </span>
         )}
         {isFuture && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-canvas text-gray-400 border border-black/5 rounded-full text-[9px] font-black uppercase tracking-widest">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-canvas text-muted-foreground border border-black/5 rounded-full text-[9px] font-black uppercase tracking-widest">
             Future date
           </span>
         )}
@@ -614,7 +677,7 @@ const DayBook = () => {
               <span className="text-xs font-black text-ink-primary uppercase tracking-widest">
                 Transaction Log
               </span>
-              <span className="bg-white border border-gray-300 shadow-sm text-[9px] font-black text-gray-400 px-2 py-0.5 rounded-full">
+              <span className="bg-white border border-border shadow-sm text-[9px] font-black text-muted-foreground px-2 py-0.5 rounded-full">
                 {ledger.txCount}
               </span>
             </div>
@@ -635,7 +698,7 @@ const DayBook = () => {
               <thead>
                 <tr className="bg-canvas/60 border-b border-black/[0.04]">
                   {['Time', 'Description', 'Type', 'Method', 'In (+)', 'Out (−)', 'Balance'].map(h => (
-                    <th key={h} className="py-3 px-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap last:text-right">
+                    <th key={h} className="py-3 px-4 text-[9px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap last:text-right">
                       {h}
                     </th>
                   ))}
@@ -661,15 +724,15 @@ const DayBook = () => {
                     Sale:       'bg-emerald-50 text-emerald-600',
                     Collection: 'bg-blue-50 text-blue-600',
                     Purchase:   'bg-orange-50 text-orange-600',
-                  }[tx.category] || 'bg-gray-50 text-gray-500';
+                  }[tx.category] || 'bg-muted text-muted-foreground';
 
                   return (
                     <tr key={tx.id || i}
                       className={`hover:bg-canvas/30 transition-colors ${isCreditSale ? 'opacity-50' : ''}`}>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1">
-                          <Clock size={9} className="text-gray-300" />
-                          <span className="text-[9px] font-black font-mono tabular-nums text-ink-primary">
+                          <Clock size={9} className="text-muted-foreground" />
+                          <span className="text-[9px] font-black tabular-nums text-ink-primary">
                             {new Date(tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
@@ -683,7 +746,7 @@ const DayBook = () => {
                           </div>
                           <div className="min-w-0">
                             <p className="text-[10px] font-black text-ink-primary leading-none truncate">{tx.title}</p>
-                            {tx.note && <p className="text-[9px] text-gray-400 mt-0.5 truncate">{tx.note}</p>}
+                            {tx.note && <p className="text-[9px] text-muted-foreground mt-0.5 truncate">{tx.note}</p>}
                           </div>
                         </div>
                       </td>
@@ -697,7 +760,7 @@ const DayBook = () => {
                         {isIncome && !isCreditSale
                           ? <span className="text-[11px] font-black text-emerald-600 tabular-nums">{cy}{fmt(tx.amount)}</span>
                           : isCreditSale
-                            ? <span className="text-[9px] font-bold text-gray-300 tabular-nums italic">{cy}{fmt(tx.amount)}</span>
+                            ? <span className="text-[9px] font-bold text-muted-foreground tabular-nums italic">{cy}{fmt(tx.invoiceAmount ?? tx.amount)}</span>
                             : <span className="text-gray-200">—</span>}
                       </td>
                       <td className="py-3 px-4">
@@ -746,7 +809,7 @@ const DayBook = () => {
                 { label: '+ Cash Receipts', val: ledger.cashIn,     color: 'text-emerald-600' },
                 { label: '− Cash Payments', val: ledger.cashOut,    color: 'text-red-500'     },
               ].map(({ label, val, color }) => (
-                <div key={label} className="flex justify-between text-[10px] font-bold text-gray-400">
+                <div key={label} className="flex justify-between text-[10px] font-bold text-muted-foreground">
                   <span>{label}</span>
                   <span className={`font-black tabular-nums ${color}`}>{cy}{fmt(val)}</span>
                 </div>
@@ -776,22 +839,40 @@ const DayBook = () => {
               </div>
             ) : hasPermission('finance', 'edit') ? (
               <div className="space-y-2">
+                {/* A carried figure must never read as a counted one: only 1 Aug
+                    has a physical count behind it on this tenant, and a variance
+                    measured against a derived number would be meaningless. */}
+                {ledger.carried && !ledger.hasOpening && (
+                  <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-amber-700">
+                      Carried forward
+                    </div>
+                    <div className="text-[11px] font-semibold text-amber-900 mt-0.5">
+                      {cy}{fmt(ledger.openingBal)} — from the {ledger.carried.counted ? 'count' : 'closing'} on{' '}
+                      {displayDate(ledger.carried.from)}, plus every day since.
+                    </div>
+                    <div className="text-[10px] text-amber-800 mt-0.5">
+                      Nobody opened this day. Enter the counted amount to make it a real opening.
+                    </div>
+                  </div>
+                )}
+
                 {/* Carry forward button */}
                 {ledger.prevClosing !== null && !ledger.hasOpening && (
                   <button onClick={handleUseYesterdayClosing} disabled={isSaving}
-                    className="w-full h-10 flex items-center justify-center gap-2 bg-white border border-gray-300 shadow-sm rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-600 hover:bg-black/5 transition-all">
+                    className="w-full h-10 flex items-center justify-center gap-2 bg-white border border-border shadow-sm rounded-xl text-[9px] font-black uppercase tracking-widest text-ink-secondary hover:bg-black/5 transition-all">
                     <ChevronRight size={12} />
                     Use prev. closing ({cy}{fmt(ledger.prevClosing)})
                   </button>
                 )}
                 <div className="relative">
                   <input type="number" placeholder="Enter opening amount"
-                    className="w-full h-11 bg-white border border-gray-300 shadow-sm rounded-xl px-4 pr-10 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                    className="w-full h-11 bg-white border border-border shadow-sm rounded-xl px-4 pr-10 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
                     value={openingInput}
                     onChange={e => setOpeningInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSaveOpening()}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-gray-300">{cy}</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-muted-foreground">{cy}</span>
                 </div>
                 <button onClick={handleSaveOpening} disabled={isSaving || !openingInput}
                   className="w-full h-11 bg-ink-primary text-white font-black text-[9px] uppercase tracking-widest rounded-xl hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-40">
@@ -800,29 +881,29 @@ const DayBook = () => {
                 </button>
               </div>
             ) : (
-              <p className="text-[9px] font-bold text-gray-400 text-center uppercase tracking-widest">View-only</p>
+              <p className="text-[9px] font-bold text-muted-foreground text-center uppercase tracking-widest">View-only</p>
             )}
           </div>
 
           {/* ── Receipts breakdown ────────────────────────────────────────── */}
           <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
-            <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <h3 className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
               <TrendingUp size={11} className="text-emerald-500" /> Receipts Breakdown
             </h3>
             <div className="space-y-2.5">
               {[
                 { label: 'Cash Sales',        val: ledger.cashSales,   icon: <Banknote size={10} />,  color: 'text-emerald-600' },
-                { label: 'Bank / UPI Sales',  val: ledger.bankSales,   icon: <Building2 size={10} />, color: 'text-amber-600'  },
+                { label: 'Bank / UPI Sales',  val: ledger.bankSales,   icon: <Building2 size={10} />, color: 'text-accent-signature'  },
                 { label: 'Credit Sales',      val: ledger.creditSales, icon: <CreditCard size={10} />,color: 'text-blue-400', muted: true },
                 { label: 'Cash Collections',  val: ledger.cashCollect, icon: <Users size={10} />,     color: 'text-emerald-600' },
-                { label: 'Bank Collections',  val: ledger.bankCollect, icon: <Users size={10} />,     color: 'text-amber-600'  },
+                { label: 'Bank Collections',  val: ledger.bankCollect, icon: <Users size={10} />,     color: 'text-accent-signature'  },
               ].map(({ label, val, icon, color, muted }) => (
                 <div key={label} className={`flex items-center justify-between ${muted ? 'opacity-50' : ''}`}>
-                  <div className={`flex items-center gap-1.5 text-[9px] font-bold text-gray-500 ${color}`}>
-                    {icon} <span className="text-gray-500">{label}</span>
-                    {muted && <span className="text-[8px] text-gray-400">(excl.)</span>}
+                  <div className={`flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground ${color}`}>
+                    {icon} <span className="text-muted-foreground">{label}</span>
+                    {muted && <span className="text-[8px] text-muted-foreground">(excl.)</span>}
                   </div>
-                  <span className={`text-[10px] font-black tabular-nums ${val > 0 ? color : 'text-gray-300'}`}>
+                  <span className={`text-[10px] font-black tabular-nums ${val > 0 ? color : 'text-muted-foreground'}`}>
                     {cy}{fmt(val)}
                   </span>
                 </div>
@@ -832,9 +913,9 @@ const DayBook = () => {
                 <span className="text-emerald-600 tabular-nums">{cy}{fmt(ledger.cashIn)}</span>
               </div>
               {ledger.bankIn > 0 && (
-                <div className="flex justify-between text-[9px] font-bold text-gray-400">
+                <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
                   <span>+ Bank / UPI In</span>
-                  <span className="tabular-nums text-amber-500">{cy}{fmt(ledger.bankIn)}</span>
+                  <span className="tabular-nums text-accent-signature">{cy}{fmt(ledger.bankIn)}</span>
                 </div>
               )}
             </div>
@@ -842,7 +923,7 @@ const DayBook = () => {
 
           {/* ── Payments breakdown ────────────────────────────────────────── */}
           <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
-            <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <h3 className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
               <TrendingDown size={11} className="text-red-500" /> Payments Breakdown
             </h3>
             <div className="space-y-2.5">
@@ -852,9 +933,9 @@ const DayBook = () => {
               ].map(({ label, val, icon, color }) => (
                 <div key={label} className="flex items-center justify-between">
                   <div className={`flex items-center gap-1.5 text-[9px] font-bold ${color}`}>
-                    {icon} <span className="text-gray-500">{label}</span>
+                    {icon} <span className="text-muted-foreground">{label}</span>
                   </div>
-                  <span className={`text-[10px] font-black tabular-nums ${val > 0 ? color : 'text-gray-300'}`}>
+                  <span className={`text-[10px] font-black tabular-nums ${val > 0 ? color : 'text-muted-foreground'}`}>
                     {cy}{fmt(val)}
                   </span>
                 </div>
@@ -864,9 +945,9 @@ const DayBook = () => {
                 <span className="text-red-600 tabular-nums">{cy}{fmt(ledger.cashOut)}</span>
               </div>
               {ledger.bankPurchPaid > 0 && (
-                <div className="flex justify-between text-[9px] font-bold text-gray-400">
+                <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
                   <span>+ Bank / UPI Purchases</span>
-                  <span className="tabular-nums text-amber-500">{cy}{fmt(ledger.bankPurchPaid)}</span>
+                  <span className="tabular-nums text-accent-signature">{cy}{fmt(ledger.bankPurchPaid)}</span>
                 </div>
               )}
             </div>
@@ -874,8 +955,8 @@ const DayBook = () => {
 
           {/* ── Physical cash reconciliation ─────────────────────────────── */}
           <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
-            <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Banknote size={11} className="text-amber-500" /> Cash Reconciliation
+            <h3 className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Banknote size={11} className="text-accent-signature" /> Cash Reconciliation
               {ledger.savedVariance != null && (
                 <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold ${
                   Math.abs(ledger.savedVariance) < 0.01
@@ -890,7 +971,7 @@ const DayBook = () => {
               )}
             </h3>
             <div className="space-y-3">
-              <div className="flex justify-between text-[10px] font-bold text-gray-400">
+              <div className="flex justify-between text-[10px] font-bold text-muted-foreground">
                 <span>Book Balance</span>
                 <span className={`font-black tabular-nums ${isDeficit ? 'text-red-600' : 'text-ink-primary'}`}>
                   {cy}{fmt(ledger.closingBal)}
@@ -898,11 +979,11 @@ const DayBook = () => {
               </div>
               <div className="relative">
                 <input type="number" placeholder="Enter physical cash count"
-                  className="w-full h-10 bg-white border border-gray-300 shadow-sm rounded-xl px-3 pr-8 text-xs font-black outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                  className="w-full h-10 bg-white border border-border shadow-sm rounded-xl px-3 pr-8 text-xs font-black outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
                   value={physicalCash}
                   onChange={e => setPhysicalCash(e.target.value)}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-300">{cy}</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground">{cy}</span>
               </div>
               {variance !== null && (
                 <div className={`flex items-center justify-between p-3 rounded-xl text-[10px] font-black ${
@@ -921,7 +1002,7 @@ const DayBook = () => {
               {variance !== null && !isFuture && (
                 <button
                   onClick={handleSavePhysicalCash}
-                  className="w-full h-9 flex items-center justify-center gap-2 bg-white border border-gray-300 shadow-sm rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-600 hover:bg-black/5 transition-all"
+                  className="w-full h-9 flex items-center justify-center gap-2 bg-white border border-border shadow-sm rounded-xl text-[9px] font-black uppercase tracking-widest text-ink-secondary hover:bg-black/5 transition-all"
                 >
                   <Save size={11} /> Save Count
                 </button>
@@ -931,7 +1012,7 @@ const DayBook = () => {
 
           {/* ── Close Day ────────────────────────────────────────────────── */}
           {!ledger.isLocked && ledger.hasOpening && hasPermission('finance', 'edit') && !isFuture && (
-            <button onClick={handleCloseDay} disabled={isClosing}
+            <button onClick={() => setShowCloseModal(true)} disabled={isClosing}
               className="w-full h-12 flex items-center justify-center gap-2 bg-ink-primary text-white font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-black transition-all shadow-sm disabled:opacity-40">
               {isClosing ? <RefreshCcw className="animate-spin" size={14} /> : <Lock size={14} />}
               Close & Lock Day
@@ -957,6 +1038,19 @@ const DayBook = () => {
         dayExpenses={ledger.expenses}
       />
 
+      {/* ── Close Day modal ──────────────────────────────────────────────────── */}
+      {showCloseModal && (
+        <CloseDayModal
+          date={selectedDate}
+          closingBal={ledger.closingBal}
+          cy={cy}
+          initialPhysical={physicalCash}
+          isClosing={isClosing}
+          onCancel={() => setShowCloseModal(false)}
+          onConfirm={(pc, note) => { setShowCloseModal(false); handleCloseDay(pc, note); }}
+        />
+      )}
+
       {/* ── Report modal ─────────────────────────────────────────────────────── */}
       {showReport && (
         <DailyLedgerDetail
@@ -969,6 +1063,97 @@ const DayBook = () => {
           onClose={() => setShowReport(false)}
         />
       )}
+    </div>
+  );
+};
+
+// ── Close Day Reconciliation Modal ───────────────────────────────────────────
+const CloseDayModal = ({ date, closingBal, cy, initialPhysical, isClosing, onCancel, onConfirm }) => {
+  useDialogClose(onCancel);
+  const [pc,   setPc]   = React.useState(initialPhysical || '');
+  const [note, setNote] = React.useState('');
+  const pcNum   = parseFloat(pc);
+  const v       = !isNaN(pcNum) ? Math.round((pcNum - closingBal) * 100) / 100 : null;
+  const balanced = v != null && Math.abs(v) < 0.01;
+  const surplus  = v != null && v > 0;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onCancel}>
+      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-[15px] font-black text-ink-primary leading-none">Close Day</h2>
+            <p className="text-[10px] font-bold text-muted-foreground mt-0.5 uppercase tracking-widest">{displayDate(date)}</p>
+          </div>
+          <button onClick={onCancel} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-black/5">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Expected */}
+        <div className="bg-canvas rounded-xl p-4 mb-4 flex items-center justify-between">
+          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Expected Cash</span>
+          <span className="font-black text-lg text-ink-primary tabular-nums">
+            {cy}{fmt(closingBal)}
+          </span>
+        </div>
+
+        {/* Physical count input */}
+        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1 block">
+          Physical Count
+        </label>
+        <div className="relative mb-3">
+          <input
+            type="number" step="0.01" placeholder="Count cash in drawer"
+            className="w-full h-11 border border-border shadow-sm rounded-xl px-3 pr-8 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+            value={pc}
+            onChange={e => setPc(e.target.value)}
+            autoFocus
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground">{cy}</span>
+        </div>
+
+        {/* Variance */}
+        {v != null && (
+          <div className={`flex items-center justify-between px-4 py-3 rounded-xl mb-3 text-[11px] font-black ${
+            balanced  ? 'bg-emerald-50 border border-emerald-100 text-emerald-700' :
+            surplus   ? 'bg-blue-50 border border-blue-100 text-blue-700' :
+                        'bg-red-50 border border-red-100 text-red-700'
+          }`}>
+            <span>{balanced ? '✓ Balanced' : surplus ? 'Cash Surplus' : 'Cash Short'}</span>
+            <span className="tabular-nums">
+              {balanced ? 'Exact match' : `${surplus ? '+' : '−'}${cy}${fmt(Math.abs(v))}`}
+            </span>
+          </div>
+        )}
+        {v != null && !balanced && (
+          <p className="text-[9px] text-muted-foreground mb-3 leading-relaxed">
+            Variance will be recorded as an account adjustment.
+          </p>
+        )}
+
+        {/* Note */}
+        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1 block">Note (optional)</label>
+        <input
+          className="w-full h-9 border border-border rounded-xl px-3 text-xs font-semibold outline-none focus:border-accent-signature/40 mb-4"
+          placeholder="e.g. Handover to office"
+          value={note} onChange={e => setNote(e.target.value)}
+        />
+
+        <div className="flex gap-2">
+          <button onClick={onCancel}
+            className="flex-1 h-11 rounded-xl border border-black/10 text-[12px] font-bold text-muted-foreground hover:bg-black/5 transition-all">
+            Cancel
+          </button>
+          <button
+            disabled={isClosing}
+            onClick={() => onConfirm(isNaN(pcNum) ? null : pcNum, note)}
+            className="flex-[2] h-11 rounded-xl bg-ink-primary text-white text-[12px] font-black hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+          >
+            {isClosing ? <RefreshCcw className="animate-spin" size={13} /> : <Lock size={13} />}
+            Confirm & Lock Day
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
