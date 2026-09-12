@@ -143,6 +143,11 @@ export const usePeople = (tenantId) => {
   // Passes through: client_type, price_tier, credit_days (new B2B fields)
   const toClientRow = ({ status, ...rest }) => rest; // 'status' not in DB schema
 
+  /**
+   * Returns the new client's `id` alongside success — booking an appointment
+   * for a walk-in has to reference the client it just created, and the id is
+   * generated here, not by the database.
+   */
   const addClient = async (client) => {
     const id = generateUUID();
     const row = { id, ...toClientRow(client), tenant_id: tenantId };
@@ -150,12 +155,12 @@ export const usePeople = (tenantId) => {
       await queueMutation({ table: 'clients', type: 'insert', payload: row });
       await upsertCachedRow('clients', row);
       setClients(prev => normalizeNumericRows([row, ...prev], CLIENT_NUMERIC));
-      return { success: true, error: null, queued: true };
+      return { success: true, error: null, queued: true, id };
     }
     const { error } = await restInsert('clients', row);
     if (!error) {
       fetchPeopleData().catch(e => console.error('addClient refetch error:', e));
-      return { success: true, error: null };
+      return { success: true, error: null, id };
     }
     console.error('addClient error:', error);
     if (isOfflineError(error)) {
@@ -163,7 +168,7 @@ export const usePeople = (tenantId) => {
         await queueMutation({ table: 'clients', type: 'insert', payload: row });
         await upsertCachedRow('clients', row);
         setClients(prev => normalizeNumericRows([row, ...prev], CLIENT_NUMERIC));
-        return { success: true, error: null, queued: true };
+        return { success: true, error: null, queued: true, id };
       } catch (qErr) { console.error('addClient queue error:', qErr); }
     }
     return { success: false, error };

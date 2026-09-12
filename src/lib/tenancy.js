@@ -25,6 +25,11 @@ export const PLANS = {
     modules: [
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'payroll', 'reports', 'estimates',
+      // A salon or tuition centre on Growth IS the customer for appointments.
+      // It sat in ENTERPRISE only, so the vertical's own feature was unreachable
+      // to everyone who would buy it — the comment below records that Enterprise
+      // was a conservative default to be moved down.
+      'appointments',
     ],
     features: ['gstr_export'],
     maxUsers: 3,
@@ -38,6 +43,11 @@ export const PLANS = {
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports',
       'estimates', 'manufacturing', 'accounts',
+      // These lists are explicit, not cumulative: adding a module to GROWTH
+      // does NOT give it to PRO. Every trial resolves to PRO through
+      // effectivePlan(), so omitting it here would leave every trialling
+      // services tenant locked out of the thing they signed up for.
+      'appointments',
     ],
     features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory'],
     maxUsers: 5,
