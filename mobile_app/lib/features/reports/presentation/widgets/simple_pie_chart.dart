@@ -36,7 +36,7 @@ class SimplePieChart extends StatelessWidget {
         child: Center(
           child: Text(
             'No data',
-            style: GoogleFonts.manrope(color: AppColors.inkSecondary, fontSize: 12),
+            style: GoogleFonts.manrope(color: AppColors.inkSecondary, fontSize: 13),
           ),
         ),
       );
@@ -71,7 +71,7 @@ class SimplePieChart extends StatelessWidget {
                 Text(
                   '${slice.label} $pct%',
                   style: GoogleFonts.manrope(
-                    fontSize: 10,
+                    fontSize: 13,
                     color: AppColors.inkSecondary,
                   ),
                 ),

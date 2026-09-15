@@ -226,8 +226,8 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                                     ),
                                     child: Text(
                                       j.status,
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 10,
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w700,
                                         color: _statusColor(j.status),
                                       ),
@@ -236,8 +236,8 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                                   const SizedBox(width: 8),
                                   Text(
                                     '#${j.id}',
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 12,
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 13,
                                       color: AppColors.inkTertiary,
                                     ),
                                   ),
@@ -245,7 +245,7 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                                   Text(
                                     '${j.attempts} attempt${j.attempts == 1 ? '' : 's'}',
                                     style: GoogleFonts.manrope(
-                                      fontSize: 11,
+                                      fontSize: 13,
                                       color: AppColors.inkTertiary,
                                     ),
                                   ),
@@ -273,8 +273,8 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                                   ),
                                   child: Text(
                                     j.lastError!,
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 11,
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 13,
                                       color: Colors.red.shade900,
                                     ),
                                     maxLines: 4,
@@ -286,7 +286,7 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                               Text(
                                 'Created ${j.createdAt.toLocal().toString().substring(0, 19)}',
                                 style: GoogleFonts.manrope(
-                                  fontSize: 11,
+                                  fontSize: 13,
                                   color: AppColors.inkTertiary,
                                 ),
                               ),

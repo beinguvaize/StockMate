@@ -313,7 +313,7 @@ class _CRMHeader extends StatelessWidget {
                     Text(
                       'CRM',
                       style: GoogleFonts.manrope(
-                        fontSize: 10,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.inkTertiary,
                         letterSpacing: 0.08 * 10,
@@ -399,7 +399,7 @@ class _StatTile extends StatelessWidget {
               child: Text(
                 s.label,
                 style: GoogleFonts.manrope(
-                  fontSize: 10,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: AppColors.inkSecondary,
                 ),
@@ -424,7 +424,7 @@ class _StatTile extends StatelessWidget {
           Text(
             s.hint,
             style: GoogleFonts.manrope(
-              fontSize: 10,
+              fontSize: 13,
               color: AppColors.inkTertiary,
             ),
             maxLines: 1,
@@ -570,7 +570,7 @@ class _ClientsTab extends ConsumerWidget {
                 children: [
                   Text(
                     '${filtered.length} client${filtered.length == 1 ? '' : 's'}',
-                    style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
+                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                   ),
                   if (totalBalance > 0)
                     Container(
@@ -583,7 +583,7 @@ class _ClientsTab extends ConsumerWidget {
                       child: Text(
                         '₹${totalBalance.toStringAsFixed(0)} outstanding',
                         style: GoogleFonts.manrope(
-                          fontSize: 11,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: _kClientOrange,
                         ),
@@ -599,7 +599,7 @@ class _ClientsTab extends ConsumerWidget {
                       child: Text(
                         'All clear',
                         style: GoogleFonts.manrope(
-                          fontSize: 11,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: _kSupplierGreen,
                         ),
@@ -693,7 +693,7 @@ class _ClientRow extends StatelessWidget {
                       const Icon(LucideIcons.phone, size: 11, color: AppColors.inkTertiary),
                       const SizedBox(width: 3),
                       Text(client.phone!,
-                          style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary)),
+                          style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
                       const SizedBox(width: 6),
                     ],
                     if (hasGstin)
@@ -706,7 +706,7 @@ class _ClientRow extends StatelessWidget {
                         ),
                         child: Text('GST',
                             style: GoogleFonts.manrope(
-                                fontSize: 9, fontWeight: FontWeight.w600, color: const Color(0xFF7B5D0A))),
+                                fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF7B5D0A))),
                       ),
                   ]),
                 ],
@@ -854,7 +854,7 @@ class _ClientDetailSheet extends StatelessWidget {
                               child: Text(
                                 _accountTypeLabel(client.clientType),
                                 style: GoogleFonts.manrope(
-                                  fontSize: 10,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: clientType == 'B2B' ? AppColors.primary : AppColors.inkSecondary,
                                 ),
@@ -910,7 +910,7 @@ class _ClientDetailSheet extends StatelessWidget {
                             children: [
                               Text(
                                 balance < 0 ? 'Advance (paid extra)' : 'Outstanding balance',
-                                style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
+                                style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                               ),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -938,7 +938,7 @@ class _ClientDetailSheet extends StatelessWidget {
                                       child: Text(
                                         balance > 0 ? 'Unpaid' : 'Cleared',
                                         style: GoogleFonts.manrope(
-                                          fontSize: 10,
+                                          fontSize: 13,
                                           fontWeight: FontWeight.w600,
                                           color: balance > 0 ? AppColors.danger : AppColors.success,
                                         ),
@@ -1026,7 +1026,7 @@ class _ClientDetailSheet extends StatelessWidget {
                     const SizedBox(height: 16),
                     Text(
                       'Added ${_formatDate(client.createdAt!)}',
-                      style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
+                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1156,7 +1156,7 @@ class _SuppliersTab extends ConsumerWidget {
                 children: [
                   Text(
                     '${filtered.length} supplier${filtered.length == 1 ? '' : 's'}',
-                    style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
+                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                   ),
                   if (totalPayable > 0)
                     Container(
@@ -1169,7 +1169,7 @@ class _SuppliersTab extends ConsumerWidget {
                       child: Text(
                         '₹${totalPayable.toStringAsFixed(0)} to pay',
                         style: GoogleFonts.manrope(
-                          fontSize: 11,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: _kSupplierGreen,
                         ),
@@ -1279,12 +1279,12 @@ class _SupplierRow extends StatelessWidget {
                       const Icon(LucideIcons.phone, size: 11, color: AppColors.inkTertiary),
                       const SizedBox(width: 3),
                       Text(supplier.phone!,
-                          style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary)),
+                          style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
                       const SizedBox(width: 6),
                     ],
                     if (supplier.contactPerson != null && supplier.contactPerson!.isNotEmpty)
                       Text(supplier.contactPerson!,
-                          style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary)),
+                          style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
                   ]),
                 ],
               ),
@@ -1331,7 +1331,7 @@ class _AlphaHeader extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: Text(letter,
-              style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+              style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
         ),
         const SizedBox(width: 8),
         Expanded(child: Container(height: 0.5, color: AppColors.outlineVariant)),
@@ -1363,7 +1363,7 @@ class _ToolbarBtn extends StatelessWidget {
           Icon(icon, size: 14, color: AppColors.inkSecondary),
           const SizedBox(width: 5),
           Text(label,
-              style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.inkSecondary)),
+              style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.inkSecondary)),
         ]),
       ),
     );
@@ -1382,7 +1382,7 @@ class _MiniStat extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label,
-            style: GoogleFonts.manrope(fontSize: 10, color: AppColors.inkTertiary)),
+            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
         const SizedBox(height: 2),
         Text(value,
             style: GoogleFonts.manrope(
@@ -1410,7 +1410,7 @@ class _DetailSection extends StatelessWidget {
           const SizedBox(width: 5),
           Text(title,
               style: GoogleFonts.manrope(
-                  fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.inkTertiary)),
+                  fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkTertiary)),
         ]),
         const SizedBox(height: 8),
         Container(
@@ -1435,7 +1435,7 @@ class _DetailSection extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(row.label,
-                                style: GoogleFonts.manrope(fontSize: 10, color: AppColors.inkTertiary)),
+                                style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
                             const SizedBox(height: 1),
                             Text(row.value,
                                 style: GoogleFonts.manrope(
@@ -1505,7 +1505,7 @@ class _EmptyState extends StatelessWidget {
                   fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.inkSecondary)),
           const SizedBox(height: 3),
           Text('Tap + to add one',
-              style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary)),
+              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
         ],
       ),
     );

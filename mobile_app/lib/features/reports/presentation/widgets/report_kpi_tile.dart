@@ -37,8 +37,8 @@ class ReportKpiTile extends StatelessWidget {
             children: [
               Text(
                 label.toUpperCase(),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.2,
                   color: AppColors.inkSecondary,
@@ -59,7 +59,7 @@ class ReportKpiTile extends StatelessWidget {
                 Text(
                   subtitle!,
                   style: GoogleFonts.manrope(
-                    fontSize: 11,
+                    fontSize: 13,
                     color: AppColors.inkSecondary,
                   ),
                 ),

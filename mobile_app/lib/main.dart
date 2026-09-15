@@ -12,6 +12,7 @@ import 'package:mobile_app/core/update/auto_updater.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/features/auth/data/auth_provider.dart';
 import 'package:mobile_app/features/auth/presentation/login_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/dashboard_screen.dart';
@@ -132,23 +133,10 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
         ),
         scaffoldBackgroundColor: AppColors.canvas,
         useMaterial3: true,
-        textTheme: GoogleFonts.manropeTextTheme().copyWith(
-          displayLarge:  GoogleFonts.manrope(fontSize: 48, fontWeight: FontWeight.w600, letterSpacing: -0.02 * 48, color: AppColors.onSurface),
-          displayMedium: GoogleFonts.manrope(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.01 * 32, color: AppColors.onSurface),
-          displaySmall:  GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          headlineLarge: GoogleFonts.manrope(fontSize: 28, fontWeight: FontWeight.w600, letterSpacing: -0.3, color: AppColors.onSurface),
-          headlineMedium:GoogleFonts.manrope(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          headlineSmall: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          titleLarge:    GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          titleMedium:   GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          titleSmall:    GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          bodyLarge:     GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w400, color: AppColors.onSurface),
-          bodyMedium:    GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w400, color: AppColors.onSurface),
-          bodySmall:     GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w400, color: AppColors.inkSecondary),
-          labelLarge:    GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          labelMedium:   GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.inkSecondary),
-          labelSmall:    GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w500, letterSpacing: 0.04 * 10, color: AppColors.inkSecondary),
-        ),
+        // The scale lives in AppText, not inline here: the screens reach for
+        // it directly as well, and two copies of a type scale is how the app
+        // ended up with twenty sizes. See lib/core/theme/typography.dart.
+        textTheme: AppText.textTheme,
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
@@ -158,7 +146,7 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: Gap.xl, vertical: 14),
             shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
-            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 14),
+            textStyle: AppText.label.copyWith(fontSize: 15),
           ),
         ),
         // Absent before, so all 32 OutlinedButton sites styled themselves.
@@ -168,7 +156,7 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
             side: const BorderSide(color: AppColors.outline),
             padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: 12),
             shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
-            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 14),
+            textStyle: AppText.label.copyWith(fontSize: 15),
           ),
         ),
         filledButtonTheme: FilledButtonThemeData(
@@ -177,7 +165,7 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
             foregroundColor: AppColors.onPrimary,
             padding: const EdgeInsets.symmetric(horizontal: Gap.xl, vertical: 14),
             shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
-            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 14),
+            textStyle: AppText.label.copyWith(fontSize: 15),
           ),
         ),
         // 15 screens each declared this same iconTheme on their own AppBar.
@@ -188,8 +176,7 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
           elevation: 0,
           scrolledUnderElevation: 0,
           iconTheme: const IconThemeData(color: AppColors.onSurface),
-          titleTextStyle: GoogleFonts.manrope(
-            fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          titleTextStyle: AppText.heading,
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: AppColors.primary,
@@ -201,8 +188,7 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
           selectedColor: AppColors.primaryContainer,
           side: const BorderSide(color: AppColors.outlineVariant),
           shape: const RoundedRectangleBorder(borderRadius: Radii.rPill),
-          labelStyle: GoogleFonts.manrope(
-            fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.onSurface),
+          labelStyle: AppText.label.copyWith(fontWeight: FontWeight.w500),
         ),
         dividerTheme: const DividerThemeData(
           color: AppColors.outlineVariant, thickness: 1, space: 1),
@@ -210,15 +196,12 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
           backgroundColor: AppColors.canvas,
           surfaceTintColor: Colors.transparent,
           shape: const RoundedRectangleBorder(borderRadius: Radii.rLg),
-          titleTextStyle: GoogleFonts.manrope(
-            fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          contentTextStyle: GoogleFonts.manrope(
-            fontSize: 14, height: 1.5, color: AppColors.onSurfaceVariant),
+          titleTextStyle: AppText.heading,
+          contentTextStyle: AppText.body.copyWith(color: AppColors.onSurfaceVariant),
         ),
         snackBarTheme: SnackBarThemeData(
           backgroundColor: AppColors.onSurface,
-          contentTextStyle: GoogleFonts.manrope(
-            fontSize: 13, color: AppColors.canvas),
+          contentTextStyle: AppText.body.copyWith(color: AppColors.canvas),
           behavior: SnackBarBehavior.floating,
           shape: const RoundedRectangleBorder(borderRadius: Radii.rSm),
         ),
@@ -405,7 +388,7 @@ class _SplashScreen extends StatelessWidget {
                     return Text(
                       v,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: AppColors.inkTertiary,
                         fontWeight: FontWeight.w500,
                       ),

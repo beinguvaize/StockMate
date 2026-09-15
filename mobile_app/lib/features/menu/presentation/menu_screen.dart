@@ -8,6 +8,9 @@ import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/widgets/app_surfaces.dart';
 import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/features/clients_suppliers/presentation/crm_screen.dart';
 import 'package:mobile_app/features/daybook/presentation/daybook_screen.dart';
@@ -103,7 +106,7 @@ class MenuScreen extends ConsumerWidget {
                                   Text(
                                     ctx?.tenant.name ?? '',
                                     style: GoogleFonts.manrope(
-                                      fontSize: 12,
+                                      fontSize: 13,
                                       color: Colors.white60,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -120,7 +123,7 @@ class MenuScreen extends ConsumerWidget {
                               child: Text(
                                 plan,
                                 style: GoogleFonts.manrope(
-                                  fontSize: 11,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w800,
                                   color: AppColors.primary,
                                 ),
@@ -368,15 +371,11 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text.toUpperCase(),
-      style: GoogleFonts.jetBrainsMono(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.08,
-        color: AppColors.inkSecondary,
-      ),
-    );
+    // Was 11px uppercase monospace with tracking. Uppercase costs legibility
+    // (every word becomes the same rectangle) and monospace was decorative
+    // here -- these are words, not aligned digits.
+    return Text(text, style: AppText.bodyStrong.copyWith(
+        color: AppColors.onSurfaceVariant));
   }
 }
 
@@ -462,74 +461,70 @@ class _MenuCard extends StatelessWidget {
               )
           : onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
+        margin: const EdgeInsets.only(bottom: Gap.sm),
+        padding: const EdgeInsets.all(Gap.md),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.outlineVariant.withValues(alpha: 0.6),
-          ),
-          boxShadow: [AppColors.cardShadow],
+          color: AppColors.canvas,
+          borderRadius: Radii.rMd,
+          border: Border.all(color: AppColors.outlineVariant),
         ),
         child: Row(
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9), // slate-100
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(
-                isPlanLocked ? LucideIcons.lock : icon,
-                color: const Color(0xFF475569), // slate-600
-                size: 21,
-              ),
+            // The tile was slate on slate for every single entry, so the whole
+            // menu read as one grey mass and no item was findable by colour.
+            // A locked item now looks locked; an available one carries the
+            // brand tint.
+            IconTile(
+              icon: isPlanLocked ? LucideIcons.lock : icon,
+              tint: isPlanLocked ? AppColors.inkTertiary : AppColors.primary,
+              size: 44,
             ),
-            const SizedBox(width: 14),
+            Gap.w16,
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     label,
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: isPlanLocked ? AppColors.inkTertiary : AppColors.inkPrimary,
+                    style: AppText.heading.copyWith(
+                      fontSize: 16,
+                      color: isPlanLocked
+                          ? AppColors.inkTertiary
+                          : AppColors.onSurface,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     isPlanLocked ? 'Upgrade to $requiredPlan to unlock' : subtitle,
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      color: isPlanLocked ? AppColors.warning : AppColors.inkTertiary,
-                      fontWeight: isPlanLocked ? FontWeight.w600 : FontWeight.w400,
+                    style: AppText.caption.copyWith(
+                      color: isPlanLocked
+                          ? AppColors.warning
+                          : AppColors.inkTertiary,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
+            Gap.w8,
             if (isPlanLocked)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Gap.sm, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.warningContainer,
+                  borderRadius: Radii.rXs,
                 ),
-                child: Text(
-                  'PRO',
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.warning,
-                  ),
-                ),
+                child: Text(requiredPlan,
+                    style: AppText.label.copyWith(
+                        color: AppColors.onWarningContainer)),
               )
             else
-              const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.inkTertiary),
+              const Icon(LucideIcons.chevronRight,
+                  size: 20, color: AppColors.inkTertiary),
           ],
         ),
       ),

@@ -311,7 +311,7 @@ class AutoUpdater {
                 if (notes.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(notes,
-                      style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      style: const TextStyle(fontSize: 13, color: Colors.black54)),
                 ],
                 const SizedBox(height: 16),
                 Container(
@@ -322,7 +322,7 @@ class AutoUpdater {
                   ),
                   child: const Text(
                     'If install does not start, enable "Install unknown apps" for LedgrPro in Android Settings.',
-                    style: TextStyle(fontSize: 11, color: Colors.black87),
+                    style: TextStyle(fontSize: 13, color: Colors.black87),
                   ),
                 ),
               ],
@@ -405,7 +405,7 @@ class AutoUpdater {
             const SizedBox(height: 12),
             ValueListenableBuilder(
               valueListenable: stateMsg,
-              builder: (_, m, _) => Text(m, style: const TextStyle(fontSize: 12)),
+              builder: (_, m, _) => Text(m, style: const TextStyle(fontSize: 13)),
             ),
             const SizedBox(height: 8),
             ValueListenableBuilder(
@@ -420,7 +420,7 @@ class AutoUpdater {
                       ),
                       child: const Text(
                         'In-app install blocked. Open the release page in Chrome to download and install manually.',
-                        style: TextStyle(fontSize: 11, color: Colors.black87),
+                        style: TextStyle(fontSize: 13, color: Colors.black87),
                       ),
                     )
                   : const SizedBox.shrink(),

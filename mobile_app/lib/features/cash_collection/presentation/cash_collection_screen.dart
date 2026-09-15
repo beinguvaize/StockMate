@@ -150,7 +150,7 @@ class _CashCollectionScreenState extends ConsumerState<CashCollectionScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Cash Collection', style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
-            Text(dateLabel, style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary)),
+            Text(dateLabel, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
           ],
         ),
         actions: [
@@ -163,11 +163,11 @@ class _CashCollectionScreenState extends ConsumerState<CashCollectionScreen> {
                 children: [
                   Text(
                     '₹${_sessionTotal.toStringAsFixed(0)}',
-                    style: GoogleFonts.jetBrainsMono(fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFF16A34A)),
+                    style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFF16A34A)),
                   ),
                   Text(
                     '$_sessionCount client${_sessionCount == 1 ? '' : 's'}',
-                    style: GoogleFonts.manrope(fontSize: 10, color: AppColors.inkTertiary),
+                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                   ),
                 ],
               ),
@@ -266,7 +266,7 @@ class _ConfirmRow extends StatelessWidget {
       children: [
         SizedBox(
           width: 60,
-          child: Text(label, style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.inkTertiary)),
+          child: Text(label, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkTertiary)),
         ),
         Expanded(
           child: Text(value, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: valueColor ?? AppColors.inkPrimary)),
@@ -348,15 +348,15 @@ class _ClientCollectionCard extends StatelessWidget {
                         children: [
                           Text(client.name, style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.inkPrimary), overflow: TextOverflow.ellipsis),
                           if (isDone)
-                            Text('Collected', style: GoogleFonts.manrope(fontSize: 11, color: const Color(0xFF16A34A), fontWeight: FontWeight.w600))
+                            Text('Collected', style: GoogleFonts.manrope(fontSize: 13, color: const Color(0xFF16A34A), fontWeight: FontWeight.w600))
                           else if (client.phone != null)
-                            Text(client.phone!, style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary)),
+                            Text(client.phone!, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
                         ],
                       ),
                     ),
                     Text(
                       '₹${client.outstandingBalance.toStringAsFixed(0)}',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 15, fontWeight: FontWeight.w700, color: isDone ? const Color(0xFF16A34A) : AppColors.inkPrimary),
+                      style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w700, color: isDone ? const Color(0xFF16A34A) : AppColors.inkPrimary),
                     ),
                     if (!isDone) ...[
                       const SizedBox(width: 8),
@@ -379,7 +379,7 @@ class _ClientCollectionCard extends StatelessWidget {
                     TextField(
                       controller: amountCtrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: GoogleFonts.jetBrainsMono(fontSize: 16, fontWeight: FontWeight.w700),
+                      style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700),
                       decoration: InputDecoration(
                         labelText: 'Amount (₹)',
                         labelStyle: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),

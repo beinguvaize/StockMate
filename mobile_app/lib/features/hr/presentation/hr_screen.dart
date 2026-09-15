@@ -40,8 +40,8 @@ class HRScreen extends ConsumerWidget {
               ),
               Text(
                 'WORKFORCE MANAGEMENT',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.inkSecondary,
                   letterSpacing: 1.2,
@@ -56,13 +56,13 @@ class HRScreen extends ConsumerWidget {
             indicatorWeight: 2,
             labelColor: AppColors.primary,
             unselectedLabelColor: AppColors.inkTertiary,
-            labelStyle: GoogleFonts.jetBrainsMono(
-              fontSize: 11,
+            labelStyle: GoogleFonts.manrope(
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.5,
             ),
-            unselectedLabelStyle: GoogleFonts.jetBrainsMono(
-              fontSize: 11,
+            unselectedLabelStyle: GoogleFonts.manrope(
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.5,
             ),
@@ -153,8 +153,8 @@ class _EmployeesTab extends ConsumerWidget {
                       const SizedBox(width: 6),
                       Text(
                         'EMPLOYEES',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
                           color: AppColors.primary,
@@ -181,8 +181,8 @@ class _EmployeesTab extends ConsumerWidget {
                               const SizedBox(width: 5),
                               Text(
                                 'PROCESS PAYROLL',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 1.0,
                                   color: AppColors.primary,
@@ -453,7 +453,7 @@ class _PayrollRecordCard extends StatelessWidget {
                 Text(
                   '$periodStart – $periodEnd',
                   style: GoogleFonts.manrope(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: AppColors.inkSecondary,
                   ),
                 ),
@@ -469,8 +469,8 @@ class _PayrollRecordCard extends StatelessWidget {
                       ),
                       child: Text(
                         statusLabel,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 10,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: statusFg,
                         ),
@@ -481,7 +481,7 @@ class _PayrollRecordCard extends StatelessWidget {
                       Text(
                         paidAt,
                         style: GoogleFonts.manrope(
-                          fontSize: 11,
+                          fontSize: 13,
                           color: AppColors.inkTertiary,
                         ),
                       ),
@@ -497,7 +497,7 @@ class _PayrollRecordCard extends StatelessWidget {
           // Net pay
           Text(
             '₹${netPay.toStringAsFixed(2)}',
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w700,
               color: AppColors.success,
@@ -648,7 +648,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
             Text(
               'Paying again adds a second set of salary expenses, so DayBook, '
               'the P&L and the cash account will all drop again.',
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkSecondary),
+              style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkSecondary),
             ),
           ],
         ),
@@ -903,7 +903,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                     Text(
                       'Run payroll for all active employees',
                       style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: AppColors.inkSecondary,
                       ),
                     ),
@@ -1019,8 +1019,8 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                             ),
                             Text(
                               'Net: ₹${net.toStringAsFixed(2)}',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 12,
+                              style: GoogleFonts.manrope(
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.success,
                               ),
@@ -1092,7 +1092,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                                 const SizedBox(width: 8),
                                 Text(
                                   'RUN PAYROLL',
-                                  style: GoogleFonts.jetBrainsMono(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 1.0,
@@ -1138,15 +1138,15 @@ class _PayField extends StatelessWidget {
     return TextField(
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      style: GoogleFonts.jetBrainsMono(
-        fontSize: 12,
+      style: GoogleFonts.manrope(
+        fontSize: 13,
         fontWeight: FontWeight.w600,
         color: AppColors.inkPrimary,
       ),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: GoogleFonts.manrope(
-          fontSize: 11,
+          fontSize: 13,
           color: AppColors.inkTertiary,
         ),
         isDense: true,
@@ -1203,8 +1203,8 @@ class _StatCard extends StatelessWidget {
           children: [
             Text(
               label,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
                 color: color,
@@ -1318,7 +1318,7 @@ class _EmployeeCard extends ConsumerWidget {
                     Text(
                       role,
                       style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: AppColors.inkSecondary,
                       ),
                     ),
@@ -1333,8 +1333,8 @@ class _EmployeeCard extends ConsumerWidget {
                       ),
                       child: Text(
                         statusLabel,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 10,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: statusFg,
                         ),
@@ -1352,8 +1352,8 @@ class _EmployeeCard extends ConsumerWidget {
                 children: [
                   Text(
                     '₹${salary.toStringAsFixed(0)}/mo',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 12,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.primary,
                     ),
@@ -1613,8 +1613,8 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
             ),
             child: Text(
               statusLabel,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: statusFg,
               ),
@@ -1758,7 +1758,7 @@ class _InfoRow extends StatelessWidget {
           ),
           Text(
             value,
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w700,
               color: valueColor ?? AppColors.inkPrimary,
@@ -1825,8 +1825,8 @@ class _ActionButton extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 label,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 12,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.8,
                   color: foregroundColor,
@@ -1973,7 +1973,7 @@ class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
                                       color: AppColors.inkPrimary)),
                               Text(cur ?? 'Not marked',
                                   style: GoogleFonts.manrope(
-                                      fontSize: 11,
+                                      fontSize: 13,
                                       color: cur == null
                                           ? AppColors.inkTertiary
                                           : AppColors.inkSecondary)),

@@ -96,7 +96,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
               children: [
                 Text(
                   purchase.poNumber,
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.manrope(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkPrimary,
@@ -105,8 +105,8 @@ class PurchaseDetailScreen extends ConsumerWidget {
                 ),
                 Text(
                   'PURCHASE ORDER',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.inkTertiary,
                     letterSpacing: 1.5,
@@ -183,7 +183,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                               children: [
                                 Text(
                                   purchase.poNumber,
-                                  style: GoogleFonts.jetBrainsMono(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
                                     color: Colors.white,
@@ -193,7 +193,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                                 Text(
                                   'Order Date: ${_fmtDate(purchase.date)}',
                                   style: GoogleFonts.manrope(
-                                    fontSize: 12,
+                                    fontSize: 13,
                                     color: Colors.white.withValues(alpha: 0.7),
                                   ),
                                 ),
@@ -210,8 +210,8 @@ class PurchaseDetailScreen extends ConsumerWidget {
                             ),
                             child: Text(
                               status,
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
+                              style: GoogleFonts.manrope(
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: statusColor,
                               ),
@@ -229,7 +229,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                       Text(
                         'Total Amount',
                         style: GoogleFonts.manrope(
-                          fontSize: 12,
+                          fontSize: 13,
                           color: Colors.white.withValues(alpha: 0.65),
                         ),
                       ),
@@ -300,8 +300,8 @@ class PurchaseDetailScreen extends ConsumerWidget {
                         ),
                         child: Text(
                           status,
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: statusColor,
                           ),
@@ -344,7 +344,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                             Text(
                               'Order Total',
                               style: GoogleFonts.manrope(
-                                  fontSize: 12, color: AppColors.inkTertiary),
+                                  fontSize: 13, color: AppColors.inkTertiary),
                             ),
                             Text(
                               '₹${purchase.totalAmount.toStringAsFixed(2)}',
@@ -369,8 +369,8 @@ class PurchaseDetailScreen extends ConsumerWidget {
                         ),
                         child: Text(
                           status == 'RECEIVED' ? 'PAID' : 'UNPAID',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: statusColor,
                           ),
@@ -449,7 +449,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                             label: Text(
                               a.label,
                               style: GoogleFonts.manrope(
-                                fontSize: 12,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: a.color,
                               ),
@@ -470,7 +470,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                           label: Text(
                             'Process Return',
                             style: GoogleFonts.manrope(
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: AppColors.danger,
                             ),
@@ -607,7 +607,7 @@ class _StatusTimeline extends StatelessWidget {
                       Text(
                         step.sub,
                         style: GoogleFonts.manrope(
-                            fontSize: 12, color: AppColors.inkTertiary),
+                            fontSize: 13, color: AppColors.inkTertiary),
                       ),
                     ],
                   ),
@@ -624,8 +624,8 @@ class _StatusTimeline extends StatelessWidget {
                   ),
                   child: Text(
                     'CURRENT',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 8,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.primary,
                       letterSpacing: 1,
@@ -654,8 +654,8 @@ class _SectionLabel extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           title,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 10,
+          style: GoogleFonts.manrope(
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             color: AppColors.inkTertiary,
             letterSpacing: 1.3,
@@ -734,7 +734,7 @@ class _InfoRow extends StatelessWidget {
               children: [
                 Text(label,
                     style: GoogleFonts.manrope(
-                        fontSize: 11, color: AppColors.inkTertiary)),
+                        fontSize: 13, color: AppColors.inkTertiary)),
                 const SizedBox(height: 2),
                 valueWidget ??
                     Text(

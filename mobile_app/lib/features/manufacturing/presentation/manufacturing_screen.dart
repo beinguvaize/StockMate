@@ -141,7 +141,7 @@ class _OrderCard extends StatelessWidget {
                   ),
                   Text(
                     'Qty: ${order.qty.toStringAsFixed(0)}${order.startDate != null ? ' · ${order.startDate}' : ''}',
-                    style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
+                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                   ),
                 ],
               ),
@@ -154,7 +154,7 @@ class _OrderCard extends StatelessWidget {
               ),
               child: Text(
                 order.status.replaceAll('_', ' '),
-                style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, color: _statusColor),
+                style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: _statusColor),
               ),
             ),
           ],
@@ -191,7 +191,7 @@ class _BomCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(bom.name, style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.inkPrimary)),
-                  Text('Output: ${bom.outputQty.toStringAsFixed(0)} units', style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary)),
+                  Text('Output: ${bom.outputQty.toStringAsFixed(0)} units', style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
                 ],
               ),
             ),

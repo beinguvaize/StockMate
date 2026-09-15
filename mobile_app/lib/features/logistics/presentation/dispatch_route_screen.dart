@@ -203,8 +203,8 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
             ),
             Text(
               widget.vehicleName.toUpperCase(),
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
                 letterSpacing: 1.2,
@@ -304,8 +304,8 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                     _selected.length == _invoices.length
                                         ? 'Clear all'
                                         : 'Select all',
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 10,
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       color: AppColors.primary,
                                     ),
@@ -373,7 +373,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: GoogleFonts.manrope(
-                                                  fontSize: 11,
+                                                  fontSize: 13,
                                                   color: AppColors.inkTertiary,
                                                 ),
                                               ),
@@ -382,7 +382,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                       ),
                                       Text(
                                         '₹${_num(inv['grand_total']).toStringAsFixed(0)}',
-                                        style: GoogleFonts.jetBrainsMono(
+                                        style: GoogleFonts.manrope(
                                           fontWeight: FontWeight.w800,
                                           fontSize: 13,
                                           color: AppColors.inkPrimary,
@@ -438,8 +438,8 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(
           text,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 9,
+          style: GoogleFonts.manrope(
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.2,
             color: AppColors.inkTertiary,

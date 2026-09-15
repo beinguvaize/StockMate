@@ -73,7 +73,7 @@ class _EstimatesScreenState extends ConsumerState<EstimatesScreen> {
                       child: Text(
                         t == 'ALL' ? 'All' : t == 'DELIVERY_CHALLAN' ? 'Challan' : _capitalize(t),
                         style: GoogleFonts.manrope(
-                          fontSize: 12, fontWeight: FontWeight.w600,
+                          fontSize: 13, fontWeight: FontWeight.w600,
                           color: selected ? Colors.white : AppColors.inkSecondary,
                         ),
                       ),
@@ -176,11 +176,11 @@ class _EstimateCard extends StatelessWidget {
                   children: [
                     Text(
                       estimate.displayType,
-                      style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
+                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                     ),
                     if (estimate.estimateNumber != null) ...[
-                      Text(' · ', style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary)),
-                      Text(estimate.estimateNumber!, style: GoogleFonts.jetBrainsMono(fontSize: 11, color: AppColors.inkTertiary)),
+                      Text(' · ', style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                      Text(estimate.estimateNumber!, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
                     ],
                   ],
                 ),
@@ -192,7 +192,7 @@ class _EstimateCard extends StatelessWidget {
             children: [
               Text(
                 '₹${estimate.grandTotal.toStringAsFixed(2)}',
-                style: GoogleFonts.jetBrainsMono(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
+                style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
               ),
               if (estimate.status != null)
                 Container(
@@ -204,7 +204,7 @@ class _EstimateCard extends StatelessWidget {
                   ),
                   child: Text(
                     estimate.status!,
-                    style: GoogleFonts.manrope(fontSize: 9, fontWeight: FontWeight.w700, color: _statusColor),
+                    style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: _statusColor),
                   ),
                 ),
             ],

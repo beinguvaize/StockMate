@@ -214,8 +214,8 @@ class ClientAgingScreen extends ConsumerWidget {
                         const SizedBox(width: 6),
                         Text(
                           'CLIENT BREAKDOWN',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: AppColors.inkTertiary,
                             letterSpacing: 1.2,
@@ -230,8 +230,8 @@ class ClientAgingScreen extends ConsumerWidget {
                           ),
                           child: Text(
                             '${entries.length}',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 9,
+                            style: GoogleFonts.manrope(
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: AppColors.danger,
                             ),
@@ -293,7 +293,7 @@ class ClientAgingScreen extends ConsumerWidget {
           Text(
             'Who owes you, and for how long',
             style: GoogleFonts.manrope(
-              fontSize: 11,
+              fontSize: 13,
               color: AppColors.inkTertiary,
             ),
           ),
@@ -342,8 +342,8 @@ class _KpiCard extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkTertiary,
                     letterSpacing: 0.5,
@@ -380,7 +380,7 @@ class _KpiCard extends StatelessWidget {
               Text(
                 '$count account${count == 1 ? '' : 's'}',
                 style: GoogleFonts.manrope(
-                  fontSize: 10,
+                  fontSize: 13,
                   color: AppColors.inkTertiary,
                   fontWeight: FontWeight.w500,
                 ),
@@ -471,7 +471,7 @@ class _ClientAgingCard extends StatelessWidget {
                             const SizedBox(width: 3),
                             Text(
                               client.phone!,
-                              style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
+                              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                             ),
                           ],
                         )
@@ -483,7 +483,7 @@ class _ClientAgingCard extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 client.email!,
-                                style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
+                                style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -520,7 +520,7 @@ class _ClientAgingCard extends StatelessWidget {
                     Text(
                       'Total Owed',
                       style: GoogleFonts.manrope(
-                        fontSize: 9,
+                        fontSize: 13,
                         color: AppColors.inkTertiary,
                         fontWeight: FontWeight.w500,
                       ),
@@ -577,7 +577,7 @@ class _ClientAgingCard extends StatelessWidget {
                 Text(
                   'View settlement',
                   style: GoogleFonts.manrope(
-                    fontSize: 10,
+                    fontSize: 13,
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
                   ),
@@ -625,8 +625,8 @@ class _BucketCell extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 8,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.inkTertiary,
               letterSpacing: 0.3,
@@ -636,7 +636,7 @@ class _BucketCell extends StatelessWidget {
           Text(
             hasAmount ? compactAmount(amount) : '—',
             style: GoogleFonts.manrope(
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: hasAmount ? FontWeight.w800 : FontWeight.w500,
               color: hasAmount ? color : AppColors.inkTertiary,
             ),

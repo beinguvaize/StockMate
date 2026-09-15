@@ -194,9 +194,9 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
             ),
             Text(
               'CRM',
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.manrope(
                 color: AppColors.secondary,
-                fontSize: 9,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
               ),
@@ -464,7 +464,7 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEdit ? 'SAVE CHANGES' : 'ADD CLIENT',
-                        style: GoogleFonts.jetBrainsMono(
+                        style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 1,
                         ),
                       ),
@@ -514,8 +514,8 @@ class _CardSection extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.5,
                       color: AppColors.inkPrimary,
@@ -525,8 +525,8 @@ class _CardSection extends StatelessWidget {
                 if (trailing != null)
                   Text(
                     trailing!,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9, fontWeight: FontWeight.w700,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13, fontWeight: FontWeight.w700,
                       color: AppColors.inkTertiary, letterSpacing: 1.2,
                     ),
                   ),
@@ -559,16 +559,16 @@ class _FieldLabel extends StatelessWidget {
         text: TextSpan(children: [
           TextSpan(
             text: text.toUpperCase(),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10, fontWeight: FontWeight.w700,
+            style: GoogleFonts.manrope(
+              fontSize: 13, fontWeight: FontWeight.w700,
               color: AppColors.inkTertiary, letterSpacing: 1,
             ),
           ),
           if (required)
             TextSpan(
               text: ' *',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.primary,
+              style: GoogleFonts.manrope(
+                fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.primary,
               ),
             ),
         ]),
@@ -610,7 +610,7 @@ class _Field extends StatelessWidget {
         maxLength: maxLength,
         textCapitalization: textCapitalization,
         style: (mono
-                ? GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 1)
+                ? GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 1)
                 : GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600))
             .copyWith(color: AppColors.inkPrimary),
         decoration: InputDecoration(
@@ -758,8 +758,8 @@ class _TypeCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
                       color: selected ? AppColors.primaryContainer : AppColors.inkPrimary,
                       letterSpacing: 0.5,
@@ -769,7 +769,7 @@ class _TypeCard extends StatelessWidget {
                   Text(
                     sub,
                     style: GoogleFonts.manrope(
-                      fontSize: 10,
+                      fontSize: 13,
                       color: selected
                           ? Colors.white.withValues(alpha: 0.55)
                           : AppColors.inkTertiary,

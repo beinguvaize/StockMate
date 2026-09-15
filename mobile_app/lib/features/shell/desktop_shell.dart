@@ -173,7 +173,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                         'PRO',
                         style: TextStyle(
                           color: AppColors.accentSignature,
-                          fontSize: 11,
+                          fontSize: 13,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 2,
                         ),
@@ -319,7 +319,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                       : 'Offline',
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.5),
-                                fontSize: 11,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -365,7 +365,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                         : ctx?.userProfile.email ?? '',
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 12,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -374,7 +374,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                     ctx?.storedPlan ?? 'FREE',
                                     style: const TextStyle(
                                       color: AppColors.accentSignature,
-                                      fontSize: 10,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),

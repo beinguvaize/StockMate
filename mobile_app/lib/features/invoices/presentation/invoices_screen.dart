@@ -167,7 +167,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                 Text(
                                   'Manage billing & collections',
                                   style: GoogleFonts.manrope(
-                                    fontSize: 12,
+                                    fontSize: 13,
                                     color: AppColors.inkTertiary,
                                   ),
                                 ),
@@ -225,8 +225,8 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                 children: [
                                   Text(
                                     'OUTSTANDING',
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 9,
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       color: AppColors.inkTertiary,
                                       letterSpacing: 1,
@@ -250,7 +250,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                       Text(
                                         'To collect',
                                         style: GoogleFonts.manrope(
-                                          fontSize: 11,
+                                          fontSize: 13,
                                           color: AppColors.inkTertiary,
                                         ),
                                       ),
@@ -279,8 +279,8 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                     children: [
                                       Text(
                                         'COLLECTED THIS MONTH',
-                                        style: GoogleFonts.jetBrainsMono(
-                                          fontSize: 9,
+                                        style: GoogleFonts.manrope(
+                                          fontSize: 13,
                                           fontWeight: FontWeight.w700,
                                           color: AppColors.secondaryContainer.withValues(alpha: 0.7),
                                           letterSpacing: 1,
@@ -418,7 +418,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                 child: Text(
                                   filters[i],
                                   style: GoogleFonts.manrope(
-                                    fontSize: 12,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: isActive ? AppColors.primary : AppColors.inkTertiary,
                                   ),
@@ -455,7 +455,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                       Text(
                                         '${_fmtDate(_dateRange!.start.toIso8601String().substring(0, 10))} – ${_fmtDate(_dateRange!.end.toIso8601String().substring(0, 10))}',
                                         style: GoogleFonts.manrope(
-                                          fontSize: 12,
+                                          fontSize: 13,
                                           fontWeight: FontWeight.w600,
                                           color: AppColors.primary,
                                         ),
@@ -632,8 +632,8 @@ class _InvoiceCard extends StatelessWidget {
                       ),
                       Text(
                         invoice.displayNumber,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           color: AppColors.inkTertiary,
                         ),
                       ),
@@ -663,8 +663,8 @@ class _InvoiceCard extends StatelessWidget {
                       ),
                       child: Text(
                         badgeLabel,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: badgeFg,
                         ),
@@ -684,7 +684,7 @@ class _InvoiceCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   _fmtDate(invoice.invoiceDate),
-                  style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
+                  style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                 ),
                 if (invoice.dueDate != null && status != _InvoiceStatus.paid) ...[
                   const SizedBox(width: 10),
@@ -697,7 +697,7 @@ class _InvoiceCard extends StatelessWidget {
                   Text(
                     'Due ${_fmtDate(invoice.dueDate)}',
                     style: GoogleFonts.manrope(
-                      fontSize: 11,
+                      fontSize: 13,
                       color: isOverdue ? AppColors.danger : AppColors.inkTertiary,
                       fontWeight: isOverdue ? FontWeight.w600 : FontWeight.normal,
                     ),
@@ -709,7 +709,7 @@ class _InvoiceCard extends StatelessWidget {
                   Text(
                     'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Balance ₹${invoice.outstanding.toStringAsFixed(0)}',
                     style: GoogleFonts.manrope(
-                      fontSize: 10,
+                      fontSize: 13,
                       color: AppColors.warning,
                       fontWeight: FontWeight.w600,
                     ),
