@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { hydrateSales, SALE_ITEMS_EMBED } from '../lib/saleLines';
 import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { readCacheThenRevalidate, queueMutation, isOfflineError, decrementCachedStock, isElectron, upsertCachedRow } from '../lib/offline/hookAdapter';
@@ -62,8 +63,20 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
         readCacheThenRevalidate('sales',
           // Lean (items-less) only on web — desktop keeps '*' so the shared
           // 'sales' cache stays complete for the POS list that needs items.
-          () => supabase.from('sales').select(lean && !isElectron() ? SALE_LEAN_COLS : '*').is('deleted_at', null).eq('tenant_id', tenantId).order('created_at', { ascending: false, nullsFirst: false }).limit(500),
-          (fresh) => setData(fresh.map(r => normalizeRow(r, NUMERIC_SALE_COLS))),
+          // Phase 4: lines come from the sale_items TABLE, embedded here, and
+          // are mapped back onto `items` by hydrateSales. Twenty-six readers
+          // -- every profit report, the GST returns, the CSV export -- keep
+          // reading `sale.items` exactly as before; only where the numbers
+          // come from has changed. Rewriting each reader instead would be
+          // twenty-six chances to move a figure on a statutory return.
+          //
+          // The blob column is still selected, and hydrateSale falls back to
+          // it for any sale the table has no rows for. See lib/saleLines.js.
+          () => supabase.from('sales')
+            .select((lean && !isElectron() ? SALE_LEAN_COLS + ', items' : '*') + ', ' + SALE_ITEMS_EMBED)
+            .is('deleted_at', null).eq('tenant_id', tenantId)
+            .order('created_at', { ascending: false, nullsFirst: false }).limit(500),
+          (fresh) => setData(hydrateSales(fresh).map(r => normalizeRow(r, NUMERIC_SALE_COLS))),
         ),
         readCacheThenRevalidate('clients',
           () => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
@@ -79,7 +92,11 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
         ),
       ]);
 
-      setData(sales.map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
+      // Hydrated here too, not only in the revalidate callback: this is the
+      // CACHED path, and a cache hit showing blob lines while a fresh fetch
+      // showed table lines is exactly the sort of split-brain that makes a
+      // reporting bug impossible to reproduce.
+      setData(hydrateSales(sales).map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
       setClients(clients.map(r => normalizeRow(r, NUMERIC_CLIENT_COLS)));
       setInvoices(invoicesRows.map(r => normalizeRow(r, NUMERIC_INVOICE_COLS)));
       setSalesReturns(returns);
