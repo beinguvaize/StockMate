@@ -7,6 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/core/widgets/app_surfaces.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
@@ -559,29 +562,21 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                 AppTappable(
                                   ripple: false,
                                   onTap: () => Navigator.pop(context),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      boxShadow: [AppColors.cardShadow],
-                                    ),
-                                    child: const Icon(LucideIcons.arrowLeft, size: 18, color: AppColors.inkPrimary),
+                                  child: const SizedBox(
+                                    width: 44,
+                                    height: 44,
+                                    child: Icon(LucideIcons.arrowLeft,
+                                        size: 22, color: AppColors.onSurface),
                                   ),
                                 ),
-                                const SizedBox(width: 16),
+                                Gap.w8,
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        widget.isVanSale ? 'Van Sale' : 'New Sale',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.inkPrimary,
-                                          letterSpacing: -0.3,
-                                        ),
+                                        widget.isVanSale ? 'Van sale' : 'New sale',
+                                        style: AppText.title,
                                       ),
                                       if (!widget.isVanSale && stores.length > 1)
                                         PopupMenuButton<String>(
@@ -593,20 +588,16 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                           ],
                                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                                             Text(
-                                              (stores.firstWhere((s) => s['id'] == _posStoreId, orElse: () => stores.first)['name'] ?? 'Store').toString().toUpperCase(),
-                                              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.primary, letterSpacing: 0.5, fontWeight: FontWeight.w700),
+                                              (stores.firstWhere((s) => s['id'] == _posStoreId, orElse: () => stores.first)['name'] ?? 'Store').toString(),
+                                              style: AppText.label.copyWith(color: AppColors.primary),
                                             ),
-                                            const Icon(LucideIcons.chevronDown, size: 12, color: AppColors.primary),
+                                            const Icon(LucideIcons.chevronDown, size: 16, color: AppColors.primary),
                                           ]),
                                         )
                                       else
                                         Text(
-                                          widget.isVanSale ? 'ROADSIDE POS' : 'REGISTER 01',
-                                          style: GoogleFonts.manrope(
-                                            fontSize: 13,
-                                            color: widget.isVanSale ? AppColors.secondary : AppColors.inkTertiary,
-                                            letterSpacing: 0.5,
-                                          ),
+                                          widget.isVanSale ? 'Roadside POS' : 'Register 01',
+                                          style: AppText.caption,
                                         ),
                                     ],
                                   ),
@@ -615,21 +606,41 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                   ripple: false,
                                   onTap: () => _showClientPicker(),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: Gap.md, vertical: 10),
                                     decoration: BoxDecoration(
-                                      color: AppColors.secondaryContainer,
-                                      borderRadius: BorderRadius.circular(99),
+                                      color: AppColors.canvas,
+                                      borderRadius: Radii.rPill,
+                                      border: Border.all(
+                                          color: _selectedClient == null
+                                              ? AppColors.outlineVariant
+                                              : AppColors.primary),
                                     ),
                                     child: Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(LucideIcons.user, size: 14, color: AppColors.secondary),
+                                        Icon(LucideIcons.user,
+                                            size: 16,
+                                            color: _selectedClient == null
+                                                ? AppColors.onSurfaceVariant
+                                                : AppColors.primary),
                                         const SizedBox(width: 6),
-                                        Text(
-                                          _selectedClient == null ? 'Walk-in' : (_selectedClient!.name ?? 'Client'),
-                                          style: GoogleFonts.manrope(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.secondary,
+                                        // Who the bill is for. Named client
+                                        // outlined in brand, walk-in neutral --
+                                        // both were the same grey pill before,
+                                        // so "this is going on account" and
+                                        // "cash customer" looked identical.
+                                        Flexible(
+                                          child: Text(
+                                            _selectedClient == null
+                                                ? 'Walk-in'
+                                                : (_selectedClient!.name ?? 'Client'),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppText.label.copyWith(
+                                                color: _selectedClient == null
+                                                    ? AppColors.onSurfaceVariant
+                                                    : AppColors.primary),
                                           ),
                                         ),
                                       ],
@@ -644,9 +655,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                             // ── Search bar ─────────────────────────────
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [AppColors.cardShadow],
+                                color: AppColors.canvas,
+                                borderRadius: Radii.rSm,
+                                border: Border.all(
+                                    color: AppColors.outlineVariant),
                               ),
                               child: Row(
                                 children: [
@@ -654,15 +666,13 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                     child: TextField(
                                       controller: _searchController,
                                       decoration: InputDecoration(
-                                        hintText: 'Search items or scan barcode...',
-                                        hintStyle: GoogleFonts.manrope(
-                                          fontSize: 14,
-                                          color: AppColors.inkTertiary,
-                                        ),
+                                        hintText: 'Search items or scan barcode',
+                                        hintStyle: AppText.body.copyWith(
+                                            color: AppColors.inkTertiary),
                                         prefixIcon: const Icon(
                                           LucideIcons.search,
-                                          size: 18,
-                                          color: AppColors.inkTertiary,
+                                          size: 22,
+                                          color: AppColors.onSurfaceVariant,
                                         ),
                                         border: InputBorder.none,
                                         contentPadding: const EdgeInsets.symmetric(vertical: 14),
@@ -685,7 +695,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
 
                             // ── Category chips ─────────────────────────
                             SizedBox(
-                              height: 36,
+                              height: 40,
                               child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: categories.length,
@@ -703,22 +713,24 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                     child: AnimatedContainer(
                                       duration: const Duration(milliseconds: 180),
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 6),
+                                          horizontal: Gap.lg, vertical: Gap.sm),
                                       decoration: BoxDecoration(
                                         color: isActive
                                             ? AppColors.primaryContainer
-                                            : Colors.white,
-                                        borderRadius: BorderRadius.circular(99),
-                                        boxShadow: [AppColors.cardShadow],
+                                            : AppColors.canvas,
+                                        borderRadius: Radii.rPill,
+                                        border: Border.all(
+                                          color: isActive
+                                              ? AppColors.primaryContainer
+                                              : AppColors.outlineVariant,
+                                        ),
                                       ),
                                       child: Text(
                                         cat,
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
+                                        style: AppText.label.copyWith(
                                           color: isActive
-                                              ? AppColors.primary
-                                              : AppColors.inkTertiary,
+                                              ? AppColors.onPrimaryContainer
+                                              : AppColors.onSurfaceVariant,
                                         ),
                                       ),
                                     ),
@@ -744,8 +756,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                 padding: const EdgeInsets.all(40),
                                 child: Text(
                                   'No products found.',
-                                  style: GoogleFonts.manrope(
-                                      color: AppColors.inkTertiary),
+                                  style: AppText.body
+                                      .copyWith(color: AppColors.inkTertiary),
                                 ),
                               ),
                             ),
@@ -764,9 +776,14 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              crossAxisSpacing: 14,
-                              mainAxisSpacing: 14,
-                              childAspectRatio: 0.78,
+                              crossAxisSpacing: Gap.md,
+                              mainAxisSpacing: Gap.md,
+                              // 0.78 was tuned around the 80px image
+                              // placeholder the tile no longer has; 0.85 still
+                              // left the Spacer holding a band of dead air
+                              // under every product. Sized to the content that
+                              // is actually in the tile.
+                              childAspectRatio: 0.95,
                             ),
                           ),
                   ),
@@ -780,74 +797,58 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                   right: 0,
                   bottom: 0,
                   child: Container(
-                    padding: EdgeInsets.fromLTRB(
-                        20,
-                        16,
-                        20,
-                        16 + MediaQuery.of(context).padding.bottom),
+                    padding: EdgeInsets.fromLTRB(Gap.xl, Gap.lg, Gap.xl,
+                        Gap.lg + MediaQuery.of(context).padding.bottom),
                     decoration: const BoxDecoration(
-                      color: AppColors.secondary,
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(24)),
+                      color: AppColors.canvas,
+                      border: Border(
+                          top: BorderSide(color: AppColors.outlineVariant)),
                     ),
                     child: Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(LucideIcons.shoppingBag,
-                              color: Colors.white, size: 20),
-                        ),
-                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'BASKET TOTAL',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  color: Colors.white60,
-                                  letterSpacing: 0.5,
-                                ),
+                                '${_cart.length} item${_cart.length == 1 ? '' : 's'}',
+                                style: AppText.caption,
                               ),
-                              Text(
-                                '₹${_subtotal.toStringAsFixed(2)}',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
+                              const SizedBox(height: 2),
+                              // Was "BASKET TOTAL" over a 20px figure on a grey
+                              // bar. This is the number the customer is about
+                              // to be asked for; it is the largest thing here.
+                              Text(Money.inr(_subtotal),
+                                  style: AppText.moneyLarge
+                                      .copyWith(fontSize: 26)),
                             ],
                           ),
                         ),
+                        Gap.w16,
                         AppTappable(
                           ripple: false,
                           onTap: _openCheckout,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 14),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryContainer,
-                              borderRadius: BorderRadius.circular(99),
+                                horizontal: Gap.xl, vertical: 16),
+                            decoration: const BoxDecoration(
+                              // The bar was grey with a PALE amber button, so
+                              // the one action that completes a sale was the
+                              // faintest thing on the bar.
+                              color: AppColors.primary,
+                              borderRadius: Radii.rSm,
                             ),
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  'Checkout',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
+                                Text('Checkout',
+                                    style: AppText.label.copyWith(
+                                        fontSize: 16,
+                                        color: AppColors.onPrimary)),
+                                Gap.w8,
                                 const Icon(LucideIcons.arrowRight,
-                                    size: 16, color: AppColors.primary),
+                                    size: 18, color: AppColors.onPrimary),
                               ],
                             ),
                           ),
@@ -900,239 +901,153 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLow = product.stock > 0 && product.stock <= 10;
     final isOut = product.stock <= 0;
+    final inCart = qty > 0;
+
+    // The status the tile is in, said once. It was said three times before --
+    // by the placeholder's fill, by a corner badge, and by the stock line --
+    // each with its own colour logic.
+    final Color statusColor = isOut
+        ? AppColors.error
+        : isLow
+            ? AppColors.warning
+            : AppColors.inkTertiary;
 
     return AppTappable(
       ripple: false,
       onTap: isOut ? null : onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Gap.md),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [AppColors.cardShadow],
+          color: AppColors.canvas,
+          borderRadius: Radii.rMd,
+          // Selection is carried by the border, not by a shadow. A tile in the
+          // basket has to be identifiable at a glance across a 2-up grid.
+          border: Border.all(
+            color: inCart ? AppColors.primary : AppColors.outlineVariant,
+            width: inCart ? 1.5 : 1,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon area + badge
-            Stack(
+            Row(
               children: [
-                Container(
-                  height: 80,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: qty > 0
-                        ? AppColors.primaryContainer.withValues(alpha: 0.4)
-                        : AppColors.surfaceContainer,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    LucideIcons.package,
-                    color: isOut
-                        ? AppColors.inkTertiary
-                        : qty > 0
-                            ? AppColors.primary
-                            : AppColors.primary,
-                    size: 32,
-                  ),
+                // Was an 80px-tall placeholder holding the same generic package
+                // glyph for every product -- half the tile's height spent on
+                // nothing a cashier can use. The name is what identifies the
+                // item, so the name gets the space.
+                IconTile(
+                  icon: isOut ? LucideIcons.packageX : LucideIcons.package,
+                  tint: isOut ? AppColors.inkTertiary : AppColors.primary,
+                  size: 36,
                 ),
-                if (qty > 0)
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '×${formatQty(qty, product.unit)}${(product.unit ?? '').trim().isEmpty ? '' : ' ${product.unit!.trim()}'}',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                if (isLow && qty == 0)
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'LOW',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
+                const Spacer(),
                 if (isOut)
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.danger,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'OUT',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
+                  _Pill(label: 'Out', color: AppColors.error)
+                else if (isLow)
+                  _Pill(label: 'Low', color: AppColors.warning),
               ],
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: Gap.sm),
 
             Text(
               product.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isOut ? AppColors.inkTertiary : AppColors.inkPrimary,
+              style: AppText.bodyStrong.copyWith(
+                color: isOut ? AppColors.inkTertiary : AppColors.onSurface,
               ),
             ),
-            if (product.category != null)
-              Text(
-                product.category!.toUpperCase(),
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: AppColors.inkTertiary,
-                  letterSpacing: 0.3,
-                ),
+
+            const SizedBox(height: 2),
+
+            Text(
+              '${product.stock.toStringAsFixed(product.stock % 1 == 0 ? 0 : 1)} in stock',
+              style: AppText.caption.copyWith(
+                color: statusColor,
+                fontWeight: isOut || isLow ? FontWeight.w600 : FontWeight.w400,
               ),
-
-            const SizedBox(height: 4),
-
-            // Stock indicator — inline tiny pill
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  LucideIcons.layers,
-                  size: 9,
-                  color: isOut
-                      ? AppColors.danger
-                      : isLow
-                          ? AppColors.warning
-                          : AppColors.inkSecondary,
-                ),
-                const SizedBox(width: 3),
-                Text(
-                  '${product.stock.toStringAsFixed(product.stock % 1 == 0 ? 0 : 1)} in stock',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: isOut
-                        ? AppColors.danger
-                        : isLow
-                            ? AppColors.warning
-                            : AppColors.inkSecondary,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
 
             const Spacer(),
 
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '₹${product.sellingPrice.toStringAsFixed(0)}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
+                Expanded(
+                  child: Text(
+                    Money.inr(product.sellingPrice),
+                    // Was amber. Twenty tiles on screen meant twenty amber
+                    // numbers, so the colour identified nothing.
+                    style: AppText.money.copyWith(
+                      color: isOut ? AppColors.inkTertiary : AppColors.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // Qty quick controls
-                if (qty == 0)
-                  AppTappable(
-                    ripple: false,
+                if (!inCart)
+                  _TapTarget(
                     onTap: isOut ? null : onTap,
                     child: Container(
-                      width: 30,
-                      height: 30,
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
                         color: isOut
-                            ? AppColors.surfaceContainer
-                            : AppColors.primaryContainer,
-                        shape: BoxShape.circle,
+                            ? AppColors.secondaryContainer
+                            : AppColors.primary,
+                        borderRadius: Radii.rSm,
                       ),
-                      child: Icon(
-                        LucideIcons.plus,
-                        size: 16,
-                        color: isOut ? AppColors.inkTertiary : AppColors.primary,
-                      ),
+                      child: Icon(LucideIcons.plus,
+                          size: 20,
+                          color: isOut
+                              ? AppColors.inkTertiary
+                              : AppColors.onPrimary),
                     ),
                   )
                 else
+                  // These were 26px circles. Anything under about 44 is below
+                  // the minimum comfortable touch target, and this is the
+                  // control a cashier hits hundreds of times a day, quickly,
+                  // with a customer waiting. A mis-tap here is a wrong bill.
+                  // The drawn buttons stay compact; _TapTarget gives each one a
+                  // 44px hit area that overflows the drawing.
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      AppTappable(
-                        ripple: false,
+                      _TapTarget(
                         onTap: onRemove,
                         child: Container(
-                          width: 26,
-                          height: 26,
+                          width: 32,
+                          height: 32,
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceContainer,
-                            shape: BoxShape.circle,
+                            color: AppColors.secondaryContainer,
+                            borderRadius: Radii.rXs,
                           ),
                           child: const Icon(LucideIcons.minus,
-                              size: 13, color: AppColors.inkSecondary),
+                              size: 16, color: AppColors.onSurface),
                         ),
                       ),
-                      AppTappable(
-                        ripple: false,
-                        onTap: onTap,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Text(
-                            '$qty',
-                            style: GoogleFonts.manrope(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
-                            ),
-                          ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Text(
+                          formatQty(qty, product.unit),
+                          style: AppText.moneySmall,
                         ),
                       ),
-                      AppTappable(
-                        ripple: false,
+                      _TapTarget(
                         onTap: onAdd,
                         child: Container(
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryContainer,
-                            shape: BoxShape.circle,
+                          width: 32,
+                          height: 32,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: Radii.rXs,
                           ),
                           child: const Icon(LucideIcons.plus,
-                              size: 13, color: AppColors.primary),
+                              size: 16, color: AppColors.onPrimary),
                         ),
                       ),
                     ],
@@ -1140,6 +1055,53 @@ class _ProductCard extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A small status pill. Sentence case: LOW and OUT were set in w800 uppercase
+/// white on a saturated fill, which is a warning label on machinery, not a
+/// note on a shelf tag.
+class _Pill extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _Pill({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: Radii.rXs,
+      ),
+      child: Text(label, style: AppText.label.copyWith(color: color)),
+    );
+  }
+}
+
+/// Guarantees a 44px hit area around a smaller drawn control.
+///
+/// The POS drew 26px and 30px tap targets. Growing the drawing itself would
+/// crowd a tile that already has to hold a name, a price and a stock line, so
+/// the hit area is grown instead and allowed to overflow the visual bounds.
+class _TapTarget extends StatelessWidget {
+  final VoidCallback? onTap;
+  final Widget child;
+  const _TapTarget({required this.onTap, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Center(
+        child: AppTappable(
+          ripple: false,
+          onTap: onTap,
+          child: child,
         ),
       ),
     );
@@ -2037,60 +1999,55 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                         // _netTotal, so the figure follows any discount applied.
                         final after = due + _netTotal;
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.all(Gap.lg),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFEF2F2),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFFECACA)),
+                            // Was three hardcoded reds. These are the error
+                            // tokens, which the contrast gate covers.
+                            color: AppColors.errorContainer,
+                            borderRadius: Radii.rMd,
+                            border: Border.all(
+                                color: AppColors.error.withValues(alpha: 0.3)),
                           ),
                           child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Icon(LucideIcons.alertCircle,
-                                  size: 18, color: Color(0xFFDC2626)),
-                              const SizedBox(width: 10),
+                                  size: 20, color: AppColors.error),
+                              Gap.w12,
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       '${widget.selectedClient!.name ?? "Customer"} already owes',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.inkSecondary,
-                                      ),
+                                      style: AppText.caption.copyWith(
+                                          color: AppColors.onErrorContainer),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '₹${due.toStringAsFixed(2)}',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        color: const Color(0xFFDC2626),
-                                      ),
+                                      Money.inr(due),
+                                      style: AppText.money
+                                          .copyWith(color: AppColors.error),
                                     ),
                                   ],
                                 ),
                               ),
+                              Gap.w12,
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
                                     'With this bill',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.inkSecondary,
-                                    ),
+                                    style: AppText.caption.copyWith(
+                                        color: AppColors.onErrorContainer),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '₹${after.toStringAsFixed(2)}',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.inkPrimary,
-                                    ),
+                                    Money.inr(after),
+                                    style: AppText.money.copyWith(
+                                        color: AppColors.onErrorContainer),
                                   ),
                                 ],
                               ),
@@ -2102,22 +2059,10 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     ],
 
                     // ── Basket summary ────────────────────────────
-                    Text(
-                      'Basket Summary',
-                      style: GoogleFonts.manrope(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.inkPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [AppColors.cardShadow],
-                      ),
+                    Text('Basket summary', style: AppText.title),
+                    const SizedBox(height: Gap.md),
+                    AppCard(
+                      padding: const EdgeInsets.all(Gap.lg),
                       child: Column(
                         children: _localCart.map((item) {
                           return Padding(
@@ -2131,45 +2076,44 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                     children: [
                                       Text(
                                         '${item.product.name} ×${formatQtyWithUnit(item.quantity, item.product.unit)}',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.inkPrimary,
-                                        ),
+                                        style: AppText.bodyStrong,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
+                                      // Paise are kept here, unlike the list
+                                      // screens: this is the bill being built,
+                                      // and a rate of 11.50 shown as 12 would
+                                      // not match the receipt that prints.
                                       Text(
-                                        '₹${item.unitPrice.toStringAsFixed(2)} each',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          color: AppColors.inkTertiary,
-                                        ),
+                                        '${Money.inrExact(item.unitPrice)} each',
+                                        style: AppText.caption,
                                       ),
                                     ],
                                   ),
                                 ),
+                                Gap.w8,
                                 Text(
-                                  '₹${item.lineTotal.toStringAsFixed(2)}',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.inkPrimary,
-                                  ),
+                                  Money.inrExact(item.lineTotal),
+                                  style: AppText.moneySmall,
                                 ),
-                                const SizedBox(width: 8),
-                                AppTappable(
-                                  ripple: false,
+                                // Was a 24px hit area for the control that
+                                // removes a line from a bill -- small enough to
+                                // miss, and easy to hit by accident when
+                                // aiming at the line beside it.
+                                _TapTarget(
                                   onTap: () => _removeItem(item),
                                   child: Container(
-                                    width: 24,
-                                    height: 24,
+                                    width: 28,
+                                    height: 28,
                                     decoration: BoxDecoration(
-                                      color: AppColors.danger.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(8),
+                                      color: AppColors.error
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: Radii.rXs,
                                     ),
                                     child: const Icon(
                                       LucideIcons.x,
-                                      size: 12,
-                                      color: AppColors.danger,
+                                      size: 15,
+                                      color: AppColors.error,
                                     ),
                                   ),
                                 ),
@@ -2183,15 +2127,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     const SizedBox(height: 24),
 
                     // ── Payment method ────────────────────────────
-                    Text(
-                      'Payment Method',
-                      style: GoogleFonts.manrope(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.inkPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                    Text('Payment method', style: AppText.title),
+                    const SizedBox(height: Gap.md),
                     ..._payMethods.map((m) => _buildPaymentOption(m)),
 
                     const SizedBox(height: 16),
@@ -2201,20 +2138,14 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     // < total + client present → balance to client outstanding.
                     // > total (cash) → show change due.
                     if (_selectedPayType != 'CREDIT_SALE') ...[
-                      Text(
-                        'Amount received',
-                        style: GoogleFonts.manrope(
-                          fontSize: 14, fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                      Text('Amount received', style: AppText.bodyStrong),
+                      const SizedBox(height: Gap.sm),
                       TextField(
                         controller: _amountPaidCtrl,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         onChanged: (_) => setState(() {}),
                         decoration: InputDecoration(
-                          hintText: 'Blank means paid in full — ₹${_netTotal.toStringAsFixed(2)}',
+                          hintText: 'Blank means paid in full — ${Money.inrExact(_netTotal)}',
                           prefixText: '₹ ',
                           filled: true,
                           fillColor: AppColors.surfaceContainer,
