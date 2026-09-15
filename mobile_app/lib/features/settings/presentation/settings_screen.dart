@@ -78,8 +78,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             Text(
               'ACCOUNT & PREFERENCES',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
                 letterSpacing: 1.5,
@@ -203,8 +203,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(width: 10),
                   Text(
                     'APP PREFERENCES',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.5,
                       color: AppColors.primary,
@@ -280,8 +280,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           const SizedBox(width: 10),
                           Text(
                             'INVOICE TEMPLATE',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10,
+                            style: GoogleFonts.manrope(
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.5,
                               color: AppColors.primary,
@@ -452,7 +452,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     child: Text(
                       label,
                       style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: AppColors.inkTertiary,
                         fontWeight: FontWeight.w600,
                       ),
@@ -746,7 +746,7 @@ class _FormField extends StatelessWidget {
           text: TextSpan(
             text: label,
             style: GoogleFonts.manrope(
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.inkSecondary,
               letterSpacing: 0.3,
@@ -872,8 +872,8 @@ class _TaxModePicker extends StatelessWidget {
             ),
             child: Text(
               opt.$2,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
                 color: selected ? AppColors.onPrimaryContainer : AppColors.inkTertiary,
@@ -935,7 +935,7 @@ class _SettingRow extends StatelessWidget {
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
+                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                   ),
               ],
             ),

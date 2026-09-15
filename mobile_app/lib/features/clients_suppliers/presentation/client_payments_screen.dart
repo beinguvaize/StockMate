@@ -202,8 +202,8 @@ class _ClientPaymentsScreenState extends ConsumerState<ClientPaymentsScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                 child: Text(
                   '${filtered.length} payment${filtered.length == 1 ? '' : 's'}${q.isNotEmpty ? ' · filtered' : ''}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     color: AppColors.inkTertiary,
                   ),
                 ),
@@ -269,8 +269,8 @@ class _KpiTile extends StatelessWidget {
                 Flexible(
                   child: Text(
                     label,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 7.5,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkTertiary,
                       letterSpacing: 0.8,
@@ -412,7 +412,7 @@ class _PaymentCard extends StatelessWidget {
                   Text(
                     p.notes!,
                     style: GoogleFonts.manrope(
-                      fontSize: 12,
+                      fontSize: 13,
                       color: AppColors.inkTertiary,
                     ),
                     maxLines: 1,
@@ -427,7 +427,7 @@ class _PaymentCard extends StatelessWidget {
                     Text(
                       _formatDate(p.date),
                       style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: AppColors.inkTertiary,
                       ),
                     ),
@@ -461,8 +461,8 @@ class _PaymentCard extends StatelessWidget {
                 ),
                 child: Text(
                   meta.label,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: meta.color,
                     letterSpacing: 0.5,

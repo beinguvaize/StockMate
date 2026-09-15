@@ -282,7 +282,7 @@ class SupplierDetailScreen extends ConsumerWidget {
                   Center(
                     child: Text(
                       'Supplier added ${_fmtDate(supplier.createdAt!.toIso8601String())}',
-                      style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
+                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                     ),
                   ),
                 ],
@@ -366,8 +366,8 @@ class _HeroSection extends StatelessWidget {
                   ),
                   child: Text(
                     'SUPPLIER',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.warning,
                       letterSpacing: 1.5,
@@ -507,7 +507,7 @@ class _ActionBtn extends StatelessWidget {
             Text(
               label,
               style: GoogleFonts.manrope(
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary,
               ),
@@ -515,7 +515,7 @@ class _ActionBtn extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               sublabel,
-              style: GoogleFonts.manrope(fontSize: 10, color: AppColors.inkTertiary),
+              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -579,7 +579,7 @@ class _BalanceCard extends StatelessWidget {
                 Text(
                   'Credit Due',
                   style: GoogleFonts.manrope(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: AppColors.inkTertiary,
                   ),
                 ),
@@ -607,8 +607,8 @@ class _BalanceCard extends StatelessWidget {
                         ),
                         child: Text(
                           isOwed ? 'UNPAID' : 'CLEARED',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 9,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: color,
                             letterSpacing: 1.2,
@@ -664,8 +664,8 @@ class _SupplierStatsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9, fontWeight: FontWeight.w700,
+              style: GoogleFonts.manrope(
+                  fontSize: 13, fontWeight: FontWeight.w700,
                   color: AppColors.inkTertiary, letterSpacing: 1.2)),
           const SizedBox(height: 4),
           Text(value,
@@ -730,8 +730,8 @@ class _InfoSection extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               title,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkTertiary,
                 letterSpacing: 1.3,
@@ -828,7 +828,7 @@ class _InfoTileRow extends StatelessWidget {
                   Text(
                     tile.label,
                     style: GoogleFonts.manrope(
-                      fontSize: 11,
+                      fontSize: 13,
                       color: AppColors.inkTertiary,
                     ),
                   ),
@@ -869,8 +869,8 @@ class _TransactionSection extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               'PURCHASE HISTORY',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkTertiary,
                 letterSpacing: 1.3,
@@ -928,7 +928,7 @@ class _TransactionSection extends StatelessWidget {
                           child: Text(
                             '${txns.length} order${txns.length == 1 ? '' : 's'}',
                             style: GoogleFonts.manrope(
-                              fontSize: 12,
+                              fontSize: 13,
                               color: AppColors.inkTertiary,
                             ),
                           ),
@@ -981,7 +981,7 @@ class _TransactionSection extends StatelessWidget {
           error: (e, _) => Padding(
             padding: const EdgeInsets.all(16),
             child: Text('Error loading transactions: $e',
-                style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 12)),
+                style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 13)),
           ),
         ),
       ],
@@ -1024,7 +1024,7 @@ class _TxnTile extends StatelessWidget {
               children: [
                 Text(
                   txn.poNumber,
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkPrimary,
@@ -1032,7 +1032,7 @@ class _TxnTile extends StatelessWidget {
                 ),
                 Text(
                   _fmtDate(txn.date),
-                  style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
+                  style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                 ),
               ],
             ),
@@ -1052,8 +1052,8 @@ class _TxnTile extends StatelessWidget {
                   ),
                   child: Text(
                     txn.paymentType!,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 8,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: txn.paymentType == 'CASH' ? AppColors.primary : AppColors.warning,
                     ),

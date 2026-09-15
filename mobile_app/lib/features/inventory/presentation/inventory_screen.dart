@@ -217,8 +217,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                   children: [
                                     Text(
                                       'TOTAL ITEMS',
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 10,
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 13,
                                         color: AppColors.inkTertiary,
                                         letterSpacing: 0.5,
                                       ),
@@ -251,8 +251,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                   children: [
                                     Text(
                                       'LOW STOCK',
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 10,
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 13,
                                         color: AppColors.inkTertiary,
                                         letterSpacing: 0.5,
                                       ),
@@ -302,7 +302,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                               child: Text(
                                 'VIEW ALL',
                                 style: GoogleFonts.manrope(
-                                  fontSize: 12,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.primary,
                                 ),
@@ -400,8 +400,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                                 const SizedBox(height: 2),
                                                 Text(
                                                   'SKU: ${product.sku ?? "N/A"}',
-                                                  style: GoogleFonts.jetBrainsMono(
-                                                    fontSize: 11,
+                                                  style: GoogleFonts.manrope(
+                                                    fontSize: 13,
                                                     color: AppColors.inkTertiary,
                                                   ),
                                                 ),
@@ -425,7 +425,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                               Text(
                                                 marginPct == null ? '—' : '${marginPct.toStringAsFixed(1)}% margin',
                                                 style: GoogleFonts.manrope(
-                                                  fontSize: 11,
+                                                  fontSize: 13,
                                                   fontWeight: FontWeight.w600,
                                                   color: marginColor,
                                                 ),
@@ -440,7 +440,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                                 child: Text(
                                                   statusLabel,
                                                   style: GoogleFonts.manrope(
-                                                    fontSize: 10,
+                                                    fontSize: 13,
                                                     fontWeight: FontWeight.w700,
                                                     color: statusColor,
                                                   ),
@@ -683,8 +683,8 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                         ),
                         Text(
                           'new stock',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             color: AppColors.inkTertiary,
                           ),
                         ),
@@ -706,7 +706,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                   Text(
                     '${adjustment > 0 ? "+" : ""}$adjustment from current ($currentStock)',
                     style: GoogleFonts.manrope(
-                      fontSize: 12,
+                      fontSize: 13,
                       color: adjustment > 0 ? AppColors.success : AppColors.danger,
                       fontWeight: FontWeight.w500,
                     ),
@@ -723,9 +723,9 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                       labelText: lastRef != null
                           ? 'Purchase price / unit · last paid'
                           : 'Purchase price / unit (optional)',
-                      labelStyle: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkSecondary),
+                      labelStyle: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
                       hintText: 'Cost each — blank uses saved ₹${widget.product.costPrice.toStringAsFixed(2)}',
-                      hintStyle: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
+                      hintStyle: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                       isDense: true,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -735,7 +735,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                     lastRef != null
                         ? 'Defaulted to ₹${lastCost!.toStringAsFixed(2)} — last bought ${lastDate ?? ''} on $lastRef. Change it if this lot cost something else.'
                         : 'Enter what you paid so profit on these units is exact.',
-                    style: GoogleFonts.manrope(fontSize: 10.5, color: AppColors.inkTertiary),
+                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                   ),
                 ],
               ],
@@ -866,7 +866,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                     ),
                     Text(
                       'SKU: ${p.sku ?? "N/A"}',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 11, color: AppColors.inkTertiary),
+                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                     ),
                   ],
                 ),
@@ -879,7 +879,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                 ),
                 child: Text(
                   statusLabel,
-                  style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor),
+                  style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: statusColor),
                 ),
               ),
             ],

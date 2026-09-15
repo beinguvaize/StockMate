@@ -44,8 +44,8 @@ class LogisticsScreen extends ConsumerWidget {
             ),
             Text(
               'LOGISTICS MANAGEMENT',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.inkSecondary,
                 letterSpacing: 1.2,
@@ -110,8 +110,8 @@ class LogisticsScreen extends ConsumerWidget {
                             const SizedBox(width: 6),
                             Text(
                               'FLEET VEHICLES',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 11,
+                              style: GoogleFonts.manrope(
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 1.5,
                                 color: AppColors.primary,
@@ -141,8 +141,8 @@ class LogisticsScreen extends ConsumerWidget {
                                 children: [
                                   Text(
                                     'STOCK',
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 10,
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: 1,
                                       color: AppColors.secondary,
@@ -210,8 +210,8 @@ class LogisticsScreen extends ConsumerWidget {
                         const SizedBox(width: 6),
                         Text(
                           'ROUTES',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.5,
                             color: AppColors.secondary,
@@ -226,8 +226,8 @@ class LogisticsScreen extends ConsumerWidget {
                           ),
                           child: Text(
                             'VIEW ALL',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10,
+                            style: GoogleFonts.manrope(
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.2,
                               color: AppColors.primary,
@@ -357,8 +357,8 @@ class _StatCard extends StatelessWidget {
           children: [
             Text(
               label,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
                 color: color,
@@ -468,8 +468,8 @@ class _VehicleCard extends ConsumerWidget {
                       const SizedBox(height: 2),
                       Text(
                         plate.isNotEmpty ? plate : '—',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 12,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           color: AppColors.inkSecondary,
                         ),
                       ),
@@ -478,7 +478,7 @@ class _VehicleCard extends ConsumerWidget {
                         Text(
                           driver,
                           style: GoogleFonts.manrope(
-                            fontSize: 12,
+                            fontSize: 13,
                             color: AppColors.inkSecondary,
                           ),
                         ),
@@ -499,8 +499,8 @@ class _VehicleCard extends ConsumerWidget {
                   ),
                   child: Text(
                     statusLabel,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: statusFg,
                     ),
@@ -615,7 +615,7 @@ class _VehicleDetailSheet extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           vehicle.displayPlate,
-                          style: GoogleFonts.jetBrainsMono(
+                          style: GoogleFonts.manrope(
                             fontSize: 13,
                             color: AppColors.inkSecondary,
                           ),
@@ -632,8 +632,8 @@ class _VehicleDetailSheet extends StatelessWidget {
                     ),
                     child: Text(
                       statusLabel,
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: statusFg,
                       ),
@@ -885,8 +885,8 @@ class _DetailRow extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 11,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.inkSecondary,
               letterSpacing: 0.4,
@@ -1048,8 +1048,8 @@ class _RouteCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           route.date!,
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             color: AppColors.inkSecondary,
                           ),
                         ),
@@ -1070,8 +1070,8 @@ class _RouteCard extends StatelessWidget {
                   ),
                   child: Text(
                     statusLabel,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: statusFg,
                     ),

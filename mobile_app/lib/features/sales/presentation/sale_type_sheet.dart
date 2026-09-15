@@ -288,7 +288,7 @@ class _SaleTile extends StatelessWidget {
                   Text(
                     subtitle,
                     style: GoogleFonts.manrope(
-                      fontSize: 12, color: AppColors.inkSecondary,
+                      fontSize: 13, color: AppColors.inkSecondary,
                     ),
                   ),
                 ],
@@ -391,8 +391,8 @@ class _VehiclePicker extends StatelessWidget {
                           ),
                           if (plate.isNotEmpty)
                             Text(plate,
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 11, color: AppColors.inkTertiary,
+                              style: GoogleFonts.manrope(
+                                fontSize: 13, color: AppColors.inkTertiary,
                               ),
                             ),
                         ],

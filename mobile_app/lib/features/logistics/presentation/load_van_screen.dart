@@ -226,8 +226,8 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
             ),
             Text(
               'WAREHOUSE → ${widget.vehicleName.toUpperCase()}',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
                 letterSpacing: 1.2,
@@ -313,7 +313,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
                                             Text(
                                               '${item.available.toStringAsFixed(0)} in warehouse',
                                               style: GoogleFonts.manrope(
-                                                fontSize: 11,
+                                                fontSize: 13,
                                                 color: AppColors.inkTertiary,
                                               ),
                                             ),
@@ -329,7 +329,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
                                         child: Text(
                                           '$qty',
                                           textAlign: TextAlign.center,
-                                          style: GoogleFonts.jetBrainsMono(
+                                          style: GoogleFonts.manrope(
                                             fontWeight: FontWeight.w900,
                                             fontSize: 16,
                                             color: AppColors.inkPrimary,

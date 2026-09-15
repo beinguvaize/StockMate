@@ -328,9 +328,9 @@ class _ClientSettlementScreenState
             ),
             Text(
               client.name ?? '',
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.manrope(
                 color: AppColors.secondary,
-                fontSize: 9,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
               ),
@@ -451,7 +451,7 @@ class _ClientSettlementScreenState
                       child: Text(
                         'Fill full outstanding (₹${outstanding.toStringAsFixed(2)})',
                         style: GoogleFonts.manrope(
-                          fontSize: 11,
+                          fontSize: 13,
                           color: AppColors.primary,
                           fontWeight: FontWeight.w600,
                         ),
@@ -537,8 +537,8 @@ class _ClientSettlementScreenState
                           size: 14, color: AppColors.primary),
                       title: Text(
                         'APPLY TO INVOICES (OPTIONAL)',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.5,
                           color: AppColors.inkPrimary,
@@ -561,7 +561,7 @@ class _ClientSettlementScreenState
                               Text(
                                 '${unpaid.length} unpaid bill${unpaid.length == 1 ? '' : 's'}',
                                 style: GoogleFonts.manrope(
-                                  fontSize: 12,
+                                  fontSize: 13,
                                   color: AppColors.inkTertiary,
                                 ),
                               ),
@@ -587,7 +587,7 @@ class _ClientSettlementScreenState
                                 child: Text(
                                   allSelected ? 'Deselect All' : 'Select All',
                                   style: GoogleFonts.manrope(
-                                    fontSize: 12,
+                                    fontSize: 13,
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -618,8 +618,8 @@ class _ClientSettlementScreenState
                                 horizontal: 16, vertical: 0),
                             title: Text(
                               inv.displayNumber,
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 12,
+                              style: GoogleFonts.manrope(
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.inkPrimary,
                               ),
@@ -629,7 +629,7 @@ class _ClientSettlementScreenState
                                   ? 'Due ${_formatDate(inv.dueDate!)}'
                                   : 'No due date',
                               style: GoogleFonts.manrope(
-                                fontSize: 11,
+                                fontSize: 13,
                                 color: AppColors.inkTertiary,
                               ),
                             ),
@@ -664,7 +664,7 @@ class _ClientSettlementScreenState
                                   'invoice${_selectedInvoiceIds.length == 1 ? '' : 's'} '
                                   '· ₹${selTotal.toStringAsFixed(2)}',
                                   style: GoogleFonts.manrope(
-                                    fontSize: 12,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.inkSecondary,
                                   ),
@@ -713,7 +713,7 @@ class _ClientSettlementScreenState
                       const SizedBox(width: 8),
                       Text(
                         'RECORD PAYMENT',
-                        style: GoogleFonts.jetBrainsMono(
+                        style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                           letterSpacing: 1,
@@ -789,7 +789,7 @@ class _ClientSummaryCard extends StatelessWidget {
                 Text(
                   '$unpaidCount unpaid bill${unpaidCount == 1 ? '' : 's'}',
                   style: GoogleFonts.manrope(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: AppColors.inkTertiary,
                   ),
                 ),
@@ -811,7 +811,7 @@ class _ClientSummaryCard extends StatelessWidget {
               Text(
                 outstanding < 0 ? 'advance' : 'outstanding',
                 style: GoogleFonts.manrope(
-                  fontSize: 10,
+                  fontSize: 13,
                   color: AppColors.inkTertiary,
                 ),
               ),
@@ -861,8 +861,8 @@ class _SectionCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.5,
                     color: AppColors.inkPrimary,
@@ -899,8 +899,8 @@ class _FieldLabel extends StatelessWidget {
         text: TextSpan(children: [
           TextSpan(
             text: text.toUpperCase(),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               color: AppColors.inkTertiary,
               letterSpacing: 1,
@@ -909,8 +909,8 @@ class _FieldLabel extends StatelessWidget {
           if (required)
             TextSpan(
               text: ' *',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 11,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w900,
                 color: AppColors.primary,
               ),
@@ -963,8 +963,8 @@ class _MethodSelector extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(
                   m,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
                     color: isSelected

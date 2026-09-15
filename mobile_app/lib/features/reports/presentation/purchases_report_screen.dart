@@ -343,7 +343,7 @@ class _SupplierCard extends StatelessWidget {
                 Text(
                   '$count order${count == 1 ? '' : 's'} · avg ${compactINR(avg)}',
                   style: GoogleFonts.manrope(
-                    fontSize: 11,
+                    fontSize: 13,
                     color: AppColors.inkSecondary,
                   ),
                 ),
@@ -400,8 +400,8 @@ class _PurchaseItem extends StatelessWidget {
             children: [
               Text(
                 date,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
                   color: AppColors.inkTertiary,
                 ),
               ),
@@ -433,7 +433,7 @@ class _PurchaseItem extends StatelessWidget {
               Text(
                 'Qty: ${qty.toStringAsFixed(0)}${notes.isNotEmpty ? '  ·  $notes' : ''}',
                 style: GoogleFonts.manrope(
-                  fontSize: 12,
+                  fontSize: 13,
                   color: AppColors.inkSecondary,
                 ),
               ),
@@ -450,8 +450,8 @@ class _PurchaseItem extends StatelessWidget {
                   ),
                   child: Text(
                     paymentType.toUpperCase(),
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkSecondary,
                     ),
@@ -475,8 +475,8 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: GoogleFonts.jetBrainsMono(
-        fontSize: 10,
+      style: GoogleFonts.manrope(
+        fontSize: 13,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
         color: AppColors.inkTertiary,

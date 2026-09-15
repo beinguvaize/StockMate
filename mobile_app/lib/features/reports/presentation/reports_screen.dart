@@ -186,8 +186,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
             Text(
               'BUSINESS ANALYTICS',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
                 letterSpacing: 1.5,
@@ -216,8 +216,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     const SizedBox(width: 6),
                     Text(
                       '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary,
                       ),
@@ -275,8 +275,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             const SizedBox(width: 8),
                             Text(
                               'NET PROFIT / LOSS',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
+                              style: GoogleFonts.manrope(
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 1.5,
                                 color: summary.netProfit >= 0
@@ -302,7 +302,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         Text(
                           '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
                           style: GoogleFonts.manrope(
-                            fontSize: 12,
+                            fontSize: 13,
                             color: summary.netProfit >= 0
                                 ? AppColors.inkPrimary.withValues(alpha: 0.5)
                                 : AppColors.danger.withValues(alpha: 0.7),
@@ -435,7 +435,7 @@ class _HubCard extends StatelessWidget {
                   Text(
                     item.subtitle,
                     style: GoogleFonts.manrope(
-                      fontSize: 11,
+                      fontSize: 13,
                       color: AppColors.inkSecondary,
                     ),
                   ),
@@ -511,7 +511,7 @@ class _MetricCard extends StatelessWidget {
                 Text(
                   subtitle,
                   style: GoogleFonts.manrope(
-                    fontSize: 11,
+                    fontSize: 13,
                     color: AppColors.inkSecondary,
                   ),
                 ),
@@ -553,8 +553,8 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           title,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 11,
+          style: GoogleFonts.manrope(
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
             color: AppColors.primary,

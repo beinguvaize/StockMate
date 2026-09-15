@@ -594,7 +594,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                                             Text(
                                               (stores.firstWhere((s) => s['id'] == _posStoreId, orElse: () => stores.first)['name'] ?? 'Store').toString().toUpperCase(),
-                                              style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppColors.primary, letterSpacing: 0.5, fontWeight: FontWeight.w700),
+                                              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.primary, letterSpacing: 0.5, fontWeight: FontWeight.w700),
                                             ),
                                             const Icon(LucideIcons.chevronDown, size: 12, color: AppColors.primary),
                                           ]),
@@ -602,8 +602,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                       else
                                         Text(
                                           widget.isVanSale ? 'ROADSIDE POS' : 'REGISTER 01',
-                                          style: GoogleFonts.jetBrainsMono(
-                                            fontSize: 10,
+                                          style: GoogleFonts.manrope(
+                                            fontSize: 13,
                                             color: widget.isVanSale ? AppColors.secondary : AppColors.inkTertiary,
                                             letterSpacing: 0.5,
                                           ),
@@ -627,7 +627,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                         Text(
                                           _selectedClient == null ? 'Walk-in' : (_selectedClient!.name ?? 'Client'),
                                           style: GoogleFonts.manrope(
-                                            fontSize: 12,
+                                            fontSize: 13,
                                             fontWeight: FontWeight.w600,
                                             color: AppColors.secondary,
                                           ),
@@ -808,8 +808,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                             children: [
                               Text(
                                 'BASKET TOTAL',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 13,
                                   color: Colors.white60,
                                   letterSpacing: 0.5,
                                 ),
@@ -948,8 +948,8 @@ class _ProductCard extends StatelessWidget {
                       ),
                       child: Text(
                         '×${formatQty(qty, product.unit)}${(product.unit ?? '').trim().isEmpty ? '' : ' ${product.unit!.trim()}'}',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
                         ),
@@ -968,8 +968,8 @@ class _ProductCard extends StatelessWidget {
                       ),
                       child: Text(
                         'LOW',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 8,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
                           letterSpacing: 0.5,
@@ -989,8 +989,8 @@ class _ProductCard extends StatelessWidget {
                       ),
                       child: Text(
                         'OUT',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 8,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
                           letterSpacing: 0.5,
@@ -1016,8 +1016,8 @@ class _ProductCard extends StatelessWidget {
             if (product.category != null)
               Text(
                 product.category!.toUpperCase(),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
                   color: AppColors.inkTertiary,
                   letterSpacing: 0.3,
                 ),
@@ -1041,8 +1041,8 @@ class _ProductCard extends StatelessWidget {
                 const SizedBox(width: 3),
                 Text(
                   '${product.stock.toStringAsFixed(product.stock % 1 == 0 ? 0 : 1)} in stock',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: isOut
                         ? AppColors.danger
@@ -1329,8 +1329,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         if (p.sku != null)
                           Text(
                             'SKU: ${p.sku}',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10,
+                            style: GoogleFonts.manrope(
+                              fontSize: 13,
                               color: AppColors.inkTertiary,
                               letterSpacing: 0.3,
                             ),
@@ -1357,8 +1357,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         const SizedBox(width: 4),
                         Text(
                           isLow ? 'Low (${p.stock.toInt()})' : 'In Stock',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: isLow ? AppColors.warning : AppColors.primary,
                           ),
@@ -1375,8 +1375,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
               Text(
                 'ADJUST QUANTITY',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: AppColors.inkTertiary,
                   letterSpacing: 1.5,
@@ -1498,7 +1498,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                                       ? 'by ${widget.product.secondaryUnit} · ${formatQty(_qty, widget.product.unit)} ${widget.product.unit ?? ''}'
                                       : 'Sell by ${widget.product.secondaryUnit}?',
                                   style: GoogleFonts.manrope(
-                                    fontSize: 12,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: _alt ? AppColors.primary : AppColors.inkTertiary,
                                   ),
@@ -1570,8 +1570,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                   ),
                   decoration: InputDecoration(
                     labelText: _alt ? 'PRICE / ${widget.product.secondaryUnit!.toUpperCase()}' : 'UNIT PRICE',
-                    labelStyle: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
+                    labelStyle: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkTertiary,
                       letterSpacing: 1,
@@ -1624,7 +1624,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         child: Text(
                           'Below cost — this stock cost ₹${_cost.toStringAsFixed(2)}',
                           style: GoogleFonts.manrope(
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFFB91C1C),
                           ),
@@ -1642,8 +1642,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                 children: [
                   Text(
                     'ESTIMATED TOTAL',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkTertiary,
                       letterSpacing: 1.5,
@@ -1743,7 +1743,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                 'Tap quantity number on card to reopen this screen',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.manrope(
-                  fontSize: 11,
+                  fontSize: 13,
                   color: AppColors.inkTertiary,
                 ),
               ),
@@ -2012,8 +2012,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                           ),
                           child: Text(
                             '${_localCart.length} ${_localCart.length == 1 ? 'item' : 'items'}',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 11,
+                            style: GoogleFonts.manrope(
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: AppColors.inkSecondary,
                               letterSpacing: 0.3,
@@ -2055,7 +2055,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                     Text(
                                       '${widget.selectedClient!.name ?? "Customer"} already owes',
                                       style: GoogleFonts.manrope(
-                                        fontSize: 11,
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w600,
                                         color: AppColors.inkSecondary,
                                       ),
@@ -2078,7 +2078,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                   Text(
                                     'With this bill',
                                     style: GoogleFonts.manrope(
-                                      fontSize: 10,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                       color: AppColors.inkSecondary,
                                     ),
@@ -2140,7 +2140,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                       Text(
                                         '₹${item.unitPrice.toStringAsFixed(2)} each',
                                         style: GoogleFonts.manrope(
-                                          fontSize: 12,
+                                          fontSize: 13,
                                           color: AppColors.inkTertiary,
                                         ),
                                       ),
@@ -2472,10 +2472,10 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               size: 16, color: colour),
           const SizedBox(width: 8),
           Text(label, style: GoogleFonts.manrope(
-              fontSize: 12, fontWeight: FontWeight.w700, color: colour)),
+              fontSize: 13, fontWeight: FontWeight.w700, color: colour)),
           const Spacer(),
           Text('₹${diff.abs().toStringAsFixed(2)}',
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.manrope(
                   fontSize: 14, fontWeight: FontWeight.w700, color: colour)),
         ],
       ),
@@ -2572,7 +2572,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                   Text(
                     m.subtitle,
                     style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         // 70% opacity amber on the tint measured ~2.2:1.
                         // Opacity on text always drifts against its surface —
                         // use a solid colour instead.
@@ -2860,7 +2860,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                         Text(
                                           'No credit option',
                                           style: GoogleFonts.manrope(
-                                            fontSize: 11,
+                                            fontSize: 13,
                                             color: AppColors.inkTertiary,
                                           ),
                                         ),
@@ -2943,7 +2943,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                         Text(
                                           client.phone!,
                                           style: GoogleFonts.manrope(
-                                            fontSize: 11,
+                                            fontSize: 13,
                                             color: AppColors.inkTertiary,
                                           ),
                                         ),
@@ -2960,8 +2960,8 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                     ),
                                     child: Text(
                                       '₹${outstanding.toStringAsFixed(0)} due',
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 10,
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.danger,
                                       ),
@@ -3204,7 +3204,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                   style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
               Text('  Used automatically on their next credit bill.',
-                  style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary)),
+                  style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
             ],
           ],
         ),
@@ -3303,7 +3303,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
           Text('₹${widget.total.toStringAsFixed(2)}',
             style: GoogleFonts.manrope(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.inkPrimary)),
           Text(widget.saleId,
-            style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkSecondary)),
+            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary)),
           const SizedBox(height: 24),
           // Print + Share row
           Row(children: [
@@ -3340,7 +3340,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                         const SizedBox(width: 6),
                         Text(
                           '${widget.client!.name ?? "Client"} — ₹${widget.outstanding.toStringAsFixed(2)} outstanding',
-                          style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
+                          style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
                         ),
                       ],
                     ),
@@ -3413,7 +3413,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(color: _collectMethod == m ? AppColors.primaryContainer : Colors.black.withValues(alpha: 0.1)),
                                 ),
-                                child: Text(m, style: GoogleFonts.jetBrainsMono(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
+                                child: Text(m, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
                               ),
                             ),
                           )),
@@ -3518,7 +3518,7 @@ class _OutstandingTile extends StatelessWidget {
                 children: [
                   Text(title, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
                   const SizedBox(height: 1),
-                  Text(subtitle, style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkSecondary)),
+                  Text(subtitle, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary)),
                 ],
               ),
             ),

@@ -108,7 +108,7 @@ class _SyncStatusPillState extends ConsumerState<SyncStatusPill> {
             Text(
               label,
               style: GoogleFonts.manrope(
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: FontWeight.w500,
                 color: fg,
                 letterSpacing: 0.1,

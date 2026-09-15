@@ -43,8 +43,8 @@ class _ClientProductsCardState extends State<ClientProductsCard> {
             Text(
               'PRODUCTS BOUGHT',
               // Same label treatment as "BILLS & PAYMENTS" below it.
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10, fontWeight: FontWeight.w700,
+              style: GoogleFonts.manrope(
+                fontSize: 13, fontWeight: FontWeight.w700,
                 letterSpacing: 1.2, color: AppColors.inkTertiary,
               ),
             ),
@@ -53,7 +53,7 @@ class _ClientProductsCardState extends State<ClientProductsCard> {
               Text(
                 lines.length == 1 ? '1 item' : '${lines.length} items',
                 style: GoogleFonts.manrope(
-                  fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.inkTertiary,
+                  fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkTertiary,
                 ),
               ),
           ],
@@ -94,7 +94,7 @@ class _ClientProductsCardState extends State<ClientProductsCard> {
                       ? 'Show less'
                       : 'Show all ${lines.length} products',
                   style: GoogleFonts.manrope(
-                    fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary,
+                    fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary,
                   ),
                 ),
               ),
@@ -135,7 +135,7 @@ class _ClientProductsCardState extends State<ClientProductsCard> {
                   '${l.orders > 1 ? '  ·  ${l.orders} times' : ''}'
                   '${l.lastDate.isNotEmpty ? '  ·  last ${_shortDate(l.lastDate)}' : ''}',
                   style: GoogleFonts.manrope(
-                    fontSize: 11.5, fontWeight: FontWeight.w500, color: AppColors.inkTertiary,
+                    fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.inkTertiary,
                   ),
                 ),
               ],
@@ -171,7 +171,7 @@ class _ClientProductsCardState extends State<ClientProductsCard> {
               'No products recorded for this client yet',
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
-                fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.inkTertiary,
+                fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.inkTertiary,
               ),
             ),
             const SizedBox(height: 3),
@@ -181,7 +181,7 @@ class _ClientProductsCardState extends State<ClientProductsCard> {
               'Sales billed to them will appear here',
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
-                fontSize: 11, fontWeight: FontWeight.w400, color: AppColors.inkTertiary,
+                fontSize: 13, fontWeight: FontWeight.w400, color: AppColors.inkTertiary,
               ),
             ),
           ],

@@ -110,8 +110,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                             children: [
                               Text(
                                 totalLabel,
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 13,
                                   color: AppColors.inkTertiary,
                                   letterSpacing: 0.5,
                                 ),
@@ -144,8 +144,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                             children: [
                               Text(
                                 'TRANSACTIONS',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 13,
                                   color: AppColors.inkTertiary,
                                   letterSpacing: 0.5,
                                 ),
@@ -196,7 +196,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                       child: Text(
                         _dateFilters[i],
                         style: GoogleFonts.manrope(
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: isActive ? Colors.white : AppColors.inkTertiary,
                         ),
@@ -242,7 +242,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                             child: Text(
                               filters[i],
                               style: GoogleFonts.manrope(
-                                fontSize: 12,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: isActive ? AppColors.primary : AppColors.inkTertiary,
                               ),
@@ -373,8 +373,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                   const SizedBox(height: 2),
                                   Text(
                                     '#${sale.id.toUpperCase()}',
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 11,
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 13,
                                       color: AppColors.inkTertiary,
                                     ),
                                   ),
@@ -383,7 +383,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                     Text(
                                       _fmtDate(sale.date!),
                                       style: GoogleFonts.manrope(
-                                        fontSize: 11,
+                                        fontSize: 13,
                                         color: AppColors.inkTertiary,
                                       ),
                                     ),
@@ -421,7 +421,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                   child: Text(
                                     badgeLabel,
                                     style: GoogleFonts.manrope(
-                                      fontSize: 10,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       color: badgeColor,
                                     ),
@@ -444,7 +444,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                 child: Text.rich(
                                   TextSpan(
                                     style: GoogleFonts.manrope(
-                                      fontSize: 12, fontWeight: FontWeight.w700),
+                                      fontSize: 13, fontWeight: FontWeight.w700),
                                     children: [
                                       if (isPartial) ...[
                                         TextSpan(
@@ -483,7 +483,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                       Text(
                                         'Collect ₹${dueAmt.toStringAsFixed(0)}',
                                         style: GoogleFonts.manrope(
-                                          fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                                          fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
                                       ),
                                     ],
                                   ),

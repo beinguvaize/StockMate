@@ -143,7 +143,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                     letterSpacing: -0.5, color: AppColors.inkPrimary)),
             Text('Manage and track your supplier purchase orders.',
                 style: GoogleFonts.manrope(
-                    fontSize: 11, color: AppColors.inkSecondary)),
+                    fontSize: 13, color: AppColors.inkSecondary)),
           ],
         ),
         actions: [
@@ -171,7 +171,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                         const SizedBox(width: 6),
                         Text('New Order',
                             style: GoogleFonts.manrope(
-                                fontSize: 12, fontWeight: FontWeight.w700,
+                                fontSize: 13, fontWeight: FontWeight.w700,
                                 color: AppColors.inkPrimary)),
                       ],
                     ),
@@ -278,8 +278,8 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('MONTHLY SPEND',
-                                style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 10, fontWeight: FontWeight.w700,
+                                style: GoogleFonts.manrope(
+                                    fontSize: 13, fontWeight: FontWeight.w700,
                                     letterSpacing: 1.2,
                                     color: AppColors.inkSecondary)),
                             const SizedBox(height: 4),
@@ -340,7 +340,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                                   child: Text(
                                     e.value,
                                     style: GoogleFonts.manrope(
-                                      fontSize: 12,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                       color: active
                                           ? AppColors.secondary
@@ -374,8 +374,8 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                           ),
                           const SizedBox(width: 10),
                           Text('PURCHASE ORDERS',
-                              style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 11, fontWeight: FontWeight.w700,
+                              style: GoogleFonts.manrope(
+                                  fontSize: 13, fontWeight: FontWeight.w700,
                                   letterSpacing: 1.5, color: AppColors.primary)),
                         ],
                       ),
@@ -499,8 +499,8 @@ class _StatCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9, fontWeight: FontWeight.w700,
+                style: GoogleFonts.manrope(
+                    fontSize: 13, fontWeight: FontWeight.w700,
                     letterSpacing: 1.2, color: AppColors.inkSecondary)),
             const SizedBox(height: 6),
             Text(value,
@@ -514,7 +514,7 @@ class _StatCard extends StatelessWidget {
               Expanded(
                 child: Text(subText,
                     style: GoogleFonts.manrope(
-                        fontSize: 10, color: AppColors.inkTertiary),
+                        fontSize: 13, color: AppColors.inkTertiary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
               ),
@@ -589,8 +589,8 @@ class _PurchaseCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${purchase.poNumber} · ${fmtDate(purchase.date)}',
-                  style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10, color: AppColors.inkTertiary),
+                  style: GoogleFonts.manrope(
+                      fontSize: 13, color: AppColors.inkTertiary),
                 ),
                 if (purchase.deliveryDate != null) ...[
                   const SizedBox(height: 2),
@@ -600,7 +600,7 @@ class _PurchaseCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text('Est. ${fmtDate(purchase.deliveryDate)}',
                         style: GoogleFonts.manrope(
-                            fontSize: 10, color: AppColors.inkTertiary)),
+                            fontSize: 13, color: AppColors.inkTertiary)),
                   ]),
                 ],
               ],
@@ -627,8 +627,8 @@ class _PurchaseCard extends StatelessWidget {
                 ),
                 child: Text(
                   status,
-                  style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9, fontWeight: FontWeight.w700,
+                  style: GoogleFonts.manrope(
+                      fontSize: 13, fontWeight: FontWeight.w700,
                       color: statusColor),
                 ),
               ),
@@ -1222,8 +1222,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                   fontSize: 22, fontWeight: FontWeight.w800,
                                   letterSpacing: -0.5, color: AppColors.inkPrimary)),
                           Text('ONE SUPPLIER · MULTIPLE PRODUCTS · SINGLE SUBMIT',
-                              style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 9, fontWeight: FontWeight.w600,
+                              style: GoogleFonts.manrope(
+                                  fontSize: 13, fontWeight: FontWeight.w600,
                                   color: AppColors.inkSecondary, letterSpacing: 1.2)),
                           const SizedBox(height: 16),
 
@@ -1326,7 +1326,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                       child: Text(
                                         'Rs ${((_grandTotal) - (double.tryParse(_paidNowCtrl.text.trim()) ?? 0)).clamp(0, double.infinity).toStringAsFixed(2)} stays on credit',
                                         style: GoogleFonts.inter(
-                                            fontSize: 11.5,
+                                            fontSize: 13,
                                             fontWeight: FontWeight.w600,
                                             color: AppColors.inkSecondary),
                                       ),
@@ -1418,8 +1418,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                               _label('LINE ITEMS'),
                               const Spacer(),
                               Text('${_lines.length} ROW${_lines.length == 1 ? '' : 'S'}',
-                                  style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 9, fontWeight: FontWeight.w700,
+                                  style: GoogleFonts.manrope(
+                                      fontSize: 13, fontWeight: FontWeight.w700,
                                       color: AppColors.inkTertiary, letterSpacing: 1)),
                             ],
                           ),
@@ -1454,8 +1454,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                             onPressed: () => setState(() => _lines.add(_PurchaseLine())),
                             icon: const Icon(LucideIcons.plus, size: 14),
                             label: Text('ADD ROW',
-                                style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 11, fontWeight: FontWeight.w700,
+                                style: GoogleFonts.manrope(
+                                    fontSize: 13, fontWeight: FontWeight.w700,
                                     letterSpacing: 1)),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.primary,
@@ -1480,8 +1480,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text('GRAND TOTAL',
-                                    style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 10, fontWeight: FontWeight.w700,
+                                    style: GoogleFonts.manrope(
+                                        fontSize: 13, fontWeight: FontWeight.w700,
                                         color: Colors.white.withValues(alpha: 0.6),
                                         letterSpacing: 1.5)),
                                 Text('₹${_grandTotal.toStringAsFixed(2)}',
@@ -1522,8 +1522,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                         const SizedBox(width: 8),
                                         Text(
                                           'SAVE ${itemCount > 0 ? "$itemCount ITEM${itemCount == 1 ? '' : 'S'}" : 'PURCHASE'}',
-                                          style: GoogleFonts.jetBrainsMono(
-                                              fontSize: 12, fontWeight: FontWeight.w700,
+                                          style: GoogleFonts.manrope(
+                                              fontSize: 13, fontWeight: FontWeight.w700,
                                               letterSpacing: 1.5),
                                         ),
                                       ],
@@ -1543,8 +1543,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 6, left: 2),
     child: Text(text,
-        style: GoogleFonts.jetBrainsMono(
-            fontSize: 9, fontWeight: FontWeight.w700,
+        style: GoogleFonts.manrope(
+            fontSize: 13, fontWeight: FontWeight.w700,
             color: AppColors.inkTertiary, letterSpacing: 1.2)),
   );
 }
@@ -1627,8 +1627,8 @@ class _LineItemCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text('#${index + 1}',
-                    style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10, fontWeight: FontWeight.w700,
+                    style: GoogleFonts.manrope(
+                        fontSize: 13, fontWeight: FontWeight.w700,
                         color: AppColors.primary)),
               ),
               const Spacer(),
@@ -1658,7 +1658,7 @@ class _LineItemCard extends StatelessWidget {
                       'On bill: ${line.scannedName}',
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.manrope(
-                        fontSize: 11.5, fontWeight: FontWeight.w700,
+                        fontSize: 13, fontWeight: FontWeight.w700,
                         color: AppColors.onPrimaryContainer,
                       ),
                     ),
@@ -1723,7 +1723,7 @@ class _LineItemCard extends StatelessWidget {
                           child: Text(
                             '${p['name']}',
                             style: GoogleFonts.manrope(
-                                fontSize: 11.5, fontWeight: FontWeight.w700,
+                                fontSize: 13, fontWeight: FontWeight.w700,
                                 color: AppColors.onPrimaryContainer),
                           ),
                         ),
@@ -1745,7 +1745,7 @@ class _LineItemCard extends StatelessWidget {
                             const SizedBox(width: 4),
                             Text('Create new',
                                 style: GoogleFonts.manrope(
-                                    fontSize: 11.5, fontWeight: FontWeight.w700,
+                                    fontSize: 13, fontWeight: FontWeight.w700,
                                     color: AppColors.primary)),
                           ],
                         ),
@@ -1761,8 +1761,8 @@ class _LineItemCard extends StatelessWidget {
               child: Text(
                 'Stock: ${selectedProduct['stock'] ?? 0}'
                 '${lastCost != null && lastCost > 0 ? " · Last ₹${lastCost.toStringAsFixed(2)}" : ""}',
-                style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9, fontWeight: FontWeight.w600,
+                style: GoogleFonts.manrope(
+                    fontSize: 13, fontWeight: FontWeight.w600,
                     color: AppColors.inkTertiary),
               ),
             ),
@@ -1825,7 +1825,7 @@ class _LineItemCard extends StatelessWidget {
                         ? 'Expiry: ${line.expiryDate!.day}/${line.expiryDate!.month}/${line.expiryDate!.year}'
                         : 'Add expiry date (optional)',
                     style: GoogleFonts.manrope(
-                        fontSize: 11, fontWeight: FontWeight.w600,
+                        fontSize: 13, fontWeight: FontWeight.w600,
                         color: line.expiryDate != null ? AppColors.warning : AppColors.inkTertiary),
                   ),
                   if (line.expiryDate != null) ...[
@@ -1848,8 +1848,8 @@ class _LineItemCard extends StatelessWidget {
                 unit > lastCost
                     ? '▲ Higher than last ₹${lastCost.toStringAsFixed(2)}'
                     : '▼ Lower than last ₹${lastCost.toStringAsFixed(2)}',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9, fontWeight: FontWeight.w700,
+                style: GoogleFonts.manrope(
+                  fontSize: 13, fontWeight: FontWeight.w700,
                   color: unit > lastCost ? AppColors.warning : AppColors.success,
                 ),
               ),
@@ -1880,8 +1880,8 @@ class _MiniField extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 4, left: 2),
           child: Text(label,
-              style: GoogleFonts.jetBrainsMono(
-                  fontSize: 8, fontWeight: FontWeight.w700,
+              style: GoogleFonts.manrope(
+                  fontSize: 13, fontWeight: FontWeight.w700,
                   color: AppColors.inkTertiary, letterSpacing: 1)),
         ),
         Container(
@@ -2209,8 +2209,8 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
                                       Text(
                                         'Stock ${p['stock'] ?? 0}'
                                         '${(p['sku'] ?? '').toString().isNotEmpty ? " · ${p['sku']}" : ""}',
-                                        style: GoogleFonts.jetBrainsMono(
-                                            fontSize: 10,
+                                        style: GoogleFonts.manrope(
+                                            fontSize: 13,
                                             color: AppColors.inkTertiary),
                                       ),
                                     ],

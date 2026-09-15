@@ -117,8 +117,8 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
             ),
             Text(
               'STOCK ON BOARD — ALL VANS',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
                 letterSpacing: 1.2,
@@ -178,7 +178,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                     Text(
                                       '${_rows.length} vehicle${_rows.length > 1 ? 's' : ''}',
                                       style: GoogleFonts.manrope(
-                                        fontSize: 12,
+                                        fontSize: 13,
                                         color: AppColors.secondary,
                                       ),
                                     ),
@@ -243,7 +243,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                                   ? 'Empty'
                                                   : '${r.products} product${r.products > 1 ? 's' : ''}',
                                               style: GoogleFonts.manrope(
-                                                fontSize: 11,
+                                                fontSize: 13,
                                                 color: AppColors.inkTertiary,
                                               ),
                                             ),
@@ -252,7 +252,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                       ),
                                       Text(
                                         r.units.toStringAsFixed(0),
-                                        style: GoogleFonts.jetBrainsMono(
+                                        style: GoogleFonts.manrope(
                                           fontWeight: FontWeight.w900,
                                           fontSize: 18,
                                           color: r.units <= 0
@@ -264,7 +264,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                       Text(
                                         'units',
                                         style: GoogleFonts.manrope(
-                                          fontSize: 10,
+                                          fontSize: 13,
                                           color: AppColors.inkTertiary,
                                         ),
                                       ),

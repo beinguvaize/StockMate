@@ -327,7 +327,7 @@ class _Gstr3bBody extends StatelessWidget {
               Text(
                 'Filing Period: ${_kMonthNames[month]} $year',
                 style: GoogleFonts.manrope(
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: AppColors.inkSecondary,
                 ),
@@ -421,7 +421,7 @@ class _Gstr3bBody extends StatelessWidget {
               Text(
                 '${interStateInvoices.length} inter-state invoice${interStateInvoices.length == 1 ? '' : 's'}',
                 style: GoogleFonts.manrope(
-                  fontSize: 12,
+                  fontSize: 13,
                   color: AppColors.inkSecondary,
                 ),
               ),
@@ -463,7 +463,7 @@ class _Gstr3bBody extends StatelessWidget {
               Text(
                 'ITC counts only purchases from GST-registered suppliers, estimated at 18% on paid bills. Verify against actual invoices.',
                 style: GoogleFonts.manrope(
-                  fontSize: 11,
+                  fontSize: 13,
                   fontStyle: FontStyle.italic,
                   color: AppColors.inkTertiary,
                 ),
@@ -536,7 +536,7 @@ class _Gstr3bBody extends StatelessWidget {
                 child: Text(
                   'Figures are estimates. File official GSTR-3B on the GST portal.',
                   style: GoogleFonts.manrope(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: const Color(0xFF1D4ED8),
                     height: 1.5,
                   ),
@@ -649,8 +649,8 @@ class _GstCell extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 9,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
               color: AppColors.inkTertiary,
@@ -660,7 +660,7 @@ class _GstCell extends StatelessWidget {
           Text(
             value,
             style: GoogleFonts.manrope(
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               color: AppColors.inkPrimary,
             ),
@@ -683,8 +683,8 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: GoogleFonts.jetBrainsMono(
-        fontSize: 10,
+      style: GoogleFonts.manrope(
+        fontSize: 13,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
         color: AppColors.inkTertiary,

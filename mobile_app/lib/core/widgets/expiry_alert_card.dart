@@ -93,7 +93,7 @@ class ExpiryAlertCard extends ConsumerWidget {
                 Text(
                   '₹${stats['value']!.round()} of stock at risk',
                   style: GoogleFonts.manrope(
-                      fontSize: 11, color: const Color(0xFFEF4444)),
+                      fontSize: 13, color: const Color(0xFFEF4444)),
                 ),
               ],
             ),

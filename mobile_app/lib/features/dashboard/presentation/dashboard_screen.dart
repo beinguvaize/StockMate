@@ -10,6 +10,8 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/core/widgets/app_states.dart' show AppSpinner;
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/widgets/app_surfaces.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/widgets/trial_banner.dart';
 import 'package:mobile_app/core/widgets/banner_carousel.dart';
@@ -204,10 +206,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             const SizedBox(height: 3),
                             Text(
                               item.label,
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: isActive ? AppColors.primary : AppColors.inkTertiary,
+                              // 10px monospace: the five most-used labels in
+                              // the app were also the smallest text in it.
+                              style: AppText.label.copyWith(
+                                fontWeight:
+                                    isActive ? FontWeight.w700 : FontWeight.w500,
+                                color: isActive
+                                    ? AppColors.primary
+                                    : AppColors.inkTertiary,
                               ),
                             ),
                           ],
@@ -448,8 +454,8 @@ class _AppDrawer extends ConsumerWidget {
                         padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
                         child: Text(
                           section.label,
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 9,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.5,
                             color: AppColors.inkTertiary,
@@ -680,7 +686,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                     children: [
                       Icon(LucideIcons.cloudOff, size: 12, color: Colors.orange.shade400),
                       const SizedBox(width: 4),
-                      Text('Showing cached data', style: TextStyle(fontSize: 11, color: Colors.orange.shade400)),
+                      Text('Showing cached data', style: TextStyle(fontSize: 13, color: Colors.orange.shade400)),
                     ],
                   ),
                 ),
@@ -689,7 +695,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                   children: [
                     // Row 1: Revenue hero card
                     _KpiCard(
-                      label: 'TODAY\'S REVENUE',
+                      label: 'Today\'s revenue',
                       value: _revenueVisible ? _fmtAmount(m.todaySales) : '••••••',
                       icon: LucideIcons.trendingUp,
                       isHero: true,
@@ -710,7 +716,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       children: [
                         Expanded(
                           child: _KpiCard(
-                            label: 'EXPENSES',
+                            label: 'Expenses',
                             value: _fmtAmount(m.todayExpenses),
                             icon: LucideIcons.creditCard,
                             accentColor: const Color(0xFFe53935),
@@ -720,7 +726,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                         const SizedBox(width: 12),
                         Expanded(
                           child: _KpiCard(
-                            label: 'OUTSTANDING',
+                            label: 'Outstanding',
                             value: _fmtAmount(m.outstandingCollections),
                             icon: LucideIcons.clock,
                             accentColor: const Color(0xFFe6a817),
@@ -735,7 +741,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       children: [
                         Expanded(
                           child: _KpiCard(
-                            label: 'PRODUCTS',
+                            label: 'Products',
                             value: '${m.totalProducts}',
                             icon: LucideIcons.package,
                             accentColor: AppColors.primary,
@@ -745,7 +751,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                         const SizedBox(width: 12),
                         Expanded(
                           child: _KpiCard(
-                            label: 'LOW STOCK',
+                            label: 'Low stock',
                             value: '${m.lowStockItems}',
                             icon: LucideIcons.alertTriangle,
                             accentColor: m.lowStockItems > 0
@@ -794,19 +800,21 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                         navigateToNewSale(context, roles);
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        // The two actions were the wrong way round: recording
+                        // a SALE is what this app is for, and it was the pale
+                        // one while Add Expense carried the solid brand fill.
                         decoration: BoxDecoration(
-                          color: AppColors.primaryContainer,
-                          borderRadius: BorderRadius.circular(16),
+                          color: AppColors.primary,
+                          borderRadius: Radii.rSm,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(LucideIcons.shoppingBag, size: 16, color: AppColors.onPrimaryContainer),
-                            const SizedBox(width: 8),
-                            Text('New Sale', style: GoogleFonts.manrope(
-                              fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onPrimaryContainer,
-                            )),
+                            const Icon(LucideIcons.shoppingBag, size: 18, color: AppColors.onPrimary),
+                            Gap.w8,
+                            Text('New sale', style: AppText.label.copyWith(
+                                fontSize: 15, color: AppColors.onPrimary)),
                           ],
                         ),
                       ),
@@ -818,19 +826,19 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       ripple: false,
                       onTap: () => _push(const AddExpenseScreen()),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(16),
+                          color: AppColors.canvas,
+                          borderRadius: Radii.rSm,
+                          border: Border.all(color: AppColors.outline),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(LucideIcons.send, size: 16, color: AppColors.primaryContainer),
-                            const SizedBox(width: 8),
-                            Text('Add Expense', style: GoogleFonts.manrope(
-                              fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryContainer,
-                            )),
+                            const Icon(LucideIcons.send, size: 18, color: AppColors.onSurface),
+                            Gap.w8,
+                            Text('Add expense', style: AppText.label.copyWith(
+                                fontSize: 15)),
                           ],
                         ),
                       ),
@@ -869,7 +877,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                             Text(
                               'Last 7 days performance',
                               style: GoogleFonts.manrope(
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: AppColors.inkSecondary,
                               ),
                             ),
@@ -890,8 +898,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                                 const SizedBox(width: 4),
                                 Text(
                                   'All Sales',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 10,
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.primary,
                                   ),
@@ -971,8 +979,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       const SizedBox(width: 10),
                       Text(
                         'RECENT SALES',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
                           color: AppColors.primary,
@@ -1014,35 +1022,34 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                               child: const Icon(LucideIcons.shoppingBag, size: 28, color: AppColors.inkTertiary),
                             ),
                             const SizedBox(height: 12),
-                            Text('No sales yet',
-                                style: GoogleFonts.manrope(
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.inkPrimary,
-                                )),
+                            Text('No sales yet', style: AppText.heading),
+                            const SizedBox(height: 2),
                             Text('Tap + to record your first sale',
-                                style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary)),
+                                style: AppText.caption),
                           ],
                         ),
                       ),
                     );
                   }
                   final recent = sales.take(5).toList();
-                  return Column(
-                    children: recent.asMap().entries.map((e) {
-                      final sale = e.value;
-                      final isLast = e.key == recent.length - 1;
-                      return Padding(
-                        padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
-                        child: _ActivityItem(
+                  // One card, five rows -- not five cards. See _ActivityItem.
+                  return AppCard(
+                    padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
+                    child: Column(
+                      children: recent.asMap().entries.map((e) {
+                        final sale = e.value;
+                        final isLast = e.key == recent.length - 1;
+                        return _ActivityItem(
                           label: (sale.customerInfo?['name'] as String?)?.isNotEmpty == true
                               ? sale.customerInfo!['name'] as String
                               : 'Walk-in Customer',
                           subtitle: _formatDate(sale.date),
                           amount: sale.totalAmount ?? 0,
                           status: sale.paymentMethod ?? 'CASH',
-                        ),
-                      );
-                    }).toList(),
+                          showDivider: !isLast,
+                        );
+                      }).toList(),
+                    ),
                   );
                 },
                 loading: () => const Center(
@@ -1146,95 +1153,70 @@ class _KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final valueColor = accentColor ?? AppColors.inkPrimary;
+    final tint = accentColor ?? AppColors.primary;
 
     if (isHero) {
-      // ── Hero card (TODAY'S REVENUE) — dark gradient, full-width ──
+      // ── Today's revenue ───────────────────────────────────────────────────
+      //
+      // This was an amber gradient with a matching coloured glow, a 90px
+      // watermark icon at 6% opacity behind it, a 10px letter-spaced monospace
+      // caption and the figure itself at w900/-1.2. Every one of those is
+      // decoration doing a job that size and space do better: the number is
+      // the most important thing on the screen, so it is simply the largest
+      // thing on the screen, on the same white as everything else.
+      //
+      // The glow was also the only coloured shadow in the app, which is what
+      // made this card read as a component from a different product.
       return AppTappable(
         ripple: false,
         onTap: onTap,
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+          padding: const EdgeInsets.all(Gap.xl),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF92400E), Color(0xFFD97706)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFD97706).withValues(alpha: 0.35),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+            color: AppColors.canvas,
+            borderRadius: Radii.rMd,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  IconTile(icon: icon, tint: tint, size: 40),
+                  Gap.w12,
+                  Expanded(
+                    child: Text(label,
+                        style: AppText.caption,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                  if (trailing != null) ...[Gap.w8, trailing!],
+                ],
               ),
+              const SizedBox(height: Gap.lg),
+              Text(value, style: AppText.moneyLarge),
+              const SizedBox(height: Gap.xs),
+              Text('Today', style: AppText.caption),
             ],
           ),
-          child: Stack(clipBehavior: Clip.hardEdge, children: [
-            Positioned(
-              right: -16,
-              bottom: -16,
-              child: Icon(icon, size: 90,
-                  color: Colors.white.withValues(alpha: 0.06)),
-            ),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Expanded(
-                  child: Text(label,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10, fontWeight: FontWeight.w700,
-                      letterSpacing: 1.4,
-                      color: AppColors.primaryContainer.withValues(alpha: 0.7),
-                    ),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (trailing != null) ...[
-                  const SizedBox(width: 8), trailing!,
-                ],
-              ]),
-              const SizedBox(height: 10),
-              Text(value,
-                style: GoogleFonts.manrope(
-                  fontSize: 34, fontWeight: FontWeight.w900,
-                  color: Colors.white, letterSpacing: -1.2,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(children: [
-                Container(
-                  width: 6, height: 6,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primaryContainer,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text('Today',
-                  style: GoogleFonts.manrope(
-                    fontSize: 11, fontWeight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                ),
-              ]),
-            ]),
-          ]),
         ),
       );
     }
 
-    // ── Metric card — white, colored icon + value ──
+    // ── Metric card ─────────────────────────────────────────────────────────
+    //
+    // The label was 9px monospace with 0.8 letter-spacing -- below the size at
+    // which text is read rather than merely seen. It is 13px now, and the
+    // value carries the colour so the pair still reads as one unit.
     return AppTappable(
       ripple: false,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Gap.lg),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
-          boxShadow: [AppColors.cardShadow],
+          color: AppColors.canvas,
+          borderRadius: Radii.rMd,
+          border: Border.all(color: AppColors.outlineVariant),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1242,32 +1224,24 @@ class _KpiCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: valueColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, size: 15, color: valueColor),
-                ),
-                if (trailing != null) trailing!,
+                IconTile(icon: icon, tint: tint, size: 36),
+                ?trailing,
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Gap.md),
+            // The value used to take the accent colour, so a row of four
+            // cards showed four different coloured numbers -- red, amber,
+            // brown, red -- and the colour carried no meaning beyond "this is
+            // a number". The tinted tile already identifies the metric; the
+            // figure is ink like every other figure in the app, which also
+            // keeps it off the colours that fail contrast at small sizes.
             Text(value,
-              style: GoogleFonts.manrope(
-                fontSize: 24, fontWeight: FontWeight.w800,
-                color: valueColor, letterSpacing: -0.8,
-              ),
-            ),
-            const SizedBox(height: 3),
+                style: AppText.money.copyWith(fontSize: 22),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 2),
             Text(label,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9, fontWeight: FontWeight.w600,
-                letterSpacing: 0.8, color: AppColors.inkTertiary,
-              ),
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-            ),
+                style: AppText.caption,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
@@ -1287,31 +1261,31 @@ class _QuickBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Was a shadowed card with an 11px label. A shortcut is not a surface that
+    // floats above the page, so it is a hairline like everything else, and the
+    // label is readable at a glance because that is the whole point of it.
     return Expanded(
       child: AppTappable(
         onTap: onTap,
         ripple: false,
         borderRadius: Radii.rMd,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: Gap.lg),
           decoration: BoxDecoration(
             color: AppColors.canvas,
             borderRadius: Radii.rMd,
             border: Border.all(color: AppColors.outlineVariant),
-            boxShadow: [AppColors.cardShadow],
           ),
           child: Column(
             children: [
-              Icon(icon, size: 20, color: AppColors.primary),
-              const SizedBox(height: 6),
+              Icon(icon, size: 22, color: AppColors.primary),
+              const SizedBox(height: Gap.sm),
               Text(
                 label,
-                style: GoogleFonts.manrope(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.inkPrimary,
-                ),
+                style: AppText.label,
                 textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -1354,8 +1328,8 @@ class _Bar extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             day.substring(0, 1),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
               color: isHighlight ? AppColors.primary : AppColors.inkTertiary,
               fontWeight: isHighlight ? FontWeight.w700 : FontWeight.w400,
             ),
@@ -1375,12 +1349,14 @@ class _ActivityItem extends StatelessWidget {
   final String subtitle;
   final double amount;
   final String status;
+  final bool showDivider;
 
   const _ActivityItem({
     required this.label,
     required this.subtitle,
     required this.amount,
     required this.status,
+    this.showDivider = true,
   });
 
   String _initials(String name) {
@@ -1392,91 +1368,61 @@ class _ActivityItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: const BoxDecoration(
-              color: AppColors.secondaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                _initials(label),
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.secondary,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.inkPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
-                    color: AppColors.inkTertiary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+    // Each of these used to be its own shadowed card, so five recent sales
+    // read as five unrelated objects rather than as one list. They are rows
+    // inside a single card now, separated by a hairline -- which is what a
+    // list of like things looks like.
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: Gap.md),
+          child: Row(
             children: [
-              Text(
-                '+₹${amount.abs().toStringAsFixed(0)}',
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.inkPrimary,
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: AppColors.secondaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(_initials(label),
+                      style: AppText.label.copyWith(
+                          fontSize: 15, color: AppColors.onSurfaceVariant)),
                 ),
               ),
-              const SizedBox(height: 3),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(6),
+              Gap.w12,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: AppText.bodyStrong,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 2),
+                    // The date was 10px monospace. A date is prose, not a
+                    // column of digits that has to align with anything.
+                    Text(subtitle, style: AppText.caption),
+                  ],
                 ),
-                child: Text(
-                  status,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              ),
+              Gap.w12,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('₹${amount.abs().toStringAsFixed(0)}',
+                      style: AppText.money),
+                  const SizedBox(height: 2),
+                  Text(status, style: AppText.caption),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        ),
+        if (showDivider)
+          const Divider(height: 1, thickness: 1,
+              color: AppColors.outlineVariant),
+      ],
     );
   }
 }

@@ -130,8 +130,8 @@ class _DayBookScreenState extends ConsumerState<DayBookScreen> {
             ),
             Text(
               'DAY BOOK',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
                 letterSpacing: 1.5,
@@ -348,8 +348,8 @@ class _DateNavStrip extends StatelessWidget {
                   children: [
                     Text(
                       formatDate(selectedDate),
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 12,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppColors.inkPrimary,
                       ),
@@ -397,7 +397,7 @@ class _DateNavStrip extends StatelessWidget {
               child: Text(
                 'Today',
                 style: GoogleFonts.manrope(
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primary,
                 ),
@@ -432,8 +432,8 @@ class _StatusChip extends StatelessWidget {
           const SizedBox(width: 3),
           Text(
             label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 9,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               color: color,
               letterSpacing: 0.3,
@@ -672,8 +672,8 @@ class _KpiCard extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               color: AppColors.inkTertiary,
               letterSpacing: 1.2,
@@ -695,7 +695,7 @@ class _KpiCard extends StatelessWidget {
             Text(
               subtitle!,
               style: GoogleFonts.manrope(
-                fontSize: 11,
+                fontSize: 13,
                 color: subtitleColor ?? AppColors.inkTertiary,
               ),
               maxLines: 1,
@@ -816,7 +816,7 @@ class _LockedPanel extends StatelessWidget {
                   Text(
                     'Locked at ${_fmt(closedAt)}',
                     style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: const Color(0xFF059669).withValues(alpha: 0.8)),
                   ),
               ],
@@ -871,7 +871,7 @@ class _OpeningEquation extends StatelessWidget {
           child: Text(
             'Edit opening balance',
             style: GoogleFonts.manrope(
-              fontSize: 12,
+              fontSize: 13,
               color: AppColors.primary,
               decoration: TextDecoration.underline,
             ),
@@ -914,7 +914,7 @@ class _EquationRow extends StatelessWidget {
           ),
           Text(
             '${prefix.isNotEmpty ? '$prefix ' : ''}₹${value.abs().toStringAsFixed(2)}',
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
               color: color,
@@ -970,7 +970,7 @@ class _OpeningForm extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Text('or enter manually',
                     style: GoogleFonts.manrope(
-                        fontSize: 11, color: AppColors.inkTertiary)),
+                        fontSize: 13, color: AppColors.inkTertiary)),
               ),
               Expanded(
                   child: Divider(
@@ -986,7 +986,7 @@ class _OpeningForm extends StatelessWidget {
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
           ],
-          style: GoogleFonts.jetBrainsMono(
+          style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppColors.inkPrimary),
@@ -995,7 +995,7 @@ class _OpeningForm extends StatelessWidget {
             hintStyle: GoogleFonts.manrope(
                 fontSize: 14, color: AppColors.inkTertiary),
             prefixText: '₹ ',
-            prefixStyle: GoogleFonts.jetBrainsMono(
+            prefixStyle: GoogleFonts.manrope(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkSecondary),
@@ -1038,7 +1038,7 @@ class _OpeningForm extends StatelessWidget {
                 )
               : Text(
                   'SAVE OPENING',
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.2,
@@ -1199,7 +1199,7 @@ class _BdRow extends StatelessWidget {
           ),
           Text(
             '₹${value.toStringAsFixed(2)}',
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
               color: color,
@@ -1288,8 +1288,8 @@ class _ReconciliationCardState extends State<_ReconciliationCard> {
                   ),
                   child: Text(
                     'Saved: ₹${ledger.savedPhysicalCash!.toStringAsFixed(2)}',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.warning,
                     ),
@@ -1310,7 +1310,7 @@ class _ReconciliationCardState extends State<_ReconciliationCard> {
               ),
               Text(
                 '₹${ledger.closingBal.toStringAsFixed(2)}',
-                style: GoogleFonts.jetBrainsMono(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: ledger.isDeficit
@@ -1331,7 +1331,7 @@ class _ReconciliationCardState extends State<_ReconciliationCard> {
             ],
             enabled: !ledger.isLocked,
             onChanged: (_) => setState(() {}),
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.manrope(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary),
@@ -1340,7 +1340,7 @@ class _ReconciliationCardState extends State<_ReconciliationCard> {
               hintStyle: GoogleFonts.manrope(
                   fontSize: 14, color: AppColors.inkTertiary),
               prefixText: '₹ ',
-              prefixStyle: GoogleFonts.jetBrainsMono(
+              prefixStyle: GoogleFonts.manrope(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AppColors.inkSecondary),
@@ -1380,7 +1380,7 @@ class _ReconciliationCardState extends State<_ReconciliationCard> {
                 children: [
                   Text(
                     varianceText,
-                    style: GoogleFonts.jetBrainsMono(
+                    style: GoogleFonts.manrope(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: varianceColor,
@@ -1419,8 +1419,8 @@ class _ReconciliationCardState extends State<_ReconciliationCard> {
                     )
                   : Text(
                       'SAVE COUNT',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 12,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
                         color: Colors.white,
@@ -1467,8 +1467,8 @@ class _TransactionsSection extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               'TRANSACTIONS',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 11,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,
                 color: AppColors.inkSecondary,
@@ -1484,8 +1484,8 @@ class _TransactionsSection extends StatelessWidget {
               ),
               child: Text(
                 '${entries.length}',
-                style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
+                style: GoogleFonts.manrope(
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkSecondary),
               ),
@@ -1516,8 +1516,8 @@ class _TransactionsSection extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     '${netPositive ? '+' : '-'}₹${net.abs().toStringAsFixed(0)}',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: netPositive
                           ? const Color(0xFF059669)
@@ -1686,7 +1686,7 @@ class _EntryCard extends StatelessWidget {
                   Text(
                     entry.note!,
                     style: GoogleFonts.manrope(
-                      fontSize: 12,
+                      fontSize: 13,
                       color: AppColors.inkTertiary,
                     ),
                     maxLines: 1,
@@ -1706,8 +1706,8 @@ class _EntryCard extends StatelessWidget {
                       ),
                       child: Text(
                         categoryLabel,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: categoryPillColor,
                         ),
@@ -1724,8 +1724,8 @@ class _EntryCard extends StatelessWidget {
                       ),
                       child: Text(
                         methodLabel,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 8,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: methodColor,
                           letterSpacing: 0.3,
@@ -1755,8 +1755,8 @@ class _EntryCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 '₹${entry.runningBalance.toStringAsFixed(0)}',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
                   color: AppColors.inkTertiary,
                 ),
               ),
@@ -1799,7 +1799,7 @@ class _CloseDayButton extends StatelessWidget {
             : const Icon(LucideIcons.lock, size: 18, color: Colors.white),
         label: Text(
           'CLOSE & LOCK DAY',
-          style: GoogleFonts.jetBrainsMono(
+          style: GoogleFonts.manrope(
             fontSize: 13,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.2,
@@ -1838,7 +1838,7 @@ class _CreditSalesFootnote extends StatelessWidget {
             child: Text(
               '₹${creditSales.toStringAsFixed(2)} in credit sales excluded from cash flow',
               style: GoogleFonts.manrope(
-                fontSize: 12,
+                fontSize: 13,
                 color: AppColors.primary,
                 fontWeight: FontWeight.w500,
               ),
@@ -1862,8 +1862,8 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: GoogleFonts.jetBrainsMono(
-        fontSize: 10,
+      style: GoogleFonts.manrope(
+        fontSize: 13,
         fontWeight: FontWeight.w700,
         color: AppColors.inkTertiary,
         letterSpacing: 1.5,
@@ -1900,7 +1900,7 @@ class _OfflineLedgerBanner extends StatelessWidget {
                 Text(
                   'Showing the last synced data',
                   style: GoogleFonts.inter(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.onWarningContainer,
                   ),
@@ -1909,7 +1909,7 @@ class _OfflineLedgerBanner extends StatelessWidget {
                 Text(
                   "Anything recorded since the last sync is missing, so these totals may be short. Don't reconcile the till against this.",
                   style: GoogleFonts.inter(
-                    fontSize: 11,
+                    fontSize: 13,
                     height: 1.35,
                     color: AppColors.onWarningContainer,
                   ),
@@ -1951,7 +1951,7 @@ class _CloseBlockedOffline extends StatelessWidget {
               'Reconnect to close this day — closing locks it and records a cash '
               'variance, which needs the complete day.',
               style: GoogleFonts.inter(
-                fontSize: 11,
+                fontSize: 13,
                 height: 1.35,
                 color: AppColors.onSurfaceVariant,
               ),

@@ -160,9 +160,9 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
             ),
             Text(
               'CRM',
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.manrope(
                 color: AppColors.secondary,
-                fontSize: 9,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
               ),
@@ -208,9 +208,9 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
             Center(
               child: Text(
                 'SUPPLIER',
-                style: GoogleFonts.jetBrainsMono(
+                style: GoogleFonts.manrope(
                   color: AppColors.inkSecondary,
-                  fontSize: 9,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 2,
                 ),
@@ -319,7 +319,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEdit ? 'SAVE CHANGES' : 'ADD SUPPLIER',
-                        style: GoogleFonts.jetBrainsMono(
+                        style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                           letterSpacing: 1,
@@ -372,9 +372,9 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
             fontSize: 14,
           ),
           labelText: label,
-          labelStyle: GoogleFonts.jetBrainsMono(
+          labelStyle: GoogleFonts.manrope(
             color: AppColors.inkSecondary,
-            fontSize: 10,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
@@ -411,9 +411,9 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           title,
-          style: GoogleFonts.jetBrainsMono(
+          style: GoogleFonts.manrope(
             color: AppColors.primary,
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
           ),

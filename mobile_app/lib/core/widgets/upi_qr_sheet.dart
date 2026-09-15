@@ -77,7 +77,7 @@ class UpiQrSheet extends StatelessWidget {
             Text(
               'Ask the customer to scan with PhonePe, GPay, Paytm, or BHIM.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkSecondary),
+              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
             ),
             const SizedBox(height: 20),
 
@@ -116,8 +116,8 @@ class UpiQrSheet extends StatelessWidget {
                   if (invoiceNo != 'PREVIEW')
                     Text(
                       'Invoice $invoiceNo',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 11, color: AppColors.inkTertiary,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13, color: AppColors.inkTertiary,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -141,7 +141,7 @@ class UpiQrSheet extends StatelessWidget {
                   Expanded(
                     child: Text(
                       upiId,
-                      style: GoogleFonts.jetBrainsMono(
+                      style: GoogleFonts.manrope(
                         fontSize: 13, fontWeight: FontWeight.w600,
                         color: AppColors.inkPrimary,
                       ),
@@ -232,7 +232,7 @@ class UpiQrSheet extends StatelessWidget {
                 'The cashier can then ring a fresh transaction.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.manrope(
-                  fontSize: 10.5, color: AppColors.inkTertiary,
+                  fontSize: 13, color: AppColors.inkTertiary,
                 ),
               ),
             ],

@@ -367,7 +367,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           Text(
                             'LOG BUSINESS EXPENDITURE',
                             style: GoogleFonts.publicSans(
-                              fontSize: 10,
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 3.2,
                               color: AppColors.inkTertiary,
@@ -501,7 +501,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('PAID VIA', style: GoogleFonts.publicSans(
-                            fontSize: 11, fontWeight: FontWeight.w800,
+                            fontSize: 13, fontWeight: FontWeight.w800,
                             letterSpacing: 1, color: AppColors.inkTertiary)),
                           const SizedBox(height: 8),
                           Row(children: [
@@ -519,7 +519,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(m, style: GoogleFonts.publicSans(
-                                      fontSize: 11, fontWeight: FontWeight.w800,
+                                      fontSize: 13, fontWeight: FontWeight.w800,
                                       color: _paymentMethod == m ? AppColors.primary : AppColors.inkSecondary)),
                                   ),
                                 ),
@@ -546,7 +546,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             title: Text('Claim GST (ITC)', style: GoogleFonts.publicSans(
                               fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
                             subtitle: Text('For registered vendors with a GSTIN', style: GoogleFonts.publicSans(
-                              fontSize: 11, color: AppColors.inkTertiary)),
+                              fontSize: 13, color: AppColors.inkTertiary)),
                           ),
                           if (_gstClaimable) Padding(
                             padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
@@ -566,7 +566,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                           borderRadius: BorderRadius.circular(10),
                                         ),
                                         child: Text('$r%', style: GoogleFonts.publicSans(
-                                          fontSize: 12, fontWeight: FontWeight.w800,
+                                          fontSize: 13, fontWeight: FontWeight.w800,
                                           color: _gstRate == r ? AppColors.primary : AppColors.inkSecondary)),
                                       ),
                                     ),
@@ -596,7 +596,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('PAID FROM STORE', style: GoogleFonts.publicSans(
-                            fontSize: 11, fontWeight: FontWeight.w800,
+                            fontSize: 13, fontWeight: FontWeight.w800,
                             letterSpacing: 1, color: AppColors.inkTertiary)),
                           const SizedBox(height: 8),
                           Container(
@@ -641,7 +641,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           title: Text('Repeat monthly', style: GoogleFonts.publicSans(
                             fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
                           subtitle: Text('Auto-logs on day ${_selectedDate.day.clamp(1, 28)} every month', style: GoogleFonts.publicSans(
-                            fontSize: 11, color: AppColors.inkTertiary)),
+                            fontSize: 13, color: AppColors.inkTertiary)),
                         ),
                       ),
                     ),
@@ -662,7 +662,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           title: Text('Not a business expense', style: GoogleFonts.publicSans(
                             fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
                           subtitle: Text('Owner drawing, loan repayment or capital — kept out of profit', style: GoogleFonts.publicSans(
-                            fontSize: 11, color: AppColors.inkTertiary)),
+                            fontSize: 13, color: AppColors.inkTertiary)),
                         ),
                       ),
                     ),
@@ -676,7 +676,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           Text(
                             'CATEGORY',
                             style: GoogleFonts.publicSans(
-                              fontSize: 11,
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.5,
                               color: AppColors.inkTertiary,
@@ -685,7 +685,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           Text(
                             'SEE ALL',
                             style: GoogleFonts.publicSans(
-                              fontSize: 10,
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.8,
                               color: AppColors.primary,
@@ -790,7 +790,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.publicSans(
-                                      fontSize: 10,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       color: selected
                                           ? AppColors.primary
@@ -946,7 +946,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           child: Text(
             label,
             style: GoogleFonts.publicSans(
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.5,
               color: AppColors.inkTertiary,

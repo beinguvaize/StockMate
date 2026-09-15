@@ -81,11 +81,11 @@ class AccountsScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Total Balance', style: GoogleFonts.manrope(fontSize: 12, color: Colors.white60, fontWeight: FontWeight.w600)),
+                    Text('Total Balance', style: GoogleFonts.manrope(fontSize: 13, color: Colors.white60, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     Text(
                       '₹${totalBalance.toStringAsFixed(2)}',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white),
+                      style: GoogleFonts.manrope(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white),
                     ),
                   ],
                 ),
@@ -134,8 +134,8 @@ class _SectionHeader extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label.toUpperCase(),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 11, fontWeight: FontWeight.w600,
+            style: GoogleFonts.manrope(
+              fontSize: 13, fontWeight: FontWeight.w600,
               color: color, letterSpacing: 0.08,
             ),
           ),
@@ -183,13 +183,13 @@ class _AccountCard extends StatelessWidget {
                           color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text('Default', style: GoogleFonts.manrope(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w700)),
+                        child: Text('Default', style: GoogleFonts.manrope(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w700)),
                       ),
                     ],
                   ],
                 ),
                 if (account.upiId != null && account.upiId!.isNotEmpty)
-                  Text(account.upiId!, style: GoogleFonts.jetBrainsMono(fontSize: 11, color: AppColors.inkTertiary)),
+                  Text(account.upiId!, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
                 // Linked UPI handles folded into this bank card (web parity)
                 for (final h in account.linkedUpiHandles)
                   Padding(
@@ -201,7 +201,7 @@ class _AccountCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
                       ),
-                      child: Text(h, style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppColors.inkTertiary)),
+                      child: Text(h, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
                     ),
                   ),
               ],
@@ -209,7 +209,7 @@ class _AccountCard extends StatelessWidget {
           ),
           Text(
             '₹${account.balance.toStringAsFixed(2)}',
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.manrope(
               fontSize: 16, fontWeight: FontWeight.w700,
               color: isPositive ? AppColors.inkPrimary : AppColors.danger,
             ),

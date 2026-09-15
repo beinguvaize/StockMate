@@ -422,8 +422,8 @@ class _StatementBodyState extends State<_StatementBody> {
             const SizedBox(width: 6),
             Text(
               'BILLS & PAYMENTS',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkTertiary,
                 letterSpacing: 1.2,
@@ -433,7 +433,7 @@ class _StatementBodyState extends State<_StatementBody> {
             Text(
               '${rows.length} ${rows.length == 1 ? 'row' : 'rows'}',
               style: GoogleFonts.manrope(
-                fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.inkTertiary,
+                fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkTertiary,
               ),
             ),
           ],
@@ -472,7 +472,7 @@ class _StatementBodyState extends State<_StatementBody> {
           Text(
             'Balance still counts the ${_rowKind == 'PAYMENT' ? 'bills' : 'payments'} hidden by this filter.',
             style: GoogleFonts.manrope(
-              fontSize: 10.5, fontWeight: FontWeight.w500, color: AppColors.inkTertiary,
+              fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.inkTertiary,
             ),
           ),
         ],
@@ -527,7 +527,7 @@ class _HeaderSection extends StatelessWidget {
                   Text(
                     'Generated: ${_todayFormatted()}',
                     style: GoogleFonts.manrope(
-                      fontSize: 12,
+                      fontSize: 13,
                       color: AppColors.inkTertiary,
                     ),
                   ),
@@ -592,7 +592,7 @@ class _HeaderSection extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           client.phone!,
-                          style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
+                          style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                         ),
                       ],
                     ),
@@ -606,7 +606,7 @@ class _HeaderSection extends StatelessWidget {
                         Expanded(
                           child: Text(
                             client.email!,
-                            style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
+                            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -658,8 +658,8 @@ class _KpiTile extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 8.5,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkTertiary,
                     letterSpacing: 1,
@@ -719,8 +719,8 @@ class _LedgerCard extends StatelessWidget {
             children: [
               Text(
                 _fmtDate(row.date),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
                   color: AppColors.inkTertiary,
                   fontWeight: FontWeight.w600,
                 ),
@@ -773,7 +773,7 @@ class _LedgerCard extends StatelessWidget {
                 Text(
                   'Billed ${_fmtRupee(row.debit)}',
                   style: GoogleFonts.manrope(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.danger,
                   ),
@@ -784,7 +784,7 @@ class _LedgerCard extends StatelessWidget {
                 Text(
                   'Paid ${_fmtRupee(row.credit)}',
                   style: GoogleFonts.manrope(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.success,
                   ),
@@ -802,7 +802,7 @@ class _LedgerCard extends StatelessWidget {
                 child: Text(
                   balLabel,
                   style: GoogleFonts.manrope(
-                    fontSize: 10,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: balColor,
                   ),
@@ -868,8 +868,8 @@ class _TypePill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.jetBrainsMono(
-          fontSize: 9,
+        style: GoogleFonts.manrope(
+          fontSize: 13,
           fontWeight: FontWeight.w700,
           color: fg,
           letterSpacing: 1,
@@ -913,7 +913,7 @@ class _EmptyLedger extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'Credit sales, invoices and payments will appear here.',
-            style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
+            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
             textAlign: TextAlign.center,
           ),
         ],
@@ -948,7 +948,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               message,
-              style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
+              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
               textAlign: TextAlign.center,
             ),
           ],
@@ -998,7 +998,7 @@ class _FilterPill extends StatelessWidget {
             Text(
               label,
               style: GoogleFonts.manrope(
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: selected ? Colors.white : AppColors.inkSecondary,
               ),
