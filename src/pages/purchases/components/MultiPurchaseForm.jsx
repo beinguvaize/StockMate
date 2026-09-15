@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Trash2, CheckCircle2, Barcode, AlertCircle, Search, X } from 'lucide-react';
 import { todayISOInAppTZ } from '../../../lib/utils';
@@ -181,6 +181,29 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
   const removeLine = (key) => setLines(prev => prev.length > 1 ? prev.filter(l => l._key !== key) : prev);
   const addLine    = ()    => setLines(prev => [...prev, emptyLine()]);
 
+  /**
+   * Bring a newly added line into view and put the cursor in it.
+   *
+   * The bill grows downward inside a scrolling modal, so from roughly the
+   * fourth line on, "Add line" appends a row below the fold and leaves the view
+   * where it was. The row is there; it just cannot be seen, which reads as the
+   * button having done nothing.
+   */
+  const rowsRef = useRef(null);
+  const prevLineCount = useRef(lines.length);
+  useEffect(() => {
+    if (lines.length > prevLineCount.current) {
+      const row = rowsRef.current?.lastElementChild;
+      if (row) {
+        const still = typeof window !== 'undefined'
+          && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        row.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+        row.querySelector('input, select')?.focus();
+      }
+    }
+    prevLineCount.current = lines.length;
+  }, [lines.length]);
+
   // Grand total
   const grandTotal = useMemo(() =>
     lines.reduce((s, l) => s + (parseFloat(l.total_amount) || 0), 0), [lines]);
@@ -323,7 +346,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
           </div>
 
           {/* Rows */}
-          <div className="divide-y divide-black/[0.04]">
+          <div ref={rowsRef} className="divide-y divide-black/[0.04]">
             {lines.map((line) => {
               const product = products.find(p => p.id === line.linked_product_id);
               const unitCost = parseFloat(line.unit_price) || null;
