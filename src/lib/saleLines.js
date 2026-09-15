@@ -93,3 +93,58 @@ export const SALE_ITEMS_EMBED =
   'sale_items(line_no, product_id, product_name, hsn_code, quantity, rate, ' +
   'tax_rate, cess_rate, discount, unit, sell_unit_name, sell_qty, ' +
   'sell_unit_price, sale_item_serials(serial))';
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Phase 6 — an invoice's lines come from its sale.
+ *
+ * 152 of 152 live sale-linked invoices held a line-for-line copy of their
+ * sale's lines. Not "mostly": every one, once numeric formatting (28 vs 28.0)
+ * and line ORDER are normalised. The copy is written once and then drifts on
+ * its own, and there is no mechanism that would ever bring the two back
+ * together -- editing a sale does not touch the invoice's copy.
+ *
+ * Two things looked at first like the invoice holding something the sale did
+ * not, and neither survived checking:
+ *
+ *   * Thirty invoices appeared to differ. They differ only in the ORDER of the
+ *     same lines, and in one case in 28.0 against 28.
+ *   * Five invoice lines carried an `hsn` the sale lacked. That value is the
+ *     literal string "N/A" -- not an HSN code, and something that would
+ *     pollute the GSTR-1 HSN summary if it were preserved.
+ *
+ * The two invoices that DO genuinely differ (INV-0042, INV-0072) are both
+ * soft-deleted, and are reached by the fallback below rather than rewritten.
+ *
+ * This derives from the sales already in hand rather than issuing a second
+ * query: useSales fetches both, and an invoice's lines are its sale's lines.
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+/**
+ * Give each invoice the lines of the sale it was raised from.
+ *
+ * Falls back to the invoice's own `items` whenever the sale is not available:
+ * a standalone invoice with no `sale_id`, a sale outside the fetched window,
+ * or a sale whose lines could not be represented. An invoice is a document a
+ * customer has been sent; showing it with no lines because a lookup missed
+ * would be far worse than showing the copy it has always carried.
+ */
+export function hydrateInvoicesFromSales(invoices, sales) {
+  if (!Array.isArray(invoices)) return invoices;
+  if (!Array.isArray(sales) || sales.length === 0) return invoices;
+
+  const linesBySaleId = new Map();
+  for (const s of sales) {
+    if (s?.id && Array.isArray(s.items) && s.items.length) {
+      linesBySaleId.set(s.id, s.items);
+    }
+  }
+  if (linesBySaleId.size === 0) return invoices;
+
+  return invoices.map((inv) => {
+    const saleId = inv?.sale_id;
+    if (!saleId) return inv;
+    const lines = linesBySaleId.get(saleId);
+    if (!lines) return inv;
+    return { ...inv, items: lines };
+  });
+}

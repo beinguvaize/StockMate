@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { hydrateSales, SALE_ITEMS_EMBED } from '../lib/saleLines';
+import { hydrateSales, hydrateInvoicesFromSales, SALE_ITEMS_EMBED } from '../lib/saleLines';
 import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { readCacheThenRevalidate, queueMutation, isOfflineError, decrementCachedStock, isElectron, upsertCachedRow } from '../lib/offline/hookAdapter';
@@ -50,6 +50,13 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
   const tabId = useRef(Math.random().toString(36).slice(2, 8));
   const initialLoadDone = useRef(false);
   const fetchRef = useRef(null);
+  // The newest hydrated sales, for the invoices revalidate callback. That
+  // callback fires on its own schedule and cannot see the sales fetched
+  // alongside it. Today the fallback would show an identical copy, so a miss
+  // is invisible -- but once Phase 5 stops writing sales.items, the fallback
+  // becomes an invoice with NO lines, and a customer's document rendering
+  // empty for a moment is not something to leave lying in wait.
+  const salesRef = useRef([]);
 
   const fetchSales = useCallback(async () => {
     if (!tenantId) {
@@ -76,7 +83,11 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
             .select((lean && !isElectron() ? SALE_LEAN_COLS + ', items' : '*') + ', ' + SALE_ITEMS_EMBED)
             .is('deleted_at', null).eq('tenant_id', tenantId)
             .order('created_at', { ascending: false, nullsFirst: false }).limit(500),
-          (fresh) => setData(hydrateSales(fresh).map(r => normalizeRow(r, NUMERIC_SALE_COLS))),
+          (fresh) => {
+            const hydrated = hydrateSales(fresh);
+            salesRef.current = hydrated;
+            setData(hydrated.map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
+          },
         ),
         readCacheThenRevalidate('clients',
           () => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
@@ -84,7 +95,8 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
         ),
         readCacheThenRevalidate('invoices',
           () => supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(500),
-          (fresh) => setInvoices(fresh.map(r => normalizeRow(r, NUMERIC_INVOICE_COLS))),
+          (fresh) => setInvoices(hydrateInvoicesFromSales(fresh, salesRef.current)
+            .map(r => normalizeRow(r, NUMERIC_INVOICE_COLS))),
         ),
         readCacheThenRevalidate('sales_returns',
           () => supabase.from('sales_returns').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
@@ -96,9 +108,17 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
       // CACHED path, and a cache hit showing blob lines while a fresh fetch
       // showed table lines is exactly the sort of split-brain that makes a
       // reporting bug impossible to reproduce.
-      setData(hydrateSales(sales).map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
+      const hydratedSales = hydrateSales(sales);
+      salesRef.current = hydratedSales;
+      setData(hydratedSales.map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
       setClients(clients.map(r => normalizeRow(r, NUMERIC_CLIENT_COLS)));
-      setInvoices(invoicesRows.map(r => normalizeRow(r, NUMERIC_INVOICE_COLS)));
+      // Phase 6: an invoice's lines ARE its sale's lines -- 152 of 152 live
+      // linked invoices held a line-for-line copy. Derived from the sales
+      // already fetched above rather than a second query. Falls back to the
+      // invoice's own copy for a standalone invoice, or a sale outside this
+      // window. See lib/saleLines.js.
+      setInvoices(hydrateInvoicesFromSales(invoicesRows, hydratedSales)
+        .map(r => normalizeRow(r, NUMERIC_INVOICE_COLS)));
       setSalesReturns(returns);
     } catch (err) {
       console.error("useSales Fetch Error:", err);

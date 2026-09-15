@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rowToLine, hydrateSale, hydrateSales } from './saleLines';
+import { rowToLine, hydrateSale, hydrateSales, hydrateInvoicesFromSales } from './saleLines';
 
 const row = (o = {}) => ({
   line_no: 1, product_id: 'P1', product_name: 'Widget',
@@ -97,5 +97,54 @@ describe('hydrateSale', () => {
     ]);
     expect(out[0].items[0].name).toBe('A1');
     expect(out[1].items[0].name).toBe('kept');
+  });
+});
+
+describe('hydrateInvoicesFromSales', () => {
+  const sale = { id: 'S1', items: [{ id: 'P1', name: 'Widget', quantity: 2, rate: 50 }] };
+
+  it('gives a linked invoice the lines of its sale', () => {
+    const [out] = hydrateInvoicesFromSales(
+      [{ id: 'I1', sale_id: 'S1', items: [{ name: 'stale copy', quantity: 9, rate: 1 }] }],
+      [sale],
+    );
+    expect(out.items).toEqual(sale.items);
+  });
+
+  it('KEEPS a standalone invoice with no sale_id', () => {
+    const own = [{ name: 'standalone', quantity: 1, rate: 10 }];
+    const [out] = hydrateInvoicesFromSales([{ id: 'I2', sale_id: null, items: own }], [sale]);
+    expect(out.items).toBe(own);
+  });
+
+  it('KEEPS the copy when the sale is outside the fetched window', () => {
+    // An invoice is a document a customer has been sent. Showing it with no
+    // lines because a lookup missed is worse than showing the copy it carries.
+    const own = [{ name: 'kept', quantity: 1, rate: 10 }];
+    const [out] = hydrateInvoicesFromSales([{ id: 'I3', sale_id: 'MISSING', items: own }], [sale]);
+    expect(out.items).toBe(own);
+  });
+
+  it('KEEPS the copy when the sale has no usable lines', () => {
+    const own = [{ name: 'kept', quantity: 1, rate: 10 }];
+    const [out] = hydrateInvoicesFromSales(
+      [{ id: 'I4', sale_id: 'S2', items: own }],
+      [{ id: 'S2', items: [] }],
+    );
+    expect(out.items).toBe(own);
+  });
+
+  it('leaves every other invoice column untouched', () => {
+    const [out] = hydrateInvoicesFromSales(
+      [{ id: 'I5', sale_id: 'S1', invoice_number: 'INV-1', grand_total: 118, items: [] }],
+      [sale],
+    );
+    expect(out).toMatchObject({ invoice_number: 'INV-1', grand_total: 118 });
+  });
+
+  it('passes through when there are no sales to derive from', () => {
+    const invs = [{ id: 'I6', sale_id: 'S1', items: [] }];
+    expect(hydrateInvoicesFromSales(invs, [])).toBe(invs);
+    expect(hydrateInvoicesFromSales(null, [sale])).toBeNull();
   });
 });
