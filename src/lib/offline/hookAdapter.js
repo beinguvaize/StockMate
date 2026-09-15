@@ -19,7 +19,7 @@
  */
 
 import { putRecords, getRecords } from './cache.js';
-import { enqueue } from './outbox.js';
+import { enqueue, allOps } from './outbox.js';
 
 /**
  * Cache-first read. Returns the cached snapshot SYNCHRONOUSLY from IDB so
@@ -71,6 +71,38 @@ export async function readCacheThenRevalidate(table, queryFn, onRefresh) {
   // Desktop: cache wins. Background revalidate.
   const cached = await getRecords(table);
 
+  /**
+   * Rows written locally that the server has not seen yet.
+   *
+   * A sale rung up offline is cached optimistically AND queued in the outbox.
+   * The cache keeps it, but the revalidate below used to hand `onRefresh` the
+   * SERVER's rows verbatim — and the server does not have that sale yet, so the
+   * hook's state lost it and the sale vanished from history the moment the
+   * connection flickered. It reappeared only after a sync, which looks exactly
+   * like a lost bill to whoever rang it up.
+   *
+   * Matching on the outbox rather than merging the whole cache is deliberate:
+   * a row genuinely deleted on the server must still disappear.
+   */
+  const pendingIds = async () => {
+    try {
+      const ops = await allOps();
+      const ids = new Set();
+      for (const op of ops) {
+        if (op?.table === table && op?.payload?.id) ids.add(op.payload.id);
+        // A queued RPC carries its row id under the function's own parameter
+        // name, not `id` — process_sale writes a sales row as p_id.
+        if (table === 'sales' && op?.table === 'process_sale' && op?.payload?.p_id) {
+          ids.add(op.payload.p_id);
+        }
+      }
+      return ids;
+    } catch (err) {
+      console.warn('[hookAdapter] could not read outbox:', err?.message || err);
+      return new Set();
+    }
+  };
+
   // Fire-and-forget revalidation. If offline or the query fails we keep
   // the cached snapshot — never blank the UI.
   (async () => {
@@ -83,7 +115,16 @@ export async function readCacheThenRevalidate(table, queryFn, onRefresh) {
         try { await putRecords(table, rows); } catch (_) {}
       }
       if (typeof onRefresh === 'function') {
-        try { onRefresh(rows); } catch (_) {}
+        // Put back anything still waiting in the outbox, so a local sale is not
+        // erased from the screen by a refresh that happened before it synced.
+        let merged = rows;
+        const pending = await pendingIds();
+        if (pending.size) {
+          const onServer = new Set(rows.map((r) => r?.id));
+          const unsynced = cached.filter((r) => pending.has(r?.id) && !onServer.has(r?.id));
+          if (unsynced.length) merged = [...unsynced, ...rows];
+        }
+        try { onRefresh(merged); } catch (_) {}
       }
     } catch (err) {
       // Network or RLS error → keep the cache. Don't surface — UI already
