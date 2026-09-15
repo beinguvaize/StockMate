@@ -8,6 +8,10 @@ import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/database/offline_reads.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/widgets/app_surfaces.dart';
 import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/main.dart' show databaseProvider;
 import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
@@ -79,18 +83,22 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         toolbarHeight: 0,
         actions: const [],
       ),
-      floatingActionButton: !widget.showAddButton ? null : FloatingActionButton(
-        heroTag: null,
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AddProductScreen()),
-        ).then((_) => ref.invalidate(productsProvider)),
-        backgroundColor: AppColors.secondary,
-        foregroundColor: AppColors.primaryContainer,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        child: const Icon(LucideIcons.plus, size: 26),
-      ),
+      floatingActionButton: !widget.showAddButton
+          ? null
+          : FloatingActionButton(
+              heroTag: null,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AddProductScreen()),
+              ).then((_) => ref.invalidate(productsProvider)),
+              // Was grey-on-pale-amber: the one button that creates a product did
+              // not look like the brand's primary action.
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.onPrimary,
+              elevation: 3,
+              shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
+              child: const Icon(LucideIcons.plus, size: 26),
+            ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,15 +106,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             // ── Header ─────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              child: Text(
-                'Inventory',
-                style: GoogleFonts.manrope(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.inkPrimary,
-                  letterSpacing: -0.3,
-                ),
-              ),
+              child: Text('Inventory', style: AppText.display),
             ),
 
             const SizedBox(height: 16),
@@ -114,29 +114,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             // ── Search bar ──────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: TextField(
+              child: AppSearchField(
                 controller: _searchController,
-                style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Search products, SKU…',
-                  hintStyle: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkTertiary),
-                  prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.inkTertiary),
-                  filled: true,
-                  fillColor: AppColors.surfaceContainer,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                ),
+                hint: 'Search products, SKU…',
               ),
             ),
 
@@ -144,7 +124,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
             // ── Filter chips ───────────────────────────────────────
             SizedBox(
-              height: 36,
+              height: 40,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -157,18 +137,27 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     onTap: () => setState(() => _filterIndex = i),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Gap.lg,
+                        vertical: Gap.sm,
+                      ),
                       decoration: BoxDecoration(
-                        color: isActive ? AppColors.primaryContainer : Colors.white,
-                        borderRadius: BorderRadius.circular(100),
-                        boxShadow: [AppColors.cardShadow],
+                        color: isActive
+                            ? AppColors.primaryContainer
+                            : AppColors.canvas,
+                        borderRadius: Radii.rPill,
+                        border: Border.all(
+                          color: isActive
+                              ? AppColors.primaryContainer
+                              : AppColors.outlineVariant,
+                        ),
                       ),
                       child: Text(
                         filters[i],
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isActive ? AppColors.primary : AppColors.inkTertiary,
+                        style: AppText.label.copyWith(
+                          color: isActive
+                              ? AppColors.onPrimaryContainer
+                              : AppColors.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -186,287 +175,332 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   ref.invalidate(productsProvider);
                   await ref.read(productsProvider.future);
                 },
-                child: ref.watch(filteredProductsProvider).when(
-                data: (allProducts) {
-                  final products = allProducts.where((p) {
-                    if (_filterIndex == 1) return p.stock > 0 && p.stock <= 10;
-                    if (_filterIndex == 2) return p.stock == 0;
-                    return true;
-                  }).toList();
+                child: ref
+                    .watch(filteredProductsProvider)
+                    .when(
+                      data: (allProducts) {
+                        final products = allProducts.where((p) {
+                          if (_filterIndex == 1)
+                            return p.stock > 0 && p.stock <= 10;
+                          if (_filterIndex == 2) return p.stock == 0;
+                          return true;
+                        }).toList();
 
-                  final lowCount = allProducts.where((p) => p.stock <= 10).length;
+                        final lowCount = allProducts
+                            .where((p) => p.stock <= 10)
+                            .length;
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Stats row
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Row(
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [AppColors.cardShadow],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                            // Stats row
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: Gap.xl,
+                              ),
+                              child: IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
-                                    Text(
-                                      'TOTAL ITEMS',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 13,
-                                        color: AppColors.inkTertiary,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${allProducts.length}',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.primary,
-                                        letterSpacing: -0.5,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [AppColors.cardShadow],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'LOW STOCK',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 13,
-                                        color: AppColors.inkTertiary,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '$lowCount',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.warning,
-                                        letterSpacing: -0.5,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Section header
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Inventory Items',
-                              style: GoogleFonts.manrope(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.inkPrimary,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => setState(() => _filterIndex = 0),
-                              style: TextButton.styleFrom(
-                                foregroundColor: AppColors.primary,
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'VIEW ALL',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // List
-                      Expanded(
-                        child: products.isEmpty
-                            ? Center(
-                                child: Text(
-                                  'No products found.',
-                                  style: GoogleFonts.manrope(color: AppColors.inkTertiary),
-                                ),
-                              )
-                            : ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(24, 0, 24, 100),
-                                itemCount: products.length,
-                                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                                itemBuilder: (context, index) {
-                                  final product = products[index];
-                                  final stock = product.stock.toInt();
-                                  final isLow = stock > 0 && stock <= 10;
-                                  final isOut = stock == 0;
-
-                                  Color statusColor;
-                                  String statusLabel;
-                                  if (isOut) {
-                                    statusColor = AppColors.danger;
-                                    statusLabel = 'Out of Stock';
-                                  } else if (isLow) {
-                                    statusColor = AppColors.warning;
-                                    statusLabel = 'Low Stock';
-                                  } else {
-                                    statusColor = AppColors.success;
-                                    statusLabel = 'In Stock';
-                                  }
-
-                                  // Current margin on the latest prices — sell
-                                  // vs weighted-average cost. Null when no sell
-                                  // price, so it reads "—" not a bogus 0%.
-                                  final double? marginPct = product.sellingPrice > 0
-                                      ? (product.sellingPrice - product.costPrice) / product.sellingPrice * 100
-                                      : null;
-                                  final Color marginColor = marginPct == null
-                                      ? AppColors.inkTertiary
-                                      : marginPct < 0
-                                          ? AppColors.error
-                                          : marginPct < 10
-                                              ? AppColors.warning
-                                              : AppColors.success;
-
-                                  return AppTappable(
-                                    ripple: false,
-                                    onTap: () => _showProductSheet(context, product),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(20),
-                                        boxShadow: [AppColors.cardShadow],
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          // Icon circle
-                                          Container(
-                                            width: 44,
-                                            height: 44,
-                                            decoration: const BoxDecoration(
-                                              color: AppColors.primaryContainer,
-                                              shape: BoxShape.circle,
+                                    Expanded(
+                                      child: AppCard(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              'Total items',
+                                              style: AppText.caption,
                                             ),
-                                            child: const Icon(LucideIcons.package, size: 20, color: AppColors.primary),
-                                          ),
-                                          const SizedBox(width: 14),
+                                            const SizedBox(height: Gap.xs),
+                                            // Was amber. A count of products is not a
+                                            // brand moment and not a status; ink.
+                                            Text(
+                                              '${allProducts.length}',
+                                              style: AppText.moneyLarge
+                                                  .copyWith(fontSize: 26),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    Gap.w12,
+                                    Expanded(
+                                      child: AppCard(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              'Low stock',
+                                              style: AppText.caption,
+                                            ),
+                                            const SizedBox(height: Gap.xs),
+                                            // This one keeps its colour: it is a count
+                                            // of things that need attention, which is
+                                            // what the warning token is for.
+                                            Text(
+                                              '$lowCount',
+                                              style: AppText.moneyLarge
+                                                  .copyWith(
+                                                    fontSize: 26,
+                                                    color: lowCount > 0
+                                                        ? AppColors.warning
+                                                        : AppColors.onSurface,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
 
-                                          // Name + SKU
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                            const SizedBox(height: 20),
+
+                            // Section header
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Inventory items', style: AppText.title),
+                                  TextButton(
+                                    onPressed: () =>
+                                        setState(() => _filterIndex = 0),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: AppColors.primary,
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: Text(
+                                      'View all',
+                                      style: AppText.label.copyWith(
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // List
+                            Expanded(
+                              child: products.isEmpty
+                                  ? Center(
+                                      child: Text(
+                                        'No products found.',
+                                        style: AppText.body.copyWith(
+                                          color: AppColors.inkTertiary,
+                                        ),
+                                      ),
+                                    )
+                                  : ListView.separated(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        Gap.xl,
+                                        0,
+                                        Gap.xl,
+                                        100,
+                                      ),
+                                      itemCount: products.length,
+                                      separatorBuilder: (context, index) =>
+                                          const Divider(
+                                            height: 1,
+                                            thickness: 1,
+                                            color: AppColors.outlineVariant,
+                                          ),
+                                      itemBuilder: (context, index) {
+                                        final product = products[index];
+                                        final stock = product.stock.toInt();
+                                        final isLow = stock > 0 && stock <= 10;
+                                        final isOut = stock == 0;
+
+                                        Color statusColor;
+                                        String statusLabel;
+                                        if (isOut) {
+                                          statusColor = AppColors.danger;
+                                          statusLabel = 'Out of Stock';
+                                        } else if (isLow) {
+                                          statusColor = AppColors.warning;
+                                          statusLabel = 'Low Stock';
+                                        } else {
+                                          statusColor = AppColors.success;
+                                          statusLabel = 'In Stock';
+                                        }
+
+                                        // Current margin on the latest prices — sell
+                                        // vs weighted-average cost. Null when no sell
+                                        // price, so it reads "—" not a bogus 0%.
+                                        final double? marginPct =
+                                            product.sellingPrice > 0
+                                            ? (product.sellingPrice -
+                                                      product.costPrice) /
+                                                  product.sellingPrice *
+                                                  100
+                                            : null;
+                                        final Color marginColor =
+                                            marginPct == null
+                                            ? AppColors.inkTertiary
+                                            : marginPct < 0
+                                            ? AppColors.error
+                                            : marginPct < 10
+                                            ? AppColors.warning
+                                            : AppColors.success;
+
+                                        return AppTappable(
+                                          ripple: false,
+                                          onTap: () => _showProductSheet(
+                                            context,
+                                            product,
+                                          ),
+                                          child: Container(
+                                            color: AppColors.canvas,
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: Gap.md,
+                                            ),
+                                            child: Row(
                                               children: [
-                                                Text(
-                                                  product.name,
-                                                  style: GoogleFonts.manrope(
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: AppColors.inkPrimary,
+                                                // The tile carries the stock state,
+                                                // so the row's status is readable
+                                                // from the left edge as you scan
+                                                // down, not only from a chip buried
+                                                // in the right-hand column.
+                                                IconTile(
+                                                  icon: isOut
+                                                      ? LucideIcons.packageX
+                                                      : LucideIcons.package,
+                                                  tint: statusColor,
+                                                  size: 44,
+                                                ),
+                                                Gap.w16,
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        product.name,
+                                                        style:
+                                                            AppText.bodyStrong,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                      const SizedBox(height: 2),
+                                                      // SKU and margin share the
+                                                      // supporting line. The right
+                                                      // column was stacking price,
+                                                      // margin, a status chip and a
+                                                      // chevron into about 90px --
+                                                      // four things competing in the
+                                                      // narrowest part of the row.
+                                                      Row(
+                                                        children: [
+                                                          Flexible(
+                                                            child: Text(
+                                                              'SKU ${product.sku ?? "—"}',
+                                                              style: AppText
+                                                                  .caption,
+                                                              maxLines: 1,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
+                                                          ),
+                                                          if (marginPct !=
+                                                              null) ...[
+                                                            Text(
+                                                              '  ·  ',
+                                                              style: AppText
+                                                                  .caption,
+                                                            ),
+                                                            Text(
+                                                              '${marginPct.toStringAsFixed(0)}% margin',
+                                                              style: AppText
+                                                                  .caption
+                                                                  .copyWith(
+                                                                    color:
+                                                                        marginColor,
+                                                                  ),
+                                                            ),
+                                                          ],
+                                                        ],
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  'SKU: ${product.sku ?? "N/A"}',
-                                                  style: GoogleFonts.manrope(
-                                                    fontSize: 13,
-                                                    color: AppColors.inkTertiary,
-                                                  ),
+                                                Gap.w12,
+                                                Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.end,
+                                                  children: [
+                                                    Text(
+                                                      Money.inr(product.sellingPrice),
+                                                      style: AppText.money,
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      isOut
+                                                          ? statusLabel
+                                                          : '$stock in stock',
+                                                      style: AppText.caption
+                                                          .copyWith(
+                                                            color:
+                                                                isOut || isLow
+                                                                ? statusColor
+                                                                : AppColors
+                                                                      .inkTertiary,
+                                                            fontWeight:
+                                                                isOut || isLow
+                                                                ? FontWeight
+                                                                      .w600
+                                                                : FontWeight
+                                                                      .w400,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                Gap.w8,
+                                                const Icon(
+                                                  LucideIcons.chevronRight,
+                                                  size: 20,
+                                                  color: AppColors.inkTertiary,
                                                 ),
                                               ],
                                             ),
                                           ),
-
-                                          // Price + status chip
-                                          Column(
-                                            crossAxisAlignment: CrossAxisAlignment.end,
-                                            children: [
-                                              Text(
-                                                '₹${product.sellingPrice.toStringAsFixed(0)}',
-                                                style: GoogleFonts.manrope(
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: AppColors.inkPrimary,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                marginPct == null ? '—' : '${marginPct.toStringAsFixed(1)}% margin',
-                                                style: GoogleFonts.manrope(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: marginColor,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                decoration: BoxDecoration(
-                                                  color: statusColor.withValues(alpha: 0.12),
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                child: Text(
-                                                  statusLabel,
-                                                  style: GoogleFonts.manrope(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: statusColor,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-
-                                          // Chevron hint
-                                          const SizedBox(width: 8),
-                                          const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.inkTertiary),
-                                        ],
-                                      ),
+                                        );
+                                      },
                                     ),
-                                  );
-                                },
-                              ),
+                            ),
+                          ],
+                        );
+                      },
+                      loading: () => const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ],
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                error: (error, stack) => Center(
-                  child: Text('Error loading inventory', style: GoogleFonts.manrope(color: AppColors.danger)),
-                ),
-              ),
+                      error: (error, stack) => Center(
+                        child: Text(
+                          'Error loading inventory',
+                          style: AppText.body.copyWith(color: AppColors.error),
+                        ),
+                      ),
+                    ),
               ),
             ),
           ],
@@ -483,7 +517,8 @@ class _ProductDetailSheet extends ConsumerStatefulWidget {
   const _ProductDetailSheet({required this.product});
 
   @override
-  ConsumerState<_ProductDetailSheet> createState() => _ProductDetailSheetState();
+  ConsumerState<_ProductDetailSheet> createState() =>
+      _ProductDetailSheetState();
 }
 
 class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
@@ -507,12 +542,18 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         ),
         content: Text(
           'This will permanently remove "${widget.product.name}" from your inventory. This action cannot be undone.',
-          style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkSecondary),
+          style: GoogleFonts.manrope(
+            fontSize: 14,
+            color: AppColors.inkSecondary,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.manrope(color: AppColors.inkSecondary)),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.manrope(color: AppColors.inkSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -522,7 +563,10 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
               shape: const StadiumBorder(),
               elevation: 0,
             ),
-            child: Text('Delete', style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -539,10 +583,15 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         Navigator.pop(context); // close sheet
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Product deleted', style: GoogleFonts.manrope(color: Colors.white)),
+            content: Text(
+              'Product deleted',
+              style: GoogleFonts.manrope(color: Colors.white),
+            ),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -551,10 +600,15 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         setState(() => _isDeleting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e', style: GoogleFonts.manrope(color: Colors.white)),
+            content: Text(
+              'Error: $e',
+              style: GoogleFonts.manrope(color: Colors.white),
+            ),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -596,11 +650,17 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         final ctx = await ref.read(tenantContextProvider.future);
         if (ctx != null) {
           final cached = await cachedProductBatches(
-              ref.read(databaseProvider), ctx.tenantId, productId: widget.product.id);
+            ref.read(databaseProvider),
+            ctx.tenantId,
+            productId: widget.product.id,
+          );
           final billed = cached.where((b) => b['purchase_id'] != null).toList();
-          if (billed.isNotEmpty) lastBatch = billed.last; // cache is oldest-first
+          if (billed.isNotEmpty)
+            lastBatch = billed.last; // cache is oldest-first
         }
-      } catch (_) {/* no last price — fall back to the saved cost as before */}
+      } catch (_) {
+        /* no last price — fall back to the saved cost as before */
+      }
     }
     if (lastBatch != null) {
       lastCost = (lastBatch['unit_cost'] as num?)?.toDouble();
@@ -611,7 +671,9 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
     // Optional purchase price for a manual stock-add (creates a cost batch),
     // pre-filled with what was last paid.
     final costCtrl = TextEditingController(
-      text: (lastCost != null && lastCost > 0) ? lastCost.toStringAsFixed(2) : '',
+      text: (lastCost != null && lastCost > 0)
+          ? lastCost.toStringAsFixed(2)
+          : '',
     );
 
     if (!mounted) return;
@@ -619,184 +681,238 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
     await showDialog(
       context: context,
       builder: (ctx) {
-        return StatefulBuilder(builder: (ctx, setDlgState) {
-          return AlertDialog(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text(
-              'Adjust Stock',
-              style: GoogleFonts.manrope(
-                fontWeight: FontWeight.w700,
-                color: AppColors.inkPrimary,
-                fontSize: 18,
+        return StatefulBuilder(
+          builder: (ctx, setDlgState) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  widget.product.name,
-                  style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
-                  textAlign: TextAlign.center,
+              title: Text(
+                'Adjust Stock',
+                style: GoogleFonts.manrope(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.inkPrimary,
+                  fontSize: 18,
                 ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Minus button
-                    _StockAdjustBtn(
-                      icon: LucideIcons.minus,
-                      onTap: () => setDlgState(() {
-                        adjustment--;
-                        if (currentStock + adjustment < 0) adjustment = -currentStock;
-                        stockCtrl.text = '${currentStock + adjustment}';
-                      }),
-                    ),
-                    const SizedBox(width: 16),
-                    // New stock — tap to type an exact value
-                    Column(
-                      children: [
-                        SizedBox(
-                          width: 120,
-                          child: TextField(
-                            controller: stockCtrl,
-                            textAlign: TextAlign.center,
-                            keyboardType: TextInputType.number,
-                            style: GoogleFonts.manrope(
-                              fontSize: 40,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
-                              letterSpacing: -1,
-                            ),
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            onChanged: (v) {
-                              final n = int.tryParse(v.trim());
-                              if (n != null) {
-                                setDlgState(() => adjustment = n.clamp(0, 999999) - currentStock);
-                              }
-                            },
-                          ),
-                        ),
-                        Text(
-                          'new stock',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: AppColors.inkTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-                    // Plus button
-                    _StockAdjustBtn(
-                      icon: LucideIcons.plus,
-                      onTap: () => setDlgState(() {
-                        adjustment++;
-                        stockCtrl.text = '${(currentStock + adjustment).clamp(0, 999999)}';
-                      }),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                if (adjustment != 0)
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    '${adjustment > 0 ? "+" : ""}$adjustment from current ($currentStock)',
+                    widget.product.name,
                     style: GoogleFonts.manrope(
                       fontSize: 13,
-                      color: adjustment > 0 ? AppColors.success : AppColors.danger,
-                      fontWeight: FontWeight.w500,
+                      color: AppColors.inkSecondary,
                     ),
+                    textAlign: TextAlign.center,
                   ),
-                // Purchase price — only when adding stock. Blank = use saved cost.
-                if (adjustment > 0) ...[
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: costCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
-                    decoration: InputDecoration(
-                      prefixText: '₹ ',
-                      labelText: lastRef != null
-                          ? 'Purchase price / unit · last paid'
-                          : 'Purchase price / unit (optional)',
-                      labelStyle: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
-                      hintText: 'Cost each — blank uses saved ₹${widget.product.costPrice.toStringAsFixed(2)}',
-                      hintStyle: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
-                      isDense: true,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Minus button
+                      _StockAdjustBtn(
+                        icon: LucideIcons.minus,
+                        onTap: () => setDlgState(() {
+                          adjustment--;
+                          if (currentStock + adjustment < 0)
+                            adjustment = -currentStock;
+                          stockCtrl.text = '${currentStock + adjustment}';
+                        }),
+                      ),
+                      const SizedBox(width: 16),
+                      // New stock — tap to type an exact value
+                      Column(
+                        children: [
+                          SizedBox(
+                            width: 120,
+                            child: TextField(
+                              controller: stockCtrl,
+                              textAlign: TextAlign.center,
+                              keyboardType: TextInputType.number,
+                              style: GoogleFonts.manrope(
+                                fontSize: 40,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                                letterSpacing: -1,
+                              ),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              onChanged: (v) {
+                                final n = int.tryParse(v.trim());
+                                if (n != null) {
+                                  setDlgState(
+                                    () => adjustment =
+                                        n.clamp(0, 999999) - currentStock,
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                          Text(
+                            'new stock',
+                            style: GoogleFonts.manrope(
+                              fontSize: 13,
+                              color: AppColors.inkTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 16),
+                      // Plus button
+                      _StockAdjustBtn(
+                        icon: LucideIcons.plus,
+                        onTap: () => setDlgState(() {
+                          adjustment++;
+                          stockCtrl.text =
+                              '${(currentStock + adjustment).clamp(0, 999999)}';
+                        }),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (adjustment != 0)
+                    Text(
+                      '${adjustment > 0 ? "+" : ""}$adjustment from current ($currentStock)',
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        color: adjustment > 0
+                            ? AppColors.success
+                            : AppColors.danger,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    lastRef != null
-                        ? 'Defaulted to ₹${lastCost!.toStringAsFixed(2)} — last bought ${lastDate ?? ''} on $lastRef. Change it if this lot cost something else.'
-                        : 'Enter what you paid so profit on these units is exact.',
-                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
-                  ),
+                  // Purchase price — only when adding stock. Blank = use saved cost.
+                  if (adjustment > 0) ...[
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: costCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      style: GoogleFonts.manrope(
+                        fontSize: 14,
+                        color: AppColors.inkPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        prefixText: '₹ ',
+                        labelText: lastRef != null
+                            ? 'Purchase price / unit · last paid'
+                            : 'Purchase price / unit (optional)',
+                        labelStyle: GoogleFonts.manrope(
+                          fontSize: 13,
+                          color: AppColors.inkSecondary,
+                        ),
+                        hintText:
+                            'Cost each — blank uses saved ₹${widget.product.costPrice.toStringAsFixed(2)}',
+                        hintStyle: GoogleFonts.manrope(
+                          fontSize: 13,
+                          color: AppColors.inkTertiary,
+                        ),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      lastRef != null
+                          ? 'Defaulted to ₹${lastCost!.toStringAsFixed(2)} — last bought ${lastDate ?? ''} on $lastRef. Change it if this lot cost something else.'
+                          : 'Enter what you paid so profit on these units is exact.',
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        color: AppColors.inkTertiary,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text('Cancel', style: GoogleFonts.manrope(color: AppColors.inkSecondary)),
               ),
-              ElevatedButton(
-                onPressed: adjustment == 0
-                    ? null
-                    : () async {
-                        final newStockVal = (currentStock + adjustment).clamp(0, 999999).toDouble();
-                        Navigator.pop(ctx);
-                        try {
-                          final repo = ref.read(productRepositoryProvider);
-                          final cost = double.tryParse(costCtrl.text.trim());
-                          await repo.updateStock(
-                            widget.product.id, newStockVal,
-                            unitCost: (adjustment > 0 && cost != null && cost > 0) ? cost : null,
-                          );
-                          ref.invalidate(productsProvider);
-                          if (mounted) {
-                            Navigator.pop(context); // close sheet
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Stock updated to ${newStockVal.toInt()}',
-                                  style: GoogleFonts.manrope(color: AppColors.inkPrimary),
-                                ),
-                                backgroundColor: AppColors.primaryContainer,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error: $e', style: GoogleFonts.manrope(color: Colors.white)),
-                                backgroundColor: AppColors.danger,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryContainer,
-                  foregroundColor: AppColors.inkPrimary,
-                  shape: const StadiumBorder(),
-                  elevation: 0,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.manrope(color: AppColors.inkSecondary),
+                  ),
                 ),
-                child: Text('Apply', style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
-              ),
-            ],
-          );
-        });
+                ElevatedButton(
+                  onPressed: adjustment == 0
+                      ? null
+                      : () async {
+                          final newStockVal = (currentStock + adjustment)
+                              .clamp(0, 999999)
+                              .toDouble();
+                          Navigator.pop(ctx);
+                          try {
+                            final repo = ref.read(productRepositoryProvider);
+                            final cost = double.tryParse(costCtrl.text.trim());
+                            await repo.updateStock(
+                              widget.product.id,
+                              newStockVal,
+                              unitCost:
+                                  (adjustment > 0 && cost != null && cost > 0)
+                                  ? cost
+                                  : null,
+                            );
+                            ref.invalidate(productsProvider);
+                            if (mounted) {
+                              Navigator.pop(context); // close sheet
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Stock updated to ${newStockVal.toInt()}',
+                                    style: GoogleFonts.manrope(
+                                      color: AppColors.inkPrimary,
+                                    ),
+                                  ),
+                                  backgroundColor: AppColors.primaryContainer,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Error: $e',
+                                    style: GoogleFonts.manrope(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  backgroundColor: AppColors.danger,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryContainer,
+                    foregroundColor: AppColors.inkPrimary,
+                    shape: const StadiumBorder(),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Apply',
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
       },
     );
   }
@@ -807,8 +923,12 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
     final stock = p.stock.toInt();
     final isOut = stock == 0;
     final isLow = stock > 0 && stock <= 10;
-    final statusColor = isOut ? AppColors.danger : (isLow ? AppColors.warning : AppColors.success);
-    final statusLabel = isOut ? 'Out of Stock' : (isLow ? 'Low Stock' : 'In Stock');
+    final statusColor = isOut
+        ? AppColors.danger
+        : (isLow ? AppColors.warning : AppColors.success);
+    final statusLabel = isOut
+        ? 'Out of Stock'
+        : (isLow ? 'Low Stock' : 'In Stock');
 
     return Container(
       decoration: const BoxDecoration(
@@ -848,7 +968,11 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                   color: AppColors.primaryContainer,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(LucideIcons.package, size: 24, color: AppColors.primary),
+                child: const Icon(
+                  LucideIcons.package,
+                  size: 24,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -866,20 +990,30 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                     ),
                     Text(
                       'SKU: ${p.sku ?? "N/A"}',
-                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        color: AppColors.inkTertiary,
+                      ),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   statusLabel,
-                  style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: statusColor),
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
+                  ),
                 ),
               ),
             ],
@@ -915,13 +1049,19 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
             valueColor: p.sellingPrice <= 0
                 ? AppColors.inkTertiary
                 : (p.sellingPrice - p.costPrice) < 0
-                    ? AppColors.error
-                    : ((p.sellingPrice - p.costPrice) / p.sellingPrice * 100) < 10
-                        ? AppColors.warning
-                        : AppColors.success,
+                ? AppColors.error
+                : ((p.sellingPrice - p.costPrice) / p.sellingPrice * 100) < 10
+                ? AppColors.warning
+                : AppColors.success,
           ),
-          _DetailRow(label: 'Stock', value: '${p.stock.toInt()} ${p.unit ?? "pcs"}'),
-          _DetailRow(label: 'Tax Rate', value: '${p.taxRate.toStringAsFixed(0)}%'),
+          _DetailRow(
+            label: 'Stock',
+            value: '${p.stock.toInt()} ${p.unit ?? "pcs"}',
+          ),
+          _DetailRow(
+            label: 'Tax Rate',
+            value: '${p.taxRate.toStringAsFixed(0)}%',
+          ),
 
           const SizedBox(height: 24),
 
@@ -936,15 +1076,22 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => AddProductScreen(product: widget.product),
+                        builder: (_) =>
+                            AddProductScreen(product: widget.product),
                       ),
                     ).then((_) => ref.invalidate(productsProvider));
                   },
                   icon: const Icon(LucideIcons.pencil, size: 16),
-                  label: Text('Edit', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+                  label: Text(
+                    'Edit',
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primaryContainer, width: 1.5),
+                    side: const BorderSide(
+                      color: AppColors.primaryContainer,
+                      width: 1.5,
+                    ),
                     shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -957,7 +1104,10 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                 child: ElevatedButton.icon(
                   onPressed: _showAdjustStock,
                   icon: const Icon(LucideIcons.layers, size: 16),
-                  label: Text('Adjust Stock', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+                  label: Text(
+                    'Adjust Stock',
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryContainer,
                     foregroundColor: AppColors.inkPrimary,
@@ -978,14 +1128,19 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                         child: SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(color: AppColors.danger, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: AppColors.danger,
+                            strokeWidth: 2,
+                          ),
                         ),
                       )
                     : IconButton(
                         onPressed: _confirmDelete,
                         icon: const Icon(LucideIcons.trash2, size: 18),
                         style: IconButton.styleFrom(
-                          backgroundColor: AppColors.danger.withValues(alpha: 0.1),
+                          backgroundColor: AppColors.danger.withValues(
+                            alpha: 0.1,
+                          ),
                           foregroundColor: AppColors.danger,
                           shape: const CircleBorder(),
                         ),
@@ -1022,7 +1177,10 @@ class _DetailRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
+            style: GoogleFonts.manrope(
+              fontSize: 13,
+              color: AppColors.inkSecondary,
+            ),
           ),
           Text(
             value,

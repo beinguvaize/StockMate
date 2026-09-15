@@ -7,6 +7,7 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/utils/money.dart';
 import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/core/widgets/app_states.dart' show AppSpinner;
 import 'package:mobile_app/core/theme/dimens.dart';
@@ -127,10 +128,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       .value?.roles ?? [];
                   navigateToNewSale(context, roles);
                 },
-                backgroundColor: AppColors.secondary,
-                foregroundColor: AppColors.primaryContainer,
-                elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                // Grey fill with a pale-amber glyph. This is the app's single
+                // most-used action -- add a sale, or add a product -- and it
+                // was the only control using a colour pair found nowhere else.
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+                elevation: 3,
+                shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
                 child: const Icon(LucideIcons.plus, size: 26),
               ),
             )
@@ -1108,24 +1112,9 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
     }
   }
 
-  String _fmtAmount(double amount) {
-    // Indian number system grouping (lakhs/crores style): 1,23,456.00
-    final whole = amount.truncate();
-    final str = whole.toString();
-    String grouped;
-    if (str.length <= 3) {
-      grouped = str;
-    } else {
-      final last3 = str.substring(str.length - 3);
-      final rest = str.substring(0, str.length - 3);
-      final restGrouped = rest.replaceAllMapped(
-        RegExp(r'(\d)(?=(\d{2})+$)'),
-        (m) => '${m[1]},',
-      );
-      grouped = '$restGrouped,$last3';
-    }
-    return '₹$grouped';
-  }
+  // Was a hand-rolled lakh/crore grouper living only on this screen, so
+  // every other screen printed an ungrouped run of digits. See Money.
+  String _fmtAmount(double amount) => Money.inr(amount);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
