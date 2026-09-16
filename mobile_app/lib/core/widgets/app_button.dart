@@ -208,7 +208,7 @@ class _AppTappableState extends State<AppTappable> {
     final enabled = widget.onTap != null;
     final content = AnimatedScale(
       scale: _pressed ? widget.pressedScale : 1.0,
-      duration: Motion.fast,
+      duration: Motion.durationOf(context, Motion.fast),
       curve: Motion.standard,
       child: widget.child,
     );
