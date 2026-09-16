@@ -10,7 +10,23 @@ const Button = ({
   icon: Icon,
   className = '' 
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-[800] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group';
+  // Press feedback, and nothing else.
+  //
+  // `transition-all` was here, which makes the browser watch every animatable
+  // property on every button in the app -- including ones that change for
+  // unrelated reasons mid-transition. The properties are named instead.
+  //
+  // active:scale-[0.97] rather than a hover lift: a button is pressed tens of
+  // times a day, which is the tier where motion has to be near-imperceptible
+  // or absent. Confirming the press is the purpose; nothing else earns motion
+  // here. Never scale(0) -- 0.97 is a press, 0 is a disappearance.
+  const baseStyles =
+    'inline-flex items-center justify-center font-[800] cursor-pointer group ' +
+    'transition-[background-color,border-color,color,box-shadow,opacity,transform] ' +
+    'duration-(--dur-press) ease-out ' +
+    'active:scale-[0.97] ' +
+    'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 ' +
+    'motion-reduce:transition-none motion-reduce:active:scale-100';
   
   const variants = {
     signature: 'btn-signature',

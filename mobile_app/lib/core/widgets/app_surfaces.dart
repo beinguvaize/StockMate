@@ -441,8 +441,8 @@ class _Tab extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             AnimatedContainer(
-              duration: Motion.base,
-              curve: Motion.standard,
+              duration: Motion.durationOf(context, Motion.base),
+              curve: Motion.curveOf(context, Motion.standard),
               height: 2,
               width: selected ? 28 : 0,
               decoration: const BoxDecoration(

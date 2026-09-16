@@ -445,7 +445,40 @@ table.report-table tbody td.numeric {
   --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
   --shadow-hover: 0 20px 40px -15px rgba(0, 0, 0, 0.12);
   
-  --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  /* ── Motion ──────────────────────────────────────────────────────────────
+     One set of curves and durations. Extend these; never hand-roll a
+     cubic-bezier next to them.
+
+     The built-in CSS easings are too weak to read as deliberate, so these are
+     the strong versions. ease-in is deliberately absent: it starts slow, which
+     delays the exact moment the user is watching, and an ease-out at 200ms
+     feels faster than an ease-in at 200ms. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);      /* entering / exiting */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);  /* moving on screen */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);   /* iOS-like drawer */
+
+  --dur-press: 120ms;    /* button press feedback */
+  --dur-hover: 160ms;    /* hover, colour change */
+  --dur-popover: 180ms;  /* tooltips, small popovers */
+  --dur-menu: 200ms;     /* dropdowns, selects */
+  --dur-modal: 260ms;    /* modals, drawers */
+
+  /* Was `all 0.4s`. Two faults in one token, and it is the default reached
+     for across the app:
+
+       * `all` makes the browser watch every animatable property, so an
+         unrelated layout change during the transition animates too -- that is
+         where a hover that also nudges width or shadow starts to feel soft.
+       * 400ms is past the point where a hover still feels like a response.
+         UI motion stays under 300ms; hover belongs at 100-160ms.
+
+     Named properties, hover duration. Anything needing transform should say
+     so explicitly rather than inheriting it from here. */
+  --transition: background-color var(--dur-hover) ease,
+                border-color     var(--dur-hover) ease,
+                color            var(--dur-hover) ease,
+                box-shadow       var(--dur-hover) ease,
+                opacity          var(--dur-hover) ease;
 }
 
 @layer base {
@@ -1161,4 +1194,76 @@ body {
   -webkit-text-fill-color: #c7cdc9;
   caret-color: #c7cdc9;
   transition: background-color 9999s ease-in-out 0s;
+}
+
+
+/* ── Reduced motion ─────────────────────────────────────────────────────────
+   Reduced motion means FEWER and GENTLER animations, not none. Opacity and
+   colour still carry meaning -- they tell the user something changed -- so
+   they stay. What goes is movement: transforms, and anything long enough to
+   read as travel across the screen.
+
+   `!important` is load-bearing here: this has to beat 487 utility classes and
+   inline transitions it does not own. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: var(--dur-hover) !important;
+    transition-property: opacity, background-color, border-color, color !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* ── `transition-all`, defanged ─────────────────────────────────────────────
+   483 elements use Tailwind's `transition-all`. Rewriting each by hand would
+   be 483 chances to drop a property something actually animates, so the
+   UTILITY is redefined once instead.
+
+   What `all` costs: the browser watches every animatable property, so a
+   width, height, margin or `top` that changes for an unrelated reason during
+   the transition animates too -- and those three trigger layout and paint
+   rather than running on the GPU. That is where a hover starts to feel soft
+   or janky for no visible reason.
+
+   The list below keeps everything a hover or press legitimately animates --
+   including `transform`, because plenty of these are lifts and presses -- and
+   drops only the layout-triggering properties nobody meant to animate.
+
+   The default duration also moves from Tailwind's 150ms to the hover token,
+   so a button and a card agree on what "quick" means. */
+/* Deliberately OUTSIDE @layer. Tailwind emits its own `.transition-all` into
+   the utilities layer; an override inside that same layer loses on source
+   order. Unlayered rules beat layered ones outright, which is the only way a
+   single definition here can win over the generated utility. Verified in the
+   built CSS, not assumed. */
+.transition-all {
+  transition-property:
+    color, background-color, border-color, text-decoration-color, fill,
+    stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-duration: var(--dur-hover);
+  transition-timing-function: ease;
+}
+
+/* ── Hover motion on touch ──────────────────────────────────────────────────
+   Tailwind v4 does NOT gate `hover:` behind `(hover: hover)` in this setup --
+   checked in the built stylesheet, where the media query appears zero times.
+   On a phone a tap fires :hover and it STICKS until the next tap elsewhere,
+   so a card left scaled up after a tap reads as broken rather than as polish.
+
+   Only transform-based hovers are neutralised. Colour and shadow hovers are
+   harmless when they linger; a lift is not. */
+@media (hover: none) {
+  .hover\:scale-105:hover,
+  .hover\:scale-110:hover,
+  .hover\:scale-175:hover,
+  .hover\:scale-\[1\.02\]:hover,
+  .hover\:scale-\[1\.03\]:hover,
+  .hover\:-translate-y-0\.5:hover,
+  .hover\:translate-y-0:hover {
+    transform: none;
+  }
 }
