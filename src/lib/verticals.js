@@ -34,7 +34,7 @@ export const DEFAULT_MODULES = {
     // restaurant-only
     tables: false, kot: false, modifiers: false, recipe_deduct: false, channels: false,
     // services-only
-    appointments: false, service_catalog: false,
+    appointments: false,
   },
   RESTAURANT: {
     inventory: true,       // ingredient stock
@@ -47,9 +47,14 @@ export const DEFAULT_MODULES = {
     tables: true, kot: true, modifiers: true,
     recipe_deduct: true,   // R5 — BOM ingredients auto-deducted on dish sale
     channels: false,       // phase R7 — Swiggy/Zomato via middleware
-    appointments: false, service_catalog: false,
+    appointments: false,
   },
   SERVICES: {
+    // The service catalog IS the inventory module, gated by `inventory` and
+    // relabelled through TERMS below. A separate `service_catalog` flag used
+    // to sit here declaring the same thing and gating nothing — no navItem
+    // and no route ever asked for it. One switch, or the label and the
+    // behaviour drift apart.
     inventory: true,       // = service catalog (no stock; relabelled)
     manufacturing: false,
     vehicles: false,
@@ -58,7 +63,7 @@ export const DEFAULT_MODULES = {
     payroll: true,
     tables: false, kot: false, modifiers: false, recipe_deduct: false, channels: false,
     // services features
-    appointments: true, service_catalog: true,
+    appointments: true,
   },
 };
 

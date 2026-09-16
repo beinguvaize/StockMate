@@ -101,11 +101,11 @@ const PurchaseRegisterReport = () => {
             <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
               <Building2 size={10} className="text-blue-500" />
             </div>
-            <span className="font-semibold text-ink-primary">{val}</span>
+            <span className="font-semibold text-foreground">{val}</span>
           </div>
         ),
       },
-      { key: '_gstin', label: 'GSTIN', width: 160, render: v => <span className="font-mono text-[11px]">{v}</span> },
+      { key: '_gstin', label: 'GSTIN', width: 160, render: v => <span className="tabular-nums text-[11px]">{v}</span> },
       { key: '_taxable', label: 'Taxable', type: 'currency', align: 'right', sortable: true },
       { key: '_taxRate', label: 'Rate %', align: 'right', width: 70 },
       { key: '_cgst', label: 'CGST', type: 'currency', align: 'right' },
@@ -122,11 +122,11 @@ const PurchaseRegisterReport = () => {
       <div className="no-print flex flex-wrap items-center gap-2 mb-3">
         <ReportPeriodBar {...period} />
         <button onClick={exportExcel}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-black transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors">
           <Download size={13} /> Excel for CA
         </button>
       </div>
-      <p className="no-print text-[11px] text-gray-400 mb-2 text-right">
+      <p className="no-print text-[11px] text-muted-foreground mb-2 text-right">
         Tax split derived from bill totals (rate-backed-out). Verify against supplier invoices before claiming ITC.
       </p>
       <PremiumReportView title="GST Purchase Register" subtitle={`${range.start} → ${range.end}`} tabs={[tab]} />

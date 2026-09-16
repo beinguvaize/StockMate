@@ -42,9 +42,12 @@ String _formatDate(String isoDate) {
 
 // ─── Amount compact ───────────────────────────────────────────────────────────
 String _compact(double v) {
-  if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(1)}L';
-  if (v >= 1000) return '₹${(v / 1000).toStringAsFixed(1)}K';
-  return '₹${v.toStringAsFixed(0)}';
+  final whole = v.round();
+  final s = whole.abs().toString();
+  final grouped = s.length <= 3
+      ? s
+      : '${s.substring(0, s.length - 3).replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},')},${s.substring(s.length - 3)}';
+  return '${whole < 0 ? '-' : ''}₹$grouped';
 }
 
 // ─── Joined model ─────────────────────────────────────────────────────────────
@@ -199,8 +202,8 @@ class _ClientPaymentsScreenState extends ConsumerState<ClientPaymentsScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                 child: Text(
                   '${filtered.length} payment${filtered.length == 1 ? '' : 's'}${q.isNotEmpty ? ' · filtered' : ''}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     color: AppColors.inkTertiary,
                   ),
                 ),
@@ -266,8 +269,8 @@ class _KpiTile extends StatelessWidget {
                 Flexible(
                   child: Text(
                     label,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 7.5,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkTertiary,
                       letterSpacing: 0.8,
@@ -409,7 +412,7 @@ class _PaymentCard extends StatelessWidget {
                   Text(
                     p.notes!,
                     style: GoogleFonts.manrope(
-                      fontSize: 12,
+                      fontSize: 13,
                       color: AppColors.inkTertiary,
                     ),
                     maxLines: 1,
@@ -424,7 +427,7 @@ class _PaymentCard extends StatelessWidget {
                     Text(
                       _formatDate(p.date),
                       style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: AppColors.inkTertiary,
                       ),
                     ),
@@ -458,8 +461,8 @@ class _PaymentCard extends StatelessWidget {
                 ),
                 child: Text(
                   meta.label,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: meta.color,
                     letterSpacing: 0.5,

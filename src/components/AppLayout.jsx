@@ -1,9 +1,12 @@
-import React, { useState, useRef} from 'react';
-import { NavLink, Outlet, Navigate, useParams, useLocation} from 'react-router-dom';
+import React, { useState, useRef, useCallback} from 'react';
+import { NavLink, Outlet, Navigate, useNavigate, useParams, useLocation} from 'react-router-dom';
+import logoClear from '/logo-clear.png';
+import logoWhite from '/logo-white.png';
 import { useBilling } from '../hooks/useBilling';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import SyncStatusButton from './SyncStatusButton';
+import TrialBanner from './TrialBanner';
 import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode} from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { getDefaultAvatar } from '../lib/supabase';
@@ -14,7 +17,7 @@ import SyncStatus from './SyncStatus';
 
 // Brand logo — dark wordmark on light themes, white logo on the dark theme.
 const isDarkTheme = () => typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
-const brandLogo = () => isDarkTheme() ? '/logo-white.png' : '/logo-clear.png';
+const brandLogo = () => isDarkTheme() ? logoWhite : logoClear;
 
 const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  const config = {
@@ -27,22 +30,22 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
 
  if (!isOnline || status === 'OFFLINE') {
  config.label = 'Offline';
- config.bg = 'bg-gray-100';
- config.border = 'border-gray-200';
- config.text = 'text-gray-500';
+ config.bg = 'bg-muted';
+ config.border = 'border-border';
+ config.text = 'text-muted-foreground';
  config.circle = 'bg-gray-400';
 } else if (status === 'SYNCING') {
  config.label = 'Syncing...';
- config.bg = 'bg-amber-50';
- config.border = 'border-amber-100';
- config.text = 'text-amber-600';
- config.circle = 'bg-amber-500';
+ config.bg = 'bg-accent-signature/10';
+ config.border = 'border-accent-signature/15';
+ config.text = 'text-accent-signature';
+ config.circle = 'bg-accent-signature';
 } else if (status === 'ERROR') {
  config.label = 'Sync Delayed';
- config.bg = 'bg-amber-50';
- config.border = 'border-amber-100';
- config.text = 'text-amber-600';
- config.circle = 'bg-amber-500';
+ config.bg = 'bg-accent-signature/10';
+ config.border = 'border-accent-signature/15';
+ config.text = 'text-accent-signature';
+ config.circle = 'bg-accent-signature';
 }
 
  return (
@@ -53,7 +56,7 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  
  {/* Tooltip on Hover */}
  <div className="absolute top-full right-0 mt-2 w-48 bg-surface rounded-lg border border-black/5 shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[120]">
- <p className="text-[10px] font-bold text-gray-700 mb-1">Status Report</p>
+ <p className="text-[10px] font-bold text-ink-secondary mb-1">Status Report</p>
  <p className="text-xs text-ink-primary mb-2">
  {status === 'SYNCED' ? 'Cloud database is fully synchronized.' : 
  status === 'SYNCING' ? 'Changes are being uploaded to cloud.' :
@@ -61,7 +64,7 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  'Synchronization delayed by server.'}
  </p>
  <div className="flex items-center justify-between pt-2 border-t border-black/5">
- <span className="text-[9px] text-gray-700">Last Sync</span>
+ <span className="text-[9px] text-ink-secondary">Last Sync</span>
  <span className="text-[9px] font-bold text-ink-primary">{new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}</span>
  </div>
  </div>
@@ -157,12 +160,12 @@ const Navbar = () => {
      return (
        <div
          key={item.path}
-         className="flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold text-gray-400 cursor-not-allowed relative group"
+         className="flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold text-muted-foreground cursor-not-allowed relative group"
          title={`Upgrade to access ${item.label}`}
        >
          <span className="opacity-40">{item.icon}</span>
          {item.label}
-         <Sparkles size={12} className="text-amber-400 ml-0.5" />
+         <Sparkles size={12} className="text-accent-signature/70 ml-0.5" />
        </div>
      );
    }
@@ -174,7 +177,7 @@ const Navbar = () => {
        className={({ isActive}) => `flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
          isActive 
          ? 'bg-ink-primary text-white shadow-md' 
-         : 'text-gray-700 hover:text-ink-primary hover:bg-gray-100'
+         : 'text-ink-secondary hover:text-ink-primary hover:bg-muted'
        }`}
      >
        {({ isActive}) => (
@@ -191,7 +194,7 @@ const Navbar = () => {
  <>
  <header className="sticky top-0 z-50 bg-canvas/80 backdrop-blur-md border-b border-black/5">
  <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12">
- <div className="flex items-center justify-between h-16 md:h-20">
+ <div className="flex items-center justify-between h-16 md:h-20 gap-3 min-w-0">
  {/* Mobile Hamburger */}
  <button 
  onClick={() => setIsMobileMenuOpen(true)} 
@@ -200,19 +203,20 @@ const Navbar = () => {
  <Menu size={20} />
  </button>
 
- {/* Branding */}
- <div className="flex items-center gap-4">
+ {/* Branding — min-w-0 so a long tenant name truncates instead of widening
+      the header past the window. */}
+ <div className="flex items-center gap-4 min-w-0">
  <div className="flex items-center animate-in fade-in duration-700">
    <img src={brandLogo()} alt="bookledger" className="h-8 w-auto max-w-[150px] object-contain shrink-0 block" />
  </div>
  {currentTenant && (
    <div className="hidden md:flex items-center gap-2">
      <div className="w-px h-6 bg-black/10"></div>
-     <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wide leading-tight">{currentTenant.name}</span>
+     <span className="text-[11px] font-bold text-ink-secondary uppercase tracking-wide leading-tight">{currentTenant.name}</span>
      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
        currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
        currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
-       'bg-gray-100 text-gray-500'
+       'bg-muted text-muted-foreground'
      }`}>{currentTenant.plan}</span>
    </div>
  )}
@@ -229,7 +233,7 @@ const Navbar = () => {
  className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
  activeInMore 
  ? 'bg-ink-primary text-white shadow-md' 
- : 'text-gray-700 hover:text-ink-primary hover:bg-gray-100'
+ : 'text-ink-secondary hover:text-ink-primary hover:bg-muted'
 }`}
  >
  <span className={activeInMore ? 'text-white/60' : 'opacity-70'}><Menu size={18} /></span>
@@ -242,10 +246,10 @@ const Navbar = () => {
  {moreNavItems.filter(i => !i.hidden).map((item) => {
    if (item.locked) {
      return (
-       <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium text-gray-400 cursor-not-allowed">
+       <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium text-muted-foreground cursor-not-allowed">
          <span className="opacity-40">{item.icon}</span>
          {item.label}
-         <Sparkles size={12} className="text-amber-400 ml-auto" />
+         <Sparkles size={12} className="text-accent-signature/70 ml-auto" />
        </div>
      );
    }
@@ -257,7 +261,7 @@ const Navbar = () => {
        className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium transition-all ${
          isActive 
          ? 'bg-canvas text-ink-primary font-bold shadow-sm' 
-         : 'text-gray-700 hover:bg-canvas/50 hover:text-ink-primary'
+         : 'text-ink-secondary hover:bg-canvas/50 hover:text-ink-primary'
        }`}
      >
        <span className="opacity-60">{item.icon}</span>
@@ -312,12 +316,12 @@ const Navbar = () => {
        </button>
        <div className="min-w-0">
          <p className="text-sm font-bold text-ink-primary truncate">{currentUser?.name || 'Member'}</p>
-         <p className="text-[10px] text-gray-500 truncate">{currentUser?.email}</p>
+         <p className="text-[10px] text-muted-foreground truncate">{currentUser?.email}</p>
        </div>
      </div>
 
      <div className="mb-4 pb-4 border-b border-black/5">
-       <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-2 uppercase px-1">Workspace Portal</p>
+       <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-2 uppercase px-1">Workspace Portal</p>
        <div className="space-y-1">
          {adminItems.filter(i => !i.hidden).map(item => (
            <NavLink
@@ -382,25 +386,25 @@ const Navbar = () => {
  {/* Tenant Badge in Mobile */}
  {currentTenant && (
    <div className="px-5 py-3 border-b border-black/5">
-     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 leading-tight">{currentTenant.name}</p>
+     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 leading-tight">{currentTenant.name}</p>
      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
        currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
        currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
-       'bg-gray-100 text-gray-500'
+       'bg-muted text-muted-foreground'
      }`}>{currentTenant.plan} Plan</span>
    </div>
  )}
  
  {/* Nav Items */}
  <nav className="flex-1 overflow-y-auto py-3 px-3">
- <p className="text-[9px] font-semibold text-gray-700 opacity-[0.85] px-3 mb-2">Navigation</p>
+ <p className="text-[9px] font-semibold text-ink-secondary opacity-[0.85] px-3 mb-2">Navigation</p>
  {allNavItems.filter(i => !i.hidden).map(item => {
    if (item.locked) {
      return (
-       <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-400 cursor-not-allowed mb-0.5">
+       <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-muted-foreground cursor-not-allowed mb-0.5">
          <span className="opacity-40">{item.icon}</span>
          {item.label}
-         <Sparkles size={12} className="text-amber-400 ml-auto" />
+         <Sparkles size={12} className="text-accent-signature/70 ml-auto" />
        </div>
      );
    }
@@ -412,7 +416,7 @@ const Navbar = () => {
        className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all mb-0.5 ${
          isActive 
          ? 'bg-ink-primary text-white shadow-md' 
-         : 'text-gray-700 hover:bg-canvas'
+         : 'text-ink-secondary hover:bg-canvas'
        }`}
      >
        {({ isActive}) => (
@@ -429,7 +433,7 @@ const Navbar = () => {
  {adminItems.filter(i => !i.hidden).length > 0 && (
  <>
  <div className="my-3 border-t border-black/5" />
- <p className="text-[9px] font-semibold text-gray-700 opacity-[0.85] px-3 mb-2">WORKSPACE PORTAL</p>
+ <p className="text-[9px] font-semibold text-ink-secondary opacity-[0.85] px-3 mb-2">WORKSPACE PORTAL</p>
  {adminItems.filter(i => !i.hidden).map(item => (
  <NavLink
  key={item.path}
@@ -438,7 +442,7 @@ const Navbar = () => {
  className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all mb-0.5 ${
  isActive 
  ? 'bg-ink-primary text-white shadow-md' 
- : 'text-gray-700 hover:bg-canvas'
+ : 'text-ink-secondary hover:bg-canvas'
 }`}
  >
  {({ isActive}) => (
@@ -479,7 +483,7 @@ const Navbar = () => {
      </div>
      <div className="flex-1 text-left">
        <p className="text-sm font-bold text-ink-primary truncate">{currentUser?.name || 'Member'}</p>
-       <p className="text-[10px] text-gray-500">Edit Avatar</p>
+       <p className="text-[10px] text-muted-foreground">Edit Avatar</p>
      </div>
    </button>
    <button
@@ -496,10 +500,26 @@ const Navbar = () => {
  );
 };
 
-const MainContent = () => {
+// Slim 40px bar shown in Electron when POS (Sales) is full-screen.
+const KioskBar = ({ onExit }) => (
+  <header className="sticky top-0 z-50 h-10 flex items-center justify-between px-4 bg-canvas/90 backdrop-blur-md border-b border-black/5 shrink-0">
+    <img src={brandLogo()} alt="StockMate" className="h-5 w-auto object-contain" />
+    <div className="flex items-center gap-3">
+      <SyncStatusButton />
+      <button
+        onClick={onExit}
+        className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-ink-primary text-white hover:opacity-80 transition-opacity"
+      >
+        ← Exit POS
+      </button>
+    </div>
+  </header>
+);
+
+const MainContent = ({ kioskMode = false }) => {
   const location = useLocation();
   const { tenantSlug } = useParams();
-  const { currentTenant } = useTenant();
+  const { currentTenant, trial, planInEffect } = useTenant();
   const { hasRole } = useAuth();
   const billing = useBilling(currentTenant?.id);
   const isSales = location.pathname.endsWith('/sales') || location.pathname.endsWith('/van-sale');
@@ -508,18 +528,27 @@ const MainContent = () => {
   const billingMsg = billing.expired
     ? { txt: 'Your subscription has expired. Renew to keep full access.', cls: 'bg-red-600' }
     : billing.pastDue
-    ? { txt: 'Payment failed — update your billing to avoid interruption.', cls: 'bg-amber-600' }
+    ? { txt: 'Payment failed — update your billing to avoid interruption.', cls: 'bg-accent-signature' }
     : { txt: `Trial ends in ${billing.trialDaysLeft} day${billing.trialDaysLeft === 1 ? '' : 's'}. Add a plan to continue.`, cls: 'bg-ink-primary' };
   return (
     <main
-      key={location.pathname}
-      className={`flex-1 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out ${
-        isSales
+      className={`flex-1 w-full ${
+        kioskMode
+          ? 'p-0 overflow-hidden'
+          : isSales
           ? 'px-4 sm:px-6 lg:px-8 py-2 md:py-4'
           : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-2 md:py-6'
       }`}
     >
-      {showBilling && (
+      {/* One message about status, never two. The trial banner and the billing
+          banner read from different tables that disagree -- only four tenants
+          have a subscription row, and Aisha Store's says her trial expired in
+          July while access is in fact still open. While a tenant is on trial,
+          tenants.trial_end_date is the source that gates access, so it is the
+          one allowed to speak. */}
+      {trial ? (
+        <TrialBanner trial={trial} planInEffect={planInEffect} basePath={basePath} />
+      ) : showBilling && (
         <div className={`${billingMsg.cls} text-white rounded-xl px-4 py-2.5 mb-4 flex items-center justify-between gap-3 flex-wrap`}>
           <span className="text-[13px] font-semibold">{billingMsg.txt}</span>
           <NavLink to={`${basePath}/settings`} className="text-[12px] font-bold bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 transition-colors">
@@ -535,8 +564,25 @@ const MainContent = () => {
 const AppLayout = () => {
   const { currentUser, loading: authLoading } = useAuth();
   const { currentTenant, isImpersonating, stopImpersonating, loading: tenantLoading } = useTenant();
+  const navigate = useNavigate();
   // Apply saved theme on every page load
   useTheme();
+
+  // Kiosk mode: true when Electron window is in full-screen (POS Sales).
+  // Driven by OS-level enter/leave-full-screen events forwarded via IPC so
+  // reload recovery and Esc-key exit both work without React state loss.
+  const [kioskMode, setKioskMode] = React.useState(false);
+  React.useEffect(() => {
+    if (!window.electron?.window) return;
+    const unsub = window.electron.window.onKioskChange(({ inKiosk }) => setKioskMode(inKiosk));
+    return unsub;
+  }, []);
+
+  const handleExitPOS = useCallback(() => {
+    // setKiosk(false) triggers leave-full-screen → kioskChange event → setKioskMode(false)
+    window.electron?.window?.setKiosk(false);
+    navigate(-1);
+  }, [navigate]);
 
   // Desktop one-time bulk pull-down splash. After the first online sign-in
   // we download every tenant table into IDB so subsequent launches render
@@ -544,9 +590,7 @@ const AppLayout = () => {
   const [bulkSyncDismissed, setBulkSyncDismissed] = React.useState(false);
   const [Splash, setSplash] = React.useState(null);
   React.useEffect(() => {
-    const isElectron = typeof navigator !== 'undefined' &&
-      (/Electron/i.test(navigator.userAgent) || !!window?.electron);
-    if (!isElectron || bulkSyncDismissed || !currentTenant?.id) return;
+    if (!window.electron?.isElectron || bulkSyncDismissed || !currentTenant?.id) return;
     (async () => {
       const mod = await import('./BulkSyncSplash.jsx');
       setSplash(() => mod.default);
@@ -563,26 +607,26 @@ const AppLayout = () => {
         <div className="group fixed top-0 left-0 right-0 z-[200] h-2.5 print:hidden">
           {/* 10px hover trigger (wrapper height = 10px so nothing below gets blocked) */}
           {/* Always-visible pill, no pointer events */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-0.5 rounded-b-md shadow-md opacity-80 group-hover:opacity-0 transition-opacity duration-200 pointer-events-none flex items-center gap-1">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-accent-signature text-white text-[9px] font-bold uppercase tracking-widest px-3 py-0.5 rounded-b-md shadow-md opacity-80 group-hover:opacity-0 transition-opacity duration-200 pointer-events-none flex items-center gap-1">
             <Shield size={10} /> Impersonating
           </div>
           {/* Banner absolute — out of flow, slides down on hover */}
-          <div className="absolute top-0 left-0 right-0 bg-amber-500 text-white px-4 py-2 text-center text-xs font-semibold flex items-center justify-center gap-4 shadow-xl -translate-y-full group-hover:translate-y-0 transition-transform duration-200 ease-out pointer-events-auto">
+          <div className="absolute top-0 left-0 right-0 bg-accent-signature text-white px-4 py-2 text-center text-xs font-semibold flex items-center justify-center gap-4 shadow-xl -translate-y-full group-hover:translate-y-0 transition-transform duration-200 ease-out pointer-events-auto">
             <Shield size={14} className="animate-pulse" />
             <span>Viewing as: {currentTenant?.name}</span>
             <button
               onClick={stopImpersonating}
-              className="bg-white text-amber-600 px-3 py-1 rounded-lg hover:bg-amber-50 transition-all shadow-sm active:scale-[0.98] font-semibold border border-amber-600/20"
+              className="bg-white text-accent-signature px-3 py-1 rounded-lg hover:bg-accent-signature/10 transition-all shadow-sm active:scale-[0.98] font-semibold border border-accent-signature/20"
             >
               Exit View
             </button>
           </div>
         </div>
       )}
-      <Navbar />
+      {kioskMode ? <KioskBar onExit={handleExitPOS} /> : <Navbar />}
       <NotificationStack />
 
-      <MainContent />
+      <MainContent kioskMode={kioskMode} />
 
       {Splash && !bulkSyncDismissed && currentTenant?.id && (
         <Splash tenantId={currentTenant.id} onDone={() => setBulkSyncDismissed(true)} />

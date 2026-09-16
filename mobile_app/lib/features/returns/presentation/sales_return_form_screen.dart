@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/core/utils/units.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -15,12 +16,16 @@ class _ParsedItem {
   final String name;
   final num quantity;
   final double rate;
+  /// Needed to decide whether a fractional return quantity is meaningful —
+  /// 0.25 KG is, 0.25 carry bags is not.
+  final String? unit;
   final Map<String, dynamic> raw;
 
   const _ParsedItem({
     required this.name,
     required this.quantity,
     required this.rate,
+    this.unit,
     required this.raw,
   });
 }
@@ -49,6 +54,8 @@ List<_ParsedItem> _parseItems(Invoice invoice) {
     final itemQty =
         num.tryParse((m['quantity'] ?? m['qty'])?.toString() ?? '1') ?? 1;
 
+    final itemUnit = m['unit']?.toString();
+
     double rate = double.tryParse(
           (m['rate'] ??
                   m['price'] ??
@@ -67,6 +74,7 @@ List<_ParsedItem> _parseItems(Invoice invoice) {
 
     return _ParsedItem(
       name: name,
+      unit: itemUnit,
       quantity: itemQty,
       rate: rate,
       raw: m,
@@ -279,9 +287,9 @@ class _SalesReturnFormScreenState
             ),
             Text(
               'Credit Note',
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.manrope(
                 color: const Color(0xFF94A3B8),
-                fontSize: 10,
+                fontSize: 13,
               ),
             ),
           ],
@@ -301,7 +309,7 @@ class _SalesReturnFormScreenState
                 children: [
                   Text(
                     invoice.displayNumber,
-                    style: GoogleFonts.jetBrainsMono(
+                    style: GoogleFonts.manrope(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                       color: AppColors.inkPrimary,
@@ -424,14 +432,14 @@ class _SalesReturnFormScreenState
                                       Text(
                                         'Max: ${item.quantity.toInt()}',
                                         style: GoogleFonts.manrope(
-                                            fontSize: 11,
+                                            fontSize: 13,
                                             color: AppColors.inkTertiary),
                                       ),
                                       if (item.rate > 0)
                                         Text(
                                           '₹${item.rate.toStringAsFixed(2)}/unit',
                                           style: GoogleFonts.manrope(
-                                              fontSize: 11,
+                                              fontSize: 13,
                                               color: AppColors.inkTertiary),
                                         ),
                                     ],
@@ -452,9 +460,11 @@ class _SalesReturnFormScreenState
                                     SizedBox(
                                       width: 40,
                                       child: Text(
-                                        qty.toInt().toString(),
+                                        // Was qty.toInt() — truncated the display
+                                        // while line 173 sent the true double.
+                                        formatQty(qty, item.unit),
                                         textAlign: TextAlign.center,
-                                        style: GoogleFonts.jetBrainsMono(
+                                        style: GoogleFonts.manrope(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w700,
                                           color: isSelected
@@ -542,8 +552,8 @@ class _SalesReturnFormScreenState
                               children: [
                                 Text(
                                   'Return Date',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 10,
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.inkTertiary,
                                     letterSpacing: 1,
@@ -575,8 +585,8 @@ class _SalesReturnFormScreenState
                     padding: const EdgeInsets.only(left: 4, bottom: 6),
                     child: Text(
                       'REASON FOR RETURN',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppColors.inkTertiary,
                         letterSpacing: 1,
@@ -660,7 +670,7 @@ class _SalesReturnFormScreenState
                   )
                 : Text(
                     'PROCESS RETURN · ₹${returnTotal.toStringAsFixed(2)}',
-                    style: GoogleFonts.jetBrainsMono(
+                    style: GoogleFonts.manrope(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
                       letterSpacing: 0.8,
@@ -684,8 +694,8 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: GoogleFonts.jetBrainsMono(
-        fontSize: 10,
+      style: GoogleFonts.manrope(
+        fontSize: 13,
         fontWeight: FontWeight.w700,
         color: AppColors.inkTertiary,
         letterSpacing: 1.5,

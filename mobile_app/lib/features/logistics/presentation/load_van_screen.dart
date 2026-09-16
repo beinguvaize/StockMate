@@ -54,7 +54,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
       // Warehouse location
       final whRows = await supabase
           .from('inventory_locations')
-          .select('id')
+          .select('id').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId)
           .eq('type', 'WAREHOUSE')
           .limit(1);
@@ -68,7 +68,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
           .eq('location_id', _warehouseLocId!);
       final prods = await supabase
           .from('products')
-          .select('id, name')
+          .select('id, name').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId);
 
       final nameById = {
@@ -117,7 +117,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
       // Resolve / create the vehicle inventory location
       final vRows = await supabase
           .from('inventory_locations')
-          .select('id')
+          .select('id').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId)
           .eq('type', 'VEHICLE')
           .eq('reference_id', widget.vehicleId);
@@ -226,8 +226,8 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
             ),
             Text(
               'WAREHOUSE → ${widget.vehicleName.toUpperCase()}',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
                 letterSpacing: 1.2,
@@ -313,7 +313,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
                                             Text(
                                               '${item.available.toStringAsFixed(0)} in warehouse',
                                               style: GoogleFonts.manrope(
-                                                fontSize: 11,
+                                                fontSize: 13,
                                                 color: AppColors.inkTertiary,
                                               ),
                                             ),
@@ -329,7 +329,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
                                         child: Text(
                                           '$qty',
                                           textAlign: TextAlign.center,
-                                          style: GoogleFonts.jetBrainsMono(
+                                          style: GoogleFonts.manrope(
                                             fontWeight: FontWeight.w900,
                                             fontSize: 16,
                                             color: AppColors.inkPrimary,

@@ -33,8 +33,8 @@ class VanStockScreen extends ConsumerWidget {
             ),
             Text(
               'INVENTORY ON BOARD',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
                 letterSpacing: 1.5,
@@ -183,7 +183,7 @@ class VanStockScreen extends ConsumerWidget {
                                 ),
                                 child: Text(
                                   item.quantity.toStringAsFixed(0),
-                                  style: GoogleFonts.jetBrainsMono(
+                                  style: GoogleFonts.manrope(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 15,
                                     color: AppColors.primary,
@@ -195,7 +195,7 @@ class VanStockScreen extends ConsumerWidget {
                               Text(
                                 'units',
                                 style: GoogleFonts.manrope(
-                                  fontSize: 11,
+                                  fontSize: 13,
                                   color: AppColors.inkTertiary,
                                 ),
                               ),
@@ -230,8 +230,8 @@ class VanStockScreen extends ConsumerWidget {
                                     const SizedBox(width: 4),
                                     Text(
                                       'Low stock',
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 10,
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.danger,
                                       ),

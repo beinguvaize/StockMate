@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ledgrpro.com/sitemap.xml
+Sitemap: https://bookledger.in/sitemap.xml

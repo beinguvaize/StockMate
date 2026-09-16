@@ -58,8 +58,8 @@ class DateRangeChip extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               '${_fmt(range.start)} – ${_fmt(range.end)}',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),

@@ -99,8 +99,8 @@ class _InventoryReportScreenState
                   ),
                   Text(
                     'STOCK VALUATION',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: AppColors.secondary,
                       letterSpacing: 1.5,
@@ -384,7 +384,7 @@ class _InventoryBody extends StatelessWidget {
                                   child: Text(
                                     '${deadStock.length} product${deadStock.length == 1 ? '' : 's'} with no sales in the last 30 days',
                                     style: GoogleFonts.manrope(
-                                      fontSize: 12,
+                                      fontSize: 13,
                                       color: const Color(0xFFEA580C),
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -487,7 +487,7 @@ class _ProductCard extends StatelessWidget {
                 child: Text(
                   category,
                   style: GoogleFonts.manrope(
-                    fontSize: 10,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.primary,
                   ),
@@ -501,8 +501,8 @@ class _ProductCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               sku,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 color: AppColors.inkTertiary,
               ),
             ),
@@ -518,12 +518,12 @@ class _ProductCard extends StatelessWidget {
               Text(
                 'Stock: ',
                 style: GoogleFonts.manrope(
-                    fontSize: 12, color: AppColors.inkSecondary),
+                    fontSize: 13, color: AppColors.inkSecondary),
               ),
               Text(
                 '${stock.toStringAsFixed(stock.truncateToDouble() == stock ? 0 : 2)} $unit',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 12,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: AppColors.inkPrimary,
                 ),
@@ -547,8 +547,8 @@ class _ProductCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         'LOW STOCK',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: AppColors.danger,
                           letterSpacing: 0.5,
@@ -608,7 +608,7 @@ class _ValueLabel extends StatelessWidget {
         children: [
           Text(label,
               style: GoogleFonts.manrope(
-                  fontSize: 9,
+                  fontSize: 13,
                   color: color.withValues(alpha: 0.8),
                   fontWeight: FontWeight.w500)),
           Text(
@@ -677,20 +677,20 @@ class _DeadStockCard extends StatelessWidget {
                 if (sku.isNotEmpty)
                   Text(
                     sku,
-                    style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10, color: AppColors.inkTertiary),
+                    style: GoogleFonts.manrope(
+                        fontSize: 13, color: AppColors.inkTertiary),
                   ),
                 const SizedBox(height: 4),
                 Text(
                   'Stock: ${stock.toStringAsFixed(stock.truncateToDouble() == stock ? 0 : 2)} $unit',
                   style: GoogleFonts.manrope(
-                      fontSize: 12, color: AppColors.inkSecondary),
+                      fontSize: 13, color: AppColors.inkSecondary),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Not sold in 30+ days',
                   style: GoogleFonts.manrope(
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: const Color(0xFFEA580C),
                   ),
@@ -712,7 +712,7 @@ class _DeadStockCard extends StatelessWidget {
               Text(
                 'idle capital',
                 style: GoogleFonts.manrope(
-                    fontSize: 10,
+                    fontSize: 13,
                     color: const Color(0xFFF59E0B).withValues(alpha: 0.8)),
               ),
             ],
@@ -746,8 +746,8 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           title,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 11,
+          style: GoogleFonts.manrope(
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
             color: AppColors.primary,

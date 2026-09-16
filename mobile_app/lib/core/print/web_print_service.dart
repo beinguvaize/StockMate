@@ -44,6 +44,19 @@ class WebPrintService {
   }
 
   static Future<Uint8List?> _render(String path) async {
+    // Transient network blips (slow DNS, momentary drop) are common on
+    // mobile data — one retry here means the caller only ever sees the
+    // local-PDF fallback (and its "standard layout" notice) for a genuine,
+    // sustained failure, not a one-off hiccup.
+    try {
+      return await _renderOnce(path);
+    } catch (e) {
+      debugPrint('[WebPrint] first attempt failed, retrying once: $e');
+      return _renderOnce(path);
+    }
+  }
+
+  static Future<Uint8List?> _renderOnce(String path) async {
     final session = supabase.auth.currentSession;
     if (session == null) {
       throw Exception('Not signed in — sign in first to print web layouts.');

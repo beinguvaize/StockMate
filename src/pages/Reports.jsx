@@ -24,6 +24,7 @@ import GSTR3BReport from '../components/reports/GSTR3BReport';
 import PurchaseRegisterReport from '../components/reports/PurchaseRegisterReport';
 import GSTR2BReconReport from '../components/reports/GSTR2BReconReport';
 import ExpiryReport from '../components/reports/ExpiryReport';
+import UnverifiedCostReport from '../components/reports/UnverifiedCostReport';
 import IMEISerialReport from '../components/reports/IMEISerialReport';
 import DailySalesReport from '../components/reports/DailySalesReport';
 // --- New operational reports ---
@@ -38,6 +39,7 @@ import AllTransactionsReport from '../components/reports/AllTransactionsReport';
 import ItemPartyReport from '../components/reports/ItemPartyReport';
 import ProductSalesReport from '../components/reports/ProductSalesReport';
 import PurchasesReport from '../components/reports/PurchasesReport';
+import ProductMovementReport from '../components/reports/ProductMovementReport';
 
 import {
   TrendingUp, Package, UserCircle, Truck,
@@ -46,7 +48,7 @@ import {
   FileText, FileCheck, Target, CalendarRange, Receipt, Tag,
   BookMarked, BarChart2, AlertTriangle, Users,
   PieChart, ArrowLeftRight, GitFork,
-  Search, ChevronDown, ShoppingBag,
+  Search, ChevronDown, ShoppingBag, ShieldAlert,
 } from 'lucide-react';
 
 const Reports = () => {
@@ -72,6 +74,7 @@ const Reports = () => {
     { id: 'BILL_PROFIT',      group: 'OPERATIONAL', label: 'Bill Profit',      icon: <BarChart2 size={18} />,    component: <BillWiseProfitReport />,         permission: 'sales' },
     { id: 'LOW_STOCK',        group: 'OPERATIONAL', label: 'Low Stock',        icon: <AlertTriangle size={18} />,component: <LowStockReport />,               permission: 'inventory' },
     { id: 'EXPIRY',           group: 'OPERATIONAL', label: 'Expiry Tracking',  icon: <AlertTriangle size={18} />,component: <ExpiryReport />,                 permission: 'inventory' },
+    { id: 'UNVERIFIED_COST',  group: 'OPERATIONAL', label: 'Unverified Cost',  icon: <ShieldAlert size={18} />,  component: <UnverifiedCostReport />,         permission: 'inventory' },
     { id: 'IMEI_SERIAL',      group: 'OPERATIONAL', label: 'IMEI / Serial',    icon: <Package size={18} />,      component: <IMEISerialReport />,             permission: 'inventory' },
     { id: 'SALES_BY_PARTY',   group: 'OPERATIONAL', label: 'Sales by Party',   icon: <Users size={18} />,        component: <SalePurchaseByPartyReport />,    permission: 'sales' },
     { id: 'PARTY_PROFIT',     group: 'OPERATIONAL', label: 'Party Profit',     icon: <PieChart size={18} />,     component: <PartyProfitReport />,            permission: 'reports' },
@@ -79,6 +82,7 @@ const Reports = () => {
     { id: 'ALL_TRANSACTIONS', group: 'OPERATIONAL', label: 'All Transactions', icon: <ArrowLeftRight size={18} />, component: <AllTransactionsReport />,      permission: 'reports' },
     { id: 'ITEM_PARTY',       group: 'OPERATIONAL', label: 'Item × Party',     icon: <GitFork size={18} />,      component: <ItemPartyReport />,              permission: 'sales' },
     { id: 'PRODUCT_SALES',    group: 'OPERATIONAL', label: 'Product Sales',    icon: <Package size={18} />,      component: <ProductSalesReport />,           permission: 'sales' },
+    { id: 'PRODUCT_MOVEMENT', group: 'OPERATIONAL', label: 'Fast / Slow Movers', icon: <Activity size={18} />,   component: <ProductMovementReport />,        permission: 'inventory' },
     { id: 'PURCHASES',        group: 'OPERATIONAL', label: 'Purchases',        icon: <ShoppingBag size={18} />,  component: <PurchasesReport />,              permission: 'purchases' },
 
     // --- ACCOUNTING GROUP ---
@@ -137,7 +141,7 @@ const Reports = () => {
       {/* Universal Breadcrumb / Context Identifier */}
       <div className="no-print flex items-center gap-2 px-6 py-2 bg-white/40 backdrop-blur-md border border-black/5 rounded-pill w-fit shadow-sm">
         <Activity size={12} className="text-accent-signature" />
-        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
+        <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
           REPORTS <span className="mx-2 opacity-30">/</span> {activeGroup} <span className="mx-2 opacity-30">/</span> {currentTab?.label}
         </span>
       </div>
@@ -158,7 +162,7 @@ const Reports = () => {
               className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
                 activeGroup === key
                   ? 'bg-ink-primary text-white shadow-lg'
-                  : 'bg-white/60 text-gray-500 hover:text-ink-primary border border-black/5'
+                  : 'bg-white/60 text-muted-foreground hover:text-ink-primary border border-black/5'
               }`}
             >
               {icon}
@@ -181,12 +185,12 @@ const Reports = () => {
           <span className="flex-1 text-left text-xs font-black uppercase tracking-widest text-ink-primary truncate">
             {currentTab?.label || 'Select report'}
           </span>
-          <ChevronDown size={16} className={`text-gray-400 shrink-0 transition-transform ${tabDropOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${tabDropOpen ? 'rotate-180' : ''}`} />
         </button>
         {tabDropOpen && (
           <div className="absolute z-50 mt-2 left-0 right-0 bg-white border border-black/10 rounded-2xl shadow-2xl overflow-hidden">
             <div className="relative border-b border-black/5">
-              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 autoFocus
                 value={tabSearch}
@@ -197,7 +201,7 @@ const Reports = () => {
             </div>
             <div className="max-h-80 overflow-y-auto py-1">
               {filteredTabs.length === 0 && (
-                <div className="px-4 py-6 text-center text-[11px] text-gray-400">
+                <div className="px-4 py-6 text-center text-[11px] text-muted-foreground">
                   No report matches "{tabSearch}"
                 </div>
               )}
@@ -208,10 +212,10 @@ const Reports = () => {
                   className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
                     activeTab === tab.id
                       ? 'bg-accent-signature/8 text-ink-primary'
-                      : 'text-gray-600 hover:bg-canvas'
+                      : 'text-ink-secondary hover:bg-canvas'
                   }`}
                 >
-                  <span className={activeTab === tab.id ? 'text-accent-signature' : 'text-gray-400'}>{tab.icon}</span>
+                  <span className={activeTab === tab.id ? 'text-accent-signature' : 'text-muted-foreground'}>{tab.icon}</span>
                   <span className="text-xs font-bold">{tab.label}</span>
                 </button>
               ))}

@@ -104,7 +104,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       _selectedTaxSlab = match['label'] as String;
       supabase
           .from('products')
-          .select('barcode')
+          .select('barcode').isFilter('deleted_at', null)
           .eq('id', p.id)
           .maybeSingle()
           .then((row) {
@@ -264,9 +264,9 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             ),
             Text(
               'INVENTORY MANAGEMENT',
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.manrope(
                 color: AppColors.secondary,
-                fontSize: 9,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
               ),
@@ -319,7 +319,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                     ),
                     child: Text('Assign',
                         style: GoogleFonts.manrope(
-                            fontSize: 12, fontWeight: FontWeight.w800,
+                            fontSize: 13, fontWeight: FontWeight.w800,
                             color: AppColors.onPrimaryContainer)),
                   ),
                 ),
@@ -471,7 +471,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEditMode ? 'SAVE CHANGES' : 'ADD TO INVENTORY',
-                        style: GoogleFonts.jetBrainsMono(
+                        style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                           letterSpacing: 1,
@@ -519,9 +519,9 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             fontSize: 14,
           ),
           labelText: label,
-          labelStyle: GoogleFonts.jetBrainsMono(
+          labelStyle: GoogleFonts.manrope(
             color: AppColors.inkSecondary,
-            fontSize: 10,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
@@ -563,9 +563,9 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.manrope(
                     color: AppColors.inkSecondary,
-                    fontSize: 10,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.5,
                   ),
@@ -615,9 +615,9 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           title,
-          style: GoogleFonts.jetBrainsMono(
+          style: GoogleFonts.manrope(
             color: AppColors.primary,
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
           ),

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restInsert, restUpdate } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
-import { queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
+import { queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate, isElectron } from '../lib/offline/hookAdapter';
 
 const EXPENSE_NUMERIC       = ['amount'];
 const DAYBOOK_NUMERIC       = ['opening_balance', 'closing_balance', 'total_sales', 'total_expenses'];
@@ -33,12 +33,12 @@ export const useFinance = (tenantId) => {
         ),
         readCacheThenRevalidate(
           'day_book',
-          () => supabase.from('day_book').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(60),
+          () => supabase.from('day_book').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('date', { ascending: false }).limit(60),
           (rows) => setDayBook(normalizeNumericRows(rows, DAYBOOK_NUMERIC)),
         ),
         readCacheThenRevalidate(
           'client_payments',
-          () => supabase.from('client_payments').select('id, amount, date, payment_method, notes, client_id, created_at').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          () => supabase.from('client_payments').select('id, amount, date, payment_method, notes, client_id, created_at').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
           (rows) => setClientPayments(normalizeNumericRows(rows, CLIENT_PAYMENT_NUMERIC)),
         ),
         readCacheThenRevalidate(
@@ -53,33 +53,35 @@ export const useFinance = (tenantId) => {
       setClientPayments(normalizeNumericRows(cpCached, CLIENT_PAYMENT_NUMERIC));
       setPurchases(normalizeNumericRows(purCached, PURCHASE_NUMERIC));
 
-      // Recurring templates — small table, fetched directly (online-only
-      // is fine: they only drive the nightly generator + the manage list).
-      const { data: tpls } = await supabase
-        .from('recurring_expense_templates')
+      // Cache reads done — render immediately, remaining fetches run in background.
+      setLoading(false);
+      initialLoadDone.current = true;
+
+      // Supplier payments — cache-first so Day Book shows correct cash flows offline.
+      readCacheThenRevalidate(
+        'supplier_payments',
+        () => supabase.from('supplier_payments')
+          .select('id, supplier_id, supplier_name, amount, payment_method, date, purchase_id, created_at')
+          .eq('tenant_id', tenantId).is('deleted_at', null)
+          .order('date', { ascending: false }).limit(500),
+        (rows) => setSupplierPayments(normalizeNumericRows(rows, SUPPLIER_PAYMENT_NUMERIC)),
+      ).then(cached => setSupplierPayments(normalizeNumericRows(cached, SUPPLIER_PAYMENT_NUMERIC)));
+
+      // Recurring templates + settings: online-only, non-blocking.
+      supabase.from('recurring_expense_templates')
         .select('*').eq('tenant_id', tenantId).is('deleted_at', null)
-        .order('created_at', { ascending: false });
-      setRecurringTemplates(normalizeNumericRows(tpls || [], EXPENSE_NUMERIC));
+        .order('created_at', { ascending: false })
+        .then(({ data: tpls }) => setRecurringTemplates(normalizeNumericRows(tpls || [], EXPENSE_NUMERIC)));
 
-      // Supplier payments — credit-purchase repayments. Needed so the Day Book
-      // reflects cash leaving the drawer on the repayment date.
-      const { data: supPays } = await supabase
-        .from('supplier_payments')
-        .select('id, supplier_id, supplier_name, amount, payment_method, date, purchase_id, created_at')
-        .eq('tenant_id', tenantId).is('deleted_at', null)
-        .order('date', { ascending: false }).limit(500);
-      setSupplierPayments(normalizeNumericRows(supPays || [], SUPPLIER_PAYMENT_NUMERIC));
-
-      // Custom expense categories (per-tenant, stored in settings).
-      const { data: catSetting } = await supabase
-        .from('settings').select('value')
-        .eq('key', 'expense_categories').eq('tenant_id', tenantId).maybeSingle();
-      const arr = Array.isArray(catSetting?.value) ? catSetting.value : [];
-      setCustomCategories(arr.filter(Boolean));
+      supabase.from('settings').select('value')
+        .eq('key', 'expense_categories').eq('tenant_id', tenantId).maybeSingle()
+        .then(({ data: catSetting }) => {
+          const arr = Array.isArray(catSetting?.value) ? catSetting.value : [];
+          setCustomCategories(arr.filter(Boolean));
+        });
     } catch (err) {
       console.error('useFinance error:', err);
       setError(err.message);
-    } finally {
       setLoading(false);
       initialLoadDone.current = true;
     }
@@ -104,11 +106,21 @@ export const useFinance = (tenantId) => {
     vendor_gstin: (expense.vendor_gstin ?? null) || null,
     // Store/till this expense was paid from. null = business-wide.
     location_id:  expense.location_id ?? null,
+    // Owner drawing / loan repayment / capital — cash out but not a P&L
+    // operating expense (excluded from net profit; still hits Cash & Bank).
+    exclude_from_pl: expense.exclude_from_pl ?? false,
   });
 
   const addExpense = async (expense) => {
     const id = crypto.randomUUID();
     const row = { id, ...toDbRow(expense), tenant_id: tenantId };
+    // Desktop offline-first: queue + cache immediately.
+    if (isElectron()) {
+      await queueMutation({ table: 'expenses', type: 'insert', payload: row });
+      await upsertCachedRow('expenses', row);
+      setExpenses(prev => normalizeNumericRows([row, ...prev], EXPENSE_NUMERIC));
+      return { error: null, queued: true };
+    }
     const { error } = await restInsert('expenses', row);
     if (!error) { await fetchFinanceData(); return { error: null }; }
     if (isOfflineError(error)) {
@@ -124,12 +136,24 @@ export const useFinance = (tenantId) => {
 
   const updateExpense = async (expense) => {
     const { id, ...data } = expense;
+    if (isElectron()) {
+      const payload = { ...toDbRow(data), id, tenant_id: tenantId };
+      await queueMutation({ table: 'expenses', type: 'update', payload });
+      await upsertCachedRow('expenses', payload);
+      setExpenses(prev => normalizeNumericRows(prev.map(e => e.id === id ? { ...e, ...payload } : e), EXPENSE_NUMERIC));
+      return { error: null, queued: true };
+    }
     const { error } = await restUpdate('expenses', toDbRow(data), { id, tenant_id: tenantId });
     if (!error) await fetchFinanceData();
     return { error };
   };
 
   const deleteExpense = async (id) => {
+    if (isElectron()) {
+      await queueMutation({ table: 'expenses', type: 'delete', payload: { id } });
+      setExpenses(prev => prev.filter(e => e.id !== id));
+      return { error: null, queued: true };
+    }
     const { error } = await restUpdate('expenses', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
     if (!error) await fetchFinanceData();
     return { error };

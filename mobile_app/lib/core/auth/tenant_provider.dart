@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/auth/data/auth_provider.dart';
 
@@ -36,6 +37,15 @@ class UserProfile {
   }
 }
 
+/// Trial policy. These three must match src/lib/tenancy.js and the database's
+/// get_my_effective_plan(); a second, subtly different copy of this logic is
+/// exactly the bug this fixes.
+const kTrialPlan = 'PRO';
+const kTrialGraceDays = 7;
+final kTrialEnforcementStart = DateTime.utc(2026, 8, 20);
+
+const _knownPlans = {'FREE', 'GROWTH', 'PRO', 'ENTERPRISE'};
+
 class Tenant {
   final String id;
   final String name;
@@ -58,7 +68,7 @@ class Tenant {
       id: map['id'] as String,
       name: map['name'] as String? ?? '',
       slug: map['slug'] as String? ?? '',
-      plan: map['plan'] as String? ?? 'STARTER',
+      plan: map['plan'] as String? ?? 'FREE',
       status: map['status'] as String? ?? 'ACTIVE',
       trialEndDate: map['trial_end_date'] != null
           ? DateTime.tryParse(map['trial_end_date'] as String)
@@ -66,10 +76,54 @@ class Tenant {
     );
   }
 
+  /// The plan name, or FREE if it is not one we recognise.
+  ///
+  /// Mirrors the web's `PLANS[stored] ? stored : 'FREE'`. The legacy STARTER
+  /// value lands on FREE here, as it does on the web and in the database's
+  /// plan gate. Mobile used to rank STARTER alongside GROWTH, which showed
+  /// modules the server then refused to write.
+  String get knownPlan {
+    final p = plan.toUpperCase();
+    return _knownPlans.contains(p) ? p : 'FREE';
+  }
+
+  /// True the moment the trial's end date passes, grace or not.
   bool get isTrialExpired {
     if (status != 'TRIAL') return false;
     if (trialEndDate == null) return false;
     return DateTime.now().isAfter(trialEndDate!);
+  }
+
+  /// True once even the grace window is used up and access should drop.
+  ///
+  /// Grace runs from the later of the trial's own end and the day enforcement
+  /// began, so a trial that lapsed before there was anything to enforce it
+  /// still gets the full warning window.
+  bool get isTrialLapsed {
+    if (status != 'TRIAL' || trialEndDate == null) return false;
+    final ends = trialEndDate!.toUtc();
+    final from = ends.isAfter(kTrialEnforcementStart) ? ends : kTrialEnforcementStart;
+    return DateTime.now().toUtc().isAfter(
+          from.add(const Duration(days: kTrialGraceDays)),
+        );
+  }
+
+  /// The plan to gate on, which is not always the plan stored on the row.
+  ///
+  ///   not on trial            -> exactly what they pay for
+  ///   trial running           -> the BETTER of the stored plan and the trial
+  ///                              grant, so an early signup written straight
+  ///                              to ENTERPRISE is not resolved DOWN to PRO
+  ///   trial lapsed past grace -> FREE
+  ///
+  /// Mirrors effectivePlan() in src/lib/tenancy.js. Without it mobile passed
+  /// the raw stored plan to canAccess, so a Growth trial was refused Pro-only
+  /// features from its first day while the web app granted them.
+  String get effectivePlan {
+    final known = knownPlan;
+    if (status != 'TRIAL' || trialEndDate == null) return known;
+    if (isTrialLapsed) return 'FREE';
+    return (planOrder[kTrialPlan] ?? 0) > (planOrder[known] ?? 0) ? kTrialPlan : known;
   }
 
   int get trialDaysLeft {
@@ -88,7 +142,10 @@ class TenantContext {
   List<String> get userRoles => userProfile.roles;
   // Alias for desktop shell compatibility
   List<String> get roles => userProfile.roles;
-  String get plan => tenant.plan;
+  /// The plan to gate on — trial grant and grace applied.
+  String get plan => tenant.effectivePlan;
+  /// The plan as stored on the row, for display and billing copy.
+  String get storedPlan => tenant.plan;
   String get tenantId => tenant.id;
 
   /// Granular permissions map (from users.permissions jsonb). May be null.
@@ -97,6 +154,7 @@ class TenantContext {
   bool get isOwner => userProfile.roles.contains('OWNER');
   bool get isStaff => userProfile.roles.contains('STAFF');
   bool get isTrialExpired => tenant.isTrialExpired;
+  bool get isTrialLapsed => tenant.isTrialLapsed;
   int get trialDaysLeft => tenant.trialDaysLeft;
 }
 

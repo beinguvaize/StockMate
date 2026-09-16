@@ -88,10 +88,10 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Product</label>
+          <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Product</label>
           <select
             required
-            className="w-full bg-white border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             value={formData.linked_product_id}
             onChange={e => setFormData({ ...formData, linked_product_id: e.target.value })}
           >
@@ -100,10 +100,10 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Supplier</label>
+          <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Supplier</label>
           <select
             required
-            className="w-full bg-white border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             value={formData.supplier_id}
             onChange={e => setFormData({ ...formData, supplier_id: e.target.value })}
           >
@@ -113,19 +113,19 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
         </div>
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-              Quantity {selectedProduct && <span className="text-gray-400">({buyUnit})</span>}
+            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Quantity {selectedProduct && <span className="text-muted-foreground">({buyUnit})</span>}
             </label>
             {hasAltUnit && (
-              <div className="flex items-center gap-0.5 bg-white border border-gray-300 shadow-sm rounded-lg p-0.5">
+              <div className="flex items-center gap-0.5 bg-card border border-border shadow-sm rounded-lg p-0.5">
                 {[
                   { k: 'BASE', l: selectedProduct.unit },
                   { k: 'SECONDARY', l: selectedProduct.secondary_unit },
                 ].map(o => (
                   <button key={o.k} type="button"
                     onClick={() => setPurchaseUnit(o.k)}
-                    className={`px-2 py-0.5 rounded text-[9px] font-black uppercase transition-all ${
-                      purchaseUnit === o.k ? 'bg-ink-primary text-white' : 'text-gray-400'
+                    className={`px-2 py-0.5 rounded text-[9px] font-semibold uppercase transition-all ${
+                      purchaseUnit === o.k ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
                     }`}>{o.l}</button>
                 ))}
               </div>
@@ -134,25 +134,25 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           <input
             required
             type="number"
-            className="w-full bg-white border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="0"
             min="0"
             value={formData.quantity}
             onChange={e => handleQuantityChange(e.target.value)}
           />
           {hasAltUnit && purchaseUnit === 'SECONDARY' && Number(formData.quantity) > 0 && (
-            <div className="mt-1 text-[9px] font-bold text-accent-signature">
+            <div className="mt-1 text-[9px] font-semibold text-accent-signature">
               = {(Number(formData.quantity) * convFactor).toLocaleString()} {selectedProduct.unit} stored
             </div>
           )}
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
-            Unit Price {selectedProduct && <span className="text-gray-400">(per {buyUnit})</span>}
+          <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Unit Price {selectedProduct && <span className="text-muted-foreground">(per {buyUnit})</span>}
           </label>
           <input
             type="number"
-            className="w-full bg-white border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="0.00"
             min="0"
             step="0.01"
@@ -160,25 +160,25 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
             onChange={e => handleUnitPriceChange(e.target.value)}
           />
           {baseUnitCost !== null && selectedProduct?.costPrice > 0 && (
-            <div className="mt-1.5 text-[10px] font-bold">
-              <span className={baseUnitCost > selectedProduct.costPrice ? 'text-amber-600' : 'text-emerald-600'}>
+            <div className="mt-1.5 text-[10px] font-semibold">
+              <span className={baseUnitCost > selectedProduct.costPrice ? 'text-accent-signature' : 'text-emerald-600'}>
                 {baseUnitCost > selectedProduct.costPrice ? '▲' : '▼'} vs last {formatCurrency(selectedProduct.costPrice)}/{selectedProduct.unit}
               </span>
             </div>
           )}
           {baseUnitCost !== null && selectedProduct?.sellingPrice > 0 && baseUnitCost > selectedProduct.sellingPrice && (
-            <div className="mt-1.5 flex items-start gap-1.5 text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
+            <div className="mt-1.5 flex items-start gap-1.5 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
               <AlertTriangle size={11} className="shrink-0 mt-px" />
               <span>Unit cost is above the selling price ({formatCurrency(selectedProduct.sellingPrice)}). Check for a data-entry error.</span>
             </div>
           )}
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Total Amount</label>
+          <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Total Amount</label>
           <input
             required
             type="number"
-            className="w-full bg-white border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="0.00"
             min="0"
             step="0.01"
@@ -186,16 +186,16 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
             onChange={e => handleTotalChange(e.target.value)}
           />
           {unitCost !== null && (
-            <div className="mt-1.5 text-[10px] font-bold text-gray-500">
-              Unit cost: <span className="text-ink-primary">{formatCurrency(unitCost)}</span>
+            <div className="mt-1.5 text-[10px] font-semibold text-muted-foreground">
+              Unit cost: <span className="text-foreground">{formatCurrency(unitCost)}</span>
             </div>
           )}
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Payment Type</label>
+          <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Payment Type</label>
           <select
             required
-            className="w-full bg-white border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             value={formData.payment_type}
             onChange={e => setFormData({ ...formData, payment_type: e.target.value })}
           >
@@ -204,20 +204,20 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Date</label>
+          <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Date</label>
           <input
             required
             type="date"
-            className="w-full bg-white border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             value={formData.date}
             onChange={e => setFormData({ ...formData, date: e.target.value })}
           />
         </div>
         <div className="md:col-span-2">
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Notes</label>
+          <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Notes</label>
           <input
             type="text"
-            className="w-full bg-white border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="Optional reference or remarks"
             value={formData.notes}
             onChange={e => setFormData({ ...formData, notes: e.target.value })}

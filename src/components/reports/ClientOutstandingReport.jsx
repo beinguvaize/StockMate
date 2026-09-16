@@ -75,8 +75,8 @@ const ClientOutstandingReport = () => {
         id: 'out',
         label: 'Total Outstanding',
         value: totalOutstanding,
-        trend: 14.2,
-        trendDir: 'up',
+        trend: 0,
+        trendDir: 'none',
         chartData: chartData.map((d) => ({ value: d.value })),
         color: 'rose',
       },
@@ -93,8 +93,8 @@ const ClientOutstandingReport = () => {
         id: 'risk',
         label: 'High Risk Nodes',
         value: highRiskClients,
-        trend: 2,
-        trendDir: 'down',
+        trend: 0,
+        trendDir: 'none',
         chartData: [{ value: 5 }, { value: 8 }, { value: 4 }, { value: highRiskClients }],
         color: 'orange',
       },
@@ -102,8 +102,8 @@ const ClientOutstandingReport = () => {
         id: 'coll',
         label: 'Collection Rate',
         value: `${collectionRate.toFixed(1)}%`,
-        trend: 2.1,
-        trendDir: collectionRate >= 80 ? 'up' : 'down',
+        trend: 0,
+        trendDir: 'none',
         chartData: [{ value: 70 }, { value: 75 }, { value: 82 }, { value: collectionRate }],
         color: 'emerald',
       },
@@ -114,10 +114,10 @@ const ClientOutstandingReport = () => {
 
   // 3. Define Table Columns (Rule 2)
   const columns = [
-    { key: 'name', label: 'Client / Entity', sortable: true, width: 250, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
-    { key: 'phone', label: 'Contact Node', width: 150, render: (val) => <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400"><Phone size={10} /> {val || 'NO PHONE'}</div> },
+    { key: 'name', label: 'Client / Entity', sortable: true, width: 250, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
+    { key: 'phone', label: 'Contact Node', width: 150, render: (val) => <div className="flex items-center gap-2 text-[10px] font-semibold text-muted-foreground"><Phone size={10} /> {val || 'NO PHONE'}</div> },
     { key: 'balance', label: 'Current Balance', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => (
-      <span className={`font-black ${val > 50000 ? 'text-red-500' : val > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>
+      <span className={`font-semibold ${val > 50000 ? 'text-red-500' : val > 0 ? 'text-accent-signature' : 'text-emerald-500'}`}>
         {formatCurrency(val)}
       </span>
     )},
@@ -126,7 +126,7 @@ const ClientOutstandingReport = () => {
       const u = row.utilization || 0;
       return (
         <div className="flex flex-col items-end gap-1">
-          <span className={`text-[10px] font-black ${u > 80 ? 'text-red-500' : 'text-gray-400'}`}>{u.toFixed(1)}%</span>
+          <span className={`text-[10px] font-semibold ${u > 80 ? 'text-red-500' : 'text-muted-foreground'}`}>{u.toFixed(1)}%</span>
           <div className="w-16 h-1 bg-canvas rounded-full overflow-hidden">
             <div className={`h-full transition-all ${u > 80 ? 'bg-red-500' : 'bg-accent-signature'}`} style={{ width: `${Math.min(u, 100)}%` }} />
           </div>
@@ -134,24 +134,24 @@ const ClientOutstandingReport = () => {
       );
     }},
     { key: 'days_overdue', label: 'Days Overdue', align: 'right', sortable: true, width: 120, render: (val) => {
-      if (!val || val <= 0) return <span className="text-[10px] font-black text-emerald-500">CURRENT</span>;
-      return <span className={`text-[10px] font-black ${val > 60 ? 'text-red-600' : val > 30 ? 'text-orange-500' : 'text-amber-500'}`}>{val} DAYS</span>;
+      if (!val || val <= 0) return <span className="text-[10px] font-semibold text-emerald-500">CURRENT</span>;
+      return <span className={`text-[10px] font-semibold ${val > 60 ? 'text-red-600' : val > 30 ? 'text-orange-500' : 'text-accent-signature'}`}>{val} DAYS</span>;
     }},
     { key: 'status', label: 'Risk Status', width: 140, render: (_, row) => {
       const u = row.utilization || 0;
       const isOverdue = (row.overdue_amount || 0) > 0;
       const risk = isOverdue || u > 90 ? 'CRITICAL' : u > 60 ? 'WARNING' : 'STABLE';
       return (
-        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase w-fit ${
-          risk === 'CRITICAL' ? 'bg-red-50 text-red-600' : risk === 'WARNING' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
+        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-semibold uppercase w-fit ${
+          risk === 'CRITICAL' ? 'bg-red-50 text-red-600' : risk === 'WARNING' ? 'bg-accent-signature/10 text-accent-signature' : 'bg-emerald-50 text-emerald-600'
         }`}>
-          <div className={`w-1 h-1 rounded-full ${risk === 'CRITICAL' ? 'bg-red-600' : risk === 'WARNING' ? 'bg-amber-600' : 'bg-emerald-600'}`} />
+          <div className={`w-1 h-1 rounded-full ${risk === 'CRITICAL' ? 'bg-red-600' : risk === 'WARNING' ? 'bg-accent-signature' : 'bg-emerald-600'}`} />
           {risk}
         </div>
       );
     }},
     { key: 'last_payment_date', label: 'Last Activity', type: 'date', width: 150, render: (val) => {
-      if (!val) return <span className="text-gray-400 text-[10px]">NO ACTIVITY</span>;
+      if (!val) return <span className="text-muted-foreground text-[10px]">NO ACTIVITY</span>;
       try {
         return new Date(val).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       } catch {

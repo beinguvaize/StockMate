@@ -1,0 +1,22 @@
+-- Applied via apply_migration; recorded here for history.
+--
+-- Supplier payments never reached Cash & Bank: 34 payments worth Rs 264,195 on
+-- FUTURE DISPO, none with an account_transactions row. Verified twice -- nothing
+-- keyed on the payment id, and the 5 Aug Rs 30,000 handover (4 slices) has
+-- nothing under either the payment id or the bill id.
+--
+-- trg_supplier_payments_post_ledger mirrors post_expense_to_ledger exactly, so
+-- there is one convention rather than two. A trigger, not a client call,
+-- because payments are written by settle_supplier_payment,
+-- settle_purchase_payment, the offline replay queue and mobile -- the
+-- client-side addTxn only covered one of those paths, which is how this stayed
+-- empty. Keyed on the PAYMENT id under ref_type='SUPPLIER_PAYMENT', so it
+-- cannot collide with the existing ref_type='PURCHASE' rows, which are keyed on
+-- the bill id and written at bill entry.
+--
+-- FORWARD ONLY -- the 34 historical payments are NOT backfilled. Measured
+-- first: posting them alone would take Akbar's UBI to -34,873 and the UPI
+-- account to -24,800, because those accounts are missing their inflows too (the
+-- UPI account has zero entries of any kind). Separately, 11 CREDIT bills posted
+-- Rs 86,010 of cash OUT at bill entry when no cash moved, which double-counts
+-- against their later payments. Both need resolving before any backfill.

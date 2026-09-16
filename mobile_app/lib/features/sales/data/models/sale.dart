@@ -12,6 +12,9 @@ class Sale {
   final double? tax;
   final double? totalAmount;
   final double? paidAmount;
+  /// Actual cash handed over. May exceed the bill (change given, or the
+  /// excess applied to older dues); paidAmount is capped at the bill.
+  final double? amountReceived;
   final String? date;
   final String? status;
   final DateTime? createdAt;
@@ -31,6 +34,7 @@ class Sale {
     this.tax,
     this.totalAmount,
     this.paidAmount,
+    this.amountReceived,
     this.date,
     this.status,
     this.createdAt,
@@ -60,6 +64,7 @@ class Sale {
       tax: (json['tax'] as num?)?.toDouble(),
       totalAmount: (json['totalAmount'] as num?)?.toDouble(),
       paidAmount: (json['paidAmount'] as num?)?.toDouble(),
+      amountReceived: (json['amount_received'] as num?)?.toDouble(),
       date: json['date'] as String?,
       status: json['status'] as String?,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,

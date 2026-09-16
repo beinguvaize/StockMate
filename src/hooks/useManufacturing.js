@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { fetchWithCache } from '../lib/offline/hookAdapter';
 import { supabase } from '../lib/supabase';
 
 /**
@@ -10,24 +11,29 @@ export function useManufacturing(tenantId) {
   const [orders, setOrders]               = useState([]);
   const [orderMaterials, setOrderMaterials] = useState([]);
   const [orderCosts, setOrderCosts]       = useState([]);
-  const [loading, setLoading]             = useState(true);
+  const [loading, setLoading]             = useState(false);
 
   const fetchAll = useCallback(async () => {
-    if (!tenantId) { setLoading(false); return; }
-    setLoading(true);
+    if (!tenantId) { return; }
     try {
+      // Reads go through the offline cache on desktop. The cache holds whole
+      // tables, so the tenant and soft-delete filters are re-applied here.
+      const live = (rows) => (rows || [])
+        .filter(r => r && r.tenant_id === tenantId && !r.deleted_at);
+
       const [b, bc, o, om, oc] = await Promise.all([
-        supabase.from('bom').select('*').eq('tenant_id', tenantId).is('deleted_at', null),
-        supabase.from('bom_components').select('*').eq('tenant_id', tenantId).is('deleted_at', null),
-        supabase.from('production_orders').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }),
-        supabase.from('production_order_materials').select('*').eq('tenant_id', tenantId).is('deleted_at', null),
-        supabase.from('production_costs').select('*').eq('tenant_id', tenantId).is('deleted_at', null),
+        fetchWithCache('bom', () => supabase.from('bom').select('*').eq('tenant_id', tenantId).is('deleted_at', null)),
+        fetchWithCache('bom_components', () => supabase.from('bom_components').select('*').eq('tenant_id', tenantId).is('deleted_at', null)),
+        fetchWithCache('production_orders', () => supabase.from('production_orders').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false })),
+        fetchWithCache('production_order_materials', () => supabase.from('production_order_materials').select('*').eq('tenant_id', tenantId).is('deleted_at', null)),
+        fetchWithCache('production_costs', () => supabase.from('production_costs').select('*').eq('tenant_id', tenantId).is('deleted_at', null)),
       ]);
-      setBoms(b.data || []);
-      setBomComponents(bc.data || []);
-      setOrders(o.data || []);
-      setOrderMaterials(om.data || []);
-      setOrderCosts(oc.data || []);
+      setBoms(live(b.data));
+      setBomComponents(live(bc.data));
+      setOrders(live(o.data).sort((x, y) =>
+        String(y.created_at || '').localeCompare(String(x.created_at || ''))));
+      setOrderMaterials(live(om.data));
+      setOrderCosts(live(oc.data));
     } catch (e) {
       console.error('useManufacturing fetch error:', e);
     } finally {

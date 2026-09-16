@@ -19,7 +19,7 @@
  */
 
 import { putRecords, getRecords } from './cache.js';
-import { enqueue } from './outbox.js';
+import { enqueue, allOps } from './outbox.js';
 
 /**
  * Cache-first read. Returns the cached snapshot SYNCHRONOUSLY from IDB so
@@ -40,18 +40,68 @@ export async function readCacheThenRevalidate(table, queryFn, onRefresh) {
   if (!isElectron()) {
     // Web: skip cache. Block until the network resolves so the existing
     // hook contract stays the same.
-    try {
+    const run = async () => {
       const res = await queryFn();
       if (res?.error) throw res.error;
       return Array.isArray(res?.data) ? res.data : [];
+    };
+    try {
+      return await run();
     } catch (err) {
-      console.warn(`[hookAdapter] ${table} web fetch failed:`, err);
-      return [];
+      // First-load races (auth token mid-refresh, momentary network blip)
+      // used to settle the hook on an empty list with no retry — the page
+      // stayed blank until a manual refresh. Retry once after a beat, and
+      // if that also fails push the data in via onRefresh when it recovers.
+      console.warn(`[hookAdapter] ${table} web fetch failed, retrying:`, err?.message || err);
+      try {
+        await new Promise((r) => setTimeout(r, 1200));
+        return await run();
+      } catch (err2) {
+        console.warn(`[hookAdapter] ${table} web retry failed:`, err2?.message || err2);
+        if (typeof onRefresh === 'function') {
+          setTimeout(async () => {
+            try { onRefresh(await run()); } catch (_) { /* stays empty */ }
+          }, 4000);
+        }
+        return [];
+      }
     }
   }
 
   // Desktop: cache wins. Background revalidate.
   const cached = await getRecords(table);
+
+  /**
+   * Rows written locally that the server has not seen yet.
+   *
+   * A sale rung up offline is cached optimistically AND queued in the outbox.
+   * The cache keeps it, but the revalidate below used to hand `onRefresh` the
+   * SERVER's rows verbatim — and the server does not have that sale yet, so the
+   * hook's state lost it and the sale vanished from history the moment the
+   * connection flickered. It reappeared only after a sync, which looks exactly
+   * like a lost bill to whoever rang it up.
+   *
+   * Matching on the outbox rather than merging the whole cache is deliberate:
+   * a row genuinely deleted on the server must still disappear.
+   */
+  const pendingIds = async () => {
+    try {
+      const ops = await allOps();
+      const ids = new Set();
+      for (const op of ops) {
+        if (op?.table === table && op?.payload?.id) ids.add(op.payload.id);
+        // A queued RPC carries its row id under the function's own parameter
+        // name, not `id` — process_sale writes a sales row as p_id.
+        if (table === 'sales' && op?.table === 'process_sale' && op?.payload?.p_id) {
+          ids.add(op.payload.p_id);
+        }
+      }
+      return ids;
+    } catch (err) {
+      console.warn('[hookAdapter] could not read outbox:', err?.message || err);
+      return new Set();
+    }
+  };
 
   // Fire-and-forget revalidation. If offline or the query fails we keep
   // the cached snapshot — never blank the UI.
@@ -65,7 +115,16 @@ export async function readCacheThenRevalidate(table, queryFn, onRefresh) {
         try { await putRecords(table, rows); } catch (_) {}
       }
       if (typeof onRefresh === 'function') {
-        try { onRefresh(rows); } catch (_) {}
+        // Put back anything still waiting in the outbox, so a local sale is not
+        // erased from the screen by a refresh that happened before it synced.
+        let merged = rows;
+        const pending = await pendingIds();
+        if (pending.size) {
+          const onServer = new Set(rows.map((r) => r?.id));
+          const unsynced = cached.filter((r) => pending.has(r?.id) && !onServer.has(r?.id));
+          if (unsynced.length) merged = [...unsynced, ...rows];
+        }
+        try { onRefresh(merged); } catch (_) {}
       }
     } catch (err) {
       // Network or RLS error → keep the cache. Don't surface — UI already
@@ -143,12 +202,54 @@ export async function fetchWithCache(table, queryFn) {
 /**
  * Enqueue a write for later replay by the sync engine.
  * Returns the outbox opId.
+ *
+ * Every queued op also schedules a debounced sync (~3s) when online, so the
+ * server catches up within seconds instead of waiting for the 10-min auto
+ * interval — otherwise background revalidates serve stale server rows and
+ * optimistic balances appear to "jump back".
  */
+let _syncSoonTimer = null;
+function scheduleSyncSoon() {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  clearTimeout(_syncSoonTimer);
+  _syncSoonTimer = setTimeout(async () => {
+    try {
+      const { syncNow } = await import('./syncEngine.js');
+      await syncNow();
+    } catch (_) {/* next auto/manual sync will retry */}
+  }, 3000);
+}
+
 export async function queueMutation({ table, type = 'insert', payload }) {
   // Outbox queue only meaningful on desktop. Web hooks should never call
   // this — if they do, no-op so we don't grow web's IDB silently.
   if (!isElectron()) return null;
-  return enqueue({ table, type, payload });
+  const opId = await enqueue({ table, type, payload });
+  scheduleSyncSoon();
+  return opId;
+}
+
+/**
+ * Local-first write. On desktop the write NEVER waits for the network:
+ * it is queued to the outbox and (optionally) applied to the IDB cache
+ * immediately, then pushed to supabase by the sync engine (auto every
+ * 10 min, on the Sync Now button, or on reconnect). On web it simply
+ * runs the provided online write so web behaviour is byte-for-byte
+ * unchanged.
+ *
+ *   return localFirstWrite({
+ *     table: 'expenses', type: 'insert', payload: row,
+ *     cacheRow: row,                      // optimistic IDB upsert (optional)
+ *     onlineWrite: () => restInsert('expenses', row),   // web path
+ *   });
+ */
+export async function localFirstWrite({ table, type = 'insert', payload, cacheRow, onlineWrite }) {
+  if (!isElectron()) return onlineWrite();
+  await enqueue({ table, type, payload });
+  if (cacheRow) {
+    try { await putRecords(table, [cacheRow]); } catch (_) {/* best-effort */}
+  }
+  return { success: true, queued: true, error: null };
 }
 
 /**

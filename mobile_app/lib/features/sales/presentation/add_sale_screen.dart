@@ -1,45 +1,69 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/core/utils/units.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/core/widgets/app_surfaces.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
-import 'package:mobile_app/core/database/database.dart' hide Client;
+import 'package:mobile_app/core/database/database.dart' hide Client, Sale, Invoice;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:uuid/uuid.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/add_client_screen.dart';
+import 'package:mobile_app/core/database/offline_reads.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/widgets/upi_qr_sheet.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
-import 'package:mobile_app/main.dart' show syncServiceProvider;
+import 'package:mobile_app/main.dart' show syncServiceProvider, databaseProvider;
+import 'package:mobile_app/features/accounts/presentation/providers/accounts_provider.dart';
+import 'package:mobile_app/core/print/web_print_service.dart';
+import 'package:mobile_app/core/print/pos_receipt_pdf.dart' as pos_pdf;
+import 'package:mobile_app/features/invoices/data/models/invoice.dart';
+import 'package:mobile_app/features/sales/data/models/sale.dart';
+import 'package:mobile_app/features/settings/data/models/business_profile.dart';
+import 'package:printing/printing.dart';
 
 // POS stores (non-vehicle inventory locations) for the multi-store
 // store picker. Cached per session.
 final posStoresProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final ctx = await ref.watch(tenantContextProvider.future);
   if (ctx == null) return [];
-  final res = await supabase
-      .from('inventory_locations')
-      .select('id, name, type')
-      .eq('tenant_id', ctx.tenantId)
-      .isFilter('deleted_at', null)
-      .order('created_at');
-  return (res as List)
-      .cast<Map<String, dynamic>>()
-      .where((l) => (l['type'] ?? 'WAREHOUSE') != 'VEHICLE')
-      .toList();
+  try {
+    final res = await supabase
+        .from('inventory_locations')
+        .select('id, name, type')
+        .eq('tenant_id', ctx.tenantId)
+        .isFilter('deleted_at', null)
+        .order('created_at');
+    return (res as List)
+        .cast<Map<String, dynamic>>()
+        .where((l) => (l['type'] ?? 'WAREHOUSE') != 'VEHICLE')
+        .toList();
+  } catch (e) {
+    // Without this the store picker came up empty offline, which on a
+    // multi-store tenant means the cashier cannot choose where the sale happens.
+    debugPrint('[posStoresProvider] online failed, using Drift cache: $e');
+    final rows = await cachedInventoryLocations(ref.read(databaseProvider), ctx.tenantId);
+    return rows.where((l) => (l['type'] ?? 'WAREHOUSE') != 'VEHICLE').toList();
+  }
 });
 
 // ─── Cart model ───────────────────────────────────────────────────────────────
 
 class CartItem {
   final Product product;
-  int quantity;
+  /// double, not int: loose goods sell by weight (0.25 KG). Whether fractions
+  /// are actually accepted is decided per product by allowsFraction(unit).
+  double quantity;
   double unitPrice; // supports price override per item
   CartItem({required this.product, required this.quantity, double? unitPrice})
       : unitPrice = unitPrice ?? product.sellingPrice;
@@ -90,7 +114,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
   // ── Cart ops ────────────────────────────────────────────────────────────────
 
   /// Called from product detail sheet — sets qty + price for a product.
-  void _setCartItem(Product p, int qty, double price) {
+  void _setCartItem(Product p, double qty, double price) {
     setState(() {
       if (qty <= 0) {
         _cart.removeWhere((c) => c.product.id == p.id);
@@ -111,9 +135,14 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     setState(() {
       final i = _cart.indexWhere((c) => c.product.id == p.id);
       if (i != -1) {
-        if (_cart[i].quantity < p.stock.toInt()) _cart[i].quantity++;
+        // stock.toInt() truncated 0.75 KG to 0 and made the item unsellable.
+        final step = qtyStepButton(p.unit);
+        final next = clampQty(_cart[i].quantity + step, p.unit);
+        if (!exceedsStock(next, p.stock)) _cart[i].quantity = next;
       } else {
-        if (p.stock > 0) _cart.add(CartItem(product: p, quantity: 1));
+        if (p.stock > 0) {
+          _cart.add(CartItem(product: p, quantity: clampQty(qtyStepButton(p.unit), p.unit)));
+        }
       }
     });
   }
@@ -123,8 +152,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     setState(() {
       final i = _cart.indexWhere((c) => c.product.id == p.id);
       if (i != -1) {
-        if (_cart[i].quantity > 1) {
-          _cart[i].quantity--;
+        final step = qtyStepButton(_cart[i].product.unit);
+        final next = clampQty(_cart[i].quantity - step, _cart[i].product.unit);
+        if (next > 0) {
+          _cart[i].quantity = next;
         } else {
           _cart.removeAt(i);
         }
@@ -136,7 +167,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     setState(() => _cart.removeWhere((c) => c.product.id == p.id));
   }
 
-  int _cartQty(Product p) {
+  double _cartQty(Product p) {
     final i = _cart.indexWhere((c) => c.product.id == p.id);
     return i != -1 ? _cart[i].quantity : 0;
   }
@@ -153,9 +184,17 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _ProductDetailSheet(
         product: p,
-        initialQty: currentItem?.quantity ?? 1,
+        // A product bought by weight and sold in packets opens at ONE PACKET.
+        // Without this a new line started at one whole base unit — a kilo, or
+        // four 250 g packets — and the cashier had to correct it every time.
+        // Editing an existing line keeps whatever it already holds.
+        initialQty: currentItem?.quantity
+            ?? (((p.secondaryUnit ?? '').isNotEmpty && (p.conversionFactor ?? 0) > 0)
+                ? p.conversionFactor!
+                : qtyStepButton(p.unit)),
         initialPrice: currentItem?.unitPrice ?? p.sellingPrice,
         onConfirm: (qty, price) => _setCartItem(p, qty, price),
+        isOwner: ref.read(tenantContextProvider).valueOrNull?.isOwner ?? false,
       ),
     );
   }
@@ -237,14 +276,28 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       // Items format mirrors web: { id, quantity, name, rate, taxRate }
       // taxRate snapshot at sale-time so invoice GST stays correct even
       // if the product master is edited later.
-      final payloadItems = _cart.map((c) => {
-        'id':       c.product.id,
-        'quantity': c.quantity,
-        'name':     c.product.name,
-        'rate':     c.unitPrice,
-        'taxRate':  c.product.taxRate,
-        'cess':     c.product.cessRate,
-        'hsn':      c.product.hsnCode,
+      final payloadItems = _cart.map((c) {
+        final m = <String, dynamic>{
+          'id':       c.product.id,
+          'quantity': c.quantity,
+          'name':     c.product.name,
+          'rate':     c.unitPrice,
+          'taxRate':  c.product.taxRate,
+          'cess':     c.product.cessRate,
+          'hsn':      c.product.hsnCode,
+        };
+        // Snapshot the packet view, exactly as the web does. quantity and rate
+        // stay in the BASE unit so stock, COGS and the money are untouched —
+        // these three fields exist only so a receipt can say "2 PACK @ Rs 30"
+        // instead of "0.5 KG @ Rs 120", which is what the customer was handed.
+        final conv = c.product.conversionFactor ?? 0;
+        final sec = c.product.secondaryUnit ?? '';
+        if (sec.isNotEmpty && conv > 0) {
+          m['sellUnitName']  = sec;
+          m['sellQty']       = double.parse((c.quantity / conv).toStringAsFixed(3));
+          m['sellUnitPrice'] = double.parse((c.unitPrice * conv).toStringAsFixed(2));
+        }
+        return m;
       }).toList();
 
       final now = DateTime.now();
@@ -293,13 +346,32 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         'p_tenant_id':       tenantId,
         'p_delivery_method': 'PICKUP',
         'p_source_app':      'MOBILE',
-        'p_paid_amount': ?paidAmt,
+        if (paidAmt != null) 'p_paid_amount': paidAmt,
       };
 
       // Offline-first: try direct RPC, on network/transient failure queue it.
       final queued = await ref.read(syncServiceProvider)
           .rpcOnlineOrQueue('process_sale', rpcParams);
       debugPrint(queued ? '[SALE] queued for offline sync' : '[SALE] RPC success');
+
+      // Persist the real amount the customer handed over (may exceed the bill
+      // → change, or applied to previous dues). p_paid_amount is capped at the
+      // bill by the RPC, so this preserves the true tender for the receipt.
+      // Online-only + best-effort — offline sales just omit it (receipt falls
+      // back to the paid amount). Kept off the RPC to avoid an overload change.
+      //
+      // Previously this required the cashier to have typed an explicit amount,
+      // so ordinary sales never wrote the column. The tender is known without
+      // it: credit tenders nothing at the till, UPI is unconfirmed until the
+      // QR sheet flips it, anything else is paid in full.
+      if (!queued) {
+        final tendered = paidAmountOverride ??
+            (paymentMethod == 'CREDIT_SALE' || paymentMethod == 'UPI' ? 0.0 : netTotal);
+        try {
+          await supabase.from('sales')
+              .update({'amount_received': tendered}).eq('id', saleId);
+        } catch (e) { debugPrint('[SALE] amount_received save failed: $e'); }
+      }
 
       // NOTE: do NOT touch clients.outstanding_balance here. A DB trigger
       // (_trg_sales_recalc_outstanding) recomputes it from the client's
@@ -372,6 +444,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
             await supabase.from('sales').update({
               'paymentStatus': 'PAID',
               'paidAmount': netTotal,
+              // Tender lands here, not at sale time — the sale wrote 0 while
+              // the QR was still unconfirmed. Without this a confirmed UPI
+              // sale reads as never collected.
+              'amount_received': netTotal,
             }).eq('id', saleId);
           } catch (e) {
             debugPrint('[SALE] mark PAID failed: $e');
@@ -391,16 +467,24 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       }
 
       if (!mounted) return;
-      // Capture messenger BEFORE popping (after pop, context is invalid)
-      final messenger = ScaffoldMessenger.maybeOf(context);
-      Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
-      messenger?.showSnackBar(
-        const SnackBar(
-          content: Text('Sale recorded!'),
-          backgroundColor: AppColors.secondary,
-          behavior: SnackBarBehavior.floating,
-        ),
+      final tendered    = paidAmountOverride ?? netTotal;
+      final excessAmt   = (tendered - netTotal).clamp(0.0, double.infinity);
+      final outstanding = (_selectedClient?.outstandingBalance ?? 0.0);
+      await _SaleSuccessSheet.show(
+        context,
+        saleId:        saleId,
+        total:         netTotal,
+        client:        _selectedClient,
+        // Not capped at the outstanding any more: anything beyond the dues is
+        // a valid ADVANCE (the DB records it as a negative balance and the
+        // next credit sale consumes it automatically). Clamping here silently
+        // refused the extra cash at the counter.
+        excess:        excessAmt > 0 ? excessAmt : 0,
+        outstanding:   outstanding,
+        paymentMethod: paymentMethod,
       );
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
     } catch (e, stack) {
       debugPrint('[SALE] FAILED: $e\n$stack');
       _showError('Sale failed: $e');
@@ -475,31 +559,24 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                           children: [
                             Row(
                               children: [
-                                GestureDetector(
+                                AppTappable(
+                                  ripple: false,
                                   onTap: () => Navigator.pop(context),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      boxShadow: [AppColors.cardShadow],
-                                    ),
-                                    child: const Icon(LucideIcons.arrowLeft, size: 18, color: AppColors.inkPrimary),
+                                  child: const SizedBox(
+                                    width: 44,
+                                    height: 44,
+                                    child: Icon(LucideIcons.arrowLeft,
+                                        size: 22, color: AppColors.onSurface),
                                   ),
                                 ),
-                                const SizedBox(width: 16),
+                                Gap.w8,
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        widget.isVanSale ? 'Van Sale' : 'New Sale',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.inkPrimary,
-                                          letterSpacing: -0.3,
-                                        ),
+                                        widget.isVanSale ? 'Van sale' : 'New sale',
+                                        style: AppText.title,
                                       ),
                                       if (!widget.isVanSale && stores.length > 1)
                                         PopupMenuButton<String>(
@@ -511,42 +588,59 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                           ],
                                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                                             Text(
-                                              (stores.firstWhere((s) => s['id'] == _posStoreId, orElse: () => stores.first)['name'] ?? 'Store').toString().toUpperCase(),
-                                              style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppColors.primary, letterSpacing: 0.5, fontWeight: FontWeight.w700),
+                                              (stores.firstWhere((s) => s['id'] == _posStoreId, orElse: () => stores.first)['name'] ?? 'Store').toString(),
+                                              style: AppText.label.copyWith(color: AppColors.primary),
                                             ),
-                                            const Icon(LucideIcons.chevronDown, size: 12, color: AppColors.primary),
+                                            const Icon(LucideIcons.chevronDown, size: 16, color: AppColors.primary),
                                           ]),
                                         )
                                       else
                                         Text(
-                                          widget.isVanSale ? 'ROADSIDE POS' : 'REGISTER 01',
-                                          style: GoogleFonts.jetBrainsMono(
-                                            fontSize: 10,
-                                            color: widget.isVanSale ? AppColors.secondary : AppColors.inkTertiary,
-                                            letterSpacing: 0.5,
-                                          ),
+                                          widget.isVanSale ? 'Roadside POS' : 'Register 01',
+                                          style: AppText.caption,
                                         ),
                                     ],
                                   ),
                                 ),
-                                GestureDetector(
+                                AppTappable(
+                                  ripple: false,
                                   onTap: () => _showClientPicker(),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: Gap.md, vertical: 10),
                                     decoration: BoxDecoration(
-                                      color: AppColors.secondaryContainer,
-                                      borderRadius: BorderRadius.circular(99),
+                                      color: AppColors.canvas,
+                                      borderRadius: Radii.rPill,
+                                      border: Border.all(
+                                          color: _selectedClient == null
+                                              ? AppColors.outlineVariant
+                                              : AppColors.primary),
                                     ),
                                     child: Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(LucideIcons.user, size: 14, color: AppColors.secondary),
+                                        Icon(LucideIcons.user,
+                                            size: 16,
+                                            color: _selectedClient == null
+                                                ? AppColors.onSurfaceVariant
+                                                : AppColors.primary),
                                         const SizedBox(width: 6),
-                                        Text(
-                                          _selectedClient == null ? 'Walk-in' : (_selectedClient!.name ?? 'Client'),
-                                          style: GoogleFonts.manrope(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.secondary,
+                                        // Who the bill is for. Named client
+                                        // outlined in brand, walk-in neutral --
+                                        // both were the same grey pill before,
+                                        // so "this is going on account" and
+                                        // "cash customer" looked identical.
+                                        Flexible(
+                                          child: Text(
+                                            _selectedClient == null
+                                                ? 'Walk-in'
+                                                : (_selectedClient!.name ?? 'Client'),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppText.label.copyWith(
+                                                color: _selectedClient == null
+                                                    ? AppColors.onSurfaceVariant
+                                                    : AppColors.primary),
                                           ),
                                         ),
                                       ],
@@ -561,9 +655,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                             // ── Search bar ─────────────────────────────
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [AppColors.cardShadow],
+                                color: AppColors.canvas,
+                                borderRadius: Radii.rSm,
+                                border: Border.all(
+                                    color: AppColors.outlineVariant),
                               ),
                               child: Row(
                                 children: [
@@ -571,15 +666,13 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                     child: TextField(
                                       controller: _searchController,
                                       decoration: InputDecoration(
-                                        hintText: 'Search items or scan barcode...',
-                                        hintStyle: GoogleFonts.manrope(
-                                          fontSize: 14,
-                                          color: AppColors.inkTertiary,
-                                        ),
+                                        hintText: 'Search items or scan barcode',
+                                        hintStyle: AppText.body.copyWith(
+                                            color: AppColors.inkTertiary),
                                         prefixIcon: const Icon(
                                           LucideIcons.search,
-                                          size: 18,
-                                          color: AppColors.inkTertiary,
+                                          size: 22,
+                                          color: AppColors.onSurfaceVariant,
                                         ),
                                         border: InputBorder.none,
                                         contentPadding: const EdgeInsets.symmetric(vertical: 14),
@@ -602,7 +695,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
 
                             // ── Category chips ─────────────────────────
                             SizedBox(
-                              height: 36,
+                              height: 40,
                               child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: categories.length,
@@ -613,28 +706,31 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                   final isActive = isAll
                                       ? _selectedCategory == null
                                       : _selectedCategory == cat;
-                                  return GestureDetector(
+                                  return AppTappable(
+                                    ripple: false,
                                     onTap: () => setState(
                                         () => _selectedCategory = isAll ? null : cat),
                                     child: AnimatedContainer(
                                       duration: const Duration(milliseconds: 180),
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 6),
+                                          horizontal: Gap.lg, vertical: Gap.sm),
                                       decoration: BoxDecoration(
                                         color: isActive
                                             ? AppColors.primaryContainer
-                                            : Colors.white,
-                                        borderRadius: BorderRadius.circular(99),
-                                        boxShadow: [AppColors.cardShadow],
+                                            : AppColors.canvas,
+                                        borderRadius: Radii.rPill,
+                                        border: Border.all(
+                                          color: isActive
+                                              ? AppColors.primaryContainer
+                                              : AppColors.outlineVariant,
+                                        ),
                                       ),
                                       child: Text(
                                         cat,
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
+                                        style: AppText.label.copyWith(
                                           color: isActive
-                                              ? AppColors.primary
-                                              : AppColors.inkTertiary,
+                                              ? AppColors.onPrimaryContainer
+                                              : AppColors.onSurfaceVariant,
                                         ),
                                       ),
                                     ),
@@ -660,8 +756,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                 padding: const EdgeInsets.all(40),
                                 child: Text(
                                   'No products found.',
-                                  style: GoogleFonts.manrope(
-                                      color: AppColors.inkTertiary),
+                                  style: AppText.body
+                                      .copyWith(color: AppColors.inkTertiary),
                                 ),
                               ),
                             ),
@@ -680,9 +776,14 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              crossAxisSpacing: 14,
-                              mainAxisSpacing: 14,
-                              childAspectRatio: 0.78,
+                              crossAxisSpacing: Gap.md,
+                              mainAxisSpacing: Gap.md,
+                              // 0.78 was tuned around the 80px image
+                              // placeholder the tile no longer has; 0.85 still
+                              // left the Spacer holding a band of dead air
+                              // under every product. Sized to the content that
+                              // is actually in the tile.
+                              childAspectRatio: 0.95,
                             ),
                           ),
                   ),
@@ -696,73 +797,58 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                   right: 0,
                   bottom: 0,
                   child: Container(
-                    padding: EdgeInsets.fromLTRB(
-                        20,
-                        16,
-                        20,
-                        16 + MediaQuery.of(context).padding.bottom),
+                    padding: EdgeInsets.fromLTRB(Gap.xl, Gap.lg, Gap.xl,
+                        Gap.lg + MediaQuery.of(context).padding.bottom),
                     decoration: const BoxDecoration(
-                      color: AppColors.secondary,
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(24)),
+                      color: AppColors.canvas,
+                      border: Border(
+                          top: BorderSide(color: AppColors.outlineVariant)),
                     ),
                     child: Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(LucideIcons.shoppingBag,
-                              color: Colors.white, size: 20),
-                        ),
-                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'BASKET TOTAL',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
-                                  color: Colors.white60,
-                                  letterSpacing: 0.5,
-                                ),
+                                '${_cart.length} item${_cart.length == 1 ? '' : 's'}',
+                                style: AppText.caption,
                               ),
-                              Text(
-                                '₹${_subtotal.toStringAsFixed(2)}',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
+                              const SizedBox(height: 2),
+                              // Was "BASKET TOTAL" over a 20px figure on a grey
+                              // bar. This is the number the customer is about
+                              // to be asked for; it is the largest thing here.
+                              Text(Money.inr(_subtotal),
+                                  style: AppText.moneyLarge
+                                      .copyWith(fontSize: 26)),
                             ],
                           ),
                         ),
-                        GestureDetector(
+                        Gap.w16,
+                        AppTappable(
+                          ripple: false,
                           onTap: _openCheckout,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 14),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryContainer,
-                              borderRadius: BorderRadius.circular(99),
+                                horizontal: Gap.xl, vertical: 16),
+                            decoration: const BoxDecoration(
+                              // The bar was grey with a PALE amber button, so
+                              // the one action that completes a sale was the
+                              // faintest thing on the bar.
+                              color: AppColors.primary,
+                              borderRadius: Radii.rSm,
                             ),
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  'Checkout',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
+                                Text('Checkout',
+                                    style: AppText.label.copyWith(
+                                        fontSize: 16,
+                                        color: AppColors.onPrimary)),
+                                Gap.w8,
                                 const Icon(LucideIcons.arrowRight,
-                                    size: 16, color: AppColors.primary),
+                                    size: 18, color: AppColors.onPrimary),
                               ],
                             ),
                           ),
@@ -798,7 +884,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
 
 class _ProductCard extends StatelessWidget {
   final Product product;
-  final int qty;
+  final double qty;
   final VoidCallback onTap;   // opens detail sheet
   final VoidCallback onAdd;   // quick +1
   final VoidCallback onRemove;
@@ -815,234 +901,153 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLow = product.stock > 0 && product.stock <= 10;
     final isOut = product.stock <= 0;
+    final inCart = qty > 0;
 
-    return GestureDetector(
+    // The status the tile is in, said once. It was said three times before --
+    // by the placeholder's fill, by a corner badge, and by the stock line --
+    // each with its own colour logic.
+    final Color statusColor = isOut
+        ? AppColors.error
+        : isLow
+            ? AppColors.warning
+            : AppColors.inkTertiary;
+
+    return AppTappable(
+      ripple: false,
       onTap: isOut ? null : onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Gap.md),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [AppColors.cardShadow],
+          color: AppColors.canvas,
+          borderRadius: Radii.rMd,
+          // Selection is carried by the border, not by a shadow. A tile in the
+          // basket has to be identifiable at a glance across a 2-up grid.
+          border: Border.all(
+            color: inCart ? AppColors.primary : AppColors.outlineVariant,
+            width: inCart ? 1.5 : 1,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon area + badge
-            Stack(
+            Row(
               children: [
-                Container(
-                  height: 80,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: qty > 0
-                        ? AppColors.primaryContainer.withValues(alpha: 0.4)
-                        : AppColors.surfaceContainer,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    LucideIcons.package,
-                    color: isOut
-                        ? AppColors.inkTertiary
-                        : qty > 0
-                            ? AppColors.primary
-                            : AppColors.primary,
-                    size: 32,
-                  ),
+                // Was an 80px-tall placeholder holding the same generic package
+                // glyph for every product -- half the tile's height spent on
+                // nothing a cashier can use. The name is what identifies the
+                // item, so the name gets the space.
+                IconTile(
+                  icon: isOut ? LucideIcons.packageX : LucideIcons.package,
+                  tint: isOut ? AppColors.inkTertiary : AppColors.primary,
+                  size: 36,
                 ),
-                if (qty > 0)
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '×$qty',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                if (isLow && qty == 0)
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'LOW',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
+                const Spacer(),
                 if (isOut)
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.danger,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'OUT',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
+                  _Pill(label: 'Out', color: AppColors.error)
+                else if (isLow)
+                  _Pill(label: 'Low', color: AppColors.warning),
               ],
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: Gap.sm),
 
             Text(
               product.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isOut ? AppColors.inkTertiary : AppColors.inkPrimary,
+              style: AppText.bodyStrong.copyWith(
+                color: isOut ? AppColors.inkTertiary : AppColors.onSurface,
               ),
             ),
-            if (product.category != null)
-              Text(
-                product.category!.toUpperCase(),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9,
-                  color: AppColors.inkTertiary,
-                  letterSpacing: 0.3,
-                ),
+
+            const SizedBox(height: 2),
+
+            Text(
+              '${product.stock.toStringAsFixed(product.stock % 1 == 0 ? 0 : 1)} in stock',
+              style: AppText.caption.copyWith(
+                color: statusColor,
+                fontWeight: isOut || isLow ? FontWeight.w600 : FontWeight.w400,
               ),
-
-            const SizedBox(height: 4),
-
-            // Stock indicator — inline tiny pill
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  LucideIcons.layers,
-                  size: 9,
-                  color: isOut
-                      ? AppColors.danger
-                      : isLow
-                          ? AppColors.warning
-                          : AppColors.inkSecondary,
-                ),
-                const SizedBox(width: 3),
-                Text(
-                  '${product.stock.toStringAsFixed(product.stock % 1 == 0 ? 0 : 1)} in stock',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: isOut
-                        ? AppColors.danger
-                        : isLow
-                            ? AppColors.warning
-                            : AppColors.inkSecondary,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
 
             const Spacer(),
 
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '₹${product.sellingPrice.toStringAsFixed(0)}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
+                Expanded(
+                  child: Text(
+                    Money.inr(product.sellingPrice),
+                    // Was amber. Twenty tiles on screen meant twenty amber
+                    // numbers, so the colour identified nothing.
+                    style: AppText.money.copyWith(
+                      color: isOut ? AppColors.inkTertiary : AppColors.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // Qty quick controls
-                if (qty == 0)
-                  GestureDetector(
+                if (!inCart)
+                  _TapTarget(
                     onTap: isOut ? null : onTap,
                     child: Container(
-                      width: 30,
-                      height: 30,
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
                         color: isOut
-                            ? AppColors.surfaceContainer
-                            : AppColors.primaryContainer,
-                        shape: BoxShape.circle,
+                            ? AppColors.secondaryContainer
+                            : AppColors.primary,
+                        borderRadius: Radii.rSm,
                       ),
-                      child: Icon(
-                        LucideIcons.plus,
-                        size: 16,
-                        color: isOut ? AppColors.inkTertiary : AppColors.primary,
-                      ),
+                      child: Icon(LucideIcons.plus,
+                          size: 20,
+                          color: isOut
+                              ? AppColors.inkTertiary
+                              : AppColors.onPrimary),
                     ),
                   )
                 else
+                  // These were 26px circles. Anything under about 44 is below
+                  // the minimum comfortable touch target, and this is the
+                  // control a cashier hits hundreds of times a day, quickly,
+                  // with a customer waiting. A mis-tap here is a wrong bill.
+                  // The drawn buttons stay compact; _TapTarget gives each one a
+                  // 44px hit area that overflows the drawing.
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      GestureDetector(
+                      _TapTarget(
                         onTap: onRemove,
                         child: Container(
-                          width: 26,
-                          height: 26,
+                          width: 32,
+                          height: 32,
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceContainer,
-                            shape: BoxShape.circle,
+                            color: AppColors.secondaryContainer,
+                            borderRadius: Radii.rXs,
                           ),
                           child: const Icon(LucideIcons.minus,
-                              size: 13, color: AppColors.inkSecondary),
+                              size: 16, color: AppColors.onSurface),
                         ),
                       ),
-                      GestureDetector(
-                        onTap: onTap,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Text(
-                            '$qty',
-                            style: GoogleFonts.manrope(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
-                            ),
-                          ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Text(
+                          formatQty(qty, product.unit),
+                          style: AppText.moneySmall,
                         ),
                       ),
-                      GestureDetector(
+                      _TapTarget(
                         onTap: onAdd,
                         child: Container(
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryContainer,
-                            shape: BoxShape.circle,
+                          width: 32,
+                          height: 32,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: Radii.rXs,
                           ),
                           child: const Icon(LucideIcons.plus,
-                              size: 13, color: AppColors.primary),
+                              size: 16, color: AppColors.onPrimary),
                         ),
                       ),
                     ],
@@ -1056,19 +1061,69 @@ class _ProductCard extends StatelessWidget {
   }
 }
 
+/// A small status pill. Sentence case: LOW and OUT were set in w800 uppercase
+/// white on a saturated fill, which is a warning label on machinery, not a
+/// note on a shelf tag.
+class _Pill extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _Pill({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: Radii.rXs,
+      ),
+      child: Text(label, style: AppText.label.copyWith(color: color)),
+    );
+  }
+}
+
+/// Guarantees a 44px hit area around a smaller drawn control.
+///
+/// The POS drew 26px and 30px tap targets. Growing the drawing itself would
+/// crowd a tile that already has to hold a name, a price and a stock line, so
+/// the hit area is grown instead and allowed to overflow the visual bounds.
+class _TapTarget extends StatelessWidget {
+  final VoidCallback? onTap;
+  final Widget child;
+  const _TapTarget({required this.onTap, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Center(
+        child: AppTappable(
+          ripple: false,
+          onTap: onTap,
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Product Detail Sheet ─────────────────────────────────────────────────────
 
 class _ProductDetailSheet extends StatefulWidget {
   final Product product;
-  final int initialQty;
+  final double initialQty;
   final double initialPrice;
-  final void Function(int qty, double price) onConfirm;
+  final void Function(double qty, double price) onConfirm;
+  // Owner may override a below-cost sale; staff are blocked.
+  final bool isOwner;
 
   const _ProductDetailSheet({
     required this.product,
     required this.initialQty,
     required this.initialPrice,
     required this.onConfirm,
+    required this.isOwner,
   });
 
   @override
@@ -1076,26 +1131,52 @@ class _ProductDetailSheet extends StatefulWidget {
 }
 
 class _ProductDetailSheetState extends State<_ProductDetailSheet> {
-  late int _qty;
+  late double _qty;
   late TextEditingController _priceController;
   late TextEditingController _qtyController;
   double _price = 0;
+
+  // Sell by the alternate unit (e.g. packet). _qty and _price stay in the BASE
+  // unit throughout — only the fields display and accept the packet view, so
+  // stock, cost and the below-cost guard never see packets. conv = base units
+  // per one alt unit (e.g. 0.25 KG per packet).
+  // Defaults ON for a product that has an alternate unit: if it is sold in
+  // packets, the packet view is the one the cashier wants first. Set in
+  // initState because it depends on the widget.
+  bool _alt = false;
+  double get _conv => widget.product.conversionFactor ?? 0;
+  bool get _hasAlt => (widget.product.secondaryUnit ?? '').isNotEmpty && _conv > 0;
+  String get _dispUnit => _alt ? widget.product.secondaryUnit! : (widget.product.unit ?? 'pcs');
+  double get _dispQty => _alt ? _qty / _conv : _qty;
+  double get _dispPrice => _alt ? _price * _conv : _price;
 
   @override
   void initState() {
     super.initState();
     _qty = widget.initialQty;
     _price = widget.initialPrice;
-    _priceController = TextEditingController(text: _price.toStringAsFixed(2));
+    _alt = _hasAlt;
+    _priceController = TextEditingController(text: _dispPrice.toStringAsFixed(2));
     _priceController.addListener(() {
       final v = double.tryParse(_priceController.text);
-      if (v != null) setState(() => _price = v);
+      if (v == null) return;
+      // Typed value is per display unit; a per-packet price ÷ conv is the base
+      // price we store.
+      setState(() => _price = _alt ? v / _conv : v);
     });
-    _qtyController = TextEditingController(text: '$_qty');
+    // Seed the field in whatever unit it is about to display. Seeding it with
+    // the base value showed "0.25" on a line that reads in packets.
+    _qtyController = TextEditingController(
+      text: _alt ? _dispQty.toStringAsFixed(3) : formatQty(_qty, widget.product.unit));
     _qtyController.addListener(() {
-      final v = int.tryParse(_qtyController.text);
-      if (v != null && v > 0 && v <= _maxStock) {
-        setState(() => _qty = v);
+      // double, not int: typing 0.25 used to be ignored outright, so the field
+      // showed a decimal while the cart silently kept the old whole number.
+      final v = double.tryParse(_qtyController.text);
+      if (v == null || v <= 0) return;
+      // Typed value is in the display unit; packets × conv is the base qty.
+      final base = _alt ? v * _conv : v;
+      if (!exceedsStock(base, _maxStock)) {
+        setState(() => _qty = clampQty(base, widget.product.unit));
       }
     });
   }
@@ -1108,20 +1189,42 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
   }
 
   double get _total => _qty * _price;
-  int get _maxStock => widget.product.stock.toInt();
+
+  /// Selling under what the stock cost. The web POS already blocks this at
+  /// checkout; mobile had no equivalent, so loss-making lines went straight
+  /// through (RUBBER BAND at ₹60 against a ₹270 cost).
+  double get _cost => widget.product.costPrice;
+  bool get _belowCost => _cost > 0 && _price > 0 && _price <= _cost;
+  // Was stock.toInt(), which truncated 0.75 KG of stock to 0.
+  double get _maxStock => widget.product.stock.toDouble();
+
+  // One step = one whole alt unit (a packet = conv base) when selling by packet,
+  // else the product's normal step.
+  double get _step => _alt ? _conv : qtyStepButton(widget.product.unit);
+  void _syncQtyField() =>
+      _qtyController.text = _alt ? _dispQty.toStringAsFixed(3) : formatQty(_qty, widget.product.unit);
 
   void _increment() {
-    if (_qty < _maxStock) {
-      setState(() => _qty++);
-      _qtyController.text = '$_qty';
+    final next = clampQty(_qty + _step, widget.product.unit);
+    if (!exceedsStock(next, _maxStock)) {
+      setState(() => _qty = next);
+      _syncQtyField();
     }
   }
 
   void _decrement() {
-    if (_qty > 1) {
-      setState(() => _qty--);
-      _qtyController.text = '$_qty';
+    final next = clampQty(_qty - _step, widget.product.unit);
+    if (next > 0) {
+      setState(() => _qty = next);
+      _syncQtyField();
     }
+  }
+
+  // Flip between base and packet entry, reformatting both fields to the new unit.
+  void _toggleAlt() {
+    setState(() => _alt = !_alt);
+    _syncQtyField();
+    _priceController.text = _dispPrice.toStringAsFixed(2);
   }
 
   @override
@@ -1159,7 +1262,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
 
               Row(
                 children: [
-                  GestureDetector(
+                  AppTappable(
+                    ripple: false,
                     onTap: () => Navigator.pop(context),
                     child: Container(
                       padding: const EdgeInsets.all(8),
@@ -1187,8 +1291,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         if (p.sku != null)
                           Text(
                             'SKU: ${p.sku}',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10,
+                            style: GoogleFonts.manrope(
+                              fontSize: 13,
                               color: AppColors.inkTertiary,
                               letterSpacing: 0.3,
                             ),
@@ -1215,8 +1319,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         const SizedBox(width: 4),
                         Text(
                           isLow ? 'Low (${p.stock.toInt()})' : 'In Stock',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: isLow ? AppColors.warning : AppColors.primary,
                           ),
@@ -1233,8 +1337,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
               Text(
                 'ADJUST QUANTITY',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: AppColors.inkTertiary,
                   letterSpacing: 1.5,
@@ -1252,7 +1356,9 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Decrement
-                    GestureDetector(
+                    AppTappable(
+                      pressedScale: 0.90,
+                      borderRadius: Radii.rPill,
                       onTap: _decrement,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 120),
@@ -1268,20 +1374,42 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         child: Icon(
                           LucideIcons.minus,
                           size: 22,
-                          color: _qty > 1 ? AppColors.inkPrimary : AppColors.inkTertiary,
+                          color: _qty > qtyMin(widget.product.unit)
+                              ? AppColors.inkPrimary
+                              : AppColors.inkTertiary,
                         ),
                       ),
                     ),
 
-                    // Quantity — editable field
+                    // Quantity — editable field, with its unit beside it and
+                    // the gram equivalent underneath. The number alone gave no
+                    // clue what it counted, and "0.5" is harder to check
+                    // against a scale than "500 g".
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
                     SizedBox(
-                      width: 120,
+                      width: allowsFraction(widget.product.unit) ? 116 : 96,
                       child: TextField(
                         controller: _qtyController,
-                        keyboardType: TextInputType.number,
+                        keyboardType: allowsFraction(widget.product.unit)
+                            ? const TextInputType.numberWithOptions(decimal: true)
+                            : TextInputType.number,
                         textAlign: TextAlign.center,
                         inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
+                          // digitsOnly strips the decimal point outright, so the
+                          // decimal keypad above would have been useless on its
+                          // own. Weight units allow up to 3 dp (1 gram on a KG
+                          // product); piece units stay digits-only.
+                          if (allowsFraction(widget.product.unit))
+                            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}'))
+                          else
+                            FilteringTextInputFormatter.digitsOnly,
                         ],
                         style: GoogleFonts.manrope(
                           fontSize: 48,
@@ -1300,9 +1428,65 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         ),
                       ),
                     ),
+                            if (_dispUnit.trim().isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                _dispUnit.trim(),
+                                style: GoogleFonts.manrope(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.inkSecondary,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        // Sell by base unit or alternate (packet).
+                        if (_hasAlt)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: AppTappable(
+                              ripple: false,
+                              onTap: _toggleAlt,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _alt ? AppColors.primary.withValues(alpha: 0.12) : AppColors.canvas,
+                                  border: Border.all(color: _alt ? AppColors.primary : AppColors.outline),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  _alt
+                                      ? 'by ${widget.product.secondaryUnit} · ${formatQty(_qty, widget.product.unit)} ${widget.product.unit ?? ''}'
+                                      : 'Sell by ${widget.product.secondaryUnit}?',
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: _alt ? AppColors.primary : AppColors.inkTertiary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (!_alt && subQtyLabel(_qty, widget.product.unit) != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              subQtyLabel(_qty, widget.product.unit)!,
+                              style: GoogleFonts.manrope(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.inkTertiary,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
 
                     // Increment
-                    GestureDetector(
+                    AppTappable(
+                      pressedScale: 0.90,
+                      borderRadius: Radii.rPill,
                       onTap: _increment,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 120),
@@ -1347,9 +1531,9 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                     color: AppColors.inkPrimary,
                   ),
                   decoration: InputDecoration(
-                    labelText: 'UNIT PRICE',
-                    labelStyle: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
+                    labelText: _alt ? 'PRICE / ${widget.product.secondaryUnit!.toUpperCase()}' : 'UNIT PRICE',
+                    labelStyle: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkTertiary,
                       letterSpacing: 1,
@@ -1383,6 +1567,36 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                 ),
               ),
 
+              // Visible before the confirm dialog, so the cashier can correct
+              // the price rather than being stopped at the end.
+              if (_belowCost) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFECACA)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.alertTriangle, size: 15, color: Color(0xFFB91C1C)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Below cost — this stock cost ₹${_cost.toStringAsFixed(2)}',
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFB91C1C),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 28),
 
               // ── Estimated total ───────────────────────────────────
@@ -1390,8 +1604,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                 children: [
                   Text(
                     'ESTIMATED TOTAL',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkTertiary,
                       letterSpacing: 1.5,
@@ -1435,7 +1649,35 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
+                    if (_belowCost) {
+                      final proceed = await showDialog<bool>(
+                        context: context,
+                        builder: (dCtx) => AlertDialog(
+                          title: Text(widget.isOwner
+                              ? 'Selling at or below cost'
+                              : 'Blocked: at or below cost'),
+                          content: Text(
+                            '${widget.product.name} costs ₹${_cost.toStringAsFixed(2)} '
+                            'but you are charging ₹${_price.toStringAsFixed(2)}.\n\n'
+                            '${widget.isOwner ? 'That leaves no margin (or a loss of ₹${((_cost - _price) * _qty).toStringAsFixed(2)}). Continue only if you meant to.' : 'Selling at or below purchase cost is not allowed. Ask the owner to override, or change the price.'}',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dCtx, false),
+                              child: const Text('Change price'),
+                            ),
+                            if (widget.isOwner)
+                              TextButton(
+                                onPressed: () => Navigator.pop(dCtx, true),
+                                child: const Text('Sell anyway'),
+                              ),
+                          ],
+                        ),
+                      );
+                      if (proceed != true) return;
+                    }
+                    if (!context.mounted) return;
                     widget.onConfirm(_qty, _price);
                     Navigator.pop(context);
                   },
@@ -1463,7 +1705,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                 'Tap quantity number on card to reopen this screen',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.manrope(
-                  fontSize: 11,
+                  fontSize: 13,
                   color: AppColors.inkTertiary,
                 ),
               ),
@@ -1503,6 +1745,10 @@ class _CheckoutSheet extends StatefulWidget {
 }
 
 class _CheckoutSheetState extends State<_CheckoutSheet> {
+  // Accounts from DB — loaded async. Drives dynamic payment method list.
+  // Falls back to static CASH/UPI/BANK list until loaded.
+  List<AccountModel> _accounts = [];
+  // account.id of selected method, or 'CREDIT_SALE' sentinel.
   String _paymentMethod = 'CASH';
   bool _isLoading = false;
   late List<CartItem> _localCart;
@@ -1514,12 +1760,79 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   late TextEditingController _discountCtrl;
   String _discountMode = 'AMOUNT'; // 'AMOUNT' | 'PERCENT'
 
+  /// Derives the payment type (CASH/UPI/BANK/CREDIT_SALE) from the selected
+  /// account id. Falls through to the raw value when accounts not yet loaded.
+  String get _selectedPayType {
+    if (_paymentMethod == 'CREDIT_SALE') return 'CREDIT_SALE';
+    if (_accounts.isEmpty) return _paymentMethod;
+    final idx = _accounts.indexWhere((a) => a.id == _paymentMethod);
+    return idx >= 0 ? _accounts[idx].type : _paymentMethod;
+  }
+
+  /// Payment method tiles built dynamically from accounts, ordered
+  /// CASH → UPI → BANK (mirrors web buildPaymentMethods ordering).
+  List<_PayMethod> get _payMethods {
+    if (_accounts.isEmpty) {
+      // Fallback while accounts are loading.
+      return const [
+        _PayMethod('CASH', 'Cash', 'Pay at counter', LucideIcons.banknote, 'CASH'),
+        _PayMethod('UPI', 'UPI', 'Customer scans to pay', LucideIcons.qrCode, 'UPI'),
+        _PayMethod('BANK', 'Bank', 'NEFT / RTGS', LucideIcons.building, 'BANK'),
+      ];
+    }
+    // One tile per payment TYPE — the default account of that type (or the
+    // first one when none is flagged default). Cashiers pick a method, not
+    // an account; listing every account cluttered the sheet.
+    const typeOrder = ['CASH', 'UPI', 'BANK', 'CARD'];
+    final methods = <_PayMethod>[];
+    for (final t in typeOrder) {
+      final ofType = _accounts.where((a) => a.type == t).toList();
+      if (ofType.isEmpty) continue;
+      final acc = ofType.firstWhere((a) => a.isDefault, orElse: () => ofType.first);
+      final icon = t == 'CASH' ? LucideIcons.banknote
+          : t == 'UPI' ? LucideIcons.qrCode
+          : LucideIcons.building;
+      final sub = t == 'CASH' ? 'Pay at counter'
+          : t == 'UPI' ? 'Customer scans to pay'
+          : 'NEFT / RTGS';
+      methods.add(_PayMethod(acc.id, acc.name, sub, icon, t));
+    }
+    if (widget.selectedClient != null) {
+      methods.add(_PayMethod(
+        'CREDIT_SALE', 'Credit Sale',
+        'Bill to ${widget.selectedClient!.name ?? "Client"}',
+        LucideIcons.clock, 'CREDIT_SALE',
+      ));
+    }
+    return methods;
+  }
+
   @override
   void initState() {
     super.initState();
     _localCart = List.from(widget.cart);
     _amountPaidCtrl = TextEditingController();
     _discountCtrl = TextEditingController();
+    // Load accounts and auto-select the default (or first) account.
+    widget.ref.read(accountsProvider.future).then((accounts) {
+      if (!mounted) return;
+      setState(() {
+        _accounts = accounts;
+        if (accounts.isNotEmpty) {
+          // Mirror _payMethods: first tile is the default CASH account (or
+          // first account of the first type present in CASH→UPI→BANK→CARD).
+          const typeOrder = ['CASH', 'UPI', 'BANK', 'CARD'];
+          AccountModel? pick;
+          for (final t in typeOrder) {
+            final ofType = accounts.where((a) => a.type == t).toList();
+            if (ofType.isEmpty) continue;
+            pick = ofType.firstWhere((a) => a.isDefault, orElse: () => ofType.first);
+            break;
+          }
+          _paymentMethod = (pick ?? accounts.first).id;
+        }
+      });
+    });
   }
 
   @override
@@ -1550,7 +1863,9 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   }
 
   double get _subtotal {
-    // For INCLUSIVE: backed-out taxable. For EXCLUSIVE: lineTotal as-is.
+    // NONE: no tax split — line as-is. INCLUSIVE: backed-out taxable.
+    // EXCLUSIVE: lineTotal as-is.
+    if (_taxMode == 'NONE') return _localCart.fold(0.0, (s, c) => s + c.lineTotal);
     final inclusive = _taxMode == 'INCLUSIVE';
     return _localCart.fold(0.0, (s, c) {
       final r = (c.product.taxRate).toDouble();
@@ -1560,6 +1875,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   }
 
   double get _tax {
+    // NONE (not filing GST) = no tax computed at all.
+    if (_taxMode == 'NONE') return 0;
     final inclusive = _taxMode == 'INCLUSIVE';
     return _localCart.fold(0.0, (s, c) {
       final r = (c.product.taxRate).toDouble();
@@ -1569,10 +1886,11 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   }
 
   double get _total {
-    // INCLUSIVE: grand total = sum of line totals (rate already has tax).
+    // NONE / INCLUSIVE: grand total = sum of line totals (no tax added on top).
     // EXCLUSIVE: grand total = subtotal + tax.
-    final inclusive = _taxMode == 'INCLUSIVE';
-    if (inclusive) return _localCart.fold(0.0, (s, c) => s + c.lineTotal);
+    if (_taxMode == 'NONE' || _taxMode == 'INCLUSIVE') {
+      return _localCart.fold(0.0, (s, c) => s + c.lineTotal);
+    }
     return _subtotal + _tax;
   }
 
@@ -1655,9 +1973,9 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             borderRadius: BorderRadius.circular(99),
                           ),
                           child: Text(
-                            '${_localCart.fold(0, (s, c) => s + c.quantity)} ITEMS',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 11,
+                            '${_localCart.length} ${_localCart.length == 1 ? 'item' : 'items'}',
+                            style: GoogleFonts.manrope(
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: AppColors.inkSecondary,
                               letterSpacing: 0.3,
@@ -1669,23 +1987,82 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
 
                     const SizedBox(height: 24),
 
+                    // ── What this customer already owes ───────────
+                    // Shown before the basket, because whether to extend more
+                    // credit is decided by the total exposure, not by this
+                    // bill alone. The cashier could previously only see it by
+                    // leaving checkout and opening the client.
+                    if (widget.selectedClient != null &&
+                        (widget.selectedClient!.outstandingBalance ?? 0) > 0.01) ...[
+                      Builder(builder: (_) {
+                        final due = widget.selectedClient!.outstandingBalance ?? 0.0;
+                        // _netTotal, so the figure follows any discount applied.
+                        final after = due + _netTotal;
+                        return Container(
+                          padding: const EdgeInsets.all(Gap.lg),
+                          decoration: BoxDecoration(
+                            // Was three hardcoded reds. These are the error
+                            // tokens, which the contrast gate covers.
+                            color: AppColors.errorContainer,
+                            borderRadius: Radii.rMd,
+                            border: Border.all(
+                                color: AppColors.error.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(LucideIcons.alertCircle,
+                                  size: 20, color: AppColors.error),
+                              Gap.w12,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${widget.selectedClient!.name ?? "Customer"} already owes',
+                                      style: AppText.caption.copyWith(
+                                          color: AppColors.onErrorContainer),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      Money.inr(due),
+                                      style: AppText.money
+                                          .copyWith(color: AppColors.error),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Gap.w12,
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    'With this bill',
+                                    style: AppText.caption.copyWith(
+                                        color: AppColors.onErrorContainer),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    Money.inr(after),
+                                    style: AppText.money.copyWith(
+                                        color: AppColors.onErrorContainer),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 20),
+                    ],
+
                     // ── Basket summary ────────────────────────────
-                    Text(
-                      'Basket Summary',
-                      style: GoogleFonts.manrope(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.inkPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [AppColors.cardShadow],
-                      ),
+                    Text('Basket summary', style: AppText.title),
+                    const SizedBox(height: Gap.md),
+                    AppCard(
+                      padding: const EdgeInsets.all(Gap.lg),
                       child: Column(
                         children: _localCart.map((item) {
                           return Padding(
@@ -1698,45 +2075,45 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '${item.product.name} ×${item.quantity}',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.inkPrimary,
-                                        ),
+                                        '${item.product.name} ×${formatQtyWithUnit(item.quantity, item.product.unit)}',
+                                        style: AppText.bodyStrong,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
+                                      // Paise are kept here, unlike the list
+                                      // screens: this is the bill being built,
+                                      // and a rate of 11.50 shown as 12 would
+                                      // not match the receipt that prints.
                                       Text(
-                                        '₹${item.unitPrice.toStringAsFixed(2)} each',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 12,
-                                          color: AppColors.inkTertiary,
-                                        ),
+                                        '${Money.inrExact(item.unitPrice)} each',
+                                        style: AppText.caption,
                                       ),
                                     ],
                                   ),
                                 ),
+                                Gap.w8,
                                 Text(
-                                  '₹${item.lineTotal.toStringAsFixed(2)}',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.inkPrimary,
-                                  ),
+                                  Money.inrExact(item.lineTotal),
+                                  style: AppText.moneySmall,
                                 ),
-                                const SizedBox(width: 8),
-                                GestureDetector(
+                                // Was a 24px hit area for the control that
+                                // removes a line from a bill -- small enough to
+                                // miss, and easy to hit by accident when
+                                // aiming at the line beside it.
+                                _TapTarget(
                                   onTap: () => _removeItem(item),
                                   child: Container(
-                                    width: 24,
-                                    height: 24,
+                                    width: 28,
+                                    height: 28,
                                     decoration: BoxDecoration(
-                                      color: AppColors.danger.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(8),
+                                      color: AppColors.error
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: Radii.rXs,
                                     ),
                                     child: const Icon(
                                       LucideIcons.x,
-                                      size: 12,
-                                      color: AppColors.danger,
+                                      size: 15,
+                                      color: AppColors.error,
                                     ),
                                   ),
                                 ),
@@ -1750,23 +2127,9 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     const SizedBox(height: 24),
 
                     // ── Payment method ────────────────────────────
-                    Text(
-                      'Payment Method',
-                      style: GoogleFonts.manrope(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.inkPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ...[
-                      _PayMethod('CASH', 'Cash', 'Pay at counter', LucideIcons.banknote),
-                      _PayMethod('UPI', 'UPI / QR', 'Customer scans to pay', LucideIcons.qrCode),
-                      _PayMethod('BANK', 'Bank Transfer', 'NEFT / RTGS', LucideIcons.building),
-                      if (widget.selectedClient != null)
-                        _PayMethod('CREDIT_SALE', 'Credit Sale',
-                            'Bill to ${widget.selectedClient!.name ?? "Client"}', LucideIcons.clock),
-                    ].map((m) => _buildPaymentOption(m)),
+                    Text('Payment method', style: AppText.title),
+                    const SizedBox(height: Gap.md),
+                    ..._payMethods.map((m) => _buildPaymentOption(m)),
 
                     const SizedBox(height: 16),
 
@@ -1774,21 +2137,15 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     // Optional. Empty = full pay for CASH/UPI/BANK, 0 for CREDIT.
                     // < total + client present → balance to client outstanding.
                     // > total (cash) → show change due.
-                    if (_paymentMethod != 'CREDIT_SALE') ...[
-                      Text(
-                        'Amount Received (optional)',
-                        style: GoogleFonts.manrope(
-                          fontSize: 14, fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                    if (_selectedPayType != 'CREDIT_SALE') ...[
+                      Text('Amount received', style: AppText.bodyStrong),
+                      const SizedBox(height: Gap.sm),
                       TextField(
                         controller: _amountPaidCtrl,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         onChanged: (_) => setState(() {}),
                         decoration: InputDecoration(
-                          hintText: 'Leave blank if customer paid in full',
+                          hintText: 'Blank means paid in full — ${Money.inrExact(_netTotal)}',
                           prefixText: '₹ ',
                           filled: true,
                           fillColor: AppColors.surfaceContainer,
@@ -1859,10 +2216,16 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                           _billRow(
                               _taxMode == 'INCLUSIVE' ? 'Taxable' : 'Subtotal',
                               '₹${_subtotal.toStringAsFixed(2)}'),
-                          const SizedBox(height: 10),
-                          _billRow(
-                              'Tax (${_avgTaxRate.toStringAsFixed(_avgTaxRate % 1 == 0 ? 0 : 1)}%${_taxMode == 'INCLUSIVE' ? ' incl' : ''})',
-                              '₹${_tax.toStringAsFixed(2)}'),
+                          // Hidden when there is no tax to show. On a tenant
+                          // with tax_mode NONE this row read "Tax (18%) ₹0.00"
+                          // on every bill — a line that can never be anything
+                          // but zero, next to a rate that is not being charged.
+                          if (_tax > 0) ...[
+                            const SizedBox(height: 10),
+                            _billRow(
+                                'Tax (${_avgTaxRate.toStringAsFixed(_avgTaxRate % 1 == 0 ? 0 : 1)}%${_taxMode == 'INCLUSIVE' ? ' incl' : ''})',
+                                '₹${_tax.toStringAsFixed(2)}'),
+                          ],
                           const SizedBox(height: 14),
                           // ── Discount input (flat ₹ or %) ──────────
                           Row(
@@ -1954,7 +2317,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             ? null
                             : () async {
                                 setState(() => _isLoading = true);
-                                await widget.onComplete(_paymentMethod, _effectivePaid, _discountAmount);
+                                await widget.onComplete(_selectedPayType, _effectivePaid, _discountAmount);
                                 if (mounted) setState(() => _isLoading = false);
                               },
                         icon: _isLoading
@@ -1997,7 +2360,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   // ₹ / % toggle chip for the discount input.
   Widget _discountModeChip(String mode, String label) {
     final active = _discountMode == mode;
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: () => setState(() => _discountMode = mode),
       child: Container(
         width: 30,
@@ -2039,10 +2403,10 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               size: 16, color: colour),
           const SizedBox(width: 8),
           Text(label, style: GoogleFonts.manrope(
-              fontSize: 12, fontWeight: FontWeight.w700, color: colour)),
+              fontSize: 13, fontWeight: FontWeight.w700, color: colour)),
           const Spacer(),
           Text('₹${diff.abs().toStringAsFixed(2)}',
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.manrope(
                   fontSize: 14, fontWeight: FontWeight.w700, color: colour)),
         ],
       ),
@@ -2084,21 +2448,29 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
 
   Widget _buildPaymentOption(_PayMethod m) {
     final isActive = _paymentMethod == m.key;
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: () {
         setState(() => _paymentMethod = m.key);
-        if (m.key == 'UPI') _showUpiPreview();
+        if (m.type == 'UPI') _showUpiPreview();
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primaryContainer : Colors.white,
+          // primaryContainer is a solid amber fill — it dominated the sheet and
+          // competed with the Checkout button. A faint tint plus a definite
+          // border reads as "selected" without shouting, and keeps the label
+          // on a light background where it stays legible.
+          color: isActive
+              ? AppColors.primary.withValues(alpha: 0.08)
+              : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [AppColors.cardShadow],
           border: Border.all(
             color: isActive ? AppColors.primary : Colors.transparent,
+            width: isActive ? 1.5 : 1,
           ),
         ),
         child: Row(
@@ -2123,15 +2495,20 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: isActive ? AppColors.primary : AppColors.inkPrimary,
+                      // Deeper amber: AppColors.primary measured 2.92:1 on the
+                      // selected tint, under the 4.5:1 floor for body text.
+                      color: isActive ? const Color(0xFF92400E) : AppColors.inkPrimary,
                     ),
                   ),
                   Text(
                     m.subtitle,
                     style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
+                        // 70% opacity amber on the tint measured ~2.2:1.
+                        // Opacity on text always drifts against its surface —
+                        // use a solid colour instead.
                         color: isActive
-                            ? AppColors.primary.withValues(alpha: 0.7)
+                            ? const Color(0xFF92400E)
                             : AppColors.inkTertiary),
                   ),
                 ],
@@ -2147,11 +2524,12 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
 }
 
 class _PayMethod {
-  final String key;
-  final String label;
+  final String key;     // account.id or 'CREDIT_SALE'
+  final String label;   // account.name or 'Credit Sale'
   final String subtitle;
   final IconData icon;
-  const _PayMethod(this.key, this.label, this.subtitle, this.icon);
+  final String type;    // CASH | UPI | BANK | CREDIT_SALE
+  const _PayMethod(this.key, this.label, this.subtitle, this.icon, this.type);
 }
 
 Widget _billRow(String label, String value) {
@@ -2290,7 +2668,8 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                           ),
                         ),
                       ),
-                      GestureDetector(
+                      AppTappable(
+                        ripple: false,
                         onTap: _openAddClient,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -2367,7 +2746,8 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                         if (index == 0) {
                           // Walk-in option
                           final isSelected = widget.selectedClient == null;
-                          return GestureDetector(
+                          return AppTappable(
+                            ripple: false,
                             onTap: () => widget.onSelected(null),
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -2411,7 +2791,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                         Text(
                                           'No credit option',
                                           style: GoogleFonts.manrope(
-                                            fontSize: 11,
+                                            fontSize: 13,
                                             color: AppColors.inkTertiary,
                                           ),
                                         ),
@@ -2440,7 +2820,8 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                         final avatarColor =
                             palette[(client.name ?? 'C').codeUnitAt(0) % palette.length];
 
-                        return GestureDetector(
+                        return AppTappable(
+                          ripple: false,
                           onTap: () => widget.onSelected(client),
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 8),
@@ -2493,7 +2874,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                         Text(
                                           client.phone!,
                                           style: GoogleFonts.manrope(
-                                            fontSize: 11,
+                                            fontSize: 13,
                                             color: AppColors.inkTertiary,
                                           ),
                                         ),
@@ -2510,8 +2891,8 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                     ),
                                     child: Text(
                                       '₹${outstanding.toStringAsFixed(0)} due',
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 10,
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.danger,
                                       ),
@@ -2562,3 +2943,524 @@ class _BarcodeScannerScreen extends StatelessWidget {
     );
   }
 }
+
+// ── Post-sale success sheet ────────────────────────────────────────────────────
+
+class _SaleSuccessSheet extends StatefulWidget {
+  final String  saleId;
+  final double  total;
+  final Client? client;
+  final double  outstanding;   // client's pre-sale outstanding balance
+  final double  excess;        // amount already paid beyond this bill (capped at outstanding)
+  final String  paymentMethod;
+
+  const _SaleSuccessSheet({
+    required this.saleId,
+    required this.total,
+    this.client,
+    this.outstanding = 0,
+    this.excess      = 0,
+    this.paymentMethod = 'CASH',
+  });
+
+  static Future<void> show(
+    BuildContext context, {
+    required String  saleId,
+    required double  total,
+    Client?          client,
+    double           outstanding   = 0,
+    double           excess        = 0,
+    String           paymentMethod = 'CASH',
+  }) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SaleSuccessSheet(
+        saleId:        saleId,
+        total:         total,
+        client:        client,
+        outstanding:   outstanding,
+        excess:        excess,
+        paymentMethod: paymentMethod,
+      ),
+    );
+  }
+
+  @override
+  State<_SaleSuccessSheet> createState() => _SaleSuccessSheetState();
+}
+
+class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
+  bool _printing  = false;
+  bool _sharing   = false;
+  bool _collecting = false;
+  // For the "collect now" sub-form (no-excess path)
+  late TextEditingController _collectCtrl;
+  String _collectMethod = 'CASH';
+
+  @override
+  void initState() {
+    super.initState();
+    _collectCtrl = TextEditingController(
+      text: widget.outstanding > 0 ? widget.outstanding.toStringAsFixed(2) : '',
+    );
+    if (widget.paymentMethod != 'CREDIT') _collectMethod = widget.paymentMethod;
+  }
+
+  @override
+  void dispose() {
+    _collectCtrl.dispose();
+    super.dispose();
+  }
+
+  // Web-rendered receipt first (pixel-parity with the desktop layout); if
+  // that fails or times out (flaky network right after checkout is common
+  // on mobile data), build the same slip locally instead of hard-failing —
+  // see core/print/pos_receipt_pdf.dart, shared with invoice_detail_screen.
+  Future<Uint8List> _receiptBytes() async {
+    try {
+      final bytes = await WebPrintService.renderReceiptPdf(widget.saleId);
+      if (bytes == null || bytes.isEmpty) throw Exception('Empty PDF');
+      return bytes;
+    } catch (e) {
+      debugPrint('[print] web render failed, fallback to local: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Printed using standard layout (offline-friendly).'),
+          backgroundColor: AppColors.secondary,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ));
+      }
+      final row = await supabase.from('sales').select('*').eq('id', widget.saleId).maybeSingle();
+      if (row == null) rethrow;
+      final sale = Sale.fromJson(row);
+      final invoice = Invoice.fromSale(sale);
+      final tenantId = row['tenant_id'] as String?;
+      BusinessProfile? biz;
+      bool noGst = false;
+      if (tenantId != null) {
+        final bizRow = await supabase
+            .from('business_profile')
+            .select('*')
+            .eq('tenant_id', tenantId)
+            .maybeSingle();
+        if (bizRow != null) {
+          biz = BusinessProfile.fromJson(bizRow);
+          noGst = (bizRow['tax_mode'] as String?)?.toUpperCase() == 'NONE';
+        }
+      }
+      // Account context so the offline slip shows the same "YOU OWE NOW" /
+      // advance summary as the web-rendered one. Null client = walk-in.
+      double? clientOutstanding;
+      final shopId = row['shopId'] as String?;
+      if (shopId != null && shopId.isNotEmpty) {
+        final cRow = await supabase
+            .from('clients').select('outstanding_balance').eq('id', shopId).maybeSingle();
+        clientOutstanding = (cRow?['outstanding_balance'] as num?)?.toDouble() ?? 0;
+      }
+      return pos_pdf.buildPosReceiptPdf(
+        invoice, biz,
+        clientOutstanding: clientOutstanding,
+        amountReceived: (row['amount_received'] as num?)?.toDouble(),
+        noGst: noGst,
+      );
+    }
+  }
+
+  Future<void> _print() async {
+    setState(() => _printing = true);
+    try {
+      final bytes = await _receiptBytes();
+      // NOTE: do NOT pass `format: PdfPageFormat.roll80` here. roll80 is
+      // defined with double.infinity height, and the printing plugin hands
+      // width/height straight to Android's PrintManager, which needs finite
+      // dimensions — the result was a blank page. The PDF already carries its
+      // own correct page size; the paper picker in the print dialog is the
+      // place to choose the roll.
+      await Printing.layoutPdf(onLayout: (_) async => bytes);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Print failed: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _printing = false);
+    }
+  }
+
+  Future<void> _share() async {
+    setState(() => _sharing = true);
+    try {
+      final bytes = await _receiptBytes();
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'receipt_${widget.saleId}.pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Share failed: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
+  /// Confirm before any money is applied. Shows exactly how the amount splits
+  /// between clearing dues and being kept as advance, so the cashier can't
+  /// bank an overpayment by a stray tap.
+  Future<bool> _confirmApply(double amount, double toDues, double advance) async {
+    final name = widget.client?.name ?? 'this client';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Receive ₹${amount.toStringAsFixed(2)}?',
+            style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w800)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('From $name', style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary)),
+            const SizedBox(height: 12),
+            if (toDues > 0)
+              Text('• ₹${toDues.toStringAsFixed(2)} clears outstanding dues',
+                  style: GoogleFonts.manrope(fontSize: 13)),
+            if (advance > 0) ...[
+              const SizedBox(height: 4),
+              Text('• ₹${advance.toStringAsFixed(2)} kept as ADVANCE',
+                  style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text('  Used automatically on their next credit bill.',
+                  style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.manrope(color: AppColors.inkSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Confirm', style: GoogleFonts.manrope(fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
+  Future<void> _recordPayment(double amount) async {
+    if (widget.client == null || amount <= 0) return;
+    setState(() => _collecting = true);
+    try {
+      final container = ProviderScope.containerOf(context);
+      final ctx = await container.read(tenantContextProvider.future);
+      if (ctx == null) return;
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final paymentId = 'CP-${DateTime.now().millisecondsSinceEpoch}';
+      // One settled path: settle_client_payment does FIFO allocation across
+      // unpaid credit sales, posts Cash & Bank, and recalcs outstanding —
+      // server-side. Routed through the offline queue so a flaky connection
+      // QUEUES the collection instead of dropping it. The old code did direct
+      // Supabase writes with no queue (lost offline) AND hand-rolled the
+      // allocation, racing the DB replay trigger.
+      final queued = await container.read(syncServiceProvider).rpcOnlineOrQueue(
+        'settle_client_payment',
+        {
+          'p_id':          paymentId,
+          'p_tenant_id':   ctx.tenantId,
+          'p_client_id':   widget.client!.id,
+          'p_amount':      amount,
+          'p_date':        today,
+          'p_method':      _collectMethod,
+          'p_recorded_by': supabase.auth.currentUser?.id,
+        },
+      );
+      if (mounted && queued) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment saved offline — will sync when online')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Payment record failed: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _collecting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasOutstanding = widget.outstanding > 0 && widget.client != null;
+    final hasExcess      = widget.excess > 0;
+    // How the tendered excess splits: dues first, remainder becomes advance.
+    final excessToDues  = widget.excess <= widget.outstanding ? widget.excess : widget.outstanding;
+    final excessAdvance = widget.excess - excessToDues;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Container(width: 40, height: 4,
+            decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 24),
+          // Success icon
+          Container(
+            width: 64, height: 64,
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(LucideIcons.checkCircle2, color: AppColors.secondary, size: 32),
+          ),
+          const SizedBox(height: 16),
+          Text('Sale recorded!',
+            style: GoogleFonts.manrope(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
+          const SizedBox(height: 4),
+          Text('₹${widget.total.toStringAsFixed(2)}',
+            style: GoogleFonts.manrope(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.inkPrimary)),
+          Text(widget.saleId,
+            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary)),
+          const SizedBox(height: 24),
+          // Print + Share row
+          Row(children: [
+            Expanded(child: AppButton(
+              label: 'Print', icon: LucideIcons.printer, loading: _printing,
+              variant: AppButtonVariant.secondary, size: AppButtonSize.large,
+              fullWidth: true, onPressed: _print)),
+            const SizedBox(width: 12),
+            Expanded(child: AppButton(
+              label: 'Share', icon: LucideIcons.share2, loading: _sharing,
+              variant: AppButtonVariant.secondary, size: AppButtonSize.large,
+              fullWidth: true, onPressed: _share)),
+          ]),
+          const SizedBox(height: 12),
+
+          // ── Outstanding balance prompt ──────────────────────────────────
+          if (hasOutstanding) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: AppColors.canvas,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.07)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                    child: Row(
+                      children: [
+                        const Icon(LucideIcons.alertCircle, size: 14, color: AppColors.danger),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${widget.client!.name ?? "Client"} — ₹${widget.outstanding.toStringAsFixed(2)} outstanding',
+                          style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1, thickness: 1, color: Color(0x0F000000)),
+
+                  if (hasExcess) ...[
+                    // Excess path — two action tiles. Anything beyond the dues
+                    // is kept as an advance rather than being refused.
+                    _OutstandingTile(
+                      icon: LucideIcons.checkCircle,
+                      iconColor: AppColors.secondary,
+                      title: 'Apply ₹${widget.excess.toStringAsFixed(2)} to account',
+                      subtitle: excessAdvance > 0
+                          ? 'Clears ₹${excessToDues.toStringAsFixed(2)} dues · ₹${excessAdvance.toStringAsFixed(2)} kept as advance'
+                          : 'Balance: ₹${widget.outstanding.toStringAsFixed(2)} → ₹${(widget.outstanding - widget.excess).toStringAsFixed(2)} · Change: ₹0',
+                      loading: _collecting,
+                      onTap: () async {
+                        if (!await _confirmApply(widget.excess, excessToDues, excessAdvance)) return;
+                        await _recordPayment(widget.excess);
+                        if (mounted) Navigator.of(context).pop();
+                      },
+                    ),
+                    const Divider(height: 1, thickness: 1, color: Color(0x0F000000)),
+                    _OutstandingTile(
+                      icon: LucideIcons.banknote,
+                      iconColor: AppColors.inkSecondary,
+                      title: 'Give ₹${widget.excess.toStringAsFixed(2)} as change',
+                      subtitle: 'Outstanding stays ₹${widget.outstanding.toStringAsFixed(2)}',
+                      loading: false,
+                      onTap: () => Navigator.of(context).pop(),
+                    ),
+                  ] else ...[
+                    // Collect now path — amount input + method chips
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+                              ),
+                              child: TextField(
+                                controller: _collectCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                  prefixText: '₹ ',
+                                  prefixStyle: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ...['CASH', 'UPI', 'BANK'].map((m) => Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: AppTappable(
+                              ripple: false,
+                              onTap: () => setState(() => _collectMethod = m),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 120),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: _collectMethod == m ? AppColors.primaryContainer : Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: _collectMethod == m ? AppColors.primaryContainer : Colors.black.withValues(alpha: 0.1)),
+                                ),
+                                child: Text(m, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
+                              ),
+                            ),
+                          )),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0x18000000)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                              child: Text('Skip', style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkSecondary)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              onPressed: _collecting ? null : () async {
+                                // Not capped at the outstanding — the surplus
+                                // is recorded as an advance.
+                                final amt = (double.tryParse(_collectCtrl.text) ?? 0);
+                                if (amt <= 0) return;
+                                final toDues  = amt <= widget.outstanding ? amt : widget.outstanding;
+                                final advance = amt - toDues;
+                                if (!await _confirmApply(amt, toDues, advance)) return;
+                                await _recordPayment(amt);
+                                if (mounted) Navigator.of(context).pop();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryContainer,
+                                foregroundColor: AppColors.inkPrimary,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                              child: _collecting
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.inkPrimary))
+                                  : Text('Collect', style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+
+          // Done
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+              child: Text('Done', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 15)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Tappable tile inside the outstanding prompt.
+class _OutstandingTile extends StatelessWidget {
+  final IconData icon;
+  final Color    iconColor;
+  final String   title;
+  final String   subtitle;
+  final bool     loading;
+  final VoidCallback onTap;
+  const _OutstandingTile({required this.icon, required this.iconColor, required this.title, required this.subtitle, required this.loading, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: loading ? null : onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: iconColor),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
+                  const SizedBox(height: 1),
+                  Text(subtitle, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary)),
+                ],
+              ),
+            ),
+            if (loading)
+              const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
+            else
+              const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.inkTertiary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

@@ -229,8 +229,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                 )),
             const Spacer(),
             Text(_periodLabel(_period).toLowerCase(),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
                   color: AppColors.inkTertiary,
                 )),
           ],
@@ -313,15 +313,15 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 8,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.2,
                   color: AppColors.inkTertiary,
                 )),
             const SizedBox(height: 3),
             Text(value,
-                style: GoogleFonts.jetBrainsMono(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: accent ? _amber600 : AppColors.inkPrimary,
@@ -363,7 +363,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
               child: Text(
                 _periodLabel(p),
                 style: GoogleFonts.manrope(
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: sel ? Colors.white : AppColors.inkSecondary,
                 ),
@@ -411,7 +411,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                     ? 'All'
                     : '$c${sum != null ? '  ${_money(sum)}' : ''}',
                 style: GoogleFonts.manrope(
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: sel ? Colors.white : AppColors.inkSecondary,
                 ),
@@ -437,14 +437,14 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(_fmtDate(date).toUpperCase(),
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkTertiary,
                     )),
                 Text(_money(groupTotal),
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkSecondary,
                     )),
@@ -513,8 +513,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                   const SizedBox(height: 2),
                   Text(
                     '${e.category ?? 'Other'} · Cash'.toUpperCase(),
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       letterSpacing: 0.8,
                       color: AppColors.inkTertiary,
                     ),
@@ -526,14 +526,14 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
             Text.rich(TextSpan(children: [
               TextSpan(
                   text: '₹',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 12,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: _amber400,
                   )),
               TextSpan(
                   text: (e.amount ?? 0).toStringAsFixed(0),
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkPrimary,
@@ -562,7 +562,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
           const SizedBox(height: 4),
           Text('Tap + to log one',
               style: GoogleFonts.manrope(
-                  fontSize: 12, color: AppColors.inkTertiary)),
+                  fontSize: 13, color: AppColors.inkTertiary)),
         ],
       ),
     );
@@ -629,7 +629,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
             const SizedBox(height: 4),
             Text(
               '₹${expense.amount?.toStringAsFixed(0) ?? "0"}',
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.manrope(
                 fontSize: 32,
                 fontWeight: FontWeight.w700,
                 color: _amber600,

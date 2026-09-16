@@ -39,7 +39,7 @@ const ROLE_ICONS = {
 const ROLE_COLORS = {
   OWNER: { bg: 'rgba(59, 130, 246, 0.05)', color: '#3b82f6'},
   SALES: { bg: 'rgba(16, 185, 129, 0.05)', color: '#10b981'},
-  INVENTORY: { bg: 'rgba(79, 70, 229, 0.05)', color: '#B45309'},
+  INVENTORY: { bg: 'rgba(79, 70, 229, 0.05)', color: 'var(--color-accent-signature-hover)'},
   STAFF: { bg: 'rgba(116, 117, 118, 0.05)', color: '#747576'},
   DRIVER: { bg: 'rgba(245, 158, 11, 0.05)', color: '#f59e0b'},
 };
@@ -209,7 +209,7 @@ const Users = () => {
  <div className="flex justify-between items-center py-2 border-b border-black/5">
  <div className="flex items-center gap-3">
  <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Staff<span className="text-accent-signature">.</span></h1>
- <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Personnel & access control</span>
+ <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">Personnel & access control</span>
  </div>
  <button className="btn-signature flex items-center gap-2 text-xs font-black" onClick={openAdd}>
  <UserPlus size={12} /> Add Staff
@@ -227,10 +227,10 @@ const Users = () => {
  <table className="w-full text-left border-collapse">
  <thead>
  <tr className="border-b border-black/5 bg-canvas">
- <th className="px-8 py-5 text-[9px] font-semibold text-gray-700 opacity-70">Staff Member</th>
- <th className="px-8 py-5 text-[9px] font-semibold text-gray-700 opacity-70">Access Levels</th>
- <th className="px-8 py-5 text-[9px] font-semibold text-gray-700 opacity-70">Status</th>
- <th className="px-8 py-5 text-[9px] font-semibold text-gray-700 opacity-70 text-right">Actions</th>
+ <th className="px-8 py-5 text-[9px] font-semibold text-ink-secondary opacity-70">Staff Member</th>
+ <th className="px-8 py-5 text-[9px] font-semibold text-ink-secondary opacity-70">Access Levels</th>
+ <th className="px-8 py-5 text-[9px] font-semibold text-ink-secondary opacity-70">Status</th>
+ <th className="px-8 py-5 text-[9px] font-semibold text-ink-secondary opacity-70 text-right">Actions</th>
  </tr>
  </thead>
  <tbody className="divide-y divide-black/5 bg-surface">
@@ -243,12 +243,12 @@ const Users = () => {
  <tr key={user.id} className={`group hover:bg-canvas transition-colors ${user.status !== 'ACTIVE' ? 'opacity-70 grayscale' : ''}`}>
  <td className="px-8 py-5">
  <div className="flex items-center gap-4">
- <div className="w-10 h-10 rounded-xl bg-white border border-gray-300 shadow-sm shadow-sm flex items-center justify-center text-ink-primary group-hover:bg-ink-primary group-hover:text-accent-signature transition-all duration-500">
+ <div className="w-10 h-10 rounded-xl bg-white border border-border shadow-sm shadow-sm flex items-center justify-center text-ink-primary group-hover:bg-ink-primary group-hover:text-accent-signature transition-all duration-500">
  {(() => { const Icon = ROLE_ICONS[primaryRole] || User; return <Icon size={18} />;})()}
  </div>
  <div>
  <div className="text-sm font-semibold text-ink-primary leading-none mb-1.5">{user.name}</div>
- <div className="text-[9px] font-semibold text-gray-700 opacity-70">{user.email}</div>
+ <div className="text-[9px] font-semibold text-ink-secondary opacity-70">{user.email}</div>
  </div>
  </div>
  </td>
@@ -298,7 +298,7 @@ const Users = () => {
  )}
  </>
  ) : (
- <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide px-2">Platform Admin</span>
+ <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide px-2">Platform Admin</span>
  )}
  </div>
  </td>
@@ -314,7 +314,7 @@ const Users = () => {
  <div className="flex justify-center mb-10 opacity-10">
  <Activity size={100} strokeWidth={1} />
  </div>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">No staff members found</p>
+ <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-6 uppercase">No staff members found</p>
  </div>
  )}
  </div>
@@ -329,7 +329,7 @@ const Users = () => {
  <h2 className="text-lg font-semibold text-ink-primary">
  {editingUser ? 'EDIT PERMISSIONS' : 'NEW STAFF'}
  </h2>
- <p className="text-[9px] font-semibold text-gray-700 opacity-60">Configure access level & identity</p>
+ <p className="text-[9px] font-semibold text-ink-secondary opacity-60">Configure access level & identity</p>
  </div>
  <button 
  onClick={() => { setIsAdding(false); setEditingUser(null);}}
@@ -342,7 +342,7 @@ const Users = () => {
  <form onSubmit={handleSubmit} className="space-y-2.5 mt-2">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
  <div className="md:col-span-1">
- <label className="block text-[8px] font-semibold text-gray-700 mb-0.5 ml-1 opacity-[0.85]">Legal Identity</label>
+ <label className="block text-[8px] font-semibold text-ink-secondary mb-0.5 ml-1 opacity-[0.85]">Legal Identity</label>
  <input 
  required 
  type="text" 
@@ -353,7 +353,7 @@ const Users = () => {
  />
  </div>
  <div className="md:col-span-1">
- <label className="block text-[8px] font-semibold text-gray-700 mb-0.5 ml-1 opacity-[0.85]">Email</label>
+ <label className="block text-[8px] font-semibold text-ink-secondary mb-0.5 ml-1 opacity-[0.85]">Email</label>
  <input 
  required 
  type="email" 
@@ -366,7 +366,7 @@ const Users = () => {
 
  {!editingUser && (
  <div className="md:col-span-2">
- <label className="block text-[8px] font-semibold text-gray-700 mb-0.5 ml-1 opacity-[0.85]">Security Secret</label>
+ <label className="block text-[8px] font-semibold text-ink-secondary mb-0.5 ml-1 opacity-[0.85]">Security Secret</label>
  <input
  required
  type="password"
@@ -398,9 +398,9 @@ const Users = () => {
  </div>
 
  <div>
- <label className="block text-[8px] font-semibold text-gray-700 mb-1.5 opacity-[0.85]">Granular Module RBAC</label>
+ <label className="block text-[8px] font-semibold text-ink-secondary mb-1.5 opacity-[0.85]">Granular Module RBAC</label>
  <div className="space-y-1 max-h-[160px] overflow-y-auto pr-1.5 custom-scrollbar">
- <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[8px] font-semibold text-gray-700 opacity-[0.85]">
+ <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[8px] font-semibold text-ink-secondary opacity-[0.85]">
  <div className="col-span-6">Module Segment</div>
  <div className="col-span-3 text-center">View</div>
  <div className="col-span-3 text-center">Edit</div>
@@ -441,7 +441,7 @@ const Users = () => {
  </div>
 
  <div>
- <label className="block text-[8px] font-semibold text-gray-700 mb-1.5 opacity-[0.85]">Legacy Role Template</label>
+ <label className="block text-[8px] font-semibold text-ink-secondary mb-1.5 opacity-[0.85]">Legacy Role Template</label>
  <div className="grid grid-cols-2 gap-2">
  {INTERNAL_ROLES.map(role => {
  const isSelected = formData.roles?.includes(role.id);

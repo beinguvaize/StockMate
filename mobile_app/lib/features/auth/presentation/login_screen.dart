@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/biometric_service.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile_app/features/auth/presentation/phone_login_screen.dart';
 
 // Keystore-backed credential storage for the "Remember me" + biometric
 // unlock features. Both rely on the device hardware-backed keystore so the
@@ -113,10 +116,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final email = _emailController.text.trim();
     final pass  = _passwordController.text.trim();
     try {
-      final response = await supabase.auth.signInWithPassword(
-        email: email,
-        password: pass,
-      );
+      // Timeout guard: on a weak connection the auth request can stall
+      // forever, leaving the button spinning with no feedback. Fail fast
+      // with a clear retry message instead.
+      final response = await supabase.auth
+          .signInWithPassword(email: email, password: pass)
+          .timeout(const Duration(seconds: 20));
 
       if (response.session != null) {
         await _persistRemembered(email, pass);
@@ -127,10 +132,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           // AuthGateScreen (via sessionProvider stream) will handle navigation automatically
         }
       }
-    } catch (e) {
+    } on TimeoutException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: AppColors.danger),
+          const SnackBar(
+            content: Text('Slow or no internet. Please check your connection and try again.'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        final msg = e.message.toLowerCase().contains('invalid login credentials')
+            ? 'Wrong email or password. Please try again.'
+            : e.message;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: AppColors.danger),
+        );
+      }
+    } catch (e) {
+      debugPrint('[login] failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not sign in. Check your internet and try again.'),
+            backgroundColor: AppColors.danger,
+          ),
         );
       }
     } finally {
@@ -178,45 +205,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  'Business Management Suite',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
-                    color: AppColors.inkTertiary,
-                    letterSpacing: 0.08,
-                  ),
-                ),
+                const SizedBox(height: Gap.sm),
+                Text('Business Management Suite', style: AppText.caption),
                 const SizedBox(height: 40),
 
                 // ── Login card ─────────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [AppColors.cardShadow],
-                  ),
+                // The form was inside a shadowed 24px-radius card floating on
+                // a white page -- a white card on white, visible only by its
+                // shadow, which is decoration standing in for structure. The
+                // page IS the form; the heading and the spacing say so.
+                SizedBox(
+                  width: double.infinity,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'Welcome back',
-                        style: GoogleFonts.manrope(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Sign in to continue',
-                        style: GoogleFonts.manrope(
-                          fontSize: 14,
-                          color: AppColors.inkTertiary,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
+                      Text('Welcome back', style: AppText.display),
+                      const SizedBox(height: Gap.xs),
+                      Text('Sign in to continue', style: AppText.body.copyWith(
+                          color: AppColors.inkTertiary)),
+                      const SizedBox(height: Gap.xxl),
 
                       // Email field
                       _buildTextField(
@@ -266,14 +273,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 _rememberMe = !_rememberMe;
                                 if (!_rememberMe) _biometricEnabled = false;
                               }),
-                              child: Text(
-                                'Remember me on this device',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.inkSecondary,
-                                ),
-                              ),
+                              child: Text('Remember me on this device',
+                                  style: AppText.body),
                             ),
                           ),
                         ],
@@ -299,11 +300,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 _rememberMe
                                     ? 'Unlock with Face ID / fingerprint'
                                     : 'Unlock with Face ID (enable Remember me first)',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
+                                style: AppText.body.copyWith(
                                   color: _rememberMe
-                                      ? AppColors.inkSecondary
+                                      ? AppColors.onSurface
                                       : AppColors.inkTertiary,
                                 ),
                               ),
@@ -325,38 +324,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           label: const Text('Unlock with biometrics'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.primary,
-                            side: const BorderSide(color: AppColors.primaryContainer, width: 1.5),
+                            side: const BorderSide(color: AppColors.outlineVariant),
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: const StadiumBorder(),
+                            shape: const RoundedRectangleBorder(
+                                borderRadius: Radii.rSm),
                           ),
                         ),
                         const SizedBox(height: 12),
                       ],
 
                       // Sign In button
+                      // The primary action was filled with primaryContainer
+                      // -- pale amber, ink text -- which made the one button
+                      // the user came here to press the QUIETEST of the three
+                      // on screen. It is the brand fill now, which is also the
+                      // pairing the contrast gate covers at 5.02:1.
                       SizedBox(
-                        height: 52,
+                        height: 54,
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryContainer,
-                            foregroundColor: AppColors.inkPrimary,
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.onPrimary,
                             elevation: 0,
-                            shape: const StadiumBorder(),
+                            shape: const RoundedRectangleBorder(
+                                borderRadius: Radii.rSm),
                           ),
                           child: _isLoading
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.inkPrimary),
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: AppColors.onPrimary),
                                 )
-                              : Text(
-                                  'Sign In',
-                                  style: GoogleFonts.manrope(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 16,
+                              : Text('Sign in',
+                                  style: AppText.label.copyWith(
+                                      fontSize: 16, color: AppColors.onPrimary)),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Passwords are the main way people get locked out of
+                      // this app. A number they already have on WhatsApp is
+                      // the fallback.
+                      SizedBox(
+                        height: 50,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading
+                              ? null
+                              : () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const PhoneLoginScreen()),
                                   ),
-                                ),
+                          icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                          label: Text('Sign in with WhatsApp',
+                              style: AppText.label.copyWith(fontSize: 15)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.onSurface,
+                            side: const BorderSide(color: AppColors.outlineVariant),
+                            shape: const RoundedRectangleBorder(
+                                borderRadius: Radii.rSm),
+                          ),
                         ),
                       ),
 
@@ -375,10 +403,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             child: Text(
                               'or continue with',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 11,
-                                color: AppColors.inkTertiary,
-                              ),
+                              style: AppText.caption,
                             ),
                           ),
                           Expanded(
@@ -399,11 +424,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           onPressed: _isGoogleLoading ? null : _handleGoogleLogin,
                           style: OutlinedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            side: const BorderSide(color: AppColors.outlineVariant, width: 1.5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            foregroundColor: AppColors.inkPrimary,
+                            side: const BorderSide(color: AppColors.outlineVariant),
+                            shape: const RoundedRectangleBorder(
+                                borderRadius: Radii.rSm),
+                            foregroundColor: AppColors.onSurface,
                           ),
                           child: _isGoogleLoading
                               ? const SizedBox(
@@ -426,11 +450,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     const SizedBox(width: 10),
                                     Text(
                                       'Continue with Google',
-                                      style: GoogleFonts.manrope(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 15,
-                                        color: AppColors.inkPrimary,
-                                      ),
+                                      style: AppText.label.copyWith(fontSize: 15),
                                     ),
                                   ],
                                 ),
@@ -459,25 +479,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
+      style: AppText.body,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkTertiary),
-        prefixIcon: Icon(icon, size: 18, color: AppColors.inkTertiary),
+        hintStyle: AppText.body.copyWith(color: AppColors.inkTertiary),
+        prefixIcon: Icon(icon, size: 20, color: AppColors.onSurfaceVariant),
         suffixIcon: suffix,
-        filled: true,
-        fillColor: AppColors.surfaceContainer,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+        // A borderless grey box does not look like somewhere you can type --
+        // it looks disabled. Outlined, like every other input in the app now.
+        filled: false,
+        border: const OutlineInputBorder(
+          borderRadius: Radii.rSm,
+          borderSide: BorderSide(color: AppColors.outlineVariant),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+        enabledBorder: const OutlineInputBorder(
+          borderRadius: Radii.rSm,
+          borderSide: BorderSide(color: AppColors.outlineVariant),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: Radii.rSm,
+          borderSide: BorderSide(color: AppColors.onSurface, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(vertical: 16),
       ),

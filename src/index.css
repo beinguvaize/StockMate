@@ -210,8 +210,6 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #B45309;
   --color-button-text: #FFFFFF;
   --bg-color: #FFFFFF;
-  --accent-lime: #D97706;
-  --accent-lime-hover: #B45309;
   --border-color: rgba(0,0,0,0.08);
 }
 
@@ -246,6 +244,15 @@ table.report-table tbody td.numeric {
 [data-theme="white"] .bg-ink-primary .text-gray-500,
 [data-theme="white"] .bg-ink-primary .text-gray-600 { color: rgba(255,255,255,0.55); }
 [data-theme="white"] .btn-signature { color: #FFFFFF; }
+
+/* A disabled action must read as disabled. Without this the payroll Confirm
+   button stayed fully solid while refusing to respond, and looked broken. */
+.btn-signature:disabled,
+.btn-signature[disabled] {
+  opacity: .45;
+  cursor: not-allowed;
+  filter: grayscale(35%);
+}
 [data-theme="white"] .btn-signature * { color: #FFFFFF; }
 /* Nav bar dark bg */
 [data-theme="white"] nav .text-ink-primary { color: #FFFFFF; }
@@ -263,8 +270,6 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #B45309;
   --color-button-text: #FFFFFF;
   --bg-color: #F0F4FF;
-  --accent-lime: #D97706;
-  --accent-lime-hover: #2563EB;
 }
 
 [data-theme="rose"] {
@@ -277,8 +282,6 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #B45309;
   --color-button-text: #FFFFFF;
   --bg-color: #FFF5F7;
-  --accent-lime: #D97706;
-  --accent-lime-hover: #E11D48;
 }
 
 [data-theme="amber"] {
@@ -291,8 +294,6 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #B45309;
   --color-button-text: #FFFFFF;
   --bg-color: #FFFBF0;
-  --accent-lime: #F59E0B;
-  --accent-lime-hover: #D97706;
 }
 
 [data-theme="slate"] {
@@ -305,22 +306,49 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #B45309;
   --color-button-text: #FFFFFF;
   --bg-color: #F1F5F9;
-  --accent-lime: #6366F1;
-  --accent-lime-hover: #4F46E5;
 }
+
+/* Zinc — shadcn/ui design language: zinc neutrals, near-black primary,
+   hairline borders, quiet shadows, tamer type weights. The only theme with
+   a non-amber accent; safe because accent usage is fully tokenized (the one
+   black-text-on-accent page, TenantSetup, renders pre-theme). */
+[data-theme="shadcn"] {
+  --color-canvas: #FAFAFA;
+  --color-surface: #FFFFFF;
+  --color-ink-primary: #09090B;
+  --color-ink-secondary: #3F3F46;
+  --color-ink-tertiary: #71717A;
+  --color-accent-signature: #18181B;
+  --color-accent-signature-hover: #27272A;
+  --color-button-text: #FFFFFF;
+  --bg-color: #FAFAFA;
+  --border-color: #E4E4E7;
+  --shadow-premium: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-hover: 0 1px 3px rgba(16, 24, 40, 0.08);
+  --shadow-glass: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+/* btn-signature hardcodes black text — unreadable on the zinc-900 accent. */
+[data-theme="shadcn"] .btn-signature { color: #FFFFFF; }
+[data-theme="shadcn"] .btn-signature * { color: #FFFFFF; }
+/* shadcn tops out around 600–700; the app's 800/900 reads consumer-loud. */
+[data-theme="shadcn"] .font-black { font-weight: 700 !important; }
+[data-theme="shadcn"] .font-extrabold { font-weight: 600 !important; }
 
 [data-theme="dark"] {
   --color-canvas: #0F0F0F;
   --color-surface: #1A1A1A;
   --color-ink-primary: #F5F5F0;
-  --color-ink-secondary: #A3A3A3;
-  --color-ink-tertiary: #737373;
+  /* Muted text must clear WCAG AA (4.5:1) on the #1A1A1A surface — the old
+     tertiary #737373 measured 3.67:1, so every muted label in dark mode was
+     under-legible. Secondary lifted alongside it to keep the hierarchy. */
+  --color-ink-secondary: #C4C4C4;
+  --color-ink-tertiary: #949494;
+  --color-pos: #34D399;
+  --color-neg: #FB7185;
   --color-accent-signature: #F59E0B;
   --color-accent-signature-hover: #D97706;
   --color-button-text: #111111;
   --bg-color: #0F0F0F;
-  --accent-lime: #F59E0B;
-  --accent-lime-hover: #4F46E5;
   --text-main: #F5F5F0;
   --surface: #1A1A1A;
   --border-color: rgba(255,255,255,0.08);
@@ -362,12 +390,47 @@ table.report-table tbody td.numeric {
   --shadow-glass: 0 8px 32px 0 rgba(30, 27, 46, 0.04);
 }
 
+/* shadcn/ui-canonical tokens (ui.shadcn.com/docs/theming), aliased onto the
+   app's theme system via @theme inline: utilities resolve the var() at use,
+   so bg-background / text-muted-foreground / border-border / ring-ring etc.
+   follow whichever [data-theme] is active. shadcn components paste in and
+   theme correctly without a parallel palette. */
+@theme inline {
+  --color-background: var(--color-canvas);
+  --color-foreground: var(--color-ink-primary);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-ink-primary);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-ink-primary);
+  --color-primary: var(--color-accent-signature);
+  --color-primary-foreground: var(--color-button-text, #FFFFFF);
+  --color-secondary: var(--color-canvas);
+  --color-secondary-foreground: var(--color-ink-primary);
+  --color-muted: var(--color-canvas);
+  --color-muted-foreground: var(--color-ink-tertiary);
+  /* Signed money. Fixed emerald-700/rose-600 fail AA on dark surfaces, so the
+     dark theme overrides these to the lighter 400 steps. Reports read them via
+     var() since this Tailwind v4 setup has no `dark:` variant wired. */
+  --color-pos: #047857;
+  --color-neg: #E11D48;
+  --color-accent: var(--color-canvas);
+  --color-accent-foreground: var(--color-ink-primary);
+  --color-destructive: #DC2626;
+  --color-destructive-foreground: #FFFFFF;
+  --color-border: var(--border-color, rgba(0, 0, 0, 0.08));
+  --color-input: var(--border-color, rgba(0, 0, 0, 0.12));
+  --color-ring: var(--color-accent-signature);
+  --color-chart-1: var(--color-accent-signature);
+  --color-chart-2: #22C55E;
+  --color-chart-3: #3B82F6;
+  --color-chart-4: #EF4444;
+  --color-chart-5: #A855F7;
+}
+
 :root {
   /* Legacy explicit CSS vars — kept in sync with the Indigo @theme. */
   --bg-color: #F8F9FC;
   --bg-gradient: linear-gradient(135deg, #F8F9FC 0%, #EEF0F7 100%);
-  --accent-lime: #D97706;       /* legacy name, now amber */
-  --accent-lime-hover: #B45309;
   --text-main: #1E1B2E;
   --text-muted: #4B5563;
   --surface: #FFFFFF;
@@ -413,6 +476,16 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  /* Nothing may scroll the whole page sideways.
+     A single over-wide element -- the header row at a narrow desktop window --
+     shifted the entire app right, cutting the logo off the left edge and
+     leaving a document-level scrollbar. Wide content that legitimately needs
+     to scroll (tables, charts) already carries its own overflow-x container.
+
+     `clip`, not `hidden`: hidden makes body a scroll container, which breaks
+     every `position: sticky` in the app, including the header itself and the
+     table headers. clip cuts the overflow without creating a scrollport. */
+  overflow-x: clip;
   position: relative;
 }
 
@@ -1042,6 +1115,41 @@ body {
   @page {
     margin: 14mm 10mm;
     size: A4;
+  }
+
+  /* --- Supplier ledger: print as a statement of account ---
+     Export PDF is a plain window.print(), so without this the "statement" a
+     supplier receives carries the nav, the search box, the filter pills and a
+     column of Pay buttons. Marked up with .no-print where the element is only
+     ever chrome; the rules below handle the layout the class cannot. */
+  .supplier-ledger-print {
+    /* The two-column grid stacks on paper: the profile and totals belong at the
+       top of the statement, then the ledger runs full width. */
+    display: block !important;
+  }
+  .supplier-ledger-print .ledger-panel {
+    width: 100% !important;
+    margin-top: 8mm;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+  .supplier-ledger-print .ledger-panel .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  /* Sticky headers repeat per page via thead{display:table-header-group},
+     but a sticky position leaves a gap at each break. */
+  .supplier-ledger-print thead {
+    position: static !important;
+  }
+  /* The closing balance is the point of the document — never orphan it. */
+  .supplier-ledger-print tfoot tr {
+    page-break-inside: avoid;
+    border-top: 2px solid #000 !important;
+  }
+  /* Expanded product detail prints alongside its bill rather than dangling. */
+  .supplier-ledger-print .bill-detail {
+    page-break-before: avoid;
   }
 }
 

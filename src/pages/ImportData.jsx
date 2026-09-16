@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { useTenant } from '../context/TenantContext';
 import { supabase, restInsert } from '../lib/supabase';
+import { normalizeHsn } from '../lib/hsn';
 import {
   Upload, Download, CheckCircle2, XCircle, AlertCircle,
   Users, Package, Truck, Loader2, FileSpreadsheet, ChevronRight,
@@ -33,8 +34,8 @@ const SUPPLIER_COLS = [
 const PRODUCT_COLS = [
   { key: 'name',         label: 'Name',          required: true,  type: 'string' },
   { key: 'category',     label: 'Category',      required: false, type: 'string' },
-  { key: 'sellingPrice', label: 'Selling Price',  required: true,  type: 'number' },
-  { key: 'costPrice',    label: 'Cost Price',     required: false, type: 'number' },
+  { key: 'sellingPrice', label: 'Selling Price',  required: true,  type: 'number', mustBePositive: true },
+  { key: 'costPrice',    label: 'Cost Price',     required: true,  type: 'number', mustBePositive: true },
   { key: 'stock',        label: 'Opening Stock',  required: false, type: 'number' },
   { key: 'taxRate',      label: 'GST Rate (%)',   required: false, type: 'number', note: '0,5,12,18,28' },
   { key: 'unit',         label: 'Unit',           required: false, type: 'string', note: 'e.g. pcs, kg, box' },
@@ -132,6 +133,7 @@ const validate = (rows, cols) =>
       }
       if (c.type === 'number' && row[c.key] !== '' && row[c.key] !== undefined) {
         if (isNaN(Number(row[c.key]))) errors.push(`"${c.label}" must be number`);
+        else if (c.mustBePositive && !(Number(row[c.key]) > 0)) errors.push(`"${c.label}" must be > 0`);
       }
     });
     return { row, errors, index: i + 2 }; // +2 for header row
@@ -148,25 +150,25 @@ const StatusBadge = ({ count, label, color }) => (
 const PreviewTable = ({ validated, cols }) => {
   const show = validated.slice(0, 10);
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
+    <div className="overflow-x-auto rounded-xl border border-border">
       <table className="min-w-full text-sm">
         <thead>
-          <tr className="bg-gray-50">
-            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 w-8">#</th>
+          <tr className="bg-muted">
+            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground w-8">#</th>
             {cols.map(c => (
-              <th key={c.key} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
+              <th key={c.key} className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
                 {c.label}{c.required ? ' *' : ''}
               </th>
             ))}
-            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Status</th>
+            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Status</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
           {show.map(({ row, errors, index }) => (
             <tr key={index} className={errors.length ? 'bg-red-50' : 'bg-white'}>
-              <td className="px-3 py-2 text-gray-400 text-xs">{index}</td>
+              <td className="px-3 py-2 text-muted-foreground text-xs">{index}</td>
               {cols.map(c => (
-                <td key={c.key} className="px-3 py-2 text-gray-700 whitespace-nowrap max-w-[140px] truncate">
+                <td key={c.key} className="px-3 py-2 text-ink-secondary whitespace-nowrap max-w-[140px] truncate">
                   {String(row[c.key] ?? '')}
                 </td>
               ))}
@@ -181,7 +183,7 @@ const PreviewTable = ({ validated, cols }) => {
         </tbody>
       </table>
       {validated.length > 10 && (
-        <div className="px-4 py-2 text-xs text-gray-400 bg-gray-50 border-t border-gray-100">
+        <div className="px-4 py-2 text-xs text-muted-foreground bg-muted border-t border-border">
           Showing 10 of {validated.length} rows
         </div>
       )}
@@ -224,6 +226,8 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
     if (!validRows.length) return;
     setStatus('importing');
     let inserted = 0, failed = 0;
+    // HSN values dropped for not being a legal code — reported, never silent.
+    const badHsn = [];
 
     for (const { row } of validRows) {
       const id = generateId();
@@ -273,7 +277,14 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           stock: Number(row.stock) || 0,
           taxRate: Number(row.taxRate) || 0,
           unit: String(row.unit || '').trim() || null,
-          hsn_code: String(row.hsn || '').trim() || null,
+          // Only a real 4/6/8-digit code. A SKU in the HSN column used to be
+          // written through verbatim and then printed on invoices and filed in
+          // the GSTR-1 HSN summary.
+          hsn_code: (() => {
+            const h = normalizeHsn(row.hsn);
+            if (h.status === 'invalid') badHsn.push(`${String(row.name || '').trim()} (${h.raw})`);
+            return h.code;
+          })(),
           barcode: String(row.barcode || '').trim() || null,
         };
         const { error } = await restInsert('products', payload);
@@ -282,7 +293,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
       }
     }
 
-    setResult({ inserted, failed });
+    setResult({ inserted, failed, badHsn });
     setStatus('done');
     if (inserted > 0) onDone?.();
   };
@@ -313,7 +324,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
 
       {/* Column guide */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Expected Columns</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Expected Columns</p>
         <div className="flex flex-wrap gap-2">
           {cols.map(c => (
             <span
@@ -321,22 +332,22 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
               className={`px-2 py-1 rounded-md text-xs font-medium border ${
                 c.required
                   ? 'bg-red-50 border-red-200 text-red-700'
-                  : 'bg-gray-50 border-gray-200 text-gray-600'
+                  : 'bg-muted border-border text-ink-secondary'
               }`}
             >
               {c.label}{c.required ? ' *' : ''}{c.note ? ` (${c.note})` : ''}
             </span>
           ))}
         </div>
-        <p className="text-xs text-gray-400 mt-2">* Required fields</p>
+        <p className="text-xs text-muted-foreground mt-2">* Required fields</p>
       </div>
 
       {/* Upload zone */}
       {status === 'idle' || status === 'error' ? (
-        <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-all">
-          <Upload size={28} className="text-gray-400 mb-2" />
-          <p className="text-sm font-semibold text-gray-600">Click to upload .xlsx file</p>
-          <p className="text-xs text-gray-400 mt-1">Excel files only (.xlsx, .xls)</p>
+        <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-border rounded-xl cursor-pointer bg-muted hover:bg-muted hover:border-border transition-all">
+          <Upload size={28} className="text-muted-foreground mb-2" />
+          <p className="text-sm font-semibold text-ink-secondary">Click to upload .xlsx file</p>
+          <p className="text-xs text-muted-foreground mt-1">Excel files only (.xlsx, .xls)</p>
           {status === 'error' && (
             <p className="text-xs text-red-600 mt-2 font-medium">{errorMsg}</p>
           )}
@@ -349,14 +360,14 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileSpreadsheet size={16} className="text-gray-400" />
-              <span className="text-sm font-semibold text-gray-700">{validated.length} rows detected</span>
+              <FileSpreadsheet size={16} className="text-muted-foreground" />
+              <span className="text-sm font-semibold text-ink-secondary">{validated.length} rows detected</span>
               <StatusBadge count={validRows.length} label="valid" color="bg-emerald-100 text-emerald-700" />
               {invalidCount > 0 && (
                 <StatusBadge count={invalidCount} label="errors" color="bg-red-100 text-red-700" />
               )}
             </div>
-            <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600 underline">
+            <button onClick={reset} className="text-xs text-muted-foreground hover:text-ink-secondary underline">
               Change file
             </button>
           </div>
@@ -364,9 +375,9 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           <PreviewTable validated={validated} cols={cols} />
 
           {invalidCount > 0 && (
-            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg">
-              <AlertCircle size={15} className="text-amber-600 mt-0.5 shrink-0" />
-              <p className="text-xs text-amber-700">
+            <div className="flex items-start gap-2 p-3 bg-accent-signature/10 border border-accent-signature/15 rounded-lg">
+              <AlertCircle size={15} className="text-accent-signature mt-0.5 shrink-0" />
+              <p className="text-xs text-accent-signature-hover">
                 {invalidCount} rows have errors and will be skipped. Fix your file and re-upload, or proceed to import only the {validRows.length} valid rows.
               </p>
             </div>
@@ -405,10 +416,24 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
                 </div>
               )}
             </div>
+            {/* The product still imported; only the bad HSN was dropped. Name
+                the products so they can be corrected, rather than letting the
+                gap surface months later in a GSTR-1 filing. */}
+            {result.badHsn?.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-emerald-200">
+                <p className="text-xs font-semibold text-amber-700">
+                  {result.badHsn.length} HSN {result.badHsn.length === 1 ? 'code was' : 'codes were'} not valid and left blank
+                </p>
+                <p className="text-[11px] text-amber-600 mt-0.5 leading-relaxed">
+                  An HSN must be 4, 6 or 8 digits. {result.badHsn.slice(0, 6).join(', ')}
+                  {result.badHsn.length > 6 ? ` and ${result.badHsn.length - 6} more` : ''}.
+                </p>
+              </div>
+            )}
           </div>
           <button
             onClick={reset}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-sm font-semibold text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold text-ink-secondary rounded-lg hover:bg-muted transition-colors"
           >
             Import Another File
           </button>
@@ -435,23 +460,23 @@ export default function ImportData({ modal = false }) {
       {/* Header — hide when embedded in modal (modal has its own header) */}
       {!modal && (
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Bulk Import — Upload Excel</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-black text-foreground tracking-tight">Bulk Import — Upload Excel</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Bulk import clients, suppliers and products via Excel. Data is isolated to your account.
           </p>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex gap-2 p-1 bg-gray-100 rounded-xl w-fit">
+      <div className="flex gap-2 p-1 bg-muted rounded-xl w-fit">
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               tab === t.key
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-white text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-ink-secondary'
             }`}
           >
             {t.icon}
@@ -461,7 +486,7 @@ export default function ImportData({ modal = false }) {
       </div>
 
       {/* Panel */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+      <div className="bg-white rounded-2xl border border-border p-6 shadow-sm">
         {tabs.map(t =>
           tab === t.key ? (
             <ImportPanel

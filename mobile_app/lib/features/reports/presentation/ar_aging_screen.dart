@@ -95,8 +95,8 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
       ),
       child: Text(
         label,
-        style: GoogleFonts.jetBrainsMono(
-          fontSize: 9,
+        style: GoogleFonts.manrope(
+          fontSize: 13,
           fontWeight: FontWeight.w700,
           color: color,
         ),
@@ -169,7 +169,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                 child: Text(
                   '${sorted.length} outstanding invoice${sorted.length == 1 ? '' : 's'}',
                   style: GoogleFonts.manrope(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: AppColors.inkSecondary,
                   ),
                 ),
@@ -197,8 +197,8 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                                 row.invoiceNo.isNotEmpty
                                     ? row.invoiceNo
                                     : row.id,
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 12,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.inkPrimary,
                                 ),
@@ -208,7 +208,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                                 Text(
                                   'Due ${_fmtDate(row.dueDate!)}',
                                   style: GoogleFonts.manrope(
-                                    fontSize: 11,
+                                    fontSize: 13,
                                     color: AppColors.inkSecondary,
                                   ),
                                 ),
@@ -283,7 +283,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
             backgroundColor: AppColors.surface,
             elevation: 0,
             title: Text(
-              'AR Aging',
+              'Money to Collect',
               style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -411,7 +411,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                   childAspectRatio: 1.55,
                   children: [
                     ReportKpiTile(
-                      label: 'Total Receivables',
+                      label: 'Total to collect',
                       value: compactINR(totalReceivables),
                       subtitle: formatINR(totalReceivables),
                       color: const Color(0xFF1D4ED8),
@@ -455,9 +455,9 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'AGING BREAKDOWN',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 10,
+                        'HOW OVERDUE',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 1.2,
                           color: AppColors.inkSecondary,
@@ -634,8 +634,8 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                   children: [
                     Text(
                       row.invoiceNo.isNotEmpty ? row.invoiceNo : row.id,
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 12,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.inkPrimary,
                       ),
@@ -644,7 +644,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                     Text(
                       row.clientName,
                       style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: AppColors.inkSecondary,
                       ),
                     ),
@@ -668,8 +668,8 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                       if (row.daysOverdue > 0) ...[
                         Text(
                           '${row.daysOverdue}d',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             color: AppColors.inkSecondary,
                           ),
                         ),

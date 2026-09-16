@@ -316,7 +316,7 @@ class _KpiCard extends StatelessWidget {
                 child: Text(
                   label,
                   style: GoogleFonts.manrope(
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: AppColors.inkTertiary,
                     letterSpacing: 0.2,
@@ -329,7 +329,7 @@ class _KpiCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: valueColor,
@@ -341,7 +341,7 @@ class _KpiCard extends StatelessWidget {
             Text(
               sub!,
               style: GoogleFonts.manrope(
-                fontSize: 10,
+                fontSize: 13,
                 color: AppColors.inkTertiary,
               ),
             ),
@@ -498,7 +498,7 @@ class _DayBookHistoryCard extends StatelessWidget {
                       ? 'Closed at ${_fmtTime(record.closedAt!)}'
                       : 'Open',
                   style: GoogleFonts.manrope(
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: record.isClosed
                         ? AppColors.inkTertiary
@@ -539,7 +539,7 @@ class _Tag extends StatelessWidget {
       child: Text(
         label,
         style: GoogleFonts.manrope(
-          fontSize: 9,
+          fontSize: 13,
           fontWeight: FontWeight.w700,
           color: textColor,
           letterSpacing: 0.5,
@@ -568,7 +568,7 @@ class _AmountChip extends StatelessWidget {
         Text(
           label,
           style: GoogleFonts.manrope(
-            fontSize: 9,
+            fontSize: 13,
             fontWeight: FontWeight.w500,
             color: AppColors.inkTertiary,
             letterSpacing: 0.2,
@@ -577,8 +577,8 @@ class _AmountChip extends StatelessWidget {
         const SizedBox(height: 1),
         Text(
           value,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 12,
+          style: GoogleFonts.manrope(
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             color: color,
           ),
@@ -610,8 +610,8 @@ class _NetPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.jetBrainsMono(
-          fontSize: 11,
+        style: GoogleFonts.manrope(
+          fontSize: 13,
           fontWeight: FontWeight.w700,
           color: fg,
         ),
@@ -658,7 +658,7 @@ class _VariancePill extends StatelessWidget {
       child: Text(
         label,
         style: GoogleFonts.manrope(
-          fontSize: 10,
+          fontSize: 13,
           fontWeight: FontWeight.w600,
           color: fg,
         ),

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, lazy, Suspense } from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import VanLoadBuilder from '../components/VanLoadBuilder';
@@ -51,7 +52,7 @@ const Vehicles = () => {
   const navigate = useNavigate();
   const { hasPermission, hasRole } = useAuth();
   const { currentTenantId, businessProfile, currentTenant } = useTenant();
-  const sym = businessProfile?.currencySymbol || '';
+  const sym = businessProfile?.currencySymbol || '₹';
 
   const {
     vehicles, addVehicle, updateVehicle, deleteVehicle,
@@ -68,6 +69,7 @@ const Vehicles = () => {
   const [deliverySubTab,     setDeliverySubTab]     = useState('PENDING');   // PENDING | ACTIVE | HISTORY
   const [showVehicleModal,   setShowVehicleModal]   = useState(false);
   const [showDispatchModal,  setShowDispatchModal]  = useState(false);
+  useDialogClose(() => setShowDispatchModal(false), { enabled: showDispatchModal });
   const [reconcileRoute_,    setReconcileRoute]     = useState(null);  // route obj
   const [reconcileCash,      setReconcileCash]      = useState('');
   const [reconcileError,     setReconcileError]     = useState(null);
@@ -364,7 +366,7 @@ const Vehicles = () => {
             {/* KPI chips */}
             <div className="hidden sm:flex items-center gap-1.5">
               {pendingDeliveries.length > 0 && (
-                <div className="flex items-center gap-1 bg-amber-50 border border-amber-100 text-amber-700 px-2 py-1 rounded-lg">
+                <div className="flex items-center gap-1 bg-accent-signature/10 border border-accent-signature/15 text-accent-signature-hover px-2 py-1 rounded-lg">
                   <Package size={10} />
                   <span className="text-[10px] font-black">{pendingDeliveries.length}</span>
                   <span className="text-[9px] font-medium opacity-60">pending</span>
@@ -384,10 +386,10 @@ const Vehicles = () => {
                   <span className="text-[9px] font-medium opacity-60">service due</span>
                 </div>
               )}
-              <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm text-gray-500 px-2 py-1 rounded-lg">
+              <div className="flex items-center gap-1 bg-white border border-border shadow-sm text-muted-foreground px-2 py-1 rounded-lg">
                 <Truck size={10} className="opacity-40" />
                 <span className="text-[10px] font-black">{vehicles.length}</span>
-                <span className="text-[9px] font-medium text-gray-400">vehicles</span>
+                <span className="text-[9px] font-medium text-muted-foreground">vehicles</span>
               </div>
             </div>
           </div>
@@ -407,7 +409,7 @@ const Vehicles = () => {
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     activeTab === tab.id
                       ? 'bg-ink-primary text-surface shadow-sm'
-                      : 'text-gray-400 hover:text-ink-primary'
+                      : 'text-muted-foreground hover:text-ink-primary'
                   }`}
                 >
                   <tab.icon size={12} />
@@ -463,13 +465,13 @@ const Vehicles = () => {
                   className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-all -mb-px ${
                     deliverySubTab === t.id
                       ? 'border-ink-primary text-ink-primary'
-                      : 'border-transparent text-gray-400 hover:text-gray-600'
+                      : 'border-transparent text-muted-foreground hover:text-ink-secondary'
                   }`}
                 >
                   {t.label}
                   {t.count !== null && t.count > 0 && (
                     <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${
-                      deliverySubTab === t.id ? 'bg-ink-primary text-surface' : 'bg-black/5 text-gray-500'
+                      deliverySubTab === t.id ? 'bg-ink-primary text-surface' : 'bg-black/5 text-muted-foreground'
                     }`}>{t.count}</span>
                   )}
                 </button>
@@ -481,9 +483,9 @@ const Vehicles = () => {
               <div className="space-y-2">
                 {pendingDeliveries.length === 0 ? (
                   <div className="py-20 text-center bg-white border border-black/5 rounded-2xl">
-                    <Package size={36} className="text-gray-300 mx-auto mb-3" />
-                    <p className="text-sm font-bold text-gray-400">No pending deliveries</p>
-                    <p className="text-[10px] text-gray-300 mt-1">
+                    <Package size={36} className="text-muted-foreground mx-auto mb-3" />
+                    <p className="text-sm font-bold text-muted-foreground">No pending deliveries</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">
                       Sales marked for delivery appear here automatically
                     </p>
                   </div>
@@ -499,7 +501,7 @@ const Vehicles = () => {
                             className={`flex items-center gap-1.5 px-3 py-1 rounded-pill text-[9px] font-black border transition-all ${
                               zoneFilter === z
                                 ? 'bg-ink-primary text-accent-signature border-ink-primary'
-                                : 'bg-white border-black/8 text-gray-500 hover:border-black/20'
+                                : 'bg-white border-black/8 text-muted-foreground hover:border-black/20'
                             }`}
                           >
                             {z !== 'ALL' && <MapPin size={9} />}{z === 'ALL' ? `All (${pendingDeliveries.length})` : `${z} (${(pendingByZone[z] || []).length})`}
@@ -518,14 +520,14 @@ const Vehicles = () => {
                         <div
                           key={inv.id}
                           className={`bg-white border rounded-2xl overflow-hidden transition-all ${
-                            hasFailed ? 'border-amber-300 shadow-sm shadow-amber-100' : 'border-black/8 hover:border-black/15 hover:shadow-sm'
+                            hasFailed ? 'border-accent-signature/40 shadow-sm shadow-accent-signature/15' : 'border-black/8 hover:border-black/15 hover:shadow-sm'
                           }`}
                         >
                           {/* Re-queue banner */}
                           {hasFailed && (
-                            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200">
-                              <RotateCcw size={10} className="text-amber-600 shrink-0" />
-                              <span className="text-[9px] font-bold text-amber-700 uppercase tracking-wide">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-accent-signature/10 border-b border-accent-signature/25">
+                              <RotateCcw size={10} className="text-accent-signature shrink-0" />
+                              <span className="text-[9px] font-bold text-accent-signature-hover uppercase tracking-wide">
                                 Re-queued — Prior failure: {inv.failed_delivery_reason}
                               </span>
                             </div>
@@ -539,9 +541,9 @@ const Vehicles = () => {
                           >
                             {/* Icon */}
                             <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                              hasFailed ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-100'
+                              hasFailed ? 'bg-accent-signature/10 border border-accent-signature/25' : 'bg-blue-50 border border-blue-100'
                             }`}>
-                              <Package size={16} className={hasFailed ? 'text-amber-600' : 'text-blue-600'} />
+                              <Package size={16} className={hasFailed ? 'text-accent-signature' : 'text-blue-600'} />
                             </div>
 
                             {/* Main info */}
@@ -552,7 +554,7 @@ const Vehicles = () => {
                                   {(inv.invoice_number || inv.id).replace(/^#+/, '')}
                                 </span>
                                 {inv.delivery_date && (
-                                  <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-white border border-gray-300 shadow-sm text-gray-500 px-2 py-0.5 rounded-md">
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-white border border-border shadow-sm text-muted-foreground px-2 py-0.5 rounded-md">
                                     <Calendar size={8} />
                                     {new Date(inv.delivery_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                   </span>
@@ -564,12 +566,12 @@ const Vehicles = () => {
                                 )}
                               </div>
                               {/* Row 2: client + address */}
-                              <div className="flex items-center gap-1 text-[11px] text-gray-500 font-medium min-w-0">
-                                <span className="font-semibold text-gray-700 shrink-0">{inv.client_name || '—'}</span>
+                              <div className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium min-w-0">
+                                <span className="font-semibold text-ink-secondary shrink-0">{inv.client_name || '—'}</span>
                                 {inv.delivery_address && (
                                   <>
-                                    <span className="text-gray-300 mx-1">·</span>
-                                    <MapPin size={9} className="text-gray-400 shrink-0" />
+                                    <span className="text-muted-foreground mx-1">·</span>
+                                    <MapPin size={9} className="text-muted-foreground shrink-0" />
                                     <span className="truncate">{inv.delivery_address}</span>
                                   </>
                                 )}
@@ -581,13 +583,13 @@ const Vehicles = () => {
                               <span className="text-base font-black text-ink-primary tabular-nums">
                                 {sym}{grandTotal.toFixed(2)}
                               </span>
-                              <span className="text-[9px] text-gray-400 font-medium">
+                              <span className="text-[9px] text-muted-foreground font-medium">
                                 {itemCount} item{itemCount !== 1 ? 's' : ''}
                               </span>
                             </div>
                             <ChevronDown
                               size={14}
-                              className={`text-gray-400 transition-transform duration-200 shrink-0 ml-1 ${isExpanded ? 'rotate-180' : ''}`}
+                              className={`text-muted-foreground transition-transform duration-200 shrink-0 ml-1 ${isExpanded ? 'rotate-180' : ''}`}
                             />
                           </button>
 
@@ -597,25 +599,25 @@ const Vehicles = () => {
 
                               {/* Delivery meta strip — full-width single row */}
                               {(inv.delivery_address || inv.delivery_notes || inv.delivery_fee > 0) && (
-                                <div className="px-5 py-3 bg-gray-50 border-b border-black/5">
+                                <div className="px-5 py-3 bg-muted border-b border-black/5">
                                   <div className="flex items-start justify-between gap-4">
                                     {/* Left: address + notes */}
                                     <div className="flex items-start gap-2 min-w-0">
-                                      <MapPin size={12} className="text-gray-400 shrink-0 mt-0.5" />
+                                      <MapPin size={12} className="text-muted-foreground shrink-0 mt-0.5" />
                                       <div className="min-w-0">
                                         {inv.delivery_address && (
-                                          <p className="text-[11px] font-semibold text-gray-700">{inv.delivery_address}</p>
+                                          <p className="text-[11px] font-semibold text-ink-secondary">{inv.delivery_address}</p>
                                         )}
                                         {inv.delivery_notes && (
-                                          <p className="text-[10px] font-medium text-gray-500 italic mt-0.5">{inv.delivery_notes}</p>
+                                          <p className="text-[10px] font-medium text-muted-foreground italic mt-0.5">{inv.delivery_notes}</p>
                                         )}
                                       </div>
                                     </div>
                                     {/* Right: delivery fee */}
                                     {inv.delivery_fee > 0 && (
                                       <div className="shrink-0 text-right">
-                                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Delivery Fee</p>
-                                        <p className="text-[12px] font-black text-gray-700 tabular-nums">{sym}{Number(inv.delivery_fee).toFixed(2)}</p>
+                                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Delivery Fee</p>
+                                        <p className="text-[12px] font-black text-ink-secondary tabular-nums">{sym}{Number(inv.delivery_fee).toFixed(2)}</p>
                                       </div>
                                     )}
                                   </div>
@@ -626,10 +628,10 @@ const Vehicles = () => {
                               <div className="px-5 pt-3 pb-2">
                                 {items.length > 0 && (
                                   <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-6 pb-2 border-b border-black/5 mb-0.5">
-                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Item</span>
-                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-right w-20">Unit Price</span>
-                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-center w-10">Qty</span>
-                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-right w-20">Amount</span>
+                                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Item</span>
+                                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-right w-20">Unit Price</span>
+                                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center w-10">Qty</span>
+                                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-right w-20">Amount</span>
                                   </div>
                                 )}
                                 {items.length > 0 ? items.map((item, idx) => {
@@ -644,23 +646,23 @@ const Vehicles = () => {
                                       <span className="text-[12px] font-semibold text-ink-primary truncate">
                                         {item.name || item.product_name || item.productName || '—'}
                                       </span>
-                                      <span className="text-[11px] text-gray-400 tabular-nums text-right w-20">
+                                      <span className="text-[11px] text-muted-foreground tabular-nums text-right w-20">
                                         {rate > 0 ? `${sym}${rate.toFixed(2)}` : '—'}
                                       </span>
-                                      <span className="text-[11px] font-medium text-gray-500 tabular-nums text-center w-10">×{qty}</span>
+                                      <span className="text-[11px] font-medium text-muted-foreground tabular-nums text-center w-10">×{qty}</span>
                                       <span className="text-[12px] font-bold text-ink-primary tabular-nums text-right w-20">
                                         {sym}{total.toFixed(2)}
                                       </span>
                                     </div>
                                   );
                                 }) : (
-                                  <p className="text-[11px] text-gray-400 py-3">No item details available.</p>
+                                  <p className="text-[11px] text-muted-foreground py-3">No item details available.</p>
                                 )}
 
                                 {/* Order total row */}
                                 {items.length > 0 && (
                                   <div className="grid grid-cols-[1fr_auto] gap-x-6 items-center pt-3 mt-1 border-t border-black/8">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Order Total</span>
+                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Order Total</span>
                                     <span className="text-sm font-black text-ink-primary tabular-nums">{sym}{grandTotal.toFixed(2)}</span>
                                   </div>
                                 )}
@@ -681,7 +683,7 @@ const Vehicles = () => {
                                 <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border ${
                                   inv.payment_status === 'PAID'
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : 'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25'
                                 }`}>
                                   {inv.payment_status === 'PAID' ? '✓ Paid' : 'Unpaid — Collect on Delivery'}
                                 </span>
@@ -710,9 +712,9 @@ const Vehicles = () => {
               <div className="space-y-4">
                 {activeRoutes.length === 0 ? (
                   <div className="py-20 text-center bg-white border border-black/5 rounded-2xl">
-                    <Navigation size={36} className="text-gray-300 mx-auto mb-3" />
-                    <p className="text-sm font-bold text-gray-400">No active trips</p>
-                    <p className="text-[10px] text-gray-300 mt-1">Dispatch a vehicle to start a trip</p>
+                    <Navigation size={36} className="text-muted-foreground mx-auto mb-3" />
+                    <p className="text-sm font-bold text-muted-foreground">No active trips</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Dispatch a vehicle to start a trip</p>
                   </div>
                 ) : activeRoutes.map(route => {
                   const vehicle   = vehicles.find(v => v.id === route.vehicleId || v.id === route['vehicleId']);
@@ -736,7 +738,7 @@ const Vehicles = () => {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-bold text-ink-primary">{vehicle?.name || 'Vehicle'}</span>
                                 {vehicle?.plate && (
-                                  <span className="text-[9px] font-black text-gray-400 bg-white border border-gray-300 shadow-sm px-2 py-0.5 rounded font-mono tracking-widest">
+                                  <span className="text-[9px] font-black text-muted-foreground bg-white border border-border shadow-sm px-2 py-0.5 rounded tabular-nums tracking-widest">
                                     {vehicle.plate}
                                   </span>
                                 )}
@@ -744,7 +746,7 @@ const Vehicles = () => {
                                   <Activity size={7} /> IN TRANSIT
                                 </span>
                               </div>
-                              <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-400">
+                              <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
                                 <span className="flex items-center gap-1"><Navigation size={9} /> {route.location || 'En route'}</span>
                                 <span>·</span>
                                 <span>Driver: <span className="font-semibold text-ink-primary">{driverName}</span></span>
@@ -755,7 +757,7 @@ const Vehicles = () => {
                             {(hasRole('DRIVER') || hasRole('OWNER') || hasRole('GLOBAL_ADMIN')) && (
                               <button
                                 onClick={() => openVanSale(route)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/8 text-[10px] font-semibold text-gray-600 hover:bg-canvas transition-colors"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/8 text-[10px] font-semibold text-ink-secondary hover:bg-canvas transition-colors"
                               >
                                 <ShoppingCart size={11} /> Van Sale
                               </button>
@@ -773,7 +775,7 @@ const Vehicles = () => {
                         {total > 0 && (
                           <div className="mt-4">
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[10px] font-semibold text-gray-400">
+                              <span className="text-[10px] font-semibold text-muted-foreground">
                                 <span className="text-green-600 font-bold">{delivered}</span> of {total} stops delivered
                               </span>
                               <span className="text-[10px] font-black text-ink-primary">{progress}%</span>
@@ -789,7 +791,7 @@ const Vehicles = () => {
                       {total > 0 && (
                         <button
                           onClick={() => setExpandedTrip(expanded ? null : route.id)}
-                          className="w-full flex items-center justify-between px-5 py-2.5 text-[10px] font-bold text-gray-400 hover:bg-canvas/50 transition-colors"
+                          className="w-full flex items-center justify-between px-5 py-2.5 text-[10px] font-bold text-muted-foreground hover:bg-canvas/50 transition-colors"
                         >
                           <span className="uppercase tracking-widest">{expanded ? 'Hide stops' : `View ${total} stops`}</span>
                           <ChevronDown size={12} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
@@ -810,13 +812,13 @@ const Vehicles = () => {
                                   <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
                                     isDelivered ? 'bg-green-500 border-green-500' :
                                     isNoSale    ? 'bg-red-400 border-red-400' :
-                                    'bg-white border-gray-200'
+                                    'bg-white border-border'
                                   }`}>
                                     {isDelivered && <Check size={8} className="text-white" />}
                                     {isNoSale && <XCircle size={8} className="text-white" />}
                                   </div>
                                   {si < stops.length - 1 && (
-                                    <div className={`w-px flex-1 mt-1 min-h-[16px] ${isDelivered ? 'bg-green-200' : 'bg-gray-100'}`} />
+                                    <div className={`w-px flex-1 mt-1 min-h-[16px] ${isDelivered ? 'bg-green-200' : 'bg-muted'}`} />
                                   )}
                                 </div>
 
@@ -825,7 +827,7 @@ const Vehicles = () => {
                                   <div className="min-w-0">
                                     <div className="text-xs font-semibold text-ink-primary truncate">{stop.client_name || 'Client'}</div>
                                     {stop.invoice_id && (
-                                      <div className="text-[9px] text-gray-400 font-mono">{stop.invoice_id.replace(/^INV-/, '#')}</div>
+                                      <div className="text-[9px] text-muted-foreground tabular-nums">{stop.invoice_id.replace(/^INV-/, '#')}</div>
                                     )}
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0 ml-3">
@@ -868,13 +870,13 @@ const Vehicles = () => {
               <div className="bg-white border border-black/5 rounded-2xl overflow-hidden shadow-sm">
                 {pastRoutes.length === 0 ? (
                   <div className="py-20 text-center">
-                    <History size={36} className="text-gray-300 mx-auto mb-3" />
-                    <p className="text-sm font-bold text-gray-400">No completed trips yet</p>
+                    <History size={36} className="text-muted-foreground mx-auto mb-3" />
+                    <p className="text-sm font-bold text-muted-foreground">No completed trips yet</p>
                   </div>
                 ) : (
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="bg-canvas border-b border-black/5 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">
+                      <tr className="bg-canvas border-b border-black/5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
                         <th className="p-3 pl-5">Date</th>
                         <th className="p-3">Vehicle</th>
                         <th className="p-3">Driver</th>
@@ -889,19 +891,19 @@ const Vehicles = () => {
                         const cash    = Number(route.actual_cash) || 0;
                         return (
                           <tr key={route.id} className="border-b border-black/5 hover:bg-canvas/50 transition-colors">
-                            <td className="p-3 pl-5 text-[11px] text-gray-400">
+                            <td className="p-3 pl-5 text-[11px] text-muted-foreground">
                               {route.reconciled_at
                                 ? new Date(route.reconciled_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
                                 : route.date || '—'}
                             </td>
                             <td className="p-3 text-xs font-semibold text-ink-primary">
                               {vehicle?.name || '—'}
-                              <div className="text-[9px] text-gray-400">{vehicle?.plate}</div>
+                              <div className="text-[9px] text-muted-foreground">{vehicle?.plate}</div>
                             </td>
-                            <td className="p-3 text-xs text-gray-600">
+                            <td className="p-3 text-xs text-ink-secondary">
                               {getEmployeeName(route.driverId || route['driverId'])}
                             </td>
-                            <td className="p-3 text-xs text-gray-500">{route.location || '—'}</td>
+                            <td className="p-3 text-xs text-muted-foreground">{route.location || '—'}</td>
                             <td className="p-3 text-right text-xs font-bold text-green-700 tabular-nums">
                               {sym}{cash.toLocaleString()}
                             </td>
@@ -922,7 +924,7 @@ const Vehicles = () => {
             <div className="flex items-center gap-3">
               <div className="w-2 h-8 bg-accent-signature rounded-pill" />
               <h2 className="text-base font-bold text-ink-primary">Fleet Roster</h2>
-              <span className="ml-1 text-[10px] font-semibold text-gray-400">{vehicles.length} vehicles</span>
+              <span className="ml-1 text-[10px] font-semibold text-muted-foreground">{vehicles.length} vehicles</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -965,14 +967,14 @@ const Vehicles = () => {
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="text-sm font-bold text-ink-primary uppercase tracking-tight">{v.name}</h3>
-                          <div className="text-[10px] font-semibold text-gray-400 mt-0.5">{v.plate}</div>
+                          <div className="text-[10px] font-semibold text-muted-foreground mt-0.5">{v.plate}</div>
                         </div>
                         {v.type && (
-                          <span className="text-[9px] font-bold text-gray-400 bg-canvas px-2 py-0.5 rounded-pill border border-black/5">{v.type}</span>
+                          <span className="text-[9px] font-bold text-muted-foreground bg-canvas px-2 py-0.5 rounded-pill border border-black/5">{v.type}</span>
                         )}
                       </div>
 
-                      <div className="flex flex-wrap gap-2 text-[9px] font-semibold text-gray-500">
+                      <div className="flex flex-wrap gap-2 text-[9px] font-semibold text-muted-foreground">
                         {v.fuelType && <span className="flex items-center gap-1"><Fuel size={9} />{v.fuelType}</span>}
                         {v.capacity && <span className="flex items-center gap-1"><Truck size={9} />{v.capacity} cap</span>}
                         {v.year     && <span className="flex items-center gap-1"><Calendar size={9} />{v.year}</span>}
@@ -980,7 +982,7 @@ const Vehicles = () => {
 
                       <div className="p-2.5 bg-canvas/60 rounded-xl border border-black/5">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Stock on Board</span>
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Stock on Board</span>
                           <span className="text-[10px] font-bold text-ink-primary">{stock} units</span>
                         </div>
                         <div className="h-1 w-full bg-black/5 rounded-full overflow-hidden">
@@ -1003,7 +1005,7 @@ const Vehicles = () => {
                         <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[9px] font-semibold ${
                           svcSt === 'overdue' ? 'bg-red-50 text-red-700 border border-red-100' :
                           svcSt === 'soon'    ? 'bg-yellow-50 text-yellow-700 border border-yellow-100' :
-                                                'bg-canvas text-gray-500 border border-black/5'
+                                                'bg-canvas text-muted-foreground border border-black/5'
                         }`}>
                           <Wrench size={10} className="shrink-0" />
                           <span>
@@ -1020,7 +1022,7 @@ const Vehicles = () => {
               })}
 
               {vehicles.length === 0 && (
-                <div className="col-span-full py-20 text-center text-[10px] font-semibold text-gray-400">
+                <div className="col-span-full py-20 text-center text-[10px] font-semibold text-muted-foreground">
                   No vehicles registered — click "Add Vehicle" to begin
                 </div>
               )}
@@ -1112,71 +1114,71 @@ const Vehicles = () => {
 
             <form onSubmit={handleVehicleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Vehicle Name *</label>
+                <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Vehicle Name *</label>
                 <input required type="text"
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-border shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
                   placeholder="e.g. Delivery Van 1"
                   value={vehicleForm.name} onChange={e => setVehicleForm({ ...vehicleForm, name: e.target.value })} />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">License Plate *</label>
+                <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">License Plate *</label>
                 <input required type="text"
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-border shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20"
                   placeholder="e.g. KL01HHSHHS"
                   value={vehicleForm.plate} onChange={e => setVehicleForm({ ...vehicleForm, plate: e.target.value })} />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Type</label>
-                <select className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20 appearance-none"
+                <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Type</label>
+                <select className="w-full bg-white border border-border shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20 appearance-none"
                   value={vehicleForm.type} onChange={e => setVehicleForm({ ...vehicleForm, type: e.target.value })}>
                   {VEHICLE_TYPES.map(t => <option key={t}>{t}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Status</label>
-                <select className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20 appearance-none"
+                <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Status</label>
+                <select className="w-full bg-white border border-border shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20 appearance-none"
                   value={vehicleForm.status} onChange={e => setVehicleForm({ ...vehicleForm, status: e.target.value })}>
                   {VEHICLE_STATUSES.map(s => <option key={s} value={s}>{STATUS_STYLES[s]?.label || s}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Fuel Type</label>
-                <select className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20 appearance-none"
+                <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Fuel Type</label>
+                <select className="w-full bg-white border border-border shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20 appearance-none"
                   value={vehicleForm.fuelType} onChange={e => setVehicleForm({ ...vehicleForm, fuelType: e.target.value })}>
                   {FUEL_TYPES.map(f => <option key={f}>{f}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Capacity</label>
+                <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Capacity</label>
                 <input type="number" min="0"
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-border shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
                   placeholder="e.g. 100"
                   value={vehicleForm.capacity} onChange={e => setVehicleForm({ ...vehicleForm, capacity: e.target.value })} />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Color</label>
+                <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Color</label>
                 <input type="text"
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-border shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
                   placeholder="e.g. White"
                   value={vehicleForm.color} onChange={e => setVehicleForm({ ...vehicleForm, color: e.target.value })} />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Year</label>
+                <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Year</label>
                 <input type="number" min="1990" max="2099"
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-border shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
                   placeholder="e.g. 2022"
                   value={vehicleForm.year} onChange={e => setVehicleForm({ ...vehicleForm, year: e.target.value })} />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Last Service Date</label>
+                <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Last Service Date</label>
                 <input type="date"
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-border shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
                   value={vehicleForm.lastServiceDate} onChange={e => setVehicleForm({ ...vehicleForm, lastServiceDate: e.target.value })} />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Next Service Date</label>
+                <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Next Service Date</label>
                 <input type="date"
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-border shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
                   value={vehicleForm.nextServiceDate} onChange={e => setVehicleForm({ ...vehicleForm, nextServiceDate: e.target.value })} />
               </div>
               <div className="sm:col-span-2 grid grid-cols-2 gap-4 pt-2">
@@ -1200,7 +1202,7 @@ const Vehicles = () => {
           <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-black/5 bg-white/80 backdrop-blur-sm">
             <button
               onClick={() => setShowDispatchModal(false)}
-              className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-ink-primary transition-colors group"
+              className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-ink-primary transition-colors group"
             >
               <div className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center group-hover:bg-black/5 transition-all">
                 <X size={15} />
@@ -1212,12 +1214,12 @@ const Vehicles = () => {
               <h2 className="text-lg font-black font-sora text-ink-primary leading-none uppercase tracking-tight">
                 Dispatch<span className="text-accent-signature">.</span>
               </h2>
-              <span className="hidden sm:block text-[10px] font-semibold text-gray-400">Assign vehicle · driver · deliveries</span>
+              <span className="hidden sm:block text-[10px] font-semibold text-muted-foreground">Assign vehicle · driver · deliveries</span>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <div className="text-[10px] font-semibold text-gray-400">{selectedInvoices.length} of {pendingDeliveries.length} deliveries</div>
+                <div className="text-[10px] font-semibold text-muted-foreground">{selectedInvoices.length} of {pendingDeliveries.length} deliveries</div>
                 <div className="text-sm font-black text-ink-primary tabular-nums">
                   {sym}{selectedInvoices.reduce((s, id) => {
                     const inv = deliveryInvoices.find(i => i.id === id);
@@ -1236,12 +1238,12 @@ const Vehicles = () => {
                 {/* ── LEFT COLUMN: Config ── */}
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Route Configuration</h3>
+                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Route Configuration</h3>
 
                     {/* Vehicle */}
                     <div className="space-y-4">
                       <div>
-                        <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Vehicle</label>
+                        <label className="text-[10px] font-semibold text-muted-foreground block mb-1.5">Vehicle</label>
                         <select
                           className="w-full bg-white border border-black/8 rounded-xl px-4 py-3.5 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30 appearance-none"
                           value={dispatchForm.vehicleId}
@@ -1253,7 +1255,7 @@ const Vehicles = () => {
 
                       {/* Driver */}
                       <div>
-                        <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Driver *</label>
+                        <label className="text-[10px] font-semibold text-muted-foreground block mb-1.5">Driver *</label>
                         <select
                           className="w-full bg-white border border-black/8 rounded-xl px-4 py-3.5 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30 appearance-none"
                           value={dispatchForm.driverId}
@@ -1265,7 +1267,7 @@ const Vehicles = () => {
 
                       {/* Route */}
                       <div>
-                        <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Route / Area</label>
+                        <label className="text-[10px] font-semibold text-muted-foreground block mb-1.5">Route / Area</label>
                         <input type="text"
                           className="w-full bg-white border border-black/8 rounded-xl px-4 py-3 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30"
                           placeholder="e.g. North Zone"
@@ -1278,7 +1280,7 @@ const Vehicles = () => {
                   {/* Van Load */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                         <PackagePlus size={11} /> Stock On Van
                       </h3>
                       {vanCurrentStock.length > 0 && (
@@ -1288,7 +1290,7 @@ const Vehicles = () => {
                       )}
                     </div>
                     {vanCurrentStock.length === 0 ? (
-                      <div className="py-8 text-center text-[10px] text-gray-400 border border-dashed border-black/10 rounded-xl">
+                      <div className="py-8 text-center text-[10px] text-muted-foreground border border-dashed border-black/10 rounded-xl">
                         Van is empty — load it from Fleet → Load Van.<br />
                         Driver will only deliver invoices.
                       </div>
@@ -1297,10 +1299,10 @@ const Vehicles = () => {
                         {vanCurrentStock.map(item => (
                           <div key={item.productId} className="flex items-center justify-between bg-white border border-black/8 rounded-xl px-3 py-2">
                             <span className="text-xs font-semibold text-ink-primary truncate">{item.productName}</span>
-                            <span className="text-xs font-black text-ink-primary tabular-nums shrink-0 ml-2">{item.qty} <span className="text-[9px] text-gray-400 font-medium">pcs</span></span>
+                            <span className="text-xs font-black text-ink-primary tabular-nums shrink-0 ml-2">{item.qty} <span className="text-[9px] text-muted-foreground font-medium">pcs</span></span>
                           </div>
                         ))}
-                        <div className="flex justify-between text-[9px] text-gray-400 px-1 pt-1">
+                        <div className="flex justify-between text-[9px] text-muted-foreground px-1 pt-1">
                           <span>{vanCurrentStock.reduce((s, i) => s + i.qty, 0)} units on van</span>
                           <span className="font-bold text-ink-primary">{sym}{vanCurrentStock.reduce((s, i) => s + i.qty * i.sellingPrice, 0).toFixed(2)} retail value</span>
                         </div>
@@ -1312,7 +1314,7 @@ const Vehicles = () => {
                 {/* ── RIGHT COLUMN: Deliveries ── */}
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                       Deliveries ({selectedInvoices.length} of {pendingDeliveries.length})
                     </h3>
                     <button type="button"
@@ -1325,7 +1327,7 @@ const Vehicles = () => {
                   </div>
                   <div className="space-y-2">
                     {pendingDeliveries.length === 0 ? (
-                      <div className="py-12 text-center text-[10px] text-gray-400 border border-dashed border-black/10 rounded-xl">No pending deliveries</div>
+                      <div className="py-12 text-center text-[10px] text-muted-foreground border border-dashed border-black/10 rounded-xl">No pending deliveries</div>
                     ) : pendingDeliveries.map(inv => {
                       const checked = selectedInvoices.includes(inv.id);
                       return (
@@ -1347,9 +1349,9 @@ const Vehicles = () => {
                           <div className="flex-1 min-w-0">
                             <div className={`text-xs font-bold ${checked ? 'text-surface' : 'text-ink-primary'}`}>
                               {(inv.invoice_number || inv.id).replace(/^#+/, '')}
-                              <span className={`ml-1.5 font-medium ${checked ? 'text-white/60' : 'text-gray-400'}`}>· {inv.client_name}</span>
+                              <span className={`ml-1.5 font-medium ${checked ? 'text-white/60' : 'text-muted-foreground'}`}>· {inv.client_name}</span>
                             </div>
-                            <div className={`text-[9px] flex items-center gap-1.5 flex-wrap mt-0.5 ${checked ? 'text-white/50' : 'text-gray-400'}`}>
+                            <div className={`text-[9px] flex items-center gap-1.5 flex-wrap mt-0.5 ${checked ? 'text-white/50' : 'text-muted-foreground'}`}>
                               {inv.delivery_zone && (
                                 <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${checked ? 'bg-white/10 text-white/80' : 'bg-blue-50 text-blue-600'}`}>
                                   {inv.delivery_zone}
@@ -1387,10 +1389,10 @@ const Vehicles = () => {
                   </div>
                 )}
                 <div className="flex items-center gap-4">
-                  <div className="flex-1 flex items-center gap-4 text-[10px] text-gray-400">
+                  <div className="flex-1 flex items-center gap-4 text-[10px] text-muted-foreground">
                     <span className="font-semibold">{selectedInvoices.length} deliveries</span>
                     {vanCurrentStock.length > 0 && <span>{vanCurrentStock.reduce((s,i)=>s+i.qty,0)} van units</span>}
-                    <span className="text-gray-300">·</span>
+                    <span className="text-muted-foreground">·</span>
                     <span>{todayISOInAppTZ()}</span>
                     <span className="ml-auto font-black text-sm text-ink-primary tabular-nums">
                       Total: {sym}{selectedInvoices.reduce((s, id) => {
@@ -1432,7 +1434,7 @@ const Vehicles = () => {
                 <h1 className="text-3xl font-black font-sora text-ink-primary leading-none tracking-tight uppercase">
                   END TRIP<span className="text-accent-signature">.</span>
                 </h1>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mt-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mt-1">
                   {vehicles.find(v => v.id === (reconcileRoute_.vehicleId || reconcileRoute_['vehicleId']))?.name || 'Vehicle'}
                   {reconcileRoute_.location ? ` · ${reconcileRoute_.location}` : ''}
                 </p>
@@ -1454,11 +1456,11 @@ const Vehicles = () => {
                   {[
                     { label: 'Delivered', value: delivered, color: 'text-green-600' },
                     { label: 'No Sale',   value: noSale,    color: 'text-red-500'   },
-                    { label: 'Pending',   value: pending,   color: 'text-gray-400'  },
+                    { label: 'Pending',   value: pending,   color: 'text-muted-foreground'  },
                   ].map(({ label, value, color }) => (
                     <div key={label} className="text-center bg-canvas rounded-xl py-3 border border-black/5">
                       <div className={`text-xl font-black tabular-nums ${color}`}>{value}</div>
-                      <div className="text-[9px] font-semibold text-gray-400 mt-0.5">{label}</div>
+                      <div className="text-[9px] font-semibold text-muted-foreground mt-0.5">{label}</div>
                     </div>
                   ))}
                 </div>
@@ -1472,21 +1474,21 @@ const Vehicles = () => {
                 if (loaded.length === 0) return null;
                 return (
                   <div>
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Unload from Van (Optional)</p>
-                    <p className="text-[9px] text-gray-400 mb-2">Leave at 0 — stock stays on van for next trip</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Unload from Van (Optional)</p>
+                    <p className="text-[9px] text-muted-foreground mb-2">Leave at 0 — stock stays on van for next trip</p>
                     <div className="space-y-2">
                       {loaded.map(item => {
                         const returned = parseInt(reconcileReturned[item.productId] ?? item.quantity) || 0;
                         const sold = Math.max(0, item.quantity - returned);
                         const prod = products.find(p => p.id === item.productId);
                         return (
-                          <div key={item.productId} className="flex items-center gap-3 bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2">
+                          <div key={item.productId} className="flex items-center gap-3 bg-white border border-border shadow-sm rounded-xl px-3 py-2">
                             <div className="flex-1 min-w-0">
                               <div className="text-xs font-bold text-ink-primary truncate">{prod?.name || item.productId}</div>
-                              <div className="text-[9px] text-gray-400">Loaded: {item.quantity} · Sold: <span className="text-green-600 font-bold">{sold}</span></div>
+                              <div className="text-[9px] text-muted-foreground">Loaded: {item.quantity} · Sold: <span className="text-green-600 font-bold">{sold}</span></div>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
-                              <span className="text-[9px] text-gray-400">Return:</span>
+                              <span className="text-[9px] text-muted-foreground">Return:</span>
                               <input
                                 type="number" min="0" max={item.quantity}
                                 className="w-14 bg-white border border-black/10 rounded-lg px-2 py-1 text-xs font-bold text-center outline-none focus:ring-2 focus:ring-accent-signature/20"
@@ -1498,7 +1500,7 @@ const Vehicles = () => {
                         );
                       })}
                     </div>
-                    <div className="text-[9px] text-gray-400 mt-1.5 text-right">
+                    <div className="text-[9px] text-muted-foreground mt-1.5 text-right">
                       Van sold: <span className="font-bold text-green-600">
                         {loaded.reduce((s, item) => s + Math.max(0, item.quantity - (parseInt(reconcileReturned[item.productId] ?? item.quantity) || 0)), 0)} units
                       </span>
@@ -1508,18 +1510,18 @@ const Vehicles = () => {
               })()}
 
               <div>
-                <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">
+                <label className="text-[10px] font-semibold text-muted-foreground block mb-1.5">
                   Total Cash Collected ({sym})
                 </label>
                 <input
                   type="number" step="0.01" min="0"
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-4 font-bold text-xl outline-none focus:ring-2 focus:ring-accent-signature/30 tabular-nums"
+                  className="w-full bg-white border border-border shadow-sm rounded-xl px-4 py-4 font-bold text-xl outline-none focus:ring-2 focus:ring-accent-signature/30 tabular-nums"
                   placeholder="0.00"
                   value={reconcileCash}
                   onChange={e => setReconcileCash(e.target.value)}
                   autoFocus
                 />
-                <p className="text-[9px] text-gray-400 mt-1">Includes invoice collections + van sales cash</p>
+                <p className="text-[9px] text-muted-foreground mt-1">Includes invoice collections + van sales cash</p>
               </div>
               {reconcileError && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700 font-medium">
@@ -1587,7 +1589,7 @@ const Vehicles = () => {
                 <div className="w-2 h-8 bg-accent-signature rounded-pill" />
                 <div>
                   <h2 className="text-base font-bold text-ink-primary">Van Stock Dashboard</h2>
-                  <p className="text-[10px] text-gray-400">Live inventory across all vehicles</p>
+                  <p className="text-[10px] text-muted-foreground">Live inventory across all vehicles</p>
                 </div>
               </div>
             </div>
@@ -1597,8 +1599,8 @@ const Vehicles = () => {
               {[
                 { label: 'Fleet Stock',    value: `${totalFleetUnits.toLocaleString()} units`, sub: 'total on board',   color: 'bg-blue-50 border-blue-100 text-blue-700',   icon: Layers       },
                 { label: 'Fleet Value',    value: `${sym}${totalFleetValue.toLocaleString(undefined,{maximumFractionDigits:0})}`, sub: 'at selling price', color: 'bg-green-50 border-green-100 text-green-700', icon: BarChart2 },
-                { label: 'Vans w/ Stock',  value: `${vansWithStock} / ${vehicles.length}`,     sub: 'loaded',           color: 'bg-canvas border-black/8 text-gray-600',     icon: Truck        },
-                { label: 'Low Stock SKUs', value: `${totalLowItems}`,                           sub: '<5 units per van', color: totalLowItems > 0 ? 'bg-amber-50 border-amber-100 text-amber-700' : 'bg-canvas border-black/8 text-gray-500', icon: AlertCircle },
+                { label: 'Vans w/ Stock',  value: `${vansWithStock} / ${vehicles.length}`,     sub: 'loaded',           color: 'bg-canvas border-black/8 text-ink-secondary',     icon: Truck        },
+                { label: 'Low Stock SKUs', value: `${totalLowItems}`,                           sub: '<5 units per van', color: totalLowItems > 0 ? 'bg-accent-signature/10 border-accent-signature/15 text-accent-signature-hover' : 'bg-canvas border-black/8 text-muted-foreground', icon: AlertCircle },
               ].map(kpi => (
                 <div key={kpi.label} className={`flex items-center gap-3 p-3 rounded-2xl border ${kpi.color}`}>
                   <kpi.icon size={18} className="shrink-0 opacity-70" />
@@ -1618,7 +1620,7 @@ const Vehicles = () => {
                   {/* Vehicle header row */}
                   <div className="flex items-center justify-between px-5 py-3 border-b border-black/5 bg-canvas/40">
                     <div className="flex items-center gap-3">
-                      <div className={`w-2 h-8 rounded-pill ${inTrip ? 'bg-accent-signature' : 'bg-gray-200'}`} />
+                      <div className={`w-2 h-8 rounded-pill ${inTrip ? 'bg-accent-signature' : 'bg-border'}`} />
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-black text-ink-primary uppercase tracking-tight">{v.name}</span>
@@ -1626,22 +1628,22 @@ const Vehicles = () => {
                             <span className="text-[8px] font-bold text-ink-primary bg-accent-signature px-2 py-0.5 rounded-pill">ON TRIP</span>
                           )}
                           {lowItems > 0 && (
-                            <span className="flex items-center gap-1 text-[8px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-pill">
+                            <span className="flex items-center gap-1 text-[8px] font-bold text-accent-signature-hover bg-accent-signature/15 px-2 py-0.5 rounded-pill">
                               <AlertCircle size={8} />{lowItems} low
                             </span>
                           )}
                         </div>
-                        <div className="text-[10px] text-gray-400 font-semibold">{v.plate} · {v.type}</div>
+                        <div className="text-[10px] text-muted-foreground font-semibold">{v.plate} · {v.type}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 text-right">
                       <div>
                         <div className="text-sm font-black text-ink-primary">{totalUnits.toLocaleString()}</div>
-                        <div className="text-[9px] text-gray-400 font-semibold">units</div>
+                        <div className="text-[9px] text-muted-foreground font-semibold">units</div>
                       </div>
                       <div>
                         <div className="text-sm font-black text-green-700">{sym}{totalValue.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
-                        <div className="text-[9px] text-gray-400 font-semibold">value</div>
+                        <div className="text-[9px] text-muted-foreground font-semibold">value</div>
                       </div>
                       <button
                         onClick={() => openLoadVan(v)}
@@ -1652,7 +1654,7 @@ const Vehicles = () => {
                       {totalUnits > 0 && !inTrip && (
                         <button
                           onClick={() => openUnloadVan(v)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-700 hover:bg-amber-100 transition-all shrink-0"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-signature/10 border border-accent-signature/25 text-[10px] font-bold text-accent-signature-hover hover:bg-accent-signature/15 transition-all shrink-0"
                         >
                           <MinusCircle size={10} /> Unload
                         </button>
@@ -1662,7 +1664,7 @@ const Vehicles = () => {
 
                   {/* Product rows */}
                   {balances.length === 0 ? (
-                    <div className="px-5 py-6 text-center text-[11px] font-semibold text-gray-300">
+                    <div className="px-5 py-6 text-center text-[11px] font-semibold text-muted-foreground">
                       No stock on this van — use "Load" to transfer from warehouse
                     </div>
                   ) : (
@@ -1674,28 +1676,28 @@ const Vehicles = () => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-semibold text-ink-primary truncate">{b.productName}</span>
-                                {b.isLow && <TrendingDown size={10} className="text-amber-500 shrink-0" />}
+                                {b.isLow && <TrendingDown size={10} className="text-accent-signature shrink-0" />}
                               </div>
                               {b.category && (
-                                <span className="text-[9px] text-gray-400">{b.category}</span>
+                                <span className="text-[9px] text-muted-foreground">{b.category}</span>
                               )}
                             </div>
                             {/* Bar chart strip */}
                             <div className="w-24 hidden sm:block">
                               <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden">
                                 <div
-                                  className={`h-full rounded-full transition-all ${b.isLow ? 'bg-amber-400' : 'bg-accent-signature'}`}
+                                  className={`h-full rounded-full transition-all ${b.isLow ? 'bg-accent-signature/70' : 'bg-accent-signature'}`}
                                   style={{ width: `${pct}%` }}
                                 />
                               </div>
                             </div>
                             <div className="text-right shrink-0 w-16">
-                              <div className={`text-sm font-black ${b.isLow ? 'text-amber-600' : 'text-ink-primary'}`}>{b.qty}</div>
-                              <div className="text-[9px] text-gray-400">units</div>
+                              <div className={`text-sm font-black ${b.isLow ? 'text-accent-signature' : 'text-ink-primary'}`}>{b.qty}</div>
+                              <div className="text-[9px] text-muted-foreground">units</div>
                             </div>
                             <div className="text-right shrink-0 w-20 hidden sm:block">
-                              <div className="text-xs font-semibold text-gray-500">{sym}{b.value.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
-                              <div className="text-[9px] text-gray-400">value</div>
+                              <div className="text-xs font-semibold text-muted-foreground">{sym}{b.value.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+                              <div className="text-[9px] text-muted-foreground">value</div>
                             </div>
                           </div>
                         );
@@ -1708,7 +1710,7 @@ const Vehicles = () => {
               {vehicles.length === 0 && (
                 <div className="py-20 text-center bg-white border border-black/5 rounded-2xl">
                   <Truck size={36} className="text-gray-200 mx-auto mb-3" />
-                  <p className="text-sm font-bold text-gray-400">No vehicles registered</p>
+                  <p className="text-sm font-bold text-muted-foreground">No vehicles registered</p>
                 </div>
               )}
             </div>
@@ -1722,12 +1724,12 @@ const Vehicles = () => {
           <div className="flex items-center gap-3">
             <div className="w-2 h-8 bg-accent-signature rounded-pill" />
             <h2 className="text-base font-bold text-ink-primary">Live Vehicle Map</h2>
-            <span className="text-[11px] text-gray-400">Auto-tracked via LedgrPOS driver app</span>
+            <span className="text-[11px] text-muted-foreground">Auto-tracked via LedgrPOS driver app</span>
           </div>
 
           <Suspense fallback={
-            <div className="flex items-center justify-center h-64 rounded-3xl bg-white border border-gray-300 shadow-sm">
-              <div className="text-sm text-gray-400">Loading map…</div>
+            <div className="flex items-center justify-center h-64 rounded-3xl bg-white border border-border shadow-sm">
+              <div className="text-sm text-muted-foreground">Loading map…</div>
             </div>
           }>
             <VehicleLiveMap vehicles={vehicles} tenantId={currentTenantId} />
@@ -1744,7 +1746,7 @@ const Vehicles = () => {
                 <h2 className="text-base font-black font-sora text-ink-primary uppercase">
                   Failed Delivery<span className="text-red-500">.</span>
                 </h2>
-                <p className="text-[10px] text-gray-400 mt-0.5">Order will be re-queued for next dispatch</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Order will be re-queued for next dispatch</p>
               </div>
               <button onClick={() => setFailedInvoiceId(null)} className="w-8 h-8 rounded-pill border border-black/10 flex items-center justify-center hover:bg-canvas">
                 <X size={14} />
@@ -1752,11 +1754,11 @@ const Vehicles = () => {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Reason</label>
+                <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Reason</label>
                 <select
                   value={failedReason}
                   onChange={e => setFailedReason(e.target.value)}
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-red-200"
+                  className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-red-200"
                 >
                   <option value="">Select reason…</option>
                   <option value="Customer unavailable">Customer unavailable</option>
@@ -1771,7 +1773,7 @@ const Vehicles = () => {
                 <input
                   type="text"
                   placeholder="Describe reason…"
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-red-200"
+                  className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-red-200"
                   onChange={e => setFailedReason(e.target.value)}
                 />
               )}

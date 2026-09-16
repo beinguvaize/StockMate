@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:uuid/uuid.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
@@ -105,7 +106,12 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             .update(payload)
             .eq('id', widget.employee!.id);
       } else {
+        // employees.id is text NOT NULL with no database default, so every
+        // client has to mint one. Web does (crypto.randomUUID in usePayroll);
+        // this did not, so every Add Employee on mobile failed outright with
+        // "null value in column id violates not-null constraint".
         await supabase.from('employees').insert({
+          'id': const Uuid().v4(),
           ...payload,
           'tenant_id': tenantCtx?.tenantId,
         });
@@ -172,9 +178,9 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             ),
             Text(
               'HR & PAYROLL',
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.manrope(
                 color: AppColors.secondary,
-                fontSize: 9,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
               ),
@@ -298,7 +304,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                               textAlign: TextAlign.center,
                               style: GoogleFonts.manrope(
                                 color: selected ? color : AppColors.inkSecondary,
-                                fontSize: 11,
+                                fontSize: 13,
                                 fontWeight: selected
                                     ? FontWeight.w700
                                     : FontWeight.w500,
@@ -345,7 +351,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEditing ? 'SAVE CHANGES' : 'ADD EMPLOYEE',
-                        style: GoogleFonts.jetBrainsMono(
+                        style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                           letterSpacing: 1,
@@ -391,9 +397,9 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             fontSize: 14,
           ),
           labelText: label,
-          labelStyle: GoogleFonts.jetBrainsMono(
+          labelStyle: GoogleFonts.manrope(
             color: AppColors.inkSecondary,
-            fontSize: 10,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
@@ -430,9 +436,9 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           title,
-          style: GoogleFonts.jetBrainsMono(
+          style: GoogleFonts.manrope(
             color: AppColors.primary,
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
           ),

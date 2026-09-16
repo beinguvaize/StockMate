@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
-import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
+import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate, isElectron } from '../lib/offline/hookAdapter';
+import { realtimeEnabled } from '../lib/realtime';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
 const PURCHASE_NUMERIC = ['quantity', 'total_amount', 'paid_amount', 'unit_price', 'tax'];
@@ -54,17 +55,27 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
       setSuppliers(normalizeNumericRows(supCached, SUPPLIER_NUMERIC));
       if (withReturns) setPurchaseReturns(normalizeNumericRows(retCached, RETURN_NUMERIC));
 
-      // Supplier payments (small table; direct fetch). Skipped when unused.
+      // Render immediately from cache; supplier_payments revalidates in background.
+      setLoading(false);
+      initialLoadDone.current = true;
+
       if (withPayments) {
-        const { data: payRows } = await supabase
-          .from('supplier_payments').select('*')
-          .eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500);
-        setSupplierPayments(payRows || []);
+        readCacheThenRevalidate(
+          'supplier_payments',
+          // deleted_at matters here now: apply_supplier_advances soft-deletes an
+          // advance once it has been spent across bills, replacing it with
+          // allocation rows. Without this filter the spent advance kept
+          // rendering as an on-account credit alongside the allocations that
+          // replaced it — HASSAN's consumed Rs 2,390 was counted twice, showing
+          // a closing balance of Rs 3,420 against a real Rs 5,810.
+          // Every sibling fetch above already filters it; this one did not.
+          () => supabase.from('supplier_payments').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          (rows) => setSupplierPayments(rows),
+        ).then(cached => setSupplierPayments(cached));
       }
     } catch (err) {
       console.error("usePurchases Fetch Error:", err);
       setError(err.message);
-    } finally {
       setLoading(false);
       initialLoadDone.current = true;
     }
@@ -88,7 +99,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
 
   // ── Realtime — purchases + purchase_returns ───────────────────────────
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !realtimeEnabled('purchases')) return;
     const channel = supabase
       .channel(`purchases-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {
@@ -118,7 +129,36 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
       p_tenant_id: tenantId,
       // Supplier's bill/invoice number — needed for invoice-level GSTR-2B match.
       p_bill_no: purchase.bill_no || null,
+      // Part payment: money down with the rest on credit. Undefined when the
+      // caller says nothing, and process_purchase then falls back to deciding
+      // from payment_type exactly as it always did.
+      p_paid_amount: purchase.paid_amount ?? null,
     };
+    // Desktop offline-first: queue the RPC immediately, never wait on network.
+    if (isElectron()) {
+      try {
+        await queueMutation({ table: 'process_purchase', type: 'rpc', payload: rpcParams });
+        const cachedRow = {
+          id: purchase.id,
+          tenant_id: tenantId,
+          linked_product_id: purchase.linked_product_id,
+          quantity: purchase.quantity,
+          total_amount: purchase.total_amount,
+          supplier_id: purchase.supplier_id || null,
+          supplier_name: purchase.supplier_name || null,
+          payment_type: purchase.payment_type,
+          paid_amount: purchase.paid_amount ?? null,
+          date: purchase.date,
+          notes: purchase.notes || null,
+          status: 'PENDING',
+          created_at: new Date().toISOString(),
+        };
+        await upsertCachedRow('purchases', cachedRow);
+        setData(prev => normalizeNumericRows([cachedRow, ...prev], PURCHASE_NUMERIC));
+        return { success: true, queued: true };
+      } catch (qErr) { console.error('purchases add local-first queue error:', qErr); }
+    }
+
     const { error: rpcError } = await restRpc('process_purchase', rpcParams);
 
     if (!rpcError) { await fetchPurchases(); return { success: true }; }
@@ -135,6 +175,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
           supplier_id: purchase.supplier_id || null,
           supplier_name: purchase.supplier_name || null,
           payment_type: purchase.payment_type,
+          paid_amount: purchase.paid_amount ?? null,
           date: purchase.date,
           notes: purchase.notes || null,
           status: 'PENDING',
@@ -154,18 +195,73 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     return { error };
   };
 
-  // Recost a purchase's batches to a new per-unit cost. Routed through the
-  // recost_purchase_batches RPC so it also retro-corrects the COGS already
-  // booked: the cost snapshots of units already sold (sale_batch_consumption)
-  // and each affected sale's totalCogs are updated, re-posting the ledger.
-  // Without this, fixing a cost left historical profit reports reading the
-  // old (wrong) cost on already-sold units.
-  const recostBatches = async (purchaseId, unitCost) => {
-    const { error } = await restRpc('recost_purchase_batches', {
-      p_purchase_id: purchaseId,
-      p_unit_cost:   unitCost,
-      p_tenant_id:   tenantId,
+  // Edit a purchase in one transaction.
+  //
+  // This was five sequential calls — update the row, recost the batches,
+  // resync the batch, adjust stock, reconcile the money — each able to fail on
+  // its own. A failure partway left the row already changed while the batch,
+  // stock or ledger still held the old values: a half-applied edit that only a
+  // second save would clear. The RPC does all five inside one transaction, so
+  // an edit either lands completely or not at all.
+  //
+  // It reads the pre-edit values itself, so the caller no longer has to
+  // snapshot them.
+  const editPurchase = async ({ id, productId, supplierId, quantity, totalAmount,
+                                unitCost, paymentType, date, notes, userId, accountId }) => {
+    const { error } = await restRpc('edit_purchase', {
+      p_purchase_id:  id,
+      p_tenant_id:    tenantId,
+      p_product_id:   productId,
+      p_supplier_id:  supplierId,
+      p_quantity:     Number(quantity),
+      p_total_amount: Number(totalAmount),
+      p_unit_cost:    Number(unitCost) || 0,
+      p_payment_type: paymentType,
+      p_date:         date,
+      p_notes:        notes || null,
+      p_user_id:      userId,
+      p_account_id:   accountId || null,
     });
+    if (!error) await fetchPurchases();
+    return { error };
+  };
+
+  /**
+   * Edit a whole bill — the shared header on every line, plus each line — in one
+   * transaction.
+   *
+   * A bill is several `purchases` rows, and date / supplier / payment type are
+   * shared by definition. Applying them line by line is N transactions: a
+   * failure halfway leaves a bill dated two different days, split across two
+   * suppliers, with the balance moved for some lines and not others. Before
+   * `bill_id` existed it was worse — changing a date on one line silently moved
+   * that line out of the bill, which is why the bill-level menu was disabled
+   * instead of made to work.
+   *
+   * The RPC refuses a partial payload: every line of the bill must be sent, or
+   * none of it.
+   */
+  const editPurchaseBill = async ({ billId, supplierId, paymentType, date, billNo,
+                                    lines, userId, accountId }) => {
+    const { error } = await restRpc('edit_purchase_bill', {
+      p_tenant_id:    tenantId,
+      p_bill_id:      billId,
+      p_supplier_id:  supplierId,
+      p_payment_type: paymentType,
+      p_date:         date,
+      p_bill_no:      billNo || null,
+      p_lines:        (lines || []).map(l => ({
+        id:           l.id,
+        product_id:   l.linked_product_id,
+        quantity:     Number(l.quantity) || 0,
+        total_amount: Number(l.total_amount) || 0,
+        unit_cost:    l.unit_cost != null && l.unit_cost !== '' ? Number(l.unit_cost) : null,
+        notes:        l.notes || null,
+      })),
+      p_user_id:      userId || null,
+      p_account_id:   accountId || null,
+    });
+    if (!error) await fetchPurchases();
     return { error };
   };
 
@@ -210,7 +306,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     if (!supplierId)                  return { error: new Error('supplierId required') };
     if (!(Number(amount) > 0))        return { error: new Error('amount must be positive') };
     const id = `SUPP-${Date.now().toString(36).toUpperCase()}`;
-    const { error } = await restRpc('settle_supplier_payment', {
+    const params = {
       p_id:           id,
       p_tenant_id:    tenantId,
       p_supplier_id:  supplierId,
@@ -219,7 +315,14 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
       p_date:         date || new Date().toISOString().slice(0, 10),
       p_reference_no: referenceNo || null,
       p_note:         note || null,
-    });
+    };
+    // Desktop offline-first: queue the RPC.
+    if (isElectron()) {
+      await queueMutation({ table: 'settle_supplier_payment', type: 'rpc', payload: params });
+      fetchPurchases();
+      return { success: true, id, queued: true };
+    }
+    const { error } = await restRpc('settle_supplier_payment', params);
     if (error) return { error };
     await fetchPurchases();
     return { success: true, id };
@@ -230,15 +333,81 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     if (!supplierId || !purchaseId)   return { error: new Error('supplierId + purchaseId required') };
     if (!(Number(amount) > 0))        return { error: new Error('amount must be positive') };
     const id = `SUPP-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
-    const { error } = await restRpc('settle_purchase_payment', {
+    const params = {
       p_id: id, p_tenant_id: tenantId, p_supplier_id: supplierId, p_purchase_id: purchaseId,
       p_amount: Number(amount), p_method: method,
       p_date: date || new Date().toISOString().slice(0, 10),
       p_reference_no: referenceNo || null, p_note: note || null,
-    });
+    };
+    // Desktop offline-first: queue the RPC.
+    if (isElectron()) {
+      await queueMutation({ table: 'settle_purchase_payment', type: 'rpc', payload: params });
+      fetchPurchases();
+      return { success: true, id, queued: true };
+    }
+    const { error } = await restRpc('settle_purchase_payment', params);
     if (error) return { error };
     await fetchPurchases();
     return { success: true, id };
+  };
+
+  /**
+   * Apply a purchase return against the supplier's open bills.
+   *
+   * Deliberately manual. A credit note is a claim on the supplier, not a
+   * reduction of a payable: MADEENA's Rs 2,100 note is against a cash bill they
+   * had already paid in full, so whether it offsets the next bill or comes back
+   * as cash is a conversation with them. Nothing nets automatically.
+   *
+   * No money moves — the RPC books it as a CREDIT_NOTE payment row, which
+   * raises the bill's paid_amount without touching any cash or bank account.
+   */
+  // Reversing a payment is money logic, so it runs in one statement on the
+  // server: the receipt goes, the bill gets its debt back, and the supplier
+  // balance rises by the same amount. Doing it here would be three writes with
+  // no transaction, and a failure halfway leaves a bill part-settled against a
+  // balance that matches nothing.
+  const deleteSupplierPayment = async (paymentId) => {
+    const { data, error } = await supabase.rpc('delete_supplier_payment', {
+      p_tenant_id: tenantId,
+      p_payment_id: paymentId,
+    });
+    if (error) {
+      console.error('deleteSupplierPayment error:', error);
+      return { success: false, error };
+    }
+    await fetchPurchases();
+    return { success: true, reversed: Number(data) || 0 };
+  };
+
+  // Edit is reverse-then-reapply on the server, so the new amount is allocated
+  // across open bills by the same FIFO rule that placed the original.
+  const editSupplierPayment = async (paymentId, { amount, method, date, reference_no, note } = {}) => {
+    const { data, error } = await supabase.rpc('edit_supplier_payment', {
+      p_tenant_id: tenantId,
+      p_payment_id: paymentId,
+      p_amount: Number(amount),
+      p_method: method ?? null,
+      p_date: date ?? null,
+      p_reference_no: reference_no ?? null,
+      p_note: note ?? null,
+    });
+    if (error) {
+      console.error('editSupplierPayment error:', error);
+      return { success: false, error };
+    }
+    await fetchPurchases();
+    return { success: true, newId: data };
+  };
+
+  const offsetCreditNote = async (returnId) => {
+    if (!returnId) return { error: new Error('returnId required') };
+    const { data: applied, error } = await restRpc('offset_supplier_credit_note', {
+      p_tenant_id: tenantId, p_return_id: returnId,
+    });
+    if (error) return { error };
+    await fetchPurchases();
+    return { success: true, applied: Number(applied) || 0 };
   };
 
   return {
@@ -252,11 +421,12 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     refetch: fetchPurchases,
     add,
     update,
-    recostBatches,
+    editPurchase,
+    editPurchaseBill,
     updateStatus,
     remove,
     addReturn,
     paySupplier,
     payPurchase,
-  };
+    offsetCreditNote, deleteSupplierPayment, editSupplierPayment };
 };

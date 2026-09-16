@@ -34,7 +34,7 @@ final recentSalesProvider = FutureProvider<List<Sale>>((ref) async {
   try {
     final response = await supabase
         .from('sales')
-        .select()
+        .select().isFilter('deleted_at', null)
         .eq('tenant_id', ctx.tenantId)
         .order('created_at', ascending: false)
         .limit(500);

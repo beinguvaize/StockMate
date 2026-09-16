@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../theme/typography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 
 /// Dashboard promo/announcement banners — mirrors the web BannerCarousel.
@@ -60,7 +60,11 @@ class _BannerCarouselState extends ConsumerState<BannerCarousel> {
         return Column(
           children: [
             SizedBox(
-              height: 92,
+              // 92 was sized to fit a 12px subtitle over two lines. The
+              // subtitle is 13px now -- readable -- so the box has to grow
+              // with it, otherwise the second line is clipped mid-word and the
+              // banner reads as broken rather than as truncated.
+              height: 108,
               child: PageView.builder(
                 controller: _controller,
                 itemCount: banners.length,
@@ -96,20 +100,17 @@ class _BannerCarouselState extends ConsumerState<BannerCarousel> {
                                 b['title'] ?? '',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.manrope(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white),
+                                style: AppText.heading.copyWith(
+                                    fontSize: 16, color: Colors.white),
                               ),
                               if ((b['subtitle'] ?? '') != '')
                                 Text(
                                   b['subtitle'] as String,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.manrope(
-                                      fontSize: 11,
+                                  style: AppText.caption.copyWith(
                                       color: Colors.white
-                                          .withValues(alpha: .85)),
+                                          .withValues(alpha: .90)),
                                 ),
                             ],
                           ),

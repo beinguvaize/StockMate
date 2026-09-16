@@ -3,6 +3,7 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/daybook/data/daybook_models.dart';
 import 'package:mobile_app/features/daybook/data/daybook_repository.dart';
+import 'package:mobile_app/main.dart' show databaseProvider;
 
 final selectedDayBookDateProvider = StateProvider<String>((ref) {
   final now = DateTime.now();
@@ -12,7 +13,7 @@ final selectedDayBookDateProvider = StateProvider<String>((ref) {
 final physicalCashInputProvider = StateProvider.family<String, String>((ref, date) => '');
 
 final daybookRepositoryProvider = Provider<DaybookRepository>((ref) {
-  return DaybookRepository(supabase);
+  return DaybookRepository(supabase, ref.read(databaseProvider));
 });
 
 final dayBookListProvider = FutureProvider.autoDispose<List<DayBookRecord>>((ref) async {

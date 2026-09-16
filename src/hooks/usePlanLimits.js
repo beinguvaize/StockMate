@@ -17,12 +17,15 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { getPlanLimits, PLANS } from '../lib/tenancy';
+import { getPlanLimits, PLANS, effectivePlan } from '../lib/tenancy';
+import { monthBounds } from '../lib/reportPeriods';
 import { useTenant } from '../context/TenantContext';
 
 export const usePlanLimits = () => {
   const { currentTenant, currentTenantId } = useTenant();
-  const plan     = currentTenant?.plan || 'STARTER';
+  // Caps follow the effective plan too, or a trial would be handed PRO's
+  // modules while still capped at the Free tier's 100 invoices a month.
+  const plan     = currentTenant ? effectivePlan(currentTenant) : 'FREE';
   const limits   = getPlanLimits(plan);
   const planMeta = PLANS[plan] || PLANS.STARTER;
 
@@ -34,8 +37,7 @@ export const usePlanLimits = () => {
     if (!currentTenantId) { setLoading(false); return; }
 
     const now    = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const { from: monthStart, to: monthEnd } = monthBounds(now);
 
     const [
       { count: inv },

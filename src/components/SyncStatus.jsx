@@ -42,8 +42,8 @@ export default function SyncStatus() {
   const relTime = useRelativeTime(lastSyncAt);
 
   const dotColor = online ? 'bg-emerald-500' : 'bg-gray-400';
-  const ringColor = online ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-100 border-gray-200';
-  const textColor = online ? 'text-emerald-600' : 'text-gray-500';
+  const ringColor = online ? 'bg-emerald-50 border-emerald-100' : 'bg-muted border-border';
+  const textColor = online ? 'text-emerald-600' : 'text-muted-foreground';
 
   return (
     <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export default function SyncStatus() {
 
         {/* Pending badge */}
         {pendingCount > 0 && (
-          <span className="ml-0.5 bg-amber-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+          <span className="ml-0.5 bg-accent-signature/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
             {pendingCount > 99 ? '99+' : pendingCount}
           </span>
         )}
@@ -72,18 +72,18 @@ export default function SyncStatus() {
           <div className="flex items-center gap-1.5 mb-2">
             {online
               ? <Wifi size={11} className="text-emerald-500" />
-              : <WifiOff size={11} className="text-gray-400" />}
-            <p className="text-[10px] font-bold text-gray-700">
+              : <WifiOff size={11} className="text-muted-foreground" />}
+            <p className="text-[10px] font-bold text-ink-secondary">
               {online ? 'Online' : 'Offline'}
             </p>
           </div>
           {pendingCount > 0 && (
-            <p className="text-[10px] text-amber-600 font-semibold mb-1">
+            <p className="text-[10px] text-accent-signature font-semibold mb-1">
               {pendingCount} pending write{pendingCount !== 1 ? 's' : ''}
             </p>
           )}
           <div className="flex items-center justify-between pt-2 border-t border-black/5">
-            <span className="text-[9px] text-gray-500">Last sync</span>
+            <span className="text-[9px] text-muted-foreground">Last sync</span>
             <span className="text-[9px] font-bold text-ink-primary">{relTime}</span>
           </div>
         </div>
@@ -96,8 +96,8 @@ export default function SyncStatus() {
         title="Sync now"
         className={`w-7 h-7 rounded-full flex items-center justify-center border border-black/5 shadow-sm transition-all
           ${syncing
-            ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
-            : 'bg-white text-gray-500 hover:text-ink-primary hover:shadow-md active:scale-95'
+            ? 'bg-muted text-muted-foreground cursor-not-allowed'
+            : 'bg-white text-muted-foreground hover:text-ink-primary hover:shadow-md active:scale-95'
           }`}
       >
         <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />

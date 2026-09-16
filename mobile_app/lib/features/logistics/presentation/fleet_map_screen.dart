@@ -57,7 +57,7 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
           .order('updated_at', ascending: false);
       final vehicles = await supabase
           .from('vehicles')
-          .select('id, name')
+          .select('id, name').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId);
 
       final nameById = {
@@ -124,8 +124,8 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
             ),
             Text(
               'LAST-KNOWN VEHICLE LOCATIONS',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
                 letterSpacing: 1.2,
@@ -186,7 +186,7 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: GoogleFonts.manrope(
-                                              fontSize: 10,
+                                              fontSize: 13,
                                               fontWeight: FontWeight.w800,
                                               color: Colors.white,
                                             ),
@@ -231,7 +231,7 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
                                 'Locations are recorded when drivers\ndispatch routes and complete stops.',
                                 textAlign: TextAlign.center,
                                 style: GoogleFonts.manrope(
-                                  fontSize: 12,
+                                  fontSize: 13,
                                   color: AppColors.inkTertiary,
                                 ),
                               ),
@@ -270,8 +270,8 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
                                       ),
                                       trailing: Text(
                                         _ago(v.at),
-                                        style: GoogleFonts.jetBrainsMono(
-                                          fontSize: 10,
+                                        style: GoogleFonts.manrope(
+                                          fontSize: 13,
                                           color: AppColors.inkTertiary,
                                         ),
                                       ),

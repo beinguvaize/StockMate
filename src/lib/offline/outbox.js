@@ -122,6 +122,22 @@ export async function resetFailed() {
 }
 
 /**
+ * Wipe every queued op. Called on tenant switch — replaying another
+ * tenant's queued writes under a new login would cross-post data.
+ */
+export async function clearOps() {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    const tx = db.transaction('outbox', 'readwrite');
+    await tx.objectStore('outbox').clear();
+    await tx.done;
+  } catch (err) {
+    console.error('[offline/outbox] clearOps error:', err);
+  }
+}
+
+/**
  * Count pending operations.
  * @returns {Promise<number>}
  */

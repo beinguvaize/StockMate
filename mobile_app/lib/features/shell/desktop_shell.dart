@@ -74,15 +74,15 @@ final _navItems = [
     screen: FinanceScreen(),
   ),
   const _NavItem(
-    id: 'hr',
-    label: 'HR & Payroll',
+    id: 'payroll',
+    label: 'Payroll',
     icon: LucideIcons.briefcase,
-    feature: 'hr',
+    feature: 'payroll',
     screen: HRScreen(),
   ),
   const _NavItem(
     id: 'logistics',
-    label: 'Fleet',
+    label: 'Vehicles',
     icon: LucideIcons.truck,
     feature: 'logistics',
     screen: LogisticsScreen(),
@@ -173,7 +173,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                         'PRO',
                         style: TextStyle(
                           color: AppColors.accentSignature,
-                          fontSize: 11,
+                          fontSize: 13,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 2,
                         ),
@@ -187,7 +187,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                   child: tenantAsync.when(
                     data: (ctx) {
                       final roles = ctx?.roles ?? ['STAFF'];
-                      final plan = ctx?.plan ?? 'STARTER';
+                      final plan = ctx?.plan ?? 'FREE';
                       final permissions = ctx?.permissions;
                       return ListView(
                         padding: const EdgeInsets.symmetric(
@@ -319,7 +319,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                       : 'Offline',
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.5),
-                                fontSize: 11,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -365,16 +365,16 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                                         : ctx?.userProfile.email ?? '',
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 12,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    ctx?.plan ?? 'STARTER',
+                                    ctx?.storedPlan ?? 'FREE',
                                     style: const TextStyle(
                                       color: AppColors.accentSignature,
-                                      fontSize: 10,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
@@ -473,7 +473,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                   child: tenantAsync.when(
                     data: (ctx) {
                       final roles = ctx?.roles ?? ['STAFF'];
-                      final plan = ctx?.plan ?? 'STARTER';
+                      final plan = ctx?.plan ?? 'FREE';
                       final permissions = ctx?.permissions;
                       final item = _navItems[_selectedIndex];
                       if (!canAccess(item.feature,
@@ -485,7 +485,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                     loading: () => const Center(
                       child: CircularProgressIndicator(),
                     ),
-                    error: (e, _) => Center(child: Text('Error: $e')),
+                    error: (e, _) => Center(child: Text('Could not load. Check your internet and try again.')),
                   ),
                 ),
               ],

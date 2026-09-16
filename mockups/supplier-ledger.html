@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Supplier Ledger — redesign sample</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Same tokens as mockups/parties.html so this is not a third dialect. */
+  :root{
+    --amber:#D97706; --amber-deep:#B45309;
+    --ink:#111111; --ink-2:#444444; --ink-3:#6B7280;
+    --canvas:#FFFFFF; --surface:#F9F9F9; --line:rgba(0,0,0,.08);
+    --pos:#15803D; --neg:#DC2626; --warn:#9A5B0A;
+  }
+  body{ font-family:'Manrope',sans-serif; background:var(--canvas); color:var(--ink); }
+  .num{ font-variant-numeric:tabular-nums; }
+  .card{ background:var(--canvas); border:1px solid var(--line); border-radius:14px; }
+  .chip{ font-size:10px; font-weight:700; padding:2px 8px; border-radius:9999px; border:1px solid; }
+  .seg{ font-size:12px; font-weight:600; padding:6px 12px; border-radius:8px; color:var(--ink-3); cursor:pointer; }
+  .seg.on{ background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .btn{ height:36px; padding:0 14px; border-radius:10px; font-size:13px; font-weight:700; }
+  .btn-primary{ background:var(--amber); color:#fff; }
+  .btn-dark{ background:var(--ink); color:#fff; }
+  .btn-ghost{ border:1px solid var(--line); color:var(--ink-2); background:#fff; }
+  .lbl{ font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
+  .row:hover{ background:#00000004; }
+  th{ font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); padding:10px 12px; }
+  td{ padding:11px 12px; font-size:13px; vertical-align:middle; }
+  .rule{ border-color:var(--line); }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-[1240px] mx-auto">
+
+  <div class="flex items-center gap-2 mb-5">
+    <button onclick="show('screen')" id="t-screen" class="seg on">On screen</button>
+    <button onclick="show('print')"  id="t-print"  class="seg">Export PDF</button>
+    <span class="ml-3 text-[11px]" style="color:var(--ink-3)">
+      RENO JOHN — real data. Closing balance must equal Amount Due (₹19,960.00).
+    </span>
+  </div>
+
+<!-- ══════════════════════════ ON SCREEN ══════════════════════════ -->
+<section id="screen">
+
+  <div class="flex items-center justify-between gap-4 pb-4 mb-5 border-b rule">
+    <div class="flex items-center gap-3">
+      <button class="w-9 h-9 rounded-xl border rule bg-white flex items-center justify-center text-[15px]">←</button>
+      <div>
+        <div class="lbl mb-0.5">Suppliers <span class="opacity-40">›</span> <span style="color:var(--amber)">Ledger</span></div>
+        <h1 class="text-[20px] font-extrabold leading-none">RENO JOHN<span style="color:var(--amber)">.</span></h1>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-[11px] font-semibold" style="color:var(--ink-3)">As of 1 Aug 2026</span>
+      <button class="btn btn-dark">Export PDF ↗</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+    <!-- ── left ─────────────────────────────────────────────── -->
+    <div class="lg:col-span-4 space-y-4">
+
+      <div class="card p-5">
+        <div class="flex items-center gap-3 pb-4 mb-4 border-b rule">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-[15px]"
+               style="background:#D9770614;border:1px solid #D9770640;color:var(--amber)">RJ</div>
+          <div class="min-w-0">
+            <h3 class="text-[15px] font-extrabold leading-tight truncate">RENO JOHN</h3>
+            <div class="lbl mt-0.5" style="color:var(--pos)">● Active supplier</div>
+          </div>
+        </div>
+        <div class="space-y-2.5 text-[13px]">
+          <div class="flex gap-3"><span style="color:var(--ink-3)">☏</span><span class="font-semibold num">9074363450</span></div>
+          <div class="flex gap-3"><span style="color:var(--ink-3)">✉</span><span style="color:var(--ink-3)">No email</span></div>
+          <div class="flex gap-3"><span style="color:var(--ink-3)">⌖</span><span class="font-semibold">KOTTARAKKARA</span></div>
+          <div class="flex gap-3 pt-2.5 border-t rule"><span style="color:var(--ink-3)">☺</span><span class="font-semibold">RENO</span></div>
+        </div>
+      </div>
+
+      <!-- Amount due, now with ageing. A number without an age does not tell
+           you whether to ring them. -->
+      <div class="rounded-[14px] p-5" style="background:#FEF2F2;border:1px solid #FEE2E2">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="lbl" style="color:#F87171">Amount due</div>
+            <div class="num text-[26px] font-bold mt-0.5" style="color:var(--neg)">
+              <span class="text-[17px] opacity-60">₹</span>19,960.00
+            </div>
+            <div class="text-[11px] font-semibold mt-1" style="color:#B91C1C">
+              1 bill · oldest 1 day
+            </div>
+          </div>
+          <span class="chip bg-white" style="color:var(--neg);border-color:#FECACA">Outstanding</span>
+        </div>
+        <button class="btn btn-dark w-full mt-4">▤ Record payment</button>
+      </div>
+
+      <div class="rounded-[14px] p-5" style="background:var(--ink)">
+        <div class="lbl" style="color:#ffffff66">Total purchased</div>
+        <div class="num text-[28px] font-bold text-white leading-none mt-1.5">
+          <span class="text-[17px] mr-0.5" style="color:#D9770699">₹</span>1,26,901.76
+        </div>
+        <div class="lbl mt-3" style="color:#D97706AA">4 bills · 5 products · 4 payments</div>
+      </div>
+
+      <div class="card divide-y" style="border-color:var(--line)">
+        <div class="flex justify-between px-4 py-2.5"><span class="lbl">Average bill</span><span class="num text-[13px] font-bold">₹25,380</span></div>
+        <div class="flex justify-between px-4 py-2.5"><span class="lbl">Last purchase</span><span class="num text-[13px] font-bold">31 Jul 2026</span></div>
+        <div class="flex justify-between px-4 py-2.5"><span class="lbl">Paid to date</span><span class="num text-[13px] font-bold" style="color:var(--pos)">₹1,06,941.76</span></div>
+        <div class="flex justify-between px-4 py-2.5"><span class="lbl">Still owed</span><span class="num text-[13px] font-bold" style="color:var(--neg)">₹19,960.00</span></div>
+      </div>
+    </div>
+
+    <!-- ── right: the ledger ────────────────────────────────── -->
+    <div class="lg:col-span-8">
+      <div class="card overflow-hidden">
+
+        <div class="p-3 flex flex-col md:flex-row items-center justify-between gap-3 border-b rule">
+          <div class="relative w-full md:max-w-[260px]">
+            <input placeholder="Search reference or notes…"
+                   class="w-full h-9 pl-9 pr-3 rounded-[10px] border rule text-[12px] font-semibold outline-none" />
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[13px]" style="color:var(--ink-3)">⌕</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <!-- Was ALL / CASH / CREDIT, which could not express a payment or a
+                 return. Filtering by row type can. -->
+            <div class="flex gap-1 p-1 rounded-[10px]" style="background:#00000008">
+              <button class="seg on" onclick="f(this,'all')">All</button>
+              <button class="seg" onclick="f(this,'bill')">Bills</button>
+              <button class="seg" onclick="f(this,'pay')">Payments</button>
+              <button class="seg" onclick="f(this,'ret')">Returns</button>
+            </div>
+            <span id="count" class="text-[11px] font-bold" style="color:var(--ink-3)">8 rows</span>
+          </div>
+        </div>
+
+        <table class="w-full text-left border-collapse">
+          <thead style="background:var(--surface)">
+            <tr class="border-b rule">
+              <th>Date</th><th>Type</th><th>Reference</th>
+              <th class="text-right">Debit</th>
+              <th class="text-right">Credit</th>
+              <th class="text-right">Balance</th>
+            </tr>
+          </thead>
+          <tbody id="tb" class="divide-y" style="border-color:var(--line)">
+
+            <tr class="row" data-t="bill"><td class="num" style="color:var(--ink-3)">2 Jun</td>
+              <td><span class="chip" style="color:var(--warn);border-color:#D9770633;background:#D9770610">Bill</span></td>
+              <td><div class="num text-[12px] font-semibold">#R-66RDMX</div><div class="text-[11px]" style="color:var(--ink-3)">Frootty plate 12" × 288</div></td>
+              <td class="num text-right font-semibold">33,120.00</td><td></td>
+              <td class="num text-right font-bold">33,120.00</td></tr>
+
+            <tr class="row" data-t="pay"><td class="num" style="color:var(--ink-3)">2 Jun</td>
+              <td><span class="chip" style="color:var(--pos);border-color:#15803D33;background:#15803D10">Paid</span></td>
+              <td><div class="num text-[12px] font-semibold">#R-66RDMX</div><div class="text-[11px]" style="color:var(--ink-3)">cash at bill</div></td>
+              <td></td><td class="num text-right font-semibold" style="color:var(--pos)">33,120.00</td>
+              <td class="num text-right font-bold" style="color:var(--ink-3)">0.00</td></tr>
+
+            <tr class="row" data-t="bill"><td class="num" style="color:var(--ink-3)">16 Jun</td>
+              <td><span class="chip" style="color:var(--warn);border-color:#D9770633;background:#D9770610">Bill</span></td>
+              <td><div class="num text-[12px] font-semibold">#R-53QFMU</div><div class="text-[11px]" style="color:var(--ink-3)">Frootty plate 12" × 240</div></td>
+              <td class="num text-right font-semibold">27,600.00</td><td></td>
+              <td class="num text-right font-bold">27,600.00</td></tr>
+
+            <tr class="row" data-t="pay"><td class="num" style="color:var(--ink-3)">16 Jun</td>
+              <td><span class="chip" style="color:var(--pos);border-color:#15803D33;background:#15803D10">Paid</span></td>
+              <td><div class="num text-[12px] font-semibold">#R-53QFMU</div><div class="text-[11px]" style="color:var(--ink-3)">cash at bill</div></td>
+              <td></td><td class="num text-right font-semibold" style="color:var(--pos)">27,600.00</td>
+              <td class="num text-right font-bold" style="color:var(--ink-3)">0.00</td></tr>
+
+            <!-- One physical bill, two products. Stored as two purchases rows
+                 written 1.7s apart; shown as one line you can open. -->
+            <tr class="row cursor-pointer" data-t="bill" onclick="x('g1')">
+              <td class="num" style="color:var(--ink-3)">17 Jul</td>
+              <td><span class="chip" style="color:var(--warn);border-color:#D9770633;background:#D9770610">Bill</span></td>
+              <td>
+                <div class="flex items-center gap-1.5">
+                  <span id="c-g1" class="text-[10px] inline-block transition-transform" style="color:var(--ink-3)">▶</span>
+                  <span class="num text-[12px] font-semibold">#R-RLQXIA</span>
+                  <span class="chip" style="color:var(--ink-2);border-color:var(--line);background:var(--surface)">2 items</span>
+                </div>
+                <div class="text-[11px] ml-4" style="color:var(--ink-3)">Frootty plate 12", PIZZA PLATE 6"</div>
+              </td>
+              <td class="num text-right font-semibold">36,221.76</td><td></td>
+              <td class="num text-right font-bold">36,221.76</td></tr>
+
+            <tr id="g1" class="hidden" data-t="bill"><td colspan="6" class="p-0">
+              <div class="px-5 py-3" style="background:var(--surface);box-shadow:inset 3px 0 0 var(--amber)">
+                <div class="lbl mb-2">Products on this bill</div>
+                <table class="w-full">
+                  <tr class="border-b rule">
+                    <td class="text-[12px] font-semibold py-1.5">Frootty plate 12"</td>
+                    <td class="num text-[12px] text-right py-1.5" style="color:var(--ink-3)">336 × ₹105.66</td>
+                    <td class="num text-[12px] text-right font-semibold py-1.5">35,501.76</td>
+                    <td class="text-right py-1.5"><span class="chip" style="color:var(--pos);border-color:#15803D33">Settled</span></td>
+                    <td class="num text-[10px] text-right py-1.5" style="color:var(--ink-3)">#R-RLQXIA</td>
+                  </tr>
+                  <tr>
+                    <td class="text-[12px] font-semibold py-1.5">PIZZA PLATE 6"</td>
+                    <td class="num text-[12px] text-right py-1.5" style="color:var(--ink-3)">24 × ₹30.00</td>
+                    <td class="num text-[12px] text-right font-semibold py-1.5">720.00</td>
+                    <td class="text-right py-1.5"><span class="chip" style="color:var(--pos);border-color:#15803D33">Settled</span></td>
+                    <td class="num text-[10px] text-right py-1.5" style="color:var(--ink-3)">#R-RNAZT0</td>
+                  </tr>
+                </table>
+              </div></td></tr>
+
+            <tr class="row" data-t="pay"><td class="num" style="color:var(--ink-3)">17 Jul</td>
+              <td><span class="chip" style="color:var(--pos);border-color:#15803D33;background:#15803D10">Paid</span></td>
+              <td><div class="num text-[12px] font-semibold">#R-RLQXIA</div><div class="text-[11px]" style="color:var(--ink-3)">cash at bill · both items</div></td>
+              <td></td><td class="num text-right font-semibold" style="color:var(--pos)">36,221.76</td>
+              <td class="num text-right font-bold" style="color:var(--ink-3)">0.00</td></tr>
+
+            <tr class="row" data-t="bill"><td class="num" style="color:var(--ink-3)">31 Jul</td>
+              <td><span class="chip" style="color:var(--warn);border-color:#D9770633;background:#D9770610">Bill</span></td>
+              <td><div class="num text-[12px] font-semibold">#R-W8VUB4</div><div class="text-[11px]" style="color:var(--ink-3)">Frootty plate 12" × 280</div></td>
+              <td class="num text-right font-semibold">29,960.00</td><td></td>
+              <td class="num text-right font-bold">29,960.00</td></tr>
+
+            <tr class="row" data-t="pay"><td class="num" style="color:var(--ink-3)">1 Aug</td>
+              <td><span class="chip" style="color:var(--pos);border-color:#15803D33;background:#15803D10">Payment</span></td>
+              <td><div class="num text-[12px] font-semibold">#R-W8VUB4</div><div class="text-[11px]" style="color:var(--ink-3)">cash · part settlement</div></td>
+              <td></td><td class="num text-right font-semibold" style="color:var(--pos)">10,000.00</td>
+              <td class="num text-right font-bold" style="color:var(--neg)">19,960.00</td></tr>
+
+          </tbody>
+          <tfoot>
+            <tr style="background:var(--surface)" class="border-t-2" >
+              <td colspan="3" class="text-[12px] font-extrabold uppercase tracking-wide">Closing balance</td>
+              <td class="num text-right text-[12px] font-bold" style="color:var(--ink-3)">1,26,901.76</td>
+              <td class="num text-right text-[12px] font-bold" style="color:var(--ink-3)">1,06,941.76</td>
+              <td class="num text-right text-[15px] font-extrabold" style="color:var(--neg)">₹19,960.00</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- The case that decides the design: a grouped bill that still owes
+           money. SAJJAD ALAMCODU, 1 Aug — real data, five products written
+           7 seconds apart, three settled, one part-paid, one untouched. -->
+      <div class="card mt-4 overflow-hidden">
+        <div class="px-4 py-2.5 border-b rule" style="background:var(--surface)">
+          <span class="lbl">Grouped bill that still owes — SAJJAD ALAMCODU, 1 Aug (real data)</span>
+        </div>
+        <table class="w-full text-left border-collapse">
+          <tbody>
+            <tr class="row cursor-pointer" onclick="x('g2')">
+              <td class="num" style="color:var(--ink-3);width:70px">1 Aug</td>
+              <td style="width:90px"><span class="chip" style="color:var(--warn);border-color:#D9770633;background:#D9770610">Bill</span></td>
+              <td>
+                <div class="flex items-center gap-1.5">
+                  <span id="c-g2" class="text-[10px] inline-block transition-transform" style="color:var(--ink-3)">▶</span>
+                  <span class="num text-[12px] font-semibold">#R-5VHR39</span>
+                  <span class="chip" style="color:var(--ink-2);border-color:var(--line);background:var(--surface)">5 items</span>
+                  <span class="chip" style="color:var(--neg);border-color:#FECACA;background:#FEF2F2">due ₹7,000</span>
+                </div>
+                <div class="text-[11px] ml-4" style="color:var(--ink-3)">13*16 Pkt Cover, Mayil sheet 12*12, HM Cover 00" +2</div>
+              </td>
+              <td class="num text-right font-semibold">28,770.00</td>
+              <td class="num text-right" style="color:var(--pos)">21,770.00</td>
+              <td class="num text-right font-bold" style="color:var(--neg)">7,000.00</td>
+            </tr>
+            <tr id="g2" class="hidden"><td colspan="6" class="p-0">
+              <div class="px-5 py-3" style="background:var(--surface);box-shadow:inset 3px 0 0 var(--amber)">
+                <div class="lbl mb-2">Products on this bill — pay the lines that are still open</div>
+                <table class="w-full">
+                  <tr class="border-b rule">
+                    <td class="text-[12px] font-semibold py-2">13*16 Pkt Cover</td>
+                    <td class="num text-[12px] text-right py-2" style="color:var(--ink-3)">750 × ₹9.00</td>
+                    <td class="num text-[12px] text-right font-semibold py-2">6,750.00</td>
+                    <td class="text-right py-2" style="width:150px"><span class="chip" style="color:var(--pos);border-color:#15803D33">Settled</span></td>
+                  </tr>
+                  <tr class="border-b rule">
+                    <td class="text-[12px] font-semibold py-2">Mayil sheet 12*12</td>
+                    <td class="num text-[12px] text-right py-2" style="color:var(--ink-3)">100 × ₹84.00</td>
+                    <td class="num text-[12px] text-right font-semibold py-2">8,400.00</td>
+                    <td class="text-right py-2"><span class="chip" style="color:var(--pos);border-color:#15803D33">Settled</span></td>
+                  </tr>
+                  <tr class="border-b rule">
+                    <td class="text-[12px] font-semibold py-2">HM Cover 00"</td>
+                    <td class="num text-[12px] text-right py-2" style="color:var(--ink-3)">30 × ₹112.00</td>
+                    <td class="num text-[12px] text-right font-semibold py-2">3,360.00</td>
+                    <td class="text-right py-2"><span class="chip" style="color:var(--pos);border-color:#15803D33">Settled</span></td>
+                  </tr>
+                  <tr class="border-b rule">
+                    <td class="text-[12px] font-semibold py-2">HM Cover 1"</td>
+                    <td class="num text-[12px] text-right py-2" style="color:var(--ink-3)">30 × ₹112.00</td>
+                    <td class="num text-[12px] text-right font-semibold py-2">3,360.00</td>
+                    <td class="text-right py-2">
+                      <span class="num text-[11px] font-bold mr-2" style="color:var(--neg)">due ₹100</span>
+                      <button class="btn btn-dark" style="height:26px;padding:0 10px;font-size:11px">Pay</button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="text-[12px] font-semibold py-2">White Cover 17*23</td>
+                    <td class="num text-[12px] text-right py-2" style="color:var(--ink-3)">60 × ₹115.00</td>
+                    <td class="num text-[12px] text-right font-semibold py-2">6,900.00</td>
+                    <td class="text-right py-2">
+                      <span class="num text-[11px] font-bold mr-2" style="color:var(--neg)">due ₹6,900</span>
+                      <button class="btn btn-dark" style="height:26px;padding:0 10px;font-size:11px">Pay</button>
+                    </td>
+                  </tr>
+                </table>
+                <p class="text-[11px] mt-2.5" style="color:var(--ink-3)">
+                  Each line settles through the existing <span class="num">settle_purchase_payment</span> RPC — no new money logic.
+                </p>
+              </div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Honest labelling: RENO JOHN has no debit note, so this is a separate
+           illustration rather than fake rows mixed into his real ledger. -->
+      <div class="card mt-4 p-4" style="background:var(--surface)">
+        <div class="lbl mb-2">Illustration only — how a debit note interleaves (not RENO JOHN's data)</div>
+        <table class="w-full text-left border-collapse">
+          <tbody class="divide-y" style="border-color:var(--line)">
+            <tr><td class="num" style="color:var(--ink-3)">12 Jul</td>
+              <td><span class="chip" style="color:var(--warn);border-color:#D9770633;background:#D9770610">Bill</span></td>
+              <td class="num text-[12px] font-semibold">#R-AAA111</td>
+              <td class="num text-right font-semibold">8,000.00</td><td></td>
+              <td class="num text-right font-bold">8,000.00</td></tr>
+            <tr><td class="num" style="color:var(--ink-3)">14 Jul</td>
+              <td><span class="chip" style="color:var(--neg);border-color:#DC262633;background:#DC262610">Return</span></td>
+              <td><div class="num text-[12px] font-semibold">#R-BBB222</div><div class="text-[11px]" style="color:var(--ink-3)">damaged · 10 units</div></td>
+              <td></td><td class="num text-right font-semibold" style="color:var(--neg)">1,200.00</td>
+              <td class="num text-right font-bold">6,800.00</td></tr>
+            <tr><td class="num" style="color:var(--ink-3)">20 Jul</td>
+              <td><span class="chip" style="color:var(--pos);border-color:#15803D33;background:#15803D10">Payment</span></td>
+              <td class="num text-[12px] font-semibold">on account</td>
+              <td></td><td class="num text-right font-semibold" style="color:var(--pos)">6,800.00</td>
+              <td class="num text-right font-bold" style="color:var(--ink-3)">0.00</td></tr>
+          </tbody>
+        </table>
+        <p class="text-[11px] mt-2.5" style="color:var(--ink-3)">
+          Today the return would render in a block below every bill, regardless of its date.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ PRINT ══════════════════════════ -->
+<section id="print" class="hidden">
+  <div class="mx-auto bg-white p-10" style="max-width:820px;border:1px solid var(--line);border-radius:6px">
+
+    <div class="flex justify-between items-start pb-4 mb-5" style="border-bottom:2px solid var(--ink)">
+      <div>
+        <div class="text-[19px] font-extrabold leading-tight">FUTURE DISPO</div>
+        <div class="text-[11px] mt-0.5" style="color:var(--ink-3)">Supplier statement of account</div>
+      </div>
+      <div class="text-right text-[11px]" style="color:var(--ink-3)">
+        <div>As of <span class="font-bold" style="color:var(--ink)">1 August 2026</span></div>
+        <div class="mt-0.5">Period: 2 Jun 2026 – 1 Aug 2026</div>
+      </div>
+    </div>
+
+    <div class="flex justify-between mb-5">
+      <div>
+        <div class="lbl mb-1">Supplier</div>
+        <div class="text-[15px] font-extrabold">RENO JOHN</div>
+        <div class="text-[11px] leading-relaxed" style="color:var(--ink-2)">
+          KOTTARAKKARA<br/>Contact: RENO · 9074363450
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="lbl mb-1">Closing balance</div>
+        <div class="num text-[24px] font-extrabold" style="color:var(--neg)">₹19,960.00</div>
+        <div class="text-[11px] font-semibold" style="color:var(--ink-3)">payable · oldest 1 day</div>
+      </div>
+    </div>
+
+    <table class="w-full text-left border-collapse">
+      <thead>
+        <tr style="border-bottom:1px solid var(--ink)">
+          <th class="px-0">Date</th><th>Particulars</th><th>Reference</th>
+          <th class="text-right">Debit</th><th class="text-right">Credit</th><th class="text-right px-0">Balance</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y" style="border-color:var(--line)">
+        <tr><td class="num px-0">02/06/2026</td><td>Purchase — Frootty plate 12" × 288</td><td class="num text-[12px]">#R-66RDMX</td><td class="num text-right">33,120.00</td><td class="num text-right">—</td><td class="num text-right font-bold px-0">33,120.00</td></tr>
+        <tr><td class="num px-0">02/06/2026</td><td>Payment — cash at bill</td><td class="num text-[12px]">#R-66RDMX</td><td class="num text-right">—</td><td class="num text-right">33,120.00</td><td class="num text-right font-bold px-0">0.00</td></tr>
+        <tr><td class="num px-0">16/06/2026</td><td>Purchase — Frootty plate 12" × 240</td><td class="num text-[12px]">#R-53QFMU</td><td class="num text-right">27,600.00</td><td class="num text-right">—</td><td class="num text-right font-bold px-0">27,600.00</td></tr>
+        <tr><td class="num px-0">16/06/2026</td><td>Payment — cash at bill</td><td class="num text-[12px]">#R-53QFMU</td><td class="num text-right">—</td><td class="num text-right">27,600.00</td><td class="num text-right font-bold px-0">0.00</td></tr>
+        <!-- Grouped on the statement too, with the products itemised beneath
+             the line. A supplier reading this should see their own bill. -->
+        <tr><td class="num px-0 align-top">17/07/2026</td>
+            <td>Purchase — 2 items
+              <div class="text-[11px] pl-3 pt-0.5" style="color:var(--ink-3)">
+                Frootty plate 12" · 336 × 105.66 = 35,501.76<br/>
+                PIZZA PLATE 6" · 24 × 30.00 = 720.00
+              </div></td>
+            <td class="num text-[12px] align-top">#R-RLQXIA</td>
+            <td class="num text-right align-top">36,221.76</td><td class="num text-right align-top">—</td>
+            <td class="num text-right font-bold px-0 align-top">36,221.76</td></tr>
+        <tr><td class="num px-0">17/07/2026</td><td>Payment — cash at bill</td><td class="num text-[12px]">#R-RLQXIA</td><td class="num text-right">—</td><td class="num text-right">36,221.76</td><td class="num text-right font-bold px-0">0.00</td></tr>
+        <tr><td class="num px-0">31/07/2026</td><td>Purchase — Frootty plate 12" × 280</td><td class="num text-[12px]">#R-W8VUB4</td><td class="num text-right">29,960.00</td><td class="num text-right">—</td><td class="num text-right font-bold px-0">29,960.00</td></tr>
+        <tr><td class="num px-0">01/08/2026</td><td>Payment — cash, part settlement</td><td class="num text-[12px]">#R-W8VUB4</td><td class="num text-right">—</td><td class="num text-right">10,000.00</td><td class="num text-right font-bold px-0">19,960.00</td></tr>
+      </tbody>
+      <tfoot>
+        <tr style="border-top:2px solid var(--ink)">
+          <td colspan="3" class="px-0 font-extrabold text-[12px] uppercase tracking-wide">Totals</td>
+          <td class="num text-right font-bold">1,26,901.76</td>
+          <td class="num text-right font-bold">1,06,941.76</td>
+          <td class="num text-right font-extrabold text-[14px] px-0" style="color:var(--neg)">19,960.00</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <p class="text-[10px] mt-6 pt-3" style="color:var(--ink-3);border-top:1px solid var(--line)">
+      Amounts in INR. Debit increases what is owed to the supplier; credit reduces it.
+      Balance shown is payable as at the statement date.
+    </p>
+  </div>
+  <p class="text-[11px] text-center mt-3" style="color:var(--ink-3)">
+    No nav, no search box, no filter pills, no Pay buttons — page-scoped <code>@media print</code>.
+  </p>
+</section>
+
+</div>
+<script>
+  function show(id){
+    ['screen','print'].forEach(s=>{
+      document.getElementById(s).classList.toggle('hidden', s!==id);
+      document.getElementById('t-'+s).classList.toggle('on', s===id);
+    });
+  }
+  // Expand a grouped bill to reveal its products.
+  function x(id){
+    const d = document.getElementById(id), c = document.getElementById('c-'+id);
+    const open = d.classList.toggle('hidden') === false;
+    if (c) c.style.transform = open ? 'rotate(90deg)' : '';
+  }
+
+  // The count must follow what is actually on screen. Today the page counts
+  // purchases only, so it can claim "5 records" while rendering ten rows.
+  // Detail rows are never counted — they belong to the bill above them.
+  function f(btn, kind){
+    btn.parentNode.querySelectorAll('.seg').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    let n = 0;
+    document.querySelectorAll('#tb > tr').forEach(tr=>{
+      if (tr.id === 'g1'){ tr.classList.add('hidden');            // collapse details
+        const c = document.getElementById('c-g1'); if (c) c.style.transform = '';
+        return; }
+      const hit = kind==='all' || tr.dataset.t===kind;
+      tr.classList.toggle('hidden', !hit);
+      if (hit) n++;
+    });
+    document.getElementById('count').textContent = n + (n===1?' row':' rows');
+  }
+</script>
+</body>
+</html>

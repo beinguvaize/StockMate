@@ -1,0 +1,20 @@
+-- Applied via apply_migration; recorded here for history.
+--
+-- process_purchase_return removed goods from inventory_balances (and so
+-- products.stock, via trg_sync_product_stock) and reduced the supplier balance,
+-- but never touched product_batches.qty_remaining. Goods sent back to a
+-- supplier stayed on the FIFO batch as if still on the shelf, so a later sale
+-- would draw COGS from stock that had physically left.
+--
+-- It also contained no RAISE EXCEPTION at all, so it could not refuse a return
+-- larger than was ever bought.
+--
+-- Now: decrements the batch created by the returning purchase (falling back to
+-- oldest-first across the product when the return is not tied to one), and
+-- refuses when less remains than is being returned -- the rest having already
+-- been sold. COGS logic itself is untouched; this keeps the batches honest so
+-- the existing FIFO consumption draws on stock that really exists.
+--
+-- Latent when fixed: zero purchase returns existed on any tenant, and
+-- batch-vs-stock drift was 0 products. Exercised on Demo Kirana (over-return
+-- refused, valid return moved both batch and stock) and fully restored.

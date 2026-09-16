@@ -2,7 +2,7 @@ enum MethodKind { cash, bank, credit, other }
 
 MethodKind methodKindFromString(String? s) {
   final v = (s ?? '').toUpperCase();
-  if (['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS'].contains(v)) return MethodKind.bank;
+  if (['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS', 'CARD', 'CHEQUE'].contains(v)) return MethodKind.bank;
   if (v == 'CREDIT') return MethodKind.credit;
   if (v == 'CASH') return MethodKind.cash;
   return MethodKind.other;
@@ -90,6 +90,13 @@ class DayBookLedger {
   final double? prevClosing;
   final List<DayBookEntry> entries;
 
+  /// True when the figures came from the local cache because the server could
+  /// not be reached. A cached day is only as complete as the last sync, so an
+  /// empty ledger means "nothing was cached for this date" — which is NOT the
+  /// same as "no trade happened". The screen has to say which, or a cashier
+  /// reads a blank day as a closed till.
+  final bool fromCache;
+
   DayBookLedger({
     required this.date,
     required this.openingBal,
@@ -106,6 +113,7 @@ class DayBookLedger {
     this.savedVariance,
     this.prevClosing,
     this.entries = const [],
+    this.fromCache = false,
   });
 
   int get txCount => entries.length;

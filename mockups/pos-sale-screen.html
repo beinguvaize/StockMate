@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POS sale screen — sample</title>
+<style>
+  /* Same language as the other samples. What changes here is DENSITY: the live
+     screen shows two products in the space that fits nine, and a cashier
+     scrolling for stock they can see on the shelf is the slowest thing at a
+     counter. */
+  :root{
+    --ink:#14161a; --ink-2:#454b54; --ink-3:#767d87;
+    --line:#e3e5e9; --line-2:#f0f1f3;
+    --paper:#fff; --desk:#f4f5f7;
+    --accent:#c2410c; --accent-bg:#fff7ed; --accent-line:#fed7aa;
+    --pos:#15803d; --pos-bg:#f0fdf4;
+    --neg:#b91c1c; --neg-bg:#fef2f2;
+    --warn:#92400e; --warn-bg:#fffbeb; --warn-line:#fde68a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--desk);color:var(--ink);
+    font:400 13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1420px;margin:0 auto;padding:26px 20px 90px}
+
+  /* sample chrome */
+  .note{background:#fff;border:1px solid var(--line);border-radius:10px;padding:15px 17px;margin:0 0 24px}
+  .note h1{font-size:15px;font-weight:600;margin:0 0 5px}
+  .note p{margin:0 0 8px;font-size:12px;color:var(--ink-2);max-width:80ch}
+  .note ul{margin:6px 0 0;padding-left:18px;font-size:12px;color:var(--ink-2)}
+  .note li{margin:4px 0;max-width:80ch}
+  .tag{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    padding:3px 7px;border-radius:5px;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-line)}
+  .caption{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin:34px 0 10px}
+  .caption span{text-transform:none;letter-spacing:0;font-weight:400}
+
+  /* screen shell */
+  .screen{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(16,24,40,.05),0 12px 30px -14px rgba(16,24,40,.18)}
+  .cols{display:grid;grid-template-columns:1fr 430px;min-height:660px}
+  @media (max-width:980px){ .cols{grid-template-columns:1fr} }
+
+  /* ── left: catalogue ─────────────────────────────────────────────────── */
+  .cat{padding:14px 16px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:11px;min-width:0}
+
+  .searchrow{display:flex;gap:8px}
+  .search{flex:1;display:flex;align-items:center;gap:10px;border:2px solid var(--accent);
+    background:#fff;border-radius:11px;padding:11px 14px;box-shadow:0 0 0 4px #c2410c14}
+  .search .ic{color:var(--ink-3);font-size:14px}
+  .search .ph{color:var(--ink-3);font-size:13.5px;flex:1}
+  .search .kbd{font-size:9.5px;font-weight:700;color:var(--ink-3);background:var(--line-2);
+    border:1px solid var(--line);border-radius:4px;padding:2px 6px}
+  .iconbtn{width:44px;border:1px solid var(--line);background:#fff;border-radius:11px;
+    display:grid;place-items:center;font-size:16px}
+
+  .pills{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .pill{font-size:11px;font-weight:600;padding:5px 11px;border-radius:999px;
+    border:1px solid var(--line);background:#fff;color:var(--ink-2);white-space:nowrap}
+  .pill.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .pill .n{opacity:.55;font-weight:500;margin-left:3px}
+  .toggle{margin-left:auto;display:flex;gap:2px;background:var(--line-2);border-radius:8px;padding:2px}
+  .toggle div{width:28px;height:24px;border-radius:6px;display:grid;place-items:center;font-size:12px;color:var(--ink-3)}
+  .toggle div.on{background:var(--ink);color:#fff}
+
+  table{width:100%;border-collapse:collapse}
+  thead th{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-3);text-align:left;padding:0 10px 6px;border-bottom:1px solid var(--line)}
+  thead th.r{text-align:right}
+  tbody td{padding:8px 10px;border-bottom:1px solid var(--line-2);font-size:13px;vertical-align:middle}
+  tbody tr:hover{background:#fcfcfd}
+  td.r{text-align:right}
+  .nm{font-weight:600}
+  .sku{font-size:10.5px;color:var(--ink-3);font-family:ui-monospace,Menlo,monospace}
+  .price{font-weight:700}
+  .per{font-size:10px;color:var(--ink-3);font-weight:500}
+  .stk{font-size:11.5px;font-weight:600;color:var(--ink-2)}
+  .stk.low{color:var(--warn)}
+  .stk.out{color:var(--neg)}
+  .badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.04em;padding:1.5px 5px;
+    border-radius:4px;background:var(--line-2);color:var(--ink-3)}
+  .badge.zero{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+  .add{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;
+    display:grid;place-items:center;font-size:15px;color:var(--ink-2);font-weight:600}
+  .add.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  tr.dim td{opacity:.45}
+
+  /* ── right: cart ─────────────────────────────────────────────────────── */
+  .cart{background:#fcfcfd;display:flex;flex-direction:column;min-width:0}
+  .carthead{display:flex;align-items:center;gap:9px;padding:13px 16px;border-bottom:1px solid var(--line);background:#fff}
+  .carthead .t{font-size:13px;font-weight:700}
+  .carthead .c{font-size:11px;font-weight:600;color:var(--ink-2);background:var(--line-2);padding:2px 8px;border-radius:999px}
+  .carthead .hold{margin-left:auto;font-size:11px;font-weight:600;color:var(--ink-2);
+    border:1px solid var(--line);border-radius:8px;padding:5px 10px;background:#fff}
+
+  .lines{flex:1;overflow:hidden}
+  .lh{display:grid;grid-template-columns:1fr 84px 74px 20px;gap:8px;padding:7px 16px;
+    background:#f7f8f9;border-bottom:1px solid var(--line)}
+  .lh span{font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+  .lh .r{text-align:right}
+  .ln{display:grid;grid-template-columns:1fr 84px 74px 20px;gap:8px;align-items:center;
+    padding:9px 16px;border-bottom:1px solid var(--line-2);background:#fff}
+  .ln.below{background:var(--neg-bg)}
+  .ln .p{min-width:0}
+  .ln .p b{display:block;font-size:12.5px;font-weight:600;text-transform:uppercase;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ln .p small{font-size:10px;color:var(--ink-3)}
+  .ln .p .warnl{font-size:10px;font-weight:700;color:var(--neg)}
+  .step{display:flex;align-items:center;border:1px solid var(--line);border-radius:7px;background:#fff;overflow:hidden}
+  .step b{flex:1;text-align:center;font-size:12.5px;font-weight:700;padding:4px 0}
+  .step i{width:22px;text-align:center;font-style:normal;font-size:13px;color:var(--ink-3);
+    background:#fcfcfd;padding:4px 0}
+  .ln .tot{text-align:right;font-size:13px;font-weight:700}
+  .ln .x{text-align:center;color:var(--ink-3);font-size:13px}
+
+  .empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:4px;padding:26px 16px;text-align:center}
+  .empty .big{font-size:13px;font-weight:600;color:var(--ink-2)}
+  .empty .sm{font-size:11.5px;color:var(--ink-3);margin-bottom:14px}
+  .qa{width:100%}
+  .qa .lbl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-3);margin-bottom:7px;text-align:left}
+  .qagrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .qagrid div{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 8px;text-align:left}
+  .qagrid b{display:block;font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .qagrid small{font-size:11px;font-weight:700;color:var(--ink-2)}
+
+  .foot{border-top:1px solid var(--line);background:#fff;padding:12px 16px;display:flex;flex-direction:column;gap:9px}
+  .who{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:9px;padding:8px 11px}
+  .who .av{width:24px;height:24px;border-radius:6px;background:var(--line-2);display:grid;place-items:center;
+    font-size:10.5px;font-weight:700;color:var(--ink-2)}
+  .who .nm2{font-size:12.5px;font-weight:600}
+  .who .owes{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--neg)}
+  .disc{border:1px dashed var(--line);border-radius:9px;padding:8px 11px;font-size:12px;color:var(--ink-3)}
+  .sums{display:flex;flex-direction:column;gap:3px}
+  .sums .r2{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2)}
+  .sums .r2 b{font-weight:600}
+  .grand{display:flex;justify-content:space-between;align-items:baseline;
+    border-top:1px solid var(--line);margin-top:5px;padding-top:8px}
+  .grand span{font-size:13px;font-weight:700}
+  .grand b{font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .go{border:0;border-radius:11px;padding:15px;background:var(--accent);color:#fff;
+    font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:9px}
+  .go.dim{background:#d5d7db;color:#8b9099}
+  .go .kbd{font-size:10px;font-weight:700;background:#ffffff2e;padding:2px 6px;border-radius:4px}
+  .keys{display:flex;gap:12px;justify-content:center;font-size:10px;color:var(--ink-3)}
+  .keys b{color:var(--ink-2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="note">
+    <h1>POS sale screen — the invoice builder <span class="tag">sample — nothing built yet</span></h1>
+    <p>Real products, prices, stock and units from FUTURE DISPO. The checkout overlay was
+       done separately; this is the screen behind it, where the cashier actually spends
+       the shift.</p>
+    <ul>
+      <li><strong>Density.</strong> Your screenshot shows two products in a pane that fits nine.
+          A tighter row puts the shelf on screen instead of behind a scroll.</li>
+      <li><strong>A real bug this surfaced:</strong> <code>Carry Bag</code> and <code>CARRY BAG</code>
+          are two separate pills over <strong>16 products</strong>. Picking one hides the other's
+          stock, and neither pill tells you it is missing half. The sample folds them
+          case-insensitively and puts a count on each pill.</li>
+      <li><strong>Unit and tax on the row.</strong> Prices here are per <em>KG</em>, <em>PCS</em>
+          and <em>PACK</em> — 16*20 White cover is ₹125 <em>a kilo</em>. Two products are also
+          genuinely 0% GST; the cashier cannot see that today.</li>
+      <li><strong>Stock is a state, not a number.</strong> Low is amber, zero is greyed and cannot
+          be added. 13×16 BLACK is down to 6 KG.</li>
+      <li><strong>Three products have no category at all</strong> and so appear under no pill —
+          reachable only through All or by knowing the name. The sample gives them an
+          Uncategorised pill rather than leaving them invisible.</li>
+    </ul>
+  </div>
+
+  <!-- ── A ─────────────────────────────────────────────────────────────── -->
+  <div class="caption">A · Empty cart <span>— scan-ready, whole shelf visible</span></div>
+  <div class="screen"><div class="cols">
+
+    <div class="cat">
+      <div class="searchrow">
+        <div class="search">
+          <span class="ic">🔍</span>
+          <span class="ph">Scan barcode, or type a name / SKU…</span>
+          <span class="kbd">F2</span>
+        </div>
+        <div class="iconbtn">▥</div>
+      </div>
+
+      <div class="pills">
+        <span class="pill on">All <span class="n">58</span></span>
+        <span class="pill">Carry Bag <span class="n">16</span></span>
+        <span class="pill">Packing Items <span class="n">15</span></span>
+        <span class="pill">HM Cover <span class="n">4</span></span>
+        <span class="pill">Cup <span class="n">3</span></span>
+        <span class="pill">Paper Cup <span class="n">2</span></span>
+        <span class="pill">Leaf <span class="n">2</span></span>
+        <span class="pill">Tissue <span class="n">2</span></span>
+        <span class="pill">Uncategorised <span class="n">3</span></span>
+        <div class="toggle"><div class="on">☰</div><div>▦</div></div>
+      </div>
+
+      <table>
+        <thead><tr>
+          <th style="width:44%">Product</th><th>Category</th>
+          <th class="r">Stock</th><th class="r">Price</th><th style="width:44px"></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="nm">Frootty plate 12"</span></td><td><span class="badge">Paper plate</span></td>
+              <td class="r"><span class="stk">558 PCS</span></td><td class="r"><span class="price">120.00</span></td><td class="r"><span class="add">+</span></td></tr>
+          <tr><td><span class="nm">Tissue Big</span></td><td><span class="badge">Tissue</span></td>
+              <td class="r"><span class="stk">591 PCS</span></td><td class="r"><span class="price">16.00</span></td><td class="r"><span class="add">+</span></td></tr>
+          <tr><td><span class="nm">Paper Cup 210 Ml</span><div class="sku">PC210</div></td><td><span class="badge">Cup</span></td>
+              <td class="r"><span class="stk">534 PCS</span></td><td class="r"><span class="price">45.00</span></td><td class="r"><span class="add">+</span></td></tr>
+          <tr><td><span class="nm">10*13 Cover PKT</span><div class="sku">C1013</div></td><td><span class="badge">Carry Bag</span></td>
+              <td class="r"><span class="stk">545 PCS</span></td><td class="r"><span class="price">8.00</span></td><td class="r"><span class="add">+</span></td></tr>
+          <tr><td><span class="nm">CUP BIO 210 ML</span><div class="sku">BIO210</div></td><td><span class="badge">PAPER CUP</span></td>
+              <td class="r"><span class="stk">95 PCS</span></td><td class="r"><span class="price">65.00</span></td><td class="r"><span class="add">+</span></td></tr>
+          <tr><td><span class="nm">KERALA 13*16</span><div class="sku">1316K</div></td><td><span class="badge">Carry Bag</span> <span class="badge zero">0% GST</span></td>
+              <td class="r"><span class="stk">67 KG</span></td><td class="r"><span class="price">130.00</span><div class="per">per KG</div></td><td class="r"><span class="add">+</span></td></tr>
+          <tr><td><span class="nm">9*13 PKT COVER CYCLE</span><div class="sku">9*13PKT</div></td><td><span class="badge">Carry Bag</span> <span class="badge zero">0% GST</span></td>
+              <td class="r"><span class="stk">66 PACK</span></td><td class="r"><span class="price">80.00</span><div class="per">per PACK</div></td><td class="r"><span class="add">+</span></td></tr>
+          <tr><td><span class="nm">Mayil sheet 18*18</span><div class="sku">MS1818</div></td><td><span class="badge">Packaging</span></td>
+              <td class="r"><span class="stk">71 KG</span></td><td class="r"><span class="price">95.00</span><div class="per">per KG</div></td><td class="r"><span class="add">+</span></td></tr>
+          <tr><td><span class="nm">16*20 White cover</span><div class="sku">1620W</div></td><td><span class="badge">Carry Bag</span></td>
+              <td class="r"><span class="stk low">9 KG · low</span></td><td class="r"><span class="price">125.00</span><div class="per">per KG</div></td><td class="r"><span class="add">+</span></td></tr>
+          <tr><td><span class="nm">13×16 BLACK</span><div class="sku">1316B</div></td><td><span class="badge">Carry Bag</span></td>
+              <td class="r"><span class="stk low">6 KG · low</span></td><td class="r"><span class="price">125.00</span><div class="per">per KG</div></td><td class="r"><span class="add">+</span></td></tr>
+          <tr class="dim"><td><span class="nm">Banana Leaf small</span><div class="sku">BLS</div></td><td><span class="badge">Leaf</span></td>
+              <td class="r"><span class="stk out">Out of stock</span></td><td class="r"><span class="price">100.00</span></td><td class="r"><span class="add">+</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cart">
+      <div class="carthead"><span class="t">Cart</span><span class="c">0 items</span>
+        <span class="hold">⏸ Hold</span></div>
+      <div class="empty">
+        <div class="big">Nothing in the cart</div>
+        <div class="sm">Scan an item, or pick a regular below</div>
+        <div class="qa">
+          <div class="lbl">Quick add</div>
+          <div class="qagrid">
+            <div><b>Frootty plate 12"</b><small>120.00</small></div>
+            <div><b>13*16Kg Cover</b><small>115.00</small></div>
+            <div><b>Paper Cup 210 Ml</b><small>45.00</small></div>
+            <div><b>10*13 Cover PKT</b><small>8.00</small></div>
+            <div><b>Tissue Big</b><small>16.00</small></div>
+            <div><b>Straw Big</b><small>30.00</small></div>
+          </div>
+        </div>
+      </div>
+      <div class="foot">
+        <div class="who"><div class="av">W</div><div class="nm2">Walk-in</div></div>
+        <div class="disc">+ Add discount</div>
+        <div class="sums">
+          <div class="r2"><span>Subtotal</span><b>0.00</b></div>
+          <div class="r2"><span>GST</span><b>0.00</b></div>
+          <div class="grand"><span>Total</span><b>₹0.00</b></div>
+        </div>
+        <button class="go dim">Cart is empty</button>
+      </div>
+    </div>
+
+  </div></div>
+
+  <!-- ── B ─────────────────────────────────────────────────────────────── -->
+  <div class="caption">B · Four lines <span>— including a fractional KG sale and one below cost</span></div>
+  <div class="screen"><div class="cols">
+
+    <div class="cat">
+      <div class="searchrow">
+        <div class="search"><span class="ic">🔍</span><span class="ph">Scan barcode, or type a name / SKU…</span><span class="kbd">F2</span></div>
+        <div class="iconbtn">▥</div>
+      </div>
+      <div class="pills">
+        <span class="pill">All <span class="n">58</span></span>
+        <span class="pill on">Carry Bag <span class="n">16</span></span>
+        <span class="pill">Packing Items <span class="n">15</span></span>
+        <span class="pill">HM Cover <span class="n">4</span></span>
+        <span class="pill">Cup <span class="n">3</span></span>
+        <span class="pill">Paper Cup <span class="n">2</span></span>
+        <div class="toggle"><div class="on">☰</div><div>▦</div></div>
+      </div>
+      <table>
+        <thead><tr><th style="width:44%">Product</th><th>Category</th><th class="r">Stock</th><th class="r">Price</th><th style="width:44px"></th></tr></thead>
+        <tbody>
+          <tr><td><span class="nm">10*13 Cover PKT</span><div class="sku">C1013</div></td><td><span class="badge">Carry Bag</span></td>
+              <td class="r"><span class="stk">545 PCS</span></td><td class="r"><span class="price">8.00</span></td><td class="r"><span class="add on">✓</span></td></tr>
+          <tr><td><span class="nm">White Cover 17*23</span><div class="sku">WC1723</div></td><td><span class="badge">Carry Bag</span></td>
+              <td class="r"><span class="stk">85 PCS</span></td><td class="r"><span class="price">150.00</span></td><td class="r"><span class="add">+</span></td></tr>
+          <tr><td><span class="nm">KERALA 13*16</span><div class="sku">1316K</div></td><td><span class="badge">Carry Bag</span> <span class="badge zero">0% GST</span></td>
+              <td class="r"><span class="stk">67 KG</span></td><td class="r"><span class="price">130.00</span><div class="per">per KG</div></td><td class="r"><span class="add">+</span></td></tr>
+          <tr><td><span class="nm">9*13 PKT COVER CYCLE</span><div class="sku">9*13PKT</div></td><td><span class="badge">Carry Bag</span> <span class="badge zero">0% GST</span></td>
+              <td class="r"><span class="stk">66 PACK</span></td><td class="r"><span class="price">80.00</span><div class="per">per PACK</div></td><td class="r"><span class="add">+</span></td></tr>
+          <tr><td><span class="nm">16*20 White cover</span><div class="sku">1620W</div></td><td><span class="badge">Carry Bag</span></td>
+              <td class="r"><span class="stk low">9 KG · low</span></td><td class="r"><span class="price">125.00</span><div class="per">per KG</div></td><td class="r"><span class="add on">✓</span></td></tr>
+          <tr><td><span class="nm">13×16 BLACK</span><div class="sku">1316B</div></td><td><span class="badge">Carry Bag</span></td>
+              <td class="r"><span class="stk low">6 KG · low</span></td><td class="r"><span class="price">125.00</span><div class="per">per KG</div></td><td class="r"><span class="add on">✓</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cart">
+      <div class="carthead"><span class="t">Cart</span><span class="c">4 items · 20.5 units</span>
+        <span class="hold">⏸ Hold</span></div>
+
+      <div class="lines">
+        <div class="lh"><span>Product</span><span class="r">Qty</span><span class="r">Amount</span><span></span></div>
+
+        <div class="ln"><div class="p"><b>Frootty plate 12"</b><small>120.00 × 3 PCS</small></div>
+          <div class="step"><i>−</i><b>3</b><i>+</i></div><div class="tot">360.00</div><div class="x">×</div></div>
+
+        <div class="ln"><div class="p"><b>10*13 Cover PKT</b><small>8.00 × 12 PCS</small></div>
+          <div class="step"><i>−</i><b>12</b><i>+</i></div><div class="tot">96.00</div><div class="x">×</div></div>
+
+        <div class="ln"><div class="p"><b>16*20 White cover</b><small>125.00 × 0.5 KG · sold by weight</small></div>
+          <div class="step"><i>−</i><b>0.5</b><i>+</i></div><div class="tot">62.50</div><div class="x">×</div></div>
+
+        <div class="ln below"><div class="p"><b>13×16 BLACK</b><small>110.00 × 5 KG</small>
+            <div class="warnl">⚠ Below cost — costs 118.00/KG</div></div>
+          <div class="step"><i>−</i><b>5</b><i>+</i></div><div class="tot">550.00</div><div class="x">×</div></div>
+      </div>
+
+      <div class="foot">
+        <div class="who"><div class="av">M</div><div class="nm2">Madeena Store</div><div class="owes">owes 4,377</div></div>
+        <div class="disc">+ Add discount</div>
+        <div class="sums">
+          <div class="r2"><span>Taxable (extracted)</span><b>905.51</b></div>
+          <div class="r2"><span>GST 18% (incl.)</span><b>162.99</b></div>
+          <div class="grand"><span>Total</span><b>₹1,068.50</b></div>
+        </div>
+        <button class="go">Checkout <span class="kbd">Enter</span></button>
+        <div class="keys"><span><b>F2</b> search</span><span><b>F4</b> hold</span><span><b>Enter</b> checkout</span></div>
+      </div>
+    </div>
+
+  </div></div>
+
+</div>
+</body>
+</html>

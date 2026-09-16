@@ -302,8 +302,8 @@ class _SaleCard extends StatelessWidget {
               children: [
                 Text(
                   date,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     color: AppColors.inkTertiary,
                   ),
                 ),
@@ -322,7 +322,7 @@ class _SaleCard extends StatelessWidget {
                 Text(
                   '$itemCount item${itemCount == 1 ? '' : 's'}',
                   style: GoogleFonts.manrope(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: AppColors.inkSecondary,
                   ),
                 ),
@@ -407,7 +407,7 @@ class _Pill extends StatelessWidget {
       child: Text(
         label,
         style: GoogleFonts.manrope(
-          fontSize: 10,
+          fontSize: 13,
           fontWeight: FontWeight.w600,
           color: foreground,
         ),
@@ -424,8 +424,8 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: GoogleFonts.jetBrainsMono(
-        fontSize: 10,
+      style: GoogleFonts.manrope(
+        fontSize: 13,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
         color: AppColors.inkTertiary,

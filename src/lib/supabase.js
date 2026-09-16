@@ -118,23 +118,76 @@ export const probeConnectivity = async (timeoutMs = 4000) => {
 // refresh gets stuck (long sessions, tab sleep, aborted refresh) that getter
 // can deadlock and the write never even hits the network. This posts straight
 // to PostgREST with the persisted access token, so a write always fires.
-const readAccessToken = () => {
+//
+// Token strategy:
+//   1. Read raw token + expires_at from localStorage (synchronous, no lock).
+//   2. If token is still valid (>60s remaining) → use it immediately.
+//   3. If expired/expiring → call refreshSession() with a 5s hard timeout.
+//      On timeout or error → fall back to the cached token so the request
+//      fires and returns a proper "JWT expired" error rather than hanging.
+//   Never calls getSession() — that goes through the auth lock and can
+//   deadlock on long-open Electron sessions.
+/**
+ * The signed-in user's access token, or NULL when there is not one.
+ *
+ * It used to fall back to the ANON KEY. That looks harmless -- the request is
+ * still well-formed -- but an anon-key request is UNAUTHENTICATED, so auth.uid()
+ * is null, current_tenant_id() is null, and every RLS policy matches nothing.
+ * PostgREST then answers a PATCH that touched no rows with 204 No Content, and
+ * the write reported success while doing nothing at all. That is what a customer
+ * saw as "I deleted the client and it came back".
+ *
+ * Returning null instead lets the write fail loudly and tell the user to sign in
+ * again, which is the true state of affairs.
+ */
+const getValidAccessToken = async () => {
+  let token = null;
+  let expiresAt = 0;
   try {
     const raw = window.localStorage.getItem('sm-auth-token');
-    if (!raw) return key;
-    const s = JSON.parse(raw);
-    return s?.access_token || s?.currentSession?.access_token || key;
-  } catch (_) {
-    return key;
+    if (raw) {
+      const s = JSON.parse(raw);
+      const sess = s?.currentSession || s;
+      token = sess?.access_token || null;
+      expiresAt = sess?.expires_at || 0; // Unix seconds
+    }
+  } catch (_) {}
+
+  // Fast path: token still valid with 60s buffer — no network call needed.
+  if (token && expiresAt && Date.now() / 1000 < expiresAt - 60) {
+    return token;
   }
+
+  // Slow path: token expired or expiring — try to refresh, but never hang.
+  if (supabase) {
+    try {
+      const refreshed = await Promise.race([
+        supabase.auth.refreshSession(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('refresh timeout')), 5000)),
+      ]);
+      const fresh = refreshed?.data?.session?.access_token;
+      if (fresh) return fresh;
+    } catch (_) { /* timeout or network failure — fall through to cached token */ }
+  }
+
+  return token;
 };
 
-const restHeaders = (extra = {}) => ({
-  apikey: key,
-  Authorization: `Bearer ${readAccessToken()}`,
-  'Content-Type': 'application/json',
-  ...extra,
-});
+/** Raised when a write is attempted with no usable session. */
+const SESSION_EXPIRED = () => new Error(
+  'Your session has expired. Sign in again and retry — nothing was saved.');
+
+const restHeaders = async (extra = {}) => {
+  const token = await getValidAccessToken();
+  // Never send the anon key as a user bearer. See getValidAccessToken.
+  if (!token) throw SESSION_EXPIRED();
+  return {
+    apikey: key,
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+    ...extra,
+  };
+};
 
 const parseRestError = async (res, fallback) => {
   let msg = fallback;
@@ -146,7 +199,7 @@ export const restInsert = async (table, row) => {
   if (!url) return { error: new Error('Supabase not configured') };
   try {
     const res = await timedFetch(`${url}/rest/v1/${table}`, {
-      method: 'POST', headers: restHeaders({ Prefer: 'return=minimal' }), body: JSON.stringify(row),
+      method: 'POST', headers: await restHeaders({ Prefer: 'return=minimal' }), body: JSON.stringify(row),
     });
     if (!res.ok) return { error: await parseRestError(res, `Save failed (${res.status})`) };
     return { error: null };
@@ -154,15 +207,46 @@ export const restInsert = async (table, row) => {
 };
 
 // PATCH with eq filters: restUpdate('products', { stock: 5 }, { id, tenant_id }).
-export const restUpdate = async (table, patch, filters = {}) => {
+/**
+ * PATCH rows matching `filters`.
+ *
+ * `expectRow` exists because PostgREST answers a PATCH that matched NOTHING
+ * with 204 No Content -- a success. So an update blocked by RLS, or aimed at a
+ * row that is not there, reported success and the caller carried on believing
+ * the write had landed. For a delete that is the difference between "removed"
+ * and "still on the screen tomorrow". Pass it wherever the caller needs to know
+ * a row actually changed.
+ */
+export const restUpdate = async (table, patch, filters = {}, { expectRow = false } = {}) => {
   if (!url) return { error: new Error('Supabase not configured') };
   try {
     const qs = Object.entries(filters)
       .map(([k, v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
     const res = await timedFetch(`${url}/rest/v1/${table}?${qs}`, {
-      method: 'PATCH', headers: restHeaders({ Prefer: 'return=minimal' }), body: JSON.stringify(patch),
+      method: 'PATCH',
+      headers: await restHeaders({ Prefer: expectRow ? 'return=representation' : 'return=minimal' }),
+      body: JSON.stringify(patch),
     });
     if (!res.ok) return { error: await parseRestError(res, `Update failed (${res.status})`) };
+    if (expectRow) {
+      // 204 means the server honoured return=minimal despite the Prefer header
+      // (a proxy can strip it). That is NOT a failed update, and treating it as
+      // one would report a successful delete as broken.
+      if (res.status === 204) return { error: null };
+
+      let rows = null; try { rows = await res.json(); } catch (_) { rows = null; }
+      if (!Array.isArray(rows) || rows.length === 0) {
+        // Say WHICH row was looked for. Without it this message is unactionable:
+        // the same wording covers a row that is genuinely gone, a filter built
+        // from the wrong tenant, and a permission problem, and telling them
+        // apart from the outside took several rounds of guessing.
+        const where = Object.entries(filters)
+          .map(([k, v]) => `${k}=${v === undefined ? 'undefined' : v}`).join(', ');
+        return { error: new Error(
+          `No matching row was updated in ${table} (looked for ${where}). ` +
+          `It may have been removed already, or you may not have permission to change it.`) };
+      }
+    }
     return { error: null };
   } catch (err) { return { error: err }; }
 };
@@ -172,7 +256,7 @@ export const restRpc = async (fn, params = {}) => {
   if (!url) return { error: new Error('Supabase not configured') };
   try {
     const res = await timedFetch(`${url}/rest/v1/rpc/${fn}`, {
-      method: 'POST', headers: restHeaders(), body: JSON.stringify(params || {}),
+      method: 'POST', headers: await restHeaders(), body: JSON.stringify(params || {}),
     });
     if (!res.ok) return { data: null, error: await parseRestError(res, `${fn} failed (${res.status})`) };
     let data = null; try { data = await res.json(); } catch (_) {}
@@ -196,14 +280,45 @@ if (supabase && typeof window !== 'undefined') {
   });
 
   // (2) On tab return, re-apply auth + reconnect the socket so live updates
-  //     resume without a page reload.
+  //     resume without a page reload — PLUS a stall watchdog.
+  //
+  // The auth queue inside supabase-js can deadlock after long idle (stuck
+  // token refresh). When that happens EVERY query through the client hangs
+  // forever — pages sit on loading skeletons until the user manually
+  // reloads. Worse, getSession() below goes through the same queue, so the
+  // old recovery path hung too. The watchdog races getSession() against a
+  // timeout; if it stalls while the network itself is fine (checked via a
+  // raw fetch that bypasses the client), the client is wedged beyond repair
+  // in-place — reload the page automatically. That's the permanent version
+  // of the manual refresh users were forced to do.
+  let _hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return;
-    supabase.auth.getSession().then(({ data }) => {
+    if (document.visibilityState === 'hidden') { _hiddenAt = Date.now(); return; }
+
+    const hiddenFor = _hiddenAt ? Date.now() - _hiddenAt : 0;
+
+    const canary = supabase.auth.getSession().then(({ data }) => {
       const token = data?.session?.access_token;
       if (token) { try { supabase.realtime.setAuth(token); } catch (_) {/* noop */} }
       try { supabase.realtime.connect(); } catch (_) {/* noop */}
-    }).catch(() => {/* offline / restricted — ignore */});
+      return true;
+    }).catch(() => true); // resolved-with-error still proves the queue is alive
+
+    // Only run the reload watchdog after a real idle period (>60s hidden) —
+    // quick tab switches never trigger it.
+    if (hiddenFor < 60_000) return;
+
+    const timeout = new Promise((resolve) => setTimeout(() => resolve(false), 7000));
+    Promise.race([canary, timeout]).then(async (alive) => {
+      if (alive) return;
+      // Queue stalled. Confirm the network is actually up before reloading,
+      // so we don't reload-loop an offline laptop.
+      const reachable = await probeConnectivity();
+      if (reachable) {
+        console.warn('[supabase] auth queue stalled after idle — auto-reloading to recover');
+        window.location.reload();
+      }
+    });
   });
 }
 

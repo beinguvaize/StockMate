@@ -323,7 +323,7 @@ const LabelPrinting = () => {
                       type="checkbox"
                       checked={f.on}
                       onChange={e => setField(k, { on: e.target.checked })}
-                      className="accent-[#D97706]"
+                      className="accent-accent-signature"
                     />
                     {f.label}
                   </label>

@@ -1,0 +1,40 @@
+-- StockMate production row manifest
+-- Taken 2026-09-14 23:53 UTC, read-only, project lmviftlynuhopzmvaxeu
+-- Database size: 43 MB
+--
+-- PURPOSE: verify a restore is COMPLETE, not merely successful. A dump that
+-- silently truncated, or a restore that skipped a table, still "works" — it
+-- just quietly holds less. Re-run the query in backups/verify.sql against the
+-- restored database and diff it against this file.
+
+TOTAL ROWS                            26027
+TABLES                                  103
+FUNCTIONS                               110
+TRIGGERS                                133
+RLS POLICIES                            306
+
+-- The records that cannot be recreated from anything else:
+sales                                  1474
+sale_batch_consumption                 2910
+movement_log                           4125
+account_transactions                   1808
+gl_lines                               8601
+gl_journals                            2190
+purchases                               254
+products                                422
+invoices                                168
+clients                                  59
+expenses                                350
+client_payments                         108
+product_batches                         295
+inventory_balances                      197
+gl_accounts                             168
+supplier_payments                        41
+suppliers                                34
+payroll                                  19
+users                                    15
+tenants                                   6
+business_profile                          6
+employees                                 5
+day_book                                  3
+sales_returns                             2

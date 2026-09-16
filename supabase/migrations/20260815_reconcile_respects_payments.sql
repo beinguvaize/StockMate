@@ -1,0 +1,17 @@
+-- Applied via apply_migration; recorded here for history.
+--
+-- reconcile_purchase_money withdrew the old obligation and created the new one
+-- on a cash/credit switch. Correct for an unpaid bill; wrong when payment rows
+-- exist, because those payments already reduced the supplier's balance, so
+-- withdrawing the gross old total reduces it a second time.
+--
+-- Caught one click away from happening: HASSAN's 3-line Rs 35,685 bill is
+-- CREDIT with Rs 35,685 of payments and a balance of Rs 4,010. Switching it to
+-- CASH would have left -31,675 -- a supplier apparently owed money by us.
+--
+-- CREDIT -> CASH now refuses when payments exist; the bill was settled BY them,
+-- and calling it a cash purchase would mean they never happened. Delete the
+-- payments first (the bill's Payments screen does it and reverses the balance).
+-- Where a switch is still allowed, only what is STILL OWED moves, not the gross.
+--
+-- Exercised on Demo: with a payment present the switch is refused; restored.

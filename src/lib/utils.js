@@ -1,3 +1,10 @@
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+// shadcn/ui convention — merge conditional class names, with tailwind-merge
+// resolving conflicts (cn('px-4','px-2') -> 'px-2') so overrides always win.
+export const cn = (...inputs) => twMerge(clsx(inputs));
+
 // Generate a short human-readable reference id, e.g. "SAL-K7F2M".
 // Combines timestamp base36 + 2 random chars -> unique per ms per tab, short.
 export const generateRef = (prefix = 'REF') => {
@@ -104,6 +111,30 @@ export const formatDate = (dateString) => {
   return d.toLocaleDateString(_appLocale, {
     year: 'numeric', month: 'short', day: 'numeric',
     timeZone: _appTimezone
+  });
+};
+
+/**
+ * Just the clock time, in the app's timezone.
+ *
+ * A bill carries invoice_date, which is date-only — the time it was rung up
+ * lives in created_at. Documents that show only the date cannot distinguish two
+ * bills to the same customer on the same day, which is exactly when a customer
+ * queries one.
+ *
+ * Returns '' rather than 'N/A' for a missing or date-only value: a receipt
+ * should print nothing there, not an apology.
+ */
+export const formatTime = (value) => {
+  if (!value) return '';
+  // A plain YYYY-MM-DD carries no time. Nothing to show, and parsing it would
+  // invent midnight.
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString(_appLocale, {
+    hour: 'numeric', minute: '2-digit',
+    timeZone: _appTimezone,
   });
 };
 

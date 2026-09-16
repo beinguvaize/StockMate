@@ -578,7 +578,7 @@ export const downloadGSTR1JSON = (gstr1, { gstin, fp, filename } = {}) => {
  * GSTR-3B is a summary return. We aggregate outward supplies by taxability
  * and compute estimated ITC from purchases.
  */
-export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { businessState = '', clients = [], invoices = [] } = {}) => {
+export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { businessState = '', clients = [], invoices = [], suppliers = [] } = {}) => {
   const gstr1 = buildGSTR1(sales, { businessState, clients, invoices });
 
   // 3.1(a) Outward taxable supplies (other than zero/nil/exempted)
@@ -595,9 +595,18 @@ export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { busines
     }));
 
   // 4. Eligible ITC — from purchases.
-  // purchases table has no tax_rate or supplier_state columns.
-  // Assume intra-state supply at 18% to derive approximate ITC (conservative).
+  // ITC can ONLY be claimed on a tax invoice from a GST-REGISTERED supplier
+  // (Sec 16). Purchases from unregistered suppliers carry no claimable input
+  // tax — counting them silently over-claimed ITC and understated GST payable.
+  // Build the set of registered supplier ids; skip everyone else. The tax on
+  // those skipped purchases is surfaced as ineligible ITC for transparency.
+  const registeredSupplierIds = new Set(
+    (suppliers || [])
+      .filter((s) => hasValidGSTIN(s.gstin || s.gst_no))
+      .map((s) => s.id)
+  );
   const itcByType = { centralTax: 0, stateTax: 0, integratedTax: 0, cess: 0 };
+  let ineligibleITC = 0;
   purchases.forEach((p) => {
     const amt      = Number(p.total_amount ?? p.amount) || 0;
     const taxRate  = Number(p.tax_rate ?? p.taxRate ?? 18); // fallback 18%
@@ -606,6 +615,12 @@ export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { busines
     // Back-calculate: total_amount is typically inclusive of GST
     const taxableAmt = amt / (1 + taxRate / 100);
     const tax = amt - taxableAmt;
+    const supplierRegistered =
+      registeredSupplierIds.has(p.supplier_id) || hasValidGSTIN(p.supplier_gstin);
+    if (!supplierRegistered) {
+      ineligibleITC += tax; // real cost, but not creditable
+      return;
+    }
     if (isInter) {
       itcByType.integratedTax += tax;
     } else {
@@ -616,6 +631,7 @@ export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { busines
 
   // Round
   Object.keys(itcByType).forEach((k) => { itcByType[k] = round2(itcByType[k]); });
+  ineligibleITC = round2(ineligibleITC);
 
   // 6.1 — Tax payable
   const taxPayable = {
@@ -648,7 +664,7 @@ export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { busines
       { row: '(A) ITC Available (whether in full or part)', integratedTax: itcByType.integratedTax, centralTax: itcByType.centralTax, stateTax: itcByType.stateTax, cess: 0 },
       { row: '(B) ITC Reversed', integratedTax: 0, centralTax: 0, stateTax: 0, cess: 0 },
       { row: '(C) Net ITC Available', integratedTax: itcByType.integratedTax, centralTax: itcByType.centralTax, stateTax: itcByType.stateTax, cess: 0 },
-      { row: '(D) Ineligible ITC', integratedTax: 0, centralTax: 0, stateTax: 0, cess: 0 },
+      { row: '(D) Ineligible ITC (unregistered suppliers)', integratedTax: 0, centralTax: ineligibleITC / 2, stateTax: ineligibleITC / 2, cess: 0 },
     ],
     // Section 5 — exempt/nil
     section5: [
@@ -665,6 +681,7 @@ export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { busines
     summary: {
       grossTax,
       totalITC,
+      ineligibleITC, // input tax on unregistered-supplier purchases — not claimable
       netTaxDue,
       totalTurnover: taxableSupplies.taxable,
       invoiceCount: taxableSupplies.invoiceCount,

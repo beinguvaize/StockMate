@@ -7,6 +7,13 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
+import 'package:mobile_app/core/widgets/app_states.dart' show AppSpinner;
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/widgets/app_surfaces.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/widgets/trial_banner.dart';
 import 'package:mobile_app/core/widgets/banner_carousel.dart';
 import 'package:mobile_app/core/widgets/expiry_alert_card.dart';
@@ -17,6 +24,8 @@ import 'package:mobile_app/features/finance/presentation/add_expense_screen.dart
 import 'package:mobile_app/features/finance/presentation/finance_screen.dart';
 import 'package:mobile_app/features/hr/presentation/hr_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/inventory_screen.dart';
+import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
+import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/features/logistics/presentation/driver_route_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart';
 import 'package:mobile_app/features/menu/presentation/menu_screen.dart';
@@ -50,7 +59,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   late final List<_NavTab> _allTabs = [
     (feature: 'dashboard', icon: LucideIcons.layoutDashboard, label: 'Dashboard', tab: DashboardHome(onTabSwitch: _switchToFeature)),
     (feature: 'sales',     icon: LucideIcons.shoppingCart,    label: 'Sales',     tab: const SalesScreen()),
-    (feature: 'inventory', icon: LucideIcons.package,         label: 'Inventory', tab: const InventoryScreen()),
+    (feature: 'inventory', icon: LucideIcons.package,         label: 'Inventory', tab: const InventoryScreen(showAddButton: false)),
     (feature: 'logistics', icon: LucideIcons.truck,           label: 'My Route',  tab: const DriverRouteScreen()),
     (feature: '__menu__',  icon: LucideIcons.moreHorizontal,  label: 'More',      tab: const MenuScreen()),
   ];
@@ -68,7 +77,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   // Jump to a tab by feature key (used by in-dashboard shortcuts).
   void _switchToFeature(String feature) {
     final ctx = ref.read(tenantContextProvider).value;
-    final visible = _visibleTabs(ctx?.roles ?? [], ctx?.plan ?? 'STARTER', ctx?.permissions);
+    final visible = _visibleTabs(ctx?.roles ?? [], ctx?.plan ?? 'FREE', ctx?.permissions);
     final idx = visible.indexWhere((t) => t.feature == feature);
     if (idx >= 0) setState(() => _selectedIndex = idx);
   }
@@ -77,7 +86,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final ctx = ref.watch(tenantContextProvider).value;
     final tabs = _visibleTabs(
-        ctx?.roles ?? [], ctx?.plan ?? 'STARTER', ctx?.permissions);
+        ctx?.roles ?? [], ctx?.plan ?? 'FREE', ctx?.permissions);
     final selIdx = tabs.isEmpty ? 0 : _selectedIndex.clamp(0, tabs.length - 1);
     final currentFeature = tabs.isEmpty ? '' : tabs[selIdx].feature;
 
@@ -85,20 +94,49 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       key: _scaffoldKey,
       backgroundColor: AppColors.canvas,
       drawer: const _AppDrawer(),
-      floatingActionButton: currentFeature == 'sales'
-          ? FloatingActionButton(
-              heroTag: null,
-              onPressed: () {
-                final roles = ProviderScope.containerOf(context, listen: false)
-                    .read(tenantContextProvider)
-                    .value?.roles ?? [];
-                navigateToNewSale(context, roles);
-              },
-              backgroundColor: AppColors.secondary,
-              foregroundColor: AppColors.primaryContainer,
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-              child: const Icon(LucideIcons.plus, size: 26),
+      // Lift the FAB clear of the custom bottom nav bar so the "+" sits
+      // ABOVE the "More" tab instead of covering it. The nav bar is a
+      // Positioned container (not Scaffold.bottomNavigationBar), so Scaffold
+      // never auto-offsets the FAB — we pad it up by the nav height + SafeArea.
+      // Inventory used to have no visible Add button on the phone. The screen
+      // supplies one, but at the default position -- which is UNDER this nav
+      // bar, since the bar is a Positioned overlay and Scaffold therefore never
+      // offsets a FAB above it. The button was rendering and invisible.
+      // The shell owns the offset, so the shell owns the button.
+      floatingActionButton: (currentFeature == 'sales' || currentFeature == 'inventory')
+          ? Padding(
+              padding: EdgeInsets.only(
+                  bottom: 76 + MediaQuery.of(context).viewPadding.bottom),
+              child: FloatingActionButton(
+                heroTag: null,
+                tooltip: currentFeature == 'inventory' ? 'Add product' : 'New sale',
+                onPressed: () {
+                  if (currentFeature == 'inventory') {
+                    // Hold the container now: reaching for `context` inside the
+                    // .then() is across an async gap, by which point this widget
+                    // may be gone.
+                    final container =
+                        ProviderScope.containerOf(context, listen: false);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AddProductScreen()),
+                    ).then((_) => container.invalidate(productsProvider));
+                    return;
+                  }
+                  final roles = ProviderScope.containerOf(context, listen: false)
+                      .read(tenantContextProvider)
+                      .value?.roles ?? [];
+                  navigateToNewSale(context, roles);
+                },
+                // Grey fill with a pale-amber glyph. This is the app's single
+                // most-used action -- add a sale, or add a product -- and it
+                // was the only control using a colour pair found nowhere else.
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+                elevation: 3,
+                shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
+                child: const Icon(LucideIcons.plus, size: 26),
+              ),
             )
           : null,
       body: Column(
@@ -148,14 +186,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       final i = e.key;
                       final item = e.value;
                       final isActive = selIdx == i;
-                      return GestureDetector(
+                      return AppTappable(
                         onTap: () => _switchTab(i),
-                        behavior: HitTestBehavior.opaque,
+                        ripple: false,
+                        pressedScale: 0.94,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
+                              duration: Motion.base,
+                              curve: Motion.standard,
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                               decoration: BoxDecoration(
                                 color: isActive ? AppColors.primaryContainer : Colors.transparent,
@@ -170,10 +210,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             const SizedBox(height: 3),
                             Text(
                               item.label,
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: isActive ? AppColors.primary : AppColors.inkTertiary,
+                              // 10px monospace: the five most-used labels in
+                              // the app were also the smallest text in it.
+                              style: AppText.label.copyWith(
+                                fontWeight:
+                                    isActive ? FontWeight.w700 : FontWeight.w500,
+                                color: isActive
+                                    ? AppColors.primary
+                                    : AppColors.inkTertiary,
                               ),
                             ),
                           ],
@@ -226,7 +270,8 @@ class _GlobalAppBar extends StatelessWidget {
               Row(
             children: [
               // Hamburger
-              GestureDetector(
+              AppTappable(
+                ripple: false,
                 onTap: onMenuTap,
                 child: Container(
                   width: 42,
@@ -250,7 +295,8 @@ class _GlobalAppBar extends StatelessWidget {
               const SyncStatusPill(),
 
               // Bell
-              GestureDetector(
+              AppTappable(
+                ripple: false,
                 onTap: () => showModalBottomSheet(
                   context: context,
                   backgroundColor: Colors.white,
@@ -325,8 +371,8 @@ class _AppDrawer extends ConsumerWidget {
       _DrawerItem(icon: LucideIcons.barChart2, label: 'Reports', color: AppColors.primary, feature: 'reports'),
     ]),
     _DrawerSection(label: 'WORKFORCE & OPS', items: [
-      _DrawerItem(icon: LucideIcons.users2, label: 'HR & Payroll', color: AppColors.secondary, feature: 'hr'),
-      _DrawerItem(icon: LucideIcons.truck,  label: 'Fleet',         color: Color(0xFF5b5f5a), feature: 'logistics'),
+      _DrawerItem(icon: LucideIcons.users2, label: 'Payroll',  color: AppColors.secondary, feature: 'payroll'),
+      _DrawerItem(icon: LucideIcons.truck,  label: 'Vehicles', color: Color(0xFF5b5f5a), feature: 'logistics'),
     ]),
   ];
 
@@ -355,8 +401,8 @@ class _AppDrawer extends ConsumerWidget {
       case 'Inventory':     return const InventoryScreen();
       case 'CRM':           return const CRMScreen();
       case 'Reports':       return const ReportsScreen();
-      case 'HR & Payroll':  return const HRScreen();
-      case 'Fleet':         return const LogisticsScreen();
+      case 'Payroll':   return const HRScreen();
+      case 'Vehicles':  return const LogisticsScreen();
       case 'Settings':      return const SettingsScreen();
       default:              return null;
     }
@@ -366,7 +412,7 @@ class _AppDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tenantAsync = ref.watch(tenantContextProvider);
     final roles = tenantAsync.value?.roles ?? [];
-    final plan = tenantAsync.value?.plan ?? 'STARTER';
+    final plan = tenantAsync.value?.plan ?? 'FREE';
     final permissions = tenantAsync.value?.permissions;
     // Filter drawer by RBAC — drop items and empty sections the user can't access.
     final sections = _sections
@@ -412,8 +458,8 @@ class _AppDrawer extends ConsumerWidget {
                         padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
                         child: Text(
                           section.label,
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 9,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.5,
                             color: AppColors.inkTertiary,
@@ -433,7 +479,8 @@ class _AppDrawer extends ConsumerWidget {
             // ── Sign out ──────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.all(16),
-              child: GestureDetector(
+              child: AppTappable(
+                ripple: false,
                 onTap: () async {
                   Navigator.pop(context);
                   await supabase.auth.signOut();
@@ -495,7 +542,8 @@ class _DrawerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 2),
@@ -642,7 +690,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                     children: [
                       Icon(LucideIcons.cloudOff, size: 12, color: Colors.orange.shade400),
                       const SizedBox(width: 4),
-                      Text('Showing cached data', style: TextStyle(fontSize: 11, color: Colors.orange.shade400)),
+                      Text('Showing cached data', style: TextStyle(fontSize: 13, color: Colors.orange.shade400)),
                     ],
                   ),
                 ),
@@ -651,12 +699,13 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                   children: [
                     // Row 1: Revenue hero card
                     _KpiCard(
-                      label: 'TODAY\'S REVENUE',
+                      label: 'Today\'s revenue',
                       value: _revenueVisible ? _fmtAmount(m.todaySales) : '••••••',
                       icon: LucideIcons.trendingUp,
                       isHero: true,
                       onTap: () => widget.onTabSwitch('sales'),
-                      trailing: GestureDetector(
+                      trailing: AppTappable(
+                        ripple: false,
                         onTap: () => setState(() => _revenueVisible = !_revenueVisible),
                         child: Icon(
                           _revenueVisible ? LucideIcons.eye : LucideIcons.eyeOff,
@@ -671,7 +720,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       children: [
                         Expanded(
                           child: _KpiCard(
-                            label: 'EXPENSES',
+                            label: 'Expenses',
                             value: _fmtAmount(m.todayExpenses),
                             icon: LucideIcons.creditCard,
                             accentColor: const Color(0xFFe53935),
@@ -681,7 +730,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                         const SizedBox(width: 12),
                         Expanded(
                           child: _KpiCard(
-                            label: 'OUTSTANDING',
+                            label: 'Outstanding',
                             value: _fmtAmount(m.outstandingCollections),
                             icon: LucideIcons.clock,
                             accentColor: const Color(0xFFe6a817),
@@ -696,7 +745,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       children: [
                         Expanded(
                           child: _KpiCard(
-                            label: 'PRODUCTS',
+                            label: 'Products',
                             value: '${m.totalProducts}',
                             icon: LucideIcons.package,
                             accentColor: AppColors.primary,
@@ -706,7 +755,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                         const SizedBox(width: 12),
                         Expanded(
                           child: _KpiCard(
-                            label: 'LOW STOCK',
+                            label: 'Low stock',
                             value: '${m.lowStockItems}',
                             icon: LucideIcons.alertTriangle,
                             accentColor: m.lowStockItems > 0
@@ -748,25 +797,28 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
               Row(
                 children: [
                   Expanded(
-                    child: GestureDetector(
+                    child: AppTappable(
+                      ripple: false,
                       onTap: () {
                         final roles = ref.read(tenantContextProvider).value?.roles ?? [];
                         navigateToNewSale(context, roles);
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        // The two actions were the wrong way round: recording
+                        // a SALE is what this app is for, and it was the pale
+                        // one while Add Expense carried the solid brand fill.
                         decoration: BoxDecoration(
-                          color: AppColors.primaryContainer,
-                          borderRadius: BorderRadius.circular(16),
+                          color: AppColors.primary,
+                          borderRadius: Radii.rSm,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(LucideIcons.shoppingBag, size: 16, color: AppColors.onPrimaryContainer),
-                            const SizedBox(width: 8),
-                            Text('New Sale', style: GoogleFonts.manrope(
-                              fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onPrimaryContainer,
-                            )),
+                            const Icon(LucideIcons.shoppingBag, size: 18, color: AppColors.onPrimary),
+                            Gap.w8,
+                            Text('New sale', style: AppText.label.copyWith(
+                                fontSize: 15, color: AppColors.onPrimary)),
                           ],
                         ),
                       ),
@@ -774,22 +826,23 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: GestureDetector(
+                    child: AppTappable(
+                      ripple: false,
                       onTap: () => _push(const AddExpenseScreen()),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(16),
+                          color: AppColors.canvas,
+                          borderRadius: Radii.rSm,
+                          border: Border.all(color: AppColors.outline),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(LucideIcons.send, size: 16, color: AppColors.primaryContainer),
-                            const SizedBox(width: 8),
-                            Text('Add Expense', style: GoogleFonts.manrope(
-                              fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryContainer,
-                            )),
+                            const Icon(LucideIcons.send, size: 18, color: AppColors.onSurface),
+                            Gap.w8,
+                            Text('Add expense', style: AppText.label.copyWith(
+                                fontSize: 15)),
                           ],
                         ),
                       ),
@@ -828,13 +881,14 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                             Text(
                               'Last 7 days performance',
                               style: GoogleFonts.manrope(
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: AppColors.inkSecondary,
                               ),
                             ),
                           ],
                         ),
-                        GestureDetector(
+                        AppTappable(
+                          ripple: false,
                           onTap: () => widget.onTabSwitch('sales'),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -848,8 +902,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                                 const SizedBox(width: 4),
                                 Text(
                                   'All Sales',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 10,
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.primary,
                                   ),
@@ -929,8 +983,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       const SizedBox(width: 10),
                       Text(
                         'RECENT SALES',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
                           color: AppColors.primary,
@@ -938,7 +992,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       ),
                     ],
                   ),
-                  GestureDetector(
+                  AppTappable(
+                    ripple: false,
                     onTap: () => widget.onTabSwitch('sales'),
                     child: Text(
                       'See All',
@@ -971,41 +1026,40 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                               child: const Icon(LucideIcons.shoppingBag, size: 28, color: AppColors.inkTertiary),
                             ),
                             const SizedBox(height: 12),
-                            Text('No sales yet',
-                                style: GoogleFonts.manrope(
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.inkPrimary,
-                                )),
+                            Text('No sales yet', style: AppText.heading),
+                            const SizedBox(height: 2),
                             Text('Tap + to record your first sale',
-                                style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary)),
+                                style: AppText.caption),
                           ],
                         ),
                       ),
                     );
                   }
                   final recent = sales.take(5).toList();
-                  return Column(
-                    children: recent.asMap().entries.map((e) {
-                      final sale = e.value;
-                      final isLast = e.key == recent.length - 1;
-                      return Padding(
-                        padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
-                        child: _ActivityItem(
+                  // One card, five rows -- not five cards. See _ActivityItem.
+                  return AppCard(
+                    padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
+                    child: Column(
+                      children: recent.asMap().entries.map((e) {
+                        final sale = e.value;
+                        final isLast = e.key == recent.length - 1;
+                        return _ActivityItem(
                           label: (sale.customerInfo?['name'] as String?)?.isNotEmpty == true
                               ? sale.customerInfo!['name'] as String
                               : 'Walk-in Customer',
                           subtitle: _formatDate(sale.date),
                           amount: sale.totalAmount ?? 0,
                           status: sale.paymentMethod ?? 'CASH',
-                        ),
-                      );
-                    }).toList(),
+                          showDivider: !isLast,
+                        );
+                      }).toList(),
+                    ),
                   );
                 },
                 loading: () => const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                    child: AppSpinner(size: 20),
                   ),
                 ),
                 error: (e, _) => Text('Error: $e',
@@ -1058,24 +1112,9 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
     }
   }
 
-  String _fmtAmount(double amount) {
-    // Indian number system grouping (lakhs/crores style): 1,23,456.00
-    final whole = amount.truncate();
-    final str = whole.toString();
-    String grouped;
-    if (str.length <= 3) {
-      grouped = str;
-    } else {
-      final last3 = str.substring(str.length - 3);
-      final rest = str.substring(0, str.length - 3);
-      final restGrouped = rest.replaceAllMapped(
-        RegExp(r'(\d)(?=(\d{2})+$)'),
-        (m) => '${m[1]},',
-      );
-      grouped = '$restGrouped,$last3';
-    }
-    return '₹$grouped';
-  }
+  // Was a hand-rolled lakh/crore grouper living only on this screen, so
+  // every other screen printed an ungrouped run of digits. See Money.
+  String _fmtAmount(double amount) => Money.inr(amount);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1103,93 +1142,70 @@ class _KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final valueColor = accentColor ?? AppColors.inkPrimary;
+    final tint = accentColor ?? AppColors.primary;
 
     if (isHero) {
-      // ── Hero card (TODAY'S REVENUE) — dark gradient, full-width ──
-      return GestureDetector(
+      // ── Today's revenue ───────────────────────────────────────────────────
+      //
+      // This was an amber gradient with a matching coloured glow, a 90px
+      // watermark icon at 6% opacity behind it, a 10px letter-spaced monospace
+      // caption and the figure itself at w900/-1.2. Every one of those is
+      // decoration doing a job that size and space do better: the number is
+      // the most important thing on the screen, so it is simply the largest
+      // thing on the screen, on the same white as everything else.
+      //
+      // The glow was also the only coloured shadow in the app, which is what
+      // made this card read as a component from a different product.
+      return AppTappable(
+        ripple: false,
         onTap: onTap,
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+          padding: const EdgeInsets.all(Gap.xl),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF92400E), Color(0xFFD97706)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFD97706).withValues(alpha: 0.35),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+            color: AppColors.canvas,
+            borderRadius: Radii.rMd,
+            border: Border.all(color: AppColors.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  IconTile(icon: icon, tint: tint, size: 40),
+                  Gap.w12,
+                  Expanded(
+                    child: Text(label,
+                        style: AppText.caption,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                  if (trailing != null) ...[Gap.w8, trailing!],
+                ],
               ),
+              const SizedBox(height: Gap.lg),
+              Text(value, style: AppText.moneyLarge),
+              const SizedBox(height: Gap.xs),
+              Text('Today', style: AppText.caption),
             ],
           ),
-          child: Stack(clipBehavior: Clip.hardEdge, children: [
-            Positioned(
-              right: -16,
-              bottom: -16,
-              child: Icon(icon, size: 90,
-                  color: Colors.white.withValues(alpha: 0.06)),
-            ),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Expanded(
-                  child: Text(label,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10, fontWeight: FontWeight.w700,
-                      letterSpacing: 1.4,
-                      color: AppColors.primaryContainer.withValues(alpha: 0.7),
-                    ),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (trailing != null) ...[
-                  const SizedBox(width: 8), trailing!,
-                ],
-              ]),
-              const SizedBox(height: 10),
-              Text(value,
-                style: GoogleFonts.manrope(
-                  fontSize: 34, fontWeight: FontWeight.w900,
-                  color: Colors.white, letterSpacing: -1.2,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(children: [
-                Container(
-                  width: 6, height: 6,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primaryContainer,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text('Today',
-                  style: GoogleFonts.manrope(
-                    fontSize: 11, fontWeight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                ),
-              ]),
-            ]),
-          ]),
         ),
       );
     }
 
-    // ── Metric card — white, colored icon + value ──
-    return GestureDetector(
+    // ── Metric card ─────────────────────────────────────────────────────────
+    //
+    // The label was 9px monospace with 0.8 letter-spacing -- below the size at
+    // which text is read rather than merely seen. It is 13px now, and the
+    // value carries the colour so the pair still reads as one unit.
+    return AppTappable(
+      ripple: false,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Gap.lg),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
-          boxShadow: [AppColors.cardShadow],
+          color: AppColors.canvas,
+          borderRadius: Radii.rMd,
+          border: Border.all(color: AppColors.outlineVariant),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1197,32 +1213,24 @@ class _KpiCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: valueColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, size: 15, color: valueColor),
-                ),
+                IconTile(icon: icon, tint: tint, size: 36),
                 ?trailing,
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Gap.md),
+            // The value used to take the accent colour, so a row of four
+            // cards showed four different coloured numbers -- red, amber,
+            // brown, red -- and the colour carried no meaning beyond "this is
+            // a number". The tinted tile already identifies the metric; the
+            // figure is ink like every other figure in the app, which also
+            // keeps it off the colours that fail contrast at small sizes.
             Text(value,
-              style: GoogleFonts.manrope(
-                fontSize: 24, fontWeight: FontWeight.w800,
-                color: valueColor, letterSpacing: -0.8,
-              ),
-            ),
-            const SizedBox(height: 3),
+                style: AppText.money.copyWith(fontSize: 22),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 2),
             Text(label,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9, fontWeight: FontWeight.w600,
-                letterSpacing: 0.8, color: AppColors.inkTertiary,
-              ),
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-            ),
+                style: AppText.caption,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
@@ -1242,29 +1250,31 @@ class _QuickBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Was a shadowed card with an 11px label. A shortcut is not a surface that
+    // floats above the page, so it is a hairline like everything else, and the
+    // label is readable at a glance because that is the whole point of it.
     return Expanded(
-      child: GestureDetector(
+      child: AppTappable(
         onTap: onTap,
+        ripple: false,
+        borderRadius: Radii.rMd,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: Gap.lg),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-            boxShadow: [AppColors.cardShadow],
+            color: AppColors.canvas,
+            borderRadius: Radii.rMd,
+            border: Border.all(color: AppColors.outlineVariant),
           ),
           child: Column(
             children: [
-              Icon(icon, size: 20, color: AppColors.primary),
-              const SizedBox(height: 6),
+              Icon(icon, size: 22, color: AppColors.primary),
+              const SizedBox(height: Gap.sm),
               Text(
                 label,
-                style: GoogleFonts.manrope(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.inkPrimary,
-                ),
+                style: AppText.label,
                 textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -1307,8 +1317,8 @@ class _Bar extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             day.substring(0, 1),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
               color: isHighlight ? AppColors.primary : AppColors.inkTertiary,
               fontWeight: isHighlight ? FontWeight.w700 : FontWeight.w400,
             ),
@@ -1328,12 +1338,14 @@ class _ActivityItem extends StatelessWidget {
   final String subtitle;
   final double amount;
   final String status;
+  final bool showDivider;
 
   const _ActivityItem({
     required this.label,
     required this.subtitle,
     required this.amount,
     required this.status,
+    this.showDivider = true,
   });
 
   String _initials(String name) {
@@ -1345,91 +1357,61 @@ class _ActivityItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: const BoxDecoration(
-              color: AppColors.secondaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                _initials(label),
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.secondary,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.inkPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
-                    color: AppColors.inkTertiary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+    // Each of these used to be its own shadowed card, so five recent sales
+    // read as five unrelated objects rather than as one list. They are rows
+    // inside a single card now, separated by a hairline -- which is what a
+    // list of like things looks like.
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: Gap.md),
+          child: Row(
             children: [
-              Text(
-                '+₹${amount.abs().toStringAsFixed(0)}',
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.inkPrimary,
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: AppColors.secondaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(_initials(label),
+                      style: AppText.label.copyWith(
+                          fontSize: 15, color: AppColors.onSurfaceVariant)),
                 ),
               ),
-              const SizedBox(height: 3),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(6),
+              Gap.w12,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: AppText.bodyStrong,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 2),
+                    // The date was 10px monospace. A date is prose, not a
+                    // column of digits that has to align with anything.
+                    Text(subtitle, style: AppText.caption),
+                  ],
                 ),
-                child: Text(
-                  status,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              ),
+              Gap.w12,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('₹${amount.abs().toStringAsFixed(0)}',
+                      style: AppText.money),
+                  const SizedBox(height: 2),
+                  Text(status, style: AppText.caption),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        ),
+        if (showDivider)
+          const Divider(height: 1, thickness: 1,
+              color: AppColors.outlineVariant),
+      ],
     );
   }
 }

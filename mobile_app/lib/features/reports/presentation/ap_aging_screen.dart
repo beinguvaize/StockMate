@@ -96,8 +96,8 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
       ),
       child: Text(
         label,
-        style: GoogleFonts.jetBrainsMono(
-          fontSize: 9,
+        style: GoogleFonts.manrope(
+          fontSize: 13,
           fontWeight: FontWeight.w700,
           color: color,
         ),
@@ -170,7 +170,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                 child: Text(
                   '${sorted.length} outstanding bill${sorted.length == 1 ? '' : 's'}',
                   style: GoogleFonts.manrope(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: AppColors.inkSecondary,
                   ),
                 ),
@@ -198,8 +198,8 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                             children: [
                               Text(
                                 row.id,
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 12,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.inkPrimary,
                                 ),
@@ -209,7 +209,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                                 Text(
                                   'Bill: ${_fmtDate(row.billDate!)}',
                                   style: GoogleFonts.manrope(
-                                    fontSize: 11,
+                                    fontSize: 13,
                                     color: AppColors.inkSecondary,
                                   ),
                                 ),
@@ -217,7 +217,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                                 Text(
                                   'Due: ${_fmtDate(impliedDue)}',
                                   style: GoogleFonts.manrope(
-                                    fontSize: 11,
+                                    fontSize: 13,
                                     color: AppColors.inkSecondary,
                                   ),
                                 ),
@@ -295,7 +295,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
             backgroundColor: AppColors.surface,
             elevation: 0,
             title: Text(
-              'AP Aging',
+              'Money to Pay',
               style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -419,7 +419,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                   childAspectRatio: 1.55,
                   children: [
                     ReportKpiTile(
-                      label: 'Total Payables',
+                      label: 'Total to pay',
                       value: compactINR(totalPayables),
                       subtitle: formatINR(totalPayables),
                       color: const Color(0xFF1D4ED8),
@@ -463,9 +463,9 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'AGING BREAKDOWN',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 10,
+                        'HOW OVERDUE',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 1.2,
                           color: AppColors.inkSecondary,
@@ -505,9 +505,9 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Aging based on bill date + 30-day payment terms',
+                          'Counted from bill date + 30 days to pay',
                           style: GoogleFonts.manrope(
-                            fontSize: 11,
+                            fontSize: 13,
                             color: AppColors.inkSecondary,
                           ),
                         ),
@@ -673,8 +673,8 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                   children: [
                     Text(
                       row.id,
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 12,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.inkPrimary,
                       ),
@@ -683,7 +683,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                     Text(
                       row.supplierName,
                       style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: AppColors.inkSecondary,
                       ),
                     ),
@@ -692,7 +692,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                       Text(
                         'Bill: ${_fmtDate(row.billDate!)}',
                         style: GoogleFonts.manrope(
-                          fontSize: 10,
+                          fontSize: 13,
                           color: AppColors.inkTertiary,
                         ),
                       ),
@@ -717,8 +717,8 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                       if (row.daysOverdue > 0) ...[
                         Text(
                           '${row.daysOverdue}d',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             color: AppColors.inkSecondary,
                           ),
                         ),

@@ -60,20 +60,20 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
       // Drivers (employees)
       final emps = await supabase
           .from('employees')
-          .select('id, name, position')
+          .select('id, name, position').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId);
 
       // Pending delivery invoices
       final invs = await supabase
           .from('invoices')
-          .select('id, client_name, grand_total, delivery_address')
+          .select('id, client_name, grand_total, delivery_address').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId)
           .eq('delivery_status', 'PENDING');
 
       // Vehicle current stock → loadedStock snapshot
       final vLocRows = await supabase
           .from('inventory_locations')
-          .select('id')
+          .select('id').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId)
           .eq('type', 'VEHICLE')
           .eq('reference_id', widget.vehicleId);
@@ -86,7 +86,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
             .eq('location_id', vLocId);
         final prods = await supabase
             .from('products')
-            .select('*')
+            .select('*').isFilter('deleted_at', null)
             .eq('tenant_id', tenantId);
         final byId = {for (final p in prods) p['id'].toString(): p};
         for (final b in bals) {
@@ -203,8 +203,8 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
             ),
             Text(
               widget.vehicleName.toUpperCase(),
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
                 letterSpacing: 1.2,
@@ -304,8 +304,8 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                     _selected.length == _invoices.length
                                         ? 'Clear all'
                                         : 'Select all',
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 10,
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       color: AppColors.primary,
                                     ),
@@ -373,7 +373,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: GoogleFonts.manrope(
-                                                  fontSize: 11,
+                                                  fontSize: 13,
                                                   color: AppColors.inkTertiary,
                                                 ),
                                               ),
@@ -382,7 +382,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                       ),
                                       Text(
                                         '₹${_num(inv['grand_total']).toStringAsFixed(0)}',
-                                        style: GoogleFonts.jetBrainsMono(
+                                        style: GoogleFonts.manrope(
                                           fontWeight: FontWeight.w800,
                                           fontSize: 13,
                                           color: AppColors.inkPrimary,
@@ -438,8 +438,8 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(
           text,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 9,
+          style: GoogleFonts.manrope(
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.2,
             color: AppColors.inkTertiary,

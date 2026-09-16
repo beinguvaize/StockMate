@@ -154,8 +154,8 @@ class _Gstr1ScreenState extends ConsumerState<Gstr1Screen>
             child: DropdownButton<int>(
               value: _month,
               isDense: true,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 12,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),
@@ -183,8 +183,8 @@ class _Gstr1ScreenState extends ConsumerState<Gstr1Screen>
             child: DropdownButton<int>(
               value: _year,
               isDense: true,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 12,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),
@@ -328,8 +328,8 @@ class _Gstr1ScreenState extends ConsumerState<Gstr1Screen>
             ],
             bottom: TabBar(
               controller: _tabController,
-              labelStyle: GoogleFonts.jetBrainsMono(
-                fontSize: 11,
+              labelStyle: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
               ),
@@ -374,8 +374,8 @@ class _Gstr1ScreenState extends ConsumerState<Gstr1Screen>
                     const SizedBox(width: 6),
                     Text(
                       'Filing Period: ${_kMonthNames[_month]} $_year',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 11,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.inkSecondary,
                         letterSpacing: 0.4,
@@ -487,7 +487,7 @@ class _B2BCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   '${row['invoiceNo'] ?? '—'}',
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkPrimary,
@@ -504,8 +504,8 @@ class _B2BCard extends StatelessWidget {
                   ),
                   child: Text(
                     'INTERSTATE',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: const Color(0xFF2563EB),
                       letterSpacing: 0.8,
@@ -525,8 +525,8 @@ class _B2BCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             '${row['gstin'] ?? ''}',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 11,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
               color: AppColors.inkTertiary,
             ),
           ),
@@ -548,7 +548,7 @@ class _B2BCard extends StatelessWidget {
             children: [
               Text('Total  ',
                   style: GoogleFonts.manrope(
-                      fontSize: 11, color: AppColors.inkSecondary)),
+                      fontSize: 13, color: AppColors.inkSecondary)),
               Text(
                 formatINR(row['total'] as double),
                 style: GoogleFonts.manrope(
@@ -591,7 +591,7 @@ class _B2CLCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   '${row['invoiceNo'] ?? '—'}',
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkPrimary,
@@ -606,8 +606,8 @@ class _B2CLCard extends StatelessWidget {
                 ),
                 child: Text(
                   'B2CL',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.warning,
                     letterSpacing: 0.8,
@@ -640,7 +640,7 @@ class _B2CLCard extends StatelessWidget {
             children: [
               Text('Total  ',
                   style: GoogleFonts.manrope(
-                      fontSize: 11, color: AppColors.inkSecondary)),
+                      fontSize: 13, color: AppColors.inkSecondary)),
               Text(
                 formatINR(row['total'] as double),
                 style: GoogleFonts.manrope(
@@ -673,8 +673,8 @@ class _AmtLabel extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+            style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.inkTertiary,
                 letterSpacing: 0.6),
@@ -683,7 +683,7 @@ class _AmtLabel extends StatelessWidget {
           Text(
             formatINR(value),
             style: GoogleFonts.manrope(
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.inkPrimary),
           ),
@@ -711,7 +711,7 @@ class _AmountRow extends StatelessWidget {
           ),
           Text(
             formatINR(amount),
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.inkPrimary,
@@ -750,8 +750,8 @@ class _SectionCard extends StatelessWidget {
         children: [
           Text(
             title.toUpperCase(),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.4,
               color: AppColors.inkSecondary,
@@ -761,7 +761,7 @@ class _SectionCard extends StatelessWidget {
             const SizedBox(height: 3),
             Text(subtitle!,
                 style: GoogleFonts.manrope(
-                    fontSize: 11, color: AppColors.inkTertiary)),
+                    fontSize: 13, color: AppColors.inkTertiary)),
           ],
           const SizedBox(height: 12),
           const Divider(height: 1),

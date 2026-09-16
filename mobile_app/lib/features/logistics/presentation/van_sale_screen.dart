@@ -133,8 +133,8 @@ class _VanSaleScreenState extends ConsumerState<VanSaleScreen> {
             ),
             Text(
               'ROADSIDE POS',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
                 letterSpacing: 1.5,
@@ -202,14 +202,14 @@ class _VanSaleScreenState extends ConsumerState<VanSaleScreen> {
                                     Text(
                                       '$sym${item.sellingPrice.toStringAsFixed(2)}',
                                       style: TextStyle(
-                                        fontSize: 11, fontWeight: FontWeight.w700,
+                                        fontSize: 13, fontWeight: FontWeight.w700,
                                         color: qty > 0 ? AppColors.accentSignature : AppColors.inkTertiary,
                                       ),
                                     ),
                                     Text(
                                       '  ·  $maxQty avail',
                                       style: TextStyle(
-                                        fontSize: 11,
+                                        fontSize: 13,
                                         color: qty > 0 ? Colors.white38 : AppColors.inkTertiary,
                                       ),
                                     ),
@@ -336,8 +336,8 @@ class _CheckoutPanel extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 6),
           child: Row(
             children: [
-              Expanded(child: Text(e.item.productName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-              Text('× ${e.qty}', style: const TextStyle(fontSize: 12, color: AppColors.inkTertiary)),
+              Expanded(child: Text(e.item.productName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+              Text('× ${e.qty}', style: const TextStyle(fontSize: 13, color: AppColors.inkTertiary)),
             ],
           ),
         )),
@@ -369,7 +369,7 @@ class _CheckoutPanel extends StatelessWidget {
                   border: Border.all(color: paymentMethod == m ? AppColors.inkPrimary : Colors.black12),
                 ),
                 child: Text(m, textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900,
                     color: paymentMethod == m ? Colors.white : AppColors.inkPrimary)),
               ),
             ),
@@ -378,7 +378,7 @@ class _CheckoutPanel extends StatelessWidget {
 
         if (error != null) ...[
           const SizedBox(height: 10),
-          Text(error!, style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+          Text(error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
         ],
         const SizedBox(height: 16),
 
@@ -425,19 +425,19 @@ class _ReceiptDialog extends StatelessWidget {
         const SizedBox(height: 6),
         Text('$currencySymbol${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 32,
           fontFeatures: [FontFeature.tabularFigures()])),
-        Text(paymentMethod, style: const TextStyle(color: AppColors.inkTertiary, fontSize: 12)),
+        Text(paymentMethod, style: const TextStyle(color: AppColors.inkTertiary, fontSize: 13)),
         const SizedBox(height: 16),
         ...cart.map((e) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(child: Text(e.item.productName, style: const TextStyle(fontSize: 12))),
+              Expanded(child: Text(e.item.productName, style: const TextStyle(fontSize: 13))),
               Text('${e.qty} × $currencySymbol${e.item.sellingPrice.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 12, color: AppColors.inkTertiary)),
+                style: const TextStyle(fontSize: 13, color: AppColors.inkTertiary)),
               const SizedBox(width: 8),
               Text('$currencySymbol${e.lineTotal.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
             ],
           ),
         )),

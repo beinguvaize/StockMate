@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageSkeleton } from '../../components/ui/States';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
@@ -25,6 +25,15 @@ import { calculateGST } from '../../lib/gstEngine';
 import { supabase } from '../../lib/supabase';
 
 const SalesPage = () => {
+  // Maximize window to full-screen in Electron (POS kiosk mode).
+  // Cleanup restores on navigate-away. OS leave-full-screen event (e.g. Esc
+  // on macOS) is handled in main.cjs → sends kioskChange to AppLayout.
+  useEffect(() => {
+    if (!window.electron?.window) return;
+    window.electron.window.setKiosk(true);
+    return () => window.electron.window.setKiosk(false);
+  }, []);
+
   // Sale picked for GST-invoice conversion. When set, the ConvertToInvoiceSheet
   // modal opens and collects customer / GSTIN info before firing the RPC.
   const [convertSale, setConvertSale] = useState(null);
@@ -68,7 +77,7 @@ const SalesPage = () => {
     addNotification(`KOT #${data.ticket_no} sent to kitchen`, 'success');
     return true;
   };
-  const { sales, clients, invoices, salesReturns, placeSale, editSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, reverseSalesReturn, convertSaleToInvoice, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
+  const { sales, clients, invoices, salesReturns, placeSale, editSale, dispatchSale, createInvoice, updateInvoiceDelivery, deleteSale: removeSale, settleSale, processSalesReturn, reverseSalesReturn, convertSaleToInvoice, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
 
   const handleReverseReturn = async (returnId) => {
     const { error } = await reverseSalesReturn(returnId);
@@ -94,14 +103,45 @@ const SalesPage = () => {
     const isDelivery = saleData.fulfillmentType === 'DELIVERY';
     const hasClient  = saleData.clientId && saleData.clientId !== 'WALKIN';
 
-    // Build invoice items (shared for credit + delivery paths)
-    const needsInvoice = (isCredit && hasClient) || isDelivery;
+    // process_sale ALREADY writes the invoice when there is a named client and
+    // money outstanding -- id 'INV-' || sale id. Creating another one here gave
+    // every credit sale two invoices: the server's, correct, and this one with
+    // its own id, so the ON CONFLICT (id) guard in process_sale never fired.
+    // Six sales carried duplicates before this was caught, and a client
+    // statement billed both.
+    //
+    // So only create when the server did not: a delivery that was paid in full
+    // leaves nothing outstanding and therefore has no server invoice. When the
+    // server did create one, add the delivery details to THAT row instead of
+    // writing a second document.
+    const totalAmount   = Number(saleData.totalAmount ?? result?.totalAmount ?? 0);
+    const paidAmount    = Number(saleData.paidAmount ?? (isCredit ? 0 : totalAmount));
+    const serverInvoiced = Boolean(hasClient) && (totalAmount - paidAmount) > 0.005;
+
+    const needsInvoice = ((isCredit && hasClient) || isDelivery) && !serverInvoiced;
+
+    if (serverInvoiced && isDelivery) {
+      await updateInvoiceDelivery(`INV-${result.id}`, {
+        delivery_required: true,
+        delivery_status:   'PENDING',
+        delivery_address:  saleData.deliveryAddress || null,
+        delivery_zone:     saleData.deliveryZone    || null,
+        delivery_date:     saleData.deliveryDate    || null,
+        delivery_notes:    saleData.deliveryNotes   || null,
+        delivery_fee:      saleData.deliveryFee     || 0,
+      });
+    }
+
     if (needsInvoice) {
       const client = clients.find(c => c.id === saleData.clientId);
       const draftItems = (saleData.items || []).map(i => ({
         name:     i.name,
         qty:      i.quantity,
-        rate:     i.price,
+        // POS prices INCLUDE GST -- the same convention process_sale and the ITC
+        // back-out use. computeLineTax treats rate as exclusive and adds tax on
+        // top, which is how the duplicate invoices came out at exactly 1.18x the
+        // sale. Hand it the exclusive rate so the invoice total matches the sale.
+        rate:     (Number(i.price) || 0) / (1 + ((Number(i.taxRate) || 0) / 100)),
         taxRate:  i.taxRate || 0,
         cess:     Number(i.cess ?? i.cess_rate ?? 0),
         sku:      i.sku || '',
@@ -144,7 +184,7 @@ const SalesPage = () => {
   const { products, inventoryBalances, inventoryLocations, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
   // Stores where POS sales are rung (warehouses/branches, not vehicles).
   const posStores = (inventoryLocations || []).filter(l => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
-  const { users: staff = [] } = usePeople(currentTenantId);
+  const { users: staff = [], recordClientPayment } = usePeople(currentTenantId);
 
   const [activeTab, setActiveTab] = useState('pos'); // 'tables' | 'pos' | 'history'
   const [historyView, setHistoryView] = useState('sales'); // 'sales' | 'returns'
@@ -170,6 +210,9 @@ const SalesPage = () => {
   const editMeta = React.useMemo(() => editingSale ? {
     clientId: editingSale.shopId || editingSale.clientId || editingSale.client_id || 'WALKIN',
     paymentMethod: editingSale.paymentMethod || editingSale.payment_method || 'CASH',
+    // Preserve original sale date so editing doesn't silently move the sale
+    // to today (the builder defaults to todayISOInAppTZ() when date is absent).
+    date: editingSale.date || null,
     // Original amount actually paid — prefilled so the edit keeps the real
     // payment state. Lower it to turn a Paid sale into Pending/Partial.
     paidAmount: Number(editingSale.paidAmount ?? editingSale.paid_amount ?? 0),
@@ -281,28 +324,28 @@ const SalesPage = () => {
 
   return (
     <div className="animate-fade-in flex flex-col gap-2">
-      <div className="flex justify-between items-center py-2 border-b border-black/5">
+      <div className="flex justify-between items-center py-2 border-b border-border/60">
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
-            {activeTab === 'tables' ? 'Tables' : activeTab === 'pos' ? (isResto ? 'Order' : 'Sales') : 'History'}<span className="text-accent-signature">.</span>
+          <h1 className="text-base font-semibold text-foreground tracking-tight">
+            {activeTab === 'tables' ? 'Tables' : activeTab === 'pos' ? (isResto ? 'Order' : 'Sales') : 'History'}
           </h1>
           {/* Today's live stats */}
           <div className="hidden sm:flex items-center gap-1.5">
-            <div className="flex items-center gap-1.5 bg-white border border-black/8 text-ink-primary px-2.5 py-1 rounded-lg h-7">
+            <div className="flex items-center gap-1.5 bg-card border border-border text-foreground px-2.5 py-1 rounded-lg h-7">
               <TrendingUp size={10} className="text-emerald-500 shrink-0" />
-              <span className="text-[10px] font-black">{formatCurrency(todayStats.revenue)}</span>
-              <span className="text-[9px] font-medium text-gray-400">today</span>
+              <span className="text-[10px] font-semibold">{formatCurrency(todayStats.revenue)}</span>
+              <span className="text-[9px] font-medium text-muted-foreground">today</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-white border border-black/8 text-ink-primary px-2.5 py-1 rounded-lg h-7">
+            <div className="flex items-center gap-1.5 bg-card border border-border text-foreground px-2.5 py-1 rounded-lg h-7">
               <Receipt size={10} className="opacity-40 shrink-0" />
-              <span className="text-[10px] font-black">{todayStats.count}</span>
-              <span className="text-[9px] font-medium text-gray-400">txns</span>
+              <span className="text-[10px] font-semibold">{todayStats.count}</span>
+              <span className="text-[9px] font-medium text-muted-foreground">txns</span>
             </div>
             {todayStats.count > 0 && (
-              <div className="flex items-center gap-1.5 bg-white border border-black/8 text-ink-primary px-2.5 py-1 rounded-lg h-7">
+              <div className="flex items-center gap-1.5 bg-card border border-border text-foreground px-2.5 py-1 rounded-lg h-7">
                 <BarChart2 size={10} className="opacity-40 shrink-0" />
-                <span className="text-[10px] font-black">{formatCurrency(todayStats.avg)}</span>
-                <span className="text-[9px] font-medium text-gray-400">avg</span>
+                <span className="text-[10px] font-semibold">{formatCurrency(todayStats.avg)}</span>
+                <span className="text-[9px] font-medium text-muted-foreground">avg</span>
               </div>
             )}
           </div>
@@ -311,8 +354,8 @@ const SalesPage = () => {
           {isResto && (
             <button
               onClick={() => { setActiveTable(null); setActiveTab('tables'); }}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-bold transition-all ${
-                activeTab === 'tables' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-gray-400 hover:text-ink-primary'
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-semibold transition-all ${
+                activeTab === 'tables' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <LayoutGrid size={13} /> Tables
@@ -320,16 +363,16 @@ const SalesPage = () => {
           )}
           <button
             onClick={() => setActiveTab('pos')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-bold transition-all ${
-              activeTab === 'pos' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-gray-400 hover:text-ink-primary'
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-semibold transition-all ${
+              activeTab === 'pos' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <ShoppingCart size={13} /> {isResto ? 'Order' : 'New Sale'}
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-bold transition-all ${
-              activeTab === 'history' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-gray-400 hover:text-ink-primary'
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-semibold transition-all ${
+              activeTab === 'history' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <History size={13} /> History
@@ -354,19 +397,19 @@ const SalesPage = () => {
         ) : activeTab === 'pos' ? (
           <>
             {isResto && activeTable && (
-              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
-                <span className="text-sm font-bold text-ink-primary">Table {activeTable.table.label}</span>
+              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-accent-signature/10 border border-accent-signature/25">
+                <span className="text-sm font-semibold text-foreground">Table {activeTable.table.label}</span>
                 <button onClick={() => { setActiveTable(null); setActiveTab('tables'); }}
-                  className="text-[12px] font-bold text-amber-700 hover:underline">← Back to floor</button>
+                  className="text-[12px] font-semibold text-accent-signature-hover hover:underline">← Back to floor</button>
               </div>
             )}
             {editingSale && (
-              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
-                <span className="text-sm font-bold text-ink-primary">
+              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-accent-signature/10 border border-accent-signature/25">
+                <span className="text-sm font-semibold text-foreground">
                   Editing sale #{String(editingSale.id).split('-').pop()} — stock & balance re-sync on save
                 </span>
                 <button onClick={() => { setEditingSale(null); setActiveTab('history'); }}
-                  className="text-[12px] font-bold text-amber-700 hover:underline">Cancel edit</button>
+                  className="text-[12px] font-semibold text-accent-signature-hover hover:underline">Cancel edit</button>
               </div>
             )}
             <InvoiceBuilder
@@ -388,6 +431,7 @@ const SalesPage = () => {
               editId={editingSale?.id || null}
               editMeta={editMeta}
               onEditDone={() => { setEditingSale(null); setActiveTab('history'); }}
+              onRecordPayment={recordClientPayment}
             />
           </>
         ) : (
@@ -396,10 +440,10 @@ const SalesPage = () => {
             <div className="flex gap-1 mb-3">
               {[['sales', 'Sales', sales.length], ['returns', 'Returns', salesReturns.length]].map(([k, label, n]) => (
                 <button key={k} onClick={() => setHistoryView(k)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                    historyView === k ? 'bg-ink-primary text-white' : 'bg-canvas text-gray-500 hover:text-ink-primary'
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    historyView === k ? 'bg-foreground text-background' : 'bg-canvas text-muted-foreground hover:text-foreground'
                   }`}>
-                  {label}<span className={`ml-1.5 ${historyView === k ? 'opacity-60' : 'text-gray-400'}`}>{n}</span>
+                  {label}<span className={`ml-1.5 ${historyView === k ? 'opacity-60' : 'text-muted-foreground'}`}>{n}</span>
                 </button>
               ))}
             </div>

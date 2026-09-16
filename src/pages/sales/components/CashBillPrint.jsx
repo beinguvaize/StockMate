@@ -1,4 +1,5 @@
 import React from 'react';
+import { useDialogClose } from '../../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import { Printer, X } from 'lucide-react';
 import { formatDate } from '../../../lib/utils';
@@ -10,6 +11,7 @@ import { useTenant } from '../../../context/TenantContext';
 const money = (n, sym = '₹') => `${sym}${Number(n || 0).toFixed(2)}`;
 
 const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹', previewMode = false, paperOverride = null, receiptOverride = null, editable = false, onEditText = null, textsOverride = null }) => {
+  useDialogClose(onClose, { enabled: !previewMode }); // previewMode renders inline
   const { currentTenantId } = useTenant();
   // Paper width from Settings → Print Settings (58/80mm; A4 falls back to 80).
   // Tenant-level prefs first (business.print_settings); localStorage fallback.
@@ -34,7 +36,7 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹', p
   }
   // Variant styling: divider + header + total treatments.
   const div_ = rt === 'classic' ? 'border-dashed border-black/40' : rt === 'compact' ? 'border-solid border-black/30' : 'border-solid border-black';
-  const headerCls = rt === 'bold' ? 'text-lg font-extrabold tracking-widest' : rt === 'compact' ? 'text-sm font-bold' : 'text-base font-bold tracking-wide';
+  const headerCls = rt === 'bold' ? 'text-lg font-extrabold tracking-widest' : rt === 'compact' ? 'text-sm font-semibold' : 'text-base font-semibold tracking-wide';
   const totalCls = rt === 'bold' ? 'bg-black text-white px-1.5 py-1 -mx-1.5' : 'border-t border-black mt-1 pt-1';
   const items = Array.isArray(sale?.items) ? sale.items : [];
   const subtotal = items.reduce((s, i) => s + Number(i.price || i.sellingPrice || 0) * Number(i.quantity || 0), 0);
@@ -55,24 +57,24 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹', p
       {/* Toolbar */}
       {!previewMode && (
       <div className="print-chrome fixed top-4 right-4 flex gap-2 z-[110]">
-        <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 rounded-pill bg-ink-primary text-white font-bold text-xs hover:opacity-90">
+        <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 rounded-pill bg-foreground text-background font-semibold text-xs hover:opacity-90">
           <Printer size={14} /> PRINT
         </button>
-        <button onClick={onClose} className="w-10 h-10 rounded-full bg-white border border-black/10 flex items-center justify-center hover:bg-red-50 hover:text-red-500">
+        <button onClick={onClose} className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center hover:bg-red-50 hover:text-red-500">
           <X size={16} />
         </button>
       </div>
       )}
 
       {/* Receipt sheet — thermal, width from print settings */}
-      <div className={`print-sheet bg-white px-4 py-5 text-[11px] font-mono text-black leading-snug ${previewMode ? "shadow-sm mt-0 border border-gray-200" : "shadow-xl mt-20"}`} style={{ width: paperMm }}>
+      <div className={`print-sheet bg-card px-4 py-5 text-[11px] tabular-nums text-black leading-snug ${previewMode ? "shadow-sm mt-0 border border-border" : "shadow-xl mt-20"}`} style={{ width: paperMm }}>
         <div className={`text-center border-b ${div_} pb-2 mb-2`}>
           <div className={`uppercase ${headerCls}`}>{business.name || 'BUSINESS'}</div>
           {business.address && <div className="text-[10px] leading-tight mt-0.5">{business.address}</div>}
           {business.phone && <div className="text-[10px]">Tel: {business.phone}</div>}
         </div>
 
-        <div className="text-center font-bold uppercase text-xs mb-2">Cash Bill</div>
+        <div className="text-center font-semibold uppercase text-xs mb-2">Cash Bill</div>
 
         <div className="flex justify-between text-[10px] mb-1">
           <span>Bill #{billNo}</span>
@@ -84,7 +86,7 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹', p
         </div>
 
         <div className={`border-b ${div_} pb-1 mb-1`}>
-          <div className="flex text-[10px] font-bold uppercase">
+          <div className="flex text-[10px] font-semibold uppercase">
             <div className="flex-1">Item</div>
             <div className="w-8 text-right">Qty</div>
             <div className="w-14 text-right">Rate</div>
@@ -93,11 +95,14 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹', p
         </div>
         <div className={`pb-1 mb-1 border-b ${div_}`}>
           {items.map((it, i) => {
-            const rate = Number(it.price || it.sellingPrice || 0);
-            const q = Number(it.quantity || 0);
+            // Packet-sold line: show the packet count + per-packet rate the
+            // customer bought. Row total is identical to the base figures.
+            const isPkt = !!it.sellUnitName;
+            const rate = isPkt ? Number(it.sellUnitPrice || 0) : Number(it.price || it.sellingPrice || 0);
+            const q = isPkt ? Number(it.sellQty || 0) : Number(it.quantity || 0);
             return (
               <div key={i} className="text-[10px] py-0.5">
-                <div className="truncate">{it.name || 'Item'}</div>
+                <div className="truncate">{it.name || 'Item'}{isPkt ? ` · ${q} ${it.sellUnitName}` : ''}</div>
                 <div className="flex">
                   <div className="flex-1" />
                   <div className="w-8 text-right">{q}</div>
@@ -115,13 +120,13 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹', p
           {discount > 0 && (
             <div className="flex justify-between"><span>Discount</span><span>- {money(discount, currencySymbol)}</span></div>
           )}
-          <div className={`flex justify-between font-bold text-[13px] ${totalCls}`}>
+          <div className={`flex justify-between font-semibold text-[13px] ${totalCls}`}>
             <span>TOTAL</span><span>{money(total, currencySymbol)}</span>
           </div>
         </div>
 
         <div className={`text-center text-[10px] mt-3 pt-2 border-t ${div_}`}>
-          <div className="font-bold">
+          <div className="font-semibold">
             <Editable on={previewMode && editable} value={docTexts.rcptFooter} onChange={v => onEditText?.('rcptFooter', v)} />
           </div>
           <div className="opacity-70 mt-0.5">This is a cash bill. Not a tax invoice.</div>

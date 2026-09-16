@@ -163,9 +163,9 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
             ),
             Text(
               'FLEET MANAGEMENT',
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.manrope(
                 color: AppColors.secondary,
-                fontSize: 9,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
               ),
@@ -197,9 +197,9 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
             Center(
               child: Text(
                 'FLEET VEHICLE',
-                style: GoogleFonts.jetBrainsMono(
+                style: GoogleFonts.manrope(
                   color: AppColors.inkSecondary,
-                  fontSize: 9,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 2,
                 ),
@@ -335,7 +335,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEditing ? 'SAVE CHANGES' : 'ADD TO FLEET',
-                        style: GoogleFonts.jetBrainsMono(
+                        style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                           letterSpacing: 1,
@@ -383,9 +383,9 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
             fontSize: 14,
           ),
           labelText: label,
-          labelStyle: GoogleFonts.jetBrainsMono(
+          labelStyle: GoogleFonts.manrope(
             color: AppColors.inkSecondary,
-            fontSize: 10,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
@@ -422,9 +422,9 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           title,
-          style: GoogleFonts.jetBrainsMono(
+          style: GoogleFonts.manrope(
             color: AppColors.primary,
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
           ),

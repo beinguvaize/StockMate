@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Download — bookledger for Android, Windows &amp; macOS</title>
+<meta name="description" content="Download bookledger: free Android app, offline Windows and macOS desktop apps. Full billing, POS and inventory that works without internet and syncs when you're back."/>
+<link rel="icon" href="favicon-256.png"/>
+<link rel="canonical" href="https://bookledger.in/download"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { primary:'#1A1815', secondary:'#6b6660', surface:'#FBFAF7', canvas:'#FFFFFF', line:'#E9E6DF', accent:'#D97706', 'accent-700':'#B45309' },
+    fontFamily: { sans:['Manrope','sans-serif'], mono:['JetBrains Mono','monospace'] },
+  }}}
+</script>
+<style>.mono{font-variant-numeric:tabular-nums}</style>
+<link rel="stylesheet" href="reveal.css"/>
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body class="bg-canvas text-primary font-sans antialiased">
+
+<!-- Nav -->
+<nav class="bg-canvas/80 backdrop-blur-md border-b border-line w-full sticky top-0 z-50">
+  <div class="flex justify-between items-center w-full px-6 lg:px-8 py-4 max-w-[1200px] mx-auto">
+    <a href="/" class="flex items-center gap-2"><img src="bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/></a>
+    <div class="hidden md:flex gap-7 items-center">
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="features.html">Features</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
+      <a class="text-sm font-medium text-primary" href="download.html">Download</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="about.html">About</a>
+    </div>
+    <div class="hidden md:flex gap-3 items-center">
+      <a href="https://app.bookledger.in/login" class="text-sm font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
+      <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-700 transition-colors">Get Started</a>
+    </div>
+    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+  </div>
+</nav>
+
+<main class="w-full">
+  <!-- Header -->
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 pt-20 lg:pt-28 pb-12 text-center">
+    <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Download</span>
+    <h1 class="mt-4 text-4xl md:text-5xl font-light tracking-tight">bookledger on every counter.</h1>
+    <p class="mt-5 max-w-xl mx-auto text-secondary font-light leading-relaxed">
+      The desktop apps work fully offline — sell all day without internet, everything syncs when you're back.
+      The Android app is free on every plan.
+    </p>
+  </section>
+
+  <!-- Platform cards -->
+  <section class="max-w-[1000px] mx-auto px-6 lg:px-8 pb-16">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+      <!-- Android -->
+      <div class="rounded-2xl border border-line bg-canvas p-7 flex flex-col text-center">
+        <span class="material-symbols-outlined mx-auto text-accent" style="font-size:40px">smartphone</span>
+        <div class="mt-4 text-lg font-semibold">Android</div>
+        <p class="mt-2 text-sm text-secondary font-light flex-1">Billing, POS, van sales and stock on your phone. Free on every plan.</p>
+        <div class="mono text-[11px] text-secondary mt-4" id="ver-android">checking latest…</div>
+        <a id="dl-android" href="https://github.com/beinguvaize/StockMate/releases"
+           class="mt-3 bg-accent text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-accent-700 transition-colors">Download APK</a>
+        <p class="mt-3 text-[11px] text-secondary font-light">Enable "Install unknown apps" when prompted. Updates itself in-app.</p>
+      </div>
+
+      <!-- Windows -->
+      <div class="rounded-2xl border-2 border-accent bg-canvas p-7 flex flex-col text-center shadow-xl shadow-accent/10">
+        <span class="material-symbols-outlined mx-auto text-accent" style="font-size:40px">desktop_windows</span>
+        <div class="mt-4 text-lg font-semibold">Windows</div>
+        <p class="mt-2 text-sm text-secondary font-light flex-1">Offline-first desktop app for the shop counter. Windows 10/11, 64-bit.</p>
+        <div class="mono text-[11px] text-secondary mt-4" id="ver-win">checking latest…</div>
+        <a id="dl-win" href="https://github.com/beinguvaize/StockMate/releases"
+           class="mt-3 bg-accent text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-accent-700 transition-colors">Download for Windows</a>
+        <p class="mt-3 text-[11px] text-secondary font-light">If SmartScreen appears: More info → Run anyway. Auto-updates after install.</p>
+      </div>
+
+      <!-- macOS -->
+      <div class="rounded-2xl border border-line bg-canvas p-7 flex flex-col text-center">
+        <span class="material-symbols-outlined mx-auto text-accent" style="font-size:40px">laptop_mac</span>
+        <div class="mt-4 text-lg font-semibold">macOS</div>
+        <p class="mt-2 text-sm text-secondary font-light flex-1">Offline-first desktop app for Mac. Apple Silicon &amp; Intel.</p>
+        <div class="mono text-[11px] text-secondary mt-4" id="ver-mac">checking latest…</div>
+        <a id="dl-mac" href="https://github.com/beinguvaize/StockMate/releases"
+           class="mt-3 bg-accent text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-accent-700 transition-colors">Download for Mac</a>
+        <p class="mt-3 text-[11px] text-secondary font-light">First open: right-click the app → Open (unsigned build).</p>
+      </div>
+    </div>
+
+    <!-- Web app strip -->
+    <div class="mt-8 rounded-2xl border border-line bg-surface px-6 py-5 flex flex-col md:flex-row items-center justify-between gap-3">
+      <div class="text-sm text-secondary font-light">
+        <span class="font-semibold text-primary">Prefer nothing to install?</span>
+        The web app runs in any browser and shares the same account.
+      </div>
+      <a href="https://app.bookledger.in" class="text-sm font-semibold px-5 py-2.5 rounded-full border border-line hover:bg-canvas transition-colors whitespace-nowrap">Open web app →</a>
+    </div>
+  </section>
+</main>
+
+<footer class="bg-canvas border-t border-line w-full">
+  <div class="flex flex-col md:flex-row justify-between items-center w-full px-6 lg:px-8 py-8 max-w-[1200px] mx-auto gap-4">
+    <div class="flex items-center gap-2"><img src="bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/></div>
+    <div class="flex flex-wrap justify-center gap-5">
+      <a class="text-xs text-secondary hover:text-primary" href="features.html">Features</a>
+      <a class="text-xs text-secondary hover:text-primary" href="download.html">Download</a>
+      <a class="text-xs text-secondary hover:text-primary" href="security.html">Security</a>
+      <a class="text-xs text-secondary hover:text-primary" href="privacy.html">Privacy</a>
+      <a class="text-xs text-secondary hover:text-primary" href="terms.html">Terms</a>
+    </div>
+    <p class="text-xs text-secondary">© 2026 bookledger</p>
+  </div>
+</footer>
+
+<script>
+// Resolve the newest download links straight from GitHub Releases, so this
+// page never goes stale when new versions ship. Falls back to the releases
+// page links already in the HTML if the API is unreachable.
+(async () => {
+  try {
+    const res = await fetch('https://api.github.com/repos/beinguvaize/StockMate/releases?per_page=15');
+    if (!res.ok) return;
+    const releases = await res.json();
+
+    const findAsset = (rel, test) => (rel.assets || []).find(a => test(a.name));
+
+    // Desktop: newest desktop-v* release
+    const desktop = releases.find(r => r.tag_name.startsWith('desktop-v'));
+    if (desktop) {
+      const win = findAsset(desktop, n => n.endsWith('.exe'));
+      const mac = findAsset(desktop, n => n.endsWith('.dmg'));
+      const v = desktop.tag_name.replace('desktop-v', 'v');
+      if (win) { document.getElementById('dl-win').href = win.browser_download_url; document.getElementById('ver-win').textContent = v + ' · ' + (win.size/1048576).toFixed(0) + ' MB'; }
+      if (mac) { document.getElementById('dl-mac').href = mac.browser_download_url; document.getElementById('ver-mac').textContent = v + ' · ' + (mac.size/1048576).toFixed(0) + ' MB'; }
+    }
+
+    // Android: newest mobile-v* release
+    const mobile = releases.find(r => r.tag_name.startsWith('mobile-v'));
+    if (mobile) {
+      const apk = findAsset(mobile, n => n.endsWith('.apk'));
+      const v = mobile.tag_name.replace('mobile-v', 'v');
+      if (apk) { document.getElementById('dl-android').href = apk.browser_download_url; document.getElementById('ver-android').textContent = v + ' · ' + (apk.size/1048576).toFixed(0) + ' MB'; }
+    }
+  } catch (_) { /* keep fallback links */ }
+})();
+</script>
+<script defer src="reveal.js"></script>
+</body></html>

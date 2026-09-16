@@ -8,7 +8,7 @@ const { app, BrowserWindow, shell, Menu, ipcMain } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
-const isDev = !app.isPackaged;
+const isDev = !app.isPackaged && !process.env.ELECTRON_PREVIEW;
 
 let mainWindow = null;
 
@@ -81,6 +81,11 @@ function createWindow() {
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });
+
+  // Sync kiosk bar in renderer when OS-level full-screen state changes
+  // (e.g. user presses Esc on macOS to exit full-screen).
+  mainWindow.on('enter-full-screen', () => sendKioskChange(true));
+  mainWindow.on('leave-full-screen',  () => sendKioskChange(false));
 }
 
 app.whenReady().then(() => {
@@ -91,6 +96,18 @@ app.whenReady().then(() => {
       { role: 'editMenu' },
       { role: 'viewMenu' },
       { role: 'windowMenu' },
+      {
+        label: 'Troubleshoot',
+        submenu: [
+          { label: 'Sync Now',              click: () => sendTroubleshoot('sync-now') },
+          { label: 'Sync Diagnostics…',     click: () => sendTroubleshoot('diagnostics') },
+          { type: 'separator' },
+          { label: 'Clear Local Data & Re-download…', click: () => sendTroubleshoot('reset-cache') },
+          { type: 'separator' },
+          { label: 'Reload App', accelerator: 'CmdOrCtrl+Shift+R', click: () => mainWindow?.webContents.reloadIgnoringCache() },
+          { label: 'Open Developer Console', click: () => mainWindow?.webContents.openDevTools({ mode: 'detach' }) },
+        ],
+      },
       {
         label: 'Help',
         submenu: [
@@ -117,3 +134,22 @@ app.on('window-all-closed', () => {
 /* ── IPC: renderer-triggered update actions ────────────────────────────── */
 ipcMain.handle('update:check', () => { checkForUpdates(); return true; });
 ipcMain.handle('update:install', () => { autoUpdater.quitAndInstall(); });
+
+/* ── Troubleshoot menu → renderer ──────────────────────────────────────── */
+function sendTroubleshoot(action) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('troubleshoot:action', { action });
+  }
+}
+
+/* ── IPC: kiosk / full-screen window control ───────────────────────────── */
+function sendKioskChange(inKiosk) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('window:kioskChange', { inKiosk });
+  }
+}
+
+ipcMain.handle('window:setKiosk', (_e, enabled) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.setFullScreen(!!enabled);
+});

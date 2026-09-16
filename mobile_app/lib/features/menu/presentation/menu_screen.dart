@@ -8,6 +8,10 @@ import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/widgets/app_surfaces.dart';
+import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/features/clients_suppliers/presentation/crm_screen.dart';
 import 'package:mobile_app/features/daybook/presentation/daybook_screen.dart';
 import 'package:mobile_app/features/finance/presentation/finance_screen.dart';
@@ -17,6 +21,10 @@ import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
 import 'package:mobile_app/features/reports/presentation/reports_screen.dart';
 import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
+import 'package:mobile_app/features/accounts/presentation/accounts_screen.dart';
+import 'package:mobile_app/features/estimates/presentation/estimates_screen.dart';
+import 'package:mobile_app/features/cash_collection/presentation/cash_collection_screen.dart';
+import 'package:mobile_app/features/manufacturing/presentation/manufacturing_screen.dart';
 
 class MenuScreen extends ConsumerWidget {
   const MenuScreen({super.key});
@@ -47,7 +55,7 @@ class MenuScreen extends ConsumerWidget {
               tenantAsync.when(
                 data: (ctx) {
                   final roles = ctx?.userRoles ?? [];
-                  final plan = ctx?.plan ?? 'STARTER';
+                  final plan = ctx?.plan ?? 'FREE';
                   final permissions = ctx?.permissions;
                   final name = ctx?.userProfile.name ?? ctx?.userProfile.email ?? 'User';
 
@@ -98,7 +106,7 @@ class MenuScreen extends ConsumerWidget {
                                   Text(
                                     ctx?.tenant.name ?? '',
                                     style: GoogleFonts.manrope(
-                                      fontSize: 12,
+                                      fontSize: 13,
                                       color: Colors.white60,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -115,7 +123,7 @@ class MenuScreen extends ConsumerWidget {
                               child: Text(
                                 plan,
                                 style: GoogleFonts.manrope(
-                                  fontSize: 11,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w800,
                                   color: AppColors.primary,
                                 ),
@@ -162,7 +170,7 @@ class MenuScreen extends ConsumerWidget {
                       _MenuCard(
                         icon: LucideIcons.wallet,
                         iconColor: const Color(0xFFD97706),
-                        label: 'Finance & Expenses',
+                        label: 'Expenses',
                         subtitle: 'Track daily expenses',
                         feature: 'expenses',
                         roles: roles,
@@ -204,23 +212,67 @@ class MenuScreen extends ConsumerWidget {
                           permissions: permissions,
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())),
                         ),
-                      if (canAccess('hr', roles: roles, plan: plan, permissions: permissions))
+                      if (canAccess('payroll', roles: roles, plan: plan, permissions: permissions))
                         _MenuCard(
                           icon: LucideIcons.briefcase,
                           iconColor: const Color(0xFF0EA5E9),
-                          label: 'HR & Payroll',
-                          subtitle: 'Manage employees & salaries',
-                          feature: 'hr',
+                          label: 'Payroll',
+                          subtitle: 'Employees & salary management',
+                          feature: 'payroll',
                           roles: roles,
                           plan: plan,
                           permissions: permissions,
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HRScreen())),
                         ),
+                      _MenuCard(
+                        icon: LucideIcons.wallet,
+                        iconColor: const Color(0xFF16A34A),
+                        label: 'Cash & Bank',
+                        subtitle: 'Account balances & GL',
+                        feature: 'accounts',
+                        roles: roles,
+                        plan: plan,
+                        permissions: permissions,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountsScreen())),
+                      ),
+                      _MenuCard(
+                        icon: LucideIcons.fileText,
+                        iconColor: const Color(0xFF7C3AED),
+                        label: 'Estimates',
+                        subtitle: 'Quotes, challans, proforma',
+                        feature: 'estimates',
+                        roles: roles,
+                        plan: plan,
+                        permissions: permissions,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EstimatesScreen())),
+                      ),
+                      _MenuCard(
+                        icon: LucideIcons.banknote,
+                        iconColor: const Color(0xFF059669),
+                        label: 'Cash Collection',
+                        subtitle: 'Collect from due clients',
+                        feature: 'clients',
+                        roles: roles,
+                        plan: plan,
+                        permissions: permissions,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashCollectionScreen())),
+                      ),
+                      _MenuCard(
+                        icon: LucideIcons.factory,
+                        iconColor: const Color(0xFFD97706),
+                        label: 'Manufacturing',
+                        subtitle: 'BOMs & production orders',
+                        feature: 'manufacturing',
+                        roles: roles,
+                        plan: plan,
+                        permissions: permissions,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManufacturingScreen())),
+                      ),
                       if (canAccess('logistics', roles: roles, plan: plan, permissions: permissions))
                         _MenuCard(
                           icon: LucideIcons.truck,
                           iconColor: const Color(0xFFEA580C),
-                          label: 'Fleet Management',
+                          label: 'Vehicles',
                           subtitle: 'Vehicles & route tracking',
                           feature: 'logistics',
                           roles: roles,
@@ -260,7 +312,8 @@ class MenuScreen extends ConsumerWidget {
 
                       // Logout
                       const SizedBox(height: 4),
-                      GestureDetector(
+                      AppTappable(
+                        ripple: false,
                         onTap: () async => await supabase.auth.signOut(),
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -318,15 +371,11 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text.toUpperCase(),
-      style: GoogleFonts.jetBrainsMono(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.08,
-        color: AppColors.inkSecondary,
-      ),
-    );
+    // Was 11px uppercase monospace with tracking. Uppercase costs legibility
+    // (every word becomes the same rectangle) and monospace was decorative
+    // here -- these are words, not aligned digits.
+    return Text(text, style: AppText.bodyStrong.copyWith(
+        color: AppColors.onSurfaceVariant));
   }
 }
 
@@ -401,7 +450,8 @@ class _MenuCard extends StatelessWidget {
 
     if (isRoleBlocked && !alwaysShow) return const SizedBox.shrink();
 
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: isPlanLocked
           ? () => ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -411,74 +461,70 @@ class _MenuCard extends StatelessWidget {
               )
           : onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
+        margin: const EdgeInsets.only(bottom: Gap.sm),
+        padding: const EdgeInsets.all(Gap.md),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.outlineVariant.withValues(alpha: 0.6),
-          ),
-          boxShadow: [AppColors.cardShadow],
+          color: AppColors.canvas,
+          borderRadius: Radii.rMd,
+          border: Border.all(color: AppColors.outlineVariant),
         ),
         child: Row(
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9), // slate-100
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(
-                isPlanLocked ? LucideIcons.lock : icon,
-                color: const Color(0xFF475569), // slate-600
-                size: 21,
-              ),
+            // The tile was slate on slate for every single entry, so the whole
+            // menu read as one grey mass and no item was findable by colour.
+            // A locked item now looks locked; an available one carries the
+            // brand tint.
+            IconTile(
+              icon: isPlanLocked ? LucideIcons.lock : icon,
+              tint: isPlanLocked ? AppColors.inkTertiary : AppColors.primary,
+              size: 44,
             ),
-            const SizedBox(width: 14),
+            Gap.w16,
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     label,
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: isPlanLocked ? AppColors.inkTertiary : AppColors.inkPrimary,
+                    style: AppText.heading.copyWith(
+                      fontSize: 16,
+                      color: isPlanLocked
+                          ? AppColors.inkTertiary
+                          : AppColors.onSurface,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     isPlanLocked ? 'Upgrade to $requiredPlan to unlock' : subtitle,
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      color: isPlanLocked ? AppColors.warning : AppColors.inkTertiary,
-                      fontWeight: isPlanLocked ? FontWeight.w600 : FontWeight.w400,
+                    style: AppText.caption.copyWith(
+                      color: isPlanLocked
+                          ? AppColors.warning
+                          : AppColors.inkTertiary,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
+            Gap.w8,
             if (isPlanLocked)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Gap.sm, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.warningContainer,
+                  borderRadius: Radii.rXs,
                 ),
-                child: Text(
-                  'PRO',
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.warning,
-                  ),
-                ),
+                child: Text(requiredPlan,
+                    style: AppText.label.copyWith(
+                        color: AppColors.onWarningContainer)),
               )
             else
-              const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.inkTertiary),
+              const Icon(LucideIcons.chevronRight,
+                  size: 20, color: AppColors.inkTertiary),
           ],
         ),
       ),

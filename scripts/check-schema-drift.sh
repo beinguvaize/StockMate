@@ -24,20 +24,29 @@ set -euo pipefail
 : "${DEV_SUPABASE_URL:?}";  : "${DEV_SERVICE_ROLE_KEY:?}"
 : "${PROD_SUPABASE_URL:?}"; : "${PROD_SERVICE_ROLE_KEY:?}"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/supabase_rpc.sh
+. "$SCRIPT_DIR/lib/supabase_rpc.sh"
+
 fetch() {
   local url="$1" key="$2"
-  curl -sS -X POST "$url/rest/v1/rpc/schema_signature" \
-    -H "apikey: $key" \
-    -H "Authorization: Bearer $key" \
-    -H "Content-Type: application/json" \
-    -d '{}' | jq -r '.[].entry' | sort
+  rpc_array "$url" "$key" schema_signature | jq -r '.[].entry' | sort
 }
 
 dev=$(mktemp);  prod=$(mktemp)
 trap 'rm -f "$dev" "$prod"' EXIT
 
-fetch "$DEV_SUPABASE_URL"  "$DEV_SERVICE_ROLE_KEY"  > "$dev"
-fetch "$PROD_SUPABASE_URL" "$PROD_SERVICE_ROLE_KEY" > "$prod"
+fetch "$DEV_SUPABASE_URL"  "$DEV_SERVICE_ROLE_KEY"  > "$dev"  || exit 2
+fetch "$PROD_SUPABASE_URL" "$PROD_SERVICE_ROLE_KEY" > "$prod" || exit 2
+
+# An empty signature is never legitimate, and two empty ones diff clean — the
+# shape of the false pass this guard is meant to prevent.
+for f in "$dev" "$prod"; do
+  if [ ! -s "$f" ]; then
+    echo "::error::schema_signature returned no entries — refusing to call that a match."
+    exit 2
+  fi
+done
 
 if diff -q "$dev" "$prod" >/dev/null; then
   echo "✓ Dev and prod schemas match ($(wc -l < "$dev" | tr -d ' ') entries)."

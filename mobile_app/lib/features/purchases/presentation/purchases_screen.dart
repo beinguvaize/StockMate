@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -89,10 +90,12 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
   static const _filters = ['All Orders', 'Cash', 'Credit'];
 
   static String _compact(double v) {
-    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(1)}Cr';
-    if (v >= 100000)   return '₹${(v / 100000).toStringAsFixed(1)}L';
-    if (v >= 1000)     return '₹${(v / 1000).toStringAsFixed(1)}K';
-    return '₹${v.toStringAsFixed(0)}';
+    final whole = v.round();
+    final s = whole.abs().toString();
+    final grouped = s.length <= 3
+        ? s
+        : '${s.substring(0, s.length - 3).replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},')},${s.substring(s.length - 3)}';
+    return '${whole < 0 ? '-' : ''}₹$grouped';
   }
 
   static String _fmtDate(String? d) {
@@ -140,7 +143,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                     letterSpacing: -0.5, color: AppColors.inkPrimary)),
             Text('Manage and track your supplier purchase orders.',
                 style: GoogleFonts.manrope(
-                    fontSize: 11, color: AppColors.inkSecondary)),
+                    fontSize: 13, color: AppColors.inkSecondary)),
           ],
         ),
         actions: [
@@ -168,7 +171,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                         const SizedBox(width: 6),
                         Text('New Order',
                             style: GoogleFonts.manrope(
-                                fontSize: 12, fontWeight: FontWeight.w700,
+                                fontSize: 13, fontWeight: FontWeight.w700,
                                 color: AppColors.inkPrimary)),
                       ],
                     ),
@@ -275,8 +278,8 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('MONTHLY SPEND',
-                                style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 10, fontWeight: FontWeight.w700,
+                                style: GoogleFonts.manrope(
+                                    fontSize: 13, fontWeight: FontWeight.w700,
                                     letterSpacing: 1.2,
                                     color: AppColors.inkSecondary)),
                             const SizedBox(height: 4),
@@ -337,7 +340,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                                   child: Text(
                                     e.value,
                                     style: GoogleFonts.manrope(
-                                      fontSize: 12,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                       color: active
                                           ? AppColors.secondary
@@ -371,8 +374,8 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                           ),
                           const SizedBox(width: 10),
                           Text('PURCHASE ORDERS',
-                              style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 11, fontWeight: FontWeight.w700,
+                              style: GoogleFonts.manrope(
+                                  fontSize: 13, fontWeight: FontWeight.w700,
                                   letterSpacing: 1.5, color: AppColors.primary)),
                         ],
                       ),
@@ -433,13 +436,13 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
             loading: () =>
                 const Center(child: CircularProgressIndicator(color: AppColors.primary)),
             error: (e, _) => Center(
-                child: Text('Error: $e',
+                child: Text('Could not load purchases. Check your internet and try again.',
                     style: GoogleFonts.manrope(color: AppColors.danger))),
           );
         },
         loading: () =>
             const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text('Could not load. Check your internet and try again.')),
       ),
     );
   }
@@ -496,8 +499,8 @@ class _StatCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9, fontWeight: FontWeight.w700,
+                style: GoogleFonts.manrope(
+                    fontSize: 13, fontWeight: FontWeight.w700,
                     letterSpacing: 1.2, color: AppColors.inkSecondary)),
             const SizedBox(height: 6),
             Text(value,
@@ -511,7 +514,7 @@ class _StatCard extends StatelessWidget {
               Expanded(
                 child: Text(subText,
                     style: GoogleFonts.manrope(
-                        fontSize: 10, color: AppColors.inkTertiary),
+                        fontSize: 13, color: AppColors.inkTertiary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
               ),
@@ -586,8 +589,8 @@ class _PurchaseCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${purchase.poNumber} · ${fmtDate(purchase.date)}',
-                  style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10, color: AppColors.inkTertiary),
+                  style: GoogleFonts.manrope(
+                      fontSize: 13, color: AppColors.inkTertiary),
                 ),
                 if (purchase.deliveryDate != null) ...[
                   const SizedBox(height: 2),
@@ -597,7 +600,7 @@ class _PurchaseCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text('Est. ${fmtDate(purchase.deliveryDate)}',
                         style: GoogleFonts.manrope(
-                            fontSize: 10, color: AppColors.inkTertiary)),
+                            fontSize: 13, color: AppColors.inkTertiary)),
                   ]),
                 ],
               ],
@@ -624,8 +627,8 @@ class _PurchaseCard extends StatelessWidget {
                 ),
                 child: Text(
                   status,
-                  style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9, fontWeight: FontWeight.w700,
+                  style: GoogleFonts.manrope(
+                      fontSize: 13, fontWeight: FontWeight.w700,
                       color: statusColor),
                 ),
               ),
@@ -692,6 +695,10 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   DateTime _date = DateTime.now();
   final _notesCtrl = TextEditingController();
   final _billNoCtrl = TextEditingController(); // supplier bill no — GSTR-2B match
+  // Money down on a credit bill. The web form has had this since the start
+  // ('Paid now'); the phone could only record a bill as wholly cash or wholly
+  // credit, so a part payment at the supplier's door had nowhere to go.
+  final _paidNowCtrl = TextEditingController();
 
   // Lines
   final List<_PurchaseLine> _lines = [_PurchaseLine()];
@@ -974,6 +981,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   void dispose() {
     _notesCtrl.dispose();
     _billNoCtrl.dispose();
+    _paidNowCtrl.dispose();
     for (final l in _lines) {
       l.dispose();
     }
@@ -1075,6 +1083,16 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
       // network and falls back to the local queue on transient failure.
       final svc = ref.read(syncServiceProvider);
       int queuedCount = 0;
+
+      // Money down on a credit bill, spread across the lines oldest-first --
+      // the same allocation the web form uses, so a bill entered on either
+      // surface settles identically. Only for CREDIT: a cash or bank bill is
+      // already paid in full at entry.
+      final paidNow = _paymentType == 'CREDIT'
+          ? (double.tryParse(_paidNowCtrl.text.trim()) ?? 0).clamp(0, _grandTotal)
+          : 0.0;
+      double paidLeft = paidNow.toDouble();
+
       for (int i = 0; i < validLines.length; i++) {
         final line = validLines[i];
         final id = 'PUR-${DateTime.now().millisecondsSinceEpoch}-${i.toString().padLeft(2, '0')}';
@@ -1092,6 +1110,14 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
           'p_tenant_id':    widget.tenantId,
           'p_bill_no':      _billNoCtrl.text.trim().isEmpty ? null : _billNoCtrl.text.trim(),
         };
+
+        if (paidNow > 0) {
+          final linePaid = paidLeft < line.totalVal ? paidLeft : line.totalVal;
+          // Round to paise as it goes, so the last line cannot inherit a
+          // floating-point remainder and overpay the bill by a fraction.
+          params['p_paid_amount'] = (linePaid * 100).round() / 100;
+          paidLeft = ((paidLeft - linePaid) * 100).round() / 100;
+        }
         final queued = await svc.rpcOnlineOrQueue('process_purchase', params);
         if (queued) queuedCount++;
 
@@ -1130,8 +1156,14 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
       }
     } catch (e) {
       if (mounted) {
+        // Show the real reason — a server rejection is not an internet problem,
+        // and blaming the connection hides genuine DB errors.
+        debugPrint('[purchases] save failed: $e');
+        final msg = e is PostgrestException
+            ? 'Could not save: ${e.message}'
+            : 'Could not save. Check your internet and try again.';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
+          content: Text(msg),
           backgroundColor: AppColors.danger,
           duration: const Duration(seconds: 6),
         ));
@@ -1190,8 +1222,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                   fontSize: 22, fontWeight: FontWeight.w800,
                                   letterSpacing: -0.5, color: AppColors.inkPrimary)),
                           Text('ONE SUPPLIER · MULTIPLE PRODUCTS · SINGLE SUBMIT',
-                              style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 9, fontWeight: FontWeight.w600,
+                              style: GoogleFonts.manrope(
+                                  fontSize: 13, fontWeight: FontWeight.w600,
                                   color: AppColors.inkSecondary, letterSpacing: 1.2)),
                           const SizedBox(height: 16),
 
@@ -1269,6 +1301,37 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                       onTap: () => setState(() => _paymentType = 'BANK')),
                                   ],
                                 ),
+
+                                // Money down on a credit bill. Only meaningful
+                                // for CREDIT: a cash or bank bill is paid in
+                                // full at entry, so a part figure there would
+                                // contradict the payment type.
+                                if (_paymentType == 'CREDIT') ...[
+                                  const SizedBox(height: 12),
+                                  _label('PAID NOW (OPTIONAL)'),
+                                  TextField(
+                                    controller: _paidNowCtrl,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    onChanged: (_) => setState(() {}),
+                                    decoration: InputDecoration(
+                                      hintText: 'Leave blank if nothing paid yet',
+                                      isDense: true,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                  if ((double.tryParse(_paidNowCtrl.text.trim()) ?? 0) > 0)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: Text(
+                                        'Rs ${((_grandTotal) - (double.tryParse(_paidNowCtrl.text.trim()) ?? 0)).clamp(0, double.infinity).toStringAsFixed(2)} stays on credit',
+                                        style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.inkSecondary),
+                                      ),
+                                    ),
+                                ],
                                 const SizedBox(height: 12),
                                 _label('DATE'),
                                 GestureDetector(
@@ -1355,8 +1418,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                               _label('LINE ITEMS'),
                               const Spacer(),
                               Text('${_lines.length} ROW${_lines.length == 1 ? '' : 'S'}',
-                                  style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 9, fontWeight: FontWeight.w700,
+                                  style: GoogleFonts.manrope(
+                                      fontSize: 13, fontWeight: FontWeight.w700,
                                       color: AppColors.inkTertiary, letterSpacing: 1)),
                             ],
                           ),
@@ -1391,8 +1454,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                             onPressed: () => setState(() => _lines.add(_PurchaseLine())),
                             icon: const Icon(LucideIcons.plus, size: 14),
                             label: Text('ADD ROW',
-                                style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 11, fontWeight: FontWeight.w700,
+                                style: GoogleFonts.manrope(
+                                    fontSize: 13, fontWeight: FontWeight.w700,
                                     letterSpacing: 1)),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.primary,
@@ -1417,8 +1480,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text('GRAND TOTAL',
-                                    style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 10, fontWeight: FontWeight.w700,
+                                    style: GoogleFonts.manrope(
+                                        fontSize: 13, fontWeight: FontWeight.w700,
                                         color: Colors.white.withValues(alpha: 0.6),
                                         letterSpacing: 1.5)),
                                 Text('₹${_grandTotal.toStringAsFixed(2)}',
@@ -1459,8 +1522,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                         const SizedBox(width: 8),
                                         Text(
                                           'SAVE ${itemCount > 0 ? "$itemCount ITEM${itemCount == 1 ? '' : 'S'}" : 'PURCHASE'}',
-                                          style: GoogleFonts.jetBrainsMono(
-                                              fontSize: 12, fontWeight: FontWeight.w700,
+                                          style: GoogleFonts.manrope(
+                                              fontSize: 13, fontWeight: FontWeight.w700,
                                               letterSpacing: 1.5),
                                         ),
                                       ],
@@ -1480,8 +1543,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 6, left: 2),
     child: Text(text,
-        style: GoogleFonts.jetBrainsMono(
-            fontSize: 9, fontWeight: FontWeight.w700,
+        style: GoogleFonts.manrope(
+            fontSize: 13, fontWeight: FontWeight.w700,
             color: AppColors.inkTertiary, letterSpacing: 1.2)),
   );
 }
@@ -1564,8 +1627,8 @@ class _LineItemCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text('#${index + 1}',
-                    style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10, fontWeight: FontWeight.w700,
+                    style: GoogleFonts.manrope(
+                        fontSize: 13, fontWeight: FontWeight.w700,
                         color: AppColors.primary)),
               ),
               const Spacer(),
@@ -1595,7 +1658,7 @@ class _LineItemCard extends StatelessWidget {
                       'On bill: ${line.scannedName}',
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.manrope(
-                        fontSize: 11.5, fontWeight: FontWeight.w700,
+                        fontSize: 13, fontWeight: FontWeight.w700,
                         color: AppColors.onPrimaryContainer,
                       ),
                     ),
@@ -1660,7 +1723,7 @@ class _LineItemCard extends StatelessWidget {
                           child: Text(
                             '${p['name']}',
                             style: GoogleFonts.manrope(
-                                fontSize: 11.5, fontWeight: FontWeight.w700,
+                                fontSize: 13, fontWeight: FontWeight.w700,
                                 color: AppColors.onPrimaryContainer),
                           ),
                         ),
@@ -1682,7 +1745,7 @@ class _LineItemCard extends StatelessWidget {
                             const SizedBox(width: 4),
                             Text('Create new',
                                 style: GoogleFonts.manrope(
-                                    fontSize: 11.5, fontWeight: FontWeight.w700,
+                                    fontSize: 13, fontWeight: FontWeight.w700,
                                     color: AppColors.primary)),
                           ],
                         ),
@@ -1698,8 +1761,8 @@ class _LineItemCard extends StatelessWidget {
               child: Text(
                 'Stock: ${selectedProduct['stock'] ?? 0}'
                 '${lastCost != null && lastCost > 0 ? " · Last ₹${lastCost.toStringAsFixed(2)}" : ""}',
-                style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9, fontWeight: FontWeight.w600,
+                style: GoogleFonts.manrope(
+                    fontSize: 13, fontWeight: FontWeight.w600,
                     color: AppColors.inkTertiary),
               ),
             ),
@@ -1762,7 +1825,7 @@ class _LineItemCard extends StatelessWidget {
                         ? 'Expiry: ${line.expiryDate!.day}/${line.expiryDate!.month}/${line.expiryDate!.year}'
                         : 'Add expiry date (optional)',
                     style: GoogleFonts.manrope(
-                        fontSize: 11, fontWeight: FontWeight.w600,
+                        fontSize: 13, fontWeight: FontWeight.w600,
                         color: line.expiryDate != null ? AppColors.warning : AppColors.inkTertiary),
                   ),
                   if (line.expiryDate != null) ...[
@@ -1785,8 +1848,8 @@ class _LineItemCard extends StatelessWidget {
                 unit > lastCost
                     ? '▲ Higher than last ₹${lastCost.toStringAsFixed(2)}'
                     : '▼ Lower than last ₹${lastCost.toStringAsFixed(2)}',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9, fontWeight: FontWeight.w700,
+                style: GoogleFonts.manrope(
+                  fontSize: 13, fontWeight: FontWeight.w700,
                   color: unit > lastCost ? AppColors.warning : AppColors.success,
                 ),
               ),
@@ -1817,8 +1880,8 @@ class _MiniField extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 4, left: 2),
           child: Text(label,
-              style: GoogleFonts.jetBrainsMono(
-                  fontSize: 8, fontWeight: FontWeight.w700,
+              style: GoogleFonts.manrope(
+                  fontSize: 13, fontWeight: FontWeight.w700,
                   color: AppColors.inkTertiary, letterSpacing: 1)),
         ),
         Container(
@@ -2146,8 +2209,8 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
                                       Text(
                                         'Stock ${p['stock'] ?? 0}'
                                         '${(p['sku'] ?? '').toString().isNotEmpty ? " · ${p['sku']}" : ""}',
-                                        style: GoogleFonts.jetBrainsMono(
-                                            fontSize: 10,
+                                        style: GoogleFonts.manrope(
+                                            fontSize: 13,
                                             color: AppColors.inkTertiary),
                                       ),
                                     ],

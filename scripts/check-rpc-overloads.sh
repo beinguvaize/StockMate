@@ -23,17 +23,17 @@ set -euo pipefail
 : "${SUPABASE_URL:?SUPABASE_URL is required}"
 : "${SUPABASE_SERVICE_ROLE_KEY:?SUPABASE_SERVICE_ROLE_KEY is required}"
 
-resp=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/audit_function_overloads" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{}')
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/supabase_rpc.sh
+. "$SCRIPT_DIR/lib/supabase_rpc.sh"
 
-count=$(echo "$resp" | jq 'length')
+resp=$(rpc_array "$SUPABASE_URL" "$SUPABASE_SERVICE_ROLE_KEY" audit_function_overloads) || exit 2
+
+count=$(printf '%s' "$resp" | jq 'length')
 
 if [ "$count" -gt 0 ]; then
   echo "::error::$count function(s) have duplicate overloads — these will cause PGRST203 sync failures."
-  echo "$resp" | jq -r '.[] | "  • \(.function_name) (\(.overload_count) signatures): \(.signatures)"'
+  printf '%s' "$resp" | jq -r '.[] | "  • \(.function_name) (\(.overload_count) signatures): \(.signatures)"'
   echo ""
   echo "Fix: alter the function in place (CREATE OR REPLACE + DEFAULT on new param) and DROP the stale signature in the same migration. See CLAUDE.md."
   exit 1

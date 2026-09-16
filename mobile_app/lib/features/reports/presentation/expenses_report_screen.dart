@@ -354,7 +354,7 @@ class _CategoryCard extends StatelessWidget {
           Text(
             '$count entr${count == 1 ? 'y' : 'ies'}',
             style: GoogleFonts.manrope(
-              fontSize: 11,
+              fontSize: 13,
               color: AppColors.inkSecondary,
             ),
           ),
@@ -423,8 +423,8 @@ class _ExpenseItem extends StatelessWidget {
               children: [
                 Text(
                   date,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
                     color: AppColors.inkTertiary,
                   ),
                 ),
@@ -449,7 +449,7 @@ class _ExpenseItem extends StatelessWidget {
                   child: Text(
                     category,
                     style: GoogleFonts.manrope(
-                      fontSize: 10,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: pillColor,
                     ),
@@ -484,8 +484,8 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: GoogleFonts.jetBrainsMono(
-        fontSize: 10,
+      style: GoogleFonts.manrope(
+        fontSize: 13,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
         color: AppColors.inkTertiary,

@@ -8,6 +8,7 @@ import Table from '../../../shared/Table';
 import Modal from '../../../shared/Modal';
 import { supabase } from '../../../lib/supabase';
 import { formatCurrency, formatDate, formatDateTime, todayISOInAppTZ, getAppTimezone, getAppLocale } from '../../../lib/utils';
+import { surplusLabel } from '../lib/checkoutMoney';
 
 // Payment method -> icon.
 const PAY_ICON = {
@@ -70,7 +71,7 @@ const downloadCSV = (rows, filename) => {
 // Component
 // ------------------------------------------------------------------
 const DELIVERY_BADGE = {
-  PENDING:    { bg: 'bg-amber-50',   text: 'text-amber-700',   ring: 'ring-amber-200/60',   dot: 'bg-amber-400',   label: 'Awaiting Dispatch' },
+  PENDING:    { bg: 'bg-accent-signature/10',   text: 'text-accent-signature-hover',   ring: 'ring-accent-signature/20',   dot: 'bg-accent-signature/70',   label: 'Awaiting Dispatch' },
   IN_TRANSIT: { bg: 'bg-blue-50',    text: 'text-blue-700',    ring: 'ring-blue-200/60',    dot: 'bg-blue-500',    label: 'In Transit'        },
   DELIVERED:  { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200/60', dot: 'bg-emerald-500', label: 'Delivered'         },
   FAILED:     { bg: 'bg-red-50',     text: 'text-red-700',     ring: 'ring-red-200/60',     dot: 'bg-red-400',     label: 'Failed'            },
@@ -103,6 +104,9 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
   }, [sales, staff]);
   const [dateFilter, setDateFilter] = useState('TODAY');   // ALL | TODAY | 7D | 30D | CUSTOM — default Today
   const [customRange, setCustomRange] = useState({ from: '', to: '' });
+  const [payFilter, setPayFilter] = useState('ALL');        // ALL | CASH | UPI | CARD | BANK | CREDIT
+  const [cashierFilter, setCashierFilter] = useState('ALL');
+  const [sort, setSort] = useState({ key: 'date', dir: 'desc' });
   const [detailSale, setDetailSale] = useState(null);
   const [settleInput, setSettleInput] = useState('');
 
@@ -182,15 +186,65 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
       // Pending tab = genuinely owed money; exclude paid AND voided.
       if (statusFilter === 'PENDING' && (isPaidStatus(status) || isVoidStatus(status))) return false;
       if (statusFilter === 'FAILED' && !isVoidStatus(status)) return false;
+      if (payFilter !== 'ALL' && (sale.paymentMethod || '').toUpperCase() !== payFilter) return false;
+      if (cashierFilter !== 'ALL' && (getCashier(sale) || '—') !== cashierFilter) return false;
       if (!q) return true;
       const name = getClientName(sale).toLowerCase();
       return (sale.id || '').toLowerCase().includes(q) || name.includes(q);
     });
-  }, [sales, searchTerm, statusFilter, inDateRange, getClientName]);
+  }, [sales, searchTerm, statusFilter, inDateRange, getClientName, payFilter, cashierFilter, getCashier]);
+
+  // ---------- Sorting ----------
+  const sortedSales = useMemo(() => {
+    const dirMul = sort.dir === 'asc' ? 1 : -1;
+    const val = (s) => {
+      switch (sort.key) {
+        case 'date':    return new Date(s.created_at || s.date || 0).getTime();
+        case 'invoice': return String(s.id || '');
+        case 'client':  return getClientName(s).toLowerCase();
+        case 'cashier': return (getCashier(s) || '').toLowerCase();
+        case 'items':   return itemCount(s);
+        case 'amount':  return Number(s.totalAmount) || 0;
+        case 'status':  return getStatus(s);
+        default:        return 0;
+      }
+    };
+    return [...filteredSales].sort((a, b) => {
+      const va = val(a), vb = val(b);
+      if (va < vb) return -1 * dirMul;
+      if (va > vb) return 1 * dirMul;
+      return 0;
+    });
+  }, [filteredSales, sort, getClientName, getCashier]);
+
+  const toggleSort = (key) => setSort(prev =>
+    prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: ['date', 'amount', 'items'].includes(key) ? 'desc' : 'asc' }
+  );
+
+  const SortLabel = ({ k, children }) => (
+    <button onClick={() => toggleSort(k)} className="inline-flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer select-none">
+      {children}
+      <span className={`text-[9px] leading-none ${sort.key === k ? 'text-accent-signature' : 'text-muted-foreground'}`}>
+        {sort.key === k ? (sort.dir === 'asc' ? '▲' : '▼') : '▲▼'}
+      </span>
+    </button>
+  );
+
+  // Distinct cashiers / methods present in the current date window (for dropdowns).
+  const cashierOptions = useMemo(() => {
+    const set = new Set();
+    for (const s of sales) { if (inDateRange(s)) set.add(getCashier(s) || '—'); }
+    return [...set].sort();
+  }, [sales, inDateRange, getCashier]);
+  const payOptions = useMemo(() => {
+    const set = new Set();
+    for (const s of sales) { if (inDateRange(s) && s.paymentMethod) set.add(String(s.paymentMethod).toUpperCase()); }
+    return [...set].sort();
+  }, [sales, inDateRange]);
 
   // ---------- CSV export ----------
   const handleExport = () => {
-    const rows = filteredSales.map(s => ({
+    const rows = sortedSales.map(s => ({
       date: s.date || '',
       time: formatTime(s.created_at),
       invoice: shortRef(s.id),
@@ -202,6 +256,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
       discount: s.discount ?? '',
       total: s.totalAmount ?? 0,
       paid: s.paidAmount ?? 0,
+      amount_received: s.amount_received ?? '',
       outstanding: outstandingOf(s),
       status: getStatus(s),
       payment_method: s.paymentMethod || '',
@@ -223,13 +278,13 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
   };
 
   const headers = [
-    { label: 'Date / Time' },
-    { label: 'Invoice' },
-    { label: 'Client' },
-    { label: 'Cashier' },
-    { label: 'Items', className: 'text-center' },
-    { label: 'Amount', className: 'text-right' },
-    { label: 'Status', className: 'text-center' },
+    { label: <SortLabel k="date">Date / Time</SortLabel> },
+    { label: <SortLabel k="invoice">Invoice</SortLabel> },
+    { label: <SortLabel k="client">Client</SortLabel> },
+    { label: <SortLabel k="cashier">Cashier</SortLabel> },
+    { label: <SortLabel k="items">Items</SortLabel>, className: 'text-center' },
+    { label: <SortLabel k="amount">Amount</SortLabel>, className: 'text-right' },
+    { label: <SortLabel k="status">Status</SortLabel>, className: 'text-center' },
     { label: '', className: 'text-right' },
   ];
 
@@ -259,33 +314,33 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
         className="group hover:bg-canvas/70 transition-colors cursor-pointer"
       >
         <td className="px-4 py-4">
-          <div className="text-sm font-semibold text-ink-primary">{formatDate(sale.date)}</div>
+          <div className="text-sm font-semibold text-foreground">{formatDate(sale.date)}</div>
           {sale.created_at && (
-            <div className="text-[11px] font-medium text-gray-500 mt-0.5">{formatTime(sale.created_at)}</div>
+            <div className="text-[11px] font-medium text-muted-foreground mt-0.5">{formatTime(sale.created_at)}</div>
           )}
         </td>
         <td className="px-4 py-4">
-          <div className="text-sm font-bold text-ink-primary tracking-tight">#{shortRef(sale.id)}</div>
+          <div className="text-sm font-semibold text-foreground tracking-tight">#{shortRef(sale.id)}</div>
         </td>
         <td className="px-4 py-4">
-          <div className="text-sm font-semibold text-ink-primary">{clientName}</div>
-          <div className="flex items-center gap-1.5 mt-0.5 text-[11px] font-medium text-gray-500">
+          <div className="text-sm font-semibold text-foreground">{clientName}</div>
+          <div className="flex items-center gap-1.5 mt-0.5 text-[11px] font-medium text-muted-foreground">
             <PayIcon size={12} />
             <span>{payMethod || '—'}</span>
           </div>
         </td>
         <td className="px-4 py-4">
-          <div className="text-xs font-semibold text-gray-600">{cashier || '—'}</div>
+          <div className="text-xs font-semibold text-muted-foreground">{cashier || '—'}</div>
         </td>
         <td className="px-4 py-4 text-center">
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600">
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
             <Package size={12} className="opacity-60" /> {qty || 0}
           </span>
         </td>
         <td className="px-4 py-4 text-right">
-          <div className={`text-sm font-bold tabular-nums ${voided ? 'text-gray-400 line-through' : 'text-ink-primary'}`}>{formatCurrency(sale.totalAmount)}</div>
+          <div className={`text-sm font-semibold tabular-nums ${voided ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{formatCurrency(sale.totalAmount)}</div>
           {!paid && !voided && outstanding > 0 && (
-            <div className="text-[11px] font-semibold text-amber-600 tabular-nums mt-0.5">
+            <div className="text-[11px] font-semibold text-accent-signature tabular-nums mt-0.5">
               Due: {formatCurrency(outstanding)}
             </div>
           )}
@@ -297,31 +352,31 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
                 ? 'bg-red-50 text-red-700 ring-1 ring-red-200/60'
                 : paid
                 ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60'
-                : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/60'
+                : 'bg-accent-signature/10 text-accent-signature-hover ring-1 ring-accent-signature/20'
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${voided ? 'bg-red-500' : paid ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${voided ? 'bg-red-500' : paid ? 'bg-emerald-500' : 'bg-accent-signature'}`} />
               {voided ? 'Failed' : paid ? 'Paid' : 'Pending'}
             </span>
             {deliveryBadge && (
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ring-1 ${deliveryBadge.bg} ${deliveryBadge.text} ${deliveryBadge.ring}`}>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold ring-1 ${deliveryBadge.bg} ${deliveryBadge.text} ${deliveryBadge.ring}`}>
                 <Truck size={9} />
                 {deliveryBadge.label}
               </span>
             )}
             {sale.fulfillment_status === 'PENDING_DISPATCH' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ring-1 bg-orange-50 text-orange-700 ring-orange-200/60">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold ring-1 bg-orange-50 text-orange-700 ring-orange-200/60">
                 <PackageCheck size={9} />
                 Pending Dispatch
               </span>
             )}
             {sale.fulfillment_status === 'DISPATCHED' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ring-1 bg-emerald-50 text-emerald-700 ring-emerald-200/60">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold ring-1 bg-emerald-50 text-emerald-700 ring-emerald-200/60">
                 <PackageCheck size={9} />
                 Dispatched
               </span>
             )}
             {isReturned && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ring-1 bg-rose-50 text-rose-700 ring-rose-200/60">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold ring-1 bg-rose-50 text-rose-700 ring-rose-200/60">
                 <RotateCcw size={9} />
                 Returned
               </span>
@@ -334,7 +389,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
               <button
                 onClick={() => { setDetailSale(sale); setSettleInput(String(outstanding)); }}
                 title="Settle Payment"
-                className="p-2 rounded-lg hover:bg-emerald-50 text-gray-400 hover:text-emerald-600 transition-colors"
+                className="p-2 rounded-lg hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600 transition-colors"
               >
                 <CheckCircle2 size={15} />
               </button>
@@ -352,7 +407,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
               <button
                 onClick={() => onEdit(sale)}
                 title="Edit sale — stock & balance re-sync"
-                className="p-2 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+                className="p-2 rounded-lg hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature transition-colors"
               >
                 <Pencil size={15} />
               </button>
@@ -361,7 +416,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
               <button
                 onClick={() => onReturn(sale)}
                 title="Process Return"
-                className="p-2 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 transition-colors"
+                className="p-2 rounded-lg hover:bg-rose-50 text-muted-foreground hover:text-rose-600 transition-colors"
               >
                 <RotateCcw size={15} />
               </button>
@@ -373,15 +428,15 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
                 disabled={!!sale.invoice_id}
                 className={`p-2 rounded-lg transition-colors ${sale.invoice_id
                   ? 'text-emerald-500 cursor-default'
-                  : 'text-gray-400 hover:bg-blue-50 hover:text-blue-600'}`}
+                  : 'text-muted-foreground hover:bg-blue-50 hover:text-blue-600'}`}
               >
                 <FileText size={15} />
               </button>
             )}
-            <button onClick={() => onPrint(sale)} title="Print / View" className="p-2 rounded-lg hover:bg-white text-gray-500 hover:text-ink-primary transition-colors">
+            <button onClick={() => onPrint(sale)} title="Print / View" className="p-2 rounded-lg hover:bg-card text-muted-foreground hover:text-foreground transition-colors">
               <Printer size={15} />
             </button>
-            <button onClick={() => onDelete(sale.id)} title="Delete" className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors">
+            <button onClick={() => onDelete(sale.id)} title="Delete" className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors">
               <Trash2 size={15} />
             </button>
           </div>
@@ -396,12 +451,12 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
       className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
         statusFilter === k
           ? 'bg-ink-primary text-surface'
-          : 'bg-white text-gray-600 hover:text-ink-primary border border-black/5'
+          : 'bg-card text-muted-foreground hover:text-foreground border border-border/60'
       }`}
     >
       {label}
       {count != null && (
-        <span className={`ml-1.5 ${statusFilter === k ? 'opacity-70' : 'text-gray-400'}`}>{count}</span>
+        <span className={`ml-1.5 ${statusFilter === k ? 'opacity-70' : 'text-muted-foreground'}`}>{count}</span>
       )}
     </button>
   );
@@ -412,7 +467,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
       className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
         dateFilter === k
           ? 'bg-accent-signature text-button-text'
-          : 'bg-white text-gray-600 hover:text-ink-primary border border-black/5'
+          : 'bg-card text-muted-foreground hover:text-foreground border border-border/60'
       }`}
     >
       {label}
@@ -436,7 +491,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
 
       {/* Date range */}
       <div className="flex flex-wrap items-center gap-2">
-        <Calendar size={14} className="text-gray-400" />
+        <Calendar size={14} className="text-muted-foreground" />
         <DateTab k="ALL" label="All time" />
         <DateTab k="TODAY" label="Today" />
         <DateTab k="7D" label="7 days" />
@@ -448,14 +503,14 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
               type="date"
               value={customRange.from}
               onChange={e => setCustomRange(r => ({ ...r, from: e.target.value }))}
-              className="px-2.5 py-1.5 rounded-lg border border-black/10 text-xs font-semibold bg-white"
+              className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-semibold bg-card"
             />
-            <span className="text-xs text-gray-400">to</span>
+            <span className="text-xs text-muted-foreground">to</span>
             <input
               type="date"
               value={customRange.to}
               onChange={e => setCustomRange(r => ({ ...r, to: e.target.value }))}
-              className="px-2.5 py-1.5 rounded-lg border border-black/10 text-xs font-semibold bg-white"
+              className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-semibold bg-card"
             />
           </div>
         )}
@@ -464,11 +519,11 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
       {/* Search + status tabs + export */}
       <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
         <div className="relative flex-1 md:max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
           <input
             type="text"
             placeholder="Search invoice # or client…"
-            className="w-full bg-white rounded-xl py-2.5 pl-10 pr-4 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/30 text-sm font-medium"
+            className="w-full bg-card rounded-xl py-2.5 pl-10 pr-4 border border-border/60 outline-none focus:ring-2 focus:ring-accent-signature/30 text-sm font-medium"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -478,10 +533,30 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           <StatusTab k="PAID" label="Paid" count={summary.paid} />
           <StatusTab k="PENDING" label="Pending" count={summary.pending} />
           {summary.failed > 0 && <StatusTab k="FAILED" label="Failed" count={summary.failed} />}
+          <select
+            value={payFilter}
+            onChange={e => setPayFilter(e.target.value)}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-card border border-border/60 text-muted-foreground outline-none cursor-pointer"
+            title="Payment method"
+          >
+            <option value="ALL">All methods</option>
+            {payOptions.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          {cashierOptions.length > 1 && (
+            <select
+              value={cashierFilter}
+              onChange={e => setCashierFilter(e.target.value)}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-card border border-border/60 text-muted-foreground outline-none cursor-pointer"
+              title="Cashier"
+            >
+              <option value="ALL">All cashiers</option>
+              {cashierOptions.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
           <button
             onClick={handleExport}
-            disabled={!filteredSales.length}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-gray-700 hover:text-ink-primary hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            disabled={!sortedSales.length}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-card border border-border/60 text-ink-secondary hover:text-foreground hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Export CSV"
           >
             <Download size={13} /> Export
@@ -492,10 +567,10 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
       {/* Table */}
       <Table
         headers={headers}
-        rows={filteredSales}
+        rows={sortedSales}
         renderRow={renderRow}
         emptyMessage={
-          <div className="flex flex-col items-center gap-2 py-8 text-gray-500">
+          <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
             <Receipt size={24} className="opacity-40" />
             <div className="text-sm font-semibold">No sales match</div>
             <div className="text-xs">Adjust filters or date range.</div>
@@ -512,17 +587,32 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           subtitle={`${getClientName(detailSale)} · ${formatDate(detailSale.date)}`}
           maxWidth="max-w-2xl"
         >
-          <SaleDetail
-            sale={detailSale}
-            clientName={getClientName(detailSale)}
-            cashier={getCashier(detailSale)}
-            productNameOf={getProductName}
-            outstanding={outstandingOf(detailSale)}
-            settleInput={settleInput}
-            setSettleInput={setSettleInput}
-            onSettle={onSettle ? handleSettle : null}
-            onPrint={() => onPrint(detailSale)}
-          />
+          {(() => {
+            // The client's TOTAL across all bills, so this one bill's balance
+            // isn't mistaken for the whole account.
+            const cid = detailSale.customerInfo?.id || detailSale.shopId || null;
+            const cli = cid ? (clients || []).find(c => c.id === cid) : null;
+            const clientOutstanding = Number(cli?.outstanding_balance) || 0;
+            const clientBills = cid
+              ? (invoices || []).filter(i => i.client_id === cid && !i.deleted_at && (i.payment_status || '').toUpperCase() !== 'PAID').length
+              : 0;
+            return (
+              <SaleDetail
+                sale={detailSale}
+                clientName={getClientName(detailSale)}
+                cashier={getCashier(detailSale)}
+                productNameOf={getProductName}
+                outstanding={outstandingOf(detailSale)}
+                clientName2={cli?.name}
+                clientOutstanding={clientOutstanding}
+                clientBills={clientBills}
+                settleInput={settleInput}
+                setSettleInput={setSettleInput}
+                onSettle={onSettle ? handleSettle : null}
+                onPrint={() => onPrint(detailSale)}
+              />
+            );
+          })()}
         </Modal>
       )}
     </div>
@@ -535,19 +625,20 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
 const SummaryCard = ({ label, value, sub, tone }) => {
   const toneCls =
     tone === 'emerald' ? 'text-emerald-600'
-    : tone === 'amber' ? 'text-amber-600'
-    : 'text-ink-primary';
+    : tone === 'amber' ? 'text-accent-signature'
+    : 'text-foreground';
   return (
-    <div className="bg-white rounded-2xl border border-black/5 px-4 py-3">
-      <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</div>
-      <div className={`text-xl font-bold mt-0.5 ${toneCls}`}>{value}</div>
-      {sub && <div className="text-[11px] font-semibold text-gray-500 mt-0.5">{sub}</div>}
+    <div className="bg-card rounded-2xl border border-border/60 px-4 py-3">
+      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
+      <div className={`text-xl font-semibold mt-0.5 ${toneCls}`}>{value}</div>
+      {sub && <div className="text-[11px] font-semibold text-muted-foreground mt-0.5">{sub}</div>}
     </div>
   );
 };
 
 const SaleDetail = ({
   sale, clientName, cashier, productNameOf, outstanding,
+  clientName2, clientOutstanding = 0, clientBills = 0,
   settleInput, setSettleInput, onSettle, onPrint
 }) => {
   const items = Array.isArray(sale.items) ? sale.items : [];
@@ -571,48 +662,97 @@ const SaleDetail = ({
       </div>
 
       {/* Line items */}
-      <div className="border border-black/5 rounded-xl overflow-hidden">
-        <div className="bg-canvas px-4 py-2 text-[11px] font-bold text-gray-600 uppercase tracking-wider grid grid-cols-12 gap-2">
+      <div className="border border-border/60 rounded-xl overflow-hidden">
+        <div className="bg-canvas px-4 py-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider grid grid-cols-12 gap-2">
           <div className="col-span-6">Item</div>
           <div className="col-span-2 text-center">Qty</div>
           <div className="col-span-2 text-right">Price</div>
           <div className="col-span-2 text-right">Total</div>
         </div>
         {items.length === 0 ? (
-          <div className="p-6 text-center text-xs text-gray-500">No line items</div>
+          <div className="p-6 text-center text-xs text-muted-foreground">No line items</div>
         ) : items.map((it, idx) => {
           const name = it.name || productNameOf(it.id || it.productId);
           const qty = Number(it.quantity) || 0;
           const price = Number(it.rate ?? it.price ?? it.unitPrice ?? it.sellingPrice ?? 0);
           const total = qty * price;
           return (
-            <div key={idx} className="px-4 py-2.5 text-sm grid grid-cols-12 gap-2 items-center border-t border-black/5">
-              <div className="col-span-6 font-semibold text-ink-primary truncate">{name}</div>
-              <div className="col-span-2 text-center font-semibold text-gray-600">{qty}</div>
-              <div className="col-span-2 text-right text-gray-600 tabular-nums">{formatCurrency(price)}</div>
-              <div className="col-span-2 text-right font-bold text-ink-primary tabular-nums">{formatCurrency(total)}</div>
+            <div key={idx} className="px-4 py-2.5 text-sm grid grid-cols-12 gap-2 items-center border-t border-border/60">
+              <div className="col-span-6 font-semibold text-foreground truncate">{name}</div>
+              <div className="col-span-2 text-center font-semibold text-muted-foreground">{qty}</div>
+              <div className="col-span-2 text-right text-muted-foreground tabular-nums">{formatCurrency(price)}</div>
+              <div className="col-span-2 text-right font-semibold text-foreground tabular-nums">{formatCurrency(total)}</div>
             </div>
           );
         })}
       </div>
 
-      {/* Totals */}
+      {/* Totals — reconstruct Subtotal from Total so the column always ties
+          out (Subtotal − Discount + Tax = Total). The stored subtotal is often
+          null; falling back to totalAmount printed the already-net total as the
+          "Subtotal" and then subtracted the discount again, so it didn't add up. */}
+      {(() => {
+        const disc = Number(sale.discount) || 0;
+        const tax  = Number(sale.tax) || 0;
+        const shownSubtotal = (Number(sale.totalAmount) || 0) + disc - tax;
+        return (
       <div className="bg-canvas rounded-xl p-4 space-y-1.5">
-        <TotalRow label="Subtotal" value={formatCurrency(sale.subtotal ?? sale.totalAmount)} />
+        <TotalRow label="Subtotal" value={formatCurrency(shownSubtotal)} />
         {sale.discount > 0 && <TotalRow label="Discount" value={`− ${formatCurrency(sale.discount)}`} />}
         {sale.tax > 0 && <TotalRow label="Tax" value={formatCurrency(sale.tax)} />}
         <div className="h-px bg-black/10 my-2" />
         <TotalRow label="Total" value={formatCurrency(sale.totalAmount)} bold />
         {Number(sale.paidAmount) > 0 && (
-          <TotalRow label="Paid" value={formatCurrency(sale.paidAmount)} tone="emerald" />
+          <TotalRow label="Paid on this bill" value={formatCurrency(sale.paidAmount)} tone="emerald" />
         )}
+        {/* Actual tender. paidAmount is capped at the bill, so a customer who
+            handed over more (change given, or the excess put against older
+            dues) is invisible without this. Only shown when recorded —
+            historical sales and phones older than v1.5.73 leave it null, and
+            inventing a figure would be worse than omitting it. */}
+        {(() => {
+          const received = Number(sale.amount_received);
+          if (!Number.isFinite(received) || received <= 0) return null;
+          const extra = received - (Number(sale.totalAmount) || 0);
+          return (
+            <>
+              <TotalRow label="Amount received" value={formatCurrency(received)} tone="emerald" />
+              {extra > 0.5 && (
+                /* Say which of the two fates this surplus met. "Excess
+                   received" covered both and so told the reader neither: on a
+                   cash sale it reads as money the shop is holding, when it was
+                   handed back at the counter — and crediting that against the
+                   client's dues pays the same rupees out twice. The payment
+                   method decides it, exactly as it does at checkout, so one
+                   sale reads the same on both screens. */
+                <TotalRow
+                  label={surplusLabel(sale.paymentMethod).label}
+                  value={formatCurrency(extra)}
+                />
+              )}
+            </>
+          );
+        })()}
+        {/* "Outstanding" alone read as the client's whole account — this is
+            only this bill. Relabelled, with the account total shown separately
+            when it differs. */}
         {!paid && !voided && outstanding > 0 && (
-          <TotalRow label="Outstanding" value={formatCurrency(outstanding)} tone="amber" bold />
+          <TotalRow label="Balance due (this bill)" value={formatCurrency(outstanding)} tone="amber" bold />
+        )}
+        {!paid && !voided && clientOutstanding > 0 && Math.abs(clientOutstanding - outstanding) > 0.5 && (
+          <div className="flex items-center justify-between text-[11px] pt-1">
+            <span className="text-muted-foreground">{clientName2 || clientName} — total outstanding</span>
+            <span className="font-semibold text-amber-600 tabular-nums">
+              {formatCurrency(clientOutstanding)}{clientBills > 1 ? ` · ${clientBills} bills` : ''}
+            </span>
+          </div>
         )}
         {voided && (
           <TotalRow label="Status" value="Voided — no payment due" tone="red" bold />
         )}
       </div>
+        );
+      })()}
 
       {/* Settle + print */}
       <div className="flex items-center gap-2">
@@ -625,11 +765,11 @@ const SaleDetail = ({
               value={settleInput}
               onChange={e => setSettleInput(e.target.value)}
               placeholder="Amount"
-              className="flex-1 px-3 py-2.5 rounded-lg border border-black/10 text-sm font-semibold"
+              className="flex-1 px-3 py-2.5 rounded-lg border border-border text-sm font-semibold"
             />
             <button
               onClick={onSettle}
-              className="px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
+              className="px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
             >
               <CheckCircle2 size={14} /> Record Payment
             </button>
@@ -637,7 +777,7 @@ const SaleDetail = ({
         )}
         <button
           onClick={onPrint}
-          className="px-4 py-2.5 rounded-lg bg-ink-primary text-surface text-xs font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5"
+          className="px-4 py-2.5 rounded-lg bg-ink-primary text-surface text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1.5"
         >
           <Printer size={14} /> Print
         </button>
@@ -649,14 +789,14 @@ const SaleDetail = ({
 const MetaRow = ({ icon: Icon, label, value, tone }) => {
   const toneCls =
     tone === 'emerald' ? 'text-emerald-600'
-    : tone === 'amber' ? 'text-amber-600'
+    : tone === 'amber' ? 'text-accent-signature'
     : tone === 'red' ? 'text-red-600'
-    : 'text-ink-primary';
+    : 'text-foreground';
   return (
     <div className="flex items-start gap-2.5 p-3 bg-canvas rounded-xl">
-      <Icon size={14} className="text-gray-400 mt-0.5" />
+      <Icon size={14} className="text-muted-foreground mt-0.5" />
       <div>
-        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</div>
+        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
         <div className={`text-sm font-semibold ${toneCls}`}>{value}</div>
       </div>
     </div>
@@ -666,13 +806,13 @@ const MetaRow = ({ icon: Icon, label, value, tone }) => {
 const TotalRow = ({ label, value, bold, tone }) => {
   const toneCls =
     tone === 'emerald' ? 'text-emerald-600'
-    : tone === 'amber' ? 'text-amber-600'
+    : tone === 'amber' ? 'text-accent-signature'
     : tone === 'red' ? 'text-red-600'
-    : 'text-ink-primary';
+    : 'text-foreground';
   return (
     <div className="flex items-center justify-between">
-      <span className={`text-xs font-semibold ${bold ? 'text-ink-primary' : 'text-gray-600'}`}>{label}</span>
-      <span className={`text-sm tabular-nums ${bold ? 'font-bold' : 'font-semibold'} ${toneCls}`}>{value}</span>
+      <span className={`text-xs font-semibold ${bold ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
+      <span className={`text-sm tabular-nums ${bold ? 'font-semibold' : 'font-semibold'} ${toneCls}`}>{value}</span>
     </div>
   );
 };

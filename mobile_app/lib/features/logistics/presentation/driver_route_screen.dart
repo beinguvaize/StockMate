@@ -47,8 +47,8 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
             ),
             Text(
               'DRIVER CONSOLE',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
                 letterSpacing: 1.5,
@@ -134,7 +134,7 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
                   // Look up van's inventory location, then open AddSaleScreen
                   final locRes = await supabase
                       .from('inventory_locations')
-                      .select('id')
+                      .select('id').isFilter('deleted_at', null)
                       .eq('type', 'VEHICLE')
                       .eq('reference_id', route.vehicleId ?? '')
                       .maybeSingle();
@@ -153,9 +153,9 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
                 icon: const Icon(LucideIcons.shoppingCart, size: 18),
                 label: Text(
                   'QUICK SALE',
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.manrope(
                     fontWeight: FontWeight.w900,
-                    fontSize: 12,
+                    fontSize: 13,
                   ),
                 ),
               )
@@ -211,7 +211,7 @@ class _RouteHeader extends StatelessWidget {
                     Text(
                       route.date ?? '',
                       style: GoogleFonts.manrope(
-                        fontSize: 11,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.secondary,
                       ),
@@ -230,8 +230,8 @@ class _RouteHeader extends StatelessWidget {
             ),
             child: Text(
               'ACTIVE',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
                 letterSpacing: 1.2,
@@ -444,7 +444,7 @@ class _StopCardState extends ConsumerState<_StopCard> {
                         : Center(
                             child: Text(
                               '${widget.stop.sequence}',
-                              style: GoogleFonts.jetBrainsMono(
+                              style: GoogleFonts.manrope(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 13,
                                 color: AppColors.primary,
@@ -470,7 +470,7 @@ class _StopCardState extends ConsumerState<_StopCard> {
                           Text(
                             'Collected: ${widget.stop.cashCollected.toStringAsFixed(0)}',
                             style: GoogleFonts.manrope(
-                              fontSize: 11,
+                              fontSize: 13,
                               color: AppColors.success,
                               fontWeight: FontWeight.w700,
                             ),
@@ -479,7 +479,7 @@ class _StopCardState extends ConsumerState<_StopCard> {
                           Text(
                             _formatTime(widget.stop.visitedAt!),
                             style: GoogleFonts.manrope(
-                              fontSize: 10,
+                              fontSize: 13,
                               color: AppColors.inkTertiary,
                             ),
                           ),
@@ -497,8 +497,8 @@ class _StopCardState extends ConsumerState<_StopCard> {
                       ),
                       child: Text(
                         widget.stop.status,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: _statusColor,
                         ),
@@ -537,8 +537,8 @@ class _StopCardState extends ConsumerState<_StopCard> {
                         const SizedBox(width: 6),
                         Text(
                           'CASH COLLECTED',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.5,
                             color: AppColors.primary,
@@ -551,19 +551,19 @@ class _StopCardState extends ConsumerState<_StopCard> {
                       controller: _cashController,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
-                      style: GoogleFonts.jetBrainsMono(
+                      style: GoogleFonts.manrope(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: AppColors.inkPrimary,
                       ),
                       decoration: InputDecoration(
                         hintText: '0.00',
-                        hintStyle: GoogleFonts.jetBrainsMono(
+                        hintStyle: GoogleFonts.manrope(
                           fontSize: 15,
                           color: AppColors.inkTertiary,
                         ),
                         prefixText: '${ref.watch(currencySymbolProvider).valueOrNull ?? ''} ',
-                        prefixStyle: GoogleFonts.jetBrainsMono(
+                        prefixStyle: GoogleFonts.manrope(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,
@@ -660,8 +660,8 @@ class _ActionBtn extends StatelessWidget {
             const SizedBox(height: 3),
             Text(
               label,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 8,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w900,
                 color: color,
               ),
@@ -681,7 +681,7 @@ class _NoRouteView extends ConsumerWidget {
     // Load VEHICLE-type inventory locations that have stock
     final locRows = await supabase
         .from('inventory_locations')
-        .select('id, reference_id, name')
+        .select('id, reference_id, name').isFilter('deleted_at', null)
         .eq('type', 'VEHICLE');
 
     if (!context.mounted) return;
@@ -806,9 +806,9 @@ class _NoRouteView extends ConsumerWidget {
             icon: const Icon(LucideIcons.shoppingCart, size: 16),
             label: Text(
               'MAKE A SALE',
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w900,
-                fontSize: 12,
+                fontSize: 13,
                 letterSpacing: 1.2,
               ),
             ),
@@ -850,7 +850,7 @@ class _EmptyStops extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           'You can still make walk-in van sales.',
-          style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
+          style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
         ),
       ],
     ),

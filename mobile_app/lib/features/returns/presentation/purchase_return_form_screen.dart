@@ -211,8 +211,8 @@ class _PurchaseReturnFormScreenState
             ),
             Text(
               'DEBIT NOTE',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkTertiary,
                 letterSpacing: 1.5,
@@ -299,8 +299,8 @@ class _PurchaseReturnFormScreenState
                     : Text(
                         'RETURN ${_step == 1.0 ? _returnQty.toStringAsFixed(0) : _returnQty.toStringAsFixed(2)} UNITS'
                         ' · ₹${returnValue.toStringAsFixed(2)}',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 12,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1,
                         ),
@@ -328,8 +328,8 @@ class _SectionLabel extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           title,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 10,
+          style: GoogleFonts.manrope(
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             color: AppColors.inkTertiary,
             letterSpacing: 1.3,
@@ -487,8 +487,8 @@ class _ReturnQtyCard extends StatelessWidget {
                   ),
                   Text(
                     'UNITS',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkTertiary,
                       letterSpacing: 1.5,
@@ -525,14 +525,14 @@ class _ReturnQtyCard extends StatelessWidget {
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
               ],
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.manrope(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: AppColors.inkPrimary,
               ),
               decoration: InputDecoration(
                 hintText: '0',
-                hintStyle: GoogleFonts.jetBrainsMono(
+                hintStyle: GoogleFonts.manrope(
                     fontSize: 16, color: AppColors.inkTertiary),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
@@ -584,7 +584,7 @@ class _ReturnQtyCard extends StatelessWidget {
               Text(
                 'Max returnable: $maxLabel units',
                 style: GoogleFonts.manrope(
-                  fontSize: 12,
+                  fontSize: 13,
                   color: AppColors.inkTertiary,
                 ),
               ),
@@ -688,7 +688,7 @@ class _DetailsCard extends StatelessWidget {
                       children: [
                         Text('Return Date',
                             style: GoogleFonts.manrope(
-                                fontSize: 11, color: AppColors.inkTertiary)),
+                                fontSize: 13, color: AppColors.inkTertiary)),
                         const SizedBox(height: 2),
                         Text(
                           fmtDate(date),
@@ -738,7 +738,7 @@ class _DetailsCard extends StatelessWidget {
                     children: [
                       Text('Reason (optional)',
                           style: GoogleFonts.manrope(
-                              fontSize: 11, color: AppColors.inkTertiary)),
+                              fontSize: 13, color: AppColors.inkTertiary)),
                       const SizedBox(height: 4),
                       TextField(
                         controller: reasonController,
@@ -807,7 +807,7 @@ class _InfoRow extends StatelessWidget {
               children: [
                 Text(label,
                     style: GoogleFonts.manrope(
-                        fontSize: 11, color: AppColors.inkTertiary)),
+                        fontSize: 13, color: AppColors.inkTertiary)),
                 const SizedBox(height: 2),
                 Text(
                   value,
