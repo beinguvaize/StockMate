@@ -31,3 +31,110 @@
     transition: none;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE OFFLINE SEQUENCE
+   ═══════════════════════════════════════════════════════════════════════════
+
+   The product's real claim is that it keeps working when the connection does
+   not. The page used to assert that in a sentence. This demonstrates it: the
+   connection drops, a bill is still taken at the counter and saved on the
+   device, and it syncs the moment the line comes back.
+
+   Motion is allowed to be this deliberate here because its PURPOSE is
+   explanation, on a marketing page, seen once. The same sequence on a screen
+   a shopkeeper opens forty times a day would be indefensible.
+
+   CSS animation rather than JavaScript on purpose: predetermined motion that
+   must stay smooth while the rest of the page is still loading runs off the
+   main thread. A requestAnimationFrame loop would drop frames during exactly
+   the seconds this plays.
+
+   One 12s cycle, three beats:
+     0-33%    online, synced
+     33-66%   offline -- a bill is taken anyway and held on the device
+     66-100%  back online, the held bill goes up
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* The beat lives on :root, not on .offline-seq.
+   The connection pill's three states are children of .offline-seq and inherit
+   it, but the queued bill, its captions and the dimmed panel sit elsewhere in
+   the document -- so var(--beat) resolved to nothing there, the animation
+   shorthand became invalid, and those three animations were silently dropped.
+   Nothing errors; the elements just sit still. */
+:root { --beat: 12s; }
+
+/* The three states of the connection pill occupy the same box, so the chrome
+   never reflows as they swap. */
+.seq-state {
+  grid-area: 1 / 1;
+  opacity: 0;
+  animation: seqState var(--beat) var(--ease-out, cubic-bezier(.23,1,.32,1)) infinite;
+}
+.seq-state[data-beat="1"] { animation-delay: 0s; }
+.seq-state[data-beat="2"] { animation-delay: calc(var(--beat) / 3); }
+.seq-state[data-beat="3"] { animation-delay: calc(var(--beat) / 3 * 2); }
+
+@keyframes seqState {
+  0%,  2%  { opacity: 0; transform: translateY(-3px); }
+  5%, 30%  { opacity: 1; transform: none; }
+  33%,100% { opacity: 0; transform: translateY(3px); }
+}
+
+/* The bill taken while the line is down. It arrives during beat two and stays
+   -- the point is that the sale completed, not that something flashed. */
+.seq-bill {
+  opacity: 0;
+  animation: seqBill var(--beat) var(--ease-out, cubic-bezier(.23,1,.32,1)) infinite;
+}
+@keyframes seqBill {
+  0%, 33%   { opacity: 0; transform: translateY(6px); }
+  38%, 100% { opacity: 1; transform: none; }
+}
+
+/* Its status caption changes from held-on-device to synced at the third beat.
+   Two captions crossfading in place, so the row never jumps. */
+.seq-held  { animation: seqHeld  var(--beat) linear infinite; }
+.seq-sent  { animation: seqSent  var(--beat) linear infinite; opacity: 0; }
+@keyframes seqHeld { 0%,36% { opacity: 0 } 40%,64% { opacity: 1 } 68%,100% { opacity: 0 } }
+@keyframes seqSent { 0%,64% { opacity: 0 } 70%,100% { opacity: 1 } }
+
+/* The whole panel dims a shade while the line is down. Barely perceptible --
+   enough to feel the state change without making the UI look broken. */
+.seq-dim {
+  animation: seqDim var(--beat) var(--ease-out, cubic-bezier(.23,1,.32,1)) infinite;
+}
+@keyframes seqDim {
+  0%, 33%  { filter: none; }
+  40%, 64% { filter: saturate(0.82); }
+  70%,100% { filter: none; }
+}
+
+/* Reduced motion: the sequence does not play. It settles on the state that
+   makes the claim WITHOUT moving -- connection down, bill taken anyway --
+   because that is the whole point, and a user who asked for less motion
+   should still get the message rather than an empty box. */
+@media (prefers-reduced-motion: reduce) {
+  .seq-state, .seq-bill, .seq-held, .seq-sent, .seq-dim { animation: none; }
+  .seq-state { opacity: 0; }
+  .seq-state[data-beat="2"] { opacity: 1; }
+  .seq-bill  { opacity: 1; transform: none; }
+  .seq-held  { opacity: 1; }
+  .seq-sent  { opacity: 0; }
+}
+
+/* ── The ruled line ─────────────────────────────────────────────────────────
+   A bahi khata is ruled paper. Section breaks borrow that rather than another
+   drop shadow: one hairline, and a short amber tick where the eye should
+   start. It is the page's own motif, drawn from what the product replaces. */
+.ruled {
+  border-top: 1px solid var(--line, #e7e5e4);
+  position: relative;
+}
+.ruled::before {
+  content: "";
+  position: absolute;
+  top: -1px; left: 0;
+  width: 44px; height: 2px;
+  background: var(--accent, #D97706);
+}
