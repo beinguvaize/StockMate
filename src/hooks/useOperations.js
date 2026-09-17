@@ -2,12 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import { isElectron, fetchWithCache } from '../lib/offline/hookAdapter';
+import { restRpc } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 import { realtimeEnabled } from '../lib/realtime';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
 const MOVEMENT_NUMERIC = ['quantity'];
 
 export const useOperations = (tenantId) => {
+  const { currentUser } = useAuth();
   const [routes,           setRoutes]           = useState([]);
   const [routeStops,       setRouteStops]       = useState([]);
   const [movementLog,      setMovementLog]      = useState([]);
@@ -254,62 +257,54 @@ export const useOperations = (tenantId) => {
   // ── Van Sale ─────────────────────────────────────────────────────────
   // Records a direct cash/credit sale made from vehicle inventory.
   // vehicleLocId: inventory_locations.id for the vehicle (caller resolves it)
+  //
+  // This used to INSERT the sales row straight from the client and then adjust
+  // the vehicle's stock separately. Three things were wrong with that:
+  //
+  //   * No COGS. process_sale is what walks the FIFO batches and sets
+  //     totalCogs; a sale inserted around it recorded cost ZERO, so every van
+  //     sale showed the full sale value as profit.
+  //   * No batch consumption, so the batches those goods came out of were
+  //     never drawn down and later sales costed against stock already sold.
+  //   * The line objects were keyed `productId`, while everything server-side
+  //     reads `id` — so the derived sale_items rows came out with a null
+  //     product, and after the blob stops being written they would not exist
+  //     at all.
+  //
+  // Money logic belongs server-side. Passing the vehicle location makes
+  // process_sale mark it VAN_SALE, deduct from that location, walk the
+  // batches and write the movement log itself -- which is why the separate
+  // adjust_inventory_atomic loop is gone rather than kept alongside: it would
+  // have deducted the same units a second time.
   const recordVanSale = async (routeId, vehicleLocId, { clientName, items, totalAmount, paymentMethod, vehicleId }) => {
+    if (!currentUser?.id) return { success: false, error: new Error('recordVanSale: not authenticated') };
     const today = new Date().toISOString().split('T')[0];
     const saleId = crypto.randomUUID();
 
-    // Resolve vehicleId from the inventory location if not passed
-    // directly. useOperations doesn't hold the locations list, so look
-    // the single row up from supabase (only runs on the rare path where
-    // the caller didn't already pass vehicleId).
-    let resolvedVehicleId = vehicleId || null;
-    if (!resolvedVehicleId && vehicleLocId) {
-      const { data: loc } = await supabase
-        .from('inventory_locations')
-        .select('reference_id').is('deleted_at', null)
-        .eq('id', vehicleLocId)
-        .maybeSingle();
-      resolvedVehicleId = loc?.reference_id || null;
-    }
-
-    // 1. Insert sale record (same shape as POS sales)
-    const { error: saleErr } = await supabase.from('sales').insert({
-      id: saleId,
-      shopId: null,
-      customerInfo: clientName ? { name: clientName } : null,
-      items: items.map(i => ({
-        productId:    i.productId,
-        name:         i.productName,
-        quantity:     i.quantity,
-        rate:         i.sellingPrice,   // matches POS key so reports aggregate correctly
-        sellingPrice: i.sellingPrice,   // kept for backward compat
-        costPrice:    i.costPrice || 0,
-        taxRate:      0,
+    const { error: rpcError } = await restRpc('process_sale', {
+      p_id: saleId,
+      p_shop_id: null,
+      // `id` is the key every server-side reader uses. `rate` matches the POS
+      // so reports aggregate the two kinds of sale together.
+      p_items: (items || []).map(i => ({
+        id: i.productId,
+        name: i.productName,
+        quantity: i.quantity,
+        rate: i.sellingPrice,
       })),
-      totalAmount,
-      paymentMethod: paymentMethod || 'CASH',
-      paymentStatus: 'PAID',
-      date: today,
-      bookedBy: null,
-      tenant_id: tenantId,
-      notes: `Van Sale — Route ${routeId}`,
-      vehicleId: resolvedVehicleId,
-      routeId,
+      p_total_amount: totalAmount,
+      p_payment_method: paymentMethod || 'CASH',
+      p_payment_status: 'PAID',
+      p_date: today,
+      p_user_id: currentUser.id,
+      p_tenant_id: tenantId || null,
+      p_location_id: vehicleLocId || null,
+      p_route_id: routeId || null,
+      p_source_app: 'WEB',
     });
-    if (saleErr) { console.error('recordVanSale sale insert error:', saleErr); return { success: false, error: saleErr }; }
-
-    // 2. Deduct each item from vehicle location inventory
-    if (vehicleLocId) {
-      for (const item of items) {
-        const { error: adjErr } = await supabase.rpc('adjust_inventory_atomic', {
-          p_product_id: item.productId,
-          p_location_id: vehicleLocId,
-          p_amount: -item.quantity,
-          p_reason: `Van Sale — Route ${routeId}`,
-          p_tenant_id: tenantId,
-        });
-        if (adjErr) console.warn('recordVanSale inventory adjust error:', adjErr);
-      }
+    if (rpcError) {
+      console.error('recordVanSale process_sale error:', rpcError);
+      return { success: false, error: rpcError };
     }
 
     await fetchOperationsData();
