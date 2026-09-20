@@ -12,6 +12,7 @@ import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/sales/data/models/sale.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 
 class ClientSettlementScreen extends ConsumerStatefulWidget {
   final Client client;
@@ -946,7 +947,7 @@ class _MethodSelector extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onChanged(m),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 140),
+                duration: Motion.durationOf(context, const Duration(milliseconds: 140)),
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
                   color: isSelected

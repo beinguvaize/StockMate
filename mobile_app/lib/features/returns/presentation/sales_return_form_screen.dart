@@ -9,6 +9,7 @@ import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/returns/presentation/providers/returns_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 
 // ─── Item parse helper (mirrors _parseItems in invoice_detail_screen.dart) ────
 
@@ -396,7 +397,7 @@ class _SalesReturnFormScreenState
                           final isSelected = qty > 0;
 
                           return AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
+                            duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
                             margin: EdgeInsets.only(
                                 bottom: i < _parsedItems.length - 1 ? 10 : 0),
                             padding: const EdgeInsets.all(12),

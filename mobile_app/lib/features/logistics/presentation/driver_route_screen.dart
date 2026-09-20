@@ -11,6 +11,7 @@ import 'package:mobile_app/features/logistics/data/models/route_stop.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
 import 'package:mobile_app/features/logistics/presentation/van_stock_screen.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 
 class DriverRouteScreen extends ConsumerStatefulWidget {
   const DriverRouteScreen({super.key});
@@ -406,7 +407,7 @@ class _StopCardState extends ConsumerState<_StopCard> {
     return GestureDetector(
       onTap: done ? null : widget.onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: Motion.durationOf(context, Motion.base),
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
           color: AppColors.surface,

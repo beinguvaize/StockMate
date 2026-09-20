@@ -16,6 +16,7 @@ import 'package:mobile_app/features/clients_suppliers/presentation/client_aging_
 import 'package:mobile_app/features/clients_suppliers/presentation/client_payments_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/client_statement_sheet.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/client_settlement_screen.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const _kHeaderBg = Color(0xFFB35210);
@@ -290,7 +291,7 @@ class _CRMHeader extends StatelessWidget {
           ];
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: Motion.durationOf(context, Motion.base),
       // Was a solid amber block. Every piece of text on it failed WCAG AA —
       // title 3.19:1, the "CRM" eyebrow and stat labels 2.43:1, stat values
       // inside the translucent tiles 2.76:1. A light surface fixes all three
@@ -321,7 +322,7 @@ class _CRMHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
+                      duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
                       child: Text(
                         isClient ? 'Clients' : 'Suppliers',
                         key: ValueKey(isClient),

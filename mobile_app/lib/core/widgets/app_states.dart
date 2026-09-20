@@ -146,7 +146,28 @@ class _AppSkeletonState extends State<AppSkeleton>
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),
-  )..repeat(reverse: true);
+  );
+
+  /// A LOOPING shimmer must STOP under reduce motion, not run faster.
+  ///
+  /// Everything else in the app collapses to a single 60fps frame, which is
+  /// right for a one-shot transition. Applying that here would turn an 1100ms
+  /// fade into a 16ms repeat — a strobe, which is worse than the animation it
+  /// replaces and a flash hazard (WCAG 2.3.1). So the loop is stopped and the
+  /// placeholder is held at full opacity instead.
+  ///
+  /// Started here rather than in the field initialiser because MediaQuery is
+  /// not readable until dependencies are resolved.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.maybeDisableAnimationsOf(context) == true) {
+      if (_c.isAnimating) _c.stop();
+      _c.value = 1.0;
+    } else if (!_c.isAnimating) {
+      _c.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {

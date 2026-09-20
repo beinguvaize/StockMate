@@ -7,6 +7,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 
 // ─── Provider — reads from `invoices` table (same as web Invoices.jsx) ────────
 final invoicesProvider = FutureProvider<List<Invoice>>((ref) async {
@@ -408,7 +409,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                             return GestureDetector(
                               onTap: () => setState(() => _filterIndex = i),
                               child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
+                                duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: isActive ? AppColors.primaryContainer : Colors.white,
@@ -440,7 +441,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                               GestureDetector(
                                 onTap: () => setState(() => _dateRange = null),
                                 child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
+                                  duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
                                     color: AppColors.primaryContainer,

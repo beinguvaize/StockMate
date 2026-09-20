@@ -7,6 +7,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/data/models/vehicle.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 
 class AddVehicleScreen extends ConsumerStatefulWidget {
   /// When non-null the screen operates in edit mode.
@@ -250,7 +251,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
                   child: GestureDetector(
                     onTap: () => setState(() => _selectedStatus = status),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
+                      duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(

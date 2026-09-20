@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/typography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 
 /// Dashboard promo/announcement banners — mirrors the web BannerCarousel.
 /// Content comes from the shared `banners` table (RLS: active + in window).
@@ -44,7 +45,7 @@ class _BannerCarouselState extends ConsumerState<BannerCarousel> {
       if (!mounted || count < 2) return;
       final next = (_page + 1) % count;
       _controller.animateToPage(next,
-          duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
+          duration: Motion.durationOf(context, const Duration(milliseconds: 350)), curve: Curves.easeOut);
     });
   }
 
@@ -128,7 +129,7 @@ class _BannerCarouselState extends ConsumerState<BannerCarousel> {
                 children: List.generate(banners.length, (i) {
                   final active = i == _page;
                   return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: Motion.durationOf(context, Motion.base),
                     margin: const EdgeInsets.symmetric(horizontal: 2),
                     width: active ? 16 : 5,
                     height: 5,

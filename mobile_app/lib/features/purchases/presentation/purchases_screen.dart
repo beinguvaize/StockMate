@@ -13,6 +13,7 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchase_detail_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 
 // ─── Model ────────────────────────────────────────────────────────────────────
@@ -321,7 +322,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                                 onTap: () =>
                                     setState(() => _filterIndex = e.key),
                                 child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
+                                  duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 8),
                                   decoration: BoxDecoration(
@@ -1975,7 +1976,7 @@ class _PayChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
           color: active ? AppColors.primaryContainer : Colors.white,

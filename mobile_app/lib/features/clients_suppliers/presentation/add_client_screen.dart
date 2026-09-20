@@ -7,6 +7,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 
 // Mirrors web Clients.jsx form schema exactly.
 // DB columns written: id, tenant_id, name, contact, phone, email, address,
@@ -737,7 +738,7 @@ class _TypeCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
+        duration: Motion.durationOf(context, const Duration(milliseconds: 160)),
         padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
         decoration: BoxDecoration(
           color: selected ? AppColors.inkPrimary : AppColors.canvas,
