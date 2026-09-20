@@ -10,6 +10,7 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/widgets/barcode_scanner_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
   final Product? product; // non-null = edit mode
@@ -265,12 +266,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             ),
             Text(
               'INVENTORY MANAGEMENT',
-              style: GoogleFonts.manrope(
-                color: AppColors.secondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -320,8 +317,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text('Assign',
-                        style: GoogleFonts.manrope(
-                            fontSize: 13, fontWeight: FontWeight.w800,
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w800,
                             color: AppColors.onPrimaryContainer)),
                   ),
                 ),
@@ -474,11 +470,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEditMode ? 'SAVE CHANGES' : 'ADD TO INVENTORY',
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          letterSpacing: 1,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          letterSpacing: 1),
                       ),
                     ],
                   ),
@@ -522,12 +515,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             fontSize: 14,
           ),
           labelText: label,
-          labelStyle: GoogleFonts.manrope(
-            color: AppColors.inkSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
+          labelStyle: AppText.label.copyWith(color: AppColors.inkSecondary,
+            letterSpacing: 0.5),
           floatingLabelBehavior: FloatingLabelBehavior.always,
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
@@ -566,12 +555,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.manrope(
-                    color: AppColors.inkSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
+                  style: AppText.label.copyWith(color: AppColors.inkSecondary,
+                    letterSpacing: 0.5),
                 ),
                 DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
@@ -618,12 +603,9 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           title,
-          style: GoogleFonts.manrope(
-            color: AppColors.primary,
-            fontSize: 13,
+          style: AppText.label.copyWith(color: AppColors.primary,
             fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-          ),
+            letterSpacing: 1.5),
         ),
       ],
     );

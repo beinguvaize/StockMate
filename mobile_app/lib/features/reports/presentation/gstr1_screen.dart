@@ -9,6 +9,7 @@ import 'package:mobile_app/features/reports/data/report_params.dart';
 import 'package:mobile_app/features/reports/data/report_providers.dart';
 import 'package:mobile_app/features/reports/presentation/widgets/report_kpi_tile.dart';
 import 'package:mobile_app/features/reports/utils/financial_calcs.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ---------------------------------------------------------------------------
 // Month names helper
@@ -154,11 +155,8 @@ class _Gstr1ScreenState extends ConsumerState<Gstr1Screen>
             child: DropdownButton<int>(
               value: _month,
               isDense: true,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                color: AppColors.primary),
               dropdownColor: AppColors.surface,
               items: List.generate(12, (i) => i + 1)
                   .map((m) => DropdownMenuItem(
@@ -183,11 +181,8 @@ class _Gstr1ScreenState extends ConsumerState<Gstr1Screen>
             child: DropdownButton<int>(
               value: _year,
               isDense: true,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                color: AppColors.primary),
               dropdownColor: AppColors.surface,
               items: years
                   .map((y) => DropdownMenuItem(
@@ -259,10 +254,7 @@ class _Gstr1ScreenState extends ConsumerState<Gstr1Screen>
           Text(
             message,
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: AppColors.inkSecondary,
-            ),
+            style: AppText.caption.copyWith(color: AppColors.inkSecondary),
           ),
         ],
       ),
@@ -328,11 +320,8 @@ class _Gstr1ScreenState extends ConsumerState<Gstr1Screen>
             ],
             bottom: TabBar(
               controller: _tabController,
-              labelStyle: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-              ),
+              labelStyle: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                letterSpacing: 0.8),
               labelColor: AppColors.primary,
               unselectedLabelColor: AppColors.inkSecondary,
               indicatorColor: AppColors.primary,
@@ -374,12 +363,8 @@ class _Gstr1ScreenState extends ConsumerState<Gstr1Screen>
                     const SizedBox(width: 6),
                     Text(
                       'Filing Period: ${_kMonthNames[_month]} $_year',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.inkSecondary,
-                        letterSpacing: 0.4,
-                      ),
+                      style: AppText.label.copyWith(color: AppColors.inkSecondary,
+                        letterSpacing: 0.4),
                     ),
                     if (isLoading) ...[
                       const Spacer(),
@@ -487,11 +472,8 @@ class _B2BCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   '${row['invoiceNo'] ?? '—'}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkPrimary,
-                  ),
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                    color: AppColors.inkPrimary),
                 ),
               ),
               if (isInterstate)
@@ -504,12 +486,9 @@ class _B2BCard extends StatelessWidget {
                   ),
                   child: Text(
                     'INTERSTATE',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                       color: const Color(0xFF2563EB),
-                      letterSpacing: 0.8,
-                    ),
+                      letterSpacing: 0.8),
                   ),
                 ),
             ],
@@ -517,18 +496,12 @@ class _B2BCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '${row['clientName'] ?? '—'}',
-            style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.inkPrimary),
+            style: AppText.label.copyWith(color: AppColors.inkPrimary),
           ),
           const SizedBox(height: 2),
           Text(
             '${row['gstin'] ?? ''}',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: AppColors.inkTertiary,
-            ),
+            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
           ),
           const SizedBox(height: 10),
           const Divider(height: 1),
@@ -547,8 +520,7 @@ class _B2BCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text('Total  ',
-                  style: GoogleFonts.manrope(
-                      fontSize: 13, color: AppColors.inkSecondary)),
+                  style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
               Text(
                 formatINR(row['total'] as double),
                 style: GoogleFonts.manrope(
@@ -591,11 +563,8 @@ class _B2CLCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   '${row['invoiceNo'] ?? '—'}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkPrimary,
-                  ),
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                    color: AppColors.inkPrimary),
                 ),
               ),
               Container(
@@ -606,12 +575,9 @@ class _B2CLCard extends StatelessWidget {
                 ),
                 child: Text(
                   'B2CL',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                     color: AppColors.warning,
-                    letterSpacing: 0.8,
-                  ),
+                    letterSpacing: 0.8),
                 ),
               ),
             ],
@@ -619,10 +585,7 @@ class _B2CLCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '${row['clientName'] ?? '—'}',
-            style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.inkPrimary),
+            style: AppText.label.copyWith(color: AppColors.inkPrimary),
           ),
           const SizedBox(height: 10),
           const Divider(height: 1),
@@ -639,8 +602,7 @@ class _B2CLCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text('Total  ',
-                  style: GoogleFonts.manrope(
-                      fontSize: 13, color: AppColors.inkSecondary)),
+                  style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
               Text(
                 formatINR(row['total'] as double),
                 style: GoogleFonts.manrope(
@@ -673,19 +635,13 @@ class _AmtLabel extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.inkTertiary,
+            style: AppText.label.copyWith(color: AppColors.inkTertiary,
                 letterSpacing: 0.6),
           ),
           const SizedBox(height: 2),
           Text(
             formatINR(value),
-            style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.inkPrimary),
+            style: AppText.label.copyWith(color: AppColors.inkPrimary),
           ),
         ],
       ),
@@ -706,16 +662,11 @@ class _AmountRow extends StatelessWidget {
         children: [
           Expanded(
             child: Text(label,
-                style: GoogleFonts.manrope(
-                    fontSize: 13, color: AppColors.inkSecondary)),
+                style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
           ),
           Text(
             formatINR(amount),
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkPrimary,
-            ),
+            style: AppText.label.copyWith(color: AppColors.inkPrimary),
           ),
         ],
       ),
@@ -750,18 +701,14 @@ class _SectionCard extends StatelessWidget {
         children: [
           Text(
             title.toUpperCase(),
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
               letterSpacing: 1.4,
-              color: AppColors.inkSecondary,
-            ),
+              color: AppColors.inkSecondary),
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 3),
             Text(subtitle!,
-                style: GoogleFonts.manrope(
-                    fontSize: 13, color: AppColors.inkTertiary)),
+                style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
           ],
           const SizedBox(height: 12),
           const Divider(height: 1),

@@ -12,6 +12,7 @@ import 'package:mobile_app/features/settings/presentation/providers/settings_pro
 import 'package:mobile_app/features/settings/presentation/sync_diagnostics_screen.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -80,12 +81,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             Text(
               'ACCOUNT & PREFERENCES',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -167,12 +164,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         if (profile.email != null)
                           Text(
                             profile.email!,
-                            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                           ),
                         if (profile.phone != null)
                           Text(
                             profile.phone!,
-                            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                           ),
                         const SizedBox(height: 20),
                         const Divider(color: AppColors.outlineVariant, height: 1),
@@ -206,12 +203,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(width: 10),
                   Text(
                     'APP PREFERENCES',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                       letterSpacing: 1.5,
-                      color: AppColors.primary,
-                    ),
+                      color: AppColors.primary),
                   ),
                 ],
               ),
@@ -283,12 +277,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           const SizedBox(width: 10),
                           Text(
                             'INVOICE TEMPLATE',
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
+                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                               letterSpacing: 1.5,
-                              color: AppColors.primary,
-                            ),
+                              color: AppColors.primary),
                           ),
                         ],
                       ),
@@ -454,11 +445,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   return Center(
                     child: Text(
                       label,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        color: AppColors.inkTertiary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.label.copyWith(color: AppColors.inkTertiary),
                     ),
                   );
                 },
@@ -480,7 +467,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       borderRadius: BorderRadius.circular(16),
                       side: const BorderSide(color: AppColors.primary),
                     ),
-                    textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 15),
+                    textStyle: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -499,7 +486,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       borderRadius: BorderRadius.circular(16),
                       side: const BorderSide(color: AppColors.danger),
                     ),
-                    textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 15),
+                    textStyle: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
                   ),
                   child: const Text('Sign Out'),
                 ),
@@ -599,7 +586,7 @@ class _EditBusinessProfileSheetState extends ConsumerState<_EditBusinessProfileS
           SnackBar(
             content: Text(
               'Failed to save: $e',
-              style: GoogleFonts.manrope(fontSize: 13, color: Colors.white),
+              style: AppText.caption.copyWith(color: Colors.white),
             ),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
@@ -700,7 +687,7 @@ class _EditBusinessProfileSheetState extends ConsumerState<_EditBusinessProfileS
                     disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 15),
+                    textStyle: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
                   ),
                   child: _isSaving
                       ? const SizedBox(
@@ -748,12 +735,8 @@ class _FormField extends StatelessWidget {
         RichText(
           text: TextSpan(
             text: label,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkSecondary,
-              letterSpacing: 0.3,
-            ),
+            style: AppText.label.copyWith(color: AppColors.inkSecondary,
+              letterSpacing: 0.3),
             children: required
                 ? [
                     TextSpan(
@@ -821,14 +804,14 @@ class _ProfileRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+        Text(label, style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             value,
             textAlign: TextAlign.right,
             softWrap: true,
-            style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkPrimary),
+            style: AppText.label.copyWith(color: AppColors.inkPrimary),
           ),
         ),
       ],
@@ -876,12 +859,9 @@ class _TaxModePicker extends StatelessWidget {
             ),
             child: Text(
               opt.$2,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
-                color: selected ? AppColors.onPrimaryContainer : AppColors.inkTertiary,
-              ),
+                color: selected ? AppColors.onPrimaryContainer : AppColors.inkTertiary),
             ),
           ),
  );
@@ -939,7 +919,7 @@ class _SettingRow extends StatelessWidget {
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                   ),
               ],
             ),

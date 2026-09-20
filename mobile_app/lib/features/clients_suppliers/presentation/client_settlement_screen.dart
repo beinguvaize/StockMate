@@ -14,6 +14,7 @@ import 'package:mobile_app/features/sales/data/models/sale.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class ClientSettlementScreen extends ConsumerStatefulWidget {
   final Client client;
@@ -330,12 +331,8 @@ class _ClientSettlementScreenState
             ),
             Text(
               client.name ?? '',
-              style: GoogleFonts.manrope(
-                color: AppColors.secondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -428,10 +425,7 @@ class _ClientSettlementScreenState
                         color: AppColors.primary,
                       ),
                       hintText: '0.00',
-                      hintStyle: GoogleFonts.manrope(
-                        color: AppColors.inkTertiary,
-                        fontSize: 13,
-                      ),
+                      hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
                     ),
                   ),
                 ),
@@ -453,11 +447,7 @@ class _ClientSettlementScreenState
                       ),
                       child: Text(
                         'Fill full outstanding (₹${outstanding.toStringAsFixed(2)})',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: AppText.label.copyWith(color: AppColors.primary),
                       ),
                     ),
                   ),
@@ -497,10 +487,7 @@ class _ClientSettlementScreenState
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 12),
                       hintText: 'Notes (optional)',
-                      hintStyle: GoogleFonts.manrope(
-                        color: AppColors.inkTertiary,
-                        fontSize: 13,
-                      ),
+                      hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
                     ),
                   ),
                 ),
@@ -540,12 +527,9 @@ class _ClientSettlementScreenState
                           size: 14, color: AppColors.primary),
                       title: Text(
                         'APPLY TO INVOICES (OPTIONAL)',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w800,
                           letterSpacing: 1.5,
-                          color: AppColors.inkPrimary,
-                        ),
+                          color: AppColors.inkPrimary),
                       ),
                       iconColor: AppColors.inkSecondary,
                       collapsedIconColor: AppColors.inkTertiary,
@@ -563,10 +547,7 @@ class _ClientSettlementScreenState
                             children: [
                               Text(
                                 '${unpaid.length} unpaid bill${unpaid.length == 1 ? '' : 's'}',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  color: AppColors.inkTertiary,
-                                ),
+                                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                               ),
                               TextButton(
                                 onPressed: () {
@@ -589,11 +570,7 @@ class _ClientSettlementScreenState
                                 ),
                                 child: Text(
                                   allSelected ? 'Deselect All' : 'Select All',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: AppText.label.copyWith(color: AppColors.primary),
                                 ),
                               ),
                             ],
@@ -621,28 +598,19 @@ class _ClientSettlementScreenState
                                 horizontal: 16, vertical: 0),
                             title: Text(
                               inv.displayNumber,
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.inkPrimary,
-                              ),
+                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                                color: AppColors.inkPrimary),
                             ),
                             subtitle: Text(
                               inv.dueDate != null
                                   ? 'Due ${_formatDate(inv.dueDate!)}'
                                   : 'No due date',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                color: AppColors.inkTertiary,
-                              ),
+                              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                             ),
                             secondary: Text(
                               '₹${inv.outstanding.toStringAsFixed(2)}',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.danger,
-                              ),
+                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                                color: AppColors.danger),
                             ),
                           );
                         }),
@@ -666,11 +634,7 @@ class _ClientSettlementScreenState
                                   'Selected: ${_selectedInvoiceIds.length} '
                                   'invoice${_selectedInvoiceIds.length == 1 ? '' : 's'} '
                                   '· ₹${selTotal.toStringAsFixed(2)}',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.inkSecondary,
-                                  ),
+                                  style: AppText.label.copyWith(color: AppColors.inkSecondary),
                                 ),
                               ],
                             ),
@@ -716,11 +680,8 @@ class _ClientSettlementScreenState
                       const SizedBox(width: 8),
                       Text(
                         'RECORD PAYMENT',
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          letterSpacing: 1,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          letterSpacing: 1),
                       ),
                     ],
                   ),
@@ -791,10 +752,7 @@ class _ClientSummaryCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '$unpaidCount unpaid bill${unpaidCount == 1 ? '' : 's'}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.inkTertiary,
-                  ),
+                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                 ),
               ],
             ),
@@ -813,10 +771,7 @@ class _ClientSummaryCard extends StatelessWidget {
               ),
               Text(
                 outstanding < 0 ? 'advance' : 'outstanding',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: AppColors.inkTertiary,
-                ),
+                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
               ),
             ],
           ),
@@ -864,12 +819,9 @@ class _SectionCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w800,
                     letterSpacing: 1.5,
-                    color: AppColors.inkPrimary,
-                  ),
+                    color: AppColors.inkPrimary),
                 ),
               ],
             ),
@@ -902,21 +854,15 @@ class _FieldLabel extends StatelessWidget {
         text: TextSpan(children: [
           TextSpan(
             text: text.toUpperCase(),
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
               color: AppColors.inkTertiary,
-              letterSpacing: 1,
-            ),
+              letterSpacing: 1),
           ),
           if (required)
             TextSpan(
               text: ' *',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-                color: AppColors.primary,
-              ),
+              style: AppText.label.copyWith(fontWeight: FontWeight.w900,
+                color: AppColors.primary),
             ),
         ]),
       ),
@@ -967,14 +913,11 @@ class _MethodSelector extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(
                   m,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
                     color: isSelected
                         ? AppColors.inkPrimary
-                        : AppColors.inkSecondary,
-                  ),
+                        : AppColors.inkSecondary),
                 ),
               ),
  ),

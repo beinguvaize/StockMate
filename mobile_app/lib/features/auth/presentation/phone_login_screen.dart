@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/auth/phone_auth.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 /// Sign in with a WhatsApp one-time code.
 ///
@@ -112,7 +113,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
         elevation: 0,
         foregroundColor: AppColors.inkPrimary,
         title: Text('Sign in with WhatsApp',
-            style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 17)),
+            style: AppText.heading),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -135,12 +136,12 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   autofocus: true,
                   inputFormatters: [LengthLimitingTextInputFormatter(15)],
                   onChanged: (_) => setState(() {}),
-                  style: GoogleFonts.manrope(fontSize: 15, color: AppColors.inkPrimary),
+                  style: AppText.body.copyWith(color: AppColors.inkPrimary),
                   decoration: InputDecoration(
                     // The country code is shown, not typed — every user is in
                     // India and a free-text +91 is one more thing to mistype.
                     prefixText: '+91  ',
-                    prefixStyle: GoogleFonts.manrope(fontSize: 15, color: AppColors.inkSecondary),
+                    prefixStyle: AppText.body.copyWith(color: AppColors.inkSecondary),
                     hintText: '98765 43210',
                     labelText: 'Mobile number',
                     border: const OutlineInputBorder(),
@@ -155,8 +156,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   maxLength: 8,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onChanged: (_) => setState(() {}),
-                  style: GoogleFonts.manrope(
-                      fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.w700,
+                  style: AppText.title.copyWith(letterSpacing: 8,
                       color: AppColors.inkPrimary),
                   decoration: const InputDecoration(
                     hintText: '000000',
@@ -189,7 +189,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
 
               if (_info != null && _error == null) ...[
                 const SizedBox(height: 8),
-                Text(_info!, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary)),
+                Text(_info!, style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
               ],
               if (_error != null) ...[
                 const SizedBox(height: 12),
@@ -200,7 +200,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(_error!,
-                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.danger)),
+                      style: AppText.caption.copyWith(color: AppColors.danger)),
                 ),
               ],
 

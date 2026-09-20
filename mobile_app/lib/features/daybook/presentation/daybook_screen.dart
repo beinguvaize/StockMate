@@ -8,6 +8,7 @@ import 'package:mobile_app/features/daybook/data/daybook_models.dart';
 import 'package:mobile_app/features/daybook/presentation/daybook_history_screen.dart';
 import 'package:mobile_app/features/daybook/providers/daybook_providers.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DayBookScreen
@@ -131,12 +132,8 @@ class _DayBookScreenState extends ConsumerState<DayBookScreen> {
             ),
             Text(
               'DAY BOOK',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -350,11 +347,8 @@ class _DateNavStrip extends StatelessWidget {
                   children: [
                     Text(
                       formatDate(selectedDate),
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.inkPrimary,
-                      ),
+                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                        color: AppColors.inkPrimary),
                     ),
                     const SizedBox(width: 4),
                     const Icon(LucideIcons.chevronDown,
@@ -398,11 +392,7 @@ class _DateNavStrip extends StatelessWidget {
               ),
               child: Text(
                 'Today',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
+                style: AppText.label.copyWith(color: AppColors.primary),
               ),
             ),
         ],
@@ -434,12 +424,9 @@ class _StatusChip extends StatelessWidget {
           const SizedBox(width: 3),
           Text(
             label,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
               color: color,
-              letterSpacing: 0.3,
-            ),
+              letterSpacing: 0.3),
           ),
         ],
       ),
@@ -674,12 +661,9 @@ class _KpiCard extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
               color: AppColors.inkTertiary,
-              letterSpacing: 1.2,
-            ),
+              letterSpacing: 1.2),
           ),
           const SizedBox(height: 6),
           Text(
@@ -696,10 +680,7 @@ class _KpiCard extends StatelessWidget {
             const SizedBox(height: 3),
             Text(
               subtitle!,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: subtitleColor ?? AppColors.inkTertiary,
-              ),
+              style: AppText.caption.copyWith(color: subtitleColor ?? AppColors.inkTertiary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -817,9 +798,7 @@ class _LockedPanel extends StatelessWidget {
                 if (closedAt != null)
                   Text(
                     'Locked at ${_fmt(closedAt)}',
-                    style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        color: const Color(0xFF059669).withValues(alpha: 0.8)),
+                    style: AppText.caption.copyWith(color: const Color(0xFF059669).withValues(alpha: 0.8)),
                   ),
               ],
             ),
@@ -873,11 +852,8 @@ class _OpeningEquation extends StatelessWidget {
           onTap: onEdit,
           child: Text(
             'Edit opening balance',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: AppColors.primary,
-              decoration: TextDecoration.underline,
-            ),
+            style: AppText.caption.copyWith(color: AppColors.primary,
+              decoration: TextDecoration.underline),
           ),
         ),
       ],
@@ -909,19 +885,13 @@ class _EquationRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-              color: bold ? color : AppColors.inkSecondary,
-            ),
+            style: AppText.label.copyWith(fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+              color: bold ? color : AppColors.inkSecondary),
           ),
           Text(
             '${prefix.isNotEmpty ? '$prefix ' : ''}₹${value.abs().toStringAsFixed(2)}',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-              color: color,
-            ),
+            style: AppText.label.copyWith(fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+              color: color),
           ),
         ],
       ),
@@ -953,7 +923,7 @@ class _OpeningForm extends StatelessWidget {
             icon: const Icon(LucideIcons.history, size: 14),
             label: Text(
               'Use prev. closing ₹${ledger.prevClosing!.toStringAsFixed(2)}',
-              style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600),
+              style: AppText.label,
             ),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
@@ -972,8 +942,7 @@ class _OpeningForm extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Text('or enter manually',
-                    style: GoogleFonts.manrope(
-                        fontSize: 13, color: AppColors.inkTertiary)),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
               ),
               Expanded(
                   child: Divider(
@@ -1041,12 +1010,9 @@ class _OpeningForm extends StatelessWidget {
                 )
               : Text(
                   'SAVE OPENING',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                     letterSpacing: 1.2,
-                    color: Colors.white,
-                  ),
+                    color: Colors.white),
                 ),
         ),
       ],
@@ -1192,22 +1158,16 @@ class _BdRow extends StatelessWidget {
           Expanded(
             child: Text(
               suffix != null ? '$label $suffix' : label,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+              style: AppText.label.copyWith(fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
                 fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-                color: bold ? AppColors.inkPrimary : AppColors.inkSecondary,
-              ),
+                color: bold ? AppColors.inkPrimary : AppColors.inkSecondary),
             ),
           ),
           Text(
             '₹${value.toStringAsFixed(2)}',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+            style: AppText.label.copyWith(fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
               color: color,
-              fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-            ),
+              fontStyle: italic ? FontStyle.italic : FontStyle.normal),
           ),
         ],
       ),
@@ -1291,11 +1251,8 @@ class _ReconciliationCardState extends State<_ReconciliationCard> {
                   ),
                   child: Text(
                     'Saved: ₹${ledger.savedPhysicalCash!.toStringAsFixed(2)}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.warning,
-                    ),
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                      color: AppColors.warning),
                   ),
                 ),
               ],
@@ -1308,8 +1265,7 @@ class _ReconciliationCardState extends State<_ReconciliationCard> {
             children: [
               Text(
                 'Book Balance',
-                style: GoogleFonts.manrope(
-                    fontSize: 13, color: AppColors.inkSecondary),
+                style: AppText.caption.copyWith(color: AppColors.inkSecondary),
               ),
               Text(
                 '₹${ledger.closingBal.toStringAsFixed(2)}',
@@ -1334,18 +1290,14 @@ class _ReconciliationCardState extends State<_ReconciliationCard> {
             ],
             enabled: !ledger.isLocked,
             onChanged: (_) => setState(() {}),
-            style: GoogleFonts.manrope(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
+            style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary),
             decoration: InputDecoration(
               hintText: 'Physical cash count',
               hintStyle: GoogleFonts.manrope(
                   fontSize: 14, color: AppColors.inkTertiary),
               prefixText: '₹ ',
-              prefixStyle: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+              prefixStyle: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
                   color: AppColors.inkSecondary),
               filled: true,
               fillColor: Colors.white.withValues(alpha: 0.8),
@@ -1383,11 +1335,8 @@ class _ReconciliationCardState extends State<_ReconciliationCard> {
                 children: [
                   Text(
                     varianceText,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: varianceColor,
-                    ),
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                      color: varianceColor),
                   ),
                 ],
               ),
@@ -1422,12 +1371,9 @@ class _ReconciliationCardState extends State<_ReconciliationCard> {
                     )
                   : Text(
                       'SAVE COUNT',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
-                        color: Colors.white,
-                      ),
+                        color: Colors.white),
                     ),
             ),
           ),
@@ -1470,12 +1416,9 @@ class _TransactionsSection extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               'TRANSACTIONS',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,
-                color: AppColors.inkSecondary,
-              ),
+                color: AppColors.inkSecondary),
             ),
             const SizedBox(width: 8),
             Container(
@@ -1487,9 +1430,7 @@ class _TransactionsSection extends StatelessWidget {
               ),
               child: Text(
                 '${entries.length}',
-                style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                     color: AppColors.inkSecondary),
               ),
             ),
@@ -1519,13 +1460,10 @@ class _TransactionsSection extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     '${netPositive ? '+' : '-'}₹${net.abs().toStringAsFixed(0)}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                       color: netPositive
                           ? const Color(0xFF059669)
-                          : AppColors.danger,
-                    ),
+                          : AppColors.danger),
                   ),
                 ],
               ),
@@ -1550,17 +1488,13 @@ class _TransactionsSection extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   'No transactions',
-                  style: GoogleFonts.manrope(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkPrimary,
-                  ),
+                  style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                    color: AppColors.inkPrimary),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Nothing recorded for this day',
-                  style: GoogleFonts.manrope(
-                      fontSize: 13, color: AppColors.inkSecondary),
+                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                 ),
               ],
             ),
@@ -1688,10 +1622,7 @@ class _EntryCard extends StatelessWidget {
                   const SizedBox(height: 1),
                   Text(
                     entry.note!,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: AppColors.inkTertiary,
-                    ),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1709,11 +1640,8 @@ class _EntryCard extends StatelessWidget {
                       ),
                       child: Text(
                         categoryLabel,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: categoryPillColor,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          color: categoryPillColor),
                       ),
                     ),
                     const SizedBox(width: 5),
@@ -1727,12 +1655,9 @@ class _EntryCard extends StatelessWidget {
                       ),
                       child: Text(
                         methodLabel,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                           color: methodColor,
-                          letterSpacing: 0.3,
-                        ),
+                          letterSpacing: 0.3),
                       ),
                     ),
                   ],
@@ -1758,10 +1683,7 @@ class _EntryCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 '₹${entry.runningBalance.toStringAsFixed(0)}',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: AppColors.inkTertiary,
-                ),
+                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
               ),
             ],
           ),
@@ -1802,12 +1724,9 @@ class _CloseDayButton extends StatelessWidget {
             : const Icon(LucideIcons.lock, size: 18, color: Colors.white),
         label: Text(
           'CLOSE & LOCK DAY',
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
+          style: AppText.label.copyWith(fontWeight: FontWeight.w800,
             letterSpacing: 1.2,
-            color: Colors.white,
-          ),
+            color: Colors.white),
         ),
         onPressed: isLoading ? null : onCloseDay,
       ),
@@ -1840,11 +1759,8 @@ class _CreditSalesFootnote extends StatelessWidget {
           Expanded(
             child: Text(
               '₹${creditSales.toStringAsFixed(2)} in credit sales excluded from cash flow',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: AppColors.primary,
-                fontWeight: FontWeight.w500,
-              ),
+              style: AppText.caption.copyWith(color: AppColors.primary,
+                fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -1865,12 +1781,9 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: GoogleFonts.manrope(
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
+      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
         color: AppColors.inkTertiary,
-        letterSpacing: 1.5,
-      ),
+        letterSpacing: 1.5),
     );
   }
 }

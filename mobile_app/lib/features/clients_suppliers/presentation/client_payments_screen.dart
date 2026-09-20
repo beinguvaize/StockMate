@@ -6,6 +6,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client_payment.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ─── Payment method metadata ──────────────────────────────────────────────────
 class _MethodMeta {
@@ -122,7 +123,7 @@ class _ClientPaymentsScreenState extends ConsumerState<ClientPaymentsScreen> {
             padding: const EdgeInsets.all(24),
             child: Text(
               'Error: $e',
-              style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 13),
+              style: AppText.caption.copyWith(color: AppColors.danger),
               textAlign: TextAlign.center,
             ),
           ),
@@ -202,10 +203,7 @@ class _ClientPaymentsScreenState extends ConsumerState<ClientPaymentsScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                 child: Text(
                   '${filtered.length} payment${filtered.length == 1 ? '' : 's'}${q.isNotEmpty ? ' · filtered' : ''}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.inkTertiary,
-                  ),
+                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                 ),
               ),
 
@@ -269,12 +267,9 @@ class _KpiTile extends StatelessWidget {
                 Flexible(
                   child: Text(
                     label,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                       color: AppColors.inkTertiary,
-                      letterSpacing: 0.8,
-                    ),
+                      letterSpacing: 0.8),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -327,7 +322,7 @@ class _SearchBar extends StatelessWidget {
         style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
         decoration: InputDecoration(
           hintText: 'Search by client name or notes…',
-          hintStyle: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+          hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
           prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.inkTertiary),
           suffixIcon: controller.text.isNotEmpty
               ? IconButton(
@@ -399,11 +394,8 @@ class _PaymentCard extends StatelessWidget {
               children: [
                 Text(
                   row.clientName,
-                  style: GoogleFonts.manrope(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkPrimary,
-                  ),
+                  style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                    color: AppColors.inkPrimary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -411,10 +403,7 @@ class _PaymentCard extends StatelessWidget {
                 if (p.notes != null && p.notes!.trim().isNotEmpty) ...[
                   Text(
                     p.notes!,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: AppColors.inkTertiary,
-                    ),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -426,10 +415,7 @@ class _PaymentCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       _formatDate(p.date),
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        color: AppColors.inkTertiary,
-                      ),
+                      style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                     ),
                   ],
                 ),
@@ -445,12 +431,9 @@ class _PaymentCard extends StatelessWidget {
             children: [
               Text(
                 '₹${p.amount.toStringAsFixed(p.amount % 1 == 0 ? 0 : 2)}',
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
+                style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w800,
                   color: const Color(0xFF059669),
-                  letterSpacing: -0.3,
-                ),
+                  letterSpacing: -0.3),
               ),
               const SizedBox(height: 6),
               Container(
@@ -461,12 +444,9 @@ class _PaymentCard extends StatelessWidget {
                 ),
                 child: Text(
                   meta.label,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                     color: meta.color,
-                    letterSpacing: 0.5,
-                  ),
+                    letterSpacing: 0.5),
                 ),
               ),
             ],
@@ -510,7 +490,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'Payments will appear here once recorded',
-            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
           ),
         ],
       ),

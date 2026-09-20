@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 import 'providers/estimates_provider.dart';
 
 class EstimatesScreen extends ConsumerStatefulWidget {
@@ -74,10 +75,7 @@ class _EstimatesScreenState extends ConsumerState<EstimatesScreen> {
                       ),
                       child: Text(
                         t == 'ALL' ? 'All' : t == 'DELIVERY_CHALLAN' ? 'Challan' : _capitalize(t),
-                        style: GoogleFonts.manrope(
-                          fontSize: 13, fontWeight: FontWeight.w600,
-                          color: selected ? Colors.white : AppColors.inkSecondary,
-                        ),
+                        style: AppText.label.copyWith(color: selected ? Colors.white : AppColors.inkSecondary),
                       ),
                     ),
  ),
@@ -178,11 +176,11 @@ class _EstimateCard extends StatelessWidget {
                   children: [
                     Text(
                       estimate.displayType,
-                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                      style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                     ),
                     if (estimate.estimateNumber != null) ...[
-                      Text(' · ', style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
-                      Text(estimate.estimateNumber!, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                      Text(' · ', style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
+                      Text(estimate.estimateNumber!, style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                     ],
                   ],
                 ),
@@ -206,7 +204,7 @@ class _EstimateCard extends StatelessWidget {
                   ),
                   child: Text(
                     estimate.status!,
-                    style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: _statusColor),
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: _statusColor),
                   ),
                 ),
             ],

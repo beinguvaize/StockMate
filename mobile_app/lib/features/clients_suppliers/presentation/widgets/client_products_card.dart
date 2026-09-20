@@ -5,6 +5,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/utils/units.dart';
 import 'package:mobile_app/features/clients_suppliers/data/client_products.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 /// What this client actually buys, under the money statement.
 ///
@@ -43,18 +44,14 @@ class _ClientProductsCardState extends State<ClientProductsCard> {
             Text(
               'PRODUCTS BOUGHT',
               // Same label treatment as "BILLS & PAYMENTS" below it.
-              style: GoogleFonts.manrope(
-                fontSize: 13, fontWeight: FontWeight.w700,
-                letterSpacing: 1.2, color: AppColors.inkTertiary,
-              ),
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                letterSpacing: 1.2, color: AppColors.inkTertiary),
             ),
             const Spacer(),
             if (lines.isNotEmpty)
               Text(
                 lines.length == 1 ? '1 item' : '${lines.length} items',
-                style: GoogleFonts.manrope(
-                  fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkTertiary,
-                ),
+                style: AppText.label.copyWith(color: AppColors.inkTertiary),
               ),
           ],
         ),
@@ -93,9 +90,7 @@ class _ClientProductsCardState extends State<ClientProductsCard> {
                   _expanded
                       ? 'Show less'
                       : 'Show all ${lines.length} products',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary,
-                  ),
+                  style: AppText.label.copyWith(color: AppColors.primary),
                 ),
               ),
             ),
@@ -134,9 +129,7 @@ class _ClientProductsCardState extends State<ClientProductsCard> {
                   '${formatQty(l.qty, l.unit)}'
                   '${l.orders > 1 ? '  ·  ${l.orders} times' : ''}'
                   '${l.lastDate.isNotEmpty ? '  ·  last ${_shortDate(l.lastDate)}' : ''}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.inkTertiary,
-                  ),
+                  style: AppText.caption.copyWith(fontWeight: FontWeight.w500, color: AppColors.inkTertiary),
                 ),
               ],
             ),
@@ -170,9 +163,7 @@ class _ClientProductsCardState extends State<ClientProductsCard> {
             Text(
               'No products recorded for this client yet',
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.inkTertiary,
-              ),
+              style: AppText.caption.copyWith(fontWeight: FontWeight.w500, color: AppColors.inkTertiary),
             ),
             const SizedBox(height: 3),
             Text(
@@ -180,9 +171,7 @@ class _ClientProductsCardState extends State<ClientProductsCard> {
               // come from an invoice raised without going through the till.
               'Sales billed to them will appear here',
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 13, fontWeight: FontWeight.w400, color: AppColors.inkTertiary,
-              ),
+              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
             ),
           ],
         ),

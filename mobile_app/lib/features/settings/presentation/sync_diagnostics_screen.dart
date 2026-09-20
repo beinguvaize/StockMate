@@ -21,6 +21,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/main.dart' show databaseProvider, syncServiceProvider;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -167,7 +168,7 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Text(
                   _statusMsg!,
-                  style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
+                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                 ),
               ),
 
@@ -226,28 +227,19 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                                     ),
                                     child: Text(
                                       j.status,
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: _statusColor(j.status),
-                                      ),
+                                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                                        color: _statusColor(j.status)),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
                                     '#${j.id}',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      color: AppColors.inkTertiary,
-                                    ),
+                                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                   ),
                                   const Spacer(),
                                   Text(
                                     '${j.attempts} attempt${j.attempts == 1 ? '' : 's'}',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      color: AppColors.inkTertiary,
-                                    ),
+                                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                   ),
                                 ],
                               ),
@@ -273,10 +265,7 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                                   ),
                                   child: Text(
                                     j.lastError!,
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      color: Colors.red.shade900,
-                                    ),
+                                    style: AppText.caption.copyWith(color: Colors.red.shade900),
                                     maxLines: 4,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -285,10 +274,7 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                               const SizedBox(height: 6),
                               Text(
                                 'Created ${j.createdAt.toLocal().toString().substring(0, 19)}',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  color: AppColors.inkTertiary,
-                                ),
+                                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                               ),
                             ],
                           ),

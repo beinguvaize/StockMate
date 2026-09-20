@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 import 'providers/manufacturing_provider.dart';
 
 class ManufacturingScreen extends ConsumerWidget {
@@ -29,8 +30,8 @@ class ManufacturingScreen extends ConsumerWidget {
             style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
           ),
           bottom: TabBar(
-            labelStyle: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600),
-            unselectedLabelStyle: GoogleFonts.manrope(fontSize: 13),
+            labelStyle: AppText.label,
+            unselectedLabelStyle: AppText.caption,
             labelColor: AppColors.primary,
             unselectedLabelColor: AppColors.inkTertiary,
             indicatorColor: AppColors.primary,
@@ -141,7 +142,7 @@ class _OrderCard extends StatelessWidget {
                   ),
                   Text(
                     'Qty: ${order.qty.toStringAsFixed(0)}${order.startDate != null ? ' · ${order.startDate}' : ''}',
-                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                   ),
                 ],
               ),
@@ -154,7 +155,7 @@ class _OrderCard extends StatelessWidget {
               ),
               child: Text(
                 order.status.replaceAll('_', ' '),
-                style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: _statusColor),
+                style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: _statusColor),
               ),
             ),
           ],
@@ -191,7 +192,7 @@ class _BomCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(bom.name, style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.inkPrimary)),
-                  Text('Output: ${bom.outputQty.toStringAsFixed(0)} units', style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                  Text('Output: ${bom.outputQty.toStringAsFixed(0)} units', style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                 ],
               ),
             ),

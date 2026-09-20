@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class DateRangeChip extends StatelessWidget {
   final DateTimeRange range;
@@ -60,11 +60,8 @@ class DateRangeChip extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               '${_fmt(range.start)} – ${_fmt(range.end)}',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                color: AppColors.primary),
             ),
           ],
         ),

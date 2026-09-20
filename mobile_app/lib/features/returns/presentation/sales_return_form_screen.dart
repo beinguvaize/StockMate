@@ -10,6 +10,7 @@ import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/returns/presentation/providers/returns_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ─── Item parse helper (mirrors _parseItems in invoice_detail_screen.dart) ────
 
@@ -288,10 +289,7 @@ class _SalesReturnFormScreenState
             ),
             Text(
               'Credit Note',
-              style: GoogleFonts.manrope(
-                color: const Color(0xFF94A3B8),
-                fontSize: 13,
-              ),
+              style: AppText.caption.copyWith(color: const Color(0xFF94A3B8)),
             ),
           ],
         ),
@@ -325,10 +323,7 @@ class _SalesReturnFormScreenState
                       const SizedBox(width: 6),
                       Text(
                         invoice.displayClientName,
-                        style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.inkSecondary),
+                        style: AppText.label.copyWith(color: AppColors.inkSecondary),
                       ),
                     ],
                   ),
@@ -340,8 +335,7 @@ class _SalesReturnFormScreenState
                       const SizedBox(width: 6),
                       Text(
                         _fmtDateDisplay(invoice.invoiceDate ?? ''),
-                        style: GoogleFonts.manrope(
-                            fontSize: 13, color: AppColors.inkTertiary),
+                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                       ),
                     ],
                   ),
@@ -353,10 +347,7 @@ class _SalesReturnFormScreenState
                     children: [
                       Text(
                         'Total',
-                        style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.inkSecondary),
+                        style: AppText.label.copyWith(color: AppColors.inkSecondary),
                       ),
                       Text(
                         '₹${invoice.grandTotal.toStringAsFixed(2)}',
@@ -384,8 +375,7 @@ class _SalesReturnFormScreenState
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Text(
                         'No item details available',
-                        style: GoogleFonts.manrope(
-                            fontSize: 13, color: AppColors.inkTertiary),
+                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                       ),
                     )
                   : Column(
@@ -423,25 +413,18 @@ class _SalesReturnFormScreenState
                                     children: [
                                       Text(
                                         item.name,
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.inkPrimary,
-                                        ),
+                                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                                          color: AppColors.inkPrimary),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         'Max: ${item.quantity.toInt()}',
-                                        style: GoogleFonts.manrope(
-                                            fontSize: 13,
-                                            color: AppColors.inkTertiary),
+                                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                       ),
                                       if (item.rate > 0)
                                         Text(
                                           '₹${item.rate.toStringAsFixed(2)}/unit',
-                                          style: GoogleFonts.manrope(
-                                              fontSize: 13,
-                                              color: AppColors.inkTertiary),
+                                          style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                         ),
                                     ],
                                   ),
@@ -497,10 +480,7 @@ class _SalesReturnFormScreenState
                             children: [
                               Text(
                                 'Return Total',
-                                style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.inkSecondary),
+                                style: AppText.label.copyWith(color: AppColors.inkSecondary),
                               ),
                               Text(
                                 '₹${returnTotal.toStringAsFixed(2)}',
@@ -553,12 +533,8 @@ class _SalesReturnFormScreenState
                               children: [
                                 Text(
                                   'Return Date',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.inkTertiary,
-                                    letterSpacing: 1,
-                                  ),
+                                  style: AppText.label.copyWith(color: AppColors.inkTertiary,
+                                    letterSpacing: 1),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
@@ -586,12 +562,9 @@ class _SalesReturnFormScreenState
                     padding: const EdgeInsets.only(left: 4, bottom: 6),
                     child: Text(
                       'REASON FOR RETURN',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                         color: AppColors.inkTertiary,
-                        letterSpacing: 1,
-                      ),
+                        letterSpacing: 1),
                     ),
                   ),
                   Container(
@@ -614,11 +587,8 @@ class _SalesReturnFormScreenState
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 12),
                         hintText: 'Reason for return (optional)',
-                        hintStyle: GoogleFonts.manrope(
-                          color:
-                              AppColors.inkTertiary.withValues(alpha: 0.6),
-                          fontSize: 13,
-                        ),
+                        hintStyle: AppText.caption.copyWith(color:
+                              AppColors.inkTertiary.withValues(alpha: 0.6)),
                       ),
                     ),
                   ),
@@ -671,12 +641,9 @@ class _SalesReturnFormScreenState
                   )
                 : Text(
                     'PROCESS RETURN · ₹${returnTotal.toStringAsFixed(2)}',
-                    style: GoogleFonts.manrope(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                       letterSpacing: 0.8,
-                      color: Colors.white,
-                    ),
+                      color: Colors.white),
                   ),
           ),
         ),
@@ -695,12 +662,9 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: GoogleFonts.manrope(
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
+      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
         color: AppColors.inkTertiary,
-        letterSpacing: 1.5,
-      ),
+        letterSpacing: 1.5),
     );
   }
 }

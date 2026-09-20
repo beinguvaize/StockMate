@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 import 'providers/accounts_provider.dart';
 
 class AccountsScreen extends ConsumerWidget {
@@ -52,7 +53,7 @@ class AccountsScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Text(
                     'Add accounts from the web app Settings → Accounts',
-                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -81,7 +82,7 @@ class AccountsScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Total Balance', style: GoogleFonts.manrope(fontSize: 13, color: Colors.white60, fontWeight: FontWeight.w600)),
+                    Text('Total Balance', style: AppText.label.copyWith(color: Colors.white60)),
                     const SizedBox(height: 6),
                     Text(
                       '₹${totalBalance.toStringAsFixed(2)}',
@@ -134,10 +135,7 @@ class _SectionHeader extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label.toUpperCase(),
-            style: GoogleFonts.manrope(
-              fontSize: 13, fontWeight: FontWeight.w600,
-              color: color, letterSpacing: 0.08,
-            ),
+            style: AppText.label.copyWith(color: color, letterSpacing: 0.08),
           ),
         ],
       ),
@@ -170,10 +168,7 @@ class _AccountCard extends StatelessWidget {
                   children: [
                     Text(
                       account.name,
-                      style: GoogleFonts.manrope(
-                        fontSize: 15, fontWeight: FontWeight.w600,
-                        color: AppColors.inkPrimary,
-                      ),
+                      style: AppText.bodyStrong.copyWith(color: AppColors.inkPrimary),
                     ),
                     if (account.isDefault) ...[
                       const SizedBox(width: 6),
@@ -183,13 +178,13 @@ class _AccountCard extends StatelessWidget {
                           color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text('Default', style: GoogleFonts.manrope(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w700)),
+                        child: Text('Default', style: AppText.label.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
                       ),
                     ],
                   ],
                 ),
                 if (account.upiId != null && account.upiId!.isNotEmpty)
-                  Text(account.upiId!, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                  Text(account.upiId!, style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                 // Linked UPI handles folded into this bank card (web parity)
                 for (final h in account.linkedUpiHandles)
                   Padding(
@@ -201,7 +196,7 @@ class _AccountCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
                       ),
-                      child: Text(h, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                      child: Text(h, style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                     ),
                   ),
               ],

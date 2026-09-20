@@ -9,6 +9,7 @@ import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ─── Provider — reads from `invoices` table (same as web Invoices.jsx) ────────
 final invoicesProvider = FutureProvider<List<Invoice>>((ref) async {
@@ -168,10 +169,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                 ),
                                 Text(
                                   'Manage billing & collections',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    color: AppColors.inkTertiary,
-                                  ),
+                                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                 ),
                               ],
                             ),
@@ -196,11 +194,8 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                   const SizedBox(width: 5),
                                   Text(
                                     'New Invoice',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.primary,
-                                    ),
+                                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                                      color: AppColors.primary),
                                   ),
                                 ],
                               ),
@@ -228,22 +223,16 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                 children: [
                                   Text(
                                     'OUTSTANDING',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
+                                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                       color: AppColors.inkTertiary,
-                                      letterSpacing: 1,
-                                    ),
+                                      letterSpacing: 1),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
                                     '₹${_formatAmount(outstanding)}',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
+                                    style: AppText.title.copyWith(fontWeight: FontWeight.w800,
                                       color: AppColors.danger,
-                                      letterSpacing: -0.5,
-                                    ),
+                                      letterSpacing: -0.5),
                                   ),
                                   const SizedBox(height: 4),
                                   Row(
@@ -252,10 +241,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                       const SizedBox(width: 4),
                                       Text(
                                         'To collect',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          color: AppColors.inkTertiary,
-                                        ),
+                                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                       ),
                                     ],
                                   ),
@@ -282,12 +268,9 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                     children: [
                                       Text(
                                         'COLLECTED THIS MONTH',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
+                                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                           color: AppColors.secondaryContainer.withValues(alpha: 0.7),
-                                          letterSpacing: 1,
-                                        ),
+                                          letterSpacing: 1),
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
@@ -357,11 +340,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                           Expanded(
                             child: Text(
                               'Recent Invoices',
-                              style: GoogleFonts.manrope(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.inkPrimary,
-                              ),
+                              style: AppText.heading.copyWith(color: AppColors.inkPrimary),
                             ),
                           ),
                           IconButton(
@@ -421,11 +400,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                 ),
                                 child: Text(
                                   filters[i],
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: isActive ? AppColors.primary : AppColors.inkTertiary,
-                                  ),
+                                  style: AppText.label.copyWith(color: isActive ? AppColors.primary : AppColors.inkTertiary),
                                 ),
                               ),
  );
@@ -459,11 +434,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                       const SizedBox(width: 5),
                                       Text(
                                         '${_fmtDate(_dateRange!.start.toIso8601String().substring(0, 10))} – ${_fmtDate(_dateRange!.end.toIso8601String().substring(0, 10))}',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.primary,
-                                        ),
+                                        style: AppText.label.copyWith(color: AppColors.primary),
                                       ),
                                       const SizedBox(width: 6),
                                       Icon(LucideIcons.x, size: 12, color: AppColors.primary),
@@ -628,20 +599,14 @@ class _InvoiceCard extends StatelessWidget {
                     children: [
                       Text(
                         customerName,
-                        style: GoogleFonts.manrope(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary,
-                        ),
+                        style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                          color: AppColors.inkPrimary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         invoice.displayNumber,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: AppColors.inkTertiary,
-                        ),
+                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                       ),
                     ],
                   ),
@@ -653,12 +618,9 @@ class _InvoiceCard extends StatelessWidget {
                   children: [
                     Text(
                       '₹${invoice.grandTotal.toStringAsFixed(2)}',
-                      style: GoogleFonts.manrope(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                      style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w800,
                         color: AppColors.inkPrimary,
-                        letterSpacing: -0.5,
-                      ),
+                        letterSpacing: -0.5),
                     ),
                     const SizedBox(height: 4),
                     Container(
@@ -669,11 +631,8 @@ class _InvoiceCard extends StatelessWidget {
                       ),
                       child: Text(
                         badgeLabel,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: badgeFg,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          color: badgeFg),
                       ),
                     ),
                   ],
@@ -690,7 +649,7 @@ class _InvoiceCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   _fmtDate(invoice.invoiceDate),
-                  style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                 ),
                 if (invoice.dueDate != null && status != _InvoiceStatus.paid) ...[
                   const SizedBox(width: 10),
@@ -702,11 +661,7 @@ class _InvoiceCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     'Due ${_fmtDate(invoice.dueDate)}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: isOverdue ? AppColors.danger : AppColors.inkTertiary,
-                      fontWeight: isOverdue ? FontWeight.w600 : FontWeight.normal,
-                    ),
+                    style: AppText.label.copyWith(color: isOverdue ? AppColors.danger : AppColors.inkTertiary),
                   ),
                 ],
                 const Spacer(),
@@ -714,11 +669,7 @@ class _InvoiceCard extends StatelessWidget {
                 if (invoice.paidAmount > 0 && status != _InvoiceStatus.paid)
                   Text(
                     'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Balance ₹${invoice.outstanding.toStringAsFixed(0)}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: AppColors.warning,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.label.copyWith(color: AppColors.warning),
                   ),
                 const Icon(LucideIcons.chevronRight, size: 14, color: AppColors.inkTertiary),
               ],

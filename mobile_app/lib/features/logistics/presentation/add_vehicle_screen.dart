@@ -9,6 +9,7 @@ import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class AddVehicleScreen extends ConsumerStatefulWidget {
   /// When non-null the screen operates in edit mode.
@@ -165,12 +166,8 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
             ),
             Text(
               'FLEET MANAGEMENT',
-              style: GoogleFonts.manrope(
-                color: AppColors.secondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -199,12 +196,9 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
             Center(
               child: Text(
                 'FLEET VEHICLE',
-                style: GoogleFonts.manrope(
-                  color: AppColors.inkSecondary,
-                  fontSize: 13,
+                style: AppText.label.copyWith(color: AppColors.inkSecondary,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 2,
-                ),
+                  letterSpacing: 2),
               ),
             ),
             const SizedBox(height: 28),
@@ -338,11 +332,8 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEditing ? 'SAVE CHANGES' : 'ADD TO FLEET',
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          letterSpacing: 1,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          letterSpacing: 1),
                       ),
                     ],
                   ),
@@ -386,12 +377,8 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
             fontSize: 14,
           ),
           labelText: label,
-          labelStyle: GoogleFonts.manrope(
-            color: AppColors.inkSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
+          labelStyle: AppText.label.copyWith(color: AppColors.inkSecondary,
+            letterSpacing: 0.5),
           floatingLabelBehavior: FloatingLabelBehavior.always,
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
@@ -425,12 +412,9 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           title,
-          style: GoogleFonts.manrope(
-            color: AppColors.primary,
-            fontSize: 13,
+          style: AppText.label.copyWith(color: AppColors.primary,
             fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-          ),
+            letterSpacing: 1.5),
         ),
       ],
     );
