@@ -7,6 +7,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/daybook/data/daybook_models.dart';
 import 'package:mobile_app/features/daybook/presentation/daybook_history_screen.dart';
 import 'package:mobile_app/features/daybook/providers/daybook_providers.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DayBookScreen
@@ -332,7 +333,8 @@ class _DateNavStrip extends StatelessWidget {
             constraints: const BoxConstraints(),
           ),
           Expanded(
-            child: GestureDetector(
+            child: AppTappable(
+   ripple: false,
               onTap: onPickDate,
               child: Container(
                 padding:
@@ -373,7 +375,7 @@ class _DateNavStrip extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
+ ),
           ),
           IconButton(
             icon: Icon(LucideIcons.chevronRight,
@@ -866,7 +868,8 @@ class _OpeningEquation extends StatelessWidget {
           bold: true,
         ),
         const SizedBox(height: 10),
-        GestureDetector(
+        AppTappable(
+          ripple: false,
           onTap: onEdit,
           child: Text(
             'Edit opening balance',

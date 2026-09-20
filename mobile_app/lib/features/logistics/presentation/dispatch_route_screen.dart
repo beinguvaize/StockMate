@@ -7,6 +7,7 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/location/location_service.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 /// DispatchRouteScreen — start a delivery route for a vehicle.
 /// Mirrors the web dispatchRoute flow: picks a driver + pending delivery
@@ -289,7 +290,8 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                     'DELIVERIES (${_selected.length}/${_invoices.length})'),
                               ),
                               if (_invoices.isNotEmpty)
-                                GestureDetector(
+                                AppTappable(
+                                  ripple: false,
                                   onTap: () => setState(() {
                                     if (_selected.length == _invoices.length) {
                                       _selected.clear();
@@ -325,7 +327,8 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                             ..._invoices.map((inv) {
                               final id = inv['id'].toString();
                               final on = _selected.contains(id);
-                              return GestureDetector(
+                              return AppTappable(
+   ripple: false,
                                 onTap: () => setState(() {
                                   on ? _selected.remove(id) : _selected.add(id);
                                 }),
@@ -391,7 +394,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                     ],
                                   ),
                                 ),
-                              );
+ );
                             }),
                         ],
                       ),

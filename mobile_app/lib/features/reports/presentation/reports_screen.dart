@@ -16,6 +16,7 @@ import 'package:mobile_app/features/reports/presentation/expenses_report_screen.
 import 'package:mobile_app/features/reports/presentation/purchases_report_screen.dart';
 import 'package:mobile_app/features/reports/presentation/gstr1_screen.dart';
 import 'package:mobile_app/features/reports/presentation/gstr3b_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 // ---------------------------------------------------------------------------
 // Internal summary provider (kept for overview KPIs)
@@ -198,7 +199,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: GestureDetector(
+            child: AppTappable(
+   ripple: false,
               onTap: _pickDateRange,
               child: Container(
                 padding:
@@ -225,7 +227,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ],
                 ),
               ),
-            ),
+ ),
           ),
         ],
       ),
@@ -395,7 +397,8 @@ class _HubCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => item.screenBuilder()),
@@ -454,7 +457,7 @@ class _HubCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+ );
   }
 }
 

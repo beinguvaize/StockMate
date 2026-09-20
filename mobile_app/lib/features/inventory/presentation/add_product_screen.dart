@@ -9,6 +9,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/widgets/barcode_scanner_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
   final Product? product; // non-null = edit mode
@@ -308,7 +309,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                GestureDetector(
+                AppTappable(
+                  ripple: false,
                   onTap: _assignBarcode,
                   child: Container(
                     height: 48, padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -324,7 +326,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                GestureDetector(
+                AppTappable(
+                  ripple: false,
                   onTap: _scanBarcodeIntoField,
                   child: Container(
                     height: 48, width: 48,

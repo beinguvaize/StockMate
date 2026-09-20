@@ -8,6 +8,7 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
 import 'package:mobile_app/features/returns/presentation/purchase_return_form_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 class PurchaseDetailScreen extends ConsumerWidget {
   final Purchase purchase;
@@ -78,7 +79,8 @@ class PurchaseDetailScreen extends ConsumerWidget {
             scrolledUnderElevation: 0,
             leading: Padding(
               padding: const EdgeInsets.all(8),
-              child: GestureDetector(
+              child: AppTappable(
+   ripple: false,
                 onTap: () => Navigator.pop(context),
                 child: Container(
                   decoration: BoxDecoration(
@@ -89,7 +91,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                   child: const Icon(LucideIcons.arrowLeft,
                       size: 20, color: AppColors.inkPrimary),
                 ),
-              ),
+ ),
             ),
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -118,7 +120,8 @@ class PurchaseDetailScreen extends ConsumerWidget {
               // Copy PO number
               Padding(
                 padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-                child: GestureDetector(
+                child: AppTappable(
+   ripple: false,
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: purchase.poNumber));
                     HapticFeedback.lightImpact();
@@ -144,7 +147,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                     child: const Icon(LucideIcons.copy,
                         size: 16, color: AppColors.inkSecondary),
                   ),
-                ),
+ ),
               ),
             ],
           ),

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 final pendingSyncCountProvider = StreamProvider<int>((ref) {
   final svc = ref.watch(syncServiceProvider);
@@ -85,7 +86,8 @@ class _SyncStatusPillState extends ConsumerState<SyncStatusPill> {
       label = 'Online';
     }
 
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: () => _forceSync(offline, pending),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -117,6 +119,6 @@ class _SyncStatusPillState extends ConsumerState<SyncStatusPill> {
           ],
         ),
       ),
-    );
+ );
   }
 }

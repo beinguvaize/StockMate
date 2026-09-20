@@ -10,6 +10,7 @@ import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/theme/typography.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile_app/features/auth/presentation/phone_login_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 // Keystore-backed credential storage for the "Remember me" + biometric
 // unlock features. Both rely on the device hardware-backed keystore so the
@@ -268,14 +269,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           const SizedBox(width: 4),
                           Expanded(
-                            child: GestureDetector(
+                            child: AppTappable(
+   ripple: false,
                               onTap: () => setState(() {
                                 _rememberMe = !_rememberMe;
                                 if (!_rememberMe) _biometricEnabled = false;
                               }),
                               child: Text('Remember me on this device',
                                   style: AppText.body),
-                            ),
+ ),
                           ),
                         ],
                       ),

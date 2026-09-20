@@ -14,6 +14,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchase_detail_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 
 // ─── Model ────────────────────────────────────────────────────────────────────
@@ -155,7 +156,8 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
               }
               return Padding(
                 padding: const EdgeInsets.only(right: 12),
-                child: GestureDetector(
+                child: AppTappable(
+   ripple: false,
                   onTap: () => _showAddSheet(ctx.tenantId),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -177,7 +179,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                       ],
                     ),
                   ),
-                ),
+ ),
               );
             },
             orElse: () => const SizedBox.shrink(),
@@ -318,7 +320,8 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                             return Padding(
                               padding: EdgeInsets.only(
                                   right: e.key < _filters.length - 1 ? 8 : 0),
-                              child: GestureDetector(
+                              child: AppTappable(
+   ripple: false,
                                 onTap: () =>
                                     setState(() => _filterIndex = e.key),
                                 child: AnimatedContainer(
@@ -349,7 +352,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                                     ),
                                   ),
                                 ),
-                              ),
+ ),
                             );
                           }).toList(),
                         ),
@@ -413,7 +416,8 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                         delegate: SliverChildBuilderDelegate(
                           (context, i) => Padding(
                             padding: const EdgeInsets.only(bottom: 10),
-                            child: GestureDetector(
+                            child: AppTappable(
+   ripple: false,
                               onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -425,7 +429,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                                 purchase: filtered[i],
                                 fmtDate: _fmtDate,
                               ),
-                            ),
+ ),
                           ),
                           childCount: filtered.length,
                         ),
@@ -1229,7 +1233,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                           const SizedBox(height: 16),
 
                           // ── Scan bill (AI OCR) ───────────────────────
-                          GestureDetector(
+                          AppTappable(
+                            ripple: false,
                             onTap: _scanning ? null : _scanBill,
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 13),
@@ -1335,7 +1340,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                 ],
                                 const SizedBox(height: 12),
                                 _label('DATE'),
-                                GestureDetector(
+                                AppTappable(
+                                  ripple: false,
                                   onTap: _pickDate,
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1669,7 +1675,8 @@ class _LineItemCard extends StatelessWidget {
             ),
 
           // Product picker — opens a searchable sheet (type to filter).
-          GestureDetector(
+          AppTappable(
+            ripple: false,
             onTap: () => _openProductSearch(context),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
@@ -1713,7 +1720,8 @@ class _LineItemCard extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  ...line.suggestions.map((p) => GestureDetector(
+                  ...line.suggestions.map((p) => AppTappable(
+   ripple: false,
                         onTap: () => onProductChange(p['id'] as String?),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1728,9 +1736,10 @@ class _LineItemCard extends StatelessWidget {
                                 color: AppColors.onPrimaryContainer),
                           ),
                         ),
-                      )),
+ )),
                   if (line.scannedName != null && onCreateFromScan != null)
-                    GestureDetector(
+                    AppTappable(
+                      ripple: false,
                       onTap: onCreateFromScan,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1805,7 +1814,8 @@ class _LineItemCard extends StatelessWidget {
           // Optional expiry — creates a dated batch for expiry tracking.
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: GestureDetector(
+            child: AppTappable(
+   ripple: false,
               onTap: () async {
                 final picked = await showDatePicker(
                   context: context,
@@ -1831,14 +1841,15 @@ class _LineItemCard extends StatelessWidget {
                   ),
                   if (line.expiryDate != null) ...[
                     const SizedBox(width: 6),
-                    GestureDetector(
+                    AppTappable(
+                      ripple: false,
                       onTap: () => onExpiryChange?.call(null),
                       child: const Icon(LucideIcons.x, size: 12, color: AppColors.inkTertiary),
                     ),
                   ],
                 ],
               ),
-            ),
+ ),
           ),
 
           // Cost vs last
@@ -1973,7 +1984,8 @@ class _PayChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: onTap,
       child: AnimatedContainer(
         duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
@@ -1991,7 +2003,7 @@ class _PayChip extends StatelessWidget {
                 fontSize: 13, fontWeight: FontWeight.w600,
                 color: active ? AppColors.primary : AppColors.inkSecondary)),
       ),
-    );
+ );
   }
 }
 
@@ -2150,7 +2162,8 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  GestureDetector(
+                  AppTappable(
+                    ripple: false,
                     onTap: _scanToPick,
                     child: Container(
                       width: 48, height: 48,
@@ -2179,7 +2192,8 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
                       itemBuilder: (context, i) {
                         final p = _filtered[i];
                         final isSelected = widget.selectedId == p['id'];
-                        return GestureDetector(
+                        return AppTappable(
+   ripple: false,
                           onTap: () => widget.onSelected(p['id'] as String?),
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 8),
@@ -2223,7 +2237,7 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
                               ],
                             ),
                           ),
-                        );
+ );
                       },
                     ),
             ),

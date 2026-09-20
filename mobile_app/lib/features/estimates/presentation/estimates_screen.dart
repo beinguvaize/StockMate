@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 import 'providers/estimates_provider.dart';
 
 class EstimatesScreen extends ConsumerStatefulWidget {
@@ -61,7 +62,8 @@ class _EstimatesScreenState extends ConsumerState<EstimatesScreen> {
                 final selected = _typeFilter == t;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
+                  child: AppTappable(
+   ripple: false,
                     onTap: () => setState(() => _typeFilter = t),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -78,7 +80,7 @@ class _EstimatesScreenState extends ConsumerState<EstimatesScreen> {
                         ),
                       ),
                     ),
-                  ),
+ ),
                 );
               }).toList(),
             ),

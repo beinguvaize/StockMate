@@ -14,6 +14,7 @@ import 'package:mobile_app/features/logistics/presentation/dispatch_route_screen
 import 'package:mobile_app/features/logistics/presentation/fleet_stock_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/fleet_map_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 class LogisticsScreen extends ConsumerWidget {
   const LogisticsScreen({super.key});
@@ -121,7 +122,8 @@ class LogisticsScreen extends ConsumerWidget {
                         ),
                         Row(
                           children: [
-                            GestureDetector(
+                            AppTappable(
+                              ripple: false,
                               onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -131,7 +133,8 @@ class LogisticsScreen extends ConsumerWidget {
                                   size: 16, color: AppColors.secondary),
                             ),
                             const SizedBox(width: 14),
-                            GestureDetector(
+                            AppTappable(
+                              ripple: false,
                               onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -218,7 +221,8 @@ class LogisticsScreen extends ConsumerWidget {
                           ),
                         ),
                         const Spacer(),
-                        GestureDetector(
+                        AppTappable(
+                          ripple: false,
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(

@@ -9,6 +9,7 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/hr/data/models/employee.dart';
 import 'package:mobile_app/features/hr/presentation/providers/hr_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 class AddEmployeeScreen extends ConsumerStatefulWidget {
   /// Pass an existing [Employee] to enter edit mode; leave null to add a new one.
@@ -269,7 +270,8 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                   child: Padding(
                     padding: EdgeInsets.only(
                         right: status != _statusOptions.last ? 8 : 0),
-                    child: GestureDetector(
+                    child: AppTappable(
+   ripple: false,
                       onTap: () => setState(() => _selectedStatus = status),
                       child: AnimatedContainer(
                         duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
@@ -314,7 +316,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                           ],
                         ),
                       ),
-                    ),
+ ),
                   ),
                 );
               }).toList(),

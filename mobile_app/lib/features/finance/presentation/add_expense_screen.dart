@@ -12,6 +12,7 @@ import 'package:mobile_app/features/finance/presentation/providers/finance_provi
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final Expense? expense; // non-null = edit mode
@@ -474,9 +475,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     // ── DATE FIELD ──────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
-                      child: GestureDetector(
+                      child: AppTappable(
+   ripple: false,
                         onTap: _pickDate,
-                        behavior: HitTestBehavior.opaque,
                         child: _iconField(
                           label: 'DATE',
                           icon: LucideIcons.calendar,
@@ -492,7 +493,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             ),
                           ),
                         ),
-                      ),
+ ),
                     ),
 
                     // ── PAID VIA ────────────────────────────────────
@@ -509,7 +510,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             for (final m in const ['CASH','UPI','BANK','CARD'])
                               Expanded(child: Padding(
                                 padding: const EdgeInsets.only(right: 6),
-                                child: GestureDetector(
+                                child: AppTappable(
+   ripple: false,
                                   onTap: () => setState(() => _paymentMethod = m),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(vertical: 10),
@@ -523,7 +525,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                       fontSize: 13, fontWeight: FontWeight.w800,
                                       color: _paymentMethod == m ? AppColors.primary : AppColors.inkSecondary)),
                                   ),
-                                ),
+ ),
                               )),
                           ]),
                         ],
@@ -556,7 +558,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 for (final r in const ['5','12','18','28'])
                                   Expanded(child: Padding(
                                     padding: const EdgeInsets.only(right: 6),
-                                    child: GestureDetector(
+                                    child: AppTappable(
+   ripple: false,
                                       onTap: () => setState(() => _gstRate = r),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -570,7 +573,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                           fontSize: 13, fontWeight: FontWeight.w800,
                                           color: _gstRate == r ? AppColors.primary : AppColors.inkSecondary)),
                                       ),
-                                    ),
+ ),
                                   )),
                               ]),
                               const SizedBox(height: 10),

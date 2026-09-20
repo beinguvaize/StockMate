@@ -10,6 +10,7 @@ import 'package:mobile_app/features/reports/presentation/widgets/date_range_chip
 import 'package:mobile_app/features/reports/presentation/widgets/report_kpi_tile.dart';
 import 'package:mobile_app/features/reports/presentation/widgets/simple_bar_chart.dart';
 import 'package:mobile_app/features/reports/utils/financial_calcs.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 // ---------------------------------------------------------------------------
 // Private data classes
@@ -541,7 +542,8 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
         final nonZeroBuckets = agingBuckets
             .where((b) => (client.buckets[b] ?? 0) > 0)
             .toList();
-        return GestureDetector(
+        return AppTappable(
+   ripple: false,
           onTap: () => _showClientInvoices(context, client),
           child: Container(
             padding: const EdgeInsets.all(14),
@@ -594,7 +596,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
               ],
             ),
           ),
-        );
+ );
       },
     );
   }

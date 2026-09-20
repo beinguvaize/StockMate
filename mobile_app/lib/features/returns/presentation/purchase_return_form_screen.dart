@@ -8,6 +8,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
 import 'package:mobile_app/features/returns/presentation/providers/returns_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 class PurchaseReturnFormScreen extends ConsumerStatefulWidget {
   final Purchase purchase;
@@ -185,7 +186,8 @@ class _PurchaseReturnFormScreenState
         surfaceTintColor: Colors.transparent,
         leading: Padding(
           padding: const EdgeInsets.all(8),
-          child: GestureDetector(
+          child: AppTappable(
+   ripple: false,
             onTap: () => Navigator.pop(context),
             child: Container(
               decoration: BoxDecoration(
@@ -196,7 +198,7 @@ class _PurchaseReturnFormScreenState
               child: const Icon(LucideIcons.arrowLeft,
                   size: 20, color: AppColors.inkPrimary),
             ),
-          ),
+ ),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,7 +613,8 @@ class _StepButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: () {
         if (onTap != null) {
           HapticFeedback.lightImpact();
@@ -637,7 +640,7 @@ class _StepButton extends StatelessWidget {
           color: active ? AppColors.danger : AppColors.inkTertiary,
         ),
       ),
-    );
+ );
   }
 }
 
@@ -666,7 +669,8 @@ class _DetailsCard extends StatelessWidget {
       child: Column(
         children: [
           // ── Date row ──────────────────────────────────────────────────────
-          GestureDetector(
+          AppTappable(
+            ripple: false,
             onTap: onDateTap,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

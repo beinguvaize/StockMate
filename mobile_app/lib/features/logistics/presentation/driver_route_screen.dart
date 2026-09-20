@@ -12,6 +12,7 @@ import 'package:mobile_app/features/logistics/presentation/providers/driver_prov
 import 'package:mobile_app/features/logistics/presentation/van_stock_screen.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 class DriverRouteScreen extends ConsumerStatefulWidget {
   const DriverRouteScreen({super.key});
@@ -404,7 +405,8 @@ class _StopCardState extends ConsumerState<_StopCard> {
   Widget build(BuildContext context) {
     final done = widget.stop.status != 'PENDING';
 
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: done ? null : widget.onTap,
       child: AnimatedContainer(
         duration: Motion.durationOf(context, Motion.base),
@@ -624,7 +626,7 @@ class _StopCardState extends ConsumerState<_StopCard> {
           ],
         ),
       ),
-    );
+ );
   }
 
   String _formatTime(String iso) {
@@ -646,7 +648,8 @@ class _ActionBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Expanded(
-    child: GestureDetector(
+    child: AppTappable(
+   ripple: false,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -670,7 +673,7 @@ class _ActionBtn extends StatelessWidget {
           ],
         ),
       ),
-    ),
+ ),
   );
 }
 

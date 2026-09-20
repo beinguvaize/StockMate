@@ -9,6 +9,7 @@ import 'package:mobile_app/features/hr/presentation/providers/hr_provider.dart';
 import 'package:mobile_app/features/hr/presentation/add_employee_screen.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/utils/payroll_periods.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:uuid/uuid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
@@ -161,7 +162,8 @@ class _EmployeesTab extends ConsumerWidget {
                         ),
                       ),
                       const Spacer(),
-                      GestureDetector(
+                      AppTappable(
+                        ripple: false,
                         onTap: () => _openProcessPayroll(context, ref, employees),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -1984,7 +1986,8 @@ class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
                           final selected = cur == st.$1;
                           return Padding(
                             padding: const EdgeInsets.only(left: 6),
-                            child: GestureDetector(
+                            child: AppTappable(
+   ripple: false,
                               onTap: () => _mark(emp.id, st.$1),
                               child: Container(
                                 width: 34, height: 34,
@@ -2000,7 +2003,7 @@ class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
                                         fontSize: 13, fontWeight: FontWeight.w800,
                                         color: selected ? Colors.white : AppColors.inkSecondary)),
                               ),
-                            ),
+ ),
                           );
                         }),
                       ],
