@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 /// LoadVanScreen — warehouse → vehicle stock transfer.
 /// Mirrors the web `loadVan` flow: per product, adjust_inventory_atomic
@@ -397,7 +398,8 @@ class _StepBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null;
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: onTap,
       child: Container(
         width: 32,
@@ -414,6 +416,6 @@ class _StepBtn extends StatelessWidget {
           color: enabled ? AppColors.primary : AppColors.inkTertiary,
         ),
       ),
-    );
+ );
   }
 }

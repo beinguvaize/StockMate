@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 // ── Role routing ──────────────────────────────────────────────────────────────
 
@@ -253,7 +254,8 @@ class _SaleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(18),
@@ -304,7 +306,7 @@ class _SaleTile extends StatelessWidget {
           ],
         ),
       ),
-    );
+ );
   }
 }
 
@@ -347,7 +349,8 @@ class _VehiclePicker extends StatelessWidget {
             final id    = v['id'] as String;
             final name  = (v['name'] as String?) ?? 'Vehicle';
             final plate = (v['plate'] ?? v['plateNumber']) as String? ?? '';
-            return GestureDetector(
+            return AppTappable(
+   ripple: false,
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -402,7 +405,7 @@ class _VehiclePicker extends StatelessWidget {
                   ],
                 ),
               ),
-            );
+ );
           }),
         ],
       ),

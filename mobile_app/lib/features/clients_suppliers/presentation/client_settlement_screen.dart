@@ -13,6 +13,7 @@ import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/sales/data/models/sale.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 class ClientSettlementScreen extends ConsumerStatefulWidget {
   final Client client;
@@ -362,7 +363,8 @@ class _ClientSettlementScreenState
               title: 'PAYMENT DETAILS',
               children: [
                 // Date row
-                GestureDetector(
+                AppTappable(
+                  ripple: false,
                   onTap: _pickDate,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -944,7 +946,8 @@ class _MethodSelector extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.only(
                 right: m == methods.last ? 0 : 8),
-            child: GestureDetector(
+            child: AppTappable(
+   ripple: false,
               onTap: () => onChanged(m),
               child: AnimatedContainer(
                 duration: Motion.durationOf(context, const Duration(milliseconds: 140)),
@@ -974,7 +977,7 @@ class _MethodSelector extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
+ ),
           ),
         );
       }).toList(),

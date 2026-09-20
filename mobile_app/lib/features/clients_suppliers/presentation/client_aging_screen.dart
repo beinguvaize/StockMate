@@ -8,6 +8,7 @@ import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/client_settlement_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 // ─── Aging bucket data ────────────────────────────────────────────────────────
 class _AgingBuckets {
@@ -406,7 +407,8 @@ class _ClientAgingCard extends StatelessWidget {
     final aColor  = avatarColor(client.name);
     final aBg     = avatarBg(client.name);
 
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: () {
         Navigator.push(
           context,
@@ -589,7 +591,7 @@ class _ClientAgingCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+ );
   }
 }
 

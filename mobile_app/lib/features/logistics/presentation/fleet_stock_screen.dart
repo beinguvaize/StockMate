@@ -6,6 +6,7 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/presentation/van_stock_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 /// FleetStockScreen — stock-on-board overview for every vehicle.
 class FleetStockScreen extends ConsumerStatefulWidget {
@@ -194,7 +195,8 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                             itemCount: _rows.length,
                             itemBuilder: (context, i) {
                               final r = _rows[i];
-                              return GestureDetector(
+                              return AppTappable(
+   ripple: false,
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -274,7 +276,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                     ],
                                   ),
                                 ),
-                              );
+ );
                             },
                           ),
                         ),

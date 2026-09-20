@@ -10,6 +10,7 @@ import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 class SalesScreen extends ConsumerStatefulWidget {
   const SalesScreen({super.key});
@@ -180,7 +181,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, i) {
                   final isActive = _dateIndex == i;
-                  return GestureDetector(
+                  return AppTappable(
+   ripple: false,
                     onTap: () => setState(() => _dateIndex = i),
                     child: AnimatedContainer(
                       duration: Motion.durationOf(context, Motion.base),
@@ -210,7 +212,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                         ),
                       ),
                     ),
-                  );
+ );
                 },
               ),
             ),
@@ -238,7 +240,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
                 itemBuilder: (context, i) {
                   final isActive = _filterIndex == i;
-                  return GestureDetector(
+                  return AppTappable(
+   ripple: false,
                     onTap: () => setState(() => _filterIndex = i),
                     child: AnimatedContainer(
                       duration: Motion.base,
@@ -269,7 +272,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                         ),
                       ),
                     ),
-                  );
+ );
                 },
               ),
             ),
@@ -372,7 +375,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                           ? customerName[0].toUpperCase()
                           : 'W';
 
-                      return GestureDetector(
+                      return AppTappable(
+   ripple: false,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -530,7 +534,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                         ),
                                       ),
                                     ),
-                                    GestureDetector(
+                                    AppTappable(
+                                      ripple: false,
                                       onTap: () => Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -573,7 +578,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                             ],
                           ),
                         ),
-                      );
+ );
                     },
                   );
                 },

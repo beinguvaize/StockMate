@@ -9,6 +9,7 @@ import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart'
 import 'package:mobile_app/features/clients_suppliers/presentation/add_supplier_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 // ─── Supplier transactions provider ──────────────────────────────────────────
 // Provider key: "supplierId|supplierName"
@@ -132,7 +133,8 @@ class SupplierDetailScreen extends ConsumerWidget {
             scrolledUnderElevation: 0,
             leading: Padding(
               padding: const EdgeInsets.all(8),
-              child: GestureDetector(
+              child: AppTappable(
+   ripple: false,
                 onTap: () => Navigator.pop(context),
                 child: Container(
                   decoration: BoxDecoration(
@@ -142,12 +144,13 @@ class SupplierDetailScreen extends ConsumerWidget {
                   ),
                   child: const Icon(LucideIcons.arrowLeft, size: 20, color: AppColors.inkPrimary),
                 ),
-              ),
+ ),
             ),
             actions: [
               Padding(
                 padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-                child: GestureDetector(
+                child: AppTappable(
+   ripple: false,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -181,7 +184,7 @@ class SupplierDetailScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                ),
+ ),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -482,7 +485,8 @@ class _ActionBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
@@ -523,7 +527,7 @@ class _ActionBtn extends StatelessWidget {
           ],
         ),
       ),
-    );
+ );
   }
 }
 

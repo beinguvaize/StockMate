@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'providers/cash_collection_provider.dart';
 
@@ -319,7 +320,8 @@ class _ClientCollectionCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            GestureDetector(
+            AppTappable(
+              ripple: false,
               onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.all(14),
@@ -397,7 +399,8 @@ class _ClientCollectionCard extends StatelessWidget {
                         final sel = method == m;
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: GestureDetector(
+                          child: AppTappable(
+   ripple: false,
                             onTap: () => onMethodChange(m),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -408,7 +411,7 @@ class _ClientCollectionCard extends StatelessWidget {
                               ),
                               child: Text(m, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppColors.inkSecondary)),
                             ),
-                          ),
+ ),
                         );
                       }).toList(),
                     ),
@@ -416,7 +419,8 @@ class _ClientCollectionCard extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: GestureDetector(
+                          child: AppTappable(
+   ripple: false,
                             onTap: isSubmitting ? null : onRecord,
                             child: Container(
                               height: 44,
@@ -430,10 +434,11 @@ class _ClientCollectionCard extends StatelessWidget {
                                     : Text('Record Payment', style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
                               ),
                             ),
-                          ),
+ ),
                         ),
                         const SizedBox(width: 10),
-                        GestureDetector(
+                        AppTappable(
+                          ripple: false,
                           onTap: onSkip,
                           child: Container(
                             height: 44, width: 70,

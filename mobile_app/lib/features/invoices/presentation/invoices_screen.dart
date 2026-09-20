@@ -8,6 +8,7 @@ import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 // ─── Provider — reads from `invoices` table (same as web Invoices.jsx) ────────
 final invoicesProvider = FutureProvider<List<Invoice>>((ref) async {
@@ -176,7 +177,8 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          GestureDetector(
+                          AppTappable(
+                            ripple: false,
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(builder: (_) => const AddSaleScreen()),
@@ -406,7 +408,8 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                           separatorBuilder: (context2, i2) => const SizedBox(width: 8),
                           itemBuilder: (ctx, i) {
                             final isActive = _filterIndex == i;
-                            return GestureDetector(
+                            return AppTappable(
+   ripple: false,
                               onTap: () => setState(() => _filterIndex = i),
                               child: AnimatedContainer(
                                 duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
@@ -425,7 +428,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                   ),
                                 ),
                               ),
-                            );
+ );
                           },
                         ),
                       ),
@@ -438,7 +441,8 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Row(
                             children: [
-                              GestureDetector(
+                              AppTappable(
+                                ripple: false,
                                 onTap: () => setState(() => _dateRange = null),
                                 child: AnimatedContainer(
                                   duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
@@ -496,7 +500,8 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                           return Padding(
                             padding: EdgeInsets.fromLTRB(
                                 24, 0, 24, index == filtered.length - 1 ? 100 : 12),
-                            child: GestureDetector(
+                            child: AppTappable(
+   ripple: false,
                               onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -506,7 +511,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                 ),
                               ),
                               child: _InvoiceCard(invoice: inv),
-                            ),
+ ),
                           );
                         },
                         childCount: filtered.length,

@@ -8,6 +8,7 @@ import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 // Mirrors web Clients.jsx form schema exactly.
 // DB columns written: id, tenant_id, name, contact, phone, email, address,
@@ -735,7 +736,8 @@ class _TypeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: onTap,
       child: AnimatedContainer(
         duration: Motion.durationOf(context, const Duration(milliseconds: 160)),
@@ -782,6 +784,6 @@ class _TypeCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+ );
   }
 }

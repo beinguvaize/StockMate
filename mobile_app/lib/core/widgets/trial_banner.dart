@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 class TrialBanner extends StatelessWidget {
@@ -54,7 +55,8 @@ class TrialBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          GestureDetector(
+          AppTappable(
+            ripple: false,
             onTap: onUpgrade,
             child: const Icon(LucideIcons.arrowRight, color: AppColors.warning, size: 18),
           ),

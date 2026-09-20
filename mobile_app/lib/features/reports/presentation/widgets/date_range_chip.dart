@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 class DateRangeChip extends StatelessWidget {
   final DateTimeRange range;
@@ -42,7 +43,8 @@ class DateRangeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: () => _pick(context),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -67,6 +69,6 @@ class DateRangeChip extends StatelessWidget {
           ],
         ),
       ),
-    );
+ );
   }
 }

@@ -11,6 +11,7 @@ import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:mobile_app/features/settings/presentation/providers/settings_provider.dart';
 import 'package:mobile_app/features/settings/presentation/sync_diagnostics_screen.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -133,7 +134,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             Expanded(
                               child: Align(
                                 alignment: Alignment.topRight,
-                                child: GestureDetector(
+                                child: AppTappable(
+   ripple: false,
                                   onTap: () => _openEditProfile(profile),
                                   child: Container(
                                     padding: const EdgeInsets.all(8),
@@ -147,7 +149,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                       color: AppColors.primary,
                                     ),
                                   ),
-                                ),
+ ),
                               ),
                             ),
                           ],
@@ -857,7 +859,8 @@ class _TaxModePicker extends StatelessWidget {
       ].map((opt) {
         final mode = opt.$1;
         final selected = current == mode;
-        return GestureDetector(
+        return AppTappable(
+   ripple: false,
           onTap: () => onChanged(mode),
           child: AnimatedContainer(
             duration: Motion.durationOf(context, const Duration(milliseconds: 150)),
@@ -881,7 +884,7 @@ class _TaxModePicker extends StatelessWidget {
               ),
             ),
           ),
-        );
+ );
       }).toList(),
     );
   }

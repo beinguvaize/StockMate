@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/daybook/data/daybook_models.dart';
 import 'package:mobile_app/features/daybook/providers/daybook_providers.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 // ---------------------------------------------------------------------------
 // Date format helper
@@ -374,7 +375,8 @@ class _DayBookHistoryCard extends StatelessWidget {
     final netPositive = net > 0;
     final variance = record.variance;
 
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
@@ -510,7 +512,7 @@ class _DayBookHistoryCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+ );
   }
 }
 
