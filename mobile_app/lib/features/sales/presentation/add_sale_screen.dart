@@ -1291,11 +1291,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         if (p.sku != null)
                           Text(
                             'SKU: ${p.sku}',
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              color: AppColors.inkTertiary,
-                              letterSpacing: 0.3,
-                            ),
+                            style: AppText.caption.copyWith(color: AppColors.inkTertiary, letterSpacing: 0.3),
                           ),
                       ],
                     ),
@@ -1319,11 +1315,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         const SizedBox(width: 4),
                         Text(
                           isLow ? 'Low (${p.stock.toInt()})' : 'In Stock',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: isLow ? AppColors.warning : AppColors.primary,
-                          ),
+                          style: AppText.label.copyWith(color: isLow ? AppColors.warning : AppColors.primary),
                         ),
                       ],
                     ),
@@ -1337,12 +1329,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
               Text(
                 'ADJUST QUANTITY',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.inkTertiary,
-                  letterSpacing: 1.5,
-                ),
+                style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkTertiary, letterSpacing: 1.5),
               ),
               const SizedBox(height: 16),
               Container(
@@ -1411,12 +1398,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                           else
                             FilteringTextInputFormatter.digitsOnly,
                         ],
-                        style: GoogleFonts.manrope(
-                          fontSize: 48,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary,
-                          height: 1,
-                        ),
+                        style: AppText.numericEntry.copyWith(color: AppColors.inkPrimary, height: 1),
                         decoration: const InputDecoration(
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
@@ -1459,11 +1441,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                                   _alt
                                       ? 'by ${widget.product.secondaryUnit} · ${formatQty(_qty, widget.product.unit)} ${widget.product.unit ?? ''}'
                                       : 'Sell by ${widget.product.secondaryUnit}?',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: _alt ? AppColors.primary : AppColors.inkTertiary,
-                                  ),
+                                  style: AppText.label.copyWith(color: _alt ? AppColors.primary : AppColors.inkTertiary),
                                 ),
                               ),
                             ),
@@ -1473,11 +1451,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                             padding: const EdgeInsets.only(top: 2),
                             child: Text(
                               subQtyLabel(_qty, widget.product.unit)!,
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.inkTertiary,
-                              ),
+                              style: AppText.caption.copyWith(fontWeight: FontWeight.w500, color: AppColors.inkTertiary),
                             ),
                           ),
                       ],
@@ -1532,12 +1506,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                   ),
                   decoration: InputDecoration(
                     labelText: _alt ? 'PRICE / ${widget.product.secondaryUnit!.toUpperCase()}' : 'UNIT PRICE',
-                    labelStyle: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkTertiary,
-                      letterSpacing: 1,
-                    ),
+                    labelStyle: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkTertiary, letterSpacing: 1),
                     floatingLabelBehavior: FloatingLabelBehavior.always,
                     prefixIcon: Padding(
                       padding: const EdgeInsets.only(left: 16, right: 8, top: 4),
@@ -1585,11 +1554,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                       Expanded(
                         child: Text(
                           'Below cost — this stock cost ₹${_cost.toStringAsFixed(2)}',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFFB91C1C),
-                          ),
+                          style: AppText.label.copyWith(color: const Color(0xFFB91C1C)),
                         ),
                       ),
                     ],
@@ -1604,12 +1569,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                 children: [
                   Text(
                     'ESTIMATED TOTAL',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkTertiary,
-                      letterSpacing: 1.5,
-                    ),
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkTertiary, letterSpacing: 1.5),
                   ),
                   const SizedBox(height: 4),
                   Row(
@@ -1620,23 +1580,13 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Text(
                           '₹',
-                          style: GoogleFonts.manrope(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.inkSecondary,
-                          ),
+                          style: AppText.title.copyWith(color: AppColors.inkSecondary),
                         ),
                       ),
                       const SizedBox(width: 2),
                       Text(
                         _total.toStringAsFixed(2),
-                        style: GoogleFonts.manrope(
-                          fontSize: 52,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.inkPrimary,
-                          height: 1,
-                          letterSpacing: -1,
-                        ),
+                        style: AppText.moneyHero.copyWith(color: AppColors.inkPrimary, height: 1, letterSpacing: -1),
                       ),
                     ],
                   ),
@@ -1684,10 +1634,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                   icon: const Icon(LucideIcons.shoppingBag, size: 20),
                   label: Text(
                     'Add to Basket',
-                    style: GoogleFonts.manrope(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: AppText.heading,
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.secondary,
@@ -1704,10 +1651,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
               Text(
                 'Tap quantity number on card to reopen this screen',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: AppColors.inkTertiary,
-                ),
+                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
               ),
             ],
           ),
@@ -1974,12 +1918,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                           ),
                           child: Text(
                             '${_localCart.length} ${_localCart.length == 1 ? 'item' : 'items'}',
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.inkSecondary,
-                              letterSpacing: 0.3,
-                            ),
+                            style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkSecondary, letterSpacing: 0.3),
                           ),
                         ),
                       ],
@@ -2250,11 +2189,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                   controller: _discountCtrl,
                                   textAlign: TextAlign.right,
                                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.inkPrimary,
-                                  ),
+                                  style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
                                   decoration: InputDecoration(
                                     hintText: '0',
                                     isDense: true,
@@ -2294,12 +2229,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                               ),
                               Text(
                                 '₹${_netTotal.toStringAsFixed(2)}',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
-                                  letterSpacing: -0.5,
-                                ),
+                                style: AppText.title.copyWith(fontWeight: FontWeight.w800, color: AppColors.primary, letterSpacing: -0.5),
                               ),
                             ],
                           ),
@@ -2332,10 +2262,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             : const Icon(LucideIcons.arrowRight, size: 18),
                         label: Text(
                           _isLoading ? 'Processing...' : 'Complete Transaction',
-                          style: GoogleFonts.manrope(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.secondary,
@@ -2402,8 +2329,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
           Icon(isChange ? LucideIcons.coins : LucideIcons.alertCircle,
               size: 16, color: colour),
           const SizedBox(width: 8),
-          Text(label, style: GoogleFonts.manrope(
-              fontSize: 13, fontWeight: FontWeight.w700, color: colour)),
+          Text(label, style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: colour)),
           const Spacer(),
           Text('₹${diff.abs().toStringAsFixed(2)}',
               style: GoogleFonts.manrope(
@@ -2502,9 +2428,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                   ),
                   Text(
                     m.subtitle,
-                    style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        // 70% opacity amber on the tint measured ~2.2:1.
+                    style: AppText.caption.copyWith(// 70% opacity amber on the tint measured ~2.2:1.
                         // Opacity on text always drifts against its surface —
                         // use a solid colour instead.
                         color: isActive
@@ -2537,12 +2461,9 @@ Widget _billRow(String label, String value) {
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
       Text(label,
-          style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary)),
+          style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
       Text(value,
-          style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkPrimary)),
+          style: AppText.label.copyWith(color: AppColors.inkPrimary)),
     ],
   );
 }
@@ -2686,11 +2607,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                               const SizedBox(width: 6),
                               Text(
                                 'New',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
+                                style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
                               ),
                             ],
                           ),
@@ -2709,10 +2626,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                       controller: _search,
                       decoration: InputDecoration(
                         hintText: 'Search by name or phone...',
-                        hintStyle: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: AppColors.inkTertiary,
-                        ),
+                        hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
                         prefixIcon: const Icon(LucideIcons.search,
                             size: 16, color: AppColors.inkTertiary),
                         border: InputBorder.none,
@@ -2732,7 +2646,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text('Couldn\'t load clients — check connection',
-                              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                              style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                           const SizedBox(height: 10),
                           TextButton(onPressed: _loadClients, child: const Text('Retry')),
                         ],
@@ -2790,10 +2704,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                         ),
                                         Text(
                                           'No credit option',
-                                          style: GoogleFonts.manrope(
-                                            fontSize: 13,
-                                            color: AppColors.inkTertiary,
-                                          ),
+                                          style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                         ),
                                       ],
                                     ),
@@ -2873,10 +2784,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                       if (client.phone != null)
                                         Text(
                                           client.phone!,
-                                          style: GoogleFonts.manrope(
-                                            fontSize: 13,
-                                            color: AppColors.inkTertiary,
-                                          ),
+                                          style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                         ),
                                     ],
                                   ),
@@ -2891,11 +2799,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                     ),
                                     child: Text(
                                       '₹${outstanding.toStringAsFixed(0)} due',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.danger,
-                                      ),
+                                      style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.danger),
                                     ),
                                   ),
                                 const SizedBox(width: 8),
@@ -3124,18 +3028,18 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('From $name', style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary)),
+            Text('From $name', style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
             const SizedBox(height: 12),
             if (toDues > 0)
               Text('• ₹${toDues.toStringAsFixed(2)} clears outstanding dues',
-                  style: GoogleFonts.manrope(fontSize: 13)),
+                  style: AppText.caption),
             if (advance > 0) ...[
               const SizedBox(height: 4),
               Text('• ₹${advance.toStringAsFixed(2)} kept as ADVANCE',
-                  style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700)),
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
               Text('  Used automatically on their next credit bill.',
-                  style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                  style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
             ],
           ],
         ),
@@ -3234,7 +3138,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
           Text('₹${widget.total.toStringAsFixed(2)}',
             style: GoogleFonts.manrope(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.inkPrimary)),
           Text(widget.saleId,
-            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary)),
+            style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
           const SizedBox(height: 24),
           // Print + Share row
           Row(children: [
@@ -3271,7 +3175,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                         const SizedBox(width: 6),
                         Text(
                           '${widget.client!.name ?? "Client"} — ₹${widget.outstanding.toStringAsFixed(2)} outstanding',
-                          style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
+                          style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
                         ),
                       ],
                     ),
@@ -3344,7 +3248,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(color: _collectMethod == m ? AppColors.primaryContainer : Colors.black.withValues(alpha: 0.1)),
                                 ),
-                                child: Text(m, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
+                                child: Text(m, style: AppText.label.copyWith(fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
                               ),
                             ),
                           )),
@@ -3363,7 +3267,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                               ),
-                              child: Text('Skip', style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkSecondary)),
+                              child: Text('Skip', style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkSecondary)),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -3390,7 +3294,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                               ),
                               child: _collecting
                                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.inkPrimary))
-                                  : Text('Collect', style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700)),
+                                  : Text('Collect', style: AppText.label.copyWith(fontWeight: FontWeight.w700)),
                             ),
                           ),
                         ],
@@ -3414,7 +3318,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
               ),
-              child: Text('Done', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 15)),
+              child: Text('Done', style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w800)),
             ),
           ),
         ],
@@ -3447,9 +3351,9 @@ class _OutstandingTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
+                  Text(title, style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
                   const SizedBox(height: 1),
-                  Text(subtitle, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary)),
+                  Text(subtitle, style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
                 ],
               ),
             ),
