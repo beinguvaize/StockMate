@@ -118,6 +118,34 @@ class AppText {
     fontFeatures: const [FontFeature.tabularFigures()],
   );
 
+  /// The running total at the till. Bigger than every other role on purpose:
+  /// a cashier reads this across a counter, and the customer often reads it
+  /// upside down from the other side. `moneyLarge` at 32 is a reporting
+  /// figure; this is a point-of-sale one.
+  ///
+  /// Added rather than reused because the scale had no role this large and
+  /// the header above says to add a token when none fits. Forcing the till
+  /// total down to 32 would have shrunk it by 40%.
+  static TextStyle get moneyHero => GoogleFonts.manrope(
+    fontSize: 52,
+    fontWeight: FontWeight.w800,
+    height: 1,
+    letterSpacing: -1,
+    color: AppColors.onSurface,
+    fontFeatures: const [FontFeature.tabularFigures()],
+  );
+
+  /// A large numeric entry field — the quantity keypad. Sized for thumb
+  /// entry rather than for reading, which is why it is its own role and not
+  /// a money one: it is an input, and it is not currency.
+  static TextStyle get numericEntry => GoogleFonts.manrope(
+    fontSize: 48,
+    fontWeight: FontWeight.w700,
+    height: 1,
+    color: AppColors.onSurface,
+    fontFeatures: const [FontFeature.tabularFigures()],
+  );
+
   /// Builds the Material text theme from the scale above, so a widget that
   /// reaches for `Theme.of(context).textTheme` lands on the same six roles
   /// rather than on Material's defaults.
