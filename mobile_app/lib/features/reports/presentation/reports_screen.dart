@@ -17,6 +17,7 @@ import 'package:mobile_app/features/reports/presentation/purchases_report_screen
 import 'package:mobile_app/features/reports/presentation/gstr1_screen.dart';
 import 'package:mobile_app/features/reports/presentation/gstr3b_screen.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ---------------------------------------------------------------------------
 // Internal summary provider (kept for overview KPIs)
@@ -187,12 +188,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
             Text(
               'BUSINESS ANALYTICS',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -218,11 +215,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     const SizedBox(width: 6),
                     Text(
                       '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
+                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                        color: AppColors.primary),
                     ),
                   ],
                 ),
@@ -277,14 +271,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             const SizedBox(width: 8),
                             Text(
                               'NET PROFIT / LOSS',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
+                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                 letterSpacing: 1.5,
                                 color: summary.netProfit >= 0
                                     ? AppColors.inkPrimary.withValues(alpha: 0.6)
-                                    : AppColors.danger,
-                              ),
+                                    : AppColors.danger),
                             ),
                           ],
                         ),
@@ -303,12 +294,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         const SizedBox(height: 4),
                         Text(
                           '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: summary.netProfit >= 0
+                          style: AppText.caption.copyWith(color: summary.netProfit >= 0
                                 ? AppColors.inkPrimary.withValues(alpha: 0.5)
-                                : AppColors.danger.withValues(alpha: 0.7),
-                          ),
+                                : AppColors.danger.withValues(alpha: 0.7)),
                         ),
                       ],
                     ),
@@ -437,10 +425,7 @@ class _HubCard extends StatelessWidget {
                   ),
                   Text(
                     item.subtitle,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: AppColors.inkSecondary,
-                    ),
+                    style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                   ),
                 ],
               ),
@@ -513,10 +498,7 @@ class _MetricCard extends StatelessWidget {
                 ),
                 Text(
                   subtitle,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.inkSecondary,
-                  ),
+                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                 ),
               ],
             ),
@@ -556,12 +538,9 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           title,
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
-            color: AppColors.primary,
-          ),
+            color: AppColors.primary),
         ),
       ],
     );
@@ -589,11 +568,8 @@ class _UpgradeBanner extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               'Upgrade Required',
-              style: GoogleFonts.manrope(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
-              ),
+              style: AppText.title.copyWith(fontWeight: FontWeight.w900,
+                letterSpacing: -0.5),
             ),
             const SizedBox(height: 8),
             Text(

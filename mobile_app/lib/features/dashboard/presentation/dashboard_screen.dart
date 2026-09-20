@@ -312,11 +312,7 @@ class _GlobalAppBar extends StatelessWidget {
                         const SizedBox(height: 16),
                         Text(
                           'No new notifications',
-                          style: GoogleFonts.manrope(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.inkSecondary,
-                          ),
+                          style: AppText.bodyStrong.copyWith(color: AppColors.inkSecondary),
                         ),
                       ],
                     ),
@@ -458,12 +454,9 @@ class _AppDrawer extends ConsumerWidget {
                         padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
                         child: Text(
                           section.label,
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                             letterSpacing: 1.5,
-                            color: AppColors.inkTertiary,
-                          ),
+                            color: AppColors.inkTertiary),
                         ),
                       ),
                       ...section.items.map((item) => _DrawerTile(
@@ -663,7 +656,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       ),
                       Text(
                         'Here\'s your business overview',
-                        style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
+                        style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                       ),
                       if (ctx != null && ctx.tenant.status == 'TRIAL' && ctx.trialDaysLeft <= 7) ...[
                         const SizedBox(height: 12),
@@ -880,10 +873,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                             ),
                             Text(
                               'Last 7 days performance',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                color: AppColors.inkSecondary,
-                              ),
+                              style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                             ),
                           ],
                         ),
@@ -902,11 +892,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                                 const SizedBox(width: 4),
                                 Text(
                                   'All Sales',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
+                                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                                    color: AppColors.primary),
                                 ),
                               ],
                             ),
@@ -983,12 +970,9 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       const SizedBox(width: 10),
                       Text(
                         'RECENT SALES',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
-                          color: AppColors.primary,
-                        ),
+                          color: AppColors.primary),
                       ),
                     ],
                   ),
@@ -997,11 +981,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                     onTap: () => widget.onTabSwitch('sales'),
                     child: Text(
                       'See All',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
+                      style: AppText.label.copyWith(color: AppColors.primary),
                     ),
                   ),
                 ],
@@ -1317,11 +1297,8 @@ class _Bar extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             day.substring(0, 1),
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: isHighlight ? AppColors.primary : AppColors.inkTertiary,
-              fontWeight: isHighlight ? FontWeight.w700 : FontWeight.w400,
-            ),
+            style: AppText.label.copyWith(color: isHighlight ? AppColors.primary : AppColors.inkTertiary,
+              fontWeight: isHighlight ? FontWeight.w700 : FontWeight.w400),
           ),
         ],
       ),

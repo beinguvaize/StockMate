@@ -14,6 +14,7 @@ import 'package:mobile_app/features/clients_suppliers/data/client_products.dart'
 import 'package:mobile_app/features/clients_suppliers/data/statement_credits.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_products_card.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ─── Data model ───────────────────────────────────────────────────────────────
 class _StatementRow {
@@ -422,19 +423,14 @@ class _StatementBodyState extends State<_StatementBody> {
             const SizedBox(width: 6),
             Text(
               'BILLS & PAYMENTS',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                 color: AppColors.inkTertiary,
-                letterSpacing: 1.2,
-              ),
+                letterSpacing: 1.2),
             ),
             const Spacer(),
             Text(
               '${rows.length} ${rows.length == 1 ? 'row' : 'rows'}',
-              style: GoogleFonts.manrope(
-                fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkTertiary,
-              ),
+              style: AppText.label.copyWith(color: AppColors.inkTertiary),
             ),
           ],
         ),
@@ -471,9 +467,7 @@ class _StatementBodyState extends State<_StatementBody> {
           const SizedBox(height: 6),
           Text(
             'Balance still counts the ${_rowKind == 'PAYMENT' ? 'bills' : 'payments'} hidden by this filter.',
-            style: GoogleFonts.manrope(
-              fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.inkTertiary,
-            ),
+            style: AppText.caption.copyWith(fontWeight: FontWeight.w500, color: AppColors.inkTertiary),
           ),
         ],
 
@@ -516,20 +510,14 @@ class _HeaderSection extends StatelessWidget {
                 children: [
                   Text(
                     'Account Statement',
-                    style: GoogleFonts.manrope(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
+                    style: AppText.title.copyWith(fontWeight: FontWeight.w800,
                       color: AppColors.inkPrimary,
-                      letterSpacing: -0.3,
-                    ),
+                      letterSpacing: -0.3),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Generated: ${_todayFormatted()}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: AppColors.inkTertiary,
-                    ),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                   ),
                 ],
               ),
@@ -592,7 +580,7 @@ class _HeaderSection extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           client.phone!,
-                          style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                          style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                         ),
                       ],
                     ),
@@ -606,7 +594,7 @@ class _HeaderSection extends StatelessWidget {
                         Expanded(
                           child: Text(
                             client.email!,
-                            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -658,12 +646,9 @@ class _KpiTile extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                     color: AppColors.inkTertiary,
-                    letterSpacing: 1,
-                  ),
+                    letterSpacing: 1),
                 ),
                 Icon(icon, size: 13, color: iconColor),
               ],
@@ -719,11 +704,7 @@ class _LedgerCard extends StatelessWidget {
             children: [
               Text(
                 _fmtDate(row.date),
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: AppColors.inkTertiary,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppText.label.copyWith(color: AppColors.inkTertiary),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -747,11 +728,7 @@ class _LedgerCard extends StatelessWidget {
           // Middle line: description
           Text(
             row.description,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkPrimary,
-            ),
+            style: AppText.label.copyWith(color: AppColors.inkPrimary),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -772,22 +749,14 @@ class _LedgerCard extends StatelessWidget {
               if (isDebit && row.debit > 0) ...[
                 Text(
                   'Billed ${_fmtRupee(row.debit)}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.danger,
-                  ),
+                  style: AppText.label.copyWith(color: AppColors.danger),
                 ),
                 const SizedBox(width: 12),
               ],
               if (!isDebit && row.credit > 0) ...[
                 Text(
                   'Paid ${_fmtRupee(row.credit)}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.success,
-                  ),
+                  style: AppText.label.copyWith(color: AppColors.success),
                 ),
                 const SizedBox(width: 12),
               ],
@@ -801,11 +770,8 @@ class _LedgerCard extends StatelessWidget {
                 ),
                 child: Text(
                   balLabel,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: balColor,
-                  ),
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                    color: balColor),
                 ),
               ),
             ],
@@ -868,12 +834,9 @@ class _TypePill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.manrope(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
+        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
           color: fg,
-          letterSpacing: 1,
-        ),
+          letterSpacing: 1),
       ),
     );
   }
@@ -903,17 +866,13 @@ class _EmptyLedger extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'No transaction history for this client.',
-            style: GoogleFonts.manrope(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkSecondary,
-            ),
+            style: AppText.bodyStrong.copyWith(color: AppColors.inkSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           Text(
             'Credit sales, invoices and payments will appear here.',
-            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
             textAlign: TextAlign.center,
           ),
         ],
@@ -948,7 +907,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               message,
-              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
               textAlign: TextAlign.center,
             ),
           ],
@@ -997,11 +956,8 @@ class _FilterPill extends StatelessWidget {
             ],
             Text(
               label,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : AppColors.inkSecondary,
-              ),
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : AppColors.inkSecondary),
             ),
           ],
         ),

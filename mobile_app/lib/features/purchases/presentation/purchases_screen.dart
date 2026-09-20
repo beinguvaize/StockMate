@@ -15,6 +15,7 @@ import 'package:mobile_app/features/purchases/presentation/purchase_detail_scree
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 
 // ─── Model ────────────────────────────────────────────────────────────────────
@@ -144,8 +145,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                     fontSize: 20, fontWeight: FontWeight.w800,
                     letterSpacing: -0.5, color: AppColors.inkPrimary)),
             Text('Manage and track your supplier purchase orders.',
-                style: GoogleFonts.manrope(
-                    fontSize: 13, color: AppColors.inkSecondary)),
+                style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
           ],
         ),
         actions: [
@@ -173,8 +173,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                             size: 14, color: AppColors.inkPrimary),
                         const SizedBox(width: 6),
                         Text('New Order',
-                            style: GoogleFonts.manrope(
-                                fontSize: 13, fontWeight: FontWeight.w700,
+                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                 color: AppColors.inkPrimary)),
                       ],
                     ),
@@ -281,8 +280,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('MONTHLY SPEND',
-                                style: GoogleFonts.manrope(
-                                    fontSize: 13, fontWeight: FontWeight.w700,
+                                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                     letterSpacing: 1.2,
                                     color: AppColors.inkSecondary)),
                             const SizedBox(height: 4),
@@ -343,13 +341,9 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                                   ),
                                   child: Text(
                                     e.value,
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: active
+                                    style: AppText.label.copyWith(color: active
                                           ? AppColors.secondary
-                                          : AppColors.inkSecondary,
-                                    ),
+                                          : AppColors.inkSecondary),
                                   ),
                                 ),
  ),
@@ -378,8 +372,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                           ),
                           const SizedBox(width: 10),
                           Text('PURCHASE ORDERS',
-                              style: GoogleFonts.manrope(
-                                  fontSize: 13, fontWeight: FontWeight.w700,
+                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                   letterSpacing: 1.5, color: AppColors.primary)),
                         ],
                       ),
@@ -504,8 +497,7 @@ class _StatCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: GoogleFonts.manrope(
-                    fontSize: 13, fontWeight: FontWeight.w700,
+                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                     letterSpacing: 1.2, color: AppColors.inkSecondary)),
             const SizedBox(height: 6),
             Text(value,
@@ -518,8 +510,7 @@ class _StatCard extends StatelessWidget {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(subText,
-                    style: GoogleFonts.manrope(
-                        fontSize: 13, color: AppColors.inkTertiary),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
               ),
@@ -594,8 +585,7 @@ class _PurchaseCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${purchase.poNumber} · ${fmtDate(purchase.date)}',
-                  style: GoogleFonts.manrope(
-                      fontSize: 13, color: AppColors.inkTertiary),
+                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                 ),
                 if (purchase.deliveryDate != null) ...[
                   const SizedBox(height: 2),
@@ -604,8 +594,7 @@ class _PurchaseCard extends StatelessWidget {
                         size: 10, color: AppColors.inkTertiary),
                     const SizedBox(width: 4),
                     Text('Est. ${fmtDate(purchase.deliveryDate)}',
-                        style: GoogleFonts.manrope(
-                            fontSize: 13, color: AppColors.inkTertiary)),
+                        style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                   ]),
                 ],
               ],
@@ -618,8 +607,7 @@ class _PurchaseCard extends StatelessWidget {
             children: [
               Text(
                 '₹${purchase.totalAmount.toStringAsFixed(2)}',
-                style: GoogleFonts.manrope(
-                    fontSize: 15, fontWeight: FontWeight.w900,
+                style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w900,
                     color: AppColors.inkPrimary, letterSpacing: -0.5),
               ),
               const SizedBox(height: 5),
@@ -632,8 +620,7 @@ class _PurchaseCard extends StatelessWidget {
                 ),
                 child: Text(
                   status,
-                  style: GoogleFonts.manrope(
-                      fontSize: 13, fontWeight: FontWeight.w700,
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                       color: statusColor),
                 ),
               ),
@@ -1223,13 +1210,10 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                         children: [
                           // Header
                           Text('Add Purchase',
-                              style: GoogleFonts.manrope(
-                                  fontSize: 22, fontWeight: FontWeight.w800,
+                              style: AppText.title.copyWith(fontWeight: FontWeight.w800,
                                   letterSpacing: -0.5, color: AppColors.inkPrimary)),
                           Text('ONE SUPPLIER · MULTIPLE PRODUCTS · SINGLE SUBMIT',
-                              style: GoogleFonts.manrope(
-                                  fontSize: 13, fontWeight: FontWeight.w600,
-                                  color: AppColors.inkSecondary, letterSpacing: 1.2)),
+                              style: AppText.label.copyWith(color: AppColors.inkSecondary, letterSpacing: 1.2)),
                           const SizedBox(height: 16),
 
                           // ── Scan bill (AI OCR) ───────────────────────
@@ -1356,9 +1340,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                             size: 16, color: AppColors.inkSecondary),
                                         const SizedBox(width: 10),
                                         Text(_fmt(_date),
-                                            style: GoogleFonts.manrope(
-                                                fontSize: 13, fontWeight: FontWeight.w600,
-                                                color: AppColors.inkPrimary)),
+                                            style: AppText.label.copyWith(color: AppColors.inkPrimary)),
                                       ],
                                     ),
                                   ),
@@ -1373,15 +1355,12 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                   ),
                                   child: TextField(
                                     controller: _billNoCtrl,
-                                    style: GoogleFonts.manrope(
-                                        fontSize: 13, color: AppColors.inkPrimary),
+                                    style: AppText.caption.copyWith(color: AppColors.inkPrimary),
                                     decoration: InputDecoration(
                                       prefixIcon: const Icon(LucideIcons.receipt,
                                           size: 16, color: AppColors.inkSecondary),
                                       hintText: "Supplier's invoice no. (for GSTR-2B)",
-                                      hintStyle: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          color: AppColors.inkSecondary.withValues(alpha: 0.5)),
+                                      hintStyle: AppText.caption.copyWith(color: AppColors.inkSecondary.withValues(alpha: 0.5)),
                                       border: InputBorder.none,
                                       contentPadding: const EdgeInsets.symmetric(
                                           horizontal: 12, vertical: 12),
@@ -1398,15 +1377,12 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                   ),
                                   child: TextField(
                                     controller: _notesCtrl,
-                                    style: GoogleFonts.manrope(
-                                        fontSize: 13, color: AppColors.inkPrimary),
+                                    style: AppText.caption.copyWith(color: AppColors.inkPrimary),
                                     decoration: InputDecoration(
                                       prefixIcon: const Icon(LucideIcons.fileText,
                                           size: 16, color: AppColors.inkSecondary),
                                       hintText: 'Remarks...',
-                                      hintStyle: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          color: AppColors.inkSecondary.withValues(alpha: 0.5)),
+                                      hintStyle: AppText.caption.copyWith(color: AppColors.inkSecondary.withValues(alpha: 0.5)),
                                       border: InputBorder.none,
                                       contentPadding: const EdgeInsets.symmetric(
                                           horizontal: 12, vertical: 12),
@@ -1425,8 +1401,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                               _label('LINE ITEMS'),
                               const Spacer(),
                               Text('${_lines.length} ROW${_lines.length == 1 ? '' : 'S'}',
-                                  style: GoogleFonts.manrope(
-                                      fontSize: 13, fontWeight: FontWeight.w700,
+                                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                       color: AppColors.inkTertiary, letterSpacing: 1)),
                             ],
                           ),
@@ -1461,8 +1436,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                             onPressed: () => setState(() => _lines.add(_PurchaseLine())),
                             icon: const Icon(LucideIcons.plus, size: 14),
                             label: Text('ADD ROW',
-                                style: GoogleFonts.manrope(
-                                    fontSize: 13, fontWeight: FontWeight.w700,
+                                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                     letterSpacing: 1)),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.primary,
@@ -1487,8 +1461,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text('GRAND TOTAL',
-                                    style: GoogleFonts.manrope(
-                                        fontSize: 13, fontWeight: FontWeight.w700,
+                                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                         color: Colors.white.withValues(alpha: 0.6),
                                         letterSpacing: 1.5)),
                                 Text('₹${_grandTotal.toStringAsFixed(2)}',
@@ -1529,8 +1502,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                         const SizedBox(width: 8),
                                         Text(
                                           'SAVE ${itemCount > 0 ? "$itemCount ITEM${itemCount == 1 ? '' : 'S'}" : 'PURCHASE'}',
-                                          style: GoogleFonts.manrope(
-                                              fontSize: 13, fontWeight: FontWeight.w700,
+                                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                               letterSpacing: 1.5),
                                         ),
                                       ],
@@ -1550,8 +1522,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 6, left: 2),
     child: Text(text,
-        style: GoogleFonts.manrope(
-            fontSize: 13, fontWeight: FontWeight.w700,
+        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
             color: AppColors.inkTertiary, letterSpacing: 1.2)),
   );
 }
@@ -1634,8 +1605,7 @@ class _LineItemCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text('#${index + 1}',
-                    style: GoogleFonts.manrope(
-                        fontSize: 13, fontWeight: FontWeight.w700,
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                         color: AppColors.primary)),
               ),
               const Spacer(),
@@ -1664,10 +1634,8 @@ class _LineItemCard extends StatelessWidget {
                     child: Text(
                       'On bill: ${line.scannedName}',
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13, fontWeight: FontWeight.w700,
-                        color: AppColors.onPrimaryContainer,
-                      ),
+                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                        color: AppColors.onPrimaryContainer),
                     ),
                   ),
                 ],
@@ -1731,8 +1699,7 @@ class _LineItemCard extends StatelessWidget {
                           ),
                           child: Text(
                             '${p['name']}',
-                            style: GoogleFonts.manrope(
-                                fontSize: 13, fontWeight: FontWeight.w700,
+                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                 color: AppColors.onPrimaryContainer),
                           ),
                         ),
@@ -1754,8 +1721,7 @@ class _LineItemCard extends StatelessWidget {
                             const Icon(LucideIcons.plus, size: 12, color: AppColors.primary),
                             const SizedBox(width: 4),
                             Text('Create new',
-                                style: GoogleFonts.manrope(
-                                    fontSize: 13, fontWeight: FontWeight.w700,
+                                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                     color: AppColors.primary)),
                           ],
                         ),
@@ -1771,9 +1737,7 @@ class _LineItemCard extends StatelessWidget {
               child: Text(
                 'Stock: ${selectedProduct['stock'] ?? 0}'
                 '${lastCost != null && lastCost > 0 ? " · Last ₹${lastCost.toStringAsFixed(2)}" : ""}',
-                style: GoogleFonts.manrope(
-                    fontSize: 13, fontWeight: FontWeight.w600,
-                    color: AppColors.inkTertiary),
+                style: AppText.label.copyWith(color: AppColors.inkTertiary),
               ),
             ),
 
@@ -1835,9 +1799,7 @@ class _LineItemCard extends StatelessWidget {
                     line.expiryDate != null
                         ? 'Expiry: ${line.expiryDate!.day}/${line.expiryDate!.month}/${line.expiryDate!.year}'
                         : 'Add expiry date (optional)',
-                    style: GoogleFonts.manrope(
-                        fontSize: 13, fontWeight: FontWeight.w600,
-                        color: line.expiryDate != null ? AppColors.warning : AppColors.inkTertiary),
+                    style: AppText.label.copyWith(color: line.expiryDate != null ? AppColors.warning : AppColors.inkTertiary),
                   ),
                   if (line.expiryDate != null) ...[
                     const SizedBox(width: 6),
@@ -1860,10 +1822,8 @@ class _LineItemCard extends StatelessWidget {
                 unit > lastCost
                     ? '▲ Higher than last ₹${lastCost.toStringAsFixed(2)}'
                     : '▼ Lower than last ₹${lastCost.toStringAsFixed(2)}',
-                style: GoogleFonts.manrope(
-                  fontSize: 13, fontWeight: FontWeight.w700,
-                  color: unit > lastCost ? AppColors.warning : AppColors.success,
-                ),
+                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                  color: unit > lastCost ? AppColors.warning : AppColors.success),
               ),
             ),
         ],
@@ -1892,8 +1852,7 @@ class _MiniField extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 4, left: 2),
           child: Text(label,
-              style: GoogleFonts.manrope(
-                  fontSize: 13, fontWeight: FontWeight.w700,
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                   color: AppColors.inkTertiary, letterSpacing: 1)),
         ),
         Container(
@@ -1906,16 +1865,12 @@ class _MiniField extends StatelessWidget {
             controller: ctrl,
             onChanged: onChanged,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: GoogleFonts.manrope(
-                fontSize: 13, fontWeight: FontWeight.w600,
-                color: AppColors.inkPrimary),
+            style: AppText.label.copyWith(color: AppColors.inkPrimary),
             decoration: InputDecoration(
               prefixIcon: Icon(icon, size: 13, color: AppColors.inkSecondary),
               prefixIconConstraints: const BoxConstraints(minWidth: 30, minHeight: 0),
               hintText: '0',
-              hintStyle: GoogleFonts.manrope(
-                  color: AppColors.inkSecondary.withValues(alpha: 0.4),
-                  fontSize: 13),
+              hintStyle: AppText.caption.copyWith(color: AppColors.inkSecondary.withValues(alpha: 0.4)),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
             ),
@@ -1999,9 +1954,7 @@ class _PayChip extends StatelessWidget {
           boxShadow: [AppColors.cardShadow],
         ),
         child: Text(label,
-            style: GoogleFonts.manrope(
-                fontSize: 13, fontWeight: FontWeight.w600,
-                color: active ? AppColors.primary : AppColors.inkSecondary)),
+            style: AppText.label.copyWith(color: active ? AppColors.primary : AppColors.inkSecondary)),
       ),
  );
   }
@@ -2031,8 +1984,7 @@ class _UpgradeBanner extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text('Upgrade Required',
-                  style: GoogleFonts.manrope(
-                      fontSize: 22, fontWeight: FontWeight.w900,
+                  style: AppText.title.copyWith(fontWeight: FontWeight.w900,
                       letterSpacing: -0.5)),
               const SizedBox(height: 8),
               Text('$feature requires PRO plan or above.',
@@ -2151,8 +2103,7 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
                         autofocus: true,
                         decoration: InputDecoration(
                           hintText: 'Search product or SKU...',
-                          hintStyle: GoogleFonts.manrope(
-                              fontSize: 13, color: AppColors.inkTertiary),
+                          hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
                           prefixIcon: const Icon(LucideIcons.search,
                               size: 16, color: AppColors.inkTertiary),
                           border: InputBorder.none,
@@ -2182,8 +2133,7 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
               child: _filtered.isEmpty
                   ? Center(
                       child: Text('No products found',
-                          style: GoogleFonts.manrope(
-                              fontSize: 13, color: AppColors.inkTertiary)),
+                          style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                     )
                   : ListView.builder(
                       controller: ctrl,
@@ -2224,9 +2174,7 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
                                       Text(
                                         'Stock ${p['stock'] ?? 0}'
                                         '${(p['sku'] ?? '').toString().isNotEmpty ? " · ${p['sku']}" : ""}',
-                                        style: GoogleFonts.manrope(
-                                            fontSize: 13,
-                                            color: AppColors.inkTertiary),
+                                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                       ),
                                     ],
                                   ),

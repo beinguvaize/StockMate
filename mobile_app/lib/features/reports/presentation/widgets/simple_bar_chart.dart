@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class BarData {
   final String label;
@@ -32,7 +32,7 @@ class SimpleBarChart extends StatelessWidget {
         child: Center(
           child: Text(
             'No data',
-            style: GoogleFonts.manrope(color: AppColors.inkSecondary, fontSize: 13),
+            style: AppText.caption.copyWith(color: AppColors.inkSecondary),
           ),
         ),
       );
@@ -55,10 +55,7 @@ class SimpleBarChart extends StatelessWidget {
                   child: Text(
                     bar.label,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: AppColors.inkSecondary,
-                    ),
+                    style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -84,11 +81,7 @@ class SimpleBarChart extends StatelessWidget {
                                     : bar.value >= 1e3
                                         ? '${(bar.value / 1e3).toStringAsFixed(1)}K'
                                         : bar.value.toStringAsFixed(0),
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.inkPrimary,
-                            ),
+                            style: AppText.label.copyWith(color: AppColors.inkPrimary),
                           ),
                         ],
                       );

@@ -81,11 +81,7 @@ class MenuScreen extends ConsumerWidget {
                               child: Center(
                                 child: Text(
                                   name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
+                                  style: AppText.title.copyWith(color: AppColors.primary),
                                 ),
                               ),
                             ),
@@ -105,10 +101,7 @@ class MenuScreen extends ConsumerWidget {
                                   ),
                                   Text(
                                     ctx?.tenant.name ?? '',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      color: Colors.white60,
-                                    ),
+                                    style: AppText.caption.copyWith(color: Colors.white60),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
@@ -122,11 +115,8 @@ class MenuScreen extends ConsumerWidget {
                               ),
                               child: Text(
                                 plan,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
-                                ),
+                                style: AppText.label.copyWith(fontWeight: FontWeight.w800,
+                                  color: AppColors.primary),
                               ),
                             ),
                           ],
@@ -336,11 +326,7 @@ class MenuScreen extends ConsumerWidget {
                               const SizedBox(width: 14),
                               Text(
                                 'Logout',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.danger,
-                                ),
+                                style: AppText.bodyStrong.copyWith(color: AppColors.danger),
                               ),
                             ],
                           ),

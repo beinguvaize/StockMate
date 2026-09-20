@@ -10,6 +10,7 @@ import 'package:mobile_app/features/hr/presentation/add_employee_screen.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/utils/payroll_periods.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 import 'package:uuid/uuid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
@@ -41,12 +42,8 @@ class HRScreen extends ConsumerWidget {
               ),
               Text(
                 'WORKFORCE MANAGEMENT',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.inkSecondary,
-                  letterSpacing: 1.2,
-                ),
+                style: AppText.label.copyWith(color: AppColors.inkSecondary,
+                  letterSpacing: 1.2),
               ),
             ],
           ),
@@ -57,16 +54,9 @@ class HRScreen extends ConsumerWidget {
             indicatorWeight: 2,
             labelColor: AppColors.primary,
             unselectedLabelColor: AppColors.inkTertiary,
-            labelStyle: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-            ),
-            unselectedLabelStyle: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.5,
-            ),
+            labelStyle: AppText.label.copyWith(fontWeight: FontWeight.w700,
+              letterSpacing: 1.5),
+            unselectedLabelStyle: AppText.label.copyWith(letterSpacing: 1.5),
             tabs: const [
               Tab(text: 'EMPLOYEES'),
               Tab(text: 'ATTENDANCE'),
@@ -154,12 +144,9 @@ class _EmployeesTab extends ConsumerWidget {
                       const SizedBox(width: 6),
                       Text(
                         'EMPLOYEES',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
-                          color: AppColors.primary,
-                        ),
+                          color: AppColors.primary),
                       ),
                       const Spacer(),
                       AppTappable(
@@ -183,12 +170,9 @@ class _EmployeesTab extends ConsumerWidget {
                               const SizedBox(width: 5),
                               Text(
                                 'PROCESS PAYROLL',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
+                                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                   letterSpacing: 1.0,
-                                  color: AppColors.primary,
-                                ),
+                                  color: AppColors.primary),
                               ),
                             ],
                           ),
@@ -211,10 +195,7 @@ class _EmployeesTab extends ConsumerWidget {
                         const SizedBox(height: 12),
                         Text(
                           'No employees yet',
-                          style: GoogleFonts.manrope(
-                            fontSize: 15,
-                            color: AppColors.inkSecondary,
-                          ),
+                          style: AppText.body.copyWith(color: AppColors.inkSecondary),
                         ),
                       ],
                     ),
@@ -303,19 +284,12 @@ class _PayrollHistoryTab extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Text(
                     'No payroll records yet.',
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.inkSecondary,
-                    ),
+                    style: AppText.bodyStrong.copyWith(color: AppColors.inkSecondary),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Run your first payroll.',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: AppColors.inkTertiary,
-                    ),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                   ),
                 ],
               ),
@@ -445,19 +419,13 @@ class _PayrollRecordCard extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: GoogleFonts.manrope(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkPrimary,
-                  ),
+                  style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                    color: AppColors.inkPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '$periodStart – $periodEnd',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.inkSecondary,
-                  ),
+                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                 ),
                 const SizedBox(height: 6),
                 Row(
@@ -471,21 +439,15 @@ class _PayrollRecordCard extends StatelessWidget {
                       ),
                       child: Text(
                         statusLabel,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: statusFg,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          color: statusFg),
                       ),
                     ),
                     if (paidAt.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       Text(
                         paidAt,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: AppColors.inkTertiary,
-                        ),
+                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                       ),
                     ],
                   ],
@@ -499,11 +461,8 @@ class _PayrollRecordCard extends StatelessWidget {
           // Net pay
           Text(
             '₹${netPay.toStringAsFixed(2)}',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.success,
-            ),
+            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+              color: AppColors.success),
           ),
         ],
       ),
@@ -904,10 +863,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                     ),
                     Text(
                       'Run payroll for all active employees',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        color: AppColors.inkSecondary,
-                      ),
+                      style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                     ),
                   ],
                 ),
@@ -1001,11 +957,8 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                               alignment: Alignment.center,
                               child: Text(
                                 name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.secondary,
-                                ),
+                                style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w800,
+                                  color: AppColors.secondary),
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -1021,11 +974,8 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                             ),
                             Text(
                               'Net: ₹${net.toStringAsFixed(2)}',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.success,
-                              ),
+                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                                color: AppColors.success),
                             ),
                           ],
                         ),
@@ -1094,12 +1044,9 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                                 const SizedBox(width: 8),
                                 Text(
                                   'RUN PAYROLL',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
+                                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                     letterSpacing: 1.0,
-                                    color: Colors.white,
-                                  ),
+                                    color: Colors.white),
                                 ),
                               ],
                             ),
@@ -1140,17 +1087,10 @@ class _PayField extends StatelessWidget {
     return TextField(
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      style: GoogleFonts.manrope(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: AppColors.inkPrimary,
-      ),
+      style: AppText.label.copyWith(color: AppColors.inkPrimary),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.manrope(
-          fontSize: 13,
-          color: AppColors.inkTertiary,
-        ),
+        labelStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
         isDense: true,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -1205,12 +1145,9 @@ class _StatCard extends StatelessWidget {
           children: [
             Text(
               label,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
-                color: color,
-              ),
+                color: color),
             ),
             const SizedBox(height: 6),
             Text(
@@ -1310,19 +1247,13 @@ class _EmployeeCard extends ConsumerWidget {
                   children: [
                     Text(
                       name,
-                      style: GoogleFonts.manrope(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.inkPrimary,
-                      ),
+                      style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                        color: AppColors.inkPrimary),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       role,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        color: AppColors.inkSecondary,
-                      ),
+                      style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                     ),
                     const SizedBox(height: 6),
                     // Status badge pill
@@ -1335,11 +1266,8 @@ class _EmployeeCard extends ConsumerWidget {
                       ),
                       child: Text(
                         statusLabel,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: statusFg,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          color: statusFg),
                       ),
                     ),
                   ],
@@ -1354,11 +1282,8 @@ class _EmployeeCard extends ConsumerWidget {
                 children: [
                   Text(
                     '₹${salary.toStringAsFixed(0)}/mo',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                      color: AppColors.primary),
                   ),
                   const SizedBox(height: 4),
                   const Icon(LucideIcons.chevronRight,
@@ -1600,10 +1525,7 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
           const SizedBox(height: 4),
           Text(
             role,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: AppColors.inkSecondary,
-            ),
+            style: AppText.caption.copyWith(color: AppColors.inkSecondary),
           ),
           const SizedBox(height: 8),
           // Status pill
@@ -1615,11 +1537,8 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
             ),
             child: Text(
               statusLabel,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: statusFg,
-              ),
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                color: statusFg),
             ),
           ),
 
@@ -1752,19 +1671,13 @@ class _InfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: AppColors.inkSecondary,
-              ),
+              style: AppText.caption.copyWith(color: AppColors.inkSecondary),
             ),
           ),
           Text(
             value,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: valueColor ?? AppColors.inkPrimary,
-            ),
+            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+              color: valueColor ?? AppColors.inkPrimary),
           ),
         ],
       ),
@@ -1827,12 +1740,9 @@ class _ActionButton extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 label,
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                   letterSpacing: 0.8,
-                  color: foregroundColor,
-                ),
+                  color: foregroundColor),
               ),
             ],
           ),
@@ -1942,7 +1852,7 @@ class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
               if (employees.isEmpty) {
                 return Center(
                   child: Text('No employees yet',
-                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                      style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                 );
               }
               final att = attAsync.asData?.value ?? {};
@@ -1974,9 +1884,7 @@ class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
                                       fontSize: 14, fontWeight: FontWeight.w700,
                                       color: AppColors.inkPrimary)),
                               Text(cur ?? 'Not marked',
-                                  style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      color: cur == null
+                                  style: AppText.caption.copyWith(color: cur == null
                                           ? AppColors.inkTertiary
                                           : AppColors.inkSecondary)),
                             ],
@@ -1999,8 +1907,7 @@ class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
                                       color: selected ? st.$3 : Colors.black.withValues(alpha: 0.12)),
                                 ),
                                 child: Text(st.$2,
-                                    style: GoogleFonts.manrope(
-                                        fontSize: 13, fontWeight: FontWeight.w800,
+                                    style: AppText.label.copyWith(fontWeight: FontWeight.w800,
                                         color: selected ? Colors.white : AppColors.inkSecondary)),
                               ),
  ),

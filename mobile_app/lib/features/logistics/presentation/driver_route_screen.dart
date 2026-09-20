@@ -13,6 +13,7 @@ import 'package:mobile_app/features/logistics/presentation/van_stock_screen.dart
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class DriverRouteScreen extends ConsumerStatefulWidget {
   const DriverRouteScreen({super.key});
@@ -41,20 +42,13 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
           children: [
             Text(
               'My Route',
-              style: GoogleFonts.manrope(
-                fontWeight: FontWeight.w800,
-                fontSize: 17,
-                color: AppColors.inkPrimary,
-              ),
+              style: AppText.heading.copyWith(fontWeight: FontWeight.w800,
+                color: AppColors.inkPrimary),
             ),
             Text(
               'DRIVER CONSOLE',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -155,10 +149,7 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
                 icon: const Icon(LucideIcons.shoppingCart, size: 18),
                 label: Text(
                   'QUICK SALE',
-                  style: GoogleFonts.manrope(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 13,
-                  ),
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w900),
                 ),
               )
             : null,
@@ -212,11 +203,7 @@ class _RouteHeader extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       route.date ?? '',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.secondary,
-                      ),
+                      style: AppText.label.copyWith(color: AppColors.secondary),
                     ),
                   ],
                 ),
@@ -232,12 +219,9 @@ class _RouteHeader extends StatelessWidget {
             ),
             child: Text(
               'ACTIVE',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                 color: AppColors.primary,
-                letterSpacing: 1.2,
-              ),
+                letterSpacing: 1.2),
             ),
           ),
         ],
@@ -447,11 +431,8 @@ class _StopCardState extends ConsumerState<_StopCard> {
                         : Center(
                             child: Text(
                               '${widget.stop.sequence}',
-                              style: GoogleFonts.manrope(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 13,
-                                color: AppColors.primary,
-                              ),
+                              style: AppText.label.copyWith(fontWeight: FontWeight.w900,
+                                color: AppColors.primary),
                             ),
                           ),
                   ),
@@ -472,19 +453,13 @@ class _StopCardState extends ConsumerState<_StopCard> {
                         if (widget.stop.cashCollected > 0)
                           Text(
                             'Collected: ${widget.stop.cashCollected.toStringAsFixed(0)}',
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              color: AppColors.success,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: AppText.label.copyWith(color: AppColors.success,
+                              fontWeight: FontWeight.w700),
                           ),
                         if (widget.stop.visitedAt != null)
                           Text(
                             _formatTime(widget.stop.visitedAt!),
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              color: AppColors.inkTertiary,
-                            ),
+                            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                           ),
                       ],
                     ),
@@ -500,11 +475,8 @@ class _StopCardState extends ConsumerState<_StopCard> {
                       ),
                       child: Text(
                         widget.stop.status,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: _statusColor,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          color: _statusColor),
                       ),
                     )
                   else
@@ -540,12 +512,9 @@ class _StopCardState extends ConsumerState<_StopCard> {
                         const SizedBox(width: 6),
                         Text(
                           'CASH COLLECTED',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                             letterSpacing: 1.5,
-                            color: AppColors.primary,
-                          ),
+                            color: AppColors.primary),
                         ),
                       ],
                     ),
@@ -554,23 +523,14 @@ class _StopCardState extends ConsumerState<_StopCard> {
                       controller: _cashController,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
-                      style: GoogleFonts.manrope(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.inkPrimary,
-                      ),
+                      style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                        color: AppColors.inkPrimary),
                       decoration: InputDecoration(
                         hintText: '0.00',
-                        hintStyle: GoogleFonts.manrope(
-                          fontSize: 15,
-                          color: AppColors.inkTertiary,
-                        ),
+                        hintStyle: AppText.body.copyWith(color: AppColors.inkTertiary),
                         prefixText: '${ref.watch(currencySymbolProvider).valueOrNull ?? ''} ',
-                        prefixStyle: GoogleFonts.manrope(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary,
-                        ),
+                        prefixStyle: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                          color: AppColors.inkPrimary),
                         filled: true,
                         fillColor: AppColors.canvas,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -664,11 +624,8 @@ class _ActionBtn extends StatelessWidget {
             const SizedBox(height: 3),
             Text(
               label,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-                color: color,
-              ),
+              style: AppText.label.copyWith(fontWeight: FontWeight.w900,
+                color: color),
             ),
           ],
         ),
@@ -796,7 +753,7 @@ class _NoRouteView extends ConsumerWidget {
           Text(
             'You have no dispatched route.\nManager must dispatch you from the web app.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(color: AppColors.inkTertiary, fontSize: 13),
+            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
           ),
           const SizedBox(height: 32),
           ElevatedButton.icon(
@@ -810,11 +767,8 @@ class _NoRouteView extends ConsumerWidget {
             icon: const Icon(LucideIcons.shoppingCart, size: 16),
             label: Text(
               'MAKE A SALE',
-              style: GoogleFonts.manrope(
-                fontWeight: FontWeight.w900,
-                fontSize: 13,
-                letterSpacing: 1.2,
-              ),
+              style: AppText.label.copyWith(fontWeight: FontWeight.w900,
+                letterSpacing: 1.2),
             ),
           ),
         ],
@@ -845,16 +799,13 @@ class _EmptyStops extends StatelessWidget {
         const SizedBox(height: 14),
         Text(
           'No delivery stops assigned',
-          style: GoogleFonts.manrope(
-            fontWeight: FontWeight.w700,
-            fontSize: 15,
-            color: AppColors.inkSecondary,
-          ),
+          style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+            color: AppColors.inkSecondary),
         ),
         const SizedBox(height: 6),
         Text(
           'You can still make walk-in van sales.',
-          style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+          style: AppText.caption.copyWith(color: AppColors.inkTertiary),
         ),
       ],
     ),

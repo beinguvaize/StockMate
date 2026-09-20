@@ -7,6 +7,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/data/models/van_stock.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class VanSaleScreen extends ConsumerStatefulWidget {
   final String? vehicleId;
@@ -134,12 +135,8 @@ class _VanSaleScreenState extends ConsumerState<VanSaleScreen> {
             ),
             Text(
               'ROADSIDE POS',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),

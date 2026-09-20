@@ -6,6 +6,7 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ── Role routing ──────────────────────────────────────────────────────────────
 
@@ -198,15 +199,13 @@ class _SaleTypeSheetState extends State<_SaleTypeSheet> {
           ),
           Text(
             'New Sale',
-            style: GoogleFonts.manrope(
-              fontSize: 22, fontWeight: FontWeight.w800,
-              color: AppColors.inkPrimary, letterSpacing: -0.5,
-            ),
+            style: AppText.title.copyWith(fontWeight: FontWeight.w800,
+              color: AppColors.inkPrimary, letterSpacing: -0.5),
           ),
           const SizedBox(height: 4),
           Text(
             'Where should stock be deducted from?',
-            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
+            style: AppText.caption.copyWith(color: AppColors.inkSecondary),
           ),
           const SizedBox(height: 24),
 
@@ -289,9 +288,7 @@ class _SaleTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13, color: AppColors.inkSecondary,
-                    ),
+                    style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                   ),
                 ],
               ),
@@ -387,16 +384,12 @@ class _VehiclePicker extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(name,
-                            style: GoogleFonts.manrope(
-                              fontSize: 15, fontWeight: FontWeight.w700,
-                              color: AppColors.inkPrimary,
-                            ),
+                            style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                              color: AppColors.inkPrimary),
                           ),
                           if (plate.isNotEmpty)
                             Text(plate,
-                              style: GoogleFonts.manrope(
-                                fontSize: 13, color: AppColors.inkTertiary,
-                              ),
+                              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                             ),
                         ],
                       ),

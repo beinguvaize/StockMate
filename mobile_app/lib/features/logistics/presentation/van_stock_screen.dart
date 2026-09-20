@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class VanStockScreen extends ConsumerWidget {
   final String vehicleId;
@@ -25,20 +26,13 @@ class VanStockScreen extends ConsumerWidget {
           children: [
             Text(
               'Van Stock',
-              style: GoogleFonts.manrope(
-                fontWeight: FontWeight.w800,
-                fontSize: 17,
-                color: AppColors.inkPrimary,
-              ),
+              style: AppText.heading.copyWith(fontWeight: FontWeight.w800,
+                color: AppColors.inkPrimary),
             ),
             Text(
               'INVENTORY ON BOARD',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -79,7 +73,7 @@ class VanStockScreen extends ConsumerWidget {
                   const SizedBox(height: 6),
                   Text(
                     'No stock loaded on this van.',
-                    style: GoogleFonts.manrope(color: AppColors.inkTertiary, fontSize: 13),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                   ),
                 ],
               ),
@@ -125,11 +119,8 @@ class VanStockScreen extends ConsumerWidget {
                           const SizedBox(height: 2),
                           Text(
                             '${items.length} product${items.length > 1 ? 's' : ''}',
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.secondary,
-                            ),
+                            style: AppText.caption.copyWith(fontWeight: FontWeight.w500,
+                              color: AppColors.secondary),
                           ),
                         ],
                       ),
@@ -183,21 +174,14 @@ class VanStockScreen extends ConsumerWidget {
                                 ),
                                 child: Text(
                                   item.quantity.toStringAsFixed(0),
-                                  style: GoogleFonts.manrope(
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 15,
-                                    color: AppColors.primary,
-                                    fontFeatures: [const FontFeature.tabularFigures()],
-                                  ),
+                                  style: AppText.moneySmall.copyWith(fontWeight: FontWeight.w900,
+                                    color: AppColors.primary),
                                 ),
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 'units',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  color: AppColors.inkTertiary,
-                                ),
+                                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                               ),
                             ],
                           ),
@@ -230,11 +214,8 @@ class VanStockScreen extends ConsumerWidget {
                                     const SizedBox(width: 4),
                                     Text(
                                       'Low stock',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.danger,
-                                      ),
+                                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                                        color: AppColors.danger),
                                     ),
                                   ],
                                 ),

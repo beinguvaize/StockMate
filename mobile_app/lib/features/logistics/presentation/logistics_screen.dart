@@ -15,6 +15,7 @@ import 'package:mobile_app/features/logistics/presentation/fleet_stock_screen.da
 import 'package:mobile_app/features/logistics/presentation/fleet_map_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class LogisticsScreen extends ConsumerWidget {
   const LogisticsScreen({super.key});
@@ -45,12 +46,8 @@ class LogisticsScreen extends ConsumerWidget {
             ),
             Text(
               'LOGISTICS MANAGEMENT',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.inkSecondary,
-                letterSpacing: 1.2,
-              ),
+              style: AppText.label.copyWith(color: AppColors.inkSecondary,
+                letterSpacing: 1.2),
             ),
           ],
         ),
@@ -111,12 +108,9 @@ class LogisticsScreen extends ConsumerWidget {
                             const SizedBox(width: 6),
                             Text(
                               'FLEET VEHICLES',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
+                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                 letterSpacing: 1.5,
-                                color: AppColors.primary,
-                              ),
+                                color: AppColors.primary),
                             ),
                           ],
                         ),
@@ -144,12 +138,9 @@ class LogisticsScreen extends ConsumerWidget {
                                 children: [
                                   Text(
                                     'STOCK',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
+                                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                       letterSpacing: 1,
-                                      color: AppColors.secondary,
-                                    ),
+                                      color: AppColors.secondary),
                                   ),
                                   const Icon(LucideIcons.chevronRight,
                                       size: 14, color: AppColors.secondary),
@@ -176,10 +167,7 @@ class LogisticsScreen extends ConsumerWidget {
                           const SizedBox(height: 12),
                           Text(
                             'No vehicles in fleet',
-                            style: GoogleFonts.manrope(
-                              fontSize: 15,
-                              color: AppColors.inkSecondary,
-                            ),
+                            style: AppText.body.copyWith(color: AppColors.inkSecondary),
                           ),
                         ],
                       ),
@@ -213,12 +201,9 @@ class LogisticsScreen extends ConsumerWidget {
                         const SizedBox(width: 6),
                         Text(
                           'ROUTES',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                             letterSpacing: 1.5,
-                            color: AppColors.secondary,
-                          ),
+                            color: AppColors.secondary),
                         ),
                         const Spacer(),
                         AppTappable(
@@ -230,12 +215,9 @@ class LogisticsScreen extends ConsumerWidget {
                           ),
                           child: Text(
                             'VIEW ALL',
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
+                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                               letterSpacing: 1.2,
-                              color: AppColors.primary,
-                            ),
+                              color: AppColors.primary),
                           ),
                         ),
                       ],
@@ -361,12 +343,9 @@ class _StatCard extends StatelessWidget {
           children: [
             Text(
               label,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
-                color: color,
-              ),
+                color: color),
             ),
             const SizedBox(height: 6),
             Text(
@@ -463,28 +442,19 @@ class _VehicleCard extends ConsumerWidget {
                     children: [
                       Text(
                         name,
-                        style: GoogleFonts.manrope(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary,
-                        ),
+                        style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                          color: AppColors.inkPrimary),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         plate.isNotEmpty ? plate : '—',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: AppColors.inkSecondary,
-                        ),
+                        style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                       ),
                       if (driver.isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Text(
                           driver,
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: AppColors.inkSecondary,
-                          ),
+                          style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                         ),
                       ],
                     ],
@@ -503,11 +473,8 @@ class _VehicleCard extends ConsumerWidget {
                   ),
                   child: Text(
                     statusLabel,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: statusFg,
-                    ),
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                      color: statusFg),
                   ),
                 ),
 
@@ -619,10 +586,7 @@ class _VehicleDetailSheet extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           vehicle.displayPlate,
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: AppColors.inkSecondary,
-                          ),
+                          style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                         ),
                       ],
                     ),
@@ -636,11 +600,8 @@ class _VehicleDetailSheet extends StatelessWidget {
                     ),
                     child: Text(
                       statusLabel,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: statusFg,
-                      ),
+                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                        color: statusFg),
                     ),
                   ),
                 ],
@@ -889,12 +850,8 @@ class _DetailRow extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             label,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkSecondary,
-              letterSpacing: 0.4,
-            ),
+            style: AppText.label.copyWith(color: AppColors.inkSecondary,
+              letterSpacing: 0.4),
           ),
           const Spacer(),
           Text(
@@ -1042,20 +999,14 @@ class _RouteCard extends StatelessWidget {
                     children: [
                       Text(
                         route.location ?? 'Route #${route.id.substring(0, 8)}',
-                        style: GoogleFonts.manrope(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary,
-                        ),
+                        style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                          color: AppColors.inkPrimary),
                       ),
                       if ((route.date ?? '').isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Text(
                           route.date!,
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: AppColors.inkSecondary,
-                          ),
+                          style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                         ),
                       ],
                     ],
@@ -1074,11 +1025,8 @@ class _RouteCard extends StatelessWidget {
                   ),
                   child: Text(
                     statusLabel,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: statusFg,
-                    ),
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                      color: statusFg),
                   ),
                 ),
 

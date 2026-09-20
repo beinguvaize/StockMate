@@ -9,6 +9,7 @@ import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // Mirrors web Clients.jsx form schema exactly.
 // DB columns written: id, tenant_id, name, contact, phone, email, address,
@@ -196,12 +197,8 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
             ),
             Text(
               'CRM',
-              style: GoogleFonts.manrope(
-                color: AppColors.secondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -427,11 +424,7 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
                     Expanded(
                       child: Text(
                         _formError!,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: AppColors.danger,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: AppText.label.copyWith(color: AppColors.danger),
                       ),
                     ),
                   ],
@@ -466,9 +459,7 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEdit ? 'SAVE CHANGES' : 'ADD CLIENT',
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 1,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1),
                       ),
                     ],
                   ),
@@ -516,21 +507,16 @@ class _CardSection extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w800,
                       letterSpacing: 1.5,
-                      color: AppColors.inkPrimary,
-                    ),
+                      color: AppColors.inkPrimary),
                   ),
                 ),
                 if (trailing != null)
                   Text(
                     trailing!,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13, fontWeight: FontWeight.w700,
-                      color: AppColors.inkTertiary, letterSpacing: 1.2,
-                    ),
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                      color: AppColors.inkTertiary, letterSpacing: 1.2),
                   ),
               ],
             ),
@@ -561,17 +547,13 @@ class _FieldLabel extends StatelessWidget {
         text: TextSpan(children: [
           TextSpan(
             text: text.toUpperCase(),
-            style: GoogleFonts.manrope(
-              fontSize: 13, fontWeight: FontWeight.w700,
-              color: AppColors.inkTertiary, letterSpacing: 1,
-            ),
+            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+              color: AppColors.inkTertiary, letterSpacing: 1),
           ),
           if (required)
             TextSpan(
               text: ' *',
-              style: GoogleFonts.manrope(
-                fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.primary,
-              ),
+              style: AppText.label.copyWith(fontWeight: FontWeight.w900, color: AppColors.primary),
             ),
         ]),
       ),
@@ -612,7 +594,7 @@ class _Field extends StatelessWidget {
         maxLength: maxLength,
         textCapitalization: textCapitalization,
         style: (mono
-                ? GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 1)
+                ? AppText.label.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1)
                 : GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600))
             .copyWith(color: AppColors.inkPrimary),
         decoration: InputDecoration(
@@ -620,10 +602,7 @@ class _Field extends StatelessWidget {
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           hintText: hint,
-          hintStyle: GoogleFonts.manrope(
-            color: AppColors.inkTertiary,
-            fontSize: 13,
-          ),
+          hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
         ),
       ),
     );
@@ -650,13 +629,9 @@ class _StateDropdown extends StatelessWidget {
           isExpanded: true,
           hint: Text(
             '— Select State —',
-            style: GoogleFonts.manrope(
-                color: AppColors.inkTertiary, fontSize: 13),
+            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
           ),
-          style: GoogleFonts.manrope(
-            fontSize: 13, fontWeight: FontWeight.w600,
-            color: AppColors.inkPrimary,
-          ),
+          style: AppText.label.copyWith(color: AppColors.inkPrimary),
           icon: const Icon(LucideIcons.chevronDown,
               size: 16, color: AppColors.inkSecondary),
           items: _kIndianStates
@@ -701,10 +676,7 @@ class _BasicDropdown<T> extends StatelessWidget {
         child: DropdownButton<T>(
           value: value,
           isExpanded: true,
-          style: GoogleFonts.manrope(
-            fontSize: 13, fontWeight: FontWeight.w600,
-            color: AppColors.inkPrimary,
-          ),
+          style: AppText.label.copyWith(color: AppColors.inkPrimary),
           icon: const Icon(LucideIcons.chevronDown,
               size: 16, color: AppColors.inkSecondary),
           items: items
@@ -761,22 +733,16 @@ class _TypeCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w800,
                       color: selected ? AppColors.primaryContainer : AppColors.inkPrimary,
-                      letterSpacing: 0.5,
-                    ),
+                      letterSpacing: 0.5),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     sub,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: selected
+                    style: AppText.caption.copyWith(color: selected
                           ? Colors.white.withValues(alpha: 0.55)
-                          : AppColors.inkTertiary,
-                    ),
+                          : AppColors.inkTertiary),
                   ),
                 ],
               ),

@@ -6,6 +6,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/daybook/data/daybook_models.dart';
 import 'package:mobile_app/features/daybook/providers/daybook_providers.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ---------------------------------------------------------------------------
 // Date format helper
@@ -66,12 +67,8 @@ class DayBookHistoryScreen extends ConsumerWidget {
         ),
         title: Text(
           'Day Book History',
-          style: GoogleFonts.manrope(
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
-            color: AppColors.inkPrimary,
-            letterSpacing: -0.3,
-          ),
+          style: AppText.heading.copyWith(color: AppColors.inkPrimary,
+            letterSpacing: -0.3),
         ),
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
@@ -92,10 +89,7 @@ class DayBookHistoryScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               Text(
                 'Failed to load history',
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  color: AppColors.inkSecondary,
-                ),
+                style: AppText.body.copyWith(color: AppColors.inkSecondary),
               ),
             ],
           ),
@@ -112,11 +106,8 @@ class DayBookHistoryScreen extends ConsumerWidget {
                   const SizedBox(height: 14),
                   Text(
                     'No day book history yet',
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.inkTertiary,
-                    ),
+                    style: AppText.body.copyWith(fontWeight: FontWeight.w500,
+                      color: AppColors.inkTertiary),
                   ),
                 ],
               ),
@@ -156,12 +147,8 @@ class DayBookHistoryScreen extends ConsumerWidget {
                       const EdgeInsets.fromLTRB(16, 20, 16, 8),
                   child: Text(
                     'All Records',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.inkTertiary,
-                      letterSpacing: 0.4,
-                    ),
+                    style: AppText.label.copyWith(color: AppColors.inkTertiary,
+                      letterSpacing: 0.4),
                   ),
                 ),
               ),
@@ -316,12 +303,9 @@ class _KpiCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                  style: AppText.caption.copyWith(fontWeight: FontWeight.w500,
                     color: AppColors.inkTertiary,
-                    letterSpacing: 0.2,
-                  ),
+                    letterSpacing: 0.2),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -341,10 +325,7 @@ class _KpiCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               sub!,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: AppColors.inkTertiary,
-              ),
+              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
             ),
           ],
         ],
@@ -499,13 +480,10 @@ class _DayBookHistoryCard extends StatelessWidget {
                   record.isClosed && record.closedAt != null
                       ? 'Closed at ${_fmtTime(record.closedAt!)}'
                       : 'Open',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                  style: AppText.caption.copyWith(fontWeight: FontWeight.w500,
                     color: record.isClosed
                         ? AppColors.inkTertiary
-                        : AppColors.warning,
-                  ),
+                        : AppColors.warning),
                 ),
               ],
             ),
@@ -540,12 +518,9 @@ class _Tag extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.manrope(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
+        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
           color: textColor,
-          letterSpacing: 0.5,
-        ),
+          letterSpacing: 0.5),
       ),
     );
   }
@@ -569,21 +544,14 @@ class _AmountChip extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+          style: AppText.caption.copyWith(fontWeight: FontWeight.w500,
             color: AppColors.inkTertiary,
-            letterSpacing: 0.2,
-          ),
+            letterSpacing: 0.2),
         ),
         const SizedBox(height: 1),
         Text(
           value,
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
+          style: AppText.label.copyWith(color: color),
         ),
       ],
     );
@@ -612,11 +580,8 @@ class _NetPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.manrope(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: fg,
-        ),
+        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+          color: fg),
       ),
     );
   }
@@ -659,11 +624,7 @@ class _VariancePill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.manrope(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: fg,
-        ),
+        style: AppText.label.copyWith(color: fg),
       ),
     );
   }

@@ -10,6 +10,7 @@ import 'package:mobile_app/features/hr/data/models/employee.dart';
 import 'package:mobile_app/features/hr/presentation/providers/hr_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class AddEmployeeScreen extends ConsumerStatefulWidget {
   /// Pass an existing [Employee] to enter edit mode; leave null to add a new one.
@@ -180,12 +181,8 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             ),
             Text(
               'HR & PAYROLL',
-              style: GoogleFonts.manrope(
-                color: AppColors.secondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -213,11 +210,8 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                           : '?';
                       return Text(
                         initial,
-                        style: GoogleFonts.manrope(
-                          color: AppColors.secondary,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w900,
-                        ),
+                        style: AppText.display.copyWith(color: AppColors.secondary,
+                          fontWeight: FontWeight.w900),
                       );
                     },
                   ),
@@ -305,13 +299,10 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                             Text(
                               status,
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.manrope(
-                                color: selected ? color : AppColors.inkSecondary,
-                                fontSize: 13,
+                              style: AppText.label.copyWith(color: selected ? color : AppColors.inkSecondary,
                                 fontWeight: selected
                                     ? FontWeight.w700
-                                    : FontWeight.w500,
-                              ),
+                                    : FontWeight.w500),
                             ),
                           ],
                         ),
@@ -354,11 +345,8 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEditing ? 'SAVE CHANGES' : 'ADD EMPLOYEE',
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          letterSpacing: 1,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          letterSpacing: 1),
                       ),
                     ],
                   ),
@@ -400,12 +388,8 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             fontSize: 14,
           ),
           labelText: label,
-          labelStyle: GoogleFonts.manrope(
-            color: AppColors.inkSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
+          labelStyle: AppText.label.copyWith(color: AppColors.inkSecondary,
+            letterSpacing: 0.5),
           floatingLabelBehavior: FloatingLabelBehavior.always,
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
@@ -439,12 +423,9 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           title,
-          style: GoogleFonts.manrope(
-            color: AppColors.primary,
-            fontSize: 13,
+          style: AppText.label.copyWith(color: AppColors.primary,
             fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-          ),
+            letterSpacing: 1.5),
         ),
       ],
     );

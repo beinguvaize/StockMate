@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class PieSlice {
   final String label;
@@ -36,7 +36,7 @@ class SimplePieChart extends StatelessWidget {
         child: Center(
           child: Text(
             'No data',
-            style: GoogleFonts.manrope(color: AppColors.inkSecondary, fontSize: 13),
+            style: AppText.caption.copyWith(color: AppColors.inkSecondary),
           ),
         ),
       );
@@ -70,10 +70,7 @@ class SimplePieChart extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   '${slice.label} $pct%',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.inkSecondary,
-                  ),
+                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                 ),
               ],
             );

@@ -701,10 +701,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                 children: [
                   Text(
                     widget.product.name,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: AppColors.inkSecondary,
-                    ),
+                    style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
@@ -755,10 +752,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                           ),
                           Text(
                             'new stock',
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              color: AppColors.inkTertiary,
-                            ),
+                            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                           ),
                         ],
                       ),
@@ -778,13 +772,10 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                   if (adjustment != 0)
                     Text(
                       '${adjustment > 0 ? "+" : ""}$adjustment from current ($currentStock)',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        color: adjustment > 0
+                      style: AppText.caption.copyWith(color: adjustment > 0
                             ? AppColors.success
                             : AppColors.danger,
-                        fontWeight: FontWeight.w500,
-                      ),
+                        fontWeight: FontWeight.w500),
                     ),
                   // Purchase price — only when adding stock. Blank = use saved cost.
                   if (adjustment > 0) ...[
@@ -803,16 +794,10 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                         labelText: lastRef != null
                             ? 'Purchase price / unit · last paid'
                             : 'Purchase price / unit (optional)',
-                        labelStyle: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: AppColors.inkSecondary,
-                        ),
+                        labelStyle: AppText.caption.copyWith(color: AppColors.inkSecondary),
                         hintText:
                             'Cost each — blank uses saved ₹${widget.product.costPrice.toStringAsFixed(2)}',
-                        hintStyle: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: AppColors.inkTertiary,
-                        ),
+                        hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
                         isDense: true,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -824,10 +809,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                       lastRef != null
                           ? 'Defaulted to ₹${lastCost!.toStringAsFixed(2)} — last bought ${lastDate ?? ''} on $lastRef. Change it if this lot cost something else.'
                           : 'Enter what you paid so profit on these units is exact.',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        color: AppColors.inkTertiary,
-                      ),
+                      style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                     ),
                   ],
                 ],
@@ -990,10 +972,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                     ),
                     Text(
                       'SKU: ${p.sku ?? "N/A"}',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        color: AppColors.inkTertiary,
-                      ),
+                      style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                     ),
                   ],
                 ),
@@ -1009,11 +988,8 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                 ),
                 child: Text(
                   statusLabel,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                  ),
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                    color: statusColor),
                 ),
               ),
             ],
@@ -1177,18 +1153,11 @@ class _DetailRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: AppColors.inkSecondary,
-            ),
+            style: AppText.caption.copyWith(color: AppColors.inkSecondary),
           ),
           Text(
             value,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: valueColor ?? AppColors.inkPrimary,
-            ),
+            style: AppText.label.copyWith(color: valueColor ?? AppColors.inkPrimary),
           ),
         ],
       ),
