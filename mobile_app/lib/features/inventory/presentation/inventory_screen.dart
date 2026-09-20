@@ -136,7 +136,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     ripple: false,
                     onTap: () => setState(() => _filterIndex = i),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
+                      duration: Motion.durationOf(context, Motion.base),
                       padding: const EdgeInsets.symmetric(
                         horizontal: Gap.lg,
                         vertical: Gap.sm,

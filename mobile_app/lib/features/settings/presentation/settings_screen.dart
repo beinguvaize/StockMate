@@ -10,6 +10,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:mobile_app/features/settings/presentation/providers/settings_provider.dart';
 import 'package:mobile_app/features/settings/presentation/sync_diagnostics_screen.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -859,7 +860,7 @@ class _TaxModePicker extends StatelessWidget {
         return GestureDetector(
           onTap: () => onChanged(mode),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: Motion.durationOf(context, const Duration(milliseconds: 150)),
             margin: const EdgeInsets.only(left: 6),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(

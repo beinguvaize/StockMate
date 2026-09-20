@@ -7,6 +7,7 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
 import 'package:mobile_app/features/returns/presentation/providers/returns_provider.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 
 class PurchaseReturnFormScreen extends ConsumerStatefulWidget {
   final Purchase purchase;
@@ -618,7 +619,7 @@ class _StepButton extends StatelessWidget {
         }
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
+        duration: Motion.durationOf(context, const Duration(milliseconds: 140)),
         width: 48,
         height: 48,
         decoration: BoxDecoration(

@@ -183,7 +183,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   return GestureDetector(
                     onTap: () => setState(() => _dateIndex = i),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
+                      duration: Motion.durationOf(context, Motion.base),
                       // A filter chip is not a floating object; it had a drop
                       // shadow on every one of nine chips across two rows.
                       padding: const EdgeInsets.symmetric(

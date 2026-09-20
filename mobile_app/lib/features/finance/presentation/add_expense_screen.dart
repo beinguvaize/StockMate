@@ -11,6 +11,7 @@ import 'package:mobile_app/features/finance/data/models/expense.dart';
 import 'package:mobile_app/features/finance/presentation/providers/finance_provider.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final Expense? expense; // non-null = edit mode
@@ -743,7 +744,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   AnimatedContainer(
-                                    duration: const Duration(milliseconds: 180),
+                                    duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
                                     width: 56,
                                     height: 56,
                                     decoration: BoxDecoration(

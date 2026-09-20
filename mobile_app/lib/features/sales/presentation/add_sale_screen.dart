@@ -711,7 +711,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                     onTap: () => setState(
                                         () => _selectedCategory = isAll ? null : cat),
                                     child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 180),
+                                      duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: Gap.lg, vertical: Gap.sm),
                                       decoration: BoxDecoration(
@@ -1348,7 +1348,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                       borderRadius: Radii.rPill,
                       onTap: _decrement,
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 120),
+                        duration: Motion.durationOf(context, Motion.fast),
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
@@ -1463,7 +1463,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                       borderRadius: Radii.rPill,
                       onTap: _increment,
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 120),
+                        duration: Motion.durationOf(context, Motion.fast),
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
@@ -2381,7 +2381,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
         if (m.type == 'UPI') _showUpiPreview();
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -3241,7 +3241,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                               ripple: false,
                               onTap: () => setState(() => _collectMethod = m),
                               child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 120),
+                                duration: Motion.durationOf(context, Motion.fast),
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                 decoration: BoxDecoration(
                                   color: _collectMethod == m ? AppColors.primaryContainer : Colors.white,

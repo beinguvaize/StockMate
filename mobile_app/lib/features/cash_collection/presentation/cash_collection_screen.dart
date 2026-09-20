@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'providers/cash_collection_provider.dart';
 
@@ -305,7 +306,7 @@ class _ClientCollectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedOpacity(
       opacity: isDone ? 0.55 : 1,
-      duration: const Duration(milliseconds: 200),
+      duration: Motion.durationOf(context, Motion.base),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
