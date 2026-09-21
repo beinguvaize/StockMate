@@ -135,6 +135,21 @@ class AppText {
     fontFeatures: const [FontFeature.tabularFigures()],
   );
 
+  /// The headline figure ON the dark Today card. Between moneyLarge at 32
+  /// and moneyHero at 52, because it is neither: it is read at arm's length
+  /// like a report, but it is the one number the screen exists to show, so
+  /// it outranks every reporting figure on it.
+  ///
+  /// The colour is deliberately absent -- this style is only ever drawn on
+  /// the inverse surface, and the caller supplies onSurfaceInverse.
+  static TextStyle get moneyCard => GoogleFonts.manrope(
+    fontSize: 36,
+    fontWeight: FontWeight.w800,
+    height: 1.05,
+    letterSpacing: -1.2,
+    fontFeatures: const [FontFeature.tabularFigures()],
+  );
+
   /// A large numeric entry field — the quantity keypad. Sized for thumb
   /// entry rather than for reading, which is why it is its own role and not
   /// a money one: it is an input, and it is not currency.

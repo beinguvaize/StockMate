@@ -190,7 +190,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: AppColors.canvasWarm,
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
@@ -265,7 +265,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             }),
                             visualDensity: VisualDensity.compact,
                             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            activeColor: AppColors.primaryContainer,
+                            activeColor: AppColors.brandFill,
+                            checkColor: AppColors.onBrandFill,
                           ),
                           const SizedBox(width: 4),
                           Expanded(
@@ -294,7 +295,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   : null,
                               visualDensity: VisualDensity.compact,
                               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              activeColor: AppColors.primaryContainer,
+                              activeColor: AppColors.brandFill,
+                            checkColor: AppColors.onBrandFill,
                             ),
                             const SizedBox(width: 4),
                             Expanded(
@@ -346,8 +348,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.onPrimary,
+                            backgroundColor: AppColors.brandFill,
+                            foregroundColor: AppColors.onBrandFill,
                             elevation: 0,
                             shape: const RoundedRectangleBorder(
                                 borderRadius: Radii.rSm),
@@ -357,7 +359,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   height: 20,
                                   width: 20,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: AppColors.onPrimary),
+                                      strokeWidth: 2, color: AppColors.onBrandFill),
                                 )
                               : Text('Sign in',
                                   style: AppText.label.copyWith(
@@ -477,6 +479,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     TextInputType? keyboardType,
     Widget? suffix,
   }) {
+    // The label sits ABOVE the field rather than inside it. A placeholder
+    // leaves the moment you type, so the one time you most need to know
+    // which box you are in -- halfway through filling it -- is the one time
+    // the answer is gone. It also gives the field a real label for a screen
+    // reader instead of a hint.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(hint.toUpperCase(), style: AppText.eyebrow),
+        const SizedBox(height: Gap.xs),
+        _field(
+          controller: controller,
+          hint: hint,
+          icon: icon,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          suffix: suffix,
+        ),
+      ],
+    );
+  }
+
+  Widget _field({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool obscureText = false,
+    TextInputType? keyboardType,
+    Widget? suffix,
+  }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
@@ -500,7 +532,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         focusedBorder: const OutlineInputBorder(
           borderRadius: Radii.rSm,
-          borderSide: BorderSide(color: AppColors.onSurface, width: 1.5),
+          // AppColors.primary, not brandFill: this is a 2px stroke, and
+          // brandFill against the canvas is 2.25:1, under the 3:1 a boundary
+          // needs. The fill colour and the stroke colour are not the same job.
+          borderSide: BorderSide(color: AppColors.primary, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(vertical: 16),
       ),

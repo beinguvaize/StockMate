@@ -106,9 +106,11 @@ class _AppButtonState extends State<AppButton> {
       enabled: _enabled,
       label: widget.label,
       child: AnimatedScale(
-        // The press response the app has never had.
+        // The press response the app has never had. durationOf, not the raw
+        // constant: the two shared button widgets were the last animated
+        // things in the app still ignoring the OS reduce-motion switch.
         scale: _pressed ? 0.97 : 1.0,
-        duration: Motion.fast,
+        duration: Motion.durationOf(context, Motion.fast),
         curve: Motion.standard,
         child: Material(
           color: bg,

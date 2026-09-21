@@ -31,6 +31,7 @@ import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/sales/data/models/sale.dart';
 import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:printing/printing.dart';
+import 'package:mobile_app/core/widgets/success_tick.dart';
 
 // POS stores (non-vehicle inventory locations) for the multi-store
 // store picker. Cached per session.
@@ -3122,21 +3123,19 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
           Container(width: 40, height: 4,
             decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 24),
-          // Success icon
-          Container(
-            width: 64, height: 64,
-            decoration: BoxDecoration(
-              color: AppColors.secondary.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(LucideIcons.checkCircle2, color: AppColors.secondary, size: 32),
-          ),
+          // The tick is DRAWN, not placed. A static icon that was already
+          // there when the sheet opened reads as part of the furniture; a
+          // ring that sweeps closed and a check stroked on in one gesture
+          // reads as "that just happened", which is the whole job of this
+          // sheet. Green, because a confirmation is the one place a status
+          // colour is the point rather than the accent.
+          const SuccessTick(size: 72),
           const SizedBox(height: 16),
           Text('Sale recorded!',
             style: GoogleFonts.manrope(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
           const SizedBox(height: 4),
-          Text('₹${widget.total.toStringAsFixed(2)}',
-            style: GoogleFonts.manrope(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.inkPrimary)),
+          Text(Money.inrExact(widget.total),
+            style: AppText.moneyLarge),
           Text(widget.saleId,
             style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
           const SizedBox(height: 24),
