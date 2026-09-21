@@ -95,6 +95,10 @@ const PAIRS = [
   // body-text ratio on the warm ground, not the 3:1 a dot alone would.
   ['error', 'canvasWarm', 4.5, 'overdue label on the warm ground'],
   ['warning', 'canvasWarm', 4.5, 'partial label on the warm ground'],
+
+  // Inventory leans on both of these at 13px and neither had been measured.
+  ['success', 'canvasWarm', 4.5, 'healthy margin on the warm ground'],
+  ['warning', 'warningContainer', 4.5, 'low-stock tile, ink on its own fill'],
   // 'Other' uses inkSecondary, an alias for onSurfaceVariant, measured above.
 ];
 
