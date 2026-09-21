@@ -30,8 +30,34 @@ class AppColors {
   static const Color onPrimary = Color(0xFFFFFFFF);
   static const Color onPrimaryContainer = Color(0xFF92400E);
 
+  // ── Brand fill ───────────────────────────────────────────────────────────
+  // The literal logo orange, sampled from mark.png and logo.png.
+  //
+  // It is a FILL, never text: #F09935 measures 2.25:1 on white, and white on
+  // it measures the same. `primary` (#B45309, 5.02:1) stays the token for
+  // brand-coloured TEXT, which 27 call sites rely on.
+  //
+  // Ink on this is the logo's own navy at 6.59:1 — the pairing the logo
+  // itself already uses, and the reason white is not an option here.
+  static const Color brandFill = Color(0xFFF09935);
+  static const Color onBrandFill = Color(0xFF192937);
+
+  // ── Inverse surface ──────────────────────────────────────────────────────
+  // Money sits on dark. Totals, balances and net profit go on this rather
+  // than on a saturated brand panel, which is what separates a ledger from a
+  // promotion. White on it is 14.85:1; the logo orange on it is 6.59:1, so
+  // the accent finally works as text here even though it cannot on white.
+  static const Color surfaceInverse = Color(0xFF192937);
+  static const Color surfaceInverseDeep = Color(0xFF0E1922);
+  static const Color onSurfaceInverse = Color(0xFFFFFFFF);
+  static const Color onSurfaceInverseMuted = Color(0xFF8D9AA8);
+
   // ── Neutrals ─────────────────────────────────────────────────────────────
   static const Color canvas = Color(0xFFFFFFFF);
+
+  /// Warm off-white for full-page grounds. A pure-white page under a warm
+  /// orange brand reads cold; this is the same white shifted toward it.
+  static const Color canvasWarm = Color(0xFFFBFAF8);
   static const Color surfaceContainer = Color(0xFFF9F9F9);
   static const Color secondaryContainer = Color(0xFFF3F4F6);
 
@@ -41,11 +67,14 @@ class AppColors {
 
   /// Decorative hairline only. Deliberately below 3:1; never use it to convey
   /// the edge of a control.
-  static const Color outlineVariant = Color(0xFFE5E7EB);
+  static const Color outlineVariant = Color(0xFFE8E2D9);
 
   // ── Ink ──────────────────────────────────────────────────────────────────
-  static const Color onSurface = Color(0xFF111111);
-  static const Color onSurfaceVariant = Color(0xFF444444);
+  /// The logo's wordmark navy, sampled from logo.png. Near-black inks read as
+  /// generic; this one belongs to the brand and costs nothing in contrast —
+  /// 14.85:1 on white against #111111's 18.9:1, both far past AA.
+  static const Color onSurface = Color(0xFF192937);
+  static const Color onSurfaceVariant = Color(0xFF44505E);
   static const Color inkTertiary = Color(0xFF6B7280);
 
   // ── Status ───────────────────────────────────────────────────────────────
