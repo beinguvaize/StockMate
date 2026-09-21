@@ -214,8 +214,8 @@ class UpiQrSheet extends StatelessWidget {
                       icon: const Icon(LucideIcons.checkCircle2, size: 16),
                       label: const Text('Payment Received'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        backgroundColor: AppColors.brandFill,
+                        foregroundColor: AppColors.onBrandFill,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: const StadiumBorder(),
                         textStyle: GoogleFonts.manrope(

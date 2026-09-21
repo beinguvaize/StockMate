@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/theme/typography.dart';
 import 'providers/accounts_provider.dart';
+import '../../../core/widgets/app_surfaces.dart';
 
 class AccountsScreen extends ConsumerWidget {
   const AccountsScreen({super.key});
@@ -93,22 +94,22 @@ class AccountsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               if (cash.isNotEmpty) ...[
-                _SectionHeader('Cash', LucideIcons.banknote, const Color(0xFF16A34A)),
+                SectionHeading('Cash', icon: LucideIcons.banknote, tint: AppColors.accountCash),
                 ...cash.map((a) => _AccountCard(account: a)),
                 const SizedBox(height: 16),
               ],
               if (bank.isNotEmpty) ...[
-                _SectionHeader('Bank', LucideIcons.building2, const Color(0xFF2563EB)),
+                SectionHeading('Bank', icon: LucideIcons.building2, tint: AppColors.accountBank),
                 ...bank.map((a) => _AccountCard(account: a)),
                 const SizedBox(height: 16),
               ],
               if (upi.isNotEmpty) ...[
-                _SectionHeader('UPI', LucideIcons.smartphone, const Color(0xFF7C3AED)),
+                SectionHeading('UPI', icon: LucideIcons.smartphone, tint: AppColors.accountUpi),
                 ...upi.map((a) => _AccountCard(account: a)),
                 const SizedBox(height: 16),
               ],
               if (other.isNotEmpty) ...[
-                _SectionHeader('Other', LucideIcons.creditCard, AppColors.inkSecondary),
+                SectionHeading('Other', icon: LucideIcons.creditCard, tint: AppColors.inkSecondary),
                 ...other.map((a) => _AccountCard(account: a)),
               ],
             ],
@@ -119,29 +120,6 @@ class AccountsScreen extends ConsumerWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  const _SectionHeader(this.label, this.icon, this.color);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label.toUpperCase(),
-            style: AppText.label.copyWith(color: color, letterSpacing: 0.08),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _AccountCard extends StatelessWidget {
   final AccountModel account;

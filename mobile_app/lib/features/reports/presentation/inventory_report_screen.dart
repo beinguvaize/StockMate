@@ -10,6 +10,7 @@ import 'package:mobile_app/features/reports/presentation/widgets/report_kpi_tile
 import 'package:mobile_app/features/reports/presentation/widgets/simple_pie_chart.dart';
 import 'package:mobile_app/features/reports/utils/financial_calcs.dart';
 import 'package:mobile_app/core/theme/typography.dart';
+import '../../../core/widgets/app_surfaces.dart';
 
 // ---------------------------------------------------------------------------
 // Pie palette
@@ -289,8 +290,7 @@ class _InventoryBody extends StatelessWidget {
 
                     // Pie chart
                     const SizedBox(height: 24),
-                    _SectionHeader(
-                        title: 'BY CATEGORY', icon: LucideIcons.pieChart),
+                    SectionHeading('BY CATEGORY', icon: LucideIcons.pieChart),
                     const SizedBox(height: 16),
                     if (pieSlices.isNotEmpty)
                       Center(
@@ -303,8 +303,7 @@ class _InventoryBody extends StatelessWidget {
                       ),
 
                     const SizedBox(height: 24),
-                    _SectionHeader(
-                        title: 'PRODUCTS', icon: LucideIcons.layoutList),
+                    SectionHeading('PRODUCTS', icon: LucideIcons.layoutList),
                     const SizedBox(height: 12),
                   ],
                 ),
@@ -381,9 +380,7 @@ class _InventoryBody extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _SectionHeader(
-                              title: 'IDLE STOCK',
-                              icon: LucideIcons.packageX),
+                          SectionHeading('IDLE STOCK', icon: LucideIcons.packageX),
                           const SizedBox(height: 12),
                         ],
                       ),
@@ -683,34 +680,6 @@ class _DeadStockCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Section header
 // ---------------------------------------------------------------------------
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 14, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-            color: AppColors.primary),
-        ),
-      ],
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Empty state
