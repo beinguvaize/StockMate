@@ -16,6 +16,7 @@ import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/main.dart' show databaseProvider;
 import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
+import 'package:mobile_app/core/utils/stock_levels.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   /// Whether this screen supplies its own Add button.
@@ -74,10 +75,16 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
     final filters = ['All', 'Low Stock', 'Out of Stock'];
 
+    // For the header line only. The list below does its own watching; this is
+    // the same cached list, so it costs nothing extra.
+    final all = ref.watch(productsProvider).valueOrNull ?? const [];
+    final stockValue =
+        all.fold<double>(0, (sum, p) => sum + p.stock * p.costPrice);
+
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: AppColors.canvasWarm,
       appBar: AppBar(
-        backgroundColor: AppColors.canvas,
+        backgroundColor: AppColors.canvasWarm,
         elevation: 0,
         scrolledUnderElevation: 0,
         toolbarHeight: 0,
@@ -93,8 +100,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               ).then((_) => ref.invalidate(productsProvider)),
               // Was grey-on-pale-amber: the one button that creates a product did
               // not look like the brand's primary action.
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.onPrimary,
+              backgroundColor: AppColors.brandFill,
+              foregroundColor: AppColors.onBrandFill,
               elevation: 3,
               shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
               child: const Icon(LucideIcons.plus, size: 26),
@@ -106,7 +113,19 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             // ── Header ─────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              child: Text('Inventory', style: AppText.display),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Inventory', style: AppText.display),
+                  // What the shelf is worth, which is the question a stock
+                  // list exists to answer and the title alone never did.
+                  if (all.isNotEmpty)
+                    Text(
+                      '${all.length} items · ${Money.inr(stockValue)} at cost',
+                      style: AppText.caption,
+                    ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 16),
@@ -143,12 +162,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: isActive
-                            ? AppColors.primaryContainer
+                            ? AppColors.surfaceInverse
                             : AppColors.canvas,
                         borderRadius: Radii.rPill,
                         border: Border.all(
                           color: isActive
-                              ? AppColors.primaryContainer
+                              ? AppColors.surfaceInverse
                               : AppColors.outlineVariant,
                         ),
                       ),
@@ -156,8 +175,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                         filters[i],
                         style: AppText.label.copyWith(
                           color: isActive
-                              ? AppColors.onPrimaryContainer
-                              : AppColors.onSurfaceVariant,
+                              ? AppColors.onSurfaceInverse
+                              : AppColors.inkSecondary,
                         ),
                       ),
                     ),
@@ -179,85 +198,63 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     .watch(filteredProductsProvider)
                     .when(
                       data: (allProducts) {
+                        // StockLevels, not a local <= 10: this screen and the
+                        // dashboard were counting low stock by different rules
+                        // and printing different numbers for the same shop.
                         final products = allProducts.where((p) {
-                          if (_filterIndex == 1)
-                            return p.stock > 0 && p.stock <= 10;
-                          if (_filterIndex == 2) return p.stock == 0;
+                          if (_filterIndex == 1) {
+                            return StockLevels.isLow(p.stock);
+                          }
+                          if (_filterIndex == 2) {
+                            return StockLevels.isOutOfStock(p.stock);
+                          }
                           return true;
                         }).toList();
 
-                        final lowCount = allProducts
-                            .where((p) => p.stock <= 10)
+                        final lowCount =
+                            allProducts.where((p) => StockLevels.isLow(p.stock)).length;
+                        final outCount = allProducts
+                            .where((p) => StockLevels.isOutOfStock(p.stock))
                             .length;
+                        final healthyCount =
+                            allProducts.length - lowCount - outCount;
+
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Stats row
+                            // Three counts, one of which is a problem. Only
+                            // that one gets colour -- a row of tiles where
+                            // every number is tinted says nothing about which
+                            // one needs the shopkeeper.
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: Gap.xl,
                               ),
-                              child: IntrinsicHeight(
-                                child: Row(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    Expanded(
-                                      child: AppCard(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              'Total items',
-                                              style: AppText.caption,
-                                            ),
-                                            const SizedBox(height: Gap.xs),
-                                            // Was amber. A count of products is not a
-                                            // brand moment and not a status; ink.
-                                            Text(
-                                              '${allProducts.length}',
-                                              style: AppText.moneyLarge
-                                                  .copyWith(fontSize: 26),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _CountTile(
+                                      label: 'In stock',
+                                      count: healthyCount,
                                     ),
-                                    Gap.w12,
-                                    Expanded(
-                                      child: AppCard(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              'Low stock',
-                                              style: AppText.caption,
-                                            ),
-                                            const SizedBox(height: Gap.xs),
-                                            // This one keeps its colour: it is a count
-                                            // of things that need attention, which is
-                                            // what the warning token is for.
-                                            Text(
-                                              '$lowCount',
-                                              style: AppText.moneyLarge
-                                                  .copyWith(
-                                                    fontSize: 26,
-                                                    color: lowCount > 0
-                                                        ? AppColors.warning
-                                                        : AppColors.onSurface,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                  ),
+                                  Gap.w8,
+                                  Expanded(
+                                    child: _CountTile(
+                                      label: 'Low stock',
+                                      count: lowCount,
+                                      alert: lowCount > 0,
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                  Gap.w8,
+                                  Expanded(
+                                    child: _CountTile(
+                                      label: 'Out of stock',
+                                      count: outCount,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
 
@@ -268,30 +265,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 24,
                               ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('Inventory items', style: AppText.title),
-                                  TextButton(
-                                    onPressed: () =>
-                                        setState(() => _filterIndex = 0),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: AppColors.primary,
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: Size.zero,
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: Text(
-                                      'View all',
-                                      style: AppText.label.copyWith(
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              child: Text('INVENTORY ITEMS',
+                                  style: AppText.eyebrow),
                             ),
 
                             const SizedBox(height: 12),
@@ -323,9 +298,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                           ),
                                       itemBuilder: (context, index) {
                                         final product = products[index];
-                                        final stock = product.stock.toInt();
-                                        final isLow = stock > 0 && stock <= 10;
-                                        final isOut = stock == 0;
+                                        // NOT stock.toInt(): that truncates, so
+                                        // half a unit left on the shelf showed
+                                        // as "Out of Stock". Stock is a REAL
+                                        // column and stays a double.
+                                        final stock = product.stock;
+                                        final isLow = StockLevels.isLow(stock);
+                                        final isOut =
+                                            StockLevels.isOutOfStock(stock);
 
                                         Color statusColor;
                                         String statusLabel;
@@ -455,7 +435,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                                     Text(
                                                       isOut
                                                           ? statusLabel
-                                                          : '$stock in stock',
+                                                          : '${_qty(stock)}'
+                                                                ' ${product.unit ?? "in stock"}',
                                                       style: AppText.caption
                                                           .copyWith(
                                                             color:
@@ -1186,6 +1167,65 @@ class _StockAdjustBtn extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         child: Icon(icon, size: 20, color: AppColors.primary),
+      ),
+    );
+  }
+}
+
+/// 8.0 prints as "8" and 8.5 as "8.5". A shop that sells by the kilo has
+/// fractional stock, and padding every whole number with ".0" makes the
+/// common case noisier to read than the rare one.
+String _qty(double v) =>
+    v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(2);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Count tile
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CountTile extends StatelessWidget {
+  final String label;
+  final int count;
+
+  /// Only the tile that is asking for something carries colour, and it carries
+  /// it on the fill AND the ink, so the state does not rest on hue alone.
+  final bool alert;
+
+  const _CountTile({
+    required this.label,
+    required this.count,
+    this.alert = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: alert ? AppColors.warningContainer : AppColors.canvas,
+        borderRadius: Radii.rMd,
+        border: Border.all(
+          color: alert ? AppColors.warning : AppColors.outlineVariant,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$count',
+            style: AppText.moneyLarge.copyWith(
+              fontSize: 20,
+              color: alert ? AppColors.warning : AppColors.onSurface,
+            ),
+          ),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.caption.copyWith(
+              color: alert ? AppColors.warning : AppColors.inkTertiary,
+            ),
+          ),
+        ],
       ),
     );
   }

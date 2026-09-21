@@ -5,6 +5,7 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/database/sync_status_pill.dart' show connectivityProvider;
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/main.dart' show databaseProvider;
+import 'package:mobile_app/core/utils/stock_levels.dart';
 
 class DayTotals {
   final DateTime date;
@@ -118,11 +119,16 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
 
       try {
         final pData = await supabase.from('products')
-            .select('stock').isFilter('deleted_at', null).eq('tenant_id', tenantId);
+            .select('stock, lowStockThreshold').isFilter('deleted_at', null).eq('tenant_id', tenantId);
         productsCount = pData.length;
         for (var p in pData) {
-          final st = int.tryParse(p['stock']?.toString() ?? '0') ?? 0;
-          if (st < 10) lowStockCount++; // default threshold 10
+          // int.tryParse('42.5') is null, fell back to 0, and reported a full
+          // shelf as low stock. Stock is a REAL column. See StockLevels.
+          final st = StockLevels.parse(p['stock']);
+          final threshold = (p['lowStockThreshold'] as num?)?.toDouble();
+          if (StockLevels.needsRestock(st, threshold: threshold)) {
+            lowStockCount++;
+          }
         }
       } catch (_) {}
 
