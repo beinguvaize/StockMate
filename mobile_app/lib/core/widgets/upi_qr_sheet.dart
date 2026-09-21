@@ -13,6 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'app_button.dart';
 
 class UpiQrSheet extends StatelessWidget {
   final String upiId;
@@ -192,36 +193,28 @@ class UpiQrSheet extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
+                    // Both were raw Material buttons, so the two controls that
+                    // decide whether a payment landed were the only ones in
+                    // the checkout flow with no press response. AppButton
+                    // carries the scale, the ripple and the reduce-motion
+                    // handling every other button in the app has.
+                    child: AppButton(
+                      label: 'Mark Failed',
+                      icon: LucideIcons.x,
+                      variant: AppButtonVariant.danger,
+                      size: AppButtonSize.large,
+                      fullWidth: true,
                       onPressed: () => Navigator.pop(context, false),
-                      icon: const Icon(LucideIcons.x, size: 16),
-                      label: const Text('Mark Failed'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red.shade600,
-                        side: BorderSide(color: Colors.red.shade300),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: const StadiumBorder(),
-                        textStyle: GoogleFonts.manrope(
-                          fontSize: 13, fontWeight: FontWeight.w700,
-                        ),
-                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: ElevatedButton.icon(
+                    child: AppButton(
+                      label: 'Payment Received',
+                      icon: LucideIcons.checkCircle2,
+                      size: AppButtonSize.large,
+                      fullWidth: true,
                       onPressed: () => Navigator.pop(context, true),
-                      icon: const Icon(LucideIcons.checkCircle2, size: 16),
-                      label: const Text('Payment Received'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.brandFill,
-                        foregroundColor: AppColors.onBrandFill,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: const StadiumBorder(),
-                        textStyle: GoogleFonts.manrope(
-                          fontSize: 13, fontWeight: FontWeight.w700,
-                        ),
-                      ),
                     ),
                   ),
                 ],
