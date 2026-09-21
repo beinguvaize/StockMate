@@ -20,20 +20,25 @@ import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import '../../../core/widgets/app_surfaces.dart';
+import 'package:mobile_app/core/utils/money.dart';
 
 // ---------------------------------------------------------------------------
 // Internal summary provider (kept for overview KPIs)
 // ---------------------------------------------------------------------------
 class _ReportSummary {
   final double totalSales;
+  final double totalCogs;
   final double totalExpenses;
   final double totalPurchases;
+  final double totalReturns;
   final double netProfit;
 
   const _ReportSummary({
     required this.totalSales,
+    required this.totalCogs,
     required this.totalExpenses,
     required this.totalPurchases,
+    required this.totalReturns,
     required this.netProfit,
   });
 }
@@ -43,27 +48,53 @@ final _reportSummaryProvider = FutureProvider.family<_ReportSummary,
   final start = params.range.start.toIso8601String().split('T').first;
   final end = params.range.end.toIso8601String().split('T').first;
 
+  // Every one of these used to rely on RLS alone. params.tenantId was
+  // accepted and then never used, so the filter that the rest of the app
+  // applies everywhere was the one thing this screen left to the server.
+  final tenantId = params.tenantId;
+
   final salesData = await supabase
       .from('sales')
-      .select('totalAmount').isFilter('deleted_at', null)
+      .select('totalAmount, totalCogs').isFilter('deleted_at', null)
+      .eq('tenant_id', tenantId)
       .gte('date', start)
       .lte('date', end);
 
   final expensesData = await supabase
       .from('expenses')
       .select('amount').isFilter('deleted_at', null)
+      .eq('tenant_id', tenantId)
       .gte('date', start)
       .lte('date', end);
 
   final purchasesData = await supabase
       .from('purchases')
       .select('total_amount').isFilter('deleted_at', null)
+      .eq('tenant_id', tenantId)
       .gte('date', start)
       .lte('date', end);
 
+  double totalReturns = 0;
+  try {
+    final returnsData = await supabase
+        .from('sales_returns')
+        .select('total_amount').isFilter('deleted_at', null)
+        .eq('tenant_id', tenantId)
+        .gte('date', start)
+        .lte('date', end);
+    for (final row in returnsData as List) {
+      totalReturns += (row['total_amount'] as num? ?? 0).toDouble();
+    }
+  } catch (_) {
+    // Shown as a line, never part of the headline, so a failure here must not
+    // take the whole report down with it.
+  }
+
   double totalSales = 0;
+  double totalCogs = 0;
   for (final row in salesData as List) {
     totalSales += (row['totalAmount'] as num? ?? 0).toDouble();
+    totalCogs += (row['totalCogs'] as num? ?? 0).toDouble();
   }
   double totalExpenses = 0;
   for (final row in expensesData as List) {
@@ -76,9 +107,26 @@ final _reportSummaryProvider = FutureProvider.family<_ReportSummary,
 
   return _ReportSummary(
     totalSales: totalSales,
+    totalCogs: totalCogs,
     totalExpenses: totalExpenses,
     totalPurchases: totalPurchases,
-    netProfit: totalSales - totalExpenses - totalPurchases,
+    totalReturns: totalReturns,
+    // Revenue less the cost of what was SOLD, less expenses.
+    //
+    // This subtracted PURCHASES, which is stock BOUGHT -- money that has left
+    // the till but is still sitting on the shelf as an asset, not a cost. On
+    // FUTURE DISPO this month that reported a ₹17,611 PROFIT for a month that
+    // actually ran a ₹14,076 LOSS: wrong by ₹31,687 and, worse, wrong in SIGN.
+    //
+    // sales.totalCogs is the settled source of truth for cost of goods (batch
+    // FIFO with a costPrice fallback) and is what the web P&L uses, so mobile
+    // and web now answer the same question the same way.
+    //
+    // Returns are reported as a line but deliberately left OUT of this figure:
+    // return COGS is a known open question in the GL/P&L reconciliation, and
+    // folding an unsettled number into the headline would be trading one
+    // wrong profit for another.
+    netProfit: totalSales - totalCogs - totalExpenses,
   );
 });
 
@@ -170,28 +218,22 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final tenantAsync = ref.watch(tenantContextProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: AppColors.canvasWarm,
       appBar: AppBar(
-        backgroundColor: AppColors.canvas,
+        backgroundColor: AppColors.canvasWarm,
         elevation: 0,
         scrolledUnderElevation: 0,
         iconTheme: const IconThemeData(color: AppColors.inkPrimary),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('Reports', style: AppText.title),
+            // The period this report covers, which is what the reader needs
+            // to know. "BUSINESS ANALYTICS" named the category of screen they
+            // had already opened.
             Text(
-              'Reports',
-              style: GoogleFonts.manrope(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-                color: AppColors.inkPrimary,
-              ),
-            ),
-            Text(
-              'BUSINESS ANALYTICS',
-              style: AppText.label.copyWith(color: AppColors.secondary,
-                letterSpacing: 1.5),
+              '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
+              style: AppText.caption,
             ),
           ],
         ),
@@ -309,40 +351,50 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                           style: AppText.caption
                               .copyWith(color: AppColors.onSurfaceInverseMuted),
                         ),
+
+                        // The figures that MAKE the number above, on the same
+                        // card as the number. They were three separate tiles
+                        // below it, so the headline and its own arithmetic
+                        // were different objects and the bars had nothing to
+                        // be read against. Each bar is a share of revenue,
+                        // which is what makes their lengths comparable.
+                        const SizedBox(height: Gap.lg),
+                        _PlBar(
+                          label: 'Revenue',
+                          value: summary.totalSales,
+                          of: summary.totalSales,
+                          tint: AppColors.successOnInverse,
+                        ),
+                        _PlBar(
+                          label: 'COGS',
+                          value: summary.totalCogs,
+                          of: summary.totalSales,
+                          tint: AppColors.brandFill,
+                        ),
+                        _PlBar(
+                          label: 'Expenses',
+                          value: summary.totalExpenses,
+                          of: summary.totalSales,
+                          tint: AppColors.errorOnInverse,
+                        ),
+                        _PlBar(
+                          label: 'Returns',
+                          value: summary.totalReturns,
+                          of: summary.totalSales,
+                          tint: AppColors.onSurfaceInverseMuted,
+                        ),
+                        // Stock BOUGHT, not stock sold. It is not part of the
+                        // profit above and is labelled so it cannot be read
+                        // as though it were -- subtracting it is exactly the
+                        // bug this screen used to ship.
+                        _PlBar(
+                          label: 'Stock bought',
+                          value: summary.totalPurchases,
+                          of: summary.totalSales,
+                          tint: AppColors.onSurfaceInverseMuted,
+                        ),
                       ],
                     ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // -------------------------------------------------------
-                  // Overview breakdown
-                  // -------------------------------------------------------
-                  SectionHeading('BREAKDOWN', icon: LucideIcons.barChart2),
-                  const SizedBox(height: 12),
-
-                  _MetricCard(
-                    label: 'Total Sales',
-                    value: _compact(summary.totalSales),
-                    icon: LucideIcons.shoppingCart,
-                    color: AppColors.success,
-                    subtitle: 'Revenue from all sales',
-                  ),
-                  const SizedBox(height: 10),
-                  _MetricCard(
-                    label: 'Total Expenses',
-                    value: _compact(summary.totalExpenses),
-                    icon: LucideIcons.receipt,
-                    color: AppColors.danger,
-                    subtitle: 'Operational costs',
-                  ),
-                  const SizedBox(height: 10),
-                  _MetricCard(
-                    label: 'Total Purchases',
-                    value: _compact(summary.totalPurchases),
-                    icon: LucideIcons.shoppingBag,
-                    color: AppColors.warning,
-                    subtitle: 'Procurement spend',
                   ),
 
                   const SizedBox(height: 28),
@@ -458,74 +510,6 @@ class _HubCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Shared helper widgets
 // ---------------------------------------------------------------------------
-class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final String subtitle;
-
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.manrope(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: AppColors.inkPrimary,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            value,
-            style: GoogleFonts.manrope(
-              fontWeight: FontWeight.w900,
-              fontSize: 20,
-              color: color,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 
 class _UpgradeBanner extends StatelessWidget {
@@ -561,6 +545,85 @@ class _UpgradeBanner extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// One line of the P&L, on the dark card
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PlBar extends StatelessWidget {
+  final String label;
+  final double value;
+
+  /// Revenue. Every bar is drawn as a share of it, so their lengths can be
+  /// compared to each other and to the top line.
+  final double of;
+  final Color tint;
+
+  const _PlBar({
+    required this.label,
+    required this.value,
+    required this.of,
+    required this.tint,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final frac = of <= 0 ? 0.0 : (value / of).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.only(top: Gap.sm),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 86,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.caption
+                  .copyWith(color: AppColors.onSurfaceInverseMuted),
+            ),
+          ),
+          Gap.w8,
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: SizedBox(
+                height: 6,
+                child: Stack(
+                  children: [
+                    const ColoredBox(
+                      color: AppColors.outlineInverse,
+                      child: SizedBox(width: double.infinity, height: 6),
+                    ),
+                    FractionallySizedBox(
+                      widthFactor: frac,
+                      child: ColoredBox(
+                        color: tint,
+                        child: const SizedBox(height: 6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Gap.w8,
+          SizedBox(
+            width: 92,
+            child: Text(
+              Money.inr(value),
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.label
+                  .copyWith(color: AppColors.onSurfaceInverse),
+            ),
+          ),
+        ],
       ),
     );
   }
