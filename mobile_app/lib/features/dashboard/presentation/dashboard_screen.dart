@@ -128,11 +128,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       .value?.roles ?? [];
                   navigateToNewSale(context, roles);
                 },
-                // Grey fill with a pale-amber glyph. This is the app's single
-                // most-used action -- add a sale, or add a product -- and it
-                // was the only control using a colour pair found nowhere else.
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.onPrimary,
+                // The app's single most-used action -- add a sale, or add a
+                // product -- so it carries the same fill as every other
+                // primary action. The per-screen FABs were already moved to
+                // brandFill; this is the one actually on screen, because the
+                // shell owns the offset and therefore owns the button.
+                backgroundColor: AppColors.brandFill,
+                foregroundColor: AppColors.onBrandFill,
                 elevation: 3,
                 shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
                 child: const Icon(LucideIcons.plus, size: 26),

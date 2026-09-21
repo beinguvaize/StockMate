@@ -90,6 +90,10 @@ const PAIRS = [
   ['accountCash', 'canvasWarm', 4.5, 'cash heading on the warm ground'],
   ['accountBank', 'canvasWarm', 4.5, 'bank heading on the warm ground'],
   ['accountUpi', 'canvasWarm', 4.5, 'upi heading on the warm ground'],
+
+  // Inventory leans on both of these at 13px and neither had been measured.
+  ['success', 'canvasWarm', 4.5, 'healthy margin on the warm ground'],
+  ['warning', 'warningContainer', 4.5, 'low-stock tile, ink on its own fill'],
   // 'Other' uses inkSecondary, an alias for onSurfaceVariant, measured above.
 ];
 
