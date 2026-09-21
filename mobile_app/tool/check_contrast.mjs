@@ -74,6 +74,10 @@ const PAIRS = [
   ['onSurfaceInverse', 'surfaceInverseDeep', 4.5, 'text on the dark card, deep end'],
   ['onSurfaceInverseMuted', 'surfaceInverse', 4.5, 'muted label on the dark card'],
   ['brandFill', 'surfaceInverse', 3, 'brand accent on the dark card'],
+  ['successOnInverse', 'surfaceInverse', 4.5, 'profit figure on the dark card'],
+  ['errorOnInverse', 'surfaceInverse', 4.5, 'loss figure on the dark card'],
+  ['successOnInverse', 'surfaceInverseDeep', 4.5, 'profit figure, deep end'],
+  ['errorOnInverse', 'surfaceInverseDeep', 4.5, 'loss figure, deep end'],
 
   // Warm ground carries the same text as the white one.
   ['onSurface', 'canvasWarm', 4.5, 'body text on the warm ground'],

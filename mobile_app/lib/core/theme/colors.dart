@@ -52,6 +52,16 @@ class AppColors {
   static const Color onSurfaceInverse = Color(0xFFFFFFFF);
   static const Color onSurfaceInverseMuted = Color(0xFF8D9AA8);
 
+  /// Status colours for the dark card. The light-ground `success` and `error`
+  /// are tuned for white behind them and go muddy on navy — #15803D measures
+  /// 1.85:1 on surfaceInverse, which is unreadable. These are their dark-mode
+  /// counterparts: 8.52:1 and 5.37:1.
+  /// Hairline on the dark card — decorative, so exempt from the text gate.
+  static const Color outlineInverse = Color(0xFF2B3A48);
+
+  static const Color successOnInverse = Color(0xFF4ADE80);
+  static const Color errorOnInverse = Color(0xFFF87171);
+
   // ── Neutrals ─────────────────────────────────────────────────────────────
   static const Color canvas = Color(0xFFFFFFFF);
 

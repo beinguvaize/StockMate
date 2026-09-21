@@ -206,98 +206,53 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
 
                       const SizedBox(height: 20),
 
-                      // ── Stats cards ─────────────────────────────────────────
-                      Row(
-                        children: [
-                          // Outstanding
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [AppColors.cardShadow],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'OUTSTANDING',
-                                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                      color: AppColors.inkTertiary,
-                                      letterSpacing: 1),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '₹${_formatAmount(outstanding)}',
-                                    style: AppText.title.copyWith(fontWeight: FontWeight.w800,
-                                      color: AppColors.danger,
-                                      letterSpacing: -0.5),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(LucideIcons.trendingUp, size: 12, color: AppColors.danger),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'To collect',
-                                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
+                      // ── Money ───────────────────────────────────────────────
+                      //
+                      // These were two peer figures wearing different clothes:
+                      // one white card with a shadow, one dark-grey panel with a
+                      // 72px watermark icon behind it. Same kind of number, two
+                      // visual languages, so neither read as authoritative.
+                      //
+                      // Both now sit on the one dark surface money uses across
+                      // the app, split by a hairline. Colour is spent on the two
+                      // words that differ — to collect, and collected — not on
+                      // the panels.
+                      Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [AppColors.surfaceInverse, AppColors.surfaceInverseDeep],
                           ),
-
-                          const SizedBox(width: 12),
-
-                          // Collected this month
-                          Expanded(
-                            flex: 2,
-                            child: Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary,
-                                borderRadius: BorderRadius.circular(20),
+                          borderRadius: Radii.rLg,
+                        ),
+                        child: IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: _InverseStat(
+                                  label: 'OUTSTANDING',
+                                  value: '\u20b9${_formatAmount(outstanding)}',
+                                  note: 'to collect',
+                                  noteColor: AppColors.brandFill,
+                                ),
                               ),
-                              child: Stack(
-                                children: [
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'COLLECTED THIS MONTH',
-                                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                          color: AppColors.secondaryContainer.withValues(alpha: 0.7),
-                                          letterSpacing: 1),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        '₹${_formatAmount(collectedThisMonth)}',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 26,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppColors.primaryContainer,
-                                          letterSpacing: -0.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Positioned(
-                                    right: -10,
-                                    bottom: -16,
-                                    child: Icon(
-                                      LucideIcons.receipt,
-                                      size: 72,
-                                      color: Colors.white.withValues(alpha: 0.08),
-                                    ),
-                                  ),
-                                ],
+                              const VerticalDivider(
+                                width: 1, thickness: 1, indent: 16, endIndent: 16,
+                                color: AppColors.outlineInverse,
                               ),
-                            ),
+                              Expanded(
+                                child: _InverseStat(
+                                  label: 'COLLECTED',
+                                  value: '\u20b9${_formatAmount(collectedThisMonth)}',
+                                  note: 'this month',
+                                  noteColor: AppColors.successOnInverse,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
 
                       const SizedBox(height: 24),
@@ -689,4 +644,54 @@ String _fmtDate(String? d) {
                 'Jul','Aug','Sep','Oct','Nov','Dec'];
     return '${dt.day} ${m[dt.month - 1]} ${dt.year}';
   } catch (_) { return d; }
+}
+
+
+/// One half of the dark money header — a label, a figure, and one coloured
+/// word saying what kind of figure it is.
+///
+/// Contrast on [AppColors.surfaceInverse]: the value is white at 14.85:1, the
+/// label is the muted ink at 5.18:1, and the note colours are 6.59:1 (brand)
+/// and 8.52:1 (green). All measured, all past AA.
+class _InverseStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final String note;
+  final Color noteColor;
+
+  const _InverseStat({
+    required this.label,
+    required this.value,
+    required this.note,
+    required this.noteColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label,
+              style: AppText.label.copyWith(
+                color: AppColors.onSurfaceInverseMuted,
+                letterSpacing: 0.6,
+              ),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: Gap.sm),
+          Text(value,
+              style: AppText.title.copyWith(
+                color: AppColors.onSurfaceInverse,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 2),
+          Text(note, style: AppText.caption.copyWith(color: noteColor)),
+        ],
+      ),
+    );
+  }
 }

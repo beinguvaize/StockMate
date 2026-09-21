@@ -36,8 +36,11 @@ class Gap {
 class Radii {
   static const double xs = 6;
   static const double sm = 10;
-  static const double md = 14;
-  static const double lg = 20;
+  // md and lg tightened from 14 and 20 to match the approved screens, where
+  // 10 and 12 carry almost every card and 16 the largest panels. A 20px
+  // radius on a 390pt-wide card reads soft; these read like a tool.
+  static const double md = 12;
+  static const double lg = 16;
   static const double xl = 28;
   static const double pill = 999;
 
