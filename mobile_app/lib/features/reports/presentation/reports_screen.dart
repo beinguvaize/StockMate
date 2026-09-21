@@ -206,12 +206,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   String _fmt(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-  String _compact(double v) {
-    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(1)}Cr';
-    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(1)}L';
-    if (v >= 1000) return '₹${(v / 1000).toStringAsFixed(1)}K';
-    return '₹${v.toStringAsFixed(0)}';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -227,14 +221,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Just the title. The period is on the pill beside it and again
+            // on the card below; printing it a third time here only made the
+            // header wide enough to ellipsize the copy that was legible.
             Text('Reports', style: AppText.title),
-            // The period this report covers, which is what the reader needs
-            // to know. "BUSINESS ANALYTICS" named the category of screen they
-            // had already opened.
-            Text(
-              '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
-              style: AppText.caption,
-            ),
           ],
         ),
         actions: [
@@ -336,7 +326,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '${summary.netProfit >= 0 ? '+' : ''}${_compact(summary.netProfit)}',
+                          // _compact prints ₹-19062. The one figure the whole
+                          // screen exists for was the only one not grouped.
+                          // The sign leads, so it reads -₹19,062 rather than
+                          // ₹-19,062.
+                          '${summary.netProfit < 0 ? '-' : '+'}'
+                          '${Money.inr(summary.netProfit.abs())}',
                           style: AppText.moneyHero.copyWith(
                             fontSize: 40,
                             letterSpacing: -2,
