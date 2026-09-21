@@ -11,7 +11,6 @@ import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/core/utils/money.dart';
-import 'package:mobile_app/core/widgets/app_surfaces.dart';
 
 // ─── Provider — reads from `invoices` table (same as web Invoices.jsx) ────────
 final invoicesProvider = FutureProvider<List<Invoice>>((ref) async {
@@ -427,18 +426,51 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                       ),
                     )
                   // ONE card holding hairline-separated rows, not a card per
-                  // invoice. Twelve shadowed cards read as twelve unrelated
-                  // objects; a list of like things is a list.
+                  // invoice: a dozen shadowed cards read as a dozen unrelated
+                  // objects, and a list of like things is a list.
+                  //
+                  // Still a SliverList, so it stays LAZY. Wrapping the lot in
+                  // a single Column inside a SliverToBoxAdapter would build
+                  // every row at once -- 157 of them on this tenant today and
+                  // one more per bill forever. The card is drawn per row
+                  // instead: sides on every row, the radius on the ends.
                   : SliverPadding(
                       padding: const EdgeInsets.fromLTRB(Gap.xl, 0, Gap.xl, 100),
-                      sliver: SliverToBoxAdapter(
-                        child: AppCard(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: Gap.lg),
-                          child: Column(
-                            children: [
-                              for (int i = 0; i < filtered.length; i++)
-                                AppTappable(
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, i) {
+                            final isFirst = i == 0;
+                            final isLast = i == filtered.length - 1;
+                            return DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: AppColors.canvas,
+                                border: Border(
+                                  left: const BorderSide(
+                                      color: AppColors.outlineVariant),
+                                  right: const BorderSide(
+                                      color: AppColors.outlineVariant),
+                                  top: isFirst
+                                      ? const BorderSide(
+                                          color: AppColors.outlineVariant)
+                                      : BorderSide.none,
+                                  bottom: isLast
+                                      ? const BorderSide(
+                                          color: AppColors.outlineVariant)
+                                      : BorderSide.none,
+                                ),
+                                borderRadius: BorderRadius.vertical(
+                                  top: isFirst
+                                      ? const Radius.circular(Radii.md)
+                                      : Radius.zero,
+                                  bottom: isLast
+                                      ? const Radius.circular(Radii.md)
+                                      : Radius.zero,
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: Gap.lg),
+                                child: AppTappable(
                                   ripple: false,
                                   onTap: () => Navigator.push(
                                     context,
@@ -450,11 +482,13 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                   ),
                                   child: _InvoiceRow(
                                     invoice: filtered[i],
-                                    showDivider: i < filtered.length - 1,
+                                    showDivider: !isLast,
                                   ),
                                 ),
-                            ],
-                          ),
+                              ),
+                            );
+                          },
+                          childCount: filtered.length,
                         ),
                       ),
                     ),
