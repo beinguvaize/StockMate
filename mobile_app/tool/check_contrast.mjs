@@ -90,6 +90,11 @@ const PAIRS = [
   ['accountCash', 'canvasWarm', 4.5, 'cash heading on the warm ground'],
   ['accountBank', 'canvasWarm', 4.5, 'bank heading on the warm ground'],
   ['accountUpi', 'canvasWarm', 4.5, 'upi heading on the warm ground'],
+
+  // Invoice status labels are 13px text carrying the state, so they need the
+  // body-text ratio on the warm ground, not the 3:1 a dot alone would.
+  ['error', 'canvasWarm', 4.5, 'overdue label on the warm ground'],
+  ['warning', 'canvasWarm', 4.5, 'partial label on the warm ground'],
   // 'Other' uses inkSecondary, an alias for onSurfaceVariant, measured above.
 ];
 
