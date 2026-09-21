@@ -18,6 +18,7 @@ import 'package:mobile_app/features/reports/presentation/gstr1_screen.dart';
 import 'package:mobile_app/features/reports/presentation/gstr3b_screen.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 
 // ---------------------------------------------------------------------------
 // Internal summary provider (kept for overview KPIs)
@@ -246,13 +247,25 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   // -------------------------------------------------------
                   // Net profit hero
                   // -------------------------------------------------------
+                  // The card no longer changes colour with the result.
+                  //
+                  // It was amber when in profit and a red wash when not, so the
+                  // surface itself passed judgement before the figure was read
+                  // — and a loss arrived looking like an error state rather
+                  // than a number. It is now the same dark ground every other
+                  // headline figure uses, and only the FIGURE carries the
+                  // sign: green in profit, red in loss. Contrast on the dark
+                  // card is 8.52:1 green and 5.37:1 red, both past AA, which
+                  // neither reading had on the amber tint.
                   Container(
                     padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: summary.netProfit >= 0
-                          ? AppColors.primaryContainer
-                          : AppColors.danger.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppColors.surfaceInverse, AppColors.surfaceInverseDeep],
+                      ),
+                      borderRadius: Radii.rLg,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,38 +278,35 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                   : LucideIcons.trendingDown,
                               size: 16,
                               color: summary.netProfit >= 0
-                                  ? AppColors.inkPrimary
-                                  : AppColors.danger,
+                                  ? AppColors.successOnInverse
+                                  : AppColors.errorOnInverse,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               'NET PROFIT / LOSS',
-                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                letterSpacing: 1.5,
-                                color: summary.netProfit >= 0
-                                    ? AppColors.inkPrimary.withValues(alpha: 0.6)
-                                    : AppColors.danger),
+                              style: AppText.label.copyWith(
+                                letterSpacing: 0.6,
+                                color: AppColors.onSurfaceInverseMuted,
+                              ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 8),
                         Text(
                           '${summary.netProfit >= 0 ? '+' : ''}${_compact(summary.netProfit)}',
-                          style: GoogleFonts.manrope(
+                          style: AppText.moneyHero.copyWith(
                             fontSize: 40,
-                            fontWeight: FontWeight.w900,
-                            color: summary.netProfit >= 0
-                                ? AppColors.inkPrimary
-                                : AppColors.danger,
                             letterSpacing: -2,
+                            color: summary.netProfit >= 0
+                                ? AppColors.successOnInverse
+                                : AppColors.errorOnInverse,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
-                          style: AppText.caption.copyWith(color: summary.netProfit >= 0
-                                ? AppColors.inkPrimary.withValues(alpha: 0.5)
-                                : AppColors.danger.withValues(alpha: 0.7)),
+                          style: AppText.caption
+                              .copyWith(color: AppColors.onSurfaceInverseMuted),
                         ),
                       ],
                     ),

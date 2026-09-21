@@ -1136,36 +1136,51 @@ class _KpiCard extends StatelessWidget {
       //
       // The glow was also the only coloured shadow in the app, which is what
       // made this card read as a component from a different product.
+      //
+      // It is now DARK, which is not a return to that. The amber version was
+      // decoration: a brand-saturated panel plus a coloured glow, on one card,
+      // in one place. This is a category marker — every headline figure in the
+      // app sits on the same near-neutral navy, so the surface means "money"
+      // rather than "look at me". Size still does the work; the ground only
+      // says which kind of thing the number is.
       return AppTappable(
         ripple: false,
         onTap: onTap,
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(Gap.xl),
-          decoration: BoxDecoration(
-            color: AppColors.canvas,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.surfaceInverse, AppColors.surfaceInverseDeep],
+            ),
             borderRadius: Radii.rMd,
-            border: Border.all(color: AppColors.outlineVariant),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  IconTile(icon: icon, tint: tint, size: 40),
-                  Gap.w12,
                   Expanded(
-                    child: Text(label,
-                        style: AppText.caption,
+                    child: Text(label.toUpperCase(),
+                        style: AppText.label.copyWith(
+                          color: AppColors.onSurfaceInverseMuted,
+                          letterSpacing: 0.6,
+                        ),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                   if (trailing != null) ...[Gap.w8, trailing!],
                 ],
               ),
-              const SizedBox(height: Gap.lg),
-              Text(value, style: AppText.moneyLarge),
+              const SizedBox(height: Gap.md),
+              Text(value,
+                  style: AppText.moneyLarge
+                      .copyWith(color: AppColors.onSurfaceInverse)),
               const SizedBox(height: Gap.xs),
-              Text('Today', style: AppText.caption),
+              Text('Today',
+                  style: AppText.caption
+                      .copyWith(color: AppColors.onSurfaceInverseMuted)),
             ],
           ),
         ),
