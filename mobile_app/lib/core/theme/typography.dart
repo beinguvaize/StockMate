@@ -146,6 +146,23 @@ class AppText {
     fontFeatures: const [FontFeature.tabularFigures()],
   );
 
+  /// Section label — uppercase, tracked, above a group of rows.
+  ///
+  /// The approved screens set this at 12px. It is 13 here, deliberately: the
+  /// header of this file states that nothing goes below caption at 13,
+  /// because "on a phone held at arm's length in a shop, a 9px quantity is
+  /// not information". Uppercase, w700 and the tracking already separate it
+  /// from body text; shrinking it as well would buy nothing and cost the
+  /// floor. The mockups were corrected to match this, not the other way
+  /// round.
+  static TextStyle get eyebrow => GoogleFonts.manrope(
+    fontSize: 13,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+    letterSpacing: 0.6,
+    color: AppColors.inkTertiary,
+  );
+
   /// Builds the Material text theme from the scale above, so a widget that
   /// reaches for `Theme.of(context).textTheme` lands on the same six roles
   /// rather than on Material's defaults.
