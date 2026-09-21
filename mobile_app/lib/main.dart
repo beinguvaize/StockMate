@@ -126,12 +126,16 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
           onSurfaceVariant: AppColors.onSurfaceVariant,
           outline: AppColors.outline,
           outlineVariant: AppColors.outlineVariant,
-          inverseSurface: Color(0xFF313030),
-          onInverseSurface: Color(0xFFf3f0ef),
-          inversePrimary: Color(0xFFFCD34D),
+          // The dark card money sits on, so Material's own inverse surfaces
+          // match the one the screens use rather than a grey of their own.
+          inverseSurface: AppColors.surfaceInverse,
+          onInverseSurface: AppColors.onSurfaceInverse,
+          inversePrimary: AppColors.brandFill,
           surfaceTint: AppColors.primary,
         ),
-        scaffoldBackgroundColor: AppColors.canvas,
+        // Warm off-white, not pure white: a cold page under a warm orange
+        // brand is the mismatch you notice without being able to name it.
+        scaffoldBackgroundColor: AppColors.canvasWarm,
         useMaterial3: true,
         // The scale lives in AppText, not inline here: the screens reach for
         // it directly as well, and two copies of a type scale is how the app

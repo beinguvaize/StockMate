@@ -63,6 +63,23 @@ const PAIRS = [
   ['outline', 'canvas', 3, 'control border'],
   ['slate600', 'canvas', 4.5, 'slate body text'],
   ['slate500', 'canvas', 4.5, 'slate muted text'],
+
+  // Brand fill: the literal logo orange. White on it is 2.25:1, which is why
+  // the logo's own navy is the ink and white is never used.
+  ['onBrandFill', 'brandFill', 4.5, 'ink on the logo orange'],
+  ['onSurface', 'brandFill', 4.5, 'body ink on the logo orange'],
+
+  // Inverse surface — where money lives.
+  ['onSurfaceInverse', 'surfaceInverse', 4.5, 'text on the dark card'],
+  ['onSurfaceInverse', 'surfaceInverseDeep', 4.5, 'text on the dark card, deep end'],
+  ['onSurfaceInverseMuted', 'surfaceInverse', 4.5, 'muted label on the dark card'],
+  ['brandFill', 'surfaceInverse', 3, 'brand accent on the dark card'],
+
+  // Warm ground carries the same text as the white one.
+  ['onSurface', 'canvasWarm', 4.5, 'body text on the warm ground'],
+  ['onSurfaceVariant', 'canvasWarm', 4.5, 'secondary text on the warm ground'],
+  ['inkTertiary', 'canvasWarm', 4.5, 'muted text on the warm ground'],
+  ['primary', 'canvasWarm', 4.5, 'brand text on the warm ground'],
 ];
 
 let failures = 0;
