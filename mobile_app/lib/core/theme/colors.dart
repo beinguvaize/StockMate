@@ -62,6 +62,16 @@ class AppColors {
   static const Color successOnInverse = Color(0xFF4ADE80);
   static const Color errorOnInverse = Color(0xFFF87171);
 
+  // Account categories. These are the one place a non-brand hue carries
+  // meaning the label does not -- Cash / Bank / UPI are kinds, not states --
+  // so they are a set, not decoration, and they live here rather than as
+  // literals inside accounts_screen.dart. The green is #15803D and not the
+  // brighter #16A34A it replaced: at 13px on canvasWarm that green measured
+  // 3.16:1 and could not be read.
+  static const Color accountCash = Color(0xFF15803D);
+  static const Color accountBank = Color(0xFF2563EB);
+  static const Color accountUpi = Color(0xFF7C3AED);
+
   // ── Neutrals ─────────────────────────────────────────────────────────────
   static const Color canvas = Color(0xFFFFFFFF);
 

@@ -75,14 +75,17 @@ class _AppButtonState extends State<AppButton> {
 
   // Only pairings verified by tool/check_contrast.mjs.
   Color get _bg => switch (widget.variant) {
-        AppButtonVariant.primary => AppColors.primary,
+        // The literal logo orange. Ink on it is onBrandFill (the wordmark
+        // navy) at 6.59:1 — white would be 2.25:1, which is why the pair
+        // travels together and neither is used alone.
+        AppButtonVariant.primary => AppColors.brandFill,
         AppButtonVariant.secondary => AppColors.canvas,
         AppButtonVariant.ghost => Colors.transparent,
         AppButtonVariant.danger => AppColors.error,
       };
 
   Color get _fg => switch (widget.variant) {
-        AppButtonVariant.primary => AppColors.onPrimary,
+        AppButtonVariant.primary => AppColors.onBrandFill,
         AppButtonVariant.secondary => AppColors.onSurface,
         AppButtonVariant.ghost => AppColors.primary,
         AppButtonVariant.danger => AppColors.onPrimary,

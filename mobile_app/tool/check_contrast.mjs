@@ -84,6 +84,13 @@ const PAIRS = [
   ['onSurfaceVariant', 'canvasWarm', 4.5, 'secondary text on the warm ground'],
   ['inkTertiary', 'canvasWarm', 4.5, 'muted text on the warm ground'],
   ['primary', 'canvasWarm', 4.5, 'brand text on the warm ground'],
+
+  // Account category headings are 13px tracked text, so they are body text
+  // for contrast purposes and need 4.5, not the 3 a chip or icon would.
+  ['accountCash', 'canvasWarm', 4.5, 'cash heading on the warm ground'],
+  ['accountBank', 'canvasWarm', 4.5, 'bank heading on the warm ground'],
+  ['accountUpi', 'canvasWarm', 4.5, 'upi heading on the warm ground'],
+  // 'Other' uses inkSecondary, an alias for onSurfaceVariant, measured above.
 ];
 
 let failures = 0;

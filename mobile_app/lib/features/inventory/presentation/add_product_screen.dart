@@ -11,6 +11,7 @@ import 'package:mobile_app/core/widgets/barcode_scanner_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/theme/typography.dart';
+import '../../../core/widgets/app_surfaces.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
   final Product? product; // non-null = edit mode
@@ -278,7 +279,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Product identity section
-            _SectionHeader(title: 'PRODUCT IDENTITY', icon: LucideIcons.package),
+            SectionHeading('PRODUCT IDENTITY', icon: LucideIcons.package),
             const SizedBox(height: 12),
             _buildField(
               label: 'Product Name',
@@ -347,7 +348,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             const SizedBox(height: 28),
 
             // Pricing section
-            _SectionHeader(title: 'PRICING', icon: LucideIcons.indianRupee),
+            SectionHeading('PRICING', icon: LucideIcons.indianRupee),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -402,7 +403,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             const SizedBox(height: 28),
 
             // Stock section
-            _SectionHeader(title: 'STOCK & UNIT', icon: LucideIcons.layers),
+            SectionHeading('STOCK & UNIT', icon: LucideIcons.layers),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -583,31 +584,3 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 14, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: AppText.label.copyWith(color: AppColors.primary,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.5),
-        ),
-      ],
-    );
-  }
-}

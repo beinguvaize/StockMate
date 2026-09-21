@@ -19,6 +19,7 @@ import 'package:mobile_app/features/reports/presentation/gstr3b_screen.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
+import '../../../core/widgets/app_surfaces.dart';
 
 // ---------------------------------------------------------------------------
 // Internal summary provider (kept for overview KPIs)
@@ -317,8 +318,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   // -------------------------------------------------------
                   // Overview breakdown
                   // -------------------------------------------------------
-                  _SectionHeader(
-                      title: 'BREAKDOWN', icon: LucideIcons.barChart2),
+                  SectionHeading('BREAKDOWN', icon: LucideIcons.barChart2),
                   const SizedBox(height: 12),
 
                   _MetricCard(
@@ -350,8 +350,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   // -------------------------------------------------------
                   // Report hub grid
                   // -------------------------------------------------------
-                  _SectionHeader(
-                      title: 'DETAILED REPORTS', icon: LucideIcons.layoutGrid),
+                  SectionHeading('DETAILED REPORTS', icon: LucideIcons.layoutGrid),
                   const SizedBox(height: 12),
 
                   ..._reportHubItems.map((item) => Padding(
@@ -528,34 +527,6 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 14, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-            color: AppColors.primary),
-        ),
-      ],
-    );
-  }
-}
 
 class _UpgradeBanner extends StatelessWidget {
   @override

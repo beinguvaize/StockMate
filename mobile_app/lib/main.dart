@@ -105,8 +105,11 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
       theme: ThemeData(
         colorScheme: const ColorScheme(
           brightness: Brightness.light,
-          primary: AppColors.primary,
-          onPrimary: AppColors.onPrimary,
+          // Filled Material surfaces get the logo orange and its navy ink.
+          // AppColors.primary (#B45309) stays the token for brand-coloured
+          // TEXT, where the logo orange is only 2.25:1.
+          primary: AppColors.brandFill,
+          onPrimary: AppColors.onBrandFill,
           primaryContainer: AppColors.primaryContainer,
           onPrimaryContainer: AppColors.onPrimaryContainer,
           secondary: AppColors.secondary,
@@ -143,10 +146,10 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
         textTheme: AppText.textTheme,
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: AppColors.onPrimary,
-            disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
-            disabledForegroundColor: AppColors.onPrimary.withValues(alpha: 0.6),
+            backgroundColor: AppColors.brandFill,
+            foregroundColor: AppColors.onBrandFill,
+            disabledBackgroundColor: AppColors.brandFill.withValues(alpha: 0.5),
+            disabledForegroundColor: AppColors.onBrandFill.withValues(alpha: 0.6),
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: Gap.xl, vertical: 14),
             shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
@@ -165,8 +168,8 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
         ),
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: AppColors.onPrimary,
+            backgroundColor: AppColors.brandFill,
+            foregroundColor: AppColors.onBrandFill,
             padding: const EdgeInsets.symmetric(horizontal: Gap.xl, vertical: 14),
             shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
             textStyle: AppText.label.copyWith(fontSize: 15),
@@ -174,7 +177,7 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
         ),
         // 15 screens each declared this same iconTheme on their own AppBar.
         appBarTheme: AppBarTheme(
-          backgroundColor: AppColors.canvas,
+          backgroundColor: AppColors.canvasWarm,
           surfaceTintColor: Colors.transparent,
           foregroundColor: AppColors.onSurface,
           elevation: 0,
@@ -183,8 +186,8 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
           titleTextStyle: AppText.heading,
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
+          backgroundColor: AppColors.brandFill,
+          foregroundColor: AppColors.onBrandFill,
           elevation: 2,
         ),
         chipTheme: ChipThemeData(
@@ -197,7 +200,7 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
         dividerTheme: const DividerThemeData(
           color: AppColors.outlineVariant, thickness: 1, space: 1),
         dialogTheme: DialogThemeData(
-          backgroundColor: AppColors.canvas,
+          backgroundColor: AppColors.canvasWarm,
           surfaceTintColor: Colors.transparent,
           shape: const RoundedRectangleBorder(borderRadius: Radii.rLg),
           titleTextStyle: AppText.heading,
@@ -445,8 +448,8 @@ class _ContactAdminScreen extends ConsumerWidget {
                 icon: const Icon(LucideIcons.refreshCw, size: 16),
                 onPressed: () => ref.invalidate(tenantContextProvider),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  backgroundColor: AppColors.brandFill,
+                  foregroundColor: AppColors.onBrandFill,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 ),
                 label: const Text('Retry'),

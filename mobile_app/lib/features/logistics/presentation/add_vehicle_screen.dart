@@ -10,6 +10,7 @@ import 'package:mobile_app/features/logistics/presentation/providers/logistics_p
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/theme/typography.dart';
+import '../../../core/widgets/app_surfaces.dart';
 
 class AddVehicleScreen extends ConsumerStatefulWidget {
   /// When non-null the screen operates in edit mode.
@@ -204,8 +205,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
             const SizedBox(height: 28),
 
             // Vehicle details
-            _SectionHeader(
-                title: 'VEHICLE DETAILS', icon: LucideIcons.truck),
+            SectionHeading('VEHICLE DETAILS', icon: LucideIcons.truck),
             const SizedBox(height: 12),
             _buildField(
               label: 'Vehicle Name / Model',
@@ -232,7 +232,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
             const SizedBox(height: 28),
 
             // Status
-            _SectionHeader(title: 'STATUS', icon: LucideIcons.activity),
+            SectionHeading('STATUS', icon: LucideIcons.activity),
             const SizedBox(height: 12),
             Column(
               children: _statusOptions.map((status) {
@@ -392,31 +392,3 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 14, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: AppText.label.copyWith(color: AppColors.primary,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.5),
-        ),
-      ],
-    );
-  }
-}

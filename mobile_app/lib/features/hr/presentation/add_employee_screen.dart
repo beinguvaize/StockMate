@@ -11,6 +11,7 @@ import 'package:mobile_app/features/hr/presentation/providers/hr_provider.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/theme/typography.dart';
+import '../../../core/widgets/app_surfaces.dart';
 
 class AddEmployeeScreen extends ConsumerStatefulWidget {
   /// Pass an existing [Employee] to enter edit mode; leave null to add a new one.
@@ -221,7 +222,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             const SizedBox(height: 28),
 
             // Personal info
-            _SectionHeader(title: 'PERSONAL INFO', icon: LucideIcons.user),
+            SectionHeading('PERSONAL INFO', icon: LucideIcons.user),
             const SizedBox(height: 12),
             _buildField(
               label: 'Full Name',
@@ -240,7 +241,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             const SizedBox(height: 28),
 
             // Salary
-            _SectionHeader(title: 'COMPENSATION', icon: LucideIcons.indianRupee),
+            SectionHeading('COMPENSATION', icon: LucideIcons.indianRupee),
             const SizedBox(height: 12),
             _buildField(
               label: 'Base Salary (Monthly)',
@@ -254,7 +255,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             const SizedBox(height: 28),
 
             // Status
-            _SectionHeader(title: 'STATUS', icon: LucideIcons.activity),
+            SectionHeading('STATUS', icon: LucideIcons.activity),
             const SizedBox(height: 12),
             Row(
               children: _statusOptions.map((status) {
@@ -403,31 +404,3 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 14, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: AppText.label.copyWith(color: AppColors.primary,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.5),
-        ),
-      ],
-    );
-  }
-}

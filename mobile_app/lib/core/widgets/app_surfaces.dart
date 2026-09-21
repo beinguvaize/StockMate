@@ -197,12 +197,25 @@ class SectionHeading extends StatelessWidget {
   /// rows beneath it, which is what makes the rows read as the content.
   final bool prominent;
 
+  /// A glyph before the label. Seven screens had each grown their own private
+  /// `_SectionHeader` with one, so the role exists whether or not this widget
+  /// offers it -- offering it is what stops the eighth copy being written.
+  final IconData? icon;
+
+  /// Only for a heading that labels a *category*, where the colour carries
+  /// meaning the label does not -- the Cash / Bank / UPI groups on Accounts.
+  /// Left null the heading is [AppText.eyebrow], which is the default because
+  /// an accent-coloured static header claims to be interactive and is not.
+  final Color? tint;
+
   const SectionHeading(
     this.title, {
     super.key,
     this.actionLabel,
     this.onAction,
     this.prominent = false,
+    this.icon,
+    this.tint,
   });
 
   @override
@@ -211,14 +224,21 @@ class SectionHeading extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: Gap.sm),
       child: Row(
         children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: tint ?? AppColors.inkTertiary),
+            const SizedBox(width: Gap.sm),
+          ],
           Expanded(
             child: Text(
-              title,
+              // A group label is uppercase and tracked, not just smaller
+              // bold body text: on the approved screens the case change is
+              // what separates "label for the rows below" from "a row".
+              prominent ? title : title.toUpperCase(),
               style: prominent
                   ? AppText.title
-                  : AppText.bodyStrong.copyWith(
-                      color: AppColors.onSurfaceVariant,
-                    ),
+                  : (tint == null
+                        ? AppText.eyebrow
+                        : AppText.eyebrow.copyWith(color: tint)),
             ),
           ),
           if (actionLabel != null)
