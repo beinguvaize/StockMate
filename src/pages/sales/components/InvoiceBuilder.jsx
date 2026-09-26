@@ -804,30 +804,18 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       // account_transactions IN entry server-side now (idempotent on sale id),
       // so web, desktop AND mobile sales all hit Cash & Bank identically.
       // No client-side posting — doing both double-counted the sale.
-      // Persist sold serials (non-fatal — the sale itself already succeeded).
-      if (serialLines.length > 0) {
-        try {
-          const serialRows = [];
-          serialLines.forEach(l =>
-            (lineImeis[l.uid] || []).map(s => s.trim()).filter(Boolean).forEach(serial =>
-              serialRows.push({
-                id: 'SN-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7),
-                tenant_id: currentTenantId,
-                product_id: l.productId,
-                serial,
-                status: 'SOLD',
-                sale_id: result.id || saleId,
-              })
-            )
-          );
-          if (serialRows.length) {
-            const { error: snErr } = await restInsert('serial_numbers', serialRows);
-            if (snErr) addNotification('Sale saved, but serials not logged: ' + snErr.message, 'error');
-          }
-        } catch (snEx) {
-          addNotification('Sale saved, but serials not logged: ' + (snEx.message || snEx), 'error');
-        }
-      }
+      // Serials are NOT written from here.
+      //
+      // This used to insert into `serial_numbers` and had never once succeeded:
+      // it sent `serial` and `sale_id` where the columns are `serial_number`
+      // and `sold_in_id`, and status 'SOLD' where the constraint wants
+      // lowercase. All of it inside a non-fatal catch, so every failure was
+      // swallowed into a toast nobody saw, and the table holds zero rows.
+      //
+      // The server already does this properly: write_sale_lines reads `imeis`
+      // off each item in p_items and inserts one sale_item_serials row per
+      // unit, in the same transaction as the sale. A second client-side write
+      // could only ever disagree with it. The IMEI report reads that table.
       addNotification(
         editId
           ? `Sale updated: ${formatCurrency(total)}`

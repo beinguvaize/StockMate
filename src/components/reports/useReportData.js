@@ -20,7 +20,7 @@ import { realtimeEnabled } from '../../lib/realtime';
 const SOFT_DELETE_TABLES = new Set([
   'sales', 'expenses', 'purchases', 'products', 'clients', 'suppliers',
   'client_payments', 'invoices', 'product_batches', 'sale_batch_consumption',
-  'users', 'vehicles', 'routes', 'employees', 'payroll', 'serial_numbers',
+  'users', 'vehicles', 'routes', 'employees', 'payroll', 'sale_item_serials',
   'inventory_balances', 'movement_log', 'sales_returns', 'day_book',
 ]);
 

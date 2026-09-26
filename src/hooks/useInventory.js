@@ -9,7 +9,16 @@ import { realtimeEnabled } from '../lib/realtime';
 // `"0100"` (string concat), `Math.min("10",5)` coerces but silently, and
 // `.toFixed` on strings throws outright. Coerce once at the fetch boundary
 // so every caller sees clean numbers.
-const NUMERIC_PRODUCT_COLS = ['costPrice', 'sellingPrice', 'stock', 'taxRate', 'mrp', 'discount', 'min_margin'];
+// `mrp` and `discount` used to be in this list and are NOT columns on
+// products -- nothing writes them and nothing ever has. The guard below
+// skips absent keys, so they were harmless, but a coercion list is also a
+// claim about what the table holds, and that claim was wrong. The three
+// added here are real numeric columns that arrive as strings and are used
+// in arithmetic: the two price tiers and the cess rate.
+const NUMERIC_PRODUCT_COLS = [
+  'costPrice', 'sellingPrice', 'stock', 'taxRate', 'min_margin',
+  'wholesale_price', 'distributor_price', 'cess_rate',
+];
 const NUMERIC_BALANCE_COLS = ['quantity'];
 
 const normalizeRow = (row, cols) => {
