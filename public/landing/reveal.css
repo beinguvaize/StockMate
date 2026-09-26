@@ -18,7 +18,15 @@
               transform .7s cubic-bezier(.16, 1, .3, 1);
 }
 
-.js section.is-visible {
+/* The reveal has to out-specify the hide, and `.js section.is-visible` did not:
+   the hide rule carries two :not() arguments, each of which counts, so it scored
+   (0,3,1) against the reveal's (0,2,1) and won no matter what the script did.
+   The class was applied on schedule and the section stayed at opacity 0 -- every
+   page went blank below the fold while the DOM insisted it was visible.
+
+   Repeating the hide rule's own selector and adding .is-visible makes the
+   reveal strictly more specific, so the two cannot get out of order again. */
+.js section:not(:first-of-type):not([data-reveal="off"]).is-visible {
   opacity: 1;
   transform: none;
 }
