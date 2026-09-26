@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildClientStatement, closingBalance, parseItems } from './clientStatement';
+import { buildClientStatement, closingBalance, parseItems, runningTotalOfShown } from './clientStatement';
 
 /**
  * THOLIKUZHI VEG SHOP, exactly as production holds it on 7 Aug 2026.
@@ -280,5 +280,100 @@ describe('showing every bill, settled or not', () => {
     const rows = buildClientStatement({ client, sales: [sale], invoices: [inv], includeSettled: true });
     expect(rows.reduce((t, r) => t + r.debit, 0)).toBe(500);
     expect(rows[rows.length - 1].balance).toBe(0);
+  });
+});
+
+
+describe('runningTotalOfShown', () => {
+  // The rows a filtered statement shows. Balances are the WHOLE-ledger
+  // figures each row carries -- deliberately jumping around, because bills
+  // sit between these payments and are not on screen. That jumping is the
+  // thing this function exists to stop showing.
+  const payments = [
+    { id: 'p1', credit: 2030, debit: 0, balance: 3175 },
+    { id: 'p2', credit: 1145, debit: 0, balance: 2030 },
+    { id: 'p3', credit: 1700, debit: 0, balance: 5825 },
+    { id: 'p4', credit: 20,   debit: 0, balance: 5805 },
+  ];
+
+  it('accumulates only the column the filter is about', () => {
+    const { byId } = runningTotalOfShown(payments, 'PAYMENT');
+    expect(byId.get('p1')).toBe(2030);
+    expect(byId.get('p2')).toBe(3175);
+    expect(byId.get('p3')).toBe(4875);
+    expect(byId.get('p4')).toBe(4895);
+  });
+
+  it('never goes backwards, which the balance column did', () => {
+    // p2 -> p3 rose from 2,030 to 5,825 on the balance because a bill landed
+    // in between. A total of what is shown cannot do that.
+    const { byId } = runningTotalOfShown(payments, 'PAYMENT');
+    const seq = payments.map(r => byId.get(r.id));
+    for (let i = 1; i < seq.length; i++) expect(seq[i]).toBeGreaterThanOrEqual(seq[i - 1]);
+  });
+
+  it('totals what was shown', () => {
+    expect(runningTotalOfShown(payments, 'PAYMENT').total).toBe(4895);
+  });
+
+  it('accumulates debits for the bills filter', () => {
+    const bills = [
+      { id: 'b1', debit: 500, credit: 0 },
+      { id: 'b2', debit: 250, credit: 0 },
+    ];
+    const { byId, total } = runningTotalOfShown(bills, 'SALE');
+    expect(byId.get('b1')).toBe(500);
+    expect(byId.get('b2')).toBe(750);
+    expect(total).toBe(750);
+  });
+
+  it('is keyed by id so newest-first does not run the totals backwards', () => {
+    const { byId } = runningTotalOfShown(payments, 'PAYMENT');
+    // Rendering reversed must still show p4 as the largest cumulative figure.
+    const reversed = [...payments].reverse();
+    expect(byId.get(reversed[0].id)).toBe(4895);
+    expect(byId.get(reversed[reversed.length - 1].id)).toBe(2030);
+  });
+
+  it('is safe on empty and malformed rows', () => {
+    expect(runningTotalOfShown([], 'PAYMENT').total).toBe(0);
+    expect(runningTotalOfShown().total).toBe(0);
+    expect(runningTotalOfShown([{ id: 'x' }], 'PAYMENT').total).toBe(0);
+    expect(runningTotalOfShown([{ id: 'y', credit: '250' }], 'PAYMENT').total).toBe(250);
+  });
+});
+
+
+describe('a sale receipt names the method the customer actually used', () => {
+  const client = { id: 'C1' };
+  const saleOn = (method) => ([{
+    id: 'SALE-77', shopId: 'C1', clientId: 'C1', date: '2026-09-03',
+    totalAmount: 500, paidAmount: 500,
+    paymentMethod: method, paymentStatus: 'PAID', items: '[]',
+  }]);
+  const creditRowFor = (method) =>
+    buildClientStatement({ client, sales: saleOn(method), includeSettled: true })
+      .find(r => r.type === 'PAYMENT');
+
+  it('says UPI for a UPI sale', () => {
+    // It said "Payment (Cash)" for every counter sale regardless of method,
+    // so a card or UPI sale appeared on the customer's own statement as cash.
+    expect(creditRowFor('UPI').description).toContain('Payment (UPI)');
+  });
+
+  it('says Card for a card sale', () => {
+    expect(creditRowFor('CARD').description).toContain('Payment (Card)');
+  });
+
+  it('still says Cash for a cash sale', () => {
+    expect(creditRowFor('CASH').description).toContain('Payment (Cash)');
+  });
+
+  it('renders an unmapped method as a word, not a constant', () => {
+    expect(creditRowFor('CREDIT_SALE').description).toContain('Payment (Credit sale)');
+  });
+
+  it('falls back to Cash when the sale carries no method at all', () => {
+    expect(creditRowFor(undefined).description).toContain('Payment (Cash)');
   });
 });

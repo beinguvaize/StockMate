@@ -22,6 +22,11 @@
 
 const num = (v) => Number(v || 0);
 
+/** CREDIT_SALE -> "Credit sale", for a method the map does not name. */
+const titleCase = (v) => String(v)
+  .toLowerCase().replace(/_/g, ' ')
+  .replace(/^./, (c) => c.toUpperCase());
+
 export const METHOD_LABEL = {
   CASH: 'Cash', CARD: 'Card', UPI: 'UPI',
   BANK: 'Bank Transfer', CHEQUE: 'Cheque',
@@ -207,9 +212,15 @@ export function buildClientStatement({
         items: parseItems(s.items),
       });
       if (paid > 0) {
+        // The method the customer ACTUALLY paid by. This said "Payment (Cash)"
+        // for every counter sale regardless -- a card or UPI sale appeared on
+        // the customer's own statement as cash, which is not a cosmetic
+        // difference when someone is reconciling a card settlement against it.
+        const m = saleMethodMap[s.id];
+        const label = METHOD_LABEL[m] || (m ? titleCase(m) : 'Cash');
         rows.push(...creditRows(
           s.id, paid, saleDate, s.created_at,
-          `Payment (Cash) — Sale #${String(s.id).split('-').pop()}`,
+          `Payment (${label}) — Sale #${String(s.id).split('-').pop()}`,
         ));
       }
     });
@@ -241,4 +252,33 @@ export function buildClientStatement({
 /** Closing balance — what the client still owes. */
 export function closingBalance(rows = []) {
   return rows.length ? rows[rows.length - 1].balance : 0;
+}
+
+
+/**
+ * A running total of the rows a FILTER is showing, and their sum.
+ *
+ * Every statement row carries the running balance of the whole ledger. That is
+ * the right number on an unfiltered view and unreadable on a filtered one: the
+ * bills that moved the balance are off screen, so three payments in a row can
+ * leave it HIGHER than it started. The page used to explain that in small
+ * print rather than fix it.
+ *
+ * Recomputing a BALANCE over the visible rows would be worse -- it would show
+ * a figure the client never owed. This is not that. It accumulates only the
+ * column the filter is about, which is simply true of the rows on screen:
+ * "paid so far", "billed so far".
+ *
+ * Returns a Map keyed by row id, so the caller can render newest-first without
+ * the totals running backwards, plus the final sum.
+ */
+export function runningTotalOfShown(rows = [], kind = 'PAYMENT') {
+  const field = kind === 'PAYMENT' ? 'credit' : 'debit';
+  const byId = new Map();
+  let total = 0;
+  for (const r of rows) {
+    total += Number(r?.[field] || 0);
+    byId.set(r?.id, total);
+  }
+  return { byId, total };
 }
