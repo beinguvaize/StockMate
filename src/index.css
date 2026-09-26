@@ -217,6 +217,9 @@ table.report-table tbody td.numeric {
   --color-ink-tertiary: #68707C;
   --color-accent-signature: #D97706;
   --color-accent-signature-hover: #B45309;
+  /* The same amber, for the job the brand value cannot do. See the rule that
+     consumes it, below the theme blocks. */
+  --color-accent-text: #AB4F08;
   --color-button-text: #FFFFFF;
   --bg-color: #F6F5F3;
   --border-color: rgba(0,0,0,0.08);
@@ -244,6 +247,26 @@ table.report-table tbody td.numeric {
   font-size: 4rem !important;
   line-height: 1 !important;
 }
+
+/* Amber has two jobs and one value, and only one of them works.
+
+   As a FILL -- the primary button, an icon tile -- #D97706 needs 3:1 against
+   what is behind it and clears it. As TEXT it needs 4.5:1 and measures
+   3.19:1 on a white card, 2.92:1 on the ground, and 2.64:1 on its own
+   amber/10 chip. It has never passed, at any of the 568 elements carrying
+   `text-accent-signature`.
+
+   So the utility that colours text points at a darker amber and nothing else
+   moves: bg-accent-signature is untouched, so every button keeps the brand
+   colour. #AB4F08 is the lightest value that clears 4.5:1 on all three of
+   those surfaces (4.51 / 5.00 / 5.45), and it stays inside the same hue, so
+   amber still means one thing.
+
+   Dark panels are deliberately not covered. There the relationship inverts --
+   #D97706 measures 5.93:1 on #111111 and #AB4F08 only 3.76:1 -- and the
+   `.bg-ink-primary` rules below are more specific than this one, so they keep
+   deciding what happens on black exactly as they did before. */
+.text-accent-signature { color: var(--color-accent-text); }
 
 /* White theme: any element with black bg must show white text */
 [data-theme="white"] .bg-ink-primary { color: #FFFFFF; }
@@ -386,7 +409,11 @@ table.report-table tbody td.numeric {
   --color-ink-primary: #1E1B2E;     /* near-black with a violet cast */
   --color-ink-secondary: #4B5563;
   --color-ink-tertiary: #6B7280;    /* gray-500 — legible muted text */
-  --color-accent-signature: #D97706;       /* amber-600 (brand) */
+  --color-accent-signature: #D97706;       /* amber-600 (brand) -- fills only */
+  /* Amber as text. Declared here as well as per-theme so it always resolves:
+     an unresolved var() is invalid at computed-value time, which would drop
+     the colour entirely on any page that has not stamped a theme yet. */
+  --color-accent-text: #AB4F08;
   --color-accent-signature-hover: #B45309; /* amber-700 */
   --color-button-text: #FFFFFF;            /* white text on amber */
 
