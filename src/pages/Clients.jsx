@@ -56,7 +56,7 @@ const Clients = () => {
  const [dueFilter, setDueFilter] = useState('ALL'); // ALL | DUE | CLEARED
  const [isAdding, setIsAdding] = useState(false);
  const [editingClient, setEditingClient] = useState(null);
- const EMPTY_FORM = { name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', pin_code: '', status: 'ACTIVE', client_type: 'B2C', price_tier: 'RETAIL', credit_days: 0 };
+ const EMPTY_FORM = { name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', pin_code: '', status: 'ACTIVE', client_type: 'B2C', price_tier: 'RETAIL', credit_days: 0, credit_limit: 0 };
  const [formData, setFormData] = useState(EMPTY_FORM);
  const [deleteConfirm, setDeleteConfirm] = useState(null);
  const [deleteError, setDeleteError] = useState('');
@@ -150,6 +150,7 @@ const Clients = () => {
    client_type: client.client_type || 'B2C',
    price_tier:  client.price_tier  || 'RETAIL',
    credit_days: client.credit_days ?? 0,
+   credit_limit: client.credit_limit ?? 0,
  });
  setIsAdding(true);
 };
@@ -448,6 +449,24 @@ const Clients = () => {
                          <option key={d} value={d}>{d === 0 ? 'Cash on delivery' : `Net ${d} days`}</option>
                        ))}
                      </select>
+                   </div>
+                   {/* The column, the utilisation bar and the "Approved Credit
+                       Limit" report column have all existed for months with no
+                       way to SET the number they display. This is that input.
+                       0 is no limit, which is what every client in production
+                       is on, and is what the POS treats as unlimited. */}
+                   <div>
+                     <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Credit Limit</label>
+                     <input
+                       type="number" min="0" step="1" inputMode="decimal"
+                       className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30"
+                       placeholder="0 — no limit"
+                       value={formData.credit_limit}
+                       onChange={e => setFormData({ ...formData, credit_limit: e.target.value === '' ? 0 : Number(e.target.value) })}
+                     />
+                     <p className="text-[10px] text-muted-foreground mt-1">
+                       Leave 0 for no limit. Above this, a credit sale is refused at the till.
+                     </p>
                    </div>
                  </div>
                </div>

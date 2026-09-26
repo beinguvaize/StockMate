@@ -774,8 +774,16 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       };
       const result = await onPlaceSale(saleData);
       if (result && result.error) {
-        const msg = result.error.message || 'Sale could not be recorded';
-        addNotification(`Checkout failed: ${msg}`, 'error');
+        const raw = result.error.message || 'Sale could not be recorded';
+        // process_sale raises CREDIT_LIMIT_EXCEEDED with a readable sentence
+        // after the marker. The marker is for code; the cashier gets the
+        // sentence, and this is a refusal rather than a failure -- the bill
+        // is fine, the customer is simply over their limit.
+        const overLimit = raw.includes('CREDIT_LIMIT_EXCEEDED');
+        const msg = overLimit
+          ? raw.replace(/^.*CREDIT_LIMIT_EXCEEDED:\s*/, '')
+          : raw;
+        addNotification(overLimit ? `Credit limit reached — ${msg}` : `Checkout failed: ${msg}`, 'error');
         return; // keep cart + modal so user can retry
       }
       // Persist the actual amount the customer handed over (may exceed the
