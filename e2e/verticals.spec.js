@@ -71,3 +71,57 @@ test.describe('vertical module gating', () => {
     await expect(page.getByText('Module turned off')).toHaveCount(0);
   });
 });
+
+test.describe('sector field packs', () => {
+  const SUPABASE = (process.env.VITE_SUPABASE_URL || '').trim();
+
+  /** Re-answer the tenants fixture with a pack switched on. */
+  async function withPack(page, pack) {
+    // Registered AFTER setupMocks, and Playwright runs the most recent
+    // matching handler first, so this wins without touching the shared
+    // fixture every other spec depends on.
+    await page.route(`${SUPABASE}/rest/v1/tenants*`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{
+          id: '00000000-0000-0000-0000-000000000099',
+          name: 'Test Co', slug: TENANT_SLUG,
+          plan: 'ENTERPRISE', plan_tier: 'ENTERPRISE', status: 'ACTIVE',
+          modules: { [pack]: true },
+        }]),
+      });
+    });
+  }
+
+  async function openAddItem(page) {
+    await page.goto(`/${TENANT_SLUG}/inventory`);
+    await page.waitForFunction(
+      () => !document.querySelector('.animate-spin'),
+      { timeout: 15_000 }
+    );
+    await page.locator('button').filter({ hasText: /add item|add product|new item/i }).first().click();
+  }
+
+  test('pack fields are HIDDEN when the pack is off', async ({ page }) => {
+    // The default. A shop that does not sell parts is never asked for a part
+    // number -- which is the whole reason packs default to off.
+    await seedAppCache(page);
+    await setupMocks(page);
+    await openAddItem(page);
+    await expect(page.getByText('Part number')).toHaveCount(0);
+    await expect(page.getByText('Catalog details')).toHaveCount(0);
+  });
+
+  test('pack fields APPEAR when the pack is switched on', async ({ page }) => {
+    await seedAppCache(page);
+    await setupMocks(page);
+    await withPack(page, 'automotive');
+    await openAddItem(page);
+    // Rendered from the registry, not from JSX written per field.
+    await expect(page.getByText('Catalog details')).toBeVisible({ timeout: 10_000 });
+    for (const label of ['Part number', 'OEM / cross-ref', 'Fits', 'Warranty']) {
+      await expect(page.getByText(label, { exact: true })).toBeVisible();
+    }
+  });
+});

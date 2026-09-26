@@ -45,6 +45,11 @@ export const DEFAULT_MODULES = {
     tables: false, kot: false, modifiers: false, recipe_deduct: false, channels: false,
     // services-only
     appointments: false,
+    // Capability packs. Off everywhere by default: a pack adds FIELDS to
+    // the catalog, and a shop that does not sell parts should not be
+    // asked for a part number. Any vertical can switch one on -- a retail
+    // shop that also does repairs is the ordinary case, not the edge.
+    automotive: false,
   },
   RESTAURANT: {
     inventory: true,       // ingredient stock
@@ -58,6 +63,11 @@ export const DEFAULT_MODULES = {
     recipe_deduct: true,   // R5 — BOM ingredients auto-deducted on dish sale
     channels: false,       // phase R7 — Swiggy/Zomato via middleware
     appointments: false,
+    // Capability packs. Off everywhere by default: a pack adds FIELDS to
+    // the catalog, and a shop that does not sell parts should not be
+    // asked for a part number. Any vertical can switch one on -- a retail
+    // shop that also does repairs is the ordinary case, not the edge.
+    automotive: false,
   },
   SERVICES: {
     // The service catalog IS the inventory module, gated by `inventory` and
@@ -74,6 +84,11 @@ export const DEFAULT_MODULES = {
     tables: false, kot: false, modifiers: false, recipe_deduct: false, channels: false,
     // services features
     appointments: true,
+    // Capability packs. Off everywhere by default: a pack adds FIELDS to
+    // the catalog, and a shop that does not sell parts should not be
+    // asked for a part number. Any vertical can switch one on -- a retail
+    // shop that also does repairs is the ordinary case, not the edge.
+    automotive: false,
   },
 };
 
@@ -98,6 +113,7 @@ export const MODULE_META = {
   modifiers:     { label: 'Item modifiers',       help: 'Add-ons and options on a line.',        plan: 'inventory' },
   recipe_deduct: { label: 'Deduct ingredients',   help: 'Take recipe ingredients out of stock on sale.', plan: 'manufacturing' },
   channels:      { label: 'Delivery channels',    help: 'Aggregator orders. Not built yet.',     plan: 'sales' },
+  automotive:    { label: 'Parts catalog',        help: 'Part number, OEM cross-reference, vehicle fitment and warranty on every item.', plan: 'inventory' },
 };
 
 // The toggles a shop can actually change, in the order they should be shown.
