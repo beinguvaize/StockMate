@@ -24,10 +24,10 @@ const ClientStatementViewer = ({
  </p>
  </div>
  <div className="flex gap-2">
- <button className="p-3 bg-white border border-border shadow-sm rounded-lg hover:bg-black/5 transition-all" title="Print Statement">
+ <button className="p-3 bg-white border border-border shadow-sm rounded-pill hover:bg-black/5 transition-all" title="Print Statement">
  <Printer size={18} />
  </button>
- <button className="p-3 bg-ink-primary text-accent-signature rounded-lg hover:scale-105 transition-all flex items-center gap-2 px-6">
+ <button className="p-3 bg-ink-primary text-accent-signature rounded-pill hover:scale-105 transition-all flex items-center gap-2 px-6">
  <Download size={18} />
  <span className="text-[10px] font-semibold">Download PDF</span>
  </button>

@@ -264,11 +264,11 @@ const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = 
         <input ref={fileRef} type="file" accept=".csv" hidden
           onChange={(e) => handleImport(e.target.files?.[0])} />
         <button onClick={() => fileRef.current?.click()} disabled={loading}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+          className="flex items-center gap-2 px-3 py-2 rounded-pill border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
           <Upload size={14} /> Import CSV
         </button>
         <button onClick={autoMatch} disabled={loading || !bankTx.length}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-bold disabled:opacity-40">
+          className="flex items-center gap-2 px-3 py-2 rounded-pill bg-slate-900 text-white text-sm font-bold disabled:opacity-40">
           <RefreshCcw size={14} /> Auto-match
         </button>
       </div>

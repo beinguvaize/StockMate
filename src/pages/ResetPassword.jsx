@@ -60,7 +60,7 @@ export default function ResetPassword() {
             </label>
             {err && <p className="text-[12px] font-semibold text-red-600">{err}</p>}
             {msg && <p className="text-[12px] font-semibold text-emerald-600">{msg}</p>}
-            <button type="submit" disabled={busy} className="w-full h-11 rounded-xl bg-accent-signature text-white text-[13px] font-bold disabled:opacity-50 hover:bg-accent-signature-hover">
+            <button type="submit" disabled={busy} className="w-full h-11 rounded-pill bg-accent-signature text-white text-[13px] font-bold disabled:opacity-50 hover:bg-accent-signature-hover">
               {busy ? 'Updating…' : 'Update password'}
             </button>
           </form>

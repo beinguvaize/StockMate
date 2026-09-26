@@ -161,7 +161,7 @@ const AdminPanel = () => {
               <button
                 key={plan}
                 onClick={() => setSelectedPlan(plan)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-pill text-[11px] font-bold transition-all ${
                   selectedPlan === plan
                     ? 'bg-ink-primary text-white shadow-sm'
                     : 'text-ink-secondary hover:bg-muted'
@@ -235,7 +235,7 @@ const AdminPanel = () => {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => toggleTenantStatus(tenant)}
-                        className={`p-2 rounded-lg transition-colors ${
+                        className={`p-2 rounded-pill transition-colors ${
                           tenant.status === 'ACTIVE'
                             ? 'text-green-600 hover:bg-green-50'
                             : 'text-red-500 hover:bg-red-50'
@@ -246,7 +246,7 @@ const AdminPanel = () => {
                       </button>
                       <button
                         onClick={() => navigate(`/${tenant.slug}/dashboard`)}
-                        className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-ink-primary transition-colors"
+                        className="p-2 rounded-pill text-muted-foreground hover:bg-muted hover:text-ink-primary transition-colors"
                         title="Impersonate"
                       >
                         <Eye size={18} />

@@ -315,7 +315,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
         </div>
         <button
           onClick={() => buildTemplate(cols, type === 'clients' ? 'Clients' : type === 'suppliers' ? 'Suppliers' : 'Products')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-pill hover:bg-blue-700 transition-colors"
         >
           <Download size={15} />
           Template.xlsx
@@ -386,7 +386,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           <button
             onClick={handleImport}
             disabled={status === 'importing' || !validRows.length}
-            className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white text-sm font-semibold rounded-pill hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {status === 'importing'
               ? <><Loader2 size={16} className="animate-spin" /> Importing…</>
@@ -433,7 +433,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           </div>
           <button
             onClick={reset}
-            className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold text-ink-secondary rounded-lg hover:bg-muted transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold text-ink-secondary rounded-pill hover:bg-muted transition-colors"
           >
             Import Another File
           </button>
@@ -473,7 +473,7 @@ export default function ImportData({ modal = false }) {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-pill text-sm font-semibold transition-all ${
               tab === t.key
                 ? 'bg-white text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-ink-secondary'

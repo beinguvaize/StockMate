@@ -75,7 +75,7 @@ const PaySlip = ({ run, items = [], employees = [], business, records = [],
             <Printer size={13} /> Print{slips.length > 1 ? ` all ${slips.length}` : ''}
           </button>
           <button onClick={onClose}
-            className="h-9 w-9 rounded-lg bg-white/90 flex items-center justify-center hover:bg-white"
+            className="h-9 w-9 rounded-xl bg-white/90 flex items-center justify-center hover:bg-white"
             aria-label="Close">
             <X size={15} />
           </button>

@@ -73,7 +73,7 @@ const PayrollHeader = ({
         <div className="flex flex-col gap-2 md:w-56 justify-center">
           {!viewOnly && hasRole('OWNER') && (
             <button
-              className="h-10 rounded-xl bg-white border border-black/5 text-ink-primary font-bold text-[9px] uppercase tracking-widest hover:bg-black/5 transition-all shadow-sm flex items-center justify-center gap-2"
+              className="h-10 rounded-pill bg-white border border-black/5 text-ink-primary font-bold text-[9px] uppercase tracking-widest hover:bg-black/5 transition-all shadow-sm flex items-center justify-center gap-2"
               onClick={handleMonthlyReset}
             >
               <Calendar size={12} className="opacity-40" />
@@ -82,7 +82,7 @@ const PayrollHeader = ({
           )}
           {!viewOnly && (
             <button
-              className="h-10 rounded-xl bg-white border border-black/5 text-ink-primary font-bold text-[9px] uppercase tracking-widest hover:bg-black/5 transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-10 rounded-pill bg-white border border-black/5 text-ink-primary font-bold text-[9px] uppercase tracking-widest hover:bg-black/5 transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={openPayRun}
               disabled={activeEmployeesCount === 0}
             >

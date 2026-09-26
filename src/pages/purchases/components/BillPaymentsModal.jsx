@@ -118,12 +118,12 @@ const BillPaymentsModal = ({ bill, payments = [], onEdit, onDelete, onClose }) =
                       onKeyDown={e => { if (e.key === 'Enter') saveEdit(p); if (e.key === 'Escape') setEditing(null); }}
                       className={field} />
                     <button onClick={() => saveEdit(p)} disabled={busy === p.id}
-                      className="w-8 h-8 rounded-lg grid place-items-center text-emerald-600 hover:bg-emerald-50 disabled:opacity-40"
+                      className="w-8 h-8 rounded-xl grid place-items-center text-emerald-600 hover:bg-emerald-50 disabled:opacity-40"
                       title="Save">
                       <Check size={14} />
                     </button>
                     <button onClick={() => setEditing(null)} disabled={busy === p.id}
-                      className="w-8 h-8 rounded-lg grid place-items-center text-muted-foreground hover:bg-black/5"
+                      className="w-8 h-8 rounded-xl grid place-items-center text-muted-foreground hover:bg-black/5"
                       title="Cancel">
                       <X size={14} />
                     </button>
@@ -133,12 +133,12 @@ const BillPaymentsModal = ({ bill, payments = [], onEdit, onDelete, onClose }) =
                     <span className="text-sm font-bold tabular-nums">{formatCurrency(p.amount)}</span>
                     <button onClick={() => { setEditing(p.id); setDraft(String(p.amount ?? '')); setError(''); }}
                       disabled={busy === p.id}
-                      className="w-8 h-8 rounded-lg grid place-items-center text-blue-600 hover:bg-blue-50 disabled:opacity-40"
+                      className="w-8 h-8 rounded-xl grid place-items-center text-blue-600 hover:bg-blue-50 disabled:opacity-40"
                       title="Change the amount">
                       <Pencil size={13} />
                     </button>
                     <button onClick={() => remove(p)} disabled={busy === p.id}
-                      className="w-8 h-8 rounded-lg grid place-items-center text-red-500 hover:bg-red-50 disabled:opacity-40"
+                      className="w-8 h-8 rounded-xl grid place-items-center text-red-500 hover:bg-red-50 disabled:opacity-40"
                       title="Delete this payment">
                       <Trash2 size={13} />
                     </button>
@@ -157,7 +157,7 @@ const BillPaymentsModal = ({ bill, payments = [], onEdit, onDelete, onClose }) =
 
       <div className="flex justify-end">
         <button onClick={onClose}
-          className="px-4 py-2.5 rounded-xl border border-black/10 text-sm font-semibold">
+          className="px-4 py-2.5 rounded-pill border border-black/10 text-sm font-semibold">
           Done
         </button>
       </div>

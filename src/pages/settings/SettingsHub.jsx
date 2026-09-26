@@ -140,14 +140,14 @@ const FormRow = ({ label, hint, children }) => (
 
 const PrimaryBtn = ({ children, ...props }) => (
   <button {...props}
-    className="px-3.5 py-2 rounded-md bg-gray-900 text-white text-[13px] font-semibold hover:bg-gray-800 disabled:opacity-50 transition-colors">
+    className="px-3.5 py-2 rounded-pill bg-gray-900 text-white text-[13px] font-semibold hover:bg-gray-800 disabled:opacity-50 transition-colors">
     {children}
   </button>
 );
 
 const Toggle = ({ checked, onChange }) => (
   <button type="button" onClick={() => onChange(!checked)} aria-pressed={checked}
-    className={`relative w-9 h-5 rounded-full transition-colors ${checked ? 'bg-gray-900' : 'bg-gray-300'}`}>
+    className={`relative w-9 h-5 rounded-xl transition-colors ${checked ? 'bg-gray-900' : 'bg-gray-300'}`}>
     <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
   </button>
 );
@@ -292,7 +292,7 @@ const AccountPanel = () => {
       <Card title="Session">
         <FormRow label="Sign out" hint="Sign out of bookledger on this device.">
           <button onClick={logout}
-            className="px-3.5 py-2 rounded-md border border-red-200 text-red-600 text-[13px] font-semibold hover:bg-red-50 transition-colors">
+            className="px-3.5 py-2 rounded-pill border border-red-200 text-red-600 text-[13px] font-semibold hover:bg-red-50 transition-colors">
             Log out
           </button>
         </FormRow>
@@ -436,7 +436,7 @@ const PrintPanel = ({ tenantId }) => {
             <div className="grid grid-cols-3 gap-3 mb-4">
               {RECEIPT_META.map(t => (
                 <button key={t.id} onClick={() => setPrefs({ ...prefs, receiptTemplate: t.id })}
-                  className={`text-left rounded-md border p-3 transition-colors ${prefs.receiptTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-border hover:border-border'}`}>
+                  className={`text-left rounded-pill border p-3 transition-colors ${prefs.receiptTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-border hover:border-border'}`}>
                   <div className="text-[13px] font-semibold text-foreground">{t.name}</div>
                   <div className="text-[11.5px] text-muted-foreground">{t.blurb}</div>
                 </button>
@@ -469,7 +469,7 @@ const PrintPanel = ({ tenantId }) => {
               <div className="flex gap-2 mb-4">
                 {[['80', '80mm'], ['58', '58mm']].map(([v, label]) => (
                   <button key={v} onClick={() => setBillSet({ ...billSet, paper_width: v })}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${
+                    className={`flex-1 py-2 rounded-pill text-xs font-bold border transition-colors ${
                       (billSet.paper_width || '80') === v
                         ? 'bg-gray-900 text-white border-gray-900'
                         : 'bg-white text-ink-secondary border-border hover:border-gray-400'
@@ -540,7 +540,7 @@ const PrintPanel = ({ tenantId }) => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               {INVOICE_LAYOUT_META.map(t => (
                 <button key={t.id} onClick={() => setPrefs({ ...prefs, invoiceTemplate: t.id })}
-                  className={`text-left rounded-md border p-3 transition-colors ${prefs.invoiceTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-border hover:border-border'}`}>
+                  className={`text-left rounded-pill border p-3 transition-colors ${prefs.invoiceTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-border hover:border-border'}`}>
                   <div className="text-[13px] font-semibold text-foreground">{t.name}</div>
                   <div className="text-[11.5px] text-muted-foreground">{t.blurb}</div>
                 </button>
@@ -606,7 +606,7 @@ const PrintPanel = ({ tenantId }) => {
                         <img src={businessProfile.signature_url} alt="signature" className="h-10 object-contain" />
                       </div>
                       <button onClick={removeSignature} disabled={sigBusy}
-                        className="w-full py-1.5 rounded-md border border-border text-[12px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-200 disabled:opacity-50">
+                        className="w-full py-1.5 rounded-pill border border-border text-[12px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-200 disabled:opacity-50">
                         {sigBusy ? 'Removing…' : 'Remove signature'}
                       </button>
                     </div>
@@ -644,7 +644,7 @@ const PrintPanel = ({ tenantId }) => {
                     ))}
                     {(prefs.customFields || []).length < 4 && (
                       <button onClick={() => setPrefs({ ...prefs, customFields: [...(prefs.customFields || []), { label: '', value: '' }] })}
-                        className="w-full py-1.5 rounded-md border border-dashed border-border text-[12px] font-medium text-muted-foreground hover:border-gray-400 hover:text-ink-secondary">
+                        className="w-full py-1.5 rounded-pill border border-dashed border-border text-[12px] font-medium text-muted-foreground hover:border-gray-400 hover:text-ink-secondary">
                         + Add field
                       </button>
                     )}
@@ -820,7 +820,7 @@ const BusinessTypePanel = () => {
             return (
               <button key={id} type="button" onClick={() => chooseType(id)}
                 aria-pressed={on}
-                className={`text-left px-3.5 py-3 rounded-lg border transition-colors ${
+                className={`text-left px-3.5 py-3 rounded-pill border transition-colors ${
                   on ? 'border-gray-900 bg-gray-900/[0.03]' : 'border-border hover:border-gray-400'
                 }`}>
                 <div className="text-[13px] font-semibold text-foreground flex items-center gap-1.5">
@@ -848,7 +848,7 @@ const BusinessTypePanel = () => {
             {err && <span className="text-[12px] text-red-600 mr-auto">{err}</span>}
             {!err && msg && <span className="text-[12px] text-emerald-600 mr-auto">{msg}</span>}
             <button type="button" onClick={resetToDefaults}
-              className="px-3.5 py-2 rounded-md border border-border text-[13px] font-medium text-ink-secondary hover:bg-muted transition-colors">
+              className="px-3.5 py-2 rounded-pill border border-border text-[13px] font-medium text-ink-secondary hover:bg-muted transition-colors">
               Reset to defaults
             </button>
             <PrimaryBtn onClick={save} disabled={busy || !dirty}>
@@ -998,7 +998,7 @@ const SettingsHub = () => {
                 </div>
                 {g.items.map(n => (
                   <button key={n.id} onClick={() => setActive(n.id)}
-                    className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] whitespace-nowrap w-full text-left transition-colors ${
+                    className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-pill text-[13px] whitespace-nowrap w-full text-left transition-colors ${
                       active === n.id
                         ? 'bg-border/70 text-foreground font-semibold'
                         : 'text-ink-secondary hover:bg-muted font-medium'

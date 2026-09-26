@@ -224,7 +224,7 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
 
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onCancel} disabled={saving}
-          className="px-4 py-2.5 rounded-xl border border-black/10 text-sm font-semibold disabled:opacity-50">
+          className="px-4 py-2.5 rounded-pill border border-black/10 text-sm font-semibold disabled:opacity-50">
           Cancel
         </button>
         <button type="submit" disabled={invalid || saving}

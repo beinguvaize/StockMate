@@ -70,7 +70,7 @@ class ErrorBoundary extends React.Component {
  <div className="space-y-4 relative z-10">
  <button 
  onClick={this.handleReload}
- className="w-full flex items-center justify-center gap-3 bg-ink-primary text-white font-semibold py-2 rounded-lg hover:bg-ink-secondary transition-all shadow-xl hover:shadow-2xl active:scale-95 text-xs"
+ className="w-full flex items-center justify-center gap-3 bg-ink-primary text-white font-semibold py-2 rounded-pill hover:bg-ink-secondary transition-all shadow-xl hover:shadow-2xl active:scale-95 text-xs"
  >
  <RefreshCcw className="w-4 h-4" />
  Repair Infrastructure
@@ -79,14 +79,14 @@ class ErrorBoundary extends React.Component {
  <div className="grid grid-cols-2 gap-4">
  <button 
  onClick={() => goHref('/')}
- className="flex items-center justify-center gap-2 bg-muted text-ink-primary font-bold py-2 rounded-lg hover:bg-muted transition-all text-xs"
+ className="flex items-center justify-center gap-2 bg-muted text-ink-primary font-bold py-2 rounded-pill hover:bg-muted transition-all text-xs"
  >
  <Home className="w-4 h-4" />
  Bypass
  </button>
  <button 
  onClick={this.handleReset}
- className="flex items-center justify-center gap-2 bg-red-50 text-red-600 font-bold py-2 rounded-lg hover:bg-red-100 transition-all text-xs"
+ className="flex items-center justify-center gap-2 bg-red-50 text-red-600 font-bold py-2 rounded-pill hover:bg-red-100 transition-all text-xs"
  >
  Reset Session
  </button>

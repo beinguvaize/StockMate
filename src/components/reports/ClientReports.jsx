@@ -197,7 +197,7 @@ const ClientReports = ({ clients, sales, businessProfile}) => {
  <div className="p-3 bg-canvas rounded-lg">
  <Users size={24} className="text-foreground" />
  </div>
- <button className="p-2 bg-canvas hover:bg-ink-primary hover:text-primary-foreground rounded-full transition-all opacity-0 group-hover:opacity-100">
+ <button className="p-2 bg-canvas hover:bg-ink-primary hover:text-primary-foreground rounded-pill transition-all opacity-0 group-hover:opacity-100">
  <Printer size={16} />
  </button>
  </div>

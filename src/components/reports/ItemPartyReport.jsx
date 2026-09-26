@@ -68,7 +68,7 @@ const EntityPicker = ({ label, items, selectedId, onSelect, loading, displayKey 
             {subKey && selected[subKey] && <div className="text-[10px] text-muted-foreground">{selected[subKey]}</div>}
           </div>
           <button onClick={() => onSelect('')}
-            className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50">
+            className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-pill hover:bg-red-50">
             Change
           </button>
         </div>
@@ -183,13 +183,13 @@ const ItemPartyReport = () => {
         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">View:</span>
         <div className="flex items-center gap-1 bg-card border border-border shadow-sm rounded-xl p-1">
           <button onClick={() => { setView('customer'); setProductId(''); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-pill text-[11px] font-semibold transition-all ${
               view === 'customer' ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
             }`}>
             <Users size={12} /> By Customer
           </button>
           <button onClick={() => { setView('item'); setClientId(''); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-pill text-[11px] font-semibold transition-all ${
               view === 'item' ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
             }`}>
             <Package size={12} /> By Item

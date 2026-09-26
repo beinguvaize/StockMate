@@ -477,7 +477,7 @@ const ClientSettlement = () => {
                 <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
                   {[['1M','Month'],['3M','3 months'],['FY','This FY'],['ALL','All']].map(([v,label]) => (
                     <button key={v} onClick={() => setRange(v)}
-                      className={`px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      className={`px-2.5 h-7 rounded-pill text-[10px] font-bold uppercase tracking-wider transition-all ${
                         range === v ? 'bg-ink-primary text-white shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
                       {label}
                     </button>
@@ -486,14 +486,14 @@ const ClientSettlement = () => {
                 <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
                   {[['ALL','All'],['SALE','Bills'],['PAYMENT','Payments']].map(([v,label]) => (
                     <button key={v} onClick={() => setRowKind(v)}
-                      className={`px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      className={`px-2.5 h-7 rounded-pill text-[10px] font-bold uppercase tracking-wider transition-all ${
                         rowKind === v ? 'bg-accent-signature text-white shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
                       {label}
                     </button>
                   ))}
                 </div>
                 <button onClick={() => setNewestFirst(v => !v)}
-                  className="h-7 px-2.5 rounded-lg border border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-ink-primary transition-all">
+                  className="h-7 px-2.5 rounded-pill border border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-ink-primary transition-all">
                   {newestFirst ? 'Newest ↑' : 'Oldest ↓'}
                 </button>
                 <span className="text-[11px] font-bold text-muted-foreground">
@@ -757,11 +757,11 @@ const ClientSettlement = () => {
                   if (res?.success) setEditTarget(null);
                   else setEditError(res?.error?.message || 'Could not save the change.');
                 }}
-                className="flex-1 h-10 rounded-xl bg-ink-primary text-white text-[13px] font-bold disabled:opacity-60">
+                className="flex-1 h-10 rounded-pill bg-ink-primary text-white text-[13px] font-bold disabled:opacity-60">
                 {editSaving ? 'Saving…' : 'Save'}
               </button>
               <button disabled={editSaving} onClick={() => setEditTarget(null)}
-                className="h-10 px-4 rounded-xl border border-black/10 text-[13px] font-bold text-muted-foreground">Cancel</button>
+                className="h-10 px-4 rounded-pill border border-black/10 text-[13px] font-bold text-muted-foreground">Cancel</button>
             </div>
           </div>
         </div>

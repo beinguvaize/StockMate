@@ -423,7 +423,7 @@ const DayBook = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowHistory(false)}
-              className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-full hover:bg-canvas transition-all text-ink-primary shadow-sm"
+              className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-xl hover:bg-canvas transition-all text-ink-primary shadow-sm"
             >
               <ChevronLeft size={16} />
             </button>
@@ -592,7 +592,7 @@ const DayBook = () => {
         {/* Date nav */}
         <div className="flex items-center gap-2 no-print">
           <button onClick={() => setSelectedDate(d => addDays(d, -1))}
-            className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-full hover:bg-canvas transition-all text-ink-primary shadow-sm">
+            className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-xl hover:bg-canvas transition-all text-ink-primary shadow-sm">
             <ChevronLeft size={16} />
           </button>
           <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-black/5 shadow-sm min-w-[200px] justify-center">
@@ -605,22 +605,22 @@ const DayBook = () => {
           </div>
           <button onClick={() => setSelectedDate(d => addDays(d, 1))}
             disabled={selectedDate >= today}
-            className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-full hover:bg-canvas transition-all text-ink-primary shadow-sm disabled:opacity-30">
+            className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-xl hover:bg-canvas transition-all text-ink-primary shadow-sm disabled:opacity-30">
             <ChevronRight size={16} />
           </button>
           {selectedDate !== today && (
             <button onClick={() => setSelectedDate(today)}
-              className="px-3 h-9 text-[9px] font-black uppercase tracking-widest bg-white border border-border shadow-sm rounded-full hover:bg-white transition-all text-muted-foreground">
+              className="px-3 h-9 text-[9px] font-black uppercase tracking-widest bg-white border border-border shadow-sm rounded-pill hover:bg-white transition-all text-muted-foreground">
               Today
             </button>
           )}
           <button onClick={() => setShowHistory(true)}
-            className="flex items-center gap-2 px-4 h-9 bg-white border border-border shadow-sm text-ink-secondary text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-white transition-all shadow-sm">
+            className="flex items-center gap-2 px-4 h-9 bg-white border border-border shadow-sm text-ink-secondary text-[9px] font-black uppercase tracking-widest rounded-pill hover:bg-white transition-all shadow-sm">
             <History size={12} />
             History
           </button>
           <button onClick={() => setShowReport(true)}
-            className="flex items-center gap-2 px-4 h-9 bg-ink-primary text-white text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-black transition-all shadow-sm">
+            className="flex items-center gap-2 px-4 h-9 bg-ink-primary text-white text-[9px] font-black uppercase tracking-widest rounded-pill hover:bg-black transition-all shadow-sm">
             <FileText size={12} />
             Report
           </button>
@@ -860,7 +860,7 @@ const DayBook = () => {
                 {/* Carry forward button */}
                 {ledger.prevClosing !== null && !ledger.hasOpening && (
                   <button onClick={handleUseYesterdayClosing} disabled={isSaving}
-                    className="w-full h-10 flex items-center justify-center gap-2 bg-white border border-border shadow-sm rounded-xl text-[9px] font-black uppercase tracking-widest text-ink-secondary hover:bg-black/5 transition-all">
+                    className="w-full h-10 flex items-center justify-center gap-2 bg-white border border-border shadow-sm rounded-pill text-[9px] font-black uppercase tracking-widest text-ink-secondary hover:bg-black/5 transition-all">
                     <ChevronRight size={12} />
                     Use prev. closing ({cy}{fmt(ledger.prevClosing)})
                   </button>
@@ -875,7 +875,7 @@ const DayBook = () => {
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-muted-foreground">{cy}</span>
                 </div>
                 <button onClick={handleSaveOpening} disabled={isSaving || !openingInput}
-                  className="w-full h-11 bg-ink-primary text-white font-black text-[9px] uppercase tracking-widest rounded-xl hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-40">
+                  className="w-full h-11 bg-ink-primary text-white font-black text-[9px] uppercase tracking-widest rounded-pill hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-40">
                   {isSaving ? <RefreshCcw className="animate-spin" size={13} /> : <Save size={13} />}
                   Save Opening Balance
                 </button>
@@ -1002,7 +1002,7 @@ const DayBook = () => {
               {variance !== null && !isFuture && (
                 <button
                   onClick={handleSavePhysicalCash}
-                  className="w-full h-9 flex items-center justify-center gap-2 bg-white border border-border shadow-sm rounded-xl text-[9px] font-black uppercase tracking-widest text-ink-secondary hover:bg-black/5 transition-all"
+                  className="w-full h-9 flex items-center justify-center gap-2 bg-white border border-border shadow-sm rounded-pill text-[9px] font-black uppercase tracking-widest text-ink-secondary hover:bg-black/5 transition-all"
                 >
                   <Save size={11} /> Save Count
                 </button>
@@ -1013,7 +1013,7 @@ const DayBook = () => {
           {/* ── Close Day ────────────────────────────────────────────────── */}
           {!ledger.isLocked && ledger.hasOpening && hasPermission('finance', 'edit') && !isFuture && (
             <button onClick={() => setShowCloseModal(true)} disabled={isClosing}
-              className="w-full h-12 flex items-center justify-center gap-2 bg-ink-primary text-white font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-black transition-all shadow-sm disabled:opacity-40">
+              className="w-full h-12 flex items-center justify-center gap-2 bg-ink-primary text-white font-black text-[10px] uppercase tracking-widest rounded-pill hover:bg-black transition-all shadow-sm disabled:opacity-40">
               {isClosing ? <RefreshCcw className="animate-spin" size={14} /> : <Lock size={14} />}
               Close & Lock Day
             </button>
@@ -1084,7 +1084,7 @@ const CloseDayModal = ({ date, closingBal, cy, initialPhysical, isClosing, onCan
             <h2 className="text-[15px] font-black text-ink-primary leading-none">Close Day</h2>
             <p className="text-[10px] font-bold text-muted-foreground mt-0.5 uppercase tracking-widest">{displayDate(date)}</p>
           </div>
-          <button onClick={onCancel} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-black/5">
+          <button onClick={onCancel} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/5">
             <X size={16} />
           </button>
         </div>
@@ -1141,13 +1141,13 @@ const CloseDayModal = ({ date, closingBal, cy, initialPhysical, isClosing, onCan
 
         <div className="flex gap-2">
           <button onClick={onCancel}
-            className="flex-1 h-11 rounded-xl border border-black/10 text-[12px] font-bold text-muted-foreground hover:bg-black/5 transition-all">
+            className="flex-1 h-11 rounded-pill border border-black/10 text-[12px] font-bold text-muted-foreground hover:bg-black/5 transition-all">
             Cancel
           </button>
           <button
             disabled={isClosing}
             onClick={() => onConfirm(isNaN(pcNum) ? null : pcNum, note)}
-            className="flex-[2] h-11 rounded-xl bg-ink-primary text-white text-[12px] font-black hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+            className="flex-[2] h-11 rounded-pill bg-ink-primary text-white text-[12px] font-black hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-40"
           >
             {isClosing ? <RefreshCcw className="animate-spin" size={13} /> : <Lock size={13} />}
             Confirm & Lock Day

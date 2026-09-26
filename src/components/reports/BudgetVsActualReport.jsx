@@ -467,13 +467,13 @@ const BudgetVsActualReport = () => {
 
         <button
           onClick={handleCopyLastMonth}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-secondary hover:text-foreground bg-card border border-black/10 hover:border-accent-signature rounded-md transition-all"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-secondary hover:text-foreground bg-card border border-black/10 hover:border-accent-signature rounded-pill transition-all"
         >
           <Copy size={12} /> Copy Last Month
         </button>
         <button
           onClick={handleSuggestAvg}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-accent-signature hover:text-white hover:bg-accent-signature bg-accent-signature/10 border border-accent-signature/25 rounded-md transition-all"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-accent-signature hover:text-white hover:bg-accent-signature bg-accent-signature/10 border border-accent-signature/25 rounded-pill transition-all"
         >
           <Sparkles size={12} /> Suggest from 3-mo Avg
         </button>

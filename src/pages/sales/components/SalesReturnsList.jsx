@@ -110,7 +110,7 @@ const SalesReturnsList = ({ returns = [], onReverse = null }) => {
                       onClick={(e) => { e.stopPropagation(); reverse(r); }}
                       disabled={busyId === r.id}
                       title="Undo return — re-deducts stock, restores balance"
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition-colors"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-pill text-[11px] font-semibold text-muted-foreground hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition-colors"
                     >
                       <Undo2 size={13} /> {busyId === r.id ? 'Undoing…' : 'Undo'}
                     </button>

@@ -159,7 +159,7 @@ const Reports = () => {
             <button
               key={key}
               onClick={() => handleGroupChange(key)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-pill text-[10px] font-black uppercase tracking-widest transition-all ${
                 activeGroup === key
                   ? 'bg-ink-primary text-white shadow-lg'
                   : 'bg-white/60 text-muted-foreground hover:text-ink-primary border border-black/5'
@@ -179,7 +179,7 @@ const Reports = () => {
       <div className="no-print relative w-full max-w-md" ref={tabDropRef}>
         <button
           onClick={() => setTabDropOpen(o => !o)}
-          className="w-full flex items-center gap-3 px-5 py-3 bg-white border border-black/5 rounded-2xl shadow-sm hover:border-black/15 transition-all"
+          className="w-full flex items-center gap-3 px-5 py-3 bg-white border border-black/5 rounded-pill shadow-sm hover:border-black/15 transition-all"
         >
           <span className="text-accent-signature shrink-0">{currentTab?.icon}</span>
           <span className="flex-1 text-left text-xs font-black uppercase tracking-widest text-ink-primary truncate">

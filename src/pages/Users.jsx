@@ -333,7 +333,7 @@ const Users = () => {
  </div>
  <button 
  onClick={() => { setIsAdding(false); setEditingUser(null);}}
- className="w-7 h-7 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary"
+ className="w-7 h-7 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary"
  >
  <X size={14} />
  </button>
@@ -420,7 +420,7 @@ const Users = () => {
  <button 
  type="button"
  onClick={() => toggleModulePermission(mod.key, 'view')}
- className={`w-10 h-6 rounded-pill relative transition-all ${perms.view ? 'bg-accent-signature' : 'bg-black/10'}`}
+ className={`w-10 h-6 rounded-xl relative transition-all ${perms.view ? 'bg-accent-signature' : 'bg-black/10'}`}
  >
  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${perms.view ? 'left-5' : 'left-1'}`} />
  </button>
@@ -429,7 +429,7 @@ const Users = () => {
  <button 
  type="button"
  onClick={() => toggleModulePermission(mod.key, 'edit')}
- className={`w-10 h-6 rounded-pill relative transition-all ${perms.edit ? 'bg-ink-primary' : 'bg-black/10'}`}
+ className={`w-10 h-6 rounded-xl relative transition-all ${perms.edit ? 'bg-ink-primary' : 'bg-black/10'}`}
  >
  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${perms.edit ? 'left-5' : 'left-1'}`} />
  </button>

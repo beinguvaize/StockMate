@@ -72,7 +72,7 @@ const PayrollReport = () => {
         <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
           {PRESETS.map(p => (
             <button key={p.id} onClick={() => win.headerProps.onPreset(p.id)}
-              className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+              className={`px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
                 win.preset === p.id
                   ? 'bg-card text-foreground font-semibold shadow-sm'
                   : 'text-muted-foreground font-medium hover:text-foreground'}`}>

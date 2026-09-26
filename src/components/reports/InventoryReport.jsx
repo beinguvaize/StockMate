@@ -198,7 +198,7 @@ const InventoryReport = () => {
         render: (val, row) => '₹' + ((val || 0) * (row.stock || 0))
           .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
       { key: 'action', label: 'Action', width: 150, render: () => (
-        <button className="flex items-center gap-2 px-4 py-1.5 bg-red-50 text-red-600 rounded-full text-[9px] font-semibold hover:bg-red-600 hover:text-white transition-all uppercase tracking-widest border border-red-100">
+        <button className="flex items-center gap-2 px-4 py-1.5 bg-red-50 text-red-600 rounded-pill text-[9px] font-semibold hover:bg-red-600 hover:text-white transition-all uppercase tracking-widest border border-red-100">
           Liquidate <ArrowRight size={12} />
         </button>
       )}

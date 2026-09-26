@@ -58,7 +58,7 @@ const ReportIssueButton = () => {
         type="button"
         onClick={() => setOpen(true)}
         title="Report an issue"
-        className="fixed bottom-5 right-5 z-[60] flex items-center gap-2 px-4 py-3 rounded-full bg-ink-primary text-white shadow-2xl hover:scale-105 transition-transform no-print"
+        className="fixed bottom-5 right-5 z-[60] flex items-center gap-2 px-4 py-3 rounded-pill bg-ink-primary text-white shadow-2xl hover:scale-105 transition-transform no-print"
       >
         <Bug size={16} />
         <span className="text-xs font-black uppercase tracking-widest hidden sm:inline">Report</span>
@@ -126,7 +126,7 @@ const ReportIssueButton = () => {
                         type="button"
                         key={s.id}
                         onClick={() => setSeverity(s.id)}
-                        className={`text-left px-3 py-2 rounded-xl border transition-all ${
+                        className={`text-left px-3 py-2 rounded-pill border transition-all ${
                           severity === s.id
                             ? 'bg-ink-primary text-white border-ink-primary shadow-md'
                             : 'bg-white border-border text-ink-primary hover:border-accent-signature/40'
@@ -149,7 +149,7 @@ const ReportIssueButton = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent-signature text-button-text text-sm font-black disabled:opacity-60 transition-all"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-pill bg-accent-signature text-button-text text-sm font-black disabled:opacity-60 transition-all"
                 >
                   {submitting ? <><Loader2 size={14} className="animate-spin" /> Sending…</> : 'Send Report'}
                 </button>

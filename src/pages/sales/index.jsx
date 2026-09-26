@@ -441,7 +441,7 @@ const SalesPage = () => {
             <div className="flex gap-1 mb-3">
               {[['sales', 'Sales', sales.length], ['returns', 'Returns', salesReturns.length]].map(([k, label, n]) => (
                 <button key={k} onClick={() => setHistoryView(k)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  className={`px-3.5 py-1.5 rounded-pill text-xs font-semibold transition-colors ${
                     historyView === k ? 'bg-foreground text-background' : 'bg-canvas text-muted-foreground hover:text-foreground'
                   }`}>
                   {label}<span className={`ml-1.5 ${historyView === k ? 'opacity-60' : 'text-muted-foreground'}`}>{n}</span>

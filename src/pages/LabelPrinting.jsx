@@ -228,7 +228,7 @@ const LabelPrinting = () => {
             <button
               onClick={generateMissing}
               disabled={generating}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-accent-signature/40 text-accent-signature text-[12px] font-bold hover:bg-accent-signature/10 disabled:opacity-60"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-pill border border-accent-signature/40 text-accent-signature text-[12px] font-bold hover:bg-accent-signature/10 disabled:opacity-60"
             >
               <Wand2 size={14} /> {generating ? 'Generating…' : `Generate ${missingBarcodes} missing barcode${missingBarcodes === 1 ? '' : 's'}`}
             </button>
@@ -236,7 +236,7 @@ const LabelPrinting = () => {
           <button
             onClick={handlePrint}
             disabled={totalLabels === 0}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-signature text-white text-[12px] font-black disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 rounded-pill bg-accent-signature text-white text-[12px] font-black disabled:opacity-40"
           >
             <Printer size={14} /> Print {totalLabels > 0 ? `${totalLabels} label${totalLabels === 1 ? '' : 's'}` : ''}
           </button>
@@ -278,7 +278,7 @@ const LabelPrinting = () => {
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button onClick={() => setCount(p.id, (qty[p.id] || 0) - 1)}
-                    className="w-7 h-7 rounded-md border border-black/10 flex items-center justify-center hover:bg-surface">
+                    className="w-7 h-7 rounded-xl border border-black/10 flex items-center justify-center hover:bg-surface">
                     <Minus size={12} />
                   </button>
                   <input
@@ -288,7 +288,7 @@ const LabelPrinting = () => {
                     className="w-14 text-center text-[13px] font-bold border border-black/10 rounded-md py-1 outline-none focus:border-accent-signature"
                   />
                   <button onClick={() => setCount(p.id, (qty[p.id] || 0) + 1)}
-                    className="w-7 h-7 rounded-md border border-black/10 flex items-center justify-center hover:bg-surface">
+                    className="w-7 h-7 rounded-xl border border-black/10 flex items-center justify-center hover:bg-surface">
                     <Plus size={12} />
                   </button>
                   {p.stock > 0 && (
@@ -341,7 +341,7 @@ const LabelPrinting = () => {
             </div>
             <button
               onClick={saveSettings}
-              className="mt-3 w-full py-2 rounded-lg bg-ink-primary text-white text-[12px] font-black hover:opacity-90"
+              className="mt-3 w-full py-2 rounded-pill bg-ink-primary text-white text-[12px] font-black hover:opacity-90"
             >
               {savedTick ? '✓ Saved' : 'Save Settings'}
             </button>

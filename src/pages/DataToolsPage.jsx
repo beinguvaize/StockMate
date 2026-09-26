@@ -105,7 +105,7 @@ export default function DataToolsPage() {
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground"
+          className="p-2 rounded-pill hover:bg-muted transition-colors text-muted-foreground"
         >
           <ArrowLeft size={20} />
         </button>
@@ -126,7 +126,7 @@ export default function DataToolsPage() {
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            className={`px-4 py-2 rounded-pill text-sm font-semibold transition-all ${
               activeTab === t.key
                 ? 'bg-white text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-ink-secondary'
@@ -158,7 +158,7 @@ export default function DataToolsPage() {
                   <button
                     key={mod.key}
                     onClick={() => setSelectedModule(mod.key)}
-                    className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                    className={`px-4 py-2 rounded-pill text-xs font-semibold border transition-all ${
                       selectedModule === mod.key
                         ? 'bg-gray-900 text-emerald-400 border-gray-900'
                         : 'bg-muted text-ink-secondary border-border hover:border-gray-400'
@@ -183,7 +183,7 @@ export default function DataToolsPage() {
                       <button
                         key={fmt}
                         onClick={() => setExportFormat(fmt)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                        className={`flex items-center gap-2 px-4 py-2 rounded-pill text-xs font-bold border transition-all ${
                           exportFormat === fmt
                             ? 'bg-gray-900 text-emerald-400 border-gray-900'
                             : 'bg-white text-ink-secondary border-border hover:border-gray-400'
@@ -198,7 +198,7 @@ export default function DataToolsPage() {
                 <button
                   onClick={handleExport}
                   disabled={!currentModuleData.length}
-                  className="w-full flex items-center justify-center gap-3 py-4 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="w-full flex items-center justify-center gap-3 py-4 bg-gray-900 text-white rounded-pill font-bold text-sm hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   <Download size={17} />
                   Export {currentModuleData.length} {MODULES.find(m => m.key === selectedModule)?.label} Records

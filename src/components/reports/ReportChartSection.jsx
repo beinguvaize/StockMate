@@ -225,7 +225,7 @@ const ReportChartSection = ({
               <p className="text-[11px] font-medium text-muted-foreground">Statistical Visualization</p>
             </div>
           </div>
-          <button className="w-10 h-10 rounded-full border border-border/60 flex items-center justify-center hover:bg-canvas transition-all text-foreground">
+          <button className="w-10 h-10 rounded-xl border border-border/60 flex items-center justify-center hover:bg-canvas transition-all text-foreground">
             {isCollapsed ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
           </button>
         </div>

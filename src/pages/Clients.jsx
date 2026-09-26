@@ -212,7 +212,7 @@ const Clients = () => {
  <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Clients<span className="text-accent-signature">.</span></h1>
  <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">Customer network & accounts</span>
  <button onClick={() => { window.location.href = '/bulk-add?type=clients'; }}
-   className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white border border-black/[0.08] text-ink-primary text-[11px] font-bold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
+   className="inline-flex items-center gap-1.5 h-8 px-3 rounded-pill bg-white border border-black/[0.08] text-ink-primary text-[11px] font-bold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
    Bulk Import
  </button>
  </div>
@@ -242,7 +242,7 @@ const Clients = () => {
        <button
          type="button"
          onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
-         className="w-9 h-9 flex items-center justify-center rounded-full border border-black/8 hover:bg-canvas transition-all text-ink-primary shrink-0"
+         className="w-9 h-9 flex items-center justify-center rounded-xl border border-black/8 hover:bg-canvas transition-all text-ink-primary shrink-0"
        >
          <ChevronLeft size={18} />
        </button>
@@ -257,7 +257,7 @@ const Clients = () => {
        <button
          type="button"
          onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
-         className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-muted-foreground shrink-0"
+         className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-muted-foreground shrink-0"
        >
          <X size={16} />
        </button>
@@ -409,7 +409,7 @@ const Clients = () => {
                          key={opt.val}
                          type="button"
                          onClick={() => setFormData({ ...formData, client_type: opt.val })}
-                         className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                         className={`flex items-start gap-3 p-4 rounded-pill border-2 text-left transition-all ${
                            formData.client_type === opt.val
                              ? 'border-ink-primary bg-ink-primary'
                              : 'border-black/8 bg-canvas hover:border-black/20'
@@ -560,7 +560,7 @@ const Clients = () => {
              <button
                type="button"
                onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
-               className="w-full py-3 rounded-xl border border-black/10 text-xs font-semibold text-muted-foreground hover:bg-black/5 transition-all"
+               className="w-full py-3 rounded-pill border border-black/10 text-xs font-semibold text-muted-foreground hover:bg-black/5 transition-all"
              >
                Cancel
              </button>

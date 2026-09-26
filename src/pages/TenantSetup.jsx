@@ -149,7 +149,7 @@ const TenantSetup = () => {
         <div className="absolute top-6 left-6 z-50">
           <button
             onClick={() => navigate('/nexus-hq')}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition-all backdrop-blur-md"
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-pill text-white transition-all backdrop-blur-md"
           >
             <ChevronLeft size={16} />
             <span className="text-[11px] font-bold">Nexus HQ</span>
@@ -199,7 +199,7 @@ const TenantSetup = () => {
                 <button
                   key={plan.id}
                   onClick={() => setSelectedPlan(plan.id)}
-                  className={`group relative text-left p-5 rounded-2xl border-2 transition-all duration-200 ${
+                  className={`group relative text-left p-5 rounded-pill border-2 transition-all duration-200 ${
                     active
                       ? 'border-accent-signature bg-accent-signature/[0.08] shadow-[0_0_0_4px_rgba(217,119,6,0.12)]'
                       : 'border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.05]'
@@ -246,7 +246,7 @@ const TenantSetup = () => {
           <div className="flex flex-col items-center gap-5">
             <button
               onClick={() => setStep(2)}
-              className="flex items-center gap-2 px-8 py-3.5 bg-accent-signature hover:bg-accent-signature-hover text-black font-black rounded-xl shadow-[0_12px_28px_-12px_rgba(217,119,6,0.7)] transition-all active:scale-[0.98]"
+              className="flex items-center gap-2 px-8 py-3.5 bg-accent-signature hover:bg-accent-signature-hover text-black font-black rounded-pill shadow-[0_12px_28px_-12px_rgba(217,119,6,0.7)] transition-all active:scale-[0.98]"
             >
               Continue with {activePlan?.label}
               <ArrowRight size={18} strokeWidth={2.5} />
@@ -294,7 +294,7 @@ const TenantSetup = () => {
                         key={v.id}
                         type="button"
                         onClick={() => setBusinessType(v.id)}
-                        className={`flex sm:flex-col items-center sm:text-center gap-3 sm:gap-2 p-3.5 rounded-2xl border-2 transition-all ${
+                        className={`flex sm:flex-col items-center sm:text-center gap-3 sm:gap-2 p-3.5 rounded-pill border-2 transition-all ${
                           active ? 'border-accent-signature bg-accent-signature/10' : 'border-white/10 bg-white/[0.03] hover:border-white/25'
                         }`}
                       >
@@ -390,7 +390,7 @@ const TenantSetup = () => {
 
               <button
                 type="submit"
-                className="w-full h-14 bg-accent-signature hover:bg-accent-signature-hover text-black font-black rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99]"
+                className="w-full h-14 bg-accent-signature hover:bg-accent-signature-hover text-black font-black rounded-pill transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99]"
                 disabled={isLoading || !businessName.trim() || !businessPhone.trim() || !businessAddress.trim() || !businessState}
               >
                 {isLoading ? (

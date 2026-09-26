@@ -176,14 +176,14 @@ const ClientWorkspace = ({
             <div className="flex items-center gap-1 p-1 rounded-lg bg-muted shrink-0">
               {FILTERS.map(f => (
                 <button key={f.id} onClick={() => setFilter(f.id)}
-                  className={`px-3 py-1.5 rounded-md text-[12px] font-semibold transition-colors ${
+                  className={`px-3 py-1.5 rounded-pill text-[12px] font-semibold transition-colors ${
                     filter === f.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                   {f.label}
                 </button>
               ))}
             </div>
             <button onClick={() => navigate('/bulk-add?type=clients')}
-              className="h-9 px-3 rounded-lg border border-border text-[12px] font-semibold text-ink-secondary hover:bg-muted transition-colors inline-flex items-center gap-1.5 shrink-0">
+              className="h-9 px-3 rounded-pill border border-border text-[12px] font-semibold text-ink-secondary hover:bg-muted transition-colors inline-flex items-center gap-1.5 shrink-0">
               <Upload size={13} /> Import
             </button>
           </div>
@@ -232,14 +232,14 @@ const ClientWorkspace = ({
                         <td className="px-4 py-3 text-right">
                           {c._out > 0 ? (
                             <button onClick={(e) => { e.stopPropagation(); navigate(`/clients/settle/${c.id}`); }}
-                              className={`h-8 px-3 rounded-lg text-[12px] font-bold transition-colors ${
+                              className={`h-8 px-3 rounded-pill text-[12px] font-bold transition-colors ${
                                 on ? 'bg-accent-signature text-white hover:bg-accent-signature-hover'
                                    : 'border border-border text-ink-secondary hover:bg-muted'}`}>
                               Collect
                             </button>
                           ) : (
                             <button onClick={(e) => { e.stopPropagation(); navigate('/sales'); }}
-                              className="h-8 px-3 rounded-lg border border-border text-[12px] font-semibold text-ink-secondary hover:bg-muted transition-colors">
+                              className="h-8 px-3 rounded-pill border border-border text-[12px] font-semibold text-ink-secondary hover:bg-muted transition-colors">
                               New sale
                             </button>
                           )}
@@ -289,12 +289,12 @@ const ClientWorkspace = ({
             <div className="flex gap-2 mt-3">
               {selected._out > 0 && hasPermission?.('clients', 'edit') && (
                 <button onClick={() => navigate(`/clients/settle/${selected.id}`)}
-                  className="flex-1 h-9 rounded-lg bg-accent-signature hover:bg-accent-signature-hover text-white text-[13px] font-bold transition-colors">
+                  className="flex-1 h-9 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[13px] font-bold transition-colors">
                   Collect payment
                 </button>
               )}
               <button onClick={() => navigate(`/clients/settle/${selected.id}`)}
-                className="h-9 px-3 rounded-lg border border-border text-[13px] font-semibold text-ink-secondary hover:bg-muted transition-colors">
+                className="h-9 px-3 rounded-pill border border-border text-[13px] font-semibold text-ink-secondary hover:bg-muted transition-colors">
                 Statement
               </button>
             </div>
@@ -359,7 +359,7 @@ const ClientWorkspace = ({
                   <div className="flex items-center gap-2 pt-2">
                     {hasPermission?.('clients', 'edit') && (
                       <button onClick={() => openEdit?.(selected)}
-                        className="h-8 px-3 rounded-lg border border-border text-[12px] font-semibold text-ink-secondary hover:bg-muted inline-flex items-center gap-1.5">
+                        className="h-8 px-3 rounded-pill border border-border text-[12px] font-semibold text-ink-secondary hover:bg-muted inline-flex items-center gap-1.5">
                         <Edit3 size={12} /> Edit
                       </button>
                     )}
@@ -372,7 +372,7 @@ const ClientWorkspace = ({
                       <button onClick={() => {
                         if (window.confirm(`Delete ${selected.name}?`)) handleDelete?.(selected.id);
                       }}
-                        className="h-8 px-3 rounded-lg border border-red-200 text-[12px] font-semibold text-red-600 hover:bg-red-50 inline-flex items-center gap-1.5">
+                        className="h-8 px-3 rounded-pill border border-red-200 text-[12px] font-semibold text-red-600 hover:bg-red-50 inline-flex items-center gap-1.5">
                         <Trash2 size={12} /> Delete
                       </button>
                     )}
@@ -391,7 +391,7 @@ const ClientWorkspace = ({
             <div className="text-[12px] text-muted-foreground mt-1">Pick one from the list to see its bills and payments.</div>
             {hasPermission?.('clients', 'create') && (
               <button onClick={openAdd}
-                className="mt-3 h-9 px-4 rounded-lg bg-accent-signature hover:bg-accent-signature-hover text-white text-[13px] font-bold inline-flex items-center gap-1.5">
+                className="mt-3 h-9 px-4 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[13px] font-bold inline-flex items-center gap-1.5">
                 <Plus size={14} /> Add client
               </button>
             )}

@@ -50,17 +50,17 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
         <div className="flex items-center gap-2">
           <div className="inline-flex p-1 bg-black/[0.06] rounded-xl">
             <button onClick={() => setView('grid')} title="Grid"
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[12px] font-semibold ${view === 'grid' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>
+              className={`px-3 py-1.5 rounded-pill flex items-center gap-1.5 text-[12px] font-semibold ${view === 'grid' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>
               <LayoutGrid size={13} /> Grid
             </button>
             <button onClick={() => setView('plan')} title="Floor plan"
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[12px] font-semibold ${view === 'plan' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>
+              className={`px-3 py-1.5 rounded-pill flex items-center gap-1.5 text-[12px] font-semibold ${view === 'plan' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>
               <Map size={13} /> Floor plan
             </button>
           </div>
           {view === 'grid' && (
             <button onClick={() => setAdding(true)}
-              className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-semibold flex items-center gap-2 hover:bg-accent-signature-hover transition-all">
+              className="h-10 px-4 rounded-pill bg-accent-signature text-white text-[13px] font-semibold flex items-center gap-2 hover:bg-accent-signature-hover transition-all">
               <Plus size={15} strokeWidth={2.6} /> Add table
             </button>
           )}
@@ -98,7 +98,7 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
                   <button
                     key={t.id}
                     onClick={() => onOpenTable(t, tab)}
-                    className={`group relative text-left rounded-2xl border p-4 transition-all ${
+                    className={`group relative text-left rounded-pill border p-4 transition-all ${
                       occupied
                         ? 'bg-accent-signature/10 border-accent-signature/40 hover:border-accent-signature/70'
                         : 'bg-card border-border hover:border-black/20'
@@ -165,7 +165,7 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
                 const occ = !!openTabs[ft.id];
                 return (
                   <button key={ft.id} onClick={() => doMove(ft)}
-                    className={`rounded-xl border p-3 text-center transition-all ${occ ? 'border-accent-signature/40 bg-accent-signature/10 hover:border-accent-signature/70' : 'border-border hover:border-accent-signature/70 hover:bg-accent-signature/10'}`}>
+                    className={`rounded-pill border p-3 text-center transition-all ${occ ? 'border-accent-signature/40 bg-accent-signature/10 hover:border-accent-signature/70' : 'border-border hover:border-accent-signature/70 hover:bg-accent-signature/10'}`}>
                     <div className="font-extrabold text-[14px] text-foreground">{ft.label}</div>
                     <div className={`text-[10px] font-semibold ${occ ? 'text-accent-signature' : 'text-muted-foreground'}`}>{occ ? 'merge' : (ft.section || 'free')}</div>
                   </button>
@@ -205,7 +205,7 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
                 </div>
               </div>
               <button type="submit" disabled={busy || !form.label.trim()}
-                className="w-full h-11 rounded-xl bg-accent-signature text-white text-sm font-semibold hover:bg-accent-signature-hover disabled:opacity-50 transition-all">
+                className="w-full h-11 rounded-pill bg-accent-signature text-white text-sm font-semibold hover:bg-accent-signature-hover disabled:opacity-50 transition-all">
                 {busy ? 'Adding…' : 'Add table'}
               </button>
             </form>

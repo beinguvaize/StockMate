@@ -846,11 +846,11 @@ const Payroll = () => {
       <div className="flex flex-col gap-6">
         {/* Month navigator */}
         <div className="flex items-center gap-3 self-start bg-white border border-black/8 rounded-pill px-4 py-2 shadow-sm">
-          <button onClick={goPrevMonth} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-ink-primary">
+          <button onClick={goPrevMonth} className="w-6 h-6 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-ink-primary">
             <ChevronLeft size={14} />
           </button>
           <span className="text-sm font-semibold text-ink-primary min-w-[160px] text-center">{monthLabel}</span>
-          <button onClick={goNextMonth} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-ink-primary">
+          <button onClick={goNextMonth} className="w-6 h-6 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-ink-primary">
             <ChevronRight size={14} />
           </button>
         </div>
@@ -892,11 +892,11 @@ const Payroll = () => {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button onClick={discardAtt} disabled={attSaving}
-                className="px-3 py-1.5 rounded-lg border border-black/10 bg-white text-[11px] font-bold text-ink-secondary hover:text-ink-primary disabled:opacity-50 transition-all">
+                className="px-3 py-1.5 rounded-pill border border-black/10 bg-white text-[11px] font-bold text-ink-secondary hover:text-ink-primary disabled:opacity-50 transition-all">
                 Discard
               </button>
               <button onClick={saveAttendance} disabled={attSaving || !pendingCount}
-                className="px-4 py-1.5 rounded-lg bg-ink-primary text-white text-[11px] font-bold hover:bg-black disabled:opacity-50 transition-all">
+                className="px-4 py-1.5 rounded-pill bg-ink-primary text-white text-[11px] font-bold hover:bg-black disabled:opacity-50 transition-all">
                 {attSaving ? 'Saving…' : `Save ${pendingCount || ''}`.trim()}
               </button>
             </div>
@@ -1141,7 +1141,7 @@ const Payroll = () => {
                 {[['PRESENT','Present','✓'],['ABSENT','Absent','✗'],['HALF_DAY','Half day','½']].map(([val, label, icon]) => (
                   <button key={val}
                     onClick={() => { setAttStatus(attPicker.empId, attPicker.day, val); setAttPicker(null); }}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-pill text-[11px] font-semibold transition-all ${
                       st === val ? 'bg-ink-primary text-white' : 'text-ink-primary hover:bg-black/5'
                     }`}>
                     <span className="w-4 text-center">{icon}</span>{label}
@@ -1163,7 +1163,7 @@ const Payroll = () => {
                     />
                     <button
                       onClick={() => { clearAtt(attPicker.empId, attPicker.day); setAttPicker(null); }}
-                      className="w-full mt-1.5 px-2 py-1.5 rounded-lg text-[11px] font-semibold text-red-600 hover:bg-red-50 transition-all text-left">
+                      className="w-full mt-1.5 px-2 py-1.5 rounded-pill text-[11px] font-semibold text-red-600 hover:bg-red-50 transition-all text-left">
                       Clear this day
                     </button>
                   </>
@@ -1187,7 +1187,7 @@ const Payroll = () => {
   <h2 className="text-xl font-semibold text-ink-primary">Record Payment</h2>
   <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-6 uppercase">Pay Employee Salary</p>
   </div>
-  <button onClick={() => setShowSalaryModal(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-primary transition-all">
+  <button onClick={() => setShowSalaryModal(false)} className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-primary transition-all">
   <X size={16} />
   </button>
   </div>
@@ -1226,7 +1226,7 @@ const Payroll = () => {
         <h2 className="text-base font-semibold text-ink-primary">{editingEmployee ? 'Edit employee' : 'Add employee'}</h2>
         <p className="text-[11px] text-muted-foreground mt-0.5">{editingEmployee ? 'Update staff member details' : 'New staff member will be added to payroll'}</p>
       </div>
-      <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary">
+      <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary">
         <X size={15} />
       </button>
     </div>
@@ -1341,7 +1341,7 @@ const Payroll = () => {
           {PAY_TYPES.map(t => (
             <button key={t} type="button"
               onClick={() => setEmpForm({...empForm, payType: t})}
-              className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${empForm.payType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
+              className={`flex-1 py-1.5 rounded-pill text-[11px] font-semibold transition-all cursor-pointer ${empForm.payType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
               {t === 'MONTHLY' ? 'Monthly' : t === 'DAILY' ? 'Daily' : 'Weekly'}
             </button>
           ))}
@@ -1533,7 +1533,7 @@ const Payroll = () => {
     {/* Footer */}
     <div className="px-6 py-4 border-t border-black/8 flex gap-3 justify-end shrink-0">
       <button type="button" onClick={() => setShowForm(false)}
-        className="px-5 py-2 rounded-lg border border-black/10 text-sm font-medium text-ink-secondary hover:bg-black/5 transition-all cursor-pointer">
+        className="px-5 py-2 rounded-pill border border-black/10 text-sm font-medium text-ink-secondary hover:bg-black/5 transition-all cursor-pointer">
         Cancel
       </button>
       <button form="emp-form-inner" type="submit" onClick={handleSubmit} disabled={isSaving}
@@ -1577,7 +1577,7 @@ const Payroll = () => {
         <div className="flex bg-canvas rounded-lg border border-black/8 p-0.5 gap-0.5">
           {[['MONTHLY','Monthly'], ['WEEKLY','Weekly'], ['CUSTOM','Custom']].map(([t, label]) => (
             <button key={t} type="button" onClick={() => setPayPeriodType(t)}
-              className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${payPeriodType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
+              className={`px-3 py-1.5 rounded-pill text-[11px] font-semibold transition-all cursor-pointer ${payPeriodType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
               {label}
             </button>
           ))}
@@ -1614,7 +1614,7 @@ const Payroll = () => {
             </div>
           </div>
         )}
-        <button onClick={() => setShowPayRunModal(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary">
+        <button onClick={() => setShowPayRunModal(false)} className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary">
           <X size={15} />
         </button>
       </div>
@@ -1778,7 +1778,7 @@ const Payroll = () => {
   </button>
   <button 
   onClick={() => handleDelete(deleteConfirm)}
-  className="px-8 py-2 rounded-pill bg-red-500 text-white font-semibold text-xs hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+  className="px-8 py-2 rounded-pill bg-red-500 text-white font-semibold text-xs hover:bg-red-600 transition-all shadow-lg"
   >
   DELETE
   </button>

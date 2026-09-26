@@ -443,13 +443,13 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
       <div className="print-hidden sticky top-0 z-10 w-full flex items-center justify-center gap-3 py-4 mb-2 bg-black/60 backdrop-blur-md">
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full font-black text-[11px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
+          className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-pill font-black text-[11px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
         >
           <Printer size={16} /> PRINT RECEIPT
         </button>
         <button
           onClick={onClose}
-          className="w-10 h-10 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center transition-all"
+          className="w-10 h-10 rounded-xl bg-white/10 text-white hover:bg-white/20 flex items-center justify-center transition-all"
         >
           <X size={18} />
         </button>

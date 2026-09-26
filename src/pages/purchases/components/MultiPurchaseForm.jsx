@@ -465,7 +465,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
 
                   {/* Remove */}
                   <button type="button" onClick={() => removeLine(line._key)} disabled={lines.length === 1}
-                    className="mt-1 w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-20">
+                    className="mt-1 w-7 h-7 flex items-center justify-center rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-20">
                     <Trash2 size={12} />
                   </button>
                 </div>
@@ -476,7 +476,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
           {/* Add row + grand total */}
           <div className="px-4 py-3 border-t border-border/60 flex items-center justify-between">
             <button type="button" onClick={addLine}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-widest text-accent-signature bg-accent-signature/10 hover:bg-accent-signature/20 transition-colors">
+              className="flex items-center gap-2 px-3 py-1.5 rounded-pill text-[10px] font-semibold uppercase tracking-widest text-accent-signature bg-accent-signature/10 hover:bg-accent-signature/20 transition-colors">
               <Plus size={12} /> Add Row
             </button>
             <div className="flex items-center gap-2">
@@ -492,7 +492,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
         <button
           type="submit"
           disabled={loading || !header.supplier_id || lines.every(l => !l.linked_product_id)}
-          className="w-full h-12 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold text-[10px] uppercase tracking-widest rounded-2xl hover:bg-black transition-all shadow-sm disabled:opacity-40"
+          className="w-full h-12 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold text-[10px] uppercase tracking-widest rounded-pill hover:bg-black transition-all shadow-sm disabled:opacity-40"
         >
           {loading
             ? <span className="animate-pulse">Saving…</span>

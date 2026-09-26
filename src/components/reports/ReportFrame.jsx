@@ -67,7 +67,7 @@ const ReportFrame = ({ title, subtitle, filename, exportData, actions, children 
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setOpen(o => !o)}
-                className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md shadow-accent-signature/25 transition-colors"
+                className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md transition-colors"
               >
                 <Download size={15} /> Export <ChevronDown size={13} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
               </button>

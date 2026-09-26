@@ -217,13 +217,13 @@ const CreateDocument = () => {
     <div className="min-h-screen bg-canvas">
       {/* Header */}
       <div className="sticky top-0 z-20 bg-white border-b border-black/5 px-4 sm:px-6 py-3 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-black/5"><ArrowLeft size={18} /></button>
+        <button onClick={() => navigate(-1)} className="p-1.5 rounded-pill hover:bg-black/5"><ArrowLeft size={18} /></button>
         <div className="w-7 h-7 rounded-lg bg-accent-signature text-white grid place-items-center font-black text-sm">B</div>
         <div className="font-black text-base text-ink-primary">Create {cfg.label.toLowerCase()}</div>
         <div className="ml-auto flex gap-2">
-          <button onClick={() => navigate(-1)} className="px-3 py-2 rounded-xl text-[12px] font-bold border border-black/10 hover:bg-black/5">Cancel</button>
+          <button onClick={() => navigate(-1)} className="px-3 py-2 rounded-pill text-[12px] font-bold border border-black/10 hover:bg-black/5">Cancel</button>
           <button disabled={!canSave} onClick={handleSave}
-            className="px-4 py-2 rounded-xl text-[12px] font-black bg-accent-signature text-white disabled:opacity-40 hover:opacity-90">
+            className="px-4 py-2 rounded-pill text-[12px] font-black bg-accent-signature text-white disabled:opacity-40 hover:opacity-90">
             {saving ? 'Saving…' : `Save ${cfg.label.toLowerCase()}`}
           </button>
         </div>
@@ -233,7 +233,7 @@ const CreateDocument = () => {
       <div className="px-4 sm:px-6 py-3 flex gap-2 flex-wrap border-b border-black/5 bg-white">
         {Object.entries(DOC_TYPES).map(([k, d]) => (
           <button key={k} onClick={() => { setDocType(k); }}
-            className={`px-3 py-1.5 rounded-full text-[12px] font-bold transition-colors ${
+            className={`px-3 py-1.5 rounded-pill text-[12px] font-bold transition-colors ${
               docType === k ? 'bg-accent-signature text-white' : 'text-muted-foreground border border-black/10 hover:text-ink-primary'
             }`}>{d.label}</button>
         ))}

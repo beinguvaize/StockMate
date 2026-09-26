@@ -102,13 +102,13 @@ const Appointments = () => {
           <div className="flex items-center rounded-xl border border-black/10 bg-white p-0.5">
             {[['month', CalendarDays, 'Month'], ['list', List, 'List']].map(([k, Icon, label]) => (
               <button key={k} onClick={() => setView(k)} title={label}
-                className={`w-8 h-8 rounded-lg grid place-items-center transition-colors ${view === k ? 'bg-accent-signature text-white' : 'text-muted-foreground hover:text-ink-primary'}`}>
+                className={`w-8 h-8 rounded-xl grid place-items-center transition-colors ${view === k ? 'bg-accent-signature text-white' : 'text-muted-foreground hover:text-ink-primary'}`}>
                 <Icon size={14} />
               </button>
             ))}
           </div>
           <button onClick={() => setEditing('new')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-signature text-white text-xs font-bold hover:bg-accent-signature-hover transition-all">
+            className="flex items-center gap-2 px-4 py-2.5 rounded-pill bg-accent-signature text-white text-xs font-bold hover:bg-accent-signature-hover transition-all">
             <Plus size={14} /> Book appointment
           </button>
         </div>
@@ -121,9 +121,9 @@ const Appointments = () => {
           {/* ── Month grid ─────────────────────────────────────────── */}
           <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
-              <button onClick={() => shiftMonth(-1)} className="w-8 h-8 rounded-lg grid place-items-center text-muted-foreground hover:bg-muted"><ChevronLeft size={16} /></button>
+              <button onClick={() => shiftMonth(-1)} className="w-8 h-8 rounded-xl grid place-items-center text-muted-foreground hover:bg-muted"><ChevronLeft size={16} /></button>
               <div className="text-sm font-extrabold text-ink-primary">{MONTHS[cursor.m]} {cursor.y}</div>
-              <button onClick={() => shiftMonth(1)} className="w-8 h-8 rounded-lg grid place-items-center text-muted-foreground hover:bg-muted"><ChevronRight size={16} /></button>
+              <button onClick={() => shiftMonth(1)} className="w-8 h-8 rounded-xl grid place-items-center text-muted-foreground hover:bg-muted"><ChevronRight size={16} /></button>
             </div>
             <div className="grid grid-cols-7 gap-1 mb-1">
               {WEEKDAYS.map(d => <div key={d} className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground text-center py-1">{d}</div>)}
@@ -136,7 +136,7 @@ const Appointments = () => {
                 const active = day === selectedDay;
                 return (
                   <button key={day} onClick={() => setSelectedDay(day)}
-                    className={`aspect-square rounded-lg border p-1 flex flex-col items-center justify-start gap-0.5 transition-colors
+                    className={`aspect-square rounded-pill border p-1 flex flex-col items-center justify-start gap-0.5 transition-colors
                       ${active ? 'border-accent-signature bg-accent-signature/10' : 'border-transparent hover:bg-muted'}
                       ${outside ? 'opacity-35' : ''}`}>
                     <span className={`text-[11px] tabular-nums leading-none mt-1 ${isToday ? 'font-extrabold text-accent-signature' : 'font-semibold text-ink-primary'}`}>
@@ -163,7 +163,7 @@ const Appointments = () => {
               </span>
             </div>
             {dayList.length === 0 ? (
-              <button onClick={() => setEditing('new')} className="w-full py-10 text-center rounded-xl border border-dashed border-black/10 hover:border-accent-signature/40 transition-colors">
+              <button onClick={() => setEditing('new')} className="w-full py-10 text-center rounded-pill border border-dashed border-black/10 hover:border-accent-signature/40 transition-colors">
                 <Clock size={22} className="mx-auto text-muted-foreground mb-2" />
                 <p className="text-xs font-semibold text-muted-foreground">Nothing booked. Tap to add one.</p>
               </button>
@@ -240,13 +240,13 @@ const Row = ({ a, staffName, onEdit, onStatus, onComplete, onDelete }) => {
       {a.status === 'BOOKED' && (
         <div className="flex items-center gap-1 shrink-0">
           <button onClick={() => onComplete(a)} title="Complete & bill"
-            className="w-7 h-7 rounded-lg grid place-items-center text-emerald-600 hover:bg-emerald-50"><Check size={14} /></button>
+            className="w-7 h-7 rounded-xl grid place-items-center text-emerald-600 hover:bg-emerald-50"><Check size={14} /></button>
           <button onClick={() => onStatus(a.id, 'NOSHOW')} title="No-show"
-            className="w-7 h-7 rounded-lg grid place-items-center text-muted-foreground hover:bg-red-50 hover:text-red-500"><Ban size={13} /></button>
+            className="w-7 h-7 rounded-xl grid place-items-center text-muted-foreground hover:bg-red-50 hover:text-red-500"><Ban size={13} /></button>
           {/* CANCELLED was a defined status with no way to reach it — only
               Delete existed, which throws away the record of the booking. */}
           <button onClick={() => onStatus(a.id, 'CANCELLED')} title="Cancel"
-            className="w-7 h-7 rounded-lg grid place-items-center text-muted-foreground hover:bg-muted"><X size={13} /></button>
+            className="w-7 h-7 rounded-xl grid place-items-center text-muted-foreground hover:bg-muted"><X size={13} /></button>
         </div>
       )}
       <button onClick={onDelete} title="Delete"
@@ -394,7 +394,7 @@ const BookModal = ({ appointment, defaultDay, clients, staff, services, existing
               });
               setSaving(false);
             }}
-            className="w-full h-11 rounded-xl bg-accent-signature text-white text-sm font-bold hover:bg-accent-signature-hover disabled:opacity-50 transition-all">
+            className="w-full h-11 rounded-pill bg-accent-signature text-white text-sm font-bold hover:bg-accent-signature-hover disabled:opacity-50 transition-all">
             {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Book'}
           </button>
         </div>

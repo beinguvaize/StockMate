@@ -66,7 +66,7 @@ const DailyLedgerDetail = ({
         {/* Header */}
         <div className="flex items-center gap-4 px-6 py-4 border-b border-border/60 bg-card shrink-0">
           <button onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-full border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
             <ChevronLeft size={18} />
           </button>
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -83,11 +83,11 @@ const DailyLedgerDetail = ({
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button onClick={() => window.print()}
-              className="w-9 h-9 rounded-full border border-border/60 bg-canvas flex items-center justify-center hover:bg-black/5 transition-all text-foreground">
+              className="w-9 h-9 rounded-xl border border-border/60 bg-canvas flex items-center justify-center hover:bg-black/5 transition-all text-foreground">
               <Printer size={14} />
             </button>
             <button onClick={onClose}
-              className="w-9 h-9 rounded-full border border-border/60 bg-canvas flex items-center justify-center hover:bg-black/5 transition-all text-muted-foreground">
+              className="w-9 h-9 rounded-xl border border-border/60 bg-canvas flex items-center justify-center hover:bg-black/5 transition-all text-muted-foreground">
               <X size={14} />
             </button>
           </div>
@@ -251,7 +251,7 @@ const DailyLedgerDetail = ({
             </span>
           </div>
           <button onClick={onClose}
-            className="px-8 h-11 bg-ink-primary text-white font-semibold text-[10px] uppercase tracking-widest rounded-full hover:bg-black transition-all">
+            className="px-8 h-11 bg-ink-primary text-white font-semibold text-[10px] uppercase tracking-widest rounded-pill hover:bg-black transition-all">
             Close
           </button>
         </div>
