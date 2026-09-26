@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { buildClientStatement } from '../lib/clientStatement';
+import { buildClientStatement, runningTotalOfShown } from '../lib/clientStatement';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -169,6 +169,25 @@ const ClientSettlement = () => {
   const ledgerRowsView = useMemo(
     () => (newestFirst ? [...ledgerFiltered].reverse() : ledgerFiltered),
     [ledgerFiltered, newestFirst]);
+
+  // ── What the last column means when a filter is on ───────────────────────
+  // Each row carries the running balance of the WHOLE ledger. That is the
+  // right number on "All". On "Payments" it is unreadable: the bills that
+  // moved it are off screen, so three payments in a row can leave the balance
+  // HIGHER than it started, and the page used to explain that away in small
+  // print instead of fixing it.
+  //
+  // Recomputing a *balance* over the visible rows would be worse -- it would
+  // show a figure this client never owed. But a running TOTAL OF WHAT IS
+  // SHOWN is not a balance and is not invented: "payments received so far"
+  // is simply true of the rows on screen. So on a filtered view the column
+  // stops being Balance and becomes that.
+  //
+  // Accumulated in date order and then looked up by id, so the figures stay
+  // correct when the table is flipped to newest-first.
+  const { byId: runningShown, total: shownTotal } = useMemo(
+    () => runningTotalOfShown(ledgerFiltered, rowKind),
+    [ledgerFiltered, rowKind]);
 
   // Closing is always across all history — what the client owes today does not
   // change because a narrower period was chosen.
@@ -480,12 +499,14 @@ const ClientSettlement = () => {
                 <span className="text-[11px] font-bold text-muted-foreground">
                   {ledgerRowsView.length} {ledgerRowsView.length === 1 ? 'row' : 'rows'}
                 </span>
-                {/* Without this the balance column looks broken: on Payments it
-                    can rise across three consecutive credits, because the bills
-                    that raised it are filtered out of view. */}
+                {/* The warning that used to live here ("balance still counts
+                    the bills hidden by this filter") is gone because the
+                    column no longer needs excusing -- on a filtered view it
+                    shows a running total of the rows on screen instead of a
+                    whole-ledger balance. */}
                 {rowKind !== 'ALL' && (
                   <span className="text-[11px] text-muted-foreground">
-                    · balance still counts the {rowKind === 'PAYMENT' ? 'bills' : 'payments'} hidden by this filter
+                    · {rowKind === 'PAYMENT' ? 'payments only' : 'bills only'} · owed today {formatCurrency(ledgerClosing)}
                   </span>
                 )}
               </div>
@@ -502,23 +523,23 @@ const ClientSettlement = () => {
                     <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Reference</th>
                     <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Debit</th>
                     <th className="py-3 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Credit</th>
-                    {/* The balance is the running figure from the WHOLE ledger,
-                        carried on each row. Filtering to Bills or Payments hides
-                        the rows in between but not their effect, so the column
-                        appears to jump — three payments in a row can leave it
-                        higher than it started because the bills that raised it
-                        are not on screen. Recomputing over the visible subset
-                        would be worse: it would show a balance this client never
-                        had. Say what the number is instead. */}
+                    {/* On "All" this is the running balance. On a filter it is
+                        a running total of the rows shown -- see runningShown. */}
                     <th className="py-3 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">
-                      {rowKind === 'ALL' ? 'Balance' : 'Balance (all activity)'}
+                      {rowKind === 'ALL' ? 'Balance'
+                        : rowKind === 'PAYMENT' ? 'Paid so far' : 'Billed so far'}
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
                   {/* Balance carried in, so the figures below are not understated
                       by whatever the hidden history left behind. */}
-                  {ledgerHiddenBefore > 0 && !newestFirst && (
+                  {/* A brought-forward BALANCE only means something in the
+                      column that shows a balance. On a filtered view the last
+                      column counts the rows on screen and starts at zero for
+                      the period, so carrying one in would be answering a
+                      question the column is not asking. */}
+                  {ledgerHiddenBefore > 0 && !newestFirst && rowKind === 'ALL' && (
                     <tr className="bg-canvas/60">
                       <td className="py-2.5 px-4 text-[11px] font-bold text-muted-foreground tabular-nums whitespace-nowrap">{formatDate(rangeStart)}</td>
                       <td colSpan="4" className="py-2.5 px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -599,9 +620,15 @@ const ClientSettlement = () => {
                         <td className="py-3 px-3 text-right text-xs font-bold tabular-nums text-emerald-600">
                           {r.credit > 0 ? formatCurrency(r.credit) : '—'}
                         </td>
-                        <td className={`py-3 px-4 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>
-                          {formatCurrency(r.balance)}
-                        </td>
+                        {rowKind === 'ALL' ? (
+                          <td className={`py-3 px-4 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>
+                            {formatCurrency(r.balance)}
+                          </td>
+                        ) : (
+                          <td className="py-3 px-4 text-right text-xs font-bold tabular-nums text-muted-foreground">
+                            {formatCurrency(runningShown.get(r.id) || 0)}
+                          </td>
+                        )}
                       </tr>
 
                       {/* What the customer actually bought on this bill — the
@@ -650,6 +677,32 @@ const ClientSettlement = () => {
                     </tr>
                   )}
                 </tbody>
+
+                {/* Filtering to Payments used to leave the table with no total
+                    whatsoever -- you asked to see the payments and the page
+                    would not tell you what they came to. */}
+                {statementRows.length > 0 && rowKind !== 'ALL' && !searchTerm.trim() && (
+                  <tfoot>
+                    <tr className="bg-canvas border-t-2 border-black/10">
+                      <td colSpan="3" className="py-3 px-4 text-[10px] font-black uppercase tracking-wider text-ink-primary">
+                        {rowKind === 'PAYMENT' ? 'Total received' : 'Total billed'}
+                        <span className="ml-2 normal-case font-semibold text-muted-foreground">
+                          · {ledgerRowsView.length} {ledgerRowsView.length === 1 ? 'entry' : 'entries'}
+                          {rangeStart ? ` from ${formatDate(rangeStart)}` : ' — all time'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right text-[11px] font-bold tabular-nums text-muted-foreground">
+                        {rowKind === 'SALE' ? formatCurrency(shownTotal) : '—'}
+                      </td>
+                      <td className="py-3 px-3 text-right text-[11px] font-bold tabular-nums text-emerald-600">
+                        {rowKind === 'PAYMENT' ? formatCurrency(shownTotal) : '—'}
+                      </td>
+                      <td className="py-3 px-4 text-right text-sm font-black tabular-nums text-ink-primary">
+                        {formatCurrency(shownTotal)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
 
                 {statementRows.length > 0 && rowKind === 'ALL' && !searchTerm.trim() && (
                   <tfoot>
