@@ -7,6 +7,7 @@ import Button from '../../../shared/Button';
 import { TAX_SLABS, TAX_SLABS_WITH_CESS, UNITS } from '../../../lib/constants';
 import { uploadProductImage, listTenantProductImages } from '../../../lib/supabase';
 import { useTenant } from '../../../context/TenantContext';
+import { PACK_KEYS, fieldsFor, cleanAttributes, validateAttributes } from '../../../lib/sectorFields';
 
 const DEFAULT_CATEGORIES = [
   'Electronics', 'Clothing & Apparel', 'Food & Beverages', 'Pharmaceuticals',
@@ -16,8 +17,13 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId }) => {
-  const { businessType } = useTenant();
+  const { businessType, isModuleOn } = useTenant();
   const isResto = businessType === 'RESTAURANT';
+
+  // Capability packs are module toggles, so the same switch that shows a
+  // feature in the nav decides whether its fields appear on this form.
+  const activePacks = PACK_KEYS.filter(k => isModuleOn(k));
+  const packFields = fieldsFor(activePacks);
 
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
@@ -27,6 +33,9 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     food_type: '', is_available: true, station: '', modifier_groups: [],   // menu (restaurant)
     duration_min: '',   // service catalog
     track_serial: false,   // serialized stock (IMEI / serial per unit)
+    // Sector pack fields live flat on the form for editing and are folded
+    // into `attributes` on save. See src/lib/sectorFields.js.
+    attributes: {},
   });
   // Base units in one packet (0.25 KG for a 250 g pack). 0 when the product
   // is not sold by an alternate unit.
@@ -106,6 +115,11 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         lowStockThreshold: editingProduct.lowStockThreshold || 10,
         barcode: editingProduct.barcode || '',
         modifier_groups: Array.isArray(editingProduct.modifier_groups) ? editingProduct.modifier_groups : [],
+        // jsonb, and NOT NULL only from this migration forward — a row written
+        // before it arrives as null, so an editor must not spread undefined
+        // into the inputs.
+        attributes: (editingProduct.attributes && typeof editingProduct.attributes === 'object')
+          ? editingProduct.attributes : {},
       });
       setImagePreview(editingProduct.image || null);
     } else {
@@ -120,6 +134,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         food_type: '', is_available: true, station: '', modifier_groups: [],
         duration_min: '',
         track_serial: false,
+        attributes: {},
       });
       setImagePreview(null);
     }
@@ -168,6 +183,9 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       // made every save fail with an error naming a field that was not on
       // screen, and since service mode covers EVERY item in a SERVICES tenant,
       // that tenant could not add a single thing to its catalogue.
+      const attrError = validateAttributes(formData.attributes, activePacks);
+      if (attrError) { setSaveError(attrError); setUploading(false); return; }
+
       const priceError = validateItemPricing({ ...formData, businessType });
       if (priceError) {
         setSaveError(priceError);
@@ -213,6 +231,11 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         modifier_groups: Array.isArray(formData.modifier_groups) ? formData.modifier_groups : [],
         duration_min: Number(formData.duration_min) || null,
         track_serial: isService ? false : !!formData.track_serial,
+        // Only keys the enabled packs declare, coerced, with blanks omitted
+        // rather than stored as ''. A pack that is switched off contributes
+        // nothing -- but note this also means turning a pack off stops SAVING
+        // its fields while leaving whatever is already on the row untouched.
+        attributes: cleanAttributes(formData.attributes, activePacks),
       };
 
       // Bound the save so a stalled request can't leave the button stuck on
@@ -451,6 +474,34 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       <p className="text-[11px] text-muted-foreground">No modifiers. Add a group for sizes or add-ons.</p>
                     )}
                   </div>
+                </div>
+              </>
+            )}
+
+            {/* Sector pack fields — rendered from src/lib/sectorFields.js, so a
+                new pack is an entry in that registry rather than more JSX
+                here. A service holds no parts catalog. */}
+            {packFields.length > 0 && !isService && (
+              <>
+                <Section>Catalog details</Section>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {packFields.map(f => (
+                    <div key={f.key}>
+                      <label className={labelCls}>{f.label}</label>
+                      <input
+                        type={f.type === 'number' ? 'number' : 'text'}
+                        {...(f.min != null ? { min: f.min } : {})}
+                        className={inputCls}
+                        placeholder={f.placeholder || ''}
+                        value={formData.attributes?.[f.key] ?? ''}
+                        onChange={e => setFormData(d => ({
+                          ...d,
+                          attributes: { ...(d.attributes || {}), [f.key]: e.target.value },
+                        }))}
+                      />
+                      {f.hint && <p className="text-[11px] text-ink-tertiary mt-1">{f.hint}</p>}
+                    </div>
+                  ))}
                 </div>
               </>
             )}
