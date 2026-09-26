@@ -23,7 +23,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   tailwind.config = { theme: { extend: {
-    colors: { primary:'#1A1815', secondary:'#6b6660', surface:'#FBFAF7', canvas:'#FFFFFF', line:'#E9E6DF', accent:'#D97706', 'accent-700':'#B45309' },
+    colors: { primary:'#1A1815', secondary:'#6b6660', surface:'#FBFAF7', canvas:'#FFFFFF', line:'#E9E6DF', accent:'#D97706', 'ok':'#047857', 'bad':'#E11D48', 'accent-solid':'#B45309', 'accent-hover':'#92400E', 'accent-text':'#AB4F08', 'accent-700':'#B45309' },
     fontFamily: { sans:['Manrope','sans-serif'], mono:['JetBrains Mono','monospace'] },
   }}}
 </script>
@@ -41,13 +41,13 @@
     <div class="relative z-10 max-w-md">
       <h1 class="text-3xl lg:text-4xl font-light leading-tight tracking-tight">Your shop's ledger, online in two minutes.</h1>
       <ul class="mt-8 space-y-3 text-sm text-white/70 font-light">
-        <li class="flex gap-3"><span class="material-symbols-outlined text-accent" style="font-size:18px">check_circle</span> 60 days free — no credit card</li>
-        <li class="flex gap-3"><span class="material-symbols-outlined text-accent" style="font-size:18px">check_circle</span> GST billing, inventory, POS &amp; reports</li>
-        <li class="flex gap-3"><span class="material-symbols-outlined text-accent" style="font-size:18px">check_circle</span> Works offline · free mobile app</li>
-        <li class="flex gap-3"><span class="material-symbols-outlined text-accent" style="font-size:18px">check_circle</span> Cancel anytime</li>
+        <li class="flex gap-3"><span class="material-symbols-outlined text-accent-text" style="font-size:18px">check_circle</span> 60 days free — no credit card</li>
+        <li class="flex gap-3"><span class="material-symbols-outlined text-accent-text" style="font-size:18px">check_circle</span> GST billing, inventory, POS &amp; reports</li>
+        <li class="flex gap-3"><span class="material-symbols-outlined text-accent-text" style="font-size:18px">check_circle</span> Works offline · free mobile app</li>
+        <li class="flex gap-3"><span class="material-symbols-outlined text-accent-text" style="font-size:18px">check_circle</span> Cancel anytime</li>
       </ul>
     </div>
-    <div class="relative z-10 text-xs text-white/40 font-light">© 2026 bookledger · Built for Indian business</div>
+    <div class="relative z-10 text-xs text-white/60 font-light">© 2026 bookledger · Built for Indian business</div>
     <div class="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-accent/20 blur-3xl"></div>
   </aside>
 
@@ -55,9 +55,9 @@
   <main class="lg:w-3/5 flex items-center justify-center p-6 lg:p-14">
     <div class="w-full max-w-md">
       <div class="mb-7">
-        <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Create workspace</span>
+        <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-text">Create workspace</span>
         <h2 class="mt-3 text-2xl font-light tracking-tight">Start your free trial</h2>
-        <p class="mt-2 text-sm text-secondary font-light">Already have an account? <a href="https://app.bookledger.in/login" class="text-accent hover:underline font-medium">Sign in</a></p>
+        <p class="mt-2 text-sm text-secondary font-light">Already have an account? <a href="https://app.bookledger.in/login" class="text-accent-text hover:underline font-medium">Sign in</a></p>
       </div>
 
       <form id="reg" class="space-y-4">
@@ -93,10 +93,10 @@
           </div>
         </div>
         <label class="flex items-start gap-2 text-xs text-secondary font-light pt-1">
-          <input type="checkbox" required class="mt-0.5 rounded border-line text-accent focus:ring-accent"/>
-          <span>I agree to the <a href="terms.html" class="text-accent hover:underline">Terms</a> &amp; <a href="privacy.html" class="text-accent hover:underline">Privacy Policy</a>.</span>
+          <input type="checkbox" required class="mt-0.5 rounded border-line text-accent-text focus:ring-accent"/>
+          <span>I agree to the <a href="terms.html" class="text-accent-text hover:underline">Terms</a> &amp; <a href="privacy.html" class="text-accent-text hover:underline">Privacy Policy</a>.</span>
         </label>
-        <button id="submitBtn" type="submit" class="w-full mt-2 bg-accent text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-accent-700 shadow-md shadow-accent/25 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">Create my workspace →</button>
+        <button id="submitBtn" type="submit" class="w-full mt-2 bg-accent-solid text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-accent-hover shadow-md shadow-accent/25 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">Create my workspace →</button>
         <p id="regMsg" class="hidden text-sm font-medium rounded-xl px-3.5 py-2.5"></p>
         <p class="text-center text-[11px] text-secondary font-light">60-day free trial · no card required</p>
       </form>

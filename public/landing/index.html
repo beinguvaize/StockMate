@@ -22,7 +22,16 @@
   tailwind.config = { theme: { extend: {
     colors: {
       primary: '#1A1815', secondary: '#6b6660', surface: '#FBFAF7',
-      canvas: '#FFFFFF', line: '#E9E6DF', accent: '#D97706', 'accent-700': '#B45309',
+      canvas: '#FFFFFF', line: '#E9E6DF',
+      // One hue, four jobs. Amber at #D97706 is a FILL colour: it clears the
+      // 3:1 a non-text element needs and fails the 4.5:1 that text needs, so a
+      // white label on it measured 3.19:1 and amber body text measured 3.05:1.
+      // Splitting the roles fixes both without moving the brand off the page.
+      accent: '#D97706',        // fills with no text on them
+      'accent-solid': '#B45309',// fill under a white label   5.02:1
+      'accent-hover': '#92400E',// its hover                  7.09:1
+      'accent-text': '#AB4F08', // amber as text on light     5.45:1
+      'accent-700': '#B45309',  // kept: existing markup still names it
     },
     fontFamily: { sans: ['Manrope','sans-serif'], mono: ['JetBrains Mono','monospace'] },
   }}}
@@ -66,9 +75,9 @@
     </div>
     <div class="hidden md:flex gap-3 items-center">
       <a href="https://app.bookledger.in/login" class="text-sm font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
-      <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-700 transition-colors">Get Started</a>
+      <a href="https://app.bookledger.in/register" class="bg-accent-solid text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-hover transition-colors">Get Started</a>
     </div>
-    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent-solid text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
   </div>
 </nav>
 
@@ -78,7 +87,7 @@
   <section class="max-w-[1200px] mx-auto px-6 lg:px-8 pt-24 lg:pt-32 pb-12">
     <div class="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 items-center">
       <div>
-        <p class="text-sm font-semibold text-accent">GST billing, inventory and POS — that keep working offline.</p>
+        <p class="text-sm font-semibold text-accent-text">GST billing, inventory and POS — that keep working offline.</p>
         <h1 class="mt-5 text-4xl md:text-6xl font-semibold text-primary max-w-4xl leading-[1.03] tracking-[-0.03em]">
           The internet goes down.<br/>Your counter doesn’t.
         </h1>
@@ -86,7 +95,7 @@
           Create GST invoices, track stock in real time, recover dues, and file GSTR — on web, desktop and a free mobile app. Works offline, syncs when you're back.
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-3">
-          <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-6 py-3 rounded-full hover:bg-accent-700 transition-colors">Try free for 60 days</a>
+          <a href="https://app.bookledger.in/register" class="bg-accent-solid text-white text-sm font-semibold px-6 py-3 rounded-full hover:bg-accent-hover transition-colors">Try free for 60 days</a>
           <a href="features.html" class="text-sm font-semibold text-primary px-6 py-3 rounded-full border border-line hover:bg-surface transition-colors">See features</a>
           <span class="text-xs text-secondary font-light">No credit card required</span>
         </div>
@@ -109,18 +118,18 @@
         <span class="w-3 h-3 rounded-full bg-line"></span><span class="w-3 h-3 rounded-full bg-line"></span><span class="w-3 h-3 rounded-full bg-line"></span>
         <div class="ml-3 flex items-center gap-2 text-[11px] mono text-secondary"><img src="bookledger-logo.png" alt="" class="h-4 w-auto"/> · Dashboard</div>
         <span class="ml-auto grid offline-seq text-[10px] mono font-bold">
-          <span class="seq-state" data-beat="1"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">● Synced</span></span>
-          <span class="seq-state" data-beat="2"><span class="px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">● No internet</span></span>
-          <span class="seq-state" data-beat="3"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">● Synced 1 bill</span></span>
+          <span class="seq-state" data-beat="1"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-ok">● Synced</span></span>
+          <span class="seq-state" data-beat="2"><span class="px-2 py-0.5 rounded-full bg-stone-100 text-secondary">● No internet</span></span>
+          <span class="seq-state" data-beat="3"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-ok">● Synced 1 bill</span></span>
         </span>
       </div>
       <div class="p-5 lg:p-7 bg-surface seq-dim">
         <!-- KPI strip -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-px bg-line rounded-xl overflow-hidden border border-line mb-5">
-          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Today Sales</div><div class="mono text-xl font-bold mt-1.5"><span class="text-accent/60 text-sm">₹</span>84,200</div><div class="text-[10px] font-bold text-emerald-600 mt-1">▲ 12%</div></div>
-          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Stock Value</div><div class="mono text-xl font-bold mt-1.5"><span class="text-accent/60 text-sm">₹</span>1,21,326</div><div class="text-[10px] font-bold text-secondary mt-1">21 SKUs</div></div>
-          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Outstanding</div><div class="mono text-xl font-bold mt-1.5 text-accent"><span class="text-accent/60 text-sm">₹</span>22,150</div><div class="text-[10px] font-bold text-secondary mt-1">5 clients</div></div>
-          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Today Expenses</div><div class="mono text-xl font-bold mt-1.5"><span class="text-accent/60 text-sm">₹</span>10,740</div><div class="text-[10px] font-bold text-rose-500 mt-1">▼ 4%</div></div>
+          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Today Sales</div><div class="mono text-xl font-bold mt-1.5"><span class="text-accent-text text-sm">₹</span>84,200</div><div class="text-[10px] font-bold text-ok mt-1">▲ 12%</div></div>
+          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Stock Value</div><div class="mono text-xl font-bold mt-1.5"><span class="text-accent-text text-sm">₹</span>1,21,326</div><div class="text-[10px] font-bold text-secondary mt-1">21 SKUs</div></div>
+          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Outstanding</div><div class="mono text-xl font-bold mt-1.5 text-accent-text"><span class="text-accent-text text-sm">₹</span>22,150</div><div class="text-[10px] font-bold text-secondary mt-1">5 clients</div></div>
+          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Today Expenses</div><div class="mono text-xl font-bold mt-1.5"><span class="text-accent-text text-sm">₹</span>10,740</div><div class="text-[10px] font-bold text-bad mt-1">▼ 4%</div></div>
         </div>
         <div class="grid lg:grid-cols-[1.4fr_1fr] gap-5">
           <!-- chart card -->
@@ -138,7 +147,7 @@
           </div>
           <!-- recent invoices -->
           <div class="rounded-xl bg-canvas border border-line overflow-hidden">
-            <div class="px-4 py-3 border-b border-line"><span class="mono text-[11px] font-bold text-accent">$ invoices --recent</span></div>
+            <div class="px-4 py-3 border-b border-line"><span class="mono text-[11px] font-bold text-accent-text">$ invoices --recent</span></div>
             <div class="divide-y divide-line text-sm">
               <div class="seq-bill flex items-center justify-between px-4 py-2.5">
                 <div><div class="font-semibold">Anwar Traders</div>
@@ -146,13 +155,13 @@
                     <span class="seq-held">saved on this device</span><span class="seq-sent">INV/2026/0232</span>
                   </div>
                 </div>
-                <div class="text-right"><div class="mono font-bold"><span class="text-accent/60">₹</span>1,450</div>
-                  <span class="text-[9px] font-bold uppercase"><span class="seq-held text-stone-500">Queued</span><span class="seq-sent text-emerald-600">Paid</span></span>
+                <div class="text-right"><div class="mono font-bold"><span class="text-accent-text">₹</span>1,450</div>
+                  <span class="text-[9px] font-bold uppercase"><span class="seq-held text-secondary">Queued</span><span class="seq-sent text-ok">Paid</span></span>
                 </div>
               </div>
-              <div class="flex items-center justify-between px-4 py-2.5"><div><div class="font-semibold">Sharma Kirana</div><div class="mono text-[10px] text-secondary">INV/2026/0231</div></div><div class="text-right"><div class="mono font-bold"><span class="text-accent/60">₹</span>12,400</div><span class="text-[9px] font-bold text-emerald-600 uppercase">Paid</span></div></div>
-              <div class="flex items-center justify-between px-4 py-2.5"><div><div class="font-semibold">Lakshmi Stores</div><div class="mono text-[10px] text-secondary">INV/2026/0230</div></div><div class="text-right"><div class="mono font-bold"><span class="text-accent/60">₹</span>33,200</div><span class="text-[9px] font-bold text-amber-700 uppercase">Pending</span></div></div>
-              <div class="flex items-center justify-between px-4 py-2.5"><div><div class="font-semibold">Walk-in</div><div class="mono text-[10px] text-secondary">INV/2026/0229</div></div><div class="text-right"><div class="mono font-bold"><span class="text-accent/60">₹</span>880</div><span class="text-[9px] font-bold text-emerald-600 uppercase">Paid</span></div></div>
+              <div class="flex items-center justify-between px-4 py-2.5"><div><div class="font-semibold">Sharma Kirana</div><div class="mono text-[10px] text-secondary">INV/2026/0231</div></div><div class="text-right"><div class="mono font-bold"><span class="text-accent-text">₹</span>12,400</div><span class="text-[9px] font-bold text-ok uppercase">Paid</span></div></div>
+              <div class="flex items-center justify-between px-4 py-2.5"><div><div class="font-semibold">Lakshmi Stores</div><div class="mono text-[10px] text-secondary">INV/2026/0230</div></div><div class="text-right"><div class="mono font-bold"><span class="text-accent-text">₹</span>33,200</div><span class="text-[9px] font-bold text-amber-700 uppercase">Pending</span></div></div>
+              <div class="flex items-center justify-between px-4 py-2.5"><div><div class="font-semibold">Walk-in</div><div class="mono text-[10px] text-secondary">INV/2026/0229</div></div><div class="text-right"><div class="mono font-bold"><span class="text-accent-text">₹</span>880</div><span class="text-[9px] font-bold text-ok uppercase">Paid</span></div></div>
             </div>
           </div>
         </div>
@@ -224,11 +233,11 @@
             </div>
             <div class="flex items-center justify-between pt-1">
               <span class="text-[11px] font-bold uppercase tracking-widest text-secondary">Total · incl GST</span>
-              <span class="mono text-2xl font-bold"><span class="text-accent/50 text-lg mr-0.5">₹</span>6,100</span>
+              <span class="mono text-2xl font-bold"><span class="text-accent-text text-lg mr-0.5">₹</span>6,100</span>
             </div>
             <div class="flex justify-end gap-3 items-center pt-1">
               <button class="text-sm font-semibold text-secondary hover:text-primary">Save draft</button>
-              <button class="bg-accent text-white text-sm px-5 py-2.5 rounded-full font-bold hover:bg-accent-700 transition-colors">Create &amp; print</button>
+              <button class="bg-accent-solid text-white text-sm px-5 py-2.5 rounded-full font-bold hover:bg-accent-hover transition-colors">Create &amp; print</button>
             </div>
           </div>
         </div>
@@ -237,7 +246,7 @@
       <!-- Right: reveal list -->
       <div class="w-full lg:w-2/5 bg-canvas border-l border-line p-6 lg:p-10 flex flex-col">
         <div class="flex items-center gap-3 mb-5">
-          <span class="material-symbols-outlined text-accent" style="font-size:26px">insights</span>
+          <span class="material-symbols-outlined text-accent-text" style="font-size:26px">insights</span>
           <h2 class="text-3xl font-light tracking-tight">One platform, end to end</h2>
         </div>
         <p class="text-secondary text-sm mb-10 leading-relaxed font-light max-w-md">
@@ -274,54 +283,54 @@
   <!-- Features grid --><!-- ruled -->
   <section id="features" class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24">
     <div class="max-w-2xl">
-      <span class="text-sm font-semibold text-accent">Everything you need</span>
+      <span class="text-sm font-semibold text-accent-text">Everything you need</span>
       <h2 class="mt-4 text-3xl md:text-4xl font-light tracking-tight">A complete back office, not a billing toy.</h2>
       <p class="mt-4 text-secondary font-light leading-relaxed">Eight tightly-integrated modules. One ledger of truth. Built for Indian retailers, distributors and van-sales operations.</p>
     </div>
     <div class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-line rounded-2xl overflow-hidden border border-line">
       <!-- feature cards -->
       <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">receipt_long</span>
+        <span class="material-symbols-outlined text-accent-text" style="font-size:24px">receipt_long</span>
         <h3 class="mt-4 text-lg font-medium">GST Billing &amp; Invoices</h3>
         <p class="mt-2 text-sm text-secondary font-light leading-relaxed">CGST/SGST/IGST, inclusive or exclusive, HSN, e-invoice numbering. Print or share — even offline.</p>
       </div>
       <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">point_of_sale</span>
+        <span class="material-symbols-outlined text-accent-text" style="font-size:24px">point_of_sale</span>
         <h3 class="mt-4 text-lg font-medium">Offline POS</h3>
         <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Fast counter sales with discounts, hold/park, UPI QR and a dual-screen customer display.</p>
       </div>
       <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">inventory_2</span>
+        <span class="material-symbols-outlined text-accent-text" style="font-size:24px">inventory_2</span>
         <h3 class="mt-4 text-lg font-medium">Inventory &amp; FIFO</h3>
         <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Batches, FIFO/WAC costing, low-stock alerts and multi-store stock that always ties out.</p>
       </div>
       <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">groups</span>
+        <span class="material-symbols-outlined text-accent-text" style="font-size:24px">groups</span>
         <h3 class="mt-4 text-lg font-medium">Clients &amp; Receivables</h3>
         <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Track dues, ageing, statements and settle payments — recover money faster.</p>
       </div>
       <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">payments</span>
+        <span class="material-symbols-outlined text-accent-text" style="font-size:24px">payments</span>
         <h3 class="mt-4 text-lg font-medium">Expenses &amp; ITC</h3>
         <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Recurring expenses, payment methods, input-tax-credit capture and per-store spend.</p>
       </div>
       <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">menu_book</span>
+        <span class="material-symbols-outlined text-accent-text" style="font-size:24px">menu_book</span>
         <h3 class="mt-4 text-lg font-medium">Day Book &amp; Cash</h3>
         <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Daily cash position, opening/closing, bank reconciliation — per store.</p>
       </div>
       <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">local_shipping</span>
+        <span class="material-symbols-outlined text-accent-text" style="font-size:24px">local_shipping</span>
         <h3 class="mt-4 text-lg font-medium">Van Sales &amp; Routes</h3>
         <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Load vehicles, dispatch routes, sell on the move and reconcile back at the warehouse.</p>
       </div>
       <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">monitoring</span>
+        <span class="material-symbols-outlined text-accent-text" style="font-size:24px">monitoring</span>
         <h3 class="mt-4 text-lg font-medium">Reports &amp; GSTR</h3>
         <p class="mt-2 text-sm text-secondary font-light leading-relaxed">28 reports — Balance Sheet, P&amp;L, Trial Balance, ageing, GSTR-1/3B — export to Excel &amp; PDF.</p>
       </div>
       <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">badge</span>
+        <span class="material-symbols-outlined text-accent-text" style="font-size:24px">badge</span>
         <h3 class="mt-4 text-lg font-medium">Payroll &amp; Staff</h3>
         <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Employees, attendance-based pay runs and salary tracking built in.</p>
       </div>
@@ -334,7 +343,7 @@
       <div>
         <h2 class="text-3xl md:text-4xl font-light tracking-tight">Web, desktop &amp; a free mobile app — fully offline.</h2>
         <p class="mt-4 text-white/60 font-light leading-relaxed max-w-xl">Ring sales on the counter, bill from your phone on the road, and reconcile on desktop. An offline-first sync engine queues everything and reconciles the moment you're back online — no sale ever lost.</p>
-        <a href="https://app.bookledger.in/register" class="inline-block mt-7 bg-accent text-white text-sm font-semibold px-6 py-3 rounded-full hover:bg-accent-700 transition-colors">Get the apps</a>
+        <a href="https://app.bookledger.in/register" class="inline-block mt-7 bg-accent-solid text-white text-sm font-semibold px-6 py-3 rounded-full hover:bg-accent-hover transition-colors">Get the apps</a>
       </div>
       <div class="flex gap-8">
         <div class="text-center"><span class="material-symbols-outlined" style="font-size:34px">desktop_windows</span><div class="mt-2 text-xs text-white/50 uppercase tracking-widest">Web · Desktop</div></div>
@@ -359,9 +368,9 @@
     <div class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24">
       <h2 class="text-3xl md:text-4xl font-light tracking-tight max-w-xl">Live in three steps.</h2>
       <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-10">
-        <div><div class="mono text-accent text-sm font-bold">01</div><h3 class="mt-3 text-lg font-medium">Create your workspace</h3><p class="mt-2 text-sm text-secondary font-light leading-relaxed">Sign up, add your business &amp; GSTIN. Two minutes, no card.</p></div>
-        <div><div class="mono text-accent text-sm font-bold">02</div><h3 class="mt-3 text-lg font-medium">Add products &amp; clients</h3><p class="mt-2 text-sm text-secondary font-light leading-relaxed">Import your catalogue and parties, or start from a sale.</p></div>
-        <div><div class="mono text-accent text-sm font-bold">03</div><h3 class="mt-3 text-lg font-medium">Bill, track, report</h3><p class="mt-2 text-sm text-secondary font-light leading-relaxed">Run sales, watch stock and cash, file GSTR — all in sync.</p></div>
+        <div><div class="mono text-accent-text text-sm font-bold">01</div><h3 class="mt-3 text-lg font-medium">Create your workspace</h3><p class="mt-2 text-sm text-secondary font-light leading-relaxed">Sign up, add your business &amp; GSTIN. Two minutes, no card.</p></div>
+        <div><div class="mono text-accent-text text-sm font-bold">02</div><h3 class="mt-3 text-lg font-medium">Add products &amp; clients</h3><p class="mt-2 text-sm text-secondary font-light leading-relaxed">Import your catalogue and parties, or start from a sale.</p></div>
+        <div><div class="mono text-accent-text text-sm font-bold">03</div><h3 class="mt-3 text-lg font-medium">Bill, track, report</h3><p class="mt-2 text-sm text-secondary font-light leading-relaxed">Run sales, watch stock and cash, file GSTR — all in sync.</p></div>
       </div>
     </div>
   </section>
@@ -369,7 +378,7 @@
   <!-- Pricing preview -->
   <section id="pricing" class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24">
     <div class="text-center max-w-2xl mx-auto">
-      <span class="text-sm font-semibold text-accent">Simple pricing</span>
+      <span class="text-sm font-semibold text-accent-text">Simple pricing</span>
       <h2 class="mt-4 text-3xl md:text-4xl font-light tracking-tight">Plans that grow with your shop.</h2>
       <p class="mt-4 text-secondary font-light">Start free for 60 days. The mobile app stays free, forever.</p>
     </div>
@@ -380,9 +389,9 @@
         <div class="mt-3 mono text-3xl font-bold">₹0</div>
         <p class="mt-2 text-sm text-secondary font-light">One shop, the essentials.</p>
         <ul class="mt-5 space-y-2 text-sm text-secondary font-light flex-1">
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Billing, inventory, POS, day book</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> 1 user · 1 store</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Free mobile app</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Billing, inventory, POS, day book</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> 1 user · 1 store</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Free mobile app</li>
         </ul>
         <a href="https://app.bookledger.in/register?plan=free" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full border border-line hover:bg-surface transition-colors">Start free</a>
       </div>
@@ -392,24 +401,24 @@
         <div class="mt-3 mono text-3xl font-bold">₹2,999<span class="text-base font-normal text-secondary">/yr</span></div>
         <p class="mt-2 text-sm text-secondary font-light">A busy shop on full GST.</p>
         <ul class="mt-5 space-y-2 text-sm text-secondary font-light flex-1">
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Everything in Free +</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Purchases, suppliers, estimates</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> All reports, GSTR, payroll · 3 users</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Everything in Free +</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Purchases, suppliers, estimates</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> All reports, GSTR, payroll · 3 users</li>
         </ul>
         <a href="https://app.bookledger.in/register?plan=growth" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full border border-line hover:bg-surface transition-colors">Start free trial</a>
       </div>
       <!-- Pro (featured) -->
       <div class="rounded-2xl border-2 border-accent bg-canvas p-7 flex flex-col shadow-lg shadow-accent/10 relative">
-        <span class="absolute -top-3 left-7 bg-accent text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Most popular</span>
-        <div class="text-sm font-semibold uppercase tracking-widest text-accent">Pro</div>
+        <span class="absolute -top-3 left-7 bg-accent-solid text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Most popular</span>
+        <div class="text-sm font-semibold uppercase tracking-widest text-accent-text">Pro</div>
         <div class="mt-3 mono text-3xl font-bold">₹5,999<span class="text-base font-normal text-secondary">/yr</span></div>
         <p class="mt-2 text-sm text-secondary font-light">Multi-store, manufacturing, field sales.</p>
         <ul class="mt-5 space-y-2 text-sm text-secondary font-light flex-1">
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Everything in Growth +</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Multi-store, manufacturing, van sales</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Restaurant &amp; services, e-invoice · 5 users</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Everything in Growth +</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Multi-store, manufacturing, van sales</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Restaurant &amp; services, e-invoice · 5 users</li>
         </ul>
-        <a href="https://app.bookledger.in/register?plan=pro" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full bg-accent text-white hover:bg-accent-700 transition-colors">Start free trial</a>
+        <a href="https://app.bookledger.in/register?plan=pro" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full bg-accent-solid text-white hover:bg-accent-hover transition-colors">Start free trial</a>
       </div>
       <!-- Enterprise -->
       <div class="rounded-2xl border border-line bg-canvas p-7 flex flex-col">
@@ -417,14 +426,14 @@
         <div class="mt-3 mono text-3xl font-bold">Custom</div>
         <p class="mt-2 text-sm text-secondary font-light">Chains &amp; multi-location teams.</p>
         <ul class="mt-5 space-y-2 text-sm text-secondary font-light flex-1">
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Everything in Pro +</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Unlimited users &amp; stores, audit log</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> API access &amp; white-label</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Everything in Pro +</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Unlimited users &amp; stores, audit log</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> API access &amp; white-label</li>
         </ul>
         <a href="contact.html" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full border border-line hover:bg-surface transition-colors">Contact sales</a>
       </div>
     </div>
-    <p class="mt-6 text-center text-xs text-secondary font-light">Prices exclusive of GST. <a href="pricing.html" class="text-accent hover:underline">Compare all features →</a></p>
+    <p class="mt-6 text-center text-xs text-secondary font-light">Prices exclusive of GST. <a href="pricing.html" class="text-accent-text hover:underline">Compare all features →</a></p>
   </section>
 
   <!-- FAQ -->
@@ -456,7 +465,7 @@
   <section class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24 text-center">
     <h2 class="text-3xl md:text-4xl font-light tracking-tight">Start billing in five minutes.</h2>
     <p class="mt-4 text-secondary font-light">Free for 60 days. Free mobile app forever. No card needed.</p>
-    <a href="https://app.bookledger.in/register" class="inline-block mt-8 bg-accent text-white text-sm font-semibold px-7 py-3.5 rounded-full hover:bg-accent-700 transition-colors">Create your workspace</a>
+    <a href="https://app.bookledger.in/register" class="inline-block mt-8 bg-accent-solid text-white text-sm font-semibold px-7 py-3.5 rounded-full hover:bg-accent-hover transition-colors">Create your workspace</a>
   </section>
 </main>
 
