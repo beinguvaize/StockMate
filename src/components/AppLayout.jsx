@@ -172,6 +172,16 @@ const Navbar = () => {
  // Remembered per browser: a shop on a small laptop collapses once, not
  // every morning. Wrapped because storage throws in private windows.
  const { railCollapsed, toggleRail } = useRail();
+ const [isRailUserOpen, setIsRailUserOpen] = React.useState(false);
+ const railUserRef = useRef(null);
+ React.useEffect(() => {
+   if (!isRailUserOpen) return;
+   const onDown = (e) => { if (!railUserRef.current?.contains(e.target)) setIsRailUserOpen(false); };
+   const onEsc  = (e) => { if (e.key === 'Escape') setIsRailUserOpen(false); };
+   document.addEventListener('mousedown', onDown);
+   document.addEventListener('keydown', onEsc);
+   return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onEsc); };
+ }, [isRailUserOpen]);
 
  // Hovering a collapsed rail peeks it open. The rail is `fixed` and the page's
  // inset is driven by the STORED width, not this one, so a peek overlays the
@@ -332,7 +342,9 @@ const Navbar = () => {
      </div>
    )}
 
-   <nav aria-label="Main" data-rail className={`flex-1 overflow-y-auto custom-scrollbar pb-3 flex flex-col gap-0.5 ${narrow ? 'items-center px-3' : 'px-4'}`}>
+   <nav aria-label="Main" data-rail
+        style={{ maskImage: 'linear-gradient(to bottom, #000 calc(100% - 16px), transparent)', WebkitMaskImage: 'linear-gradient(to bottom, #000 calc(100% - 16px), transparent)' }}
+        className={`flex-1 overflow-y-auto custom-scrollbar pb-3 flex flex-col gap-0.5 ${narrow ? 'items-center px-3' : 'px-4'}`}>
      {primaryNavItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
 
      {moreNavItems.filter(i => !i.hidden).length > 0 && (
@@ -343,7 +355,90 @@ const Navbar = () => {
      {moreNavItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
    </nav>
 
-   <div className={`shrink-0 border-t border-black/5 py-3 flex flex-col gap-0.5 ${narrow ? 'items-center px-3' : 'px-4'}`}>
+   {/* Who you are signed in as. It used to sit at the far right of a header
+       that held nothing else, so a 64px band ran across every screen to
+       carry one avatar. In the rail it sits with the other things that are
+       about you rather than about the page, and the band is gone. */}
+   <div className={`shrink-0 border-t border-black/5 pt-3 ${narrow ? 'px-3' : 'px-4'}`} ref={railUserRef}>
+     {/* Sync status is a pill and a button; neither fits 68px, and both hung
+         over the rail's edge when it was collapsed. The rail opens on hover,
+         so the status is one pointer away rather than gone. */}
+     {!narrow && (
+       <div className="flex items-center justify-between gap-2">
+         <SyncStatusButton />
+         <SyncStatus />
+       </div>
+     )}
+
+     <button
+       type="button"
+       onClick={() => setIsRailUserOpen(o => !o)}
+       aria-haspopup="menu"
+       aria-expanded={isRailUserOpen}
+       title={currentUser?.name || 'Account'}
+       className={`w-full flex items-center rounded-pill transition-colors duration-150 hover:bg-black/[0.035] ${narrow ? 'justify-center p-1' : 'mt-2 gap-3 p-1.5'}`}
+     >
+       <span className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-black/5 shrink-0">
+         <img
+           src={currentUser?.avatar_url || getDefaultAvatar(currentUser?.name || currentUser?.email || 'user')}
+           alt=""
+           className="w-full h-full object-cover"
+         />
+       </span>
+       {!narrow && (
+         <span className="min-w-0 flex-1 text-left">
+           <span className="block text-[13px] font-semibold text-ink-primary truncate">{currentUser?.name || 'Member'}</span>
+           <span className="block text-[10.5px] text-muted-foreground truncate">{currentUser?.email}</span>
+         </span>
+       )}
+       {!narrow && <ChevronDown size={14} className={`shrink-0 opacity-50 transition-transform ${isRailUserOpen ? 'rotate-180' : ''}`} />}
+     </button>
+
+     {isRailUserOpen && (
+       /* Opens upward: the button sits at the bottom of the window, so a
+          menu dropping down would open off-screen. */
+       <div className="absolute bottom-3 left-full ml-2 w-60 bg-surface rounded-2xl border border-black/5 shadow-2xl p-3 z-[100] animate-in fade-in slide-in-from-left-2 duration-200">
+         <button
+           onClick={() => { setIsRailUserOpen(false); setShowAvatarPicker(true); }}
+           className="w-full flex items-center gap-3 p-2 rounded-pill hover:bg-canvas transition-colors text-left"
+         >
+           <span className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-black/5 shrink-0 group">
+             <img
+               src={currentUser?.avatar_url || getDefaultAvatar(currentUser?.name || currentUser?.email || 'user')}
+               alt=""
+               className="w-full h-full object-cover"
+             />
+             <span className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center">
+               <Upload size={12} className="text-white" />
+             </span>
+           </span>
+           <span className="min-w-0">
+             <span className="block text-[13px] font-semibold text-ink-primary truncate">{currentUser?.name || 'Member'}</span>
+             <span className="block text-[10.5px] text-muted-foreground truncate">Change photo</span>
+           </span>
+         </button>
+
+         {isGlobalAdmin && (
+           <NavLink
+             to="/nexus-hq"
+             onClick={() => setIsRailUserOpen(false)}
+             className="mt-2 w-full flex items-center gap-3 px-3 py-2 text-[13px] font-medium text-purple-600 hover:bg-purple-50 rounded-pill transition-colors"
+           >
+             <Shield size={15} /> The Nexus Console
+           </NavLink>
+         )}
+
+         <button
+           onClick={logout}
+           className="mt-1 w-full flex items-center gap-3 px-3 py-2 text-[13px] font-medium text-red-600 hover:bg-red-50 rounded-pill transition-colors"
+         >
+           <LogOut size={15} /> Log out
+         </button>
+       </div>
+     )}
+   </div>
+
+   <div className={`shrink-0 py-3 flex flex-col gap-0.5 ${narrow ? 'items-center px-3' : 'px-4'}`}>
      {adminItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
      <button
        type="button"
@@ -360,7 +455,10 @@ const Navbar = () => {
    </div>
  </aside>
 
- <header className="sticky top-0 z-40 bg-canvas/85 backdrop-blur-md border-b border-black/5">
+ {/* Phone only. The desktop header carried a hamburger the rail replaces,
+     a logo the rail already shows, and one avatar -- 64px of chrome on every
+     screen for nothing the rail could not hold. */}
+ <header className="md:hidden sticky top-0 z-40 bg-canvas/85 backdrop-blur-md border-b border-black/5">
  <div className="px-4 sm:px-6 lg:px-8">
  <div className="flex items-center justify-between h-16 gap-3 min-w-0">
  {/* Mobile Hamburger */}
@@ -652,8 +750,8 @@ const MainContent = ({ kioskMode = false }) => {
         kioskMode
           ? 'p-0 overflow-hidden'
           : isSales
-          ? 'px-4 sm:px-6 lg:px-8 py-2 md:py-4'
-          : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-2 md:py-6'
+          ? 'px-4 sm:px-6 lg:px-8 py-2 md:pt-6 md:pb-4'
+          : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-2 md:pt-8 md:pb-6'
       }`}
     >
       {/* One message about status, never two. The trial banner and the billing
