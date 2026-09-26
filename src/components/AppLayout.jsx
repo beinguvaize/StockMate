@@ -35,6 +35,16 @@ const brandMark = () => isDarkTheme() ? markWhite : markClear;
 // at 1280 still has a readable invoice table beside it, one at 1152 does not.
 const RAIL_AUTO_COLLAPSE_BELOW = 1280;
 
+// Bump when the meaning of a stored choice changes; the old answer is dropped
+// once and the width decides again until the user re-chooses.
+//
+// 2 is the release that added auto-collapse. Every answer stored before it was
+// made against a rail that had no automatic behaviour to opt out of, so it is
+// not a choice ABOUT this -- it is just where that person happened to leave a
+// button. Honouring those would have shipped the feature to nobody: everyone
+// already using the app has pressed that toggle at least once.
+const RAIL_CHOICE_EPOCH = '2';
+
 const railListeners = new Set();
 
 // null until the user presses the toggle. A stored answer outranks the width
@@ -44,6 +54,11 @@ const railListeners = new Set();
 // synchronous I/O in a handler that fires continuously while a window drags.
 let railUserChoice = (() => {
   try {
+    if (localStorage.getItem('nav_rail_epoch') !== RAIL_CHOICE_EPOCH) {
+      localStorage.removeItem('nav_rail_collapsed');
+      localStorage.setItem('nav_rail_epoch', RAIL_CHOICE_EPOCH);
+      return null;
+    }
     const v = localStorage.getItem('nav_rail_collapsed');
     return v === '1' ? true : v === '0' ? false : null;
   } catch { return null; }   // private window: no preference, follow the width

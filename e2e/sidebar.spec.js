@@ -111,3 +111,36 @@ test('the collapsed rail shows the square mark, not a smeared wordmark', async (
   // It has to actually decode -- a broken path still renders an <img>.
   expect(await mark.evaluate(el => el.naturalWidth)).toBeGreaterThan(0);
 });
+
+test('a choice stored before auto-collapse existed is dropped once', async ({ page }) => {
+  // Everyone already using the app has pressed that toggle at least once, and
+  // every one of those answers was given to a rail with no automatic behaviour
+  // to opt out of. Honouring them would have shipped the feature to nobody.
+  await seedAppCache(page);
+  await setupMocks(page);
+  await page.addInitScript(() => {
+    try {
+      // Once only. An init script runs on every navigation, so seeding the old
+      // state unguarded would re-stale it on the reload below and the test
+      // would be checking its own fixture rather than the code.
+      if (sessionStorage.getItem('seeded_pre_epoch')) return;
+      sessionStorage.setItem('seeded_pre_epoch', '1');
+      localStorage.setItem('nav_rail_collapsed', '1');  // collapsed on the old build
+      localStorage.removeItem('nav_rail_epoch');        // ...before the epoch existed
+    } catch { /* ignore */ }
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/${TENANT_SLUG}/dashboard`);
+  await page.waitForFunction(() => !document.querySelector('.animate-spin'), { timeout: 15_000 });
+
+  // The width decides again, so a wide window gets the full rail.
+  expect(await railWidth(page)).toBe(248);
+  expect(await page.evaluate(() => localStorage.getItem('nav_rail_collapsed'))).toBeNull();
+
+  // And it is dropped ONCE -- the next answer sticks.
+  await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+  await page.waitForTimeout(350);
+  await page.reload();
+  await page.waitForFunction(() => !document.querySelector('.animate-spin'), { timeout: 15_000 });
+  expect(await railWidth(page)).toBe(68);
+});
