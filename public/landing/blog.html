@@ -1,197 +1,110 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blog — bookledger Insights</title>
-  <meta name="description" content="Insights, comparisons, and guides on GST filing, credit management, and cloud accounting for Indian SMBs.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
-  <!-- Analytics -->
-  <script defer data-domain="bookledger.in" src="https://plausible.io/js/script.js"></script>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GST, billing and stock — practical guides for Indian businesses | bookledger</title>
+<meta name="description" content="Plain-English guides on GST returns, credit control and inventory for Indian retailers, distributors and wholesalers. Written by the bookledger team."/>
+<link rel="icon" href="favicon-256.png"/>
 <link rel="canonical" href="https://bookledger.in/blog"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="bookledger"/>
+<meta property="og:locale" content="en_IN"/>
+<meta property="og:url" content="https://bookledger.in/blog"/>
+<meta property="og:title" content="GST, billing and stock — practical guides for Indian businesses"/>
+<meta property="og:description" content="Plain-English guides on GST returns, credit control and inventory for Indian retailers, distributors and wholesalers. Written by the bookledger team."/>
+<meta property="og:image" content="https://bookledger.in/og.webp"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="GST, billing and stock — practical guides for Indian businesses"/>
+<meta name="twitter:description" content="Plain-English guides on GST returns, credit control and inventory for Indian retailers, distributors and wholesalers. Written by the bookledger team."/>
+<meta name="twitter:image" content="https://bookledger.in/og.webp"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { primary:'#1A1815', secondary:'#6b6660', surface:'#FBFAF7', canvas:'#FFFFFF', line:'#E9E6DF', accent:'#D97706', 'accent-700':'#B45309' },
+    fontFamily: { sans:['Manrope','sans-serif'], mono:['JetBrains Mono','monospace'] },
+  }}}
+</script>
+<style>.mono{font-variant-numeric:tabular-nums}</style>
+<link rel="stylesheet" href="reveal.css"/>
+<script>document.documentElement.classList.add('js')</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"Blog","@id":"https://bookledger.in/blog#blog","name":"bookledger guides","url":"https://bookledger.in/blog","description":"Plain-English guides on GST returns, credit control and inventory for Indian retailers, distributors and wholesalers. Written by the bookledger team.","inLanguage":"en-IN","publisher":{"@type":"Organization","name":"bookledger","url":"https://bookledger.in/"},
+"blogPost":[{"@type":"BlogPosting","headline":"How to file GSTR-1: due dates, tables and the mistakes that cost you","url":"https://bookledger.in/blog/how-to-file-gstr-1","datePublished":"2026-09-27","author":{"@type":"Organization","name":"bookledger"}}]},
+{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://bookledger.in/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://bookledger.in/blog"}]}]}
+</script>
 </head>
-<body class="subpage-body">
+<body class="bg-canvas text-primary font-sans antialiased">
 
-    <!-- ========== NAVBAR ========== -->
-  <nav class="navbar" id="navbar">
-    <div class="container">
-      <a href="./index.html" class="navbar-logo">
-        <img src="ledgrpro-logo.png" alt="bookledger Logo" class="app-logo">
-      </a>
-      <div class="navbar-links" id="navLinks">
-        <a href="./index.html#features">Features</a>
-        <a href="./index.html#features">Industries</a>
-        <a href="./index.html#pricing">Pricing</a>
-      </div>
-      <div class="navbar-actions">
-        <a href="https://app.bookledger.in/login" style="font-size:0.9rem; font-weight:600; margin-right:15px; color:var(--text-muted); transition: var(--transition);" id="loginBtn">Log In</a>
-        <a href="https://app.bookledger.in/register" class="btn btn-primary" id="trialBtn">Download App</a>
-        <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
-      </div>
+<!-- Nav -->
+<nav class="bg-canvas/80 backdrop-blur-md border-b border-line w-full sticky top-0 z-50">
+  <div class="flex justify-between items-center w-full px-6 lg:px-8 py-4 max-w-[1200px] mx-auto">
+    <a href="/" class="flex items-center gap-2"><img src="bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/></a>
+    <div class="hidden md:flex gap-7 items-center">
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="features.html">Features</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="download.html">Download</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="integrations.html">Integrations</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="about.html">About</a>
     </div>
-  </nav>
+    <div class="hidden md:flex gap-3 items-center">
+      <a href="https://app.bookledger.in/login" class="text-sm font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
+      <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-700 transition-colors">Get Started</a>
+    </div>
+    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+  </div>
+</nav>
 
-  <!-- ========== HERO ========== -->
-  <section class="subpage-hero">
-    <div class="container">
-      <div class="subpage-hero-content">
-        <h1>bookledger <span class="gradient-text">Insights</span>.</h1>
-        <p>Practical business advice, industry honest comparisons, and operational guides for Indian distributors and shop owners.</p>
+<main class="w-full">
+
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 pt-20 lg:pt-28 pb-12">
+    <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Guides</span>
+    <h1 class="mt-4 text-4xl md:text-5xl font-light tracking-tight max-w-3xl leading-tight">GST, billing and stock, explained plainly.</h1>
+    <p class="mt-6 max-w-2xl text-base text-secondary font-light leading-relaxed">Guides for the people
+    who actually file the returns and count the stock — retailers, distributors and wholesalers.
+    No jargon, no filler, and every figure checked against the current rules.</p>
+  </section>
+
+  <section class="w-full bg-surface border-y border-line">
+    <div class="max-w-[1200px] mx-auto px-6 lg:px-8 py-14">
+      <div class="grid gap-6 md:grid-cols-3">
+
+        <a href="blog/how-to-file-gstr-1.html" class="group flex flex-col rounded-2xl border border-line bg-canvas p-6 transition-colors hover:border-accent/40">
+          <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Compliance</span>
+          <h2 class="mt-3 text-lg font-semibold leading-snug group-hover:text-accent-700 transition-colors">How to file GSTR-1: due dates, tables and the mistakes that cost you</h2>
+          <p class="mt-3 text-sm text-secondary font-light leading-relaxed flex-1">Monthly versus QRMP
+          deadlines, what belongs in each table, how many HSN digits your turnover requires, and the
+          four errors that generate the most notices.</p>
+          <span class="mt-5 text-xs text-secondary">27 September 2026 · 7 min read</span>
+        </a>
+
       </div>
+
+      <p class="mt-10 max-w-2xl text-sm text-secondary font-light leading-relaxed">
+        More guides are being written — GSTR-3B and input credit, recovering udhaar without losing the
+        customer, and multi-location stock for distributors.
+        <a class="text-accent hover:text-accent-700 underline underline-offset-4" href="contact.html">Tell us what you need explained</a>
+        and we will put it near the front of the queue.
+      </p>
     </div>
   </section>
 
-  <!-- ========== BLOG GRID ========== -->
-  <section class="section">
-    <div class="container">
-      <div class="subpage-grid">
-        
-        <!-- Post 1 -->
-        <article class="blog-card">
-          <img src="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80" alt="GST Form">
-          <div class="blog-card-body">
-            <span class="blog-tag">Compliance</span>
-            <h3>How to file GSTR-1 for small businesses</h3>
-            <p>A step-by-step walkthrough for Indian merchants filing GSTR-1 manually or exporting with automated modules.</p>
-            <div class="blog-footer">
-              <span>By Amit Patel</span>
-              <span>May 13, 2026</span>
-            </div>
-          </div>
-        </article>
+</main>
 
-        <!-- Post 2 -->
-        <article class="blog-card">
-          <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80" alt="Comparison">
-          <div class="blog-card-body">
-            <span class="blog-tag">Comparison</span>
-            <h3>Vyapar vs bookledger — An Honest Comparison</h3>
-            <p>Breaking down pricing, cloud real-time syncing, and device availability. Why offline-first is losing ground.</p>
-            <div class="blog-footer">
-              <span>By Devika Nair</span>
-              <span>May 09, 2026</span>
-            </div>
-          </div>
-        </article>
-
-        <!-- Post 3 -->
-        <article class="blog-card">
-          <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80" alt="WhatsApp Messaging">
-          <div class="blog-card-body">
-            <span class="blog-tag">Sales</span>
-            <h3>How to manage credit sales with WhatsApp invoices</h3>
-            <p>Stop chasing outstanding balances. Learn how automated invoice sharing directly over WhatsApp cuts credit cycle delays.</p>
-            <div class="blog-footer">
-              <span>By Rohan Sen</span>
-              <span>May 05, 2026</span>
-            </div>
-          </div>
-        </article>
-
-        <!-- Post 4 -->
-        <article class="blog-card">
-          <img src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=600&q=80" alt="Warehouse">
-          <div class="blog-card-body">
-            <span class="blog-tag">Operations</span>
-            <h3>Multi-location inventory for regional distributors</h3>
-            <p>Best practices to prevent stock leakages, track cross-warehouse transfers, and forecast batch expiries.</p>
-            <div class="blog-footer">
-              <span>By Vikas Mehra</span>
-              <span>Apr 28, 2026</span>
-            </div>
-          </div>
-        </article>
-
-        <!-- Post 5 -->
-        <article class="blog-card">
-          <img src="https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=600&q=80" alt="Desktop PC">
-          <div class="blog-card-body">
-            <span class="blog-tag">Industry Trend</span>
-            <h3>Why desktop accounting software is dying in India</h3>
-            <p>With 5G ubiquity and mobile dominance, legacy hard-drive solutions like Tally ERP 9 are struggling to stay relevant.</p>
-            <div class="blog-footer">
-              <span>By Karthik R.</span>
-              <span>Apr 20, 2026</span>
-            </div>
-          </div>
-        </article>
-
-      </div>
+<footer class="bg-canvas border-t border-line w-full">
+  <div class="flex flex-col md:flex-row justify-between items-center w-full px-6 lg:px-8 py-8 max-w-[1200px] mx-auto gap-4">
+    <div class="flex items-center gap-2"><img src="bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/></div>
+    <div class="flex flex-wrap justify-center gap-5">
+      <a class="text-xs text-secondary hover:text-primary" href="features.html">Features</a>
+      <a class="text-xs text-secondary hover:text-primary" href="pricing.html">Pricing</a>
+      <a class="text-xs text-secondary hover:text-primary" href="privacy.html">Privacy</a>
+      <a class="text-xs text-secondary hover:text-primary" href="terms.html">Terms</a>
+      <a class="text-xs text-secondary hover:text-primary" href="contact.html">Contact</a>
     </div>
-  </section>
-
-    <!-- ========== FOOTER ========== -->
-  <footer class="footer" id="footer">
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <a href="./index.html" style="display: inline-block; margin-bottom: 20px;">
-            <img src="ledgrpro-logo.png" alt="bookledger Logo" style="height: 44px; filter: brightness(0) invert(1); opacity: 0.85;">
-          </a>
-          <p>The modern operations and ledger platform built for businesses that want to grow smarter, not harder.</p>
-        </div>
-        <div class="footer-col">
-          <h4>Product</h4>
-          <a href="./index.html#features">Features</a>
-          <a href="./index.html#pricing">Pricing</a>
-          <a href="./integrations.html">Integrations</a>
-          <a href="./changelog.html">Changelog</a>
-        </div>
-        <div class="footer-col">
-          <h4>Support & Company</h4>
-          <a href="./about.html">About Us</a>
-          <a href="./blog.html">Blog</a>
-          <a href="./careers.html">Careers</a>
-          <a href="./contact.html">Contact Support</a>
-        </div>
-        <div class="footer-col">
-          <h4>Legal</h4>
-          <a href="./privacy.html">Privacy Policy</a>
-          <a href="./terms.html">Terms of Service</a>
-          <a href="./security.html">Security Protocol</a>
-        </div>
-      </div>
-
-      <div class="footer-locations" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; padding: 40px 0; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 30px;">
-        <div class="location">
-          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">India</h4>
-          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">Poyisha Rd<br>North Edappally<br>Ernakulam</p>
-        </div>
-        <div class="location">
-          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">London</h4>
-          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">126 Richmond Road, Ilford<br>London, 1G1 1JU</p>
-        </div>
-        <div class="location">
-          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">Qatar</h4>
-          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">Doha</p>
-        </div>
-        <div class="location">
-          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">Canada</h4>
-          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">5415 Cogswell St Halifax<br>B3J 0K8</p>
-        </div>
-      </div>
-
-      <div class="footer-bottom">
-        <span>© 2026 bookledger. All rights reserved.</span>
-        <span>Built for high-performance commerce</span>
-      </div>
-    </div>
-  </footer>
-
-  <script>
-    // Mobile menu toggle
-    const mobileToggle = document.getElementById('mobileToggle');
-    const navLinks = document.getElementById('navLinks');
-    mobileToggle.addEventListener('click', () => {
-      if (navLinks.classList.contains('mobile-active')) {
-        navLinks.classList.remove('mobile-active');
-      } else {
-        navLinks.classList.add('mobile-active');
-      }
-    });
-  </script>
-</body>
-</html>
+    <div class="text-xs text-secondary font-light">© 2026 bookledger. Built for Indian business.</div>
+  </div>
+</footer>
+<script defer src="reveal.js"></script>
+</body></html>

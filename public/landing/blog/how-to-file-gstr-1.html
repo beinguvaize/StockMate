@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>How to file GSTR-1: due dates, tables and the mistakes that cost you | bookledger</title>
+<meta name="description" content="A practical GSTR-1 guide for Indian businesses: monthly vs QRMP due dates, what goes in each table, HSN digits by turnover, and how to fix an error with GSTR-1A."/>
+<link rel="icon" href="../favicon-256.png"/>
+<link rel="canonical" href="https://bookledger.in/blog/how-to-file-gstr-1"/>
+<meta property="og:type" content="article"/>
+<meta property="og:site_name" content="bookledger"/>
+<meta property="og:locale" content="en_IN"/>
+<meta property="og:url" content="https://bookledger.in/blog/how-to-file-gstr-1"/>
+<meta property="og:title" content="How to file GSTR-1: due dates, tables and the mistakes that cost you"/>
+<meta property="og:description" content="A practical GSTR-1 guide for Indian businesses: monthly vs QRMP due dates, what goes in each table, HSN digits by turnover, and how to fix an error with GSTR-1A."/>
+<meta property="og:image" content="https://bookledger.in/og.webp"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="How to file GSTR-1: due dates, tables and the mistakes that cost you"/>
+<meta name="twitter:description" content="A practical GSTR-1 guide for Indian businesses: monthly vs QRMP due dates, what goes in each table, HSN digits by turnover, and how to fix an error with GSTR-1A."/>
+<meta name="twitter:image" content="https://bookledger.in/og.webp"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { primary:'#1A1815', secondary:'#6b6660', surface:'#FBFAF7', canvas:'#FFFFFF', line:'#E9E6DF', accent:'#D97706', 'accent-700':'#B45309' },
+    fontFamily: { sans:['Manrope','sans-serif'], mono:['JetBrains Mono','monospace'] },
+  }}}
+</script>
+<style>.mono{font-variant-numeric:tabular-nums}</style>
+<link rel="stylesheet" href="../reveal.css"/>
+<script>document.documentElement.classList.add('js')</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"BlogPosting","@id":"https://bookledger.in/blog/how-to-file-gstr-1#post","headline":"How to file GSTR-1: due dates, tables and the mistakes that cost you","description":"A practical GSTR-1 guide for Indian businesses: monthly vs QRMP due dates, what goes in each table, HSN digits by turnover, and how to fix an error with GSTR-1A.","datePublished":"2026-09-27","dateModified":"2026-09-27","inLanguage":"en-IN","mainEntityOfPage":{"@type":"WebPage","@id":"https://bookledger.in/blog/how-to-file-gstr-1"},"author":{"@type":"Organization","name":"bookledger","url":"https://bookledger.in/"},"publisher":{"@type":"Organization","name":"bookledger","url":"https://bookledger.in/","logo":{"@type":"ImageObject","url":"https://bookledger.in/bookledger-logo.png"}},"image":"https://bookledger.in/og.webp"},
+{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://bookledger.in/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://bookledger.in/blog"},{"@type":"ListItem","position":3,"name":"How to file GSTR-1","item":"https://bookledger.in/blog/how-to-file-gstr-1"}]},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"What is the due date for GSTR-1?","acceptedAnswer":{"@type":"Answer","text":"Monthly filers file by the 11th of the following month. Businesses on the QRMP scheme file quarterly, by the 13th of the month after the quarter ends."}},
+{"@type":"Question","name":"Can I file GSTR-3B before GSTR-1?","acceptedAnswer":{"@type":"Answer","text":"No. GSTR-1 for a period must be filed before GSTR-3B for the same period."}},
+{"@type":"Question","name":"How do I correct a mistake in a filed GSTR-1?","acceptedAnswer":{"@type":"Answer","text":"Use GSTR-1A, available from the moment GSTR-1 is filed until GSTR-3B for the same period is filed. After that the correction moves to the amendment tables of a later period."}},
+{"@type":"Question","name":"How many HSN digits does GSTR-1 require?","acceptedAnswer":{"@type":"Answer","text":"Four digits if aggregate turnover is up to Rs 5 crore, and at least six digits above that. HSN is chosen from a portal dropdown rather than typed."}}]}]}
+</script>
+</head>
+<body class="bg-canvas text-primary font-sans antialiased">
+
+<!-- Nav -->
+<nav class="bg-canvas/80 backdrop-blur-md border-b border-line w-full sticky top-0 z-50">
+  <div class="flex justify-between items-center w-full px-6 lg:px-8 py-4 max-w-[1200px] mx-auto">
+    <a href="/" class="flex items-center gap-2"><img src="../bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/></a>
+    <div class="hidden md:flex gap-7 items-center">
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="../features.html">Features</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="../pricing.html">Pricing</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="../download.html">Download</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="../integrations.html">Integrations</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="../about.html">About</a>
+    </div>
+    <div class="hidden md:flex gap-3 items-center">
+      <a href="https://app.bookledger.in/login" class="text-sm font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
+      <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-700 transition-colors">Get Started</a>
+    </div>
+    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+  </div>
+</nav>
+
+<main class="w-full">
+  <article class="max-w-[720px] mx-auto px-6 lg:px-8 pt-16 lg:pt-20 pb-20">
+
+    <nav aria-label="Breadcrumb" class="text-xs text-secondary">
+      <a class="hover:text-primary" href="../index.html">Home</a>
+      <span class="mx-1.5 text-line">/</span>
+      <a class="hover:text-primary" href="../blog.html">Blog</a>
+      <span class="mx-1.5 text-line">/</span>
+      <span class="text-primary">GSTR-1</span>
+    </nav>
+
+    <span class="mono mt-8 inline-block text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Compliance</span>
+    <h1 class="mt-4 text-3xl md:text-[2.6rem] font-light tracking-tight leading-tight">How to file GSTR-1: due dates, tables and the mistakes that cost you</h1>
+
+    <p class="mt-5 text-xs text-secondary">
+      By the bookledger team<span class="mx-2 text-line">·</span>
+      <time datetime="2026-09-27">27 September 2026</time><span class="mx-2 text-line">·</span>7 min read
+    </p>
+
+    <p class="mt-8 text-lg text-primary font-light leading-relaxed">GSTR-1 is the return where you
+    declare what you sold. It decides what your buyers can claim as input tax credit — which is why an
+    error here stops being your problem and becomes theirs, and why you hear about it.</p>
+
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">This is the practical version: when it is due, what belongs in which table, and the four
+    mistakes that generate the most notices.</p>
+
+    <h2 class="mt-14 text-2xl md:text-3xl font-light tracking-tight">When GSTR-1 is due</h2>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">Which schedule you are on depends on your aggregate turnover in the previous financial year.</p>
+
+    <div class="mt-6 overflow-x-auto rounded-2xl border border-line bg-surface">
+      <table class="w-full border-collapse">
+        <thead><tr class="bg-canvas">
+          <th class="text-left font-semibold text-primary text-xs uppercase tracking-wider py-3 px-4">You are</th><th class="text-left font-semibold text-primary text-xs uppercase tracking-wider py-3 px-4">You file</th><th class="text-left font-semibold text-primary text-xs uppercase tracking-wider py-3 px-4">Due</th></tr></thead>
+        <tbody>
+          <tr><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Turnover above ₹5&nbsp;crore</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Monthly GSTR-1</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">11th of the following month</td></tr>
+          <tr><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Up to ₹5&nbsp;crore, on QRMP</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Quarterly GSTR-1</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">13th of the month after the quarter</td></tr>
+          <tr><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">On QRMP, months 1 and 2</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">IFF (optional)</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">13th of the following month</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed"><strong class="text-primary font-semibold">QRMP</strong> means Quarterly Return, Monthly
+    Payment. The return is quarterly; the tax is not. You still pay every month, by challan in
+    PMT-06, for the first two months of the quarter. Confusing the two is how people end up paying
+    interest on a return they believed was not yet due.</p>
+
+    <h3 class="mt-9 text-lg font-semibold">The IFF is optional, and usually worth using</h3>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">The Invoice Furnishing Facility lets a QRMP filer upload <em>B2B invoices only</em> during
+    the first two months of a quarter. Nothing obliges you to use it. But if you skip it, a customer
+    who bought from you in April sees nothing in their credit statement until you file in July.</p>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">If you sell to businesses that watch their ITC — and most do — the IFF is the difference
+    between a quiet sale and a phone call. Invoices filed through it are not repeated in the quarterly return.</p>
+
+    <h2 class="mt-14 text-2xl md:text-3xl font-light tracking-tight">What goes in which table</h2>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">Most of GSTR-1 is one question asked repeatedly: is this sale listed invoice by invoice,
+    or summarised?</p>
+
+    <div class="mt-6 overflow-x-auto rounded-2xl border border-line bg-surface">
+      <table class="w-full border-collapse">
+        <thead><tr class="bg-canvas">
+          <th class="text-left font-semibold text-primary text-xs uppercase tracking-wider py-3 px-4">Sale</th><th class="text-left font-semibold text-primary text-xs uppercase tracking-wider py-3 px-4">Table</th><th class="text-left font-semibold text-primary text-xs uppercase tracking-wider py-3 px-4">Reported</th></tr></thead>
+        <tbody>
+          <tr><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">To a registered business (B2B)</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">4</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Invoice by invoice</td></tr>
+          <tr><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Inter-state to a consumer, above ₹2.5&nbsp;lakh</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">5</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Invoice by invoice</td></tr>
+          <tr><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Everything else to consumers</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">7</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Summarised, rate-wise</td></tr>
+          <tr><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Credit and debit notes</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">9B</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Note by note</td></tr>
+          <tr><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Advances received</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">11A</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Summarised</td></tr>
+          <tr><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">HSN summary</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">12</td><td class="py-3 px-4 align-top text-sm text-secondary border-t border-line">Summarised by HSN and rate</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">The rule of thumb: <strong class="text-primary font-semibold">if the buyer can claim
+    credit, the invoice is listed.</strong> A shop selling to walk-in customers reports a rate-wise
+    total for the month. A distributor selling to fifty retailers reports fifty invoices.</p>
+
+    <h2 class="mt-14 text-2xl md:text-3xl font-light tracking-tight">HSN in Table 12: check your digit count</h2>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">HSN is no longer a free-text field, and how many digits you owe depends on turnover:</p>
+    <ul class="mt-4 space-y-2 text-base text-secondary font-light">
+      <li class="flex gap-3"><span class="text-accent">—</span><span><strong class="text-primary font-semibold">Up to ₹5&nbsp;crore:</strong> 4 digits, mandatory since May 2025.</span></li>
+      <li class="flex gap-3"><span class="text-accent">—</span><span><strong class="text-primary font-semibold">Above ₹5&nbsp;crore:</strong> 6 digits minimum, mandatory since November 2022.</span></li>
+    </ul>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">The portal now supplies HSN from a dropdown and fills the description itself — you cannot
+    type one in. That kills a whole category of typo, but it also means any product in your own
+    catalogue carrying an invented or truncated HSN will match nothing when you export. Fix the
+    catalogue before the deadline, not during it.</p>
+
+    <h2 class="mt-14 text-2xl md:text-3xl font-light tracking-tight">Four mistakes that cost the most</h2>
+
+    <h3 class="mt-9 text-lg font-semibold">1. Filing GSTR-3B before GSTR-1</h3>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">You cannot. GSTR-1 for a period must be filed first. Treat GSTR-1 as the source and 3B as
+    the summary that follows, because that is the order the portal enforces.</p>
+
+    <h3 class="mt-9 text-lg font-semibold">2. Fixing an error in the wrong place</h3>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">Since July 2024 there is <strong class="text-primary font-semibold">GSTR-1A</strong>, an
+    amendment form open from the moment you file GSTR-1 until you file GSTR-3B for the same period.
+    Inside that window a correction is clean. Miss it and the same correction becomes an amendment in
+    a later period — visible to your buyer, and to anyone reconciling.</p>
+
+    <h3 class="mt-9 text-lg font-semibold">3. Treating a nil return as nothing to do</h3>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">A nil GSTR-1 still has to be filed and still carries a late fee: ₹20 per day, capped at
+    ₹500. A return with liability runs ₹50 per day, capped at ₹10,000. Neither is large. Both are
+    avoidable, and both compound quietly across a year.</p>
+
+    <h3 class="mt-9 text-lg font-semibold">4. Reporting a B2B sale as B2C</h3>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">The expensive one, because you will not notice. Your figures are right, your tax is right,
+    and your customer simply never sees the credit. They find out when they reconcile GSTR-2B —
+    usually weeks later, usually loudly.</p>
+
+    <h2 class="mt-14 text-2xl md:text-3xl font-light tracking-tight">A working sequence</h2>
+    <ol class="mt-5 space-y-3 text-base text-secondary font-light">
+      <li class="flex gap-4"><span class="mono text-accent text-sm shrink-0 pt-0.5">01</span><span>Check every B2B invoice carries the buyer's GSTIN. A missing GSTIN is exactly what turns a B2B sale into a B2C one.</span></li>
+      <li class="flex gap-4"><span class="mono text-accent text-sm shrink-0 pt-0.5">02</span><span>Confirm HSN codes exist at the digit count your turnover requires.</span></li>
+      <li class="flex gap-4"><span class="mono text-accent text-sm shrink-0 pt-0.5">03</span><span>Reconcile your sales register against the portal before filing, not after.</span></li>
+      <li class="flex gap-4"><span class="mono text-accent text-sm shrink-0 pt-0.5">04</span><span>File GSTR-1, then GSTR-3B, in that order.</span></li>
+      <li class="flex gap-4"><span class="mono text-accent text-sm shrink-0 pt-0.5">05</span><span>If something is wrong, use GSTR-1A <em>before</em> filing 3B.</span></li>
+    </ol>
+
+    <h2 class="mt-14 text-2xl md:text-3xl font-light tracking-tight">Where software actually helps</h2>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">None of this is difficult. It is repetitive, and it fails at the edges — a missing GSTIN,
+    an HSN nobody filled in, a credit note recorded as a discount. Those are catalogue and data-entry
+    problems, and they are far cheaper to prevent than to amend.</p>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed"><a class="text-accent hover:text-accent-700 underline underline-offset-4" href="../features.html">bookledger</a>
+    captures GSTIN and HSN when the customer and the item are created, keeps B2B and B2C separated as
+    you bill, and exports GSTR-ready summaries so filing becomes a reconciliation rather than a
+    rebuild. It works offline and syncs when you are back — which matters when the deadline is the
+    11th and the connection is not.</p>
+
+    <div class="mt-10 flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-surface p-6">
+      <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-accent-700 transition-colors">Try free for 60 days</a>
+      <span class="text-xs text-secondary">No credit card required.</span>
+    </div>
+
+    <h2 class="mt-14 text-2xl md:text-3xl font-light tracking-tight">Common questions</h2>
+    <h3 class="mt-9 text-lg font-semibold">What is the due date for GSTR-1?</h3>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">The 11th of the following month if you file monthly; the 13th of the month after the
+    quarter if you are on QRMP.</p>
+    <h3 class="mt-9 text-lg font-semibold">Can I file GSTR-3B before GSTR-1?</h3>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">No. GSTR-1 for that period must be filed first.</p>
+    <h3 class="mt-9 text-lg font-semibold">How do I correct a filed GSTR-1?</h3>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">With GSTR-1A, any time between filing GSTR-1 and filing GSTR-3B for the same period.</p>
+    <h3 class="mt-9 text-lg font-semibold">How many HSN digits do I need?</h3>
+    <p class="mt-4 text-base text-secondary font-light leading-relaxed">Four up to ₹5&nbsp;crore of turnover, six or more above it — chosen from the portal's dropdown.</p>
+
+    <p class="mt-12 border-t border-line pt-6 text-xs text-secondary font-light leading-relaxed">
+      Last reviewed 27 September 2026. GST due dates, thresholds and late fees are changed by
+      notification from time to time. Check the current position on the GST portal, or with your
+      accountant, before relying on a figure here.
+    </p>
+
+  </article>
+</main>
+
+<footer class="bg-canvas border-t border-line w-full">
+  <div class="flex flex-col md:flex-row justify-between items-center w-full px-6 lg:px-8 py-8 max-w-[1200px] mx-auto gap-4">
+    <div class="flex items-center gap-2"><img src="../bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/></div>
+    <div class="flex flex-wrap justify-center gap-5">
+      <a class="text-xs text-secondary hover:text-primary" href="../features.html">Features</a>
+      <a class="text-xs text-secondary hover:text-primary" href="../pricing.html">Pricing</a>
+      <a class="text-xs text-secondary hover:text-primary" href="../privacy.html">Privacy</a>
+      <a class="text-xs text-secondary hover:text-primary" href="../terms.html">Terms</a>
+      <a class="text-xs text-secondary hover:text-primary" href="../contact.html">Contact</a>
+    </div>
+    <div class="text-xs text-secondary font-light">© 2026 bookledger. Built for Indian business.</div>
+  </div>
+</footer>
+<script defer src="../reveal.js"></script>
+</body></html>
