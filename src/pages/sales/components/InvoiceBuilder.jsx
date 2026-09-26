@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { parseScaleBarcode, quantityFrom } from '../../../lib/scaleBarcode';
 import { useDialogClose } from '../../../hooks/useDialogClose';
 import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
 import Button from '../../../shared/Button';
@@ -81,6 +82,10 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
 const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [], stores = [],
   // Table POS (restaurant) — bind this builder to a table's running tab.
   initialCart = null, onCartChange = null, tableLabel = null, onSendKOT = null, businessType = null,
+  // Weighing-scale labels. A capability pack, passed in like businessType so
+  // this component keeps taking its vertical context from its caller rather
+  // than reaching for the tenant itself.
+  scaleOn = false,
   editId = null, editMeta = null, onEditDone = null, onRecordPayment = null }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
   const noGst        = taxMode === 'NONE'; // not filing GST — no tax split, price is final
@@ -384,6 +389,37 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     const q = searchTerm.trim();
     if (!q) return;
 
+    // A weighing-scale label, before anything else: it looks like a barcode
+    // but the last digits are a weight or a price, so matching it against
+    // products.barcode would never hit and the cashier would be left keying
+    // the quantity in by hand -- the step the scale exists to remove.
+    if (scaleOn) {
+      const weighed = parseScaleBarcode(q);
+      if (weighed) {
+        // The PLU is matched against barcode OR sku, because shops put it in
+        // whichever field they already use.
+        const item = products.find(p =>
+          (p.barcode && String(p.barcode) === weighed.itemCode) ||
+          (p.sku && String(p.sku) === weighed.itemCode));
+        if (!item) {
+          addNotification(`Scale item ${weighed.itemCode} is not in the catalog`, 'error');
+          setSearchTerm('');
+          return;
+        }
+        const qty = quantityFrom(weighed, tierPrice(item, allClients.find(c => c.id === selectedClientId)?.price_tier));
+        if (qty == null || !(qty > 0)) {
+          // A price-embedded label with no unit price cannot yield a
+          // quantity. Say so rather than adding zero of something.
+          addNotification(`${item.name}: set a selling price before scanning a priced label`, 'error');
+          setSearchTerm('');
+          return;
+        }
+        addToCart(item, undefined, qty);
+        setSearchTerm('');
+        return;
+      }
+    }
+
     // Exact barcode match first (fastest for scanner)
     const exactBarcode = products.find(
       p => p.barcode && p.barcode.toLowerCase() === q.toLowerCase()
@@ -443,7 +479,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   // combos lives on separate lines (and identical combos stack).
   const lineUid = (productId, modLabel) => modLabel ? `${productId}#${modLabel}` : productId;
 
-  const addToCart = (product, mods) => {
+  // `exactQty` is for a weighed line: a scale label carries the weight of
+  // that particular piece, so the quantity is not 1 and is not a step from 1.
+  const addToCart = (product, mods, exactQty) => {
     const groups = Array.isArray(product.modifier_groups) ? product.modifier_groups : [];
     // Open the picker for dishes with modifiers (unless options already chosen).
     if (mods === undefined && groups.length > 0) { setModPicker({ product }); return; }
@@ -496,8 +534,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         name: product.name,
         basePrice: base,
         price: (Number(base) || 0) + addPrice,
-        sellUnit: packs ? 'ALT' : 'BASE',
-        quantity: packs ? conv : 1,
+        // A weighed line is always in the BASE unit -- the scale weighed
+        // kilograms, not packets.
+        sellUnit: exactQty != null ? 'BASE' : (packs ? 'ALT' : 'BASE'),
+        quantity: exactQty != null ? exactQty : (packs ? conv : 1),
         taxRate: product.taxRate || 0,
         cess: Number(product.cess_rate ?? product.cess ?? 0),
         hsn_code: product.hsn_code || product.hsn || '',

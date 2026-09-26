@@ -50,6 +50,7 @@ export const DEFAULT_MODULES = {
     // asked for a part number. Any vertical can switch one on -- a retail
     // shop that also does repairs is the ordinary case, not the edge.
     automotive: false,
+    supermarket: false,
   },
   RESTAURANT: {
     inventory: true,       // ingredient stock
@@ -68,6 +69,7 @@ export const DEFAULT_MODULES = {
     // asked for a part number. Any vertical can switch one on -- a retail
     // shop that also does repairs is the ordinary case, not the edge.
     automotive: false,
+    supermarket: false,
   },
   SERVICES: {
     // The service catalog IS the inventory module, gated by `inventory` and
@@ -89,6 +91,7 @@ export const DEFAULT_MODULES = {
     // asked for a part number. Any vertical can switch one on -- a retail
     // shop that also does repairs is the ordinary case, not the edge.
     automotive: false,
+    supermarket: false,
   },
 };
 
@@ -114,6 +117,7 @@ export const MODULE_META = {
   recipe_deduct: { label: 'Deduct ingredients',   help: 'Take recipe ingredients out of stock on sale.', plan: 'manufacturing' },
   channels:      { label: 'Delivery channels',    help: 'Aggregator orders. Not built yet.',     plan: 'sales' },
   automotive:    { label: 'Parts catalog',        help: 'Part number, OEM cross-reference, vehicle fitment and warranty on every item.', plan: 'inventory' },
+  supermarket:   { label: 'Weighing-scale labels', help: 'Scan a scale label and the till reads the weight or price off it instead of asking for the quantity.', plan: 'sales' },
 };
 
 // The toggles a shop can actually change, in the order they should be shown.

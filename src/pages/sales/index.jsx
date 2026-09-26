@@ -428,6 +428,7 @@ const SalesPage = () => {
               tableLabel={activeTable?.table?.label || null}
               onSendKOT={isResto && activeTable ? sendTableKOT : null}
               businessType={businessType}
+              scaleOn={isModuleOn('supermarket')}
               editId={editingSale?.id || null}
               editMeta={editMeta}
               onEditDone={() => { setEditingSale(null); setActiveTab('history'); }}
