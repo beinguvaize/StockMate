@@ -44,3 +44,6 @@ full_build_log.txt
 supabase/backups/
 supabase.exe
 .vercel/
+
+# Screenshots the sidebar e2e writes for eyeballing; not artefacts to keep.
+shot-*.png

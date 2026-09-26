@@ -2,6 +2,8 @@ import React, { useState, useRef, useCallback} from 'react';
 import { NavLink, Outlet, Navigate, useNavigate, useParams, useLocation} from 'react-router-dom';
 import logoClear from '/logo-clear.png';
 import logoWhite from '/logo-white.png';
+import markClear from '/mark.png';
+import markWhite from '/ledgrpro-mark-white.png';
 import { useBilling } from '../hooks/useBilling';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -18,16 +20,52 @@ import SyncStatus from './SyncStatus';
 // Brand logo — dark wordmark on light themes, white logo on the dark theme.
 const isDarkTheme = () => typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
 const brandLogo = () => isDarkTheme() ? logoWhite : logoClear;
+// The square mark, for the 68px rail. The wordmark does not survive being
+// scaled to fit there -- it becomes a smear the width of a favicon.
+const brandMark = () => isDarkTheme() ? markWhite : markClear;
 
 // ── Rail width ───────────────────────────────────────────────────────────
 // The rail is rendered by Navbar and the page is inset by AppLayout, so both
 // need the same answer. A tiny subscribed store rather than a context: this
 // is one boolean, and a provider for it would be more machinery than the
 // thing it carries.
+//
+// Below RAIL_AUTO_COLLAPSE_BELOW the rail collapses on its own. 1280 is where
+// 248px of navigation stops being a reasonable share of the window: a laptop
+// at 1280 still has a readable invoice table beside it, one at 1152 does not.
+const RAIL_AUTO_COLLAPSE_BELOW = 1280;
+
 const railListeners = new Set();
-let railIsCollapsed = (() => {
-  try { return localStorage.getItem('nav_rail_collapsed') === '1'; } catch { return false; }
+
+// null until the user presses the toggle. A stored answer outranks the width
+// forever after: someone who collapsed the rail on a wide screen meant it, and
+// someone who opened it on a narrow one should not have it shut again by the
+// next resize. Read once -- re-reading storage on every resize event would be
+// synchronous I/O in a handler that fires continuously while a window drags.
+let railUserChoice = (() => {
+  try {
+    const v = localStorage.getItem('nav_rail_collapsed');
+    return v === '1' ? true : v === '0' ? false : null;
+  } catch { return null; }   // private window: no preference, follow the width
 })();
+
+const narrowViewport = () =>
+  typeof window !== 'undefined' && window.innerWidth < RAIL_AUTO_COLLAPSE_BELOW;
+
+let railIsCollapsed = railUserChoice ?? narrowViewport();
+
+const setRail = (next) => {
+  if (next === railIsCollapsed) return;
+  railIsCollapsed = next;
+  railListeners.forEach(fn => fn(railIsCollapsed));
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', () => {
+    if (railUserChoice !== null) return;   // the user has decided; stop following
+    setRail(narrowViewport());
+  });
+}
 
 export const useRail = () => {
   const [railCollapsed, setLocal] = React.useState(railIsCollapsed);
@@ -37,11 +75,14 @@ export const useRail = () => {
     return () => { railListeners.delete(fn); };
   }, []);
   const toggleRail = React.useCallback(() => {
-    railIsCollapsed = !railIsCollapsed;
+    // Pressing the toggle is the user deciding, so the width stops being
+    // consulted from here on -- in this tab immediately, and in the next one
+    // via storage.
+    railUserChoice = !railIsCollapsed;
     // Wrapped: storage throws in a private window, and a rail that cannot be
     // collapsed there would be worse than one that forgets.
-    try { localStorage.setItem('nav_rail_collapsed', railIsCollapsed ? '1' : '0'); } catch { /* private window */ }
-    railListeners.forEach(fn => fn(railIsCollapsed));
+    try { localStorage.setItem('nav_rail_collapsed', railUserChoice ? '1' : '0'); } catch { /* private window */ }
+    setRail(railUserChoice);
   }, []);
   return { railCollapsed, toggleRail };
 };
@@ -233,41 +274,6 @@ const Navbar = () => {
    );
  };
 
- const renderNavItem = (item, onClick = null) => {
-   if (item.locked) {
-     return (
-       <div
-         key={item.path}
-         className="flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold text-muted-foreground cursor-not-allowed relative group"
-         title={`Upgrade to access ${item.label}`}
-       >
-         <span className="opacity-40">{item.icon}</span>
-         {item.label}
-         <Sparkles size={12} className="text-accent-signature/70 ml-0.5" />
-       </div>
-     );
-   }
-   return (
-     <NavLink
-       key={item.path}
-       to={item.path}
-       onClick={onClick}
-       className={({ isActive}) => `flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
-         isActive 
-         ? 'bg-ink-primary text-white shadow-md' 
-         : 'text-ink-secondary hover:text-ink-primary hover:bg-muted'
-       }`}
-     >
-       {({ isActive}) => (
-         <>
-           <span className={isActive ? 'text-white/60' : 'opacity-70'}>{item.icon}</span>
-           {item.label}
-         </>
-       )}
-     </NavLink>
-   );
- };
-
  return (
  <>
  {/* ── Sidebar ───────────────────────────────────────────────────────────
@@ -283,7 +289,7 @@ const Navbar = () => {
  >
    <div className={`flex items-center h-16 shrink-0 ${railCollapsed ? 'justify-center px-0' : 'px-5 gap-2'}`}>
      {railCollapsed
-       ? <span aria-hidden="true" className="w-8 h-8 rounded-[10px] bg-accent-signature/10 border border-accent-signature/20" />
+       ? <img src={brandMark()} alt="bookledger" className="w-9 h-9 object-contain" />
        : <img src={brandLogo()} alt="bookledger" className="object-contain h-8 w-auto max-w-[140px]" />}
    </div>
 
