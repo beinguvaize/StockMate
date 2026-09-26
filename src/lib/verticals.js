@@ -6,6 +6,16 @@
 // override layer on top of the defaults. Everything vertical-aware reads from
 // here — nav gating, terminology, registration. Add a vertical = add an entry,
 // not a rewrite.
+//
+// THIS AXIS IS CLIENT-SIDE, DELIBERATELY. The database enforces the PLAN axis
+// (has_module_access + the plan_gate_* RLS policies) because a plan is an
+// entitlement: letting a Free tenant reach Enterprise data would be a billing
+// hole. A vertical toggle is not an entitlement, it is a preference about which
+// parts of a paid-for product a shop wants to see. A restaurant that flips
+// `vehicles` on is not stealing anything.
+//
+// So: never put anything behind a vertical toggle that must not be reached.
+// Use the plan axis for that. This one decides what is SHOWN.
 // ─────────────────────────────────────────────────────────────────────────
 
 export const BUSINESS_TYPES = ['RETAIL', 'RESTAURANT', 'SERVICES'];
@@ -66,6 +76,55 @@ export const DEFAULT_MODULES = {
     appointments: true,
   },
 };
+
+// What each toggle MEANS, for the screen that switches them. Without this the
+// settings page would render raw keys like `recipe_deduct`, which is a database
+// column name, not a sentence a shopkeeper can act on.
+//
+// `plan` names the plan module the feature ALSO needs, where the two axes
+// overlap. Turning a vertical toggle on cannot buy you a feature your plan does
+// not include, and the screen has to be able to say so rather than offering a
+// switch that appears to do nothing.
+export const MODULE_META = {
+  inventory:     { label: 'Stock & catalog',      help: 'Products, stock levels and valuation.', plan: 'inventory' },
+  pos:           { label: 'Counter billing',      help: 'The point-of-sale screen.',             plan: 'sales' },
+  orders:        { label: 'Order pipeline',       help: 'Quote to order to delivery.',           plan: 'sales' },
+  manufacturing: { label: 'Manufacturing',        help: 'Bills of materials and production.',    plan: 'manufacturing' },
+  vehicles:      { label: 'Vehicles & routes',    help: 'Van sales and delivery routes.',        plan: 'vehicles' },
+  payroll:       { label: 'Staff & payroll',      help: 'Employees, attendance and salary.',     plan: 'payroll' },
+  appointments:  { label: 'Appointments',         help: 'Bookings against a service catalog.',   plan: 'appointments' },
+  tables:        { label: 'Tables',               help: 'Floor plan and table-wise orders.',     plan: 'sales' },
+  kot:           { label: 'Kitchen display',      help: 'Send tickets to the kitchen screen.',   plan: 'kds' },
+  modifiers:     { label: 'Item modifiers',       help: 'Add-ons and options on a line.',        plan: 'inventory' },
+  recipe_deduct: { label: 'Deduct ingredients',   help: 'Take recipe ingredients out of stock on sale.', plan: 'manufacturing' },
+  channels:      { label: 'Delivery channels',    help: 'Aggregator orders. Not built yet.',     plan: 'sales' },
+};
+
+// The toggles a shop can actually change, in the order they should be shown.
+// Driven off RETAIL because every vertical declares the same key set -- a fact
+// verticals.test.js pins, because a key present for one vertical and missing
+// for another reads as ENABLED, not disabled.
+export const MODULE_KEYS = Object.keys(DEFAULT_MODULES.RETAIL);
+
+/**
+ * Reduce a desired module map to only what DIFFERS from the vertical's default.
+ *
+ * `tenants.modules` stores overrides, not a snapshot. Writing the whole
+ * resolved map would freeze today's defaults into every tenant row: change
+ * DEFAULT_MODULES later and nobody who had ever opened this screen would get
+ * the change. Storing only genuine deviations keeps the defaults live.
+ *
+ * Unknown keys are dropped rather than carried, so a stale client cannot
+ * persist a toggle this build no longer has.
+ */
+export function overridesFrom(businessType, desired = {}) {
+  const defaults = DEFAULT_MODULES[normalizeType(businessType)];
+  const out = {};
+  for (const key of Object.keys(defaults)) {
+    if (key in desired && !!desired[key] !== !!defaults[key]) out[key] = !!desired[key];
+  }
+  return out;
+}
 
 // Terminology — only the labels that differ per vertical. Anything not
 // overridden falls back to the RETAIL/base word.

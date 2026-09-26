@@ -2,11 +2,15 @@ import React, { useEffect, useState } from 'react';
 import {
   User, Building, Printer, Users as UsersIcon, CreditCard,
   LifeBuoy, ChevronRight, Check, BellRing, Zap, Tag, Database,
-  FileText, RotateCcw, ShieldCheck, } from 'lucide-react';
+  FileText, RotateCcw, ShieldCheck, Blocks, Lock, } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { supabase, uploadProductImage } from '../../lib/supabase';
-import { PLANS } from '../../lib/tenancy';
+import { PLANS, getRequiredPlan } from '../../lib/tenancy';
+import {
+  BUSINESS_TYPES, VERTICAL_META, DEFAULT_MODULES,
+  MODULE_KEYS, MODULE_META, overridesFrom,
+} from '../../lib/verticals';
 import Settings from '../Settings';
 import Users from '../Users';
 import CashBillPrint from '../sales/components/CashBillPrint';
@@ -43,6 +47,7 @@ const NAV_GROUPS = [
   { caption: 'General', items: [
     { id: 'account',  label: 'Account',     icon: <User size={15} /> },
     { id: 'business', label: 'Business',    icon: <Building size={15} /> },
+    { id: 'modules',  label: 'Business type & modules', icon: <Blocks size={15} /> },
   ]},
   { caption: 'Catalog', items: [
     { id: 'categories', label: 'Categories', icon: <Tag size={15} /> },
@@ -734,6 +739,166 @@ const RemindersPanel = ({ tenantId }) => {
   );
 };
 
+// ── Business type & modules ──────────────────────────────────────────────────
+//
+// The switchboard for the vertical axis. tenants.modules has been the
+// documented per-tenant override layer since Stage A and NOTHING in the app
+// has ever written it -- so "turn a capability on for this shop" has meant a
+// hand-edit in the database. business_type was likewise write-once at signup:
+// a shop that picked Retail and later wanted a different set had no path at
+// all.
+//
+// Two axes meet on this screen, and they are not the same thing:
+//   · the PLAN says what the shop has paid for. Server-enforced. Not editable
+//     here, and a toggle cannot buy it.
+//   · the VERTICAL says which parts of that a shop wants to see. This screen.
+const BusinessTypePanel = () => {
+  const { currentTenant, businessType, tenantModules, updateTenant, isModuleAllowed } = useTenant();
+  const { isOwner } = useAuth();
+
+  const [type, setType] = useState(businessType);
+  const [modules, setModules] = useState(tenantModules);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  // Re-seed when the tenant finishes loading, or after another device saves.
+  useEffect(() => { setType(businessType); setModules(tenantModules); },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [businessType, JSON.stringify(tenantModules)]);
+
+  const defaults = DEFAULT_MODULES[type] || DEFAULT_MODULES.RETAIL;
+  const pending = overridesFrom(type, modules);
+  const dirty = type !== businessType ||
+    JSON.stringify(pending) !== JSON.stringify(overridesFrom(businessType, tenantModules));
+
+  // Switching vertical re-bases every toggle on the new defaults. Carrying the
+  // old overrides across would silently hand a restaurant the retail module set
+  // under a restaurant label.
+  const chooseType = (next) => {
+    setType(next);
+    setModules(DEFAULT_MODULES[next]);
+    setMsg(''); setErr('');
+  };
+
+  const save = async () => {
+    setBusy(true); setErr(''); setMsg('');
+    const res = await updateTenant({ business_type: type, modules: overridesFrom(type, modules) });
+    setBusy(false);
+    // Surface the real reason. A silent failure here looks identical to a save.
+    if (res?.success) setMsg('Saved.');
+    else setErr(res?.error?.message || 'Could not save. Your changes are still on screen.');
+  };
+
+  const resetToDefaults = () => { setModules(defaults); setMsg(''); setErr(''); };
+
+  if (!isOwner) {
+    return (
+      <div className="max-w-3xl space-y-4">
+        <Card title="Business type & modules"
+              description="Only the account owner can change these.">
+          <FormRow label="Business type">
+            <div className="text-[13px] text-foreground py-1.5">
+              {VERTICAL_META[businessType]?.label || businessType}
+            </div>
+          </FormRow>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl space-y-4">
+      <Card
+        title="Business type"
+        description="Sets the starting module list and the words the app uses — a restaurant sees Dishes and Orders where a shop sees Products and Sales."
+      >
+        <div className="grid sm:grid-cols-3 gap-2">
+          {BUSINESS_TYPES.map((id) => {
+            const meta = VERTICAL_META[id] || {};
+            const on = type === id;
+            return (
+              <button key={id} type="button" onClick={() => chooseType(id)}
+                aria-pressed={on}
+                className={`text-left px-3.5 py-3 rounded-lg border transition-colors ${
+                  on ? 'border-gray-900 bg-gray-900/[0.03]' : 'border-border hover:border-gray-400'
+                }`}>
+                <div className="text-[13px] font-semibold text-foreground flex items-center gap-1.5">
+                  {meta.label || id}
+                  {on && <Check size={13} className="text-gray-900" />}
+                </div>
+                <div className="text-[12px] text-muted-foreground mt-0.5">{meta.tagline}</div>
+              </button>
+            );
+          })}
+        </div>
+        {type !== businessType && (
+          <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-3">
+            Changing this resets the modules below to that type's defaults. Your
+            data is not touched — no product, bill or customer changes.
+          </p>
+        )}
+      </Card>
+
+      <Card
+        title="Modules"
+        description="What this shop sees. Switching one off hides it from the menu and closes the page; nothing is deleted and you can switch it back."
+        footer={
+          <>
+            {err && <span className="text-[12px] text-red-600 mr-auto">{err}</span>}
+            {!err && msg && <span className="text-[12px] text-emerald-600 mr-auto">{msg}</span>}
+            <button type="button" onClick={resetToDefaults}
+              className="px-3.5 py-2 rounded-md border border-border text-[13px] font-medium text-ink-secondary hover:bg-muted transition-colors">
+              Reset to defaults
+            </button>
+            <PrimaryBtn onClick={save} disabled={busy || !dirty}>
+              {busy ? 'Saving…' : 'Save changes'}
+            </PrimaryBtn>
+          </>
+        }
+      >
+        {MODULE_KEYS.map((key) => {
+          const meta = MODULE_META[key] || { label: key };
+          const on = !!modules[key];
+          const isDefault = !!defaults[key];
+          // The plan axis. A toggle that the plan does not cover would look
+          // like it worked and then change nothing, so it is shown locked with
+          // the plan that would unlock it, rather than hidden or silently on.
+          const planned = meta.plan ? isModuleAllowed(meta.plan) : true;
+          const needs = meta.plan ? getRequiredPlan(meta.plan) : null;
+
+          return (
+            <FormRow key={key} label={meta.label} hint={meta.help}>
+              <div className="flex items-center gap-3 py-1">
+                {planned ? (
+                  <Toggle checked={on} onChange={(v) => {
+                    setModules((m) => ({ ...m, [key]: v })); setMsg(''); setErr('');
+                  }} />
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                    <Lock size={12} />
+                    Needs {PLANS[needs]?.label || needs}
+                  </span>
+                )}
+                {planned && on !== isDefault && (
+                  <span className="text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                    changed from default
+                  </span>
+                )}
+              </div>
+            </FormRow>
+          );
+        })}
+      </Card>
+
+      <p className="text-[12px] text-muted-foreground">
+        These switches decide what is <em>shown</em>. What the business has paid
+        for is the plan, which the server enforces separately — see Plan &amp; billing.
+      </p>
+    </div>
+  );
+};
+
 // ── Plan & billing ───────────────────────────────────────────────────────────
 const PricingPanel = () => {
   const { currentTenant } = useTenant();
@@ -856,6 +1021,7 @@ const SettingsHub = () => {
           {active === 'print'    && <PrintPanel tenantId={currentTenantId} />}
           {active === 'users'    && <EmbedSkin><Users embedded /></EmbedSkin>}
           {active === 'reminders' && <RemindersPanel tenantId={currentTenantId} />}
+          {active === 'modules'  && <BusinessTypePanel />}
           {active === 'pricing'  && <PricingPanel />}
           {active === 'support'  && <SupportPanel />}
         </main>

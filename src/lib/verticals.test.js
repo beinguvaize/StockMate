@@ -3,9 +3,12 @@ import {
   BUSINESS_TYPES,
   VERTICAL_META,
   DEFAULT_MODULES,
+  MODULE_META,
+  MODULE_KEYS,
   normalizeType,
   resolveModules,
   isModuleEnabled,
+  overridesFrom,
   term,
 } from './verticals';
 
@@ -139,5 +142,66 @@ describe('term', () => {
 
   it('falls back to RETAIL wording for an unknown vertical', () => {
     expect(term('JEWELLERY', 'product')).toBe('Product');
+  });
+});
+
+describe('MODULE_META', () => {
+  it('describes every switchable toggle', () => {
+    // A key with no metadata renders in Settings as a raw column name.
+    for (const key of MODULE_KEYS) {
+      expect(MODULE_META[key], `MODULE_META.${key}`).toBeTruthy();
+      expect(MODULE_META[key].label, `MODULE_META.${key}.label`).toBeTruthy();
+    }
+  });
+
+  it('describes nothing that is not a toggle', () => {
+    for (const key of Object.keys(MODULE_META)) {
+      expect(MODULE_KEYS, `MODULE_META has a stale key: ${key}`).toContain(key);
+    }
+  });
+});
+
+describe('overridesFrom', () => {
+  it('stores nothing when the choice matches the vertical default', () => {
+    // The whole point: tenants.modules holds DEVIATIONS. Writing the resolved
+    // map instead would freeze today's defaults into the row, and a later
+    // change to DEFAULT_MODULES would never reach anyone who had opened the
+    // settings screen once.
+    expect(overridesFrom('RETAIL', DEFAULT_MODULES.RETAIL)).toEqual({});
+    expect(overridesFrom('RESTAURANT', DEFAULT_MODULES.RESTAURANT)).toEqual({});
+  });
+
+  it('stores only the keys that differ', () => {
+    const desired = { ...DEFAULT_MODULES.RETAIL, tables: true, vehicles: false };
+    expect(overridesFrom('RETAIL', desired)).toEqual({ tables: true, vehicles: false });
+  });
+
+  it('round-trips through resolveModules', () => {
+    const desired = { ...DEFAULT_MODULES.SERVICES, vehicles: true };
+    const modules = overridesFrom('SERVICES', desired);
+    const resolved = resolveModules({ business_type: 'SERVICES', modules });
+    expect(resolved).toEqual(desired);
+  });
+
+  it('drops keys this build does not know about', () => {
+    // A stale client must not be able to persist a toggle that no longer
+    // exists, where it would sit in the jsonb forever meaning nothing.
+    const out = overridesFrom('RETAIL', { tables: true, ancient_feature: true });
+    expect(out).toEqual({ tables: true });
+  });
+
+  it('ignores keys the caller simply did not mention', () => {
+    expect(overridesFrom('RETAIL', { tables: true })).toEqual({ tables: true });
+  });
+
+  it('coerces truthiness rather than storing whatever it was handed', () => {
+    // A checkbox can hand over '' or undefined; jsonb would keep them verbatim
+    // and isModuleEnabled would then read a string as true.
+    expect(overridesFrom('RETAIL', { tables: 1 })).toEqual({ tables: true });
+    expect(overridesFrom('RETAIL', { inventory: 0 })).toEqual({ inventory: false });
+  });
+
+  it('treats an unknown vertical as RETAIL, like everything else here', () => {
+    expect(overridesFrom('JEWELLERY', { tables: true })).toEqual({ tables: true });
   });
 });
