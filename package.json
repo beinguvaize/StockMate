@@ -24,7 +24,8 @@
     "electron:build:mac": "vite build --base=./ && electron-builder --mac",
     "electron:publish": "vite build --base=./ && electron-builder --publish always",
     "test:unit": "vitest run",
-    "test:unit:watch": "vitest"
+    "test:unit:watch": "vitest",
+    "landing:css": "tailwindcss -i landing-src/tailwind.css -o public/landing/tw.css --minify"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
@@ -50,6 +51,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.59.1",
+    "@tailwindcss/cli": "^4.3.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
@@ -69,7 +71,7 @@
     "vitest": "^4.1.10",
     "wait-on": "^9.0.10"
   },
-  "description": "StockMate \u2014 inventory, sales and logistics management.",
+  "description": "StockMate — inventory, sales and logistics management.",
   "main": "electron/main.cjs",
   "keywords": [],
   "author": "",
