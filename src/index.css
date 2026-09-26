@@ -267,8 +267,18 @@ table.report-table tbody td.numeric {
    the control, so a dark button gets a dark ring on the light ground behind
    it rather than a ring that disappears into its own fill. */
 :where(a, button, summary, [role="button"], [role="tab"], [tabindex]):focus-visible {
+  /* Two rings, because one colour cannot be seen on every background.
+     Measured on the live login page, an ink ring scored 1.04:1 against that
+     dark panel where 3:1 is the minimum -- it was drawn and it was invisible.
+     The white ring fills the 2px offset gap and carries the dark grounds; the
+     ink ring sits outside it and carries the light ones. Whichever the control
+     is sitting on, one of the two reads.
+
+     The box-shadow replaces whatever shadow the control had, for as long as it
+     holds focus. That is a fair trade for being able to see where you are. */
   outline: 2px solid var(--color-ink-primary);
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px #FFFFFF;
   border-radius: inherit;
 }
 
