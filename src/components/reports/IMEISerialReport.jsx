@@ -8,11 +8,23 @@ import { Smartphone, CheckCircle2, Package } from 'lucide-react';
  * IMEI / Serial Number report — every serialized unit and where it went.
  * A mobile/electronics shop uses this to answer "which IMEI did we sell, to
  * whom, on which bill" (warranty claims, theft/dispute lookups).
+ *
+ * Reads sale_item_serials, which is the table the SERVER fills: write_sale_lines
+ * pulls `imeis` out of the sale payload and inserts a row per unit. It used to
+ * read `serial_numbers` and select `serial, sale_id, purchase_id` — none of
+ * which are columns on that table (they are serial_number, sold_in_id and
+ * purchased_in_id), so this report could only ever have errored. It never
+ * surfaced because no product has track_serial enabled and both tables are
+ * empty.
+ *
+ * Every row here is a SOLD unit by definition — sale_item_serials only exists
+ * because something was billed. There is no in-stock serial inventory yet; the
+ * KPI that claimed to count one was counting a column that did not exist.
  */
 const IMEISerialReport = () => {
   const { data: serials, loading } = useReportData({
-    table: 'serial_numbers',
-    select: 'id, product_id, serial, status, sale_id, purchase_id, created_at',
+    table: 'sale_item_serials',
+    select: 'id, serial, created_at, sale_items(sale_id, product_id, product_name)',
   });
   const { data: products } = useReportData({ table: 'products', select: 'id, name, sku' });
   const { data: salesRaw } = useReportData({ table: 'sales', select: 'id, "shopId", date, voided_at, status, paymentStatus' });
@@ -27,12 +39,17 @@ const IMEISerialReport = () => {
     return (serials || [])
       .filter(s => !s.deleted_at)
       .map(s => {
-        const sl = s.sale_id ? sale[s.sale_id] : null;
+        // The line carries both the sale and the product; product_name is the
+        // snapshot taken at billing, so a renamed product still prints the
+        // name the customer's bill showed.
+        const line = s.sale_items || {};
+        const saleId = line.sale_id || null;
+        const sl = saleId ? sale[saleId] : null;
         const buyer = sl?.shopId ? cli[sl.shopId] : null;
         return {
           ...s,
-          _product: prod[s.product_id]?.name || s.product_id,
-          _saleRef: s.sale_id ? '#' + String(s.sale_id).split('-').pop() : '—',
+          _product: prod[line.product_id]?.name || line.product_name || line.product_id || '—',
+          _saleRef: saleId ? '#' + String(saleId).split('-').pop() : '—',
           _date: sl?.date || (s.created_at ? String(s.created_at).slice(0, 10) : '—'),
           _buyer: buyer ? `${buyer.name}${buyer.phone ? ' · ' + buyer.phone : ''}` : (sl ? 'Walk-in' : '—'),
         };
@@ -40,16 +57,14 @@ const IMEISerialReport = () => {
       .sort((a, b) => String(b._date).localeCompare(String(a._date)));
   }, [serials, products, sales, clients]);
 
-  const sold = rows.filter(r => (r.status || '').toUpperCase() === 'SOLD').length;
-  const inStock = rows.filter(r => (r.status || '').toUpperCase() === 'IN_STOCK').length;
 
   const exportExcel = async () => {
     const XLSX = await import('xlsx');
     const aoa = [
       ['IMEI / Serial Number Report'],
       [],
-      ['IMEI / Serial', 'Product', 'Status', 'Sale', 'Date', 'Buyer'],
-      ...rows.map(r => [r.serial, r._product, r.status, r._saleRef, r._date, r._buyer]),
+      ['IMEI / Serial', 'Product', 'Sale', 'Date', 'Buyer'],
+      ...rows.map(r => [r.serial, r._product, r._saleRef, r._date, r._buyer]),
     ];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
@@ -67,19 +82,14 @@ const IMEISerialReport = () => {
     columns: [
       { key: 'serial', label: 'IMEI / Serial', sortable: true, width: 200, render: (v) => <span className="tabular-nums text-[11px] font-semibold text-foreground">{v}</span> },
       { key: '_product', label: 'Product', sortable: true, width: 200, render: (v) => <span className="font-semibold text-ink-secondary">{v}</span> },
-      { key: 'status', label: 'Status', width: 110, render: (v) => {
-        const s = (v || '').toUpperCase();
-        const sold = s === 'SOLD';
-        return <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${sold ? 'bg-emerald-50 text-emerald-600' : 'bg-accent-signature/10 text-accent-signature'}`}>{v || '—'}</span>;
-      } },
       { key: '_saleRef', label: 'Sale', width: 100, render: (v) => <span className="tabular-nums text-[11px] text-muted-foreground">{v}</span> },
       { key: '_date', label: 'Date', width: 110, render: (v) => <span className="text-xs font-semibold text-muted-foreground">{v}</span> },
       { key: '_buyer', label: 'Buyer', width: 200, render: (v) => <span className="text-xs font-semibold text-ink-secondary">{v}</span> },
     ],
     kpis: [
-      { id: 'total', label: 'Total Units', value: rows.length, isCount: true, trendDir: 'none', color: 'indigo', chartData: [] },
-      { id: 'sold', label: 'Sold', value: sold, isCount: true, trendDir: 'none', color: 'emerald', chartData: [] },
-      { id: 'stock', label: 'In Stock', value: inStock, isCount: true, trendDir: 'none', color: 'amber', chartData: [] },
+      // One honest count. "Sold" and "In Stock" both read a `status` column
+      // that does not exist on this table, so they rendered 0 and 0 forever.
+      { id: 'total', label: 'Units Sold', value: rows.length, isCount: true, trendDir: 'none', color: 'indigo', chartData: [] },
     ],
   };
 
