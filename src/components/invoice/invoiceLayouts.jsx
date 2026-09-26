@@ -1,4 +1,5 @@
 import React from 'react';
+import { resolveColumns, SIMPLE_INVOICE_COLUMNS } from '../../lib/invoiceColumns';
 
 // Alternative A4 tax-invoice layouts (structurally distinct designs).
 // Each receives a prepared data pack `d` from InvoiceTemplate plus the
@@ -86,35 +87,62 @@ const MetaExtras = ({ d }) => {
   return bits.length ? <div className="text-[9px] text-slate-500">{bits.join(' · ')}</div> : null;
 };
 
-const ItemsTable = ({ d, headCls, rowBorder, cellPad = 'py-1.5 px-2', opts = DEFAULT_INV_OPTS }) => (
-  <table className="w-full text-[10px]">
-    <thead>
-      <tr className={headCls}>
-        {['#', 'Item', ...(opts.hsn ? ['HSN'] : []), 'Qty', 'Rate', 'GST%', 'Amount'].map((h) => (
-          <th key={h} className={`${cellPad} font-bold ${['Qty','Rate','GST%','Amount'].includes(h) ? 'text-right' : h === 'HSN' ? 'text-center' : 'text-left'}`}>{h}</th>
-        ))}
-      </tr>
-    </thead>
-    <tbody>
-      {d.items.map((it, i) => (
-        <tr key={i} className={rowBorder}>
-          <td className={cellPad}>{i + 1}</td>
-          <td className={`${cellPad} font-semibold`}>
-            {it.name}
-            {opts.desc && (it.sku || it.description) && (
-              <div className="text-[8.5px] font-normal text-slate-400">{it.description || it.sku}</div>
-            )}
-          </td>
-          {opts.hsn && <td className={`${cellPad} text-center`}>{it.hsn_code}</td>}
-          <td className={`${cellPad} text-right`}>{it.qty} {it.unit}</td>
-          <td className={`${cellPad} text-right`}>{money(it.rate)}</td>
-          <td className={`${cellPad} text-right`}>{it.taxRate}%</td>
-          <td className={`${cellPad} text-right font-semibold`}>{money(it.total)}</td>
+// Driven by src/lib/invoiceColumns.js rather than by a literal list, so a
+// sector column (a part number, a gold weight) is an entry in that registry
+// and appears here, in the classic layout and on the receipt at once. The
+// header row, the alignment and the cell order all come from the same place,
+// which is what stops them drifting apart.
+//
+// Two columns still need JSX rather than a plain string, and they are handled
+// by id: the item name can carry a description sub-line, and Qty prints its
+// unit alongside. Everything else is the registry's `value`.
+const ItemsTable = ({ d, headCls, rowBorder, cellPad = 'py-1.5 px-2', opts = DEFAULT_INV_OPTS }) => {
+  const ctx = { invoice: d.invoice || {}, opts };
+  const cols = resolveColumns(SIMPLE_INVOICE_COLUMNS, ctx);
+  const alignCls = (a) => (a === 'right' ? 'text-right' : a === 'center' ? 'text-center' : 'text-left');
+
+  return (
+    <table className="w-full text-[10px]">
+      <thead>
+        <tr className={headCls}>
+          {cols.map((c) => (
+            <th key={c.id} className={`${cellPad} font-bold ${alignCls(c.align)}`}>
+              {/* The compact layouts have always said "Item", not the GST
+                  document's "Description". */}
+              {c.id === 'name' ? 'Item' : c.header}
+            </th>
+          ))}
         </tr>
-      ))}
-    </tbody>
-  </table>
-);
+      </thead>
+      <tbody>
+        {d.items.map((it, i) => (
+          <tr key={i} className={rowBorder}>
+            {cols.map((c) => {
+              if (c.id === 'name') {
+                return (
+                  <td key={c.id} className={`${cellPad} font-semibold`}>
+                    {it.name}
+                    {opts.desc && (it.sku || it.description) && (
+                      <div className="text-[8.5px] font-normal text-slate-400">{it.description || it.sku}</div>
+                    )}
+                  </td>
+                );
+              }
+              if (c.id === 'qty') {
+                return <td key={c.id} className={`${cellPad} text-right`}>{it.qty} {it.unit}</td>;
+              }
+              return (
+                <td key={c.id} className={`${cellPad} ${alignCls(c.align)} ${c.id === 'amount' ? 'font-semibold' : ''}`}>
+                  {c.value(it, ctx, i)}
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
 
 const FooterTexts = ({ texts, editable, onEdit, center = false }) => (
   <div className={`mt-auto pt-4 text-[9px] text-slate-500 ${center ? 'text-center' : ''}`}>

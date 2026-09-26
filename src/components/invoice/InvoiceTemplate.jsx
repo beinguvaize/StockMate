@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { resolveColumns, spanOf, columnCount, GST_INVOICE_COLUMNS } from '../../lib/invoiceColumns';
 import { useDialogClose } from '../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import {
@@ -102,6 +103,10 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
     : { ...DEFAULT_DOC_TEXTS, ...(printPrefs.docTexts || {}) };
 
   const invOpts = { ...DEFAULT_INV_OPTS, ...(printPrefs.invOpts || {}), ...(optsOverride || {}) };
+
+  // What the column registry needs to decide which columns exist: the bill
+  // (interstate or not) and the print options (HSN on or off).
+  const colCtx = { invoice, opts: invOpts };
   const invAccent = accentOverride || printPrefs.invAccent || '#0f172a';
   const customFields = customFieldsOverride || printPrefs.customFields || [];
 
@@ -340,7 +345,15 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
               </div>
             </div>
 
-            {/* Line items */}
+            {/* Line items.
+                The column SET is still written out below rather than mapped
+                from the registry: this is a GST tax invoice and its cells
+                carry per-line borders and widths the compact layouts do not.
+                What DOES come from the registry is the arithmetic -- the
+                colspans below used to be literals (`interstate ? 8 : 9`,
+                `hsn ? 5 : 4`) that whoever added a column had to re-derive
+                correctly or the totals row would slide one cell out of line
+                on a printed tax document. */}
             <table className="w-full border-collapse text-[10px]">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-900">
@@ -399,12 +412,12 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                 {Array.from({ length: emptyRowsNeeded }).map((_, i) => (
                   <tr key={`empty-${i}`} className="print-empty-row border-b border-slate-100">
                     <td className="py-3 px-1 border-r border-slate-100">&nbsp;</td>
-                    <td colSpan={((invoice.is_interstate || invoice.isInterstate) ? 8 : 9) - (invOpts.hsn ? 0 : 1)}>&nbsp;</td>
+                    <td colSpan={columnCount(GST_INVOICE_COLUMNS, colCtx) - 1}>&nbsp;</td>
                   </tr>
                 ))}
                 {/* Totals row */}
                 <tr className="bg-slate-50 border-t-2 border-slate-900 font-bold">
-                  <td className="py-1.5 px-1 border-r border-slate-900 text-right" colSpan={invOpts.hsn ? 5 : 4}>TOTAL</td>
+                  <td className="py-1.5 px-1 border-r border-slate-900 text-right" colSpan={spanOf(GST_INVOICE_COLUMNS, colCtx, 'taxable')}>TOTAL</td>
                   <td className="py-1.5 px-1 border-r border-slate-900 text-right">{parseFloat(taxableAmount).toFixed(2)}</td>
                   <td className="py-1.5 px-1 border-r border-slate-900"></td>
                   {(invoice.is_interstate || invoice.isInterstate) ? (
