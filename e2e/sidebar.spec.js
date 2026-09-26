@@ -144,3 +144,82 @@ test('a choice stored before auto-collapse existed is dropped once', async ({ pa
   await page.waitForFunction(() => !document.querySelector('.animate-spin'), { timeout: 15_000 });
   expect(await railWidth(page)).toBe(68);
 });
+
+// ── Hover peek ─────────────────────────────────────────────────────────────
+// A collapsed rail opens under the pointer and shuts again when it leaves.
+// The page must not move while that happens: the rail is fixed and the page's
+// inset comes from the stored width, so a peek floats over the content rather
+// than re-wrapping every table under it.
+
+async function collapsedRail(page) {
+  await seedAppCache(page);
+  await setupMocks(page);
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('nav_rail_collapsed', '1');
+      localStorage.setItem('nav_rail_epoch', '2');   // a current, deliberate choice
+    } catch { /* ignore */ }
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/${TENANT_SLUG}/dashboard`);
+  await page.waitForFunction(() => !document.querySelector('.animate-spin'), { timeout: 15_000 });
+}
+
+// The padding that holds the page clear of the rail. No fallback: if this
+// stops finding the element the test must fail, not quietly compare null to
+// null and pass.
+const pageInset = (page) =>
+  page.evaluate(() => {
+    const el = document.querySelector('.md\\:pl-\\[68px\\], .md\\:pl-\\[248px\\]');
+    if (!el) throw new Error('no element carries the rail inset');
+    return parseFloat(getComputedStyle(el).paddingLeft);
+  });
+
+test('hovering a collapsed rail opens it, leaving shuts it', async ({ page }) => {
+  await collapsedRail(page);
+  const rail = page.locator('aside').first();
+  expect(await railWidth(page)).toBe(68);
+  await expect(rail.getByText('Dashboard', { exact: true })).toHaveCount(0);
+
+  await rail.hover();
+  await page.waitForTimeout(300);
+  expect(await railWidth(page)).toBe(248);
+  await expect(rail.getByText('Dashboard', { exact: true })).toBeVisible();
+
+  // Away again, and it shuts.
+  await page.mouse.move(900, 500);
+  await page.waitForTimeout(300);
+  expect(await railWidth(page)).toBe(68);
+});
+
+test('a peek floats over the page instead of reflowing it', async ({ page }) => {
+  await collapsedRail(page);
+  const rail = page.locator('aside').first();
+  const before = await pageInset(page);
+  expect(before).toBe(68);   // a real measurement, not a missing one
+
+  await rail.hover();
+  await page.waitForTimeout(300);
+  expect(await railWidth(page)).toBe(248);
+  // The rail is wider, the page has not moved.
+  expect(await pageInset(page)).toBe(68);
+});
+
+test('a peek is not the same as being expanded', async ({ page }) => {
+  // Pressing the toggle while peeked should PIN it open, so the control has to
+  // still name the stored state rather than what is on screen.
+  await collapsedRail(page);
+  const rail = page.locator('aside').first();
+  await rail.hover();
+  await page.waitForTimeout(300);
+
+  await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeVisible();
+  await page.getByRole('button', { name: 'Expand sidebar' }).click();
+  await page.waitForTimeout(300);
+
+  // Now pinned: moving the pointer away leaves it open.
+  await page.mouse.move(900, 500);
+  await page.waitForTimeout(300);
+  expect(await railWidth(page)).toBe(248);
+  expect(await page.evaluate(() => localStorage.getItem('nav_rail_collapsed'))).toBe('0');
+});
