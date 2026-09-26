@@ -172,6 +172,13 @@ const Navbar = () => {
  // Remembered per browser: a shop on a small laptop collapses once, not
  // every morning. Wrapped because storage throws in private windows.
  const { railCollapsed, toggleRail } = useRail();
+
+ // Hovering a collapsed rail peeks it open. The rail is `fixed` and the page's
+ // inset is driven by the STORED width, not this one, so a peek overlays the
+ // page instead of reflowing it -- no table re-wraps because a pointer crossed
+ // 68px. Focus opens it too, or the labels would be unreachable by keyboard.
+ const [peek, setPeek] = React.useState(false);
+ const narrow = railCollapsed && !peek;
  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
  const dropdownRef = React.useRef(null);
  const moreMenuRef = React.useRef(null);
@@ -300,15 +307,19 @@ const Navbar = () => {
      Day Book, Cash & Bank, Reports and the rest -- behind a control that
      gave no hint of what was in it. */}
  <aside
-   className={`hidden md:flex fixed inset-y-0 left-0 z-50 flex-col bg-surface border-r border-black/5 transition-[width] duration-200 ease-out ${railCollapsed ? 'w-[68px]' : 'w-[248px]'}`}
+   onMouseEnter={() => railCollapsed && setPeek(true)}
+   onMouseLeave={() => setPeek(false)}
+   onFocus={() => railCollapsed && setPeek(true)}
+   onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setPeek(false); }}
+   className={`hidden md:flex fixed inset-y-0 left-0 z-50 flex-col bg-surface border-r border-black/5 transition-[width] duration-200 ease-out motion-reduce:transition-none ${narrow ? 'w-[68px]' : 'w-[248px]'} ${railCollapsed && peek ? 'shadow-2xl' : ''}`}
  >
-   <div className={`flex items-center h-16 shrink-0 ${railCollapsed ? 'justify-center px-0' : 'px-5 gap-2'}`}>
-     {railCollapsed
+   <div className={`flex items-center h-16 shrink-0 ${narrow ? 'justify-center px-0' : 'px-5 gap-2'}`}>
+     {narrow
        ? <img src={brandMark()} alt="bookledger" className="w-9 h-9 object-contain" />
        : <img src={brandLogo()} alt="bookledger" className="object-contain h-8 w-auto max-w-[140px]" />}
    </div>
 
-   {currentTenant && !railCollapsed && (
+   {currentTenant && !narrow && (
      <div className="px-4 pb-3 shrink-0">
        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-canvas border border-black/5 min-w-0">
          <span className="text-[11px] font-bold text-ink-secondary uppercase tracking-wide truncate flex-1 min-w-0">{currentTenant.name}</span>
@@ -321,30 +332,30 @@ const Navbar = () => {
      </div>
    )}
 
-   <nav aria-label="Main" data-rail className={`flex-1 overflow-y-auto custom-scrollbar pb-3 flex flex-col gap-0.5 ${railCollapsed ? 'items-center px-3' : 'px-4'}`}>
-     {primaryNavItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: railCollapsed }))}
+   <nav aria-label="Main" data-rail className={`flex-1 overflow-y-auto custom-scrollbar pb-3 flex flex-col gap-0.5 ${narrow ? 'items-center px-3' : 'px-4'}`}>
+     {primaryNavItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
 
      {moreNavItems.filter(i => !i.hidden).length > 0 && (
-       railCollapsed
+       narrow
          ? <span className="w-6 h-px bg-black/10 my-2" />
          : <div className="mt-4 mb-1 px-3 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Books</div>
      )}
-     {moreNavItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: railCollapsed }))}
+     {moreNavItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
    </nav>
 
-   <div className={`shrink-0 border-t border-black/5 py-3 flex flex-col gap-0.5 ${railCollapsed ? 'items-center px-3' : 'px-4'}`}>
-     {adminItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: railCollapsed }))}
+   <div className={`shrink-0 border-t border-black/5 py-3 flex flex-col gap-0.5 ${narrow ? 'items-center px-3' : 'px-4'}`}>
+     {adminItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
      <button
        type="button"
        onClick={toggleRail}
        aria-label={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
        title={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-       className={`group flex items-center rounded-[9px] text-[13.5px] font-medium text-ink-secondary hover:bg-black/[0.035] hover:text-ink-primary transition-all duration-150 active:scale-[0.98] ${railCollapsed ? 'justify-center w-10 h-10' : 'gap-3 px-3 py-2'}`}
+       className={`group flex items-center rounded-[9px] text-[13.5px] font-medium text-ink-secondary hover:bg-black/[0.035] hover:text-ink-primary transition-all duration-150 active:scale-[0.98] ${narrow ? 'justify-center w-10 h-10' : 'gap-3 px-3 py-2'}`}
      >
        <span className="shrink-0 opacity-70 transition-transform duration-200 group-hover:-translate-x-0.5">
          <PanelLeft size={20} />
        </span>
-       {!railCollapsed && <span>Collapse</span>}
+       {!narrow && <span>{railCollapsed ? 'Expand' : 'Collapse'}</span>}
      </button>
    </div>
  </aside>
