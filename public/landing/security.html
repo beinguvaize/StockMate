@@ -45,6 +45,21 @@
       <a href="https://app.bookledger.in/register" class="bg-accent-solid text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-hover transition-colors">Get Started</a>
     </div>
     <a href="https://app.bookledger.in/register" class="md:hidden bg-accent-solid text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+  
+    <button id="navToggle" type="button" class="md:hidden inline-flex items-center justify-center w-11 h-11 -mr-2 rounded-full text-primary hover:bg-surface transition-colors" aria-label="Menu" aria-expanded="false" aria-controls="navPanel">
+      <svg data-icon="open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      <svg data-icon="close" hidden width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div id="navPanel" hidden class="md:hidden border-t border-line bg-canvas">
+    <div class="px-6 py-2 max-w-[1200px] mx-auto flex flex-col">
+      <a class="flex items-center min-h-[44px] px-2 text-base font-medium text-secondary hover:text-primary border-b border-line" href="features.html">Features</a>
+      <a class="flex items-center min-h-[44px] px-2 text-base font-medium text-secondary hover:text-primary border-b border-line" href="pricing.html">Pricing</a>
+      <a class="flex items-center min-h-[44px] px-2 text-base font-medium text-secondary hover:text-primary border-b border-line" href="download.html">Download</a>
+      <a class="flex items-center min-h-[44px] px-2 text-base font-medium text-secondary hover:text-primary border-b border-line" href="integrations.html">Integrations</a>
+      <a class="flex items-center min-h-[44px] px-2 text-base font-medium text-secondary hover:text-primary border-b border-line" href="about.html">About</a>
+      <a class="flex items-center min-h-[44px] px-2 text-base font-semibold text-primary" href="https://app.bookledger.in/login">Sign in</a>
+    </div>
   </div>
 </nav>
 
@@ -74,13 +89,14 @@
   <div class="flex flex-col md:flex-row justify-between items-center w-full px-6 lg:px-8 py-8 max-w-[1200px] mx-auto gap-4">
     <div class="flex items-center gap-2"><img src="bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/></div>
     <div class="flex flex-wrap justify-center gap-5">
-      <a class="text-xs text-secondary hover:text-primary" href="features.html">Features</a>
-      <a class="text-xs text-secondary hover:text-primary" href="pricing.html">Pricing</a>
-      <a class="text-xs text-secondary hover:text-primary" href="privacy.html">Privacy</a>
-      <a class="text-xs text-secondary hover:text-primary" href="terms.html">Terms</a>
-      <a class="text-xs text-secondary hover:text-primary" href="contact.html">Contact</a>
+      <a class="inline-flex items-center min-h-[32px] py-1 text-xs text-secondary hover:text-primary" href="features.html">Features</a>
+      <a class="inline-flex items-center min-h-[32px] py-1 text-xs text-secondary hover:text-primary" href="pricing.html">Pricing</a>
+      <a class="inline-flex items-center min-h-[32px] py-1 text-xs text-secondary hover:text-primary" href="privacy.html">Privacy</a>
+      <a class="inline-flex items-center min-h-[32px] py-1 text-xs text-secondary hover:text-primary" href="terms.html">Terms</a>
+      <a class="inline-flex items-center min-h-[32px] py-1 text-xs text-secondary hover:text-primary" href="contact.html">Contact</a>
     </div>
     <div class="text-xs text-secondary font-light">© 2026 bookledger. Built for Indian business.</div>
   </div>
 </footer>
+<script src="nav.js" defer></script>
 </body></html>
