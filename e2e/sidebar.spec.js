@@ -223,3 +223,48 @@ test('a peek is not the same as being expanded', async ({ page }) => {
   expect(await railWidth(page)).toBe(248);
   expect(await page.evaluate(() => localStorage.getItem('nav_rail_collapsed'))).toBe('0');
 });
+
+// ── The account lives in the rail ──────────────────────────────────────────
+// The avatar used to sit at the far right of a header that held nothing else,
+// so a 64px band crossed every screen to carry it. The rail holds it now and
+// the band is gone on desktop.
+
+test('desktop has no header band, and the account sits in the rail', async ({ page }) => {
+  await collapsedRail(page);
+  await expect(page.locator('header').first()).toBeHidden();
+
+  const account = page.locator('aside button[aria-haspopup="menu"]');
+  await expect(account).toBeVisible();
+
+  await account.click();
+  await expect(page.getByRole('link', { name: /Nexus/i }).or(page.getByRole('button', { name: /Log out/i })).first()).toBeVisible();
+
+  // Escape closes it, and so does a click elsewhere.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: /Log out/i })).toHaveCount(0);
+});
+
+test('nothing in the collapsed rail hangs over its edge', async ({ page }) => {
+  // The sync pill and its refresh button are wider than 68px and used to spill
+  // across the page when the rail was collapsed.
+  await collapsedRail(page);
+  const overflow = await page.locator('aside').first().evaluate((aside) => {
+    const w = aside.getBoundingClientRect().width;
+    return [...aside.querySelectorAll('*')]
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && (r.right > w + 0.5 || r.left < -0.5);
+      })
+      .map((el) => el.className.toString().slice(0, 50));
+  });
+  expect(overflow).toEqual([]);
+});
+
+test('the phone keeps its header, because it has no rail', async ({ page }) => {
+  await seedAppCache(page);
+  await setupMocks(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/${TENANT_SLUG}/dashboard`);
+  await page.waitForFunction(() => !document.querySelector('.animate-spin'), { timeout: 15_000 });
+  await expect(page.locator('header').first()).toBeVisible();
+});
