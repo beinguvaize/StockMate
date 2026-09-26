@@ -101,7 +101,7 @@ const ReportShell = ({
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
               className={`
-                flex items-center gap-3 px-6 py-3 rounded-full text-[10px] font-semibold transition-all whitespace-nowrap uppercase tracking-widest
+                flex items-center gap-3 px-6 py-3 rounded-pill text-[10px] font-semibold transition-all whitespace-nowrap uppercase tracking-widest
                 ${activeTabId === tab.id 
                   ? 'bg-card text-foreground font-semibold shadow-sm' 
                   : 'text-muted-foreground font-medium hover:text-foreground'}

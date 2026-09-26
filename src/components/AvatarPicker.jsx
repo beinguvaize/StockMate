@@ -95,7 +95,7 @@ export default function AvatarPicker({ onClose }) {
             <h2 className="text-base font-bold text-white">Your Avatar</h2>
             <p className="text-[11px] text-white/60 mt-0.5">Create a 3D avatar or upload a photo</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all">
+          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all">
             <X size={16} />
           </button>
         </div>
@@ -117,7 +117,7 @@ export default function AvatarPicker({ onClose }) {
               </div>
               <button
                 onClick={() => fileRef.current?.click()}
-                className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-ink-primary flex items-center justify-center text-white shadow-lg hover:scale-110 transition-transform"
+                className="absolute bottom-0 right-0 w-9 h-9 rounded-xl bg-ink-primary flex items-center justify-center text-white shadow-lg hover:scale-110 transition-transform"
                 title="Upload photo"
               >
                 <Camera size={15} />
@@ -145,7 +145,7 @@ export default function AvatarPicker({ onClose }) {
               }, 500);
             }}
             disabled={rpmLoading}
-            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-accent-signature to-accent-signature text-white hover:opacity-90 active:scale-[0.98] transition-all shadow-lg disabled:opacity-70"
+            className="w-full flex items-center gap-4 p-4 rounded-pill bg-gradient-to-r from-accent-signature to-accent-signature text-white hover:opacity-90 active:scale-[0.98] transition-all shadow-lg disabled:opacity-70"
           >
             <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
               {rpmLoading
@@ -187,7 +187,7 @@ export default function AvatarPicker({ onClose }) {
           <button
             onClick={handleSave}
             disabled={!preview || saving || saved}
-            className="w-full py-3 rounded-2xl bg-ink-primary text-white text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40"
+            className="w-full py-3 rounded-pill bg-ink-primary text-white text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40"
           >
             {saving && <Loader2 size={16} className="animate-spin" />}
             {saved  && <Check  size={16} />}

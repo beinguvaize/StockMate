@@ -99,11 +99,11 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
   if (done) return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
       <div className="flex items-center gap-4 px-6 py-4 border-b border-border/60 bg-card shrink-0">
-        <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
+        <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
           <ChevronLeft size={18} />
         </button>
         <h1 className="text-lg font-semibold text-foreground">Stock Adjustment</h1>
-        <button onClick={onClose} className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-muted-foreground shrink-0"><X size={16} /></button>
+        <button onClick={onClose} className="ml-auto w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-muted-foreground shrink-0"><X size={16} /></button>
       </div>
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center space-y-5 max-w-sm w-full px-6">
@@ -130,7 +130,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
 
       {/* ── Top bar ── */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-border/60 bg-card shrink-0">
-        <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
+        <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
           <ChevronLeft size={18} />
         </button>
         <div className="min-w-0">
@@ -139,7 +139,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
             {product.name} · Current: {currentStock} {product.unit || 'pcs'}
           </p>
         </div>
-        <button onClick={onClose} className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-muted-foreground shrink-0"><X size={16} /></button>
+        <button onClick={onClose} className="ml-auto w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-muted-foreground shrink-0"><X size={16} /></button>
       </div>
 
       {/* ── Scrollable content ── */}
@@ -155,7 +155,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
                 <button
                   key={t.key}
                   onClick={() => setType(t.key)}
-                  className={`relative flex flex-col items-center gap-1.5 px-3 py-3.5 rounded-2xl border-2 transition-all ${
+                  className={`relative flex flex-col items-center gap-1.5 px-3 py-3.5 rounded-pill border-2 transition-all ${
                     active
                       ? `${t.bg} ${t.border} ${t.color}`
                       : 'bg-canvas border-transparent hover:border-border text-muted-foreground'
@@ -184,7 +184,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
             <div className="flex items-center gap-3">
               <button
                 onClick={() => stepQty(-1)}
-                className="w-11 h-11 shrink-0 rounded-2xl border border-black/8 bg-canvas flex items-center justify-center text-muted-foreground hover:bg-black/5 hover:border-black/20 transition-all active:scale-95"
+                className="w-11 h-11 shrink-0 rounded-xl border border-black/8 bg-canvas flex items-center justify-center text-muted-foreground hover:bg-black/5 hover:border-black/20 transition-all active:scale-95"
               >
                 <Minus size={14} />
               </button>
@@ -198,7 +198,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
               />
               <button
                 onClick={() => stepQty(1)}
-                className="w-11 h-11 shrink-0 rounded-2xl border border-black/8 bg-canvas flex items-center justify-center text-muted-foreground hover:bg-black/5 hover:border-black/20 transition-all active:scale-95"
+                className="w-11 h-11 shrink-0 rounded-xl border border-black/8 bg-canvas flex items-center justify-center text-muted-foreground hover:bg-black/5 hover:border-black/20 transition-all active:scale-95"
               >
                 <Plus size={14} />
               </button>

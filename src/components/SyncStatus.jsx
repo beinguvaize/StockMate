@@ -94,7 +94,7 @@ export default function SyncStatus() {
         onClick={syncNow}
         disabled={syncing}
         title="Sync now"
-        className={`w-7 h-7 rounded-full flex items-center justify-center border border-black/5 shadow-sm transition-all
+        className={`w-7 h-7 rounded-xl flex items-center justify-center border border-black/5 shadow-sm transition-all
           ${syncing
             ? 'bg-muted text-muted-foreground cursor-not-allowed'
             : 'bg-white text-muted-foreground hover:text-ink-primary hover:shadow-md active:scale-95'

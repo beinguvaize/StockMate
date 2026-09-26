@@ -211,7 +211,7 @@ const ProductSalesReport = () => {
               <div className="text-[10px] text-muted-foreground tabular-nums">{selectedProduct.sku || '—'} · list {formatCurrency(selectedProduct.sellingPrice || 0)}</div>
             </div>
             <button onClick={() => setProductId('')}
-              className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50">
+              className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-pill hover:bg-red-50">
               Change
             </button>
           </div>

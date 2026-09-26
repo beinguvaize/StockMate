@@ -67,7 +67,7 @@ const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
               <p className="text-[11px] text-muted-foreground">{invoice.invoice_number} · ₹{total.toLocaleString('en-IN')}</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center"><X size={15} /></button>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-muted flex items-center justify-center"><X size={15} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -113,7 +113,7 @@ const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
           )}
 
           <button onClick={handleDownload}
-            className="w-full py-2.5 rounded-xl bg-ink-primary text-white text-[12px] font-black flex items-center justify-center gap-2 hover:opacity-90">
+            className="w-full py-2.5 rounded-pill bg-ink-primary text-white text-[12px] font-black flex items-center justify-center gap-2 hover:opacity-90">
             <Download size={14} /> Download NIC JSON (bulk upload)
           </button>
           <p className="text-[11px] text-muted-foreground -mt-2">
@@ -125,7 +125,7 @@ const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
             <div className="flex gap-2">
               <input value={ewbNo} onChange={e => setEwbNo(e.target.value)} className={`${input} tabular-nums flex-1`} placeholder="12-digit EWB no." />
               <button onClick={handleSaveEwb}
-                className="shrink-0 px-4 rounded-lg border border-accent-signature/40 text-accent-signature text-[12px] font-black hover:bg-accent-signature/10">
+                className="shrink-0 px-4 rounded-pill border border-accent-signature/40 text-accent-signature text-[12px] font-black hover:bg-accent-signature/10">
                 {saved ? <CheckCircle2 size={14} /> : 'Save'}
               </button>
             </div>

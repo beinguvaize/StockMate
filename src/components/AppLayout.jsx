@@ -350,7 +350,7 @@ const Navbar = () => {
        onClick={toggleRail}
        aria-label={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
        title={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-       className={`group flex items-center rounded-[9px] text-[13.5px] font-medium text-ink-secondary hover:bg-black/[0.035] hover:text-ink-primary transition-all duration-150 active:scale-[0.98] ${narrow ? 'justify-center w-10 h-10' : 'gap-3 px-3 py-2'}`}
+       className={`group flex items-center rounded-pill text-[13.5px] font-medium text-ink-secondary hover:bg-black/[0.035] hover:text-ink-primary transition-all duration-150 active:scale-[0.98] ${narrow ? 'justify-center w-10 h-10' : 'gap-3 px-3 py-2'}`}
      >
        <span className="shrink-0 opacity-70 transition-transform duration-200 group-hover:-translate-x-0.5">
          <PanelLeft size={20} />
@@ -398,7 +398,7 @@ const Navbar = () => {
  <div className="relative" ref={dropdownRef}>
  <button
    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-   className="flex items-center gap-3 px-3 py-1.5 rounded-full bg-white border border-black/5 shadow-sm hover:shadow-md transition-all group"
+   className="flex items-center gap-3 px-3 py-1.5 rounded-pill bg-white border border-black/5 shadow-sm hover:shadow-md transition-all group"
  >
    <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-black/5 flex-shrink-0">
      <img
@@ -461,7 +461,7 @@ const Navbar = () => {
          )}
        </div>
      </div>
-     <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-all">
+     <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-pill transition-all">
        <LogOut size={16} /> Logout
      </button>
    </div>
@@ -588,7 +588,7 @@ const Navbar = () => {
    {/* Mobile avatar row */}
    <button
      onClick={() => { setIsMobileMenuOpen(false); setShowAvatarPicker(true); }}
-     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-canvas transition-all"
+     className="w-full flex items-center gap-3 px-4 py-3 rounded-pill hover:bg-canvas transition-all"
    >
      <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-black/5 flex-shrink-0">
        <img
@@ -604,7 +604,7 @@ const Navbar = () => {
    </button>
    <button
      onClick={() => { logout(); setIsMobileMenuOpen(false);}}
-     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 rounded-xl transition-all"
+     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 rounded-pill transition-all"
    >
      <LogOut size={18} /> Logout
    </button>
@@ -624,7 +624,7 @@ const KioskBar = ({ onExit }) => (
       <SyncStatusButton />
       <button
         onClick={onExit}
-        className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-ink-primary text-white hover:opacity-80 transition-opacity"
+        className="flex items-center gap-1.5 px-3 py-1 rounded-pill text-xs font-semibold bg-ink-primary text-white hover:opacity-80 transition-opacity"
       >
         ← Exit POS
       </button>
@@ -733,7 +733,7 @@ const AppLayout = () => {
             <span>Viewing as: {currentTenant?.name}</span>
             <button
               onClick={stopImpersonating}
-              className="bg-white text-accent-signature px-3 py-1 rounded-lg hover:bg-accent-signature/10 transition-all shadow-sm active:scale-[0.98] font-semibold border border-accent-signature/20"
+              className="bg-white text-accent-signature px-3 py-1 rounded-pill hover:bg-accent-signature/10 transition-all shadow-sm active:scale-[0.98] font-semibold border border-accent-signature/20"
             >
               Exit View
             </button>

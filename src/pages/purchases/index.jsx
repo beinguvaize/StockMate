@@ -673,7 +673,7 @@ const PurchasesPage = () => {
               <button
                 onClick={() => { setPayTarget(bill.lines[0]); setPayAmount(String(due)); setPayMethod('CASH'); }}
                 title={`Due ${formatCurrency(due)}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
               >
                 <Banknote size={12} /> Pay
               </button>
@@ -682,7 +682,7 @@ const PurchasesPage = () => {
               <button
                 onClick={() => setExpandedBill(expanded ? null : bill.id)}
                 title="Open the bill to pay a line"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
               >
                 <Banknote size={12} /> Pay lines
               </button>
@@ -704,7 +704,7 @@ const PurchasesPage = () => {
                 setMenuBill({ bill, x: r.right, y: r.bottom });
               }}
               title={multi ? 'Bill actions' : 'More'}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
             >
               <MoreVertical size={16} />
             </button>
@@ -756,7 +756,7 @@ const PurchasesPage = () => {
                   </span>
                   <button
                     onClick={() => { setPayTarget(l); setPayAmount(String(lineDue)); setPayMethod('CASH'); }}
-                    className="px-2 py-0.5 rounded-md text-[10px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
+                    className="px-2 py-0.5 rounded-pill text-[10px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
                   >Pay</button>
                 </div>
               ) : (
@@ -777,7 +777,7 @@ const PurchasesPage = () => {
               <button
                 onClick={(e) => openMenu(e, l)}
                 title={`Edit, return or delete ${prod?.name || 'this product'}`}
-                className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
+                className="w-7 h-7 inline-flex items-center justify-center rounded-xl text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
               >
                 <MoreVertical size={14} />
               </button>
@@ -799,7 +799,7 @@ const PurchasesPage = () => {
           <p className="text-xs text-muted-foreground mt-0.5">Inward stock from suppliers</p>
         </div>
         <button onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-pill bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
           <Plus size={14} /> New purchase
         </button>
       </div>
@@ -837,7 +837,7 @@ const PurchasesPage = () => {
       <div className="flex items-center bg-muted rounded-lg p-0.5 w-fit">
         <button
           onClick={() => setActiveTab('purchases')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
             activeTab === 'purchases'
               ? 'bg-card text-foreground font-semibold shadow-sm'
               : 'text-muted-foreground font-medium hover:text-foreground'
@@ -848,7 +848,7 @@ const PurchasesPage = () => {
         </button>
         <button
           onClick={() => setActiveTab('returns')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
             activeTab === 'returns'
               ? 'bg-card text-rose-600 font-semibold shadow-sm'
               : 'text-muted-foreground font-medium hover:text-foreground'
@@ -887,7 +887,7 @@ const PurchasesPage = () => {
           {/* Quick chip — jump straight to bills still owing. */}
           <button
             onClick={() => setOnlyUnpaid(v => !v)}
-            className={`h-9 px-3 rounded-lg text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-colors ${
+            className={`h-9 px-3 rounded-pill text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-colors ${
               onlyUnpaid ? 'bg-[color:var(--color-neg)]/10 border-[color:var(--color-neg)]/30 text-[color:var(--color-neg)]'
                          : 'border-border text-muted-foreground hover:text-foreground'}`}
           >
@@ -902,7 +902,7 @@ const PurchasesPage = () => {
           <button
             onClick={() => setDense(v => !v)}
             title={dense ? 'Comfortable rows' : 'Compact rows — more per screen'}
-            className={`h-9 px-3 rounded-lg text-[12px] font-semibold border transition-colors ${
+            className={`h-9 px-3 rounded-pill text-[12px] font-semibold border transition-colors ${
               dense ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
                     : 'border-border text-muted-foreground hover:text-foreground'}`}
           >
@@ -1116,7 +1116,7 @@ const PurchasesPage = () => {
                 <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[13px] font-semibold" />
               </label>
             </div>
-            <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold disabled:opacity-40 hover:bg-primary/90 flex items-center justify-center gap-2">
+            <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold disabled:opacity-40 hover:bg-primary/90 flex items-center justify-center gap-2">
               <Banknote size={15} /> {paySubmitting ? 'Recording…' : 'Record payment'}
             </button>
           </div>
@@ -1197,7 +1197,7 @@ const PurchasesPage = () => {
               )}
 
               <button onClick={() => printVoucher(printTarget)}
-                className="mt-3 w-full h-11 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2">
+                className="mt-3 w-full h-11 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2">
                 <Printer size={15} /> Print voucher
               </button>
             </div>

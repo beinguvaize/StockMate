@@ -408,12 +408,12 @@ const Expenses = () => {
        { k: 'week', label: 'Week' }, { k: 'month', label: 'Month' }, { k: 'lastmonth', label: 'Last Mo' },
      ].map(({ k, label }) => (
        <button key={k} onClick={() => setFilterType(k)}
-         className={`h-7 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors ${filterType === k ? 'bg-accent-signature text-white' : 'text-ink-secondary hover:text-ink-primary'}`}>
+         className={`h-7 px-3 rounded-pill text-[11px] font-semibold whitespace-nowrap transition-colors ${filterType === k ? 'bg-accent-signature text-white' : 'text-ink-secondary hover:text-ink-primary'}`}>
          {label}
        </button>
      ))}
      <button onClick={() => setFilterType('range')}
-       className={`h-7 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors ${filterType === 'range' ? 'bg-accent-signature text-white' : 'text-ink-secondary hover:text-ink-primary'}`}>
+       className={`h-7 px-3 rounded-pill text-[11px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors ${filterType === 'range' ? 'bg-accent-signature text-white' : 'text-ink-secondary hover:text-ink-primary'}`}>
        <Calendar size={12} /> Range
      </button>
    </div>
@@ -573,7 +573,7 @@ const Expenses = () => {
  {hasPermission('EDIT_EXPENSE') && (
  <button
  aria-label="Edit expense"
- className="w-8 h-8 rounded-lg bg-canvas text-muted-foreground flex items-center justify-center hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"
+ className="w-8 h-8 rounded-xl bg-canvas text-muted-foreground flex items-center justify-center hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"
  onClick={() => handleEdit(expense)}
  >
  <FileText size={14} />
@@ -582,7 +582,7 @@ const Expenses = () => {
  {hasPermission('DELETE_EXPENSE') && (
  <button
  aria-label="Delete expense"
- className="w-8 h-8 rounded-lg bg-canvas text-muted-foreground flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
+ className="w-8 h-8 rounded-xl bg-canvas text-muted-foreground flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
  onClick={() => { if(window.confirm('Delete record?')) deleteExpense(expense.id); }}
  >
  <X size={14} />
@@ -734,7 +734,7 @@ const Expenses = () => {
    <button
      onClick={handleCloseModal}
      aria-label="Close"
-     className="w-9 h-9 rounded-full border border-black/8 flex items-center justify-center hover:bg-black/5 transition-colors cursor-pointer text-muted-foreground"
+     className="w-9 h-9 rounded-xl border border-black/8 flex items-center justify-center hover:bg-black/5 transition-colors cursor-pointer text-muted-foreground"
    >
      <X size={16} />
    </button>
@@ -796,7 +796,7 @@ const Expenses = () => {
            setFormData(f => ({ ...f, category: name }));
            setNewCategory('');
          }}
-         className="px-3 py-1.5 rounded-lg bg-accent-signature/10 text-accent-signature text-xs font-bold disabled:opacity-40"
+         className="px-3 py-1.5 rounded-pill bg-accent-signature/10 text-accent-signature text-xs font-bold disabled:opacity-40"
        >Add</button>
      </div>
    </div>
@@ -872,7 +872,7 @@ const Expenses = () => {
        role="switch"
        aria-checked={formData.gst_claimable}
        onClick={() => setFormData({ ...formData, gst_claimable: !formData.gst_claimable })}
-       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.gst_claimable ? 'bg-accent-signature' : 'bg-black/15'}`}
+       className={`relative w-11 h-6 rounded-xl transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.gst_claimable ? 'bg-accent-signature' : 'bg-black/15'}`}
      >
        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.gst_claimable ? 'translate-x-5' : 'translate-x-0'}`} />
      </button>
@@ -937,7 +937,7 @@ const Expenses = () => {
      role="switch"
      aria-checked={formData.exclude_from_pl}
      onClick={() => setFormData({ ...formData, exclude_from_pl: !formData.exclude_from_pl })}
-     className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-violet-500/20 shrink-0 ${formData.exclude_from_pl ? 'bg-violet-500' : 'bg-black/15'}`}
+     className={`relative w-11 h-6 rounded-xl transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-violet-500/20 shrink-0 ${formData.exclude_from_pl ? 'bg-violet-500' : 'bg-black/15'}`}
    >
      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.exclude_from_pl ? 'translate-x-5' : 'translate-x-0'}`} />
    </button>
@@ -962,7 +962,7 @@ const Expenses = () => {
        role="switch"
        aria-checked={formData.repeat_monthly}
        onClick={() => setFormData({ ...formData, repeat_monthly: !formData.repeat_monthly })}
-       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.repeat_monthly ? 'bg-accent-signature' : 'bg-black/15'}`}
+       className={`relative w-11 h-6 rounded-xl transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.repeat_monthly ? 'bg-accent-signature' : 'bg-black/15'}`}
      >
        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.repeat_monthly ? 'translate-x-5' : 'translate-x-0'}`} />
      </button>
@@ -980,7 +980,7 @@ const Expenses = () => {
    <button type="button" className="px-6 py-3.5 rounded-pill border border-black/10 font-bold text-ink-primary text-xs uppercase tracking-wide hover:bg-black/5 transition-colors cursor-pointer disabled:opacity-50" onClick={handleCloseModal} disabled={saving}>
      Cancel
    </button>
-   <button type="submit" disabled={saving} className="flex-1 h-[52px] text-xs uppercase tracking-widest font-black flex items-center justify-center gap-2.5 px-6 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white shadow-md shadow-accent-signature/25 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+   <button type="submit" disabled={saving} className="flex-1 h-[52px] text-xs uppercase tracking-widest font-black flex items-center justify-center gap-2.5 px-6 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white shadow-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
      {saving ? 'Saving…' : (editingExpense ? 'Save Changes' : 'Log Expense')}
      {!saving && <Save size={16} />}
    </button>

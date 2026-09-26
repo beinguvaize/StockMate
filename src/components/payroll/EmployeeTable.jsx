@@ -109,13 +109,13 @@ const EmployeeTable = ({
  <button 
  disabled={viewOnly} 
  onClick={() => updateEmployee({...emp, daysWorked: Math.max(0, daysWorked - 1)})} 
- className="w-7 h-7 rounded-lg border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-secondary font-semibold cursor-pointer transition-colors"
+ className="w-7 h-7 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-secondary font-semibold cursor-pointer transition-colors"
  >-</button>
  <span className="w-8 text-center text-sm font-semibold text-ink-primary tabular-nums">{daysWorked}</span>
  <button 
  disabled={viewOnly} 
  onClick={() => updateEmployee({...emp, daysWorked: daysWorked + 1})} 
- className="w-7 h-7 rounded-lg border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-secondary font-semibold cursor-pointer transition-colors"
+ className="w-7 h-7 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-secondary font-semibold cursor-pointer transition-colors"
  >+</button>
  </div>
  </td>
@@ -151,18 +151,18 @@ const EmployeeTable = ({
  {!viewOnly && (
  <button 
  onClick={() => { setSalaryPayment({ empId: emp.id, amount: '', date: todayISOInAppTZ(), notes: ''}); setShowSalaryModal(true);}} 
- className="px-3 py-1.5 rounded-lg bg-surface border border-black/10 text-[9px] font-semibold text-ink-primary hover:bg-ink-primary hover:text-accent-signature transition-all shadow-sm"
+ className="px-3 py-1.5 rounded-pill bg-surface border border-black/10 text-[9px] font-semibold text-ink-primary hover:bg-ink-primary hover:text-accent-signature transition-all shadow-sm"
  >Pay</button>
  )}
  <button 
  onClick={() => openEdit(emp)} 
- className="w-8 h-8 rounded-lg bg-surface border border-black/10 flex items-center justify-center text-ink-primary hover:bg-black/5 transition-all shadow-sm"
+ className="w-8 h-8 rounded-xl bg-surface border border-black/10 flex items-center justify-center text-ink-primary hover:bg-black/5 transition-all shadow-sm"
  title="Edit Details"
  ><Edit3 size={14} /></button>
  
  <button 
  onClick={() => updateEmployee({ ...emp, status: emp.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'})} 
- className={`w-8 h-8 rounded-lg border border-black/10 flex items-center justify-center transition-all shadow-sm ${emp.status === 'ACTIVE' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}
+ className={`w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center transition-all shadow-sm ${emp.status === 'ACTIVE' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}
  title={emp.status === 'ACTIVE' ? 'Mark Inactive' : 'Mark Active'}
  >
  {emp.status === 'ACTIVE' ? <UserMinus size={14} /> : <UserPlus size={14} />}
@@ -171,7 +171,7 @@ const EmployeeTable = ({
  {!viewOnly && (
  <button 
  onClick={() => setDeleteConfirm(emp.id)} 
- className="w-8 h-8 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center text-red-500 hover:bg-red-100 transition-all shadow-sm"
+ className="w-8 h-8 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-red-500 hover:bg-red-100 transition-all shadow-sm"
  title="Delete Record"
  ><Trash2 size={14} /></button>
  )}

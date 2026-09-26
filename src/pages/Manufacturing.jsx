@@ -46,7 +46,7 @@ const Manufacturing = () => {
         </div>
         <button
           onClick={() => tab === 'RECIPES' ? setShowRecipe(true) : setShowBuild(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-pill bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all"
         >
           <Plus size={14} /> {tab === 'RECIPES' ? `New ${recipeWord}` : 'New Build'}
         </button>
@@ -59,7 +59,7 @@ const Manufacturing = () => {
           { id: 'RECIPES',    label: recipeWord,          icon: Layers },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
+            className={`flex items-center gap-2 px-5 py-2 rounded-pill text-[11px] font-black uppercase tracking-widest transition-all ${
               tab === t.id ? 'bg-ink-primary text-white' : 'text-muted-foreground hover:text-ink-primary'
             }`}>
             <t.icon size={13} /> {t.label}
@@ -131,7 +131,7 @@ const Manufacturing = () => {
                               : `Failed: ${r.error?.message || 'error'}`,
                             r.success ? 'success' : 'error');
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-ink-primary text-white text-[10px] font-black hover:bg-ink-primary/90 transition-all"
+                        className="px-3 py-1.5 rounded-pill bg-ink-primary text-white text-[10px] font-black hover:bg-ink-primary/90 transition-all"
                       >
                         Complete
                       </button>
@@ -285,7 +285,7 @@ const RecipeModal = ({ products, onClose, onSave, recipeWord = 'Recipe' }) => {
             </div>
           </div>
           <button onClick={addRow} type="button"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-signature text-button-text text-[11px] font-black uppercase tracking-wider hover:bg-accent-signature/90 transition-all shadow-sm">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill bg-accent-signature text-button-text text-[11px] font-black uppercase tracking-wider hover:bg-accent-signature/90 transition-all shadow-sm">
             <Plus size={12} strokeWidth={3} /> Add Material
           </button>
         </div>
@@ -324,7 +324,7 @@ const RecipeModal = ({ products, onClose, onSave, recipeWord = 'Recipe' }) => {
       {/* Save */}
       <button disabled={!canSave || saving}
         onClick={async () => { setSaving(true); await onSave({ finishedProductId: finishedId, name: null, outputQty: Number(outputQty), components: rows }); setSaving(false); }}
-        className="w-full mt-7 h-14 rounded-2xl bg-ink-primary text-white font-black text-sm tracking-wider uppercase hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/25">
+        className="w-full mt-7 h-14 rounded-pill bg-ink-primary text-white font-black text-sm tracking-wider uppercase hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/25">
         {saving ? 'Saving…' : 'Save Recipe'}
       </button>
     </Modal>
@@ -470,7 +470,7 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave, recipeWord
           });
           setSaving(false);
         }}
-        className="w-full mt-6 py-3.5 rounded-2xl bg-ink-primary text-white font-black text-sm hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-ink-primary/20">
+        className="w-full mt-6 py-3.5 rounded-pill bg-ink-primary text-white font-black text-sm hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-ink-primary/20">
         {saving ? 'Saving…' : 'Create Build (Draft)'}
       </button>
       <p className="text-[10px] text-muted-foreground text-center mt-3 flex items-center justify-center gap-1">
@@ -517,7 +517,7 @@ const Modal = ({ title, subtitle, onClose, children, size = 'lg' }) => {
             {subtitle && <p className="text-xs text-muted-foreground font-medium mt-0.5">{subtitle}</p>}
           </div>
           <button onClick={onClose}
-            className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:border-black/25 hover:rotate-90 transition-all shrink-0">
+            className="w-10 h-10 rounded-xl border border-black/10 flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:border-black/25 hover:rotate-90 transition-all shrink-0">
             <X size={16} />
           </button>
         </div>

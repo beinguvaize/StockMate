@@ -276,10 +276,10 @@ const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit,
                       <td className="px-4 py-2.5 w-px" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {onAdjust && (
-                            <button onClick={() => onAdjust(product)} title="Adjust stock" className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"><SlidersHorizontal size={14} /></button>
+                            <button onClick={() => onAdjust(product)} title="Adjust stock" className="w-7 h-7 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"><SlidersHorizontal size={14} /></button>
                           )}
-                          <button onClick={() => onEdit(product)} title="View / edit" className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-black/[0.05] hover:text-foreground transition-colors"><Eye size={14} /></button>
-                          <button onClick={() => onDelete(product.id)} title="Delete" className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                          <button onClick={() => onEdit(product)} title="View / edit" className="w-7 h-7 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/[0.05] hover:text-foreground transition-colors"><Eye size={14} /></button>
+                          <button onClick={() => onDelete(product.id)} title="Delete" className="w-7 h-7 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
                         </div>
                       </td>
                     </tr>
@@ -298,14 +298,14 @@ const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit,
             {onBulkEdit && (
               <button
                 onClick={() => onBulkEdit(products.filter(p => selected.has(p.id)), clearSelection)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-pill text-[12px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity">
                 <Pencil size={13} /> Bulk edit
               </button>
             )}
             {onBulkDelete && (
               <button
                 onClick={() => onBulkDelete(products.filter(p => selected.has(p.id)), clearSelection)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-semibold bg-red-500/90 text-white hover:bg-red-500 transition-colors">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-pill text-[12px] font-semibold bg-red-500/90 text-white hover:bg-red-500 transition-colors">
                 <Trash2 size={13} /> Delete
               </button>
             )}

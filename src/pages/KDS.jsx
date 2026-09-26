@@ -72,7 +72,7 @@ const KDS = () => {
                 <div className="px-3 pb-3 flex items-center gap-2">
                   <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${s.chip}`}>{s.label}</span>
                   <button onClick={() => updateStatus(tk.id, s.next)}
-                    className="ml-auto px-3 h-8 rounded-lg bg-ink-primary text-white text-[12px] font-bold hover:bg-black transition-all">
+                    className="ml-auto px-3 h-8 rounded-pill bg-ink-primary text-white text-[12px] font-bold hover:bg-black transition-all">
                     {s.action} →
                   </button>
                 </div>

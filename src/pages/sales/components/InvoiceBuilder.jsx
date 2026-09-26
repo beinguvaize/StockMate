@@ -56,7 +56,7 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
                   const on = !!sel[g.id]?.[o.name];
                   return (
                     <button key={o.name} type="button" onClick={() => toggle(g, o.name)}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-pill border text-sm transition-all ${
                         on ? 'border-accent-signature bg-accent-signature/10' : 'border-border hover:border-black/20'
                       }`}>
                       <span className="font-semibold text-foreground">{o.name}</span>
@@ -70,7 +70,7 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
         </div>
         <div className="p-4 border-t border-border/60">
           <button onClick={() => onConfirm(chosen)}
-            className="w-full h-11 rounded-xl bg-accent-signature text-white text-sm font-semibold hover:bg-accent-signature-hover transition-all flex items-center justify-center gap-2">
+            className="w-full h-11 rounded-pill bg-accent-signature text-white text-sm font-semibold hover:bg-accent-signature-hover transition-all flex items-center justify-center gap-2">
             Add · <span className="tabular-nums">{currencySymbol}{total}</span>
           </button>
         </div>
@@ -993,11 +993,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           )}
           <div className="flex items-center bg-card border border-border rounded-lg p-0.5 shrink-0 ml-auto">
             <button onClick={() => setViewMode('list')} aria-label="List view"
-              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
+              className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
               <List size={15} />
             </button>
             <button onClick={() => setViewMode('grid')} aria-label="Grid view"
-              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
+              className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
               <LayoutGrid size={15} />
             </button>
           </div>
@@ -1046,18 +1046,18 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 cartQty > 0 ? (
                   <div className="mt-auto flex items-center justify-between gap-1">
                     <button type="button" onClick={() => updateQuantity(product.id, -1)}
-                      className="w-8 h-8 rounded-lg bg-card border border-border text-foreground flex items-center justify-center hover:bg-black/5">
+                      className="w-8 h-8 rounded-xl bg-card border border-border text-foreground flex items-center justify-center hover:bg-black/5">
                       <Minus size={14} />
                     </button>
                     <span className="text-sm font-semibold text-foreground tabular-nums">{cartQty}</span>
                     <button type="button" onClick={() => addToCart(product)}
-                      className="w-8 h-8 rounded-lg bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90">
+                      className="w-8 h-8 rounded-xl bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90">
                       <Plus size={14} />
                     </button>
                   </div>
                 ) : (
                   <button type="button" onClick={() => addToCart(product)}
-                    className="mt-auto w-full py-2 rounded-lg bg-canvas hover:bg-accent-signature hover:text-button-text text-xs font-semibold text-foreground transition-colors flex items-center justify-center gap-1.5">
+                    className="mt-auto w-full py-2 rounded-pill bg-canvas hover:bg-accent-signature hover:text-button-text text-xs font-semibold text-foreground transition-colors flex items-center justify-center gap-1.5">
                     <Plus size={14} /> Add
                   </button>
                 )
@@ -1153,13 +1153,13 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     <button
                       type="button"
                       onClick={() => updateQuantity(product.id, -1)}
-                      className="w-7 h-7 rounded-lg bg-card border border-border text-foreground flex items-center justify-center hover:bg-black/5"
+                      className="w-7 h-7 rounded-xl bg-card border border-border text-foreground flex items-center justify-center hover:bg-black/5"
                     ><Minus size={13} /></button>
                     <span className="w-6 text-center text-sm font-semibold text-foreground tabular-nums">{cartQty}</span>
                     <button
                       type="button"
                       onClick={() => updateQuantity(product.id, 1)}
-                      className="w-7 h-7 rounded-lg bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90"
+                      className="w-7 h-7 rounded-xl bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90"
                     ><Plus size={13} /></button>
                   </div>
                 ) : (
@@ -1167,7 +1167,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     type="button"
                     onClick={e => { e.stopPropagation(); addToCart(product); }}
                     aria-label={`Add ${product.name}`}
-                    className="w-7 h-7 rounded-lg bg-canvas text-muted-foreground flex items-center justify-center opacity-60 group-hover:opacity-100 hover:bg-accent-signature hover:text-button-text transition-all flex-shrink-0"
+                    className="w-7 h-7 rounded-xl bg-canvas text-muted-foreground flex items-center justify-center opacity-60 group-hover:opacity-100 hover:bg-accent-signature hover:text-button-text transition-all flex-shrink-0"
                   ><Plus size={14} /></button>
                 )
               )}
@@ -1370,7 +1370,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         key={p.id}
                         type="button"
                         onClick={() => addToCart(p)}
-                        className="px-3 py-2.5 rounded-xl border border-border bg-card hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-colors text-left"
+                        className="px-3 py-2.5 rounded-pill border border-border bg-card hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-colors text-left"
                       >
                         <div className="text-xs font-semibold text-foreground truncate">{p.name}</div>
                         <div className="text-[11px] font-semibold text-muted-foreground tabular-nums mt-0.5">{formatCurrency(p.sellingPrice)}</div>
@@ -1410,7 +1410,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     <button
                       type="button"
                       onClick={() => { setSelectedClientId('WALKIN'); setClientSearch(''); setClientDropOpen(false); }}
-                      className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center text-muted-foreground hover:bg-black/10 shrink-0"
+                      className="w-6 h-6 rounded-xl bg-black/5 flex items-center justify-center text-muted-foreground hover:bg-black/10 shrink-0"
                     >
                       <X size={10} />
                     </button>
@@ -1512,7 +1512,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       <div className="flex gap-1 bg-card rounded-lg p-0.5 border border-border/60">
                         {[['B2C', 'Individual'], ['B2B', 'Business']].map(([v, label]) => (
                           <button key={v} type="button" onClick={() => setNewCust(n => ({ ...n, type: v }))}
-                            className={`flex-1 h-7 rounded-md text-[11px] font-semibold transition-all ${newCust.type === v ? 'bg-accent-signature text-button-text' : 'text-muted-foreground'}`}>
+                            className={`flex-1 h-7 rounded-pill text-[11px] font-semibold transition-all ${newCust.type === v ? 'bg-accent-signature text-button-text' : 'text-muted-foreground'}`}>
                             {label}
                           </button>
                         ))}
@@ -1534,9 +1534,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       )}
                       <div className="flex gap-2 pt-0.5">
                         <button type="button" onClick={() => setShowAddCust(false)}
-                          className="flex-1 h-8 rounded-lg text-[11px] font-semibold text-muted-foreground border border-border hover:bg-card">Cancel</button>
+                          className="flex-1 h-8 rounded-pill text-[11px] font-semibold text-muted-foreground border border-border hover:bg-card">Cancel</button>
                         <button type="button" onClick={saveNewCustomer} disabled={savingCust}
-                          className="flex-1 h-8 rounded-lg text-[11px] font-semibold bg-accent-signature text-button-text disabled:opacity-50">
+                          className="flex-1 h-8 rounded-pill text-[11px] font-semibold bg-accent-signature text-button-text disabled:opacity-50">
                           {savingCust ? 'Saving…' : 'Save & select'}
                         </button>
                       </div>
@@ -1553,7 +1553,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               <div className="flex gap-1 flex-1">
                 {[0, 5, 10].map(pct => (
                   <button key={pct} type="button" onClick={() => setServiceChargePct(pct)}
-                    className={`flex-1 h-8 rounded-lg text-[12px] font-semibold transition-all ${
+                    className={`flex-1 h-8 rounded-pill text-[12px] font-semibold transition-all ${
                       Number(serviceChargePct) === pct ? 'bg-accent-signature text-white' : 'bg-black/[0.04] text-muted-foreground hover:text-foreground'
                     }`}>
                     {pct === 0 ? 'None' : `${pct}%`}
@@ -1839,7 +1839,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       key={key}
                       type="button"
                       onClick={() => setFulfillmentType(key)}
-                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                      className={`p-4 rounded-pill border-2 transition-all flex flex-col items-center gap-2 ${
                         fulfillmentType === key
                           ? 'border-accent-signature bg-accent-signature/5'
                           : 'border-border bg-card hover:border-black/15'
@@ -1872,7 +1872,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         <button
                           type="button"
                           onClick={() => setDeliveryDetails(p => ({ ...p, address: client.address }))}
-                          className="w-full mb-2 flex items-center gap-2 p-2.5 rounded-xl bg-accent-signature/5 border border-accent-signature/20 text-left hover:bg-accent-signature/10 transition-all"
+                          className="w-full mb-2 flex items-center gap-2 p-2.5 rounded-pill bg-accent-signature/5 border border-accent-signature/20 text-left hover:bg-accent-signature/10 transition-all"
                         >
                           <MapPin size={11} className="text-accent-signature shrink-0" />
                           <div className="min-w-0">
@@ -1982,7 +1982,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                           setPaymentMethod(type);
                           setPaymentAccountId(defaultAcc ? defaultAcc.id : null);
                         }}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-pill border-2 transition-all ${
                           isActive
                             ? 'border-accent-signature bg-accent-signature/5'
                             : 'border-border bg-card hover:border-black/15'
@@ -2008,7 +2008,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         return (
                           <button key={a.id} type="button"
                             onClick={() => setPaymentAccountId(a.id)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] font-semibold border transition-all ${
                               isSelected
                                 ? 'border-accent-signature text-accent-signature bg-accent-signature/5'
                                 : 'border-border text-muted-foreground hover:border-black/20 bg-card'
@@ -2033,7 +2033,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     if (selectedClientId === 'WALKIN') { addNotification('Select a client before choosing Credit.', 'info'); return; }
                     setPaymentMethod('CREDIT');
                   }}
-                  className={`mt-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 transition-all ${
+                  className={`mt-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-pill border-2 transition-all ${
                     selectedClientId === 'WALKIN'
                       ? 'opacity-40 cursor-not-allowed border-border bg-card'
                       : paymentMethod === 'CREDIT'
@@ -2207,7 +2207,7 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
               <button
                 onClick={() => collect(excess)}
                 disabled={busy}
-                className="w-full text-left rounded-2xl border-2 border-signature p-4 hover:bg-signature/5 transition-colors disabled:opacity-50"
+                className="w-full text-left rounded-pill border-2 border-signature p-4 hover:bg-signature/5 transition-colors disabled:opacity-50"
               >
                 <p className="font-semibold text-sm text-foreground">Apply {fmt(excess)} to outstanding</p>
                 <p className="text-xs text-ink-secondary mt-0.5">
@@ -2219,7 +2219,7 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
               <button
                 onClick={onClose}
                 disabled={busy}
-                className="w-full text-left rounded-2xl border border-border p-4 hover:bg-canvas transition-colors disabled:opacity-50"
+                className="w-full text-left rounded-pill border border-border p-4 hover:bg-canvas transition-colors disabled:opacity-50"
               >
                 <p className="font-semibold text-sm text-foreground">Give {fmt(excess)} as change</p>
                 <p className="text-xs text-ink-secondary mt-0.5">Outstanding stays {fmt(outstanding)}</p>
@@ -2254,7 +2254,7 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
                     <button
                       key={m}
                       onClick={() => setMethod(m)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                      className={`flex-1 py-2 rounded-pill text-xs font-semibold transition-colors ${
                         method === m
                           ? 'bg-signature text-white'
                           : 'bg-canvas border border-border text-ink-secondary'
@@ -2271,14 +2271,14 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
                 <button
                   onClick={onClose}
                   disabled={busy}
-                  className="flex-1 py-3 rounded-2xl border border-border text-sm font-semibold text-ink-secondary hover:bg-canvas transition-colors"
+                  className="flex-1 py-3 rounded-pill border border-border text-sm font-semibold text-ink-secondary hover:bg-canvas transition-colors"
                 >
                   Skip
                 </button>
                 <button
                   onClick={() => collect(Math.min(parseFloat(collectAmt) || 0, outstanding))}
                   disabled={busy || !parseFloat(collectAmt)}
-                  className="flex-2 flex-grow py-3 rounded-2xl bg-signature text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+                  className="flex-2 flex-grow py-3 rounded-pill bg-signature text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
                 >
                   {busy ? 'Recording…' : `Collect ${fmt(Math.min(parseFloat(collectAmt)||0, outstanding))}`}
                 </button>

@@ -89,7 +89,7 @@ const BugReportsAdmin = ({ tenants = [] }) => {
           </p>
         </div>
         <button onClick={refetch}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-[11px] font-black text-ink-primary hover:bg-canvas">
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill border border-border text-[11px] font-black text-ink-primary hover:bg-canvas">
           <RefreshCw size={11} /> Refresh
         </button>
       </div>
@@ -99,7 +99,7 @@ const BugReportsAdmin = ({ tenants = [] }) => {
         <div className="flex items-center gap-1 bg-white border border-border rounded-xl p-1">
           {['ALL', ...STATUSES].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${
+              className={`px-2.5 py-1 rounded-pill text-[10px] font-black transition-all ${
                 statusFilter === s ? 'bg-ink-primary text-white' : 'text-muted-foreground hover:text-ink-primary'
               }`}>
               {s.replace('_', ' ')}{counts[s] != null && <span className="ml-1 opacity-70">({counts[s]})</span>}
@@ -109,7 +109,7 @@ const BugReportsAdmin = ({ tenants = [] }) => {
         <div className="flex items-center gap-1 bg-white border border-border rounded-xl p-1">
           {['ALL', 'LOW', 'NORMAL', 'HIGH', 'CRITICAL'].map(s => (
             <button key={s} onClick={() => setSeverityFilter(s)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${
+              className={`px-2.5 py-1 rounded-pill text-[10px] font-black transition-all ${
                 severityFilter === s ? 'bg-ink-primary text-white' : 'text-muted-foreground hover:text-ink-primary'
               }`}>{s}</button>
           ))}
@@ -171,7 +171,7 @@ const BugReportsAdmin = ({ tenants = [] }) => {
                       {STATUSES.map(s => (
                         <button key={s} disabled={saving || r.status === s}
                           onClick={() => setStatus(r.id, s)}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                          className={`px-3 py-1.5 rounded-pill text-[10px] font-black transition-all border ${
                             r.status === s
                               ? 'bg-ink-primary text-white border-ink-primary'
                               : 'bg-white border-border text-ink-primary hover:border-accent-signature/40'
@@ -232,13 +232,13 @@ const BugReportsAdmin = ({ tenants = [] }) => {
                         <button
                           disabled={!!noteBusy || !(noteDraft[r.id] || '').trim()}
                           onClick={() => submitNote(r.id, 'INTERNAL')}
-                          className="px-3 py-1.5 rounded-lg text-[10px] font-black border bg-white border-border text-ink-primary hover:border-amber-400 disabled:opacity-40">
+                          className="px-3 py-1.5 rounded-pill text-[10px] font-black border bg-white border-border text-ink-primary hover:border-amber-400 disabled:opacity-40">
                           Add internal note
                         </button>
                         <button
                           disabled={!!noteBusy || !(noteDraft[r.id] || '').trim()}
                           onClick={() => submitNote(r.id, 'PUBLIC')}
-                          className="px-3 py-1.5 rounded-lg text-[10px] font-black border bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
+                          className="px-3 py-1.5 rounded-pill text-[10px] font-black border bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
                           Send to customer
                         </button>
                       </div>

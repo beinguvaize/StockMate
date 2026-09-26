@@ -105,13 +105,13 @@ const SaaSLogin = () => {
           <div className="flex bg-[#0d1411] rounded-xl p-1 mb-8 border border-[#253028]">
             <button
               onClick={() => { setMode('login'); setError(''); setInfo(''); }}
-              className={`flex-1 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${mode === 'login' ? 'bg-white text-[#111] shadow-lg' : 'text-[#747576] hover:text-white'}`}
+              className={`flex-1 py-2.5 rounded-pill text-[11px] font-black uppercase tracking-widest transition-all ${mode === 'login' ? 'bg-white text-[#111] shadow-lg' : 'text-[#747576] hover:text-white'}`}
             >
               Sign In
             </button>
             <button
               onClick={() => { setMode('signup'); setError(''); setInfo(''); }}
-              className={`flex-1 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${mode === 'signup' ? 'bg-white text-[#111] shadow-lg' : 'text-[#747576] hover:text-white'}`}
+              className={`flex-1 py-2.5 rounded-pill text-[11px] font-black uppercase tracking-widest transition-all ${mode === 'signup' ? 'bg-white text-[#111] shadow-lg' : 'text-[#747576] hover:text-white'}`}
             >
               Create Account
             </button>
@@ -147,7 +147,7 @@ const SaaSLogin = () => {
           <button
             onClick={handleGoogleSignIn}
             disabled={googleLoading || loading}
-            className="w-full flex items-center justify-center gap-3 py-3 px-4 mb-5 bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] hover:border-[#38e0a0]/45 hover:bg-[#0d1411]/80 transition-all text-[12px] font-bold text-white disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-3 py-3 px-4 mb-5 bg-[#0d1411] border-[1.5px] border-[#253028] rounded-pill hover:border-[#38e0a0]/45 hover:bg-[#0d1411]/80 transition-all text-[12px] font-bold text-white disabled:opacity-60"
           >
             {googleLoading ? <Loader2 size={18} className="animate-spin" /> : <GoogleIcon />}
             Continue with Google
@@ -188,7 +188,7 @@ const SaaSLogin = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-[6px] bg-white text-[#111] text-[12px] font-black uppercase tracking-widest hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] active:scale-[0.98] transition-all disabled:opacity-60 mt-2"
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-pill bg-white text-[#111] text-[12px] font-black uppercase tracking-widest hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] active:scale-[0.98] transition-all disabled:opacity-60 mt-2"
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <>Sign In <ArrowRight size={14} /></>}
               </button>
@@ -242,7 +242,7 @@ const SaaSLogin = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-[6px] bg-[#38e0a0] text-[#0d1411] text-[12px] font-black uppercase tracking-widest hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 mt-2"
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-pill bg-[#38e0a0] text-[#0d1411] text-[12px] font-black uppercase tracking-widest hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 mt-2"
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <>Start Free Trial <ArrowRight size={14} /></>}
               </button>

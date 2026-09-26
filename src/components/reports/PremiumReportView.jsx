@@ -302,7 +302,7 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
           <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
             {PRESETS.map(p => (
               <button key={p.id} onClick={() => dateWindow.headerProps.onPreset(p.id)}
-                className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                className={`px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
                   dateWindow.preset === p.id
                     ? 'bg-card text-foreground font-semibold shadow-sm'
                     : 'text-muted-foreground font-medium hover:text-foreground'}`}>
@@ -317,7 +317,7 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
           <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
             {allowedTabs.map(t => (
               <button key={t.id} onClick={() => setActiveId(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
                   activeTab.id === t.id
                     ? 'bg-card text-foreground font-semibold shadow-sm'
                     : 'text-muted-foreground font-medium hover:text-foreground'
@@ -330,7 +330,7 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
 
         <div className="relative no-print" ref={exportMenuRef}>
           <button onClick={() => setExportOpen(o => !o)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md shadow-accent-signature/25 transition-all">
+            className="flex items-center gap-2 px-4 py-2 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md transition-all">
             <Download size={13} /> Export <ChevronDown size={12} className={`transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
           </button>
           {exportOpen && (

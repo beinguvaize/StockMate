@@ -183,7 +183,7 @@ const ItemDetailView = ({
           </div>
           {onCreate && (
             <button onClick={onCreate}
-              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-accent-signature/50 text-accent-signature text-xs font-semibold hover:bg-accent-signature/5 transition-colors">
+              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-pill border border-dashed border-accent-signature/50 text-accent-signature text-xs font-semibold hover:bg-accent-signature/5 transition-colors">
               <Plus size={14} /> Create Item
             </button>
           )}
@@ -191,7 +191,7 @@ const ItemDetailView = ({
         <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
           {filteredItems.map(it => (
             <button key={it.id} onClick={() => onSelect?.(it)}
-              className={`w-full text-left rounded-xl border p-3 transition-colors ${
+              className={`w-full text-left rounded-pill border p-3 transition-colors ${
                 it.id === pid ? 'border-accent-signature bg-accent-signature/5' : 'border-border/60 hover:border-black/15 bg-card'
               }`}>
               <div className="text-[13px] font-semibold text-foreground truncate">{it.name}</div>
@@ -209,7 +209,7 @@ const ItemDetailView = ({
       <div className="max-w-4xl mx-auto p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
-          <button onClick={onClose} className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:bg-card transition-colors">
+          <button onClick={onClose} className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:bg-card transition-colors">
             <ArrowLeft size={16} />
           </button>
           <h1 className="text-[20px] font-semibold text-foreground">{product?.name}</h1>
@@ -217,18 +217,18 @@ const ItemDetailView = ({
             {svc ? 'Service' : inStock ? 'In Stock' : 'Out of Stock'}
           </span>
           <div className="flex items-center gap-2 ml-auto">
-            <button onClick={() => onPrintBarcode?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
+            <button onClick={() => onPrintBarcode?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
               <ScanLine size={14} /> Print Barcode
             </button>
             {onAdjust && (
-              <button onClick={() => onAdjust(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
+              <button onClick={() => onAdjust(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
                 <SlidersHorizontal size={14} /> Adjust Stock
               </button>
             )}
-            <button onClick={() => onEdit?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
+            <button onClick={() => onEdit?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
               <Pencil size={14} /> Edit
             </button>
-            <button onClick={() => onDelete?.(product)} className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors">
+            <button onClick={() => onDelete?.(product)} className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors">
               <Trash2 size={14} />
             </button>
           </div>

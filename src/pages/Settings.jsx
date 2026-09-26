@@ -391,7 +391,7 @@ const Settings = ({ embedded = false, section = null }) => {
          const el = document.getElementById(t.id);
          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
        }}
-       className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-ink-primary hover:bg-white transition-all whitespace-nowrap">
+       className="flex items-center gap-1.5 px-3 py-2 rounded-pill text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-ink-primary hover:bg-white transition-all whitespace-nowrap">
        {t.icon}{t.label}
      </button>
    ))}
@@ -497,7 +497,7 @@ const Settings = ({ embedded = false, section = null }) => {
          key={opt.value}
          type="button"
          onClick={() => setProfileData(p => ({ ...p, tax_mode: opt.value }))}
-         className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${
+         className={`text-left px-4 py-3 rounded-pill border-2 transition-all ${
            profileData.tax_mode === opt.value
              ? 'bg-ink-primary text-white border-ink-primary'
              : 'bg-canvas border-black/10 hover:border-black/30'
@@ -526,7 +526,7 @@ const Settings = ({ embedded = false, section = null }) => {
      <button
        type="button"
        onClick={() => setProfileData(p => ({ ...p, auto_irn_enabled: !p.auto_irn_enabled }))}
-       className={`relative w-11 h-6 rounded-full transition-colors ${profileData.auto_irn_enabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
+       className={`relative w-11 h-6 rounded-xl transition-colors ${profileData.auto_irn_enabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
      >
        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${profileData.auto_irn_enabled ? 'translate-x-5' : ''}`} />
      </button>
@@ -627,10 +627,10 @@ const Settings = ({ embedded = false, section = null }) => {
  <button
    type="submit"
    disabled={savedStatus}
-   className={`inline-flex items-center gap-2 h-10 px-6 rounded-xl text-xs font-black uppercase tracking-wide text-white shadow-md transition-all duration-300 ${
+   className={`inline-flex items-center gap-2 h-10 px-6 rounded-pill text-xs font-black uppercase tracking-wide text-white shadow-md transition-all duration-300 ${
      savedStatus
-       ? 'bg-emerald-500 shadow-emerald-500/30'
-       : 'bg-accent-signature hover:bg-accent-signature-hover shadow-accent-signature/25'
+       ? 'bg-emerald-500'
+       : 'bg-accent-signature hover:bg-accent-signature-hover'
    }`}
  >
    <span>{savedStatus ? 'Saved' : 'Save Settings'}</span>
@@ -684,7 +684,7 @@ const Settings = ({ embedded = false, section = null }) => {
                   ) : (
                     <button
                       onClick={() => setShowUpgradeModal(true)}
-                      className="w-full h-10 bg-ink-primary text-surface rounded-xl text-xs font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                      className="w-full h-10 bg-ink-primary text-surface rounded-pill text-xs font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
                     >
                       UPGRADE WORKSPACE <ChevronRight size={14} className="text-accent-signature" />
                     </button>
@@ -769,7 +769,7 @@ const Settings = ({ embedded = false, section = null }) => {
  <span className="text-sm font-semibold text-ink-primary">{cat}</span>
  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
  <button 
- className="p-2 rounded-lg hover:bg-black/5 text-ink-secondary hover:text-ink-primary transition-colors"
+ className="p-2 rounded-pill hover:bg-black/5 text-ink-secondary hover:text-ink-primary transition-colors"
  onClick={() => {
  setEditingCategory(cat);
  setEditValue(cat);
@@ -778,7 +778,7 @@ const Settings = ({ embedded = false, section = null }) => {
  <Edit2 size={14} />
  </button>
  <button 
- className="p-2 rounded-lg hover:bg-red-50 text-ink-secondary hover:text-red-500 transition-colors"
+ className="p-2 rounded-pill hover:bg-red-50 text-ink-secondary hover:text-red-500 transition-colors"
  onClick={() => {
  if (window.confirm(`Delete category"${cat}"?`)) {
  deleteExpenseCategory(cat);
@@ -880,13 +880,13 @@ const Settings = ({ embedded = false, section = null }) => {
  <span className="text-sm font-semibold text-ink-primary">{cat.name}</span>
  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
  <button
- className="p-2 rounded-lg hover:bg-black/5 text-ink-secondary hover:text-ink-primary transition-colors"
+ className="p-2 rounded-pill hover:bg-black/5 text-ink-secondary hover:text-ink-primary transition-colors"
  onClick={() => { setEditingProductCategory(cat.id); setEditProductValue(cat.name); }}
  >
  <Edit2 size={14} />
  </button>
  <button
- className="p-2 rounded-lg hover:bg-red-50 text-ink-secondary hover:text-red-500 transition-colors"
+ className="p-2 rounded-pill hover:bg-red-50 text-ink-secondary hover:text-red-500 transition-colors"
  onClick={() => { if (window.confirm(`Delete category "${cat.name}"?`)) deleteProductCategory(cat.id); }}
  >
  <Trash2 size={14} />
@@ -953,7 +953,7 @@ const Settings = ({ embedded = false, section = null }) => {
              <span className="text-sm font-semibold text-ink-primary">{label}</span>
              <button
                onClick={() => toggleBill(key)}
-               className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${billSettings[key] ? 'bg-accent-signature' : 'bg-black/10'}`}
+               className={`relative w-11 h-6 rounded-xl transition-colors duration-200 focus:outline-none ${billSettings[key] ? 'bg-accent-signature' : 'bg-black/10'}`}
              >
                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${billSettings[key] ? 'translate-x-5' : 'translate-x-0'}`} />
              </button>
@@ -973,7 +973,7 @@ const Settings = ({ embedded = false, section = null }) => {
              <span className="text-sm font-semibold text-ink-primary">{label}</span>
              <button
                onClick={() => toggleBill(key)}
-               className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${billSettings[key] ? 'bg-accent-signature' : 'bg-black/10'}`}
+               className={`relative w-11 h-6 rounded-xl transition-colors duration-200 focus:outline-none ${billSettings[key] ? 'bg-accent-signature' : 'bg-black/10'}`}
              >
                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${billSettings[key] ? 'translate-x-5' : 'translate-x-0'}`} />
              </button>
@@ -993,7 +993,7 @@ const Settings = ({ embedded = false, section = null }) => {
              <span className="text-sm font-semibold text-ink-primary">{label}</span>
              <button
                onClick={() => toggleBill(key)}
-               className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${billSettings[key] ? 'bg-accent-signature' : 'bg-black/10'}`}
+               className={`relative w-11 h-6 rounded-xl transition-colors duration-200 focus:outline-none ${billSettings[key] ? 'bg-accent-signature' : 'bg-black/10'}`}
              >
                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${billSettings[key] ? 'translate-x-5' : 'translate-x-0'}`} />
              </button>
@@ -1010,7 +1010,7 @@ const Settings = ({ embedded = false, section = null }) => {
            <button
              key={opt}
              onClick={() => setBillSettings(prev => ({ ...prev, bill_title: opt }))}
-             className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wide border transition-all ${
+             className={`flex-1 py-2 rounded-pill text-[10px] font-black uppercase tracking-wide border transition-all ${
                billSettings.bill_title === opt
                  ? 'bg-ink-primary text-white border-ink-primary'
                  : 'bg-canvas border-black/10 text-muted-foreground hover:border-black/30'
@@ -1039,7 +1039,7 @@ const Settings = ({ embedded = false, section = null }) => {
      <button
        onClick={handleSaveBillSettings}
        disabled={billSavedStatus}
-       className={`btn-signature w-full !rounded-xl !py-5 !text-xs flex items-center justify-center gap-3 transition-all duration-500 ${billSavedStatus ? '!bg-emerald-500 !text-white' : ''}`}
+       className={`btn-signature w-full !rounded-pill !py-5 !text-xs flex items-center justify-center gap-3 transition-all duration-500 ${billSavedStatus ? '!bg-emerald-500 !text-white' : ''}`}
      >
        {billSavedStatus ? <><CheckCircle2 size={16} /> SAVED</> : <><Save size={16} /> SAVE BILL SETTINGS</>}
      </button>
@@ -1161,10 +1161,10 @@ const Settings = ({ embedded = false, section = null }) => {
                    </div>
                    {loc.id !== '00000000-0000-0000-0000-000000000001' && (
                      <div className="flex gap-1.5">
-                       <button onClick={() => setEditingLoc({ ...loc })} className="w-7 h-7 rounded-lg hover:bg-black/5 flex items-center justify-center transition-colors">
+                       <button onClick={() => setEditingLoc({ ...loc })} className="w-7 h-7 rounded-xl hover:bg-black/5 flex items-center justify-center transition-colors">
                          <Edit2 size={12} className="text-muted-foreground" />
                        </button>
-                       <button onClick={() => handleDeleteLoc(loc.id)} className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center transition-colors group">
+                       <button onClick={() => handleDeleteLoc(loc.id)} className="w-7 h-7 rounded-xl hover:bg-red-50 flex items-center justify-center transition-colors group">
                          <Trash2 size={12} className="text-muted-foreground group-hover:text-red-400" />
                        </button>
                      </div>
@@ -1194,7 +1194,7 @@ const Settings = ({ embedded = false, section = null }) => {
            <button
              onClick={handleAddLocation}
              disabled={locSaving || !newLocName.trim()}
-             className="px-5 py-3 bg-ink-primary text-white rounded-2xl text-xs font-black hover:bg-ink-primary/80 transition-colors disabled:opacity-40 flex items-center gap-2"
+             className="px-5 py-3 bg-ink-primary text-white rounded-pill text-xs font-black hover:bg-ink-primary/80 transition-colors disabled:opacity-40 flex items-center gap-2"
            >
              <Plus size={14} /> Add
            </button>
@@ -1255,7 +1255,7 @@ const Settings = ({ embedded = false, section = null }) => {
          <button
            onClick={generateApiKey}
            disabled={apiKeySaving}
-           className="flex items-center gap-2 px-5 py-3 rounded-2xl border border-black/8 text-xs font-black text-ink-primary hover:bg-black/5 transition-colors disabled:opacity-40"
+           className="flex items-center gap-2 px-5 py-3 rounded-pill border border-black/8 text-xs font-black text-ink-primary hover:bg-black/5 transition-colors disabled:opacity-40"
          >
            <RefreshCw size={13} className={apiKeySaving ? 'animate-spin' : ''} />
            {apiKey ? 'Regenerate Key' : 'Generate API Key'}

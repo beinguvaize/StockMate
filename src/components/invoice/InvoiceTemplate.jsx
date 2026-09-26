@@ -215,7 +215,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
         <div className="flex items-center gap-4">
           <button 
             onClick={onClose}
-            className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all active:scale-95"
+            className="p-2 rounded-pill bg-white/10 text-white hover:bg-white/20 transition-all active:scale-95"
           >
             <X size={20} />
           </button>
@@ -240,7 +240,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
           {onToggleMode && (
             <button
               onClick={onToggleMode}
-              className="flex items-center gap-2 px-6 py-2.5 bg-white/10 text-white border border-white/20 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-white/20 active:scale-95 transition-all"
+              className="flex items-center gap-2 px-6 py-2.5 bg-white/10 text-white border border-white/20 rounded-pill font-black text-[10px] uppercase tracking-widest hover:bg-white/20 active:scale-95 transition-all"
             >
               POS Receipt
             </button>
@@ -248,14 +248,14 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
 
           <button
             onClick={onPrint}
-            className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
+            className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-pill font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
           >
             <Printer size={16} /> PRINT INVOICE
           </button>
 
           <button 
             onClick={() => onShare('whatsapp')}
-            className="flex items-center gap-2 px-6 py-2.5 bg-[#25D366] text-white rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
+            className="flex items-center gap-2 px-6 py-2.5 bg-[#25D366] text-white rounded-pill font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
           >
             <Share2 size={16} /> SHARE WHATSAPP
           </button>

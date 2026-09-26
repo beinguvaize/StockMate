@@ -178,7 +178,7 @@ const ProductMovementReport = () => {
         <div className="flex items-center gap-2">
           {WINDOWS.map(w => (
             <button key={w.key} onClick={() => setWindowDays(w.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              className={`px-3 py-1.5 rounded-pill text-xs font-semibold transition-colors ${
                 windowDays === w.key
                   ? 'bg-accent-signature text-button-text'
                   : 'bg-card text-ink-secondary hover:text-foreground border border-border/60'
@@ -187,7 +187,7 @@ const ProductMovementReport = () => {
             </button>
           ))}
           <button onClick={exportCSV} disabled={loading || (!fast.length && !slow.length)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-card border border-border/60 text-ink-secondary hover:text-foreground hover:border-black/20 disabled:opacity-40 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold bg-card border border-border/60 text-ink-secondary hover:text-foreground hover:border-black/20 disabled:opacity-40 transition-colors">
             <Download size={13} /> Export
           </button>
         </div>

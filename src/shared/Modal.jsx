@@ -32,7 +32,7 @@ const Modal = ({
         <button
           type="button"
           onClick={onClose}
-          className="w-9 h-9 flex items-center justify-center rounded-full border border-black/5 hover:bg-canvas transition-colors duration-(--dur-hover) text-ink-primary shrink-0"
+          className="w-9 h-9 flex items-center justify-center rounded-xl border border-black/5 hover:bg-canvas transition-colors duration-(--dur-hover) text-ink-primary shrink-0"
         >
           <ChevronLeft size={18} />
         </button>
@@ -51,7 +51,7 @@ const Modal = ({
         <button
           type="button"
           onClick={onClose}
-          className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors duration-(--dur-hover) text-muted-foreground shrink-0"
+          className="ml-auto w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-colors duration-(--dur-hover) text-muted-foreground shrink-0"
         >
           <X size={16} />
         </button>

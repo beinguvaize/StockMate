@@ -125,15 +125,15 @@ const SyncDiagnostics = () => {
         </div>
         <div className="flex gap-2">
           <button onClick={refresh} disabled={busy}
-            className="px-3 py-2 rounded-lg border border-black/10 text-sm font-bold hover:bg-canvas/40 disabled:opacity-40">
+            className="px-3 py-2 rounded-pill border border-black/10 text-sm font-bold hover:bg-canvas/40 disabled:opacity-40">
             Refresh
           </button>
           <button onClick={onExport} disabled={!jobs.length}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-black/10 text-sm font-bold hover:bg-canvas/40 disabled:opacity-40">
+            className="flex items-center gap-2 px-3 py-2 rounded-pill border border-black/10 text-sm font-bold hover:bg-canvas/40 disabled:opacity-40">
             <Download size={14} /> Export JSON
           </button>
           <button onClick={onRetryAll} disabled={busy || !jobs.length}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-ink-primary text-white text-sm font-bold disabled:opacity-40">
+            className="flex items-center gap-2 px-3 py-2 rounded-pill bg-ink-primary text-white text-sm font-bold disabled:opacity-40">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
             Retry All
           </button>

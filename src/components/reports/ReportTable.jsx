@@ -253,7 +253,7 @@ const ReportTable = ({
         <div className="flex items-center gap-3 relative column-toggle-container">
           <button 
             onClick={() => setShowColumnToggle(!showColumnToggle)}
-            className="flex items-center gap-2 px-6 py-3 bg-card border border-border rounded-lg text-xs font-semibold text-foreground hover:bg-muted/50 transition-all shadow-sm"
+            className="flex items-center gap-2 px-6 py-3 bg-card border border-border rounded-pill text-xs font-semibold text-foreground hover:bg-muted/50 transition-all shadow-sm"
           >
             <Columns size={14} className="text-accent-signature" />
             COLUMNS
@@ -403,7 +403,7 @@ const ReportTable = ({
                 onRowClick(contextMenu.row);
                 setContextMenu({ ...contextMenu, show: false });
               }}
-              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-[10px] font-semibold hover:bg-white/10 transition-colors uppercase"
+              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-pill text-[10px] font-semibold hover:bg-white/10 transition-colors uppercase"
             >
               <ExternalLink size={14} className="text-accent-signature" />
               View Details
@@ -413,14 +413,14 @@ const ReportTable = ({
                 copyRowAsCSV(contextMenu.row);
                 setContextMenu({ ...contextMenu, show: false });
               }}
-              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-[10px] font-semibold hover:bg-white/10 transition-colors uppercase"
+              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-pill text-[10px] font-semibold hover:bg-white/10 transition-colors uppercase"
             >
               <Copy size={14} className="text-blue-400" />
               Copy row as CSV
             </button>
             <div className="h-px bg-white/10 my-1 mx-2" />
             <button 
-              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-[10px] font-semibold hover:bg-white/10 transition-colors uppercase"
+              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-pill text-[10px] font-semibold hover:bg-white/10 transition-colors uppercase"
             >
               <Share2 size={14} className="text-purple-400" />
               Share Link
@@ -454,14 +454,14 @@ const ReportTable = ({
             <button 
               disabled={page === 1}
               onClick={() => setPage(1)}
-              className="p-2 rounded-full hover:bg-muted/50 disabled:opacity-20 transition-all text-foreground"
+              className="p-2 rounded-pill hover:bg-muted/50 disabled:opacity-20 transition-all text-foreground"
             >
               <ChevronsLeft size={16} />
             </button>
             <button 
               disabled={page === 1}
               onClick={() => setPage(page - 1)}
-              className="p-2 rounded-full hover:bg-muted/50 disabled:opacity-20 transition-all text-foreground"
+              className="p-2 rounded-pill hover:bg-muted/50 disabled:opacity-20 transition-all text-foreground"
             >
               <ChevronLeft size={16} />
             </button>
@@ -482,14 +482,14 @@ const ReportTable = ({
             <button 
               disabled={page === totalPages || totalPages === 0}
               onClick={() => setPage(page + 1)}
-              className="p-2 rounded-full hover:bg-muted/50 disabled:opacity-20 transition-all text-foreground"
+              className="p-2 rounded-pill hover:bg-muted/50 disabled:opacity-20 transition-all text-foreground"
             >
               <ChevronRight size={16} />
             </button>
             <button 
               disabled={page === totalPages || totalPages === 0}
               onClick={() => setPage(totalPages)}
-              className="p-2 rounded-full hover:bg-muted/50 disabled:opacity-20 transition-all text-foreground"
+              className="p-2 rounded-pill hover:bg-muted/50 disabled:opacity-20 transition-all text-foreground"
             >
               <ChevronsRight size={16} />
             </button>

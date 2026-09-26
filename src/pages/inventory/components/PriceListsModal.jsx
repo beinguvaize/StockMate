@@ -99,7 +99,7 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
       <div className="flex items-center gap-4 px-6 py-4 border-b border-border/60 bg-card shrink-0">
         <button
           onClick={onClose}
-          className="w-9 h-9 flex items-center justify-center rounded-full border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0"
+          className="w-9 h-9 flex items-center justify-center rounded-xl border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0"
         >
           <ChevronLeft size={18} />
         </button>
@@ -111,7 +111,7 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
         </div>
         <button
           onClick={onClose}
-          className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-muted-foreground shrink-0"
+          className="ml-auto w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-muted-foreground shrink-0"
         >
           <X size={16} />
         </button>
@@ -130,7 +130,7 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
               <button
                 key={t.id}
                 onClick={() => { setActiveTier(t.id); setForm(EMPTY_FORM); setError(null); }}
-                className={`px-4 py-2 rounded-full text-xs font-semibold transition-all border ${
+                className={`px-4 py-2 rounded-pill text-xs font-semibold transition-all border ${
                   active ? st.tab + ' border-transparent' : st.tabInactive + ' border-transparent'
                 }`}
               >
@@ -277,7 +277,7 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
                             </div>
                             <button
                               onClick={() => handleDelete(entry)}
-                              className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center transition-colors group"
+                              className="w-7 h-7 rounded-xl hover:bg-red-50 flex items-center justify-center transition-colors group"
                             >
                               <Trash2 size={13} className="text-muted-foreground group-hover:text-red-400 transition-colors" />
                             </button>

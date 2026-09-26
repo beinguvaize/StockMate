@@ -77,13 +77,13 @@ const BannerCarousel = () => {
         {b.cta_label && b.cta_url && (
           <button
             onClick={() => (b.cta_url.startsWith('http') ? window.open(b.cta_url, '_blank') : goHref(b.cta_url))}
-            className="shrink-0 hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full bg-white text-foreground text-[12px] font-extrabold hover:scale-[1.03] active:scale-95 transition-transform"
+            className="shrink-0 hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-pill bg-white text-foreground text-[12px] font-extrabold hover:scale-[1.03] active:scale-95 transition-transform"
           >
             {b.cta_label} <ArrowRight size={13} />
           </button>
         )}
         <button onClick={dismiss} aria-label="Dismiss"
-          className="shrink-0 w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+          className="shrink-0 w-7 h-7 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
           <X size={13} />
         </button>
       </div>
@@ -92,7 +92,7 @@ const BannerCarousel = () => {
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
           {visible.map((v, i) => (
             <button key={v.id} onClick={() => setIdx(i)}
-              className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-5 bg-white' : 'w-1.5 bg-white/40'}`} />
+              className={`h-1.5 rounded-xl transition-all ${i === idx ? 'w-5 bg-white' : 'w-1.5 bg-white/40'}`} />
           ))}
         </div>
       )}

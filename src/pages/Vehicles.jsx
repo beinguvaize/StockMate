@@ -406,7 +406,7 @@ const Vehicles = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-bold transition-all ${
                     activeTab === tab.id
                       ? 'bg-ink-primary text-surface shadow-sm'
                       : 'text-muted-foreground hover:text-ink-primary'
@@ -421,7 +421,7 @@ const Vehicles = () => {
             {/* Primary actions — always visible */}
             {hasPermission('MANAGE_FLEET') && (
               <button
-                className="h-9 rounded-xl px-3 text-xs font-bold flex items-center gap-1.5 border border-black/10 bg-white text-ink-primary hover:bg-canvas transition-all shrink-0"
+                className="h-9 rounded-pill px-3 text-xs font-bold flex items-center gap-1.5 border border-black/10 bg-white text-ink-primary hover:bg-canvas transition-all shrink-0"
                 onClick={() => { setEditingVehicle(null); setVehicleForm(EMPTY_VEHICLE_FORM); setShowVehicleModal(true); }}
               >
                 <Plus size={12} /> Vehicle
@@ -673,7 +673,7 @@ const Vehicles = () => {
                                 {hasPermission('OWNER') ? (
                                   <button
                                     onClick={() => { setFailedInvoiceId(inv.id); setFailedReason(''); }}
-                                    className="flex items-center gap-2 text-[10px] font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-xl transition-all"
+                                    className="flex items-center gap-2 text-[10px] font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-pill transition-all"
                                   >
                                     <AlertOctagon size={12} />
                                     Mark Failed / Re-queue
@@ -757,14 +757,14 @@ const Vehicles = () => {
                             {(hasRole('DRIVER') || hasRole('OWNER') || hasRole('GLOBAL_ADMIN')) && (
                               <button
                                 onClick={() => openVanSale(route)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/8 text-[10px] font-semibold text-ink-secondary hover:bg-canvas transition-colors"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill border border-black/8 text-[10px] font-semibold text-ink-secondary hover:bg-canvas transition-colors"
                               >
                                 <ShoppingCart size={11} /> Van Sale
                               </button>
                             )}
                             <button
                               onClick={() => openReconcile(route)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ink-primary text-surface text-[10px] font-bold hover:opacity-90 transition-opacity"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill bg-ink-primary text-surface text-[10px] font-bold hover:opacity-90 transition-opacity"
                             >
                               End Trip
                             </button>
@@ -947,11 +947,11 @@ const Vehicles = () => {
                       </div>
                       <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         <button onClick={e => { e.stopPropagation(); openEditVehicle(v); }}
-                          className="w-6 h-6 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white hover:bg-white/30">
+                          className="w-6 h-6 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white hover:bg-white/30">
                           <Edit3 size={10} />
                         </button>
                         <button onClick={e => { e.stopPropagation(); if (window.confirm('Delete this vehicle?')) deleteVehicle(v.id); }}
-                          className="w-6 h-6 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-red-300 hover:bg-red-500/30">
+                          className="w-6 h-6 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-red-300 hover:bg-red-500/30">
                           <Trash2 size={10} />
                         </button>
                       </div>
@@ -994,7 +994,7 @@ const Vehicles = () => {
                       {hasPermission('MANAGE_FLEET') && (
                         <button
                           onClick={e => { e.stopPropagation(); openLoadVan(v); }}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent-signature/10 border border-accent-signature/20 text-[10px] font-bold text-ink-primary hover:bg-accent-signature/20 transition-all"
+                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-pill bg-accent-signature/10 border border-accent-signature/20 text-[10px] font-bold text-ink-primary hover:bg-accent-signature/20 transition-all"
                         >
                           <PackagePlus size={11} />
                           Load Van Stock
@@ -1106,7 +1106,7 @@ const Vehicles = () => {
                   {editingVehicle ? 'EDIT' : 'ADD'} VEHICLE<span className="text-accent-signature">.</span>
                 </h1>
               </div>
-              <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
+              <button className="w-10 h-10 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
                 onClick={() => setShowVehicleModal(false)}>
                 <X size={18} />
               </button>
@@ -1335,7 +1335,7 @@ const Vehicles = () => {
                           key={inv.id}
                           type="button"
                           onClick={() => toggleInvoice(inv.id)}
-                          className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-all ${
+                          className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-pill border text-left transition-all ${
                             checked
                               ? 'bg-ink-primary border-ink-primary'
                               : 'bg-white border-black/8 hover:border-black/15'
@@ -1439,7 +1439,7 @@ const Vehicles = () => {
                   {reconcileRoute_.location ? ` · ${reconcileRoute_.location}` : ''}
                 </p>
               </div>
-              <button className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
+              <button className="w-10 h-10 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
                 onClick={() => { setReconcileRoute(null); setReconcileError(null); }}>
                 <X size={18} />
               </button>
@@ -1647,14 +1647,14 @@ const Vehicles = () => {
                       </div>
                       <button
                         onClick={() => openLoadVan(v)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-signature/10 border border-accent-signature/20 text-[10px] font-bold text-ink-primary hover:bg-accent-signature/20 transition-all shrink-0"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill bg-accent-signature/10 border border-accent-signature/20 text-[10px] font-bold text-ink-primary hover:bg-accent-signature/20 transition-all shrink-0"
                       >
                         <PackagePlus size={10} /> Load
                       </button>
                       {totalUnits > 0 && !inTrip && (
                         <button
                           onClick={() => openUnloadVan(v)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-signature/10 border border-accent-signature/25 text-[10px] font-bold text-accent-signature-hover hover:bg-accent-signature/15 transition-all shrink-0"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill bg-accent-signature/10 border border-accent-signature/25 text-[10px] font-bold text-accent-signature-hover hover:bg-accent-signature/15 transition-all shrink-0"
                         >
                           <MinusCircle size={10} /> Unload
                         </button>
@@ -1748,7 +1748,7 @@ const Vehicles = () => {
                 </h2>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Order will be re-queued for next dispatch</p>
               </div>
-              <button onClick={() => setFailedInvoiceId(null)} className="w-8 h-8 rounded-pill border border-black/10 flex items-center justify-center hover:bg-canvas">
+              <button onClick={() => setFailedInvoiceId(null)} className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center hover:bg-canvas">
                 <X size={14} />
               </button>
             </div>
@@ -1786,7 +1786,7 @@ const Vehicles = () => {
                   setFailedInvoiceId(null);
                   setFailedReason('');
                 }}
-                className="w-full h-11 rounded-xl bg-red-500 text-white text-xs font-black hover:bg-red-600 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
+                className="w-full h-11 rounded-pill bg-red-500 text-white text-xs font-black hover:bg-red-600 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
               >
                 <RotateCcw size={14} />
                 {failedSubmitting ? 'Re-queuing…' : 'Confirm & Re-queue'}

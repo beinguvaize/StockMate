@@ -84,7 +84,7 @@ const TrialBanner = ({ trial, planInEffect, basePath = '' }) => {
         </NavLink>
         {spec.dismissible && (
           <button onClick={dismiss} aria-label="Dismiss for today"
-            className="p-1.5 rounded-lg hover:bg-white/15 transition-colors">
+            className="p-1.5 rounded-pill hover:bg-white/15 transition-colors">
             <X size={14} />
           </button>
         )}

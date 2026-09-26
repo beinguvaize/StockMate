@@ -26,7 +26,7 @@ const VanSalePage = () => {
         <p className="text-muted-foreground text-sm font-medium">No van sale context. Go back to Vehicles.</p>
         <button
           onClick={() => navigate(-1)}
-          className="px-4 py-2 bg-ink-primary text-white rounded-xl text-sm font-bold"
+          className="px-4 py-2 bg-ink-primary text-white rounded-pill text-sm font-bold"
         >
           Back
         </button>

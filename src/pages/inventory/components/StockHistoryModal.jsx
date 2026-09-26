@@ -71,7 +71,7 @@ export default function StockHistoryModal({ tenantId, products, onClose }) {
 
       {/* Top bar */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-border/60 bg-card shrink-0">
-        <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
+        <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
           <ChevronLeft size={18} />
         </button>
         <div className="min-w-0">
@@ -80,7 +80,7 @@ export default function StockHistoryModal({ tenantId, products, onClose }) {
             {loading ? 'Loading…' : `${filtered.length} movements`}
           </p>
         </div>
-        <button onClick={onClose} className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-muted-foreground shrink-0">
+        <button onClick={onClose} className="ml-auto w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-muted-foreground shrink-0">
           <X size={16} />
         </button>
       </div>
@@ -101,7 +101,7 @@ export default function StockHistoryModal({ tenantId, products, onClose }) {
             <button
               key={t}
               onClick={() => setTypeFilter(t)}
-              className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all border ${
+              className={`px-3 py-1.5 rounded-pill text-[10px] font-semibold transition-all border ${
                 typeFilter === t
                   ? 'bg-foreground text-background border-transparent'
                   : 'bg-canvas border-black/8 text-muted-foreground hover:border-black/20'

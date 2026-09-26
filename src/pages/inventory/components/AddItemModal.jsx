@@ -314,7 +314,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       setFormData({ ...formData, sku });
                     }}
                     title="Auto-generate a SKU"
-                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
+                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-pill border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
                     <Wand2 size={13} /> Assign
                   </button>
                 </div>
@@ -350,7 +350,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       setFormData({ ...formData, barcode: body + ean13CheckDigit(body) });
                     }}
                     title="Auto-generate an EAN-13 barcode"
-                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
+                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-pill border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
                     <Wand2 size={13} /> Assign
                   </button>
                 </div>
@@ -377,7 +377,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 role="switch"
                 aria-checked={!!formData.track_serial}
                 onClick={() => setFormData({ ...formData, track_serial: !formData.track_serial })}
-                className={`relative w-10 h-6 rounded-full transition-colors ${formData.track_serial ? 'bg-accent-signature' : 'bg-gray-300'}`}
+                className={`relative w-10 h-6 rounded-xl transition-colors ${formData.track_serial ? 'bg-accent-signature' : 'bg-gray-300'}`}
               >
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-card shadow transition-transform ${formData.track_serial ? 'translate-x-4' : ''}`} />
               </button>
@@ -405,7 +405,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                           key={o.v}
                           type="button"
                           onClick={() => setFormData({ ...formData, food_type: formData.food_type === o.v ? '' : o.v })}
-                          className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border text-xs font-semibold transition-all ${
+                          className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-pill border text-xs font-semibold transition-all ${
                             formData.food_type === o.v
                               ? 'border-accent-signature bg-accent-signature/10 text-foreground'
                               : 'border-border text-muted-foreground hover:border-black/20'
@@ -683,7 +683,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                                 packSizeRef.current = true;
                                 setPackSize(subUnit ? String(Math.round(size * 1000)) : '');
                               }}
-                              className="h-8 px-3 rounded-lg bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-bold transition-colors">
+                              className="h-8 px-3 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-bold transition-colors">
                               Use this
                             </button>
                           </>
@@ -804,7 +804,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 ].map(s => (
                   <button key={s.id} type="button"
                     onClick={() => setFormData({ ...formData, tax_status: s.id, ...(s.id !== 'TAXABLE' ? { taxRate: 0, cess_rate: 0 } : {}) })}
-                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                    className={`px-3 py-2 rounded-pill text-xs font-semibold border transition-all ${
                       (formData.tax_status || 'TAXABLE') === s.id
                         ? 'bg-accent-signature text-button-text border-accent-signature shadow-md'
                         : 'bg-card border-border text-muted-foreground hover:border-accent-signature/40'
@@ -873,7 +873,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       <button
                         type="button"
                         onClick={() => { setImagePreview(null); setImageFile(null); setFormData(f => ({ ...f, image: '' })); }}
-                        className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 text-white hover:bg-black"
+                        className="absolute top-1 right-1 bg-black/60 rounded-pill p-0.5 text-white hover:bg-black"
                       >
                         <X size={10} />
                       </button>
@@ -888,14 +888,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-pill bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
                   >
                     <Upload size={13} /> Upload New Photo
                   </button>
                   <button
                     type="button"
                     onClick={openPhotoLib}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-pill bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
                   >
                     <Images size={13} /> Choose from Library
                   </button>
@@ -954,7 +954,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <button
                     type="button"
                     onClick={() => { fileInputRef.current?.click(); setShowPhotoLib(false); }}
-                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-border text-[10px] font-semibold text-muted-foreground hover:border-accent-signature hover:text-accent-signature transition-colors"
+                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-pill border border-dashed border-border text-[10px] font-semibold text-muted-foreground hover:border-accent-signature hover:text-accent-signature transition-colors"
                   >
                     <Upload size={11} /> Upload new photo
                   </button>

@@ -75,7 +75,7 @@ const MinimalistLogin = () => {
             </div>
 
             <button type="submit" disabled={busy}
-              className="w-full bg-accent-signature text-white h-11 rounded-xl font-bold text-[14px] flex items-center justify-center gap-2 hover:bg-accent-signature-hover transition-all active:scale-[0.99] disabled:opacity-60">
+              className="w-full bg-accent-signature text-white h-11 rounded-pill font-bold text-[14px] flex items-center justify-center gap-2 hover:bg-accent-signature-hover transition-all active:scale-[0.99] disabled:opacity-60">
               {busy ? 'Signing in…' : <>Sign in <ChevronRight size={17} strokeWidth={3} /></>}
             </button>
           </form>

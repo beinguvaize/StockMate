@@ -191,19 +191,19 @@ const Inventory = () => {
         </div>
         <div className="flex gap-2 items-center">
           <button onClick={() => setShowPriceLists(true)}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
             <TagIcon size={15} className="text-muted-foreground" /> Price Lists
           </button>
           <button onClick={() => setShowHistory(true)}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
             <History size={15} className="text-muted-foreground" /> History
           </button>
           <button onClick={() => { window.location.href = '/bulk-add?type=products'; }}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
             Bulk Import
           </button>
           <button onClick={openAddModal}
-            className="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md shadow-accent-signature/25 transition-colors">
+            className="inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md transition-colors">
             <Plus size={16} strokeWidth={2.5} /> Add Product
           </button>
         </div>
@@ -268,7 +268,7 @@ const Inventory = () => {
             { id: 'FINISHED', label: 'Finished' },
           ].map(t => (
             <button key={t.id} onClick={() => setTypeFilter(t.id)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-pill text-[11px] font-semibold transition-all whitespace-nowrap ${
                 typeFilter === t.id ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
               }`}>{t.label}</button>
           ))}
@@ -283,7 +283,7 @@ const Inventory = () => {
             { id: 'OUT', label: 'Out' },
           ].map(s => (
             <button key={s.id} onClick={() => setStockFilter(s.id)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-pill text-[11px] font-semibold transition-all whitespace-nowrap ${
                 stockFilter === s.id ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
               }`}>{s.label}</button>
           ))}
@@ -298,7 +298,7 @@ const Inventory = () => {
 
         {activeFilterCount > 0 && (
           <button onClick={clearAllFilters}
-            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-[11px] font-semibold text-red-500 hover:bg-red-50 transition-all whitespace-nowrap">
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-pill text-[11px] font-semibold text-red-500 hover:bg-red-50 transition-all whitespace-nowrap">
             <X size={12} /> Clear ({activeFilterCount})
           </button>
         )}
@@ -475,7 +475,7 @@ const BulkEditModal = ({ count, categories, onClose, onApply }) => {
         <button
           disabled={!dirty || saving}
           onClick={async () => { setSaving(true); try { await onApply(f); } finally { setSaving(false); } }}
-          className="w-full mt-5 py-2.5 rounded-xl text-[13px] font-semibold bg-accent-signature text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
+          className="w-full mt-5 py-2.5 rounded-pill text-[13px] font-semibold bg-accent-signature text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
           {saving ? 'Applying…' : `Apply to ${count} products`}
         </button>
       </div>

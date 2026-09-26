@@ -188,7 +188,7 @@ const BulkAdd = () => {
       {/* Header */}
       <header className="flex flex-wrap items-center gap-3 mb-6 pb-5 border-b border-border">
         <button onClick={() => navigate(-1)}
-          className="w-9 h-9 rounded-md border border-border flex items-center justify-center text-ink-secondary hover:bg-muted transition-colors">
+          className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-ink-secondary hover:bg-muted transition-colors">
           <ArrowLeft size={15} />
         </button>
         <div className="flex-1 min-w-0">
@@ -196,13 +196,13 @@ const BulkAdd = () => {
           <p className="text-[13px] text-muted-foreground mt-0.5">Type directly, or copy rows in Excel / Google Sheets and paste anywhere in the grid — columns fill automatically.</p>
         </div>
         <button onClick={reset}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-border text-[13px] font-semibold text-ink-secondary hover:bg-muted transition-colors">
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-pill border border-border text-[13px] font-semibold text-ink-secondary hover:bg-muted transition-colors">
           <RotateCcw size={13} /> Reset
         </button>
         <button
           onClick={save}
           disabled={!validRows.length || status === 'saving'}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-gray-900 text-white text-[13px] font-semibold hover:bg-gray-800 disabled:opacity-40 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-pill bg-gray-900 text-white text-[13px] font-semibold hover:bg-gray-800 disabled:opacity-40 transition-colors"
         >
           {status === 'saving' ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           Import {validRows.length || ''} {type}
@@ -279,7 +279,7 @@ const BulkAdd = () => {
       </div>
 
       <button onClick={() => setRows(rs => [...rs, ...Array.from({ length: 10 }, () => blankRow(cfg.cols))])}
-        className="mt-3 px-3.5 py-2 rounded-md border border-dashed border-border text-[12.5px] font-medium text-muted-foreground hover:border-gray-400 hover:text-ink-secondary transition-colors">
+        className="mt-3 px-3.5 py-2 rounded-pill border border-dashed border-border text-[12.5px] font-medium text-muted-foreground hover:border-gray-400 hover:text-ink-secondary transition-colors">
         + 10 more rows
       </button>
     </div>

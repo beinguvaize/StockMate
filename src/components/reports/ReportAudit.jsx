@@ -53,7 +53,7 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  <button
  key={t}
  onClick={() => setTypeFilter(t)}
- className={`px-4 py-2 rounded-xl text-[9px] font-semibold transition-all ${typeFilter === t ? 'bg-ink-primary text-accent-signature shadow-lg' : 'text-ink-secondary hover:bg-black/5'}`}
+ className={`px-4 py-2 rounded-pill text-[9px] font-semibold transition-all ${typeFilter === t ? 'bg-ink-primary text-accent-signature shadow-lg' : 'text-ink-secondary hover:bg-black/5'}`}
  >
  {t}
  </button>
@@ -71,7 +71,7 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  </div>
  <button 
  onClick={() => downloadCSV(enrichedLogs, 'security_audit_trail', businessProfile?.name)}
- className="flex items-center gap-2 px-6 h-12 bg-ink-primary text-accent-signature rounded-lg text-[10px] font-semibold hover:bg-black transition-all shadow-premium shrink-0"
+ className="flex items-center gap-2 px-6 h-12 bg-ink-primary text-accent-signature rounded-pill text-[10px] font-semibold hover:bg-black transition-all shadow-premium shrink-0"
  >
  <Download size={16} />
  Download

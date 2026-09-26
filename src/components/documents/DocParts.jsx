@@ -47,10 +47,10 @@ export const PartyPicker = ({ label, party, clients = [], onChange, manual = fal
             <div className="font-black text-sm text-ink-primary">{party.name}</div>
             <div className="text-[11px] text-muted-foreground">{party.gstin ? `GSTIN ${party.gstin} · ` : ''}{party.state || '—'}</div>
           </div>
-          <button onClick={() => setOpen(true)} className="ml-auto text-[11px] font-bold px-2.5 py-1 rounded-lg border border-black/10 hover:bg-black/5">Change</button>
+          <button onClick={() => setOpen(true)} className="ml-auto text-[11px] font-bold px-2.5 py-1 rounded-pill border border-black/10 hover:bg-black/5">Change</button>
         </div>
       ) : (
-        <button onClick={() => setOpen(true)} className="w-full py-8 rounded-xl border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5">+ Add party</button>
+        <button onClick={() => setOpen(true)} className="w-full py-8 rounded-pill border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5">+ Add party</button>
       ))}
       {open && (
         <div className="mt-3 max-h-52 overflow-auto rounded-xl border border-black/10 divide-y divide-black/5">
@@ -106,10 +106,10 @@ export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, on
         );
       })}
       <div className="flex gap-2 p-2.5 border-t border-black/5">
-        <button onClick={() => (manual ? onAddBlank?.() : setPicker(true))} className="flex-1 py-2.5 rounded-xl border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5"><Plus size={14} className="inline -mt-0.5 mr-1" />Add item</button>
+        <button onClick={() => (manual ? onAddBlank?.() : setPicker(true))} className="flex-1 py-2.5 rounded-pill border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5"><Plus size={14} className="inline -mt-0.5 mr-1" />Add item</button>
         {manual
-          ? <button onClick={() => setPicker(true)} className="px-4 py-2.5 rounded-xl border border-black/10 text-[13px] font-bold hover:bg-black/5">Pick product</button>
-          : <button className="px-4 py-2.5 rounded-xl border border-black/10 text-[13px] font-bold hover:bg-black/5"><ScanLine size={14} className="inline -mt-0.5 mr-1.5" />Scan</button>}
+          ? <button onClick={() => setPicker(true)} className="px-4 py-2.5 rounded-pill border border-black/10 text-[13px] font-bold hover:bg-black/5">Pick product</button>
+          : <button className="px-4 py-2.5 rounded-pill border border-black/10 text-[13px] font-bold hover:bg-black/5"><ScanLine size={14} className="inline -mt-0.5 mr-1.5" />Scan</button>}
       </div>
 
       {picker && (
