@@ -62,3 +62,40 @@ test('black panels keep deciding their own text colour', async ({ page }) => {
   // than quietly repainted -- that is a design call, not a contrast fix.
   expect(cascade.sameElement).toBe('rgb(255, 255, 255)');
 });
+
+test('keyboard focus is visible even where outline-none was written', async ({ page }) => {
+  // 320 elements carry `outline-none` and nothing replaced it, so tabbing moved
+  // an invisible cursor. The global rule is unlayered, which is what lets it
+  // win without touching any of those 320 call sites -- so the thing worth
+  // pinning is precisely that it beats the utility.
+  await open(page, 'expenses');
+  const ring = await page.evaluate(() => {
+    const b = document.createElement('button');
+    b.className = 'outline-none px-4 py-2';
+    document.body.appendChild(b);
+    b.focus({ focusVisible: true });
+    const cs = getComputedStyle(b);
+    const out = { w: cs.outlineWidth, style: cs.outlineStyle, color: cs.outlineColor, offset: cs.outlineOffset };
+    b.remove();
+    return out;
+  });
+  expect(ring).toEqual({
+    w: '2px', style: 'solid', color: 'rgb(17, 17, 17)', offset: '2px',
+  });
+});
+
+test('a mouse click leaves no ring behind', async ({ page }) => {
+  // :focus-visible, not :focus -- otherwise every click would leave an outline
+  // sitting on the button until you clicked elsewhere.
+  await open(page, 'expenses');
+  const ring = await page.evaluate(() => {
+    const b = document.createElement('button');
+    b.className = 'outline-none px-4 py-2';
+    document.body.appendChild(b);
+    b.focus({ focusVisible: false });
+    const w = getComputedStyle(b).outlineWidth;
+    b.remove();
+    return w;
+  });
+  expect(ring).not.toBe('2px');
+});

@@ -248,6 +248,30 @@ table.report-table tbody td.numeric {
   line-height: 1 !important;
 }
 
+/* Keyboard focus.
+
+   320 elements in this app carry `outline-none` and nothing replaces it, so
+   tabbing through a screen moved an invisible cursor: you could not tell which
+   button Enter was about to press. That is WCAG 2.4.7, and it is also the
+   difference between an app that feels finished and one that does not.
+
+   Unlayered, so it beats the `outline-none` utility wherever that was written
+   -- there is no value in hunting 320 call sites to delete a class that should
+   never have been the end of the story.
+
+   :focus-visible, not :focus, so a mouse click does not leave a ring behind.
+
+   The ring is ink, not amber: it has to read on a white card, on the warm
+   ground AND on a black pill, and #111111 measures 17.3:1 on the first two
+   while amber manages 3.19:1 and 2.92:1. The 2px offset puts it just outside
+   the control, so a dark button gets a dark ring on the light ground behind
+   it rather than a ring that disappears into its own fill. */
+:where(a, button, summary, [role="button"], [role="tab"], [tabindex]):focus-visible {
+  outline: 2px solid var(--color-ink-primary);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
 /* Amber has two jobs and one value, and only one of them works.
 
    As a FILL -- the primary button, an icon tile -- #D97706 needs 3:1 against
