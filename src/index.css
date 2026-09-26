@@ -201,15 +201,24 @@ table.report-table tbody td.numeric {
 /* Applied via data-theme="X" on <html>. Default (signature) needs no attr.  */
 
 [data-theme="white"] {
-  --color-canvas: #FFFFFF;
-  --color-surface: #F9F9F9;
+  /* canvas is the GROUND and the quiet tint behind a chip, a table head and a
+     row hover -- `bg-canvas` carries both jobs at 445 call sites. This theme
+     used to set it to #FFFFFF and hand `surface` the grey, inverting the pair
+     every other theme here uses. White cards then sat on a white ground and
+     every chip disappeared, which read as "the theme does nothing". Warm and
+     quiet, so a white card reads as a card. */
+  --color-canvas: #F6F5F3;
+  --color-surface: #FFFFFF;
   --color-ink-primary: #111111;
   --color-ink-secondary: #444444;
-  --color-ink-tertiary: #6B7280;
+  /* #6B7280 measured 4.44:1 once the ground stopped being pure white -- it had
+     room to spare against #FFFFFF and none against a tint. One step down: now
+     4.59:1 on the ground, 5.00:1 on a white card. */
+  --color-ink-tertiary: #68707C;
   --color-accent-signature: #D97706;
   --color-accent-signature-hover: #B45309;
   --color-button-text: #FFFFFF;
-  --bg-color: #FFFFFF;
+  --bg-color: #F6F5F3;
   --border-color: rgba(0,0,0,0.08);
 }
 
