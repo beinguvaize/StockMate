@@ -1,0 +1,43 @@
+/* Source for the landing site's stylesheet.
+   ==========================================================================
+
+   The pages used to load cdn.tailwindcss.com, which is the JIT compiler: it
+   ships a compiler to every visitor, rebuilds the stylesheet in the browser on
+   every page load, and Tailwind's own documentation says not to use it in
+   production. It also meant the design tokens lived in an inline <script> on
+   fifteen separate pages, which is how fourteen of them ended up with the
+   class names and none of the colours.
+
+   One definition now, compiled once:  npm run landing:css   (output: public/landing/tw.css)
+*/
+@import "tailwindcss";
+
+@source "../public/landing/*.html";
+@source "../public/landing/blog/*.html";
+
+@theme {
+  /* Neutrals */
+  --color-primary:   #1A1815;   /* body text */
+  --color-secondary: #6b6660;   /* secondary text      5.68:1 on canvas */
+  --color-surface:   #FBFAF7;   /* the tinted ground */
+  --color-canvas:    #FFFFFF;   /* cards, and the page */
+  --color-line:      #E9E6DF;   /* separators ONLY -- never a text colour */
+
+  /* One hue, four jobs. #D97706 clears the 3:1 a non-text element needs and
+     fails the 4.5:1 that text needs, so the roles are separate values. */
+  --color-accent:       #D97706;  /* fills carrying no text     3.19:1 */
+  --color-accent-solid: #B45309;  /* fill under a white label   5.02:1 */
+  --color-accent-hover: #92400E;  /* its hover                  7.09:1 */
+  --color-accent-text:  #AB4F08;  /* amber as text on light     5.45:1 */
+  --color-accent-700:   #B45309;  /* kept: existing markup names it */
+
+  /* Only the two status hues the product actually renders, at steps that
+     pass as text rather than only as fills. */
+  --color-ok:  #047857;  /* 5.48:1 */
+  --color-bad: #E11D48;  /* 4.70:1 */
+
+  --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.mono { font-variant-numeric: tabular-nums; }

@@ -13,29 +13,11 @@
 <meta name="twitter:title" content="bookledger — GST Billing &amp; Inventory Software"/>
 <meta name="twitter:description" content="GST invoices, POS, inventory, van sales — one platform for Indian retailers &amp; distributors."/>
 <meta name="twitter:image" content="https://bookledger.in/og.webp"/>
+<link rel="stylesheet" href="tw.css"/>
 <link rel="icon" href="favicon-256.png"/>
 <link rel="canonical" href="https://bookledger.in/"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
-<script>
-  tailwind.config = { theme: { extend: {
-    colors: {
-      primary: '#1A1815', secondary: '#6b6660', surface: '#FBFAF7',
-      canvas: '#FFFFFF', line: '#E9E6DF',
-      // One hue, four jobs. Amber at #D97706 is a FILL colour: it clears the
-      // 3:1 a non-text element needs and fails the 4.5:1 that text needs, so a
-      // white label on it measured 3.19:1 and amber body text measured 3.05:1.
-      // Splitting the roles fixes both without moving the brand off the page.
-      accent: '#D97706',        // fills with no text on them
-      'accent-solid': '#B45309',// fill under a white label   5.02:1
-      'accent-hover': '#92400E',// its hover                  7.09:1
-      'accent-text': '#AB4F08', // amber as text on light     5.45:1
-      'accent-700': '#B45309',  // kept: existing markup still names it
-    },
-    fontFamily: { sans: ['Manrope','sans-serif'], mono: ['JetBrains Mono','monospace'] },
-  }}}
-</script>
 <style>
   @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
   .logo-track{display:flex;width:max-content;animation:scroll 32s linear infinite}
