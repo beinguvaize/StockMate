@@ -84,6 +84,26 @@ test('keyboard focus is visible even where outline-none was written', async ({ p
   });
 });
 
+test('the focus ring is visible on a dark background too', async ({ page }) => {
+  // An ink ring measured 1.04:1 against the login page's dark panel -- drawn,
+  // and invisible. Where 3:1 is the minimum. So there are two rings: white
+  // fills the offset gap and carries the dark grounds, ink sits outside it and
+  // carries the light ones. This pins the white one, which is the half that is
+  // easy to lose because it does nothing on the screens you look at most.
+  await open(page, 'expenses');
+  const shadow = await page.evaluate(() => {
+    const b = document.createElement('button');
+    b.className = 'outline-none px-4 py-2';
+    document.body.appendChild(b);
+    b.focus({ focusVisible: true });
+    const s = getComputedStyle(b).boxShadow;
+    b.remove();
+    return s;
+  });
+  expect(shadow).toContain('rgb(255, 255, 255)');
+  expect(shadow).toContain('2px');
+});
+
 test('a mouse click leaves no ring behind', async ({ page }) => {
   // :focus-visible, not :focus -- otherwise every click would leave an outline
   // sitting on the button until you clicked elsewhere.
