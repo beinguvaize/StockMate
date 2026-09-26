@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect} from 'react';
+import Button from '../shared/Button';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
@@ -379,9 +380,9 @@ const Expenses = () => {
  </div>
  <div className="flex items-center gap-2">
  {hasPermission('ADD_EXPENSE') && (
- <button className="flex items-center gap-2 text-xs font-black px-4 py-2.5 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white shadow-md shadow-accent-signature/25 transition-colors" onClick={() => setIsAdding(true)}>
+ <Button variant="amber" size="sm" onClick={() => setIsAdding(true)} className="gap-2">
  <Plus size={14} strokeWidth={2.5} /> Add Expense
- </button>
+ </Button>
  )}
  </div>
  </div>
@@ -407,12 +408,12 @@ const Expenses = () => {
        { k: 'week', label: 'Week' }, { k: 'month', label: 'Month' }, { k: 'lastmonth', label: 'Last Mo' },
      ].map(({ k, label }) => (
        <button key={k} onClick={() => setFilterType(k)}
-         className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors ${filterType === k ? 'bg-accent-signature text-white shadow-sm shadow-accent-signature/20' : 'text-muted-foreground hover:text-ink-primary'}`}>
+         className={`h-7 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors ${filterType === k ? 'bg-accent-signature text-white' : 'text-ink-secondary hover:text-ink-primary'}`}>
          {label}
        </button>
      ))}
      <button onClick={() => setFilterType('range')}
-       className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors ${filterType === 'range' ? 'bg-accent-signature text-white shadow-sm shadow-accent-signature/20' : 'text-muted-foreground hover:text-ink-primary'}`}>
+       className={`h-7 px-3 rounded-lg text-[11px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors ${filterType === 'range' ? 'bg-accent-signature text-white' : 'text-ink-secondary hover:text-ink-primary'}`}>
        <Calendar size={12} /> Range
      </button>
    </div>
@@ -442,14 +443,14 @@ const Expenses = () => {
  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-black/[0.06] flex-wrap">
    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-1">Category</span>
    <button onClick={() => setCategoryFilter('ALL')}
-     className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors ${categoryFilter === 'ALL' ? 'bg-accent-signature text-white border-accent-signature' : 'bg-white border-black/10 text-muted-foreground hover:border-black/25'}`}>
+     className={`h-7 px-3 rounded-pill text-[11px] font-semibold border transition-colors ${categoryFilter === 'ALL' ? 'bg-accent-signature text-white border-accent-signature' : 'bg-surface border-black/10 text-ink-secondary hover:border-black/25'}`}>
      All
    </button>
    {Object.entries(categoryBreakdown)
      .sort((a, b) => b[1].total - a[1].total)
      .map(([cat, info]) => (
      <button key={cat} onClick={() => setCategoryFilter(cat === categoryFilter ? 'ALL' : cat)}
-       className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-accent-signature text-white border-accent-signature' : 'bg-white border-black/10 text-muted-foreground hover:border-black/25'}`}>
+       className={`h-7 px-3 rounded-pill text-[11px] font-semibold border transition-colors inline-flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-accent-signature text-white border-accent-signature' : 'bg-surface border-black/10 text-ink-secondary hover:border-black/25'}`}>
        {cat}
        <span className={` tabular-nums ${categoryFilter === cat ? 'text-white/70' : 'text-accent-signature/70'}`}>
          {businessProfile?.currencySymbol || '₹'}{Math.round(info.total).toLocaleString('en-IN')}
@@ -477,7 +478,7 @@ const Expenses = () => {
    <button
      onClick={exportCSV}
      disabled={filteredExpenses.length === 0}
-     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/10 hover:bg-accent-signature/10 hover:border-accent-signature/25 text-muted-foreground hover:text-accent-signature-hover text-[10px] font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+     className="inline-flex items-center gap-1.5 h-7 px-3 rounded-pill border border-black/10 hover:bg-black/[0.04] hover:border-black/20 text-ink-secondary hover:text-ink-primary text-[10px] font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
    >
      <Download size={13} /> Export
    </button>

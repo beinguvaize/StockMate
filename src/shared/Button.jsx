@@ -28,19 +28,27 @@ const Button = ({
     'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 ' +
     'motion-reduce:transition-none motion-reduce:active:scale-100';
   
+  // No coloured drop shadows. `shadow-lg shadow-accent-signature/25` put an
+  // amber glow under an amber button, which is the one place a shadow cannot
+  // do its job -- a shadow separates a surface from the one behind it, and a
+  // glow in the fill's own hue just smudges the edge it was meant to define.
+  // The fill already carries the emphasis.
   const variants = {
     signature: 'btn-signature',
-    amber: 'bg-accent-signature text-white hover:bg-accent-signature-hover shadow-lg shadow-accent-signature/25',
-    secondary: 'border border-black/10 text-ink-primary hover:bg-black/5',
-    danger: 'bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/20',
-    ghost: 'text-muted-foreground hover:text-ink-primary hover:bg-black/5'
+    amber: 'bg-accent-signature text-white hover:bg-accent-signature-hover',
+    secondary: 'border border-black/10 text-ink-primary hover:bg-black/[0.04] hover:border-black/20',
+    danger: 'bg-red-600 text-white hover:bg-red-700',
+    ghost: 'text-ink-secondary hover:text-ink-primary hover:bg-black/[0.04]'
   };
 
+  // One scale, and the type grows with the control. The old one had a 32px
+  // button carrying 10px text and a 48px button carrying 12px, so the larger
+  // size looked emptier than the smaller one rather than more important.
   const sizes = {
-    sm: 'h-8 px-4 text-[10px] rounded-pill',
-    md: 'h-12 px-6 text-xs rounded-pill',
-    lg: 'h-14 px-8 text-sm rounded-pill',
-    icon: 'w-10 h-10 rounded-pill'
+    sm: 'h-8 px-3.5 text-[11px] rounded-pill',
+    md: 'h-10 px-5 text-[13px] rounded-pill',
+    lg: 'h-12 px-7 text-sm rounded-pill',
+    icon: 'w-9 h-9 rounded-pill'
   };
 
   return (
@@ -53,7 +61,7 @@ const Button = ({
       {children}
       {Icon && (
         <div className={variant === 'signature' ? 'icon-nest' : 'ml-2'}>
-          <Icon size={size === 'sm' ? 14 : 18} />
+          <Icon size={size === 'sm' ? 14 : size === 'lg' ? 18 : 16} />
         </div>
       )}
     </button>
