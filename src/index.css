@@ -254,8 +254,13 @@ table.report-table tbody td.numeric {
   filter: grayscale(35%);
 }
 [data-theme="white"] .btn-signature * { color: #FFFFFF; }
-/* Nav bar dark bg */
-[data-theme="white"] nav .text-ink-primary { color: #FFFFFF; }
+/* Nav bar dark bg.
+   Scoped with :not([data-rail]) because this was written for the old top
+   nav, whose ACTIVE item was a dark pill -- white ink was right there. The
+   sidebar's active row is a light fill, so the same rule painted white text
+   on a near-white background and the current page became the one item you
+   could not read. */
+[data-theme="white"] nav:not([data-rail]) .text-ink-primary { color: #FFFFFF; }
 [data-theme="white"] [class*="bg-[#111]"] { color: #FFFFFF; }
 [data-theme="white"] [class*="bg-gray-900"] { color: #FFFFFF; }
 [data-theme="white"] [class*="bg-gray-900"] * { color: #FFFFFF; }
