@@ -47,8 +47,10 @@ test('login — valid credentials redirect to tenant dashboard', async ({ page }
   await page.locator('input[type="password"]').fill('password123');
   await page.locator('button[type="submit"]').click();
 
-  await page.waitForURL(`**/${TENANT_SLUG}/dashboard`, { timeout: 12_000 });
-  await expect(page).toHaveURL(new RegExp(`/${TENANT_SLUG}/dashboard`));
+  // Same stale expectation as the setups carried: a single-tenant session
+  // lands on a bare /dashboard, not a slug-prefixed one.
+  await page.waitForURL(/\/dashboard/, { timeout: 12_000 });
+  await expect(page).toHaveURL(/\/dashboard/);
 });
 
 // ─── Authenticated tests ──────────────────────────────────────────────────────
