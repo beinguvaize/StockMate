@@ -22,7 +22,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
 <script>
   tailwind.config = { theme: { extend: {
-    colors: { primary:'#1A1815', secondary:'#6b6660', surface:'#FBFAF7', canvas:'#FFFFFF', line:'#E9E6DF', accent:'#D97706', 'accent-700':'#B45309' },
+    colors: { primary:'#1A1815', secondary:'#6b6660', surface:'#FBFAF7', canvas:'#FFFFFF', line:'#E9E6DF', accent:'#D97706', 'ok':'#047857', 'bad':'#E11D48', 'accent-solid':'#B45309', 'accent-hover':'#92400E', 'accent-text':'#AB4F08', 'accent-700':'#B45309' },
     fontFamily: { sans:['Manrope','sans-serif'], mono:['JetBrains Mono','monospace'] },
   }}}
 </script>
@@ -42,21 +42,21 @@
     </div>
     <div class="hidden md:flex gap-3 items-center">
       <a href="https://app.bookledger.in/login" class="text-sm font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
-      <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-700 transition-colors">Get Started</a>
+      <a href="https://app.bookledger.in/register" class="bg-accent-solid text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-hover transition-colors">Get Started</a>
     </div>
-    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent-solid text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
   </div>
 </nav>
 
 <main class="max-w-[1100px] mx-auto px-6 lg:px-8 pt-20 lg:pt-28 pb-24 grid lg:grid-cols-2 gap-12">
   <div>
-    <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Contact</span>
+    <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-text">Contact</span>
     <h1 class="mt-4 text-4xl md:text-5xl font-light tracking-tight">Talk to us.</h1>
     <p class="mt-5 text-secondary font-light leading-relaxed max-w-md">Questions about plans, a demo, or enterprise rollout? We usually reply within a business day.</p>
     <div class="mt-10 space-y-5">
-      <a href="mailto:hello@bookledger.in" class="flex items-center gap-3 group"><span class="w-10 h-10 rounded-xl bg-surface border border-line flex items-center justify-center"><span class="material-symbols-outlined text-accent" style="font-size:18px">mail</span></span><div><div class="text-sm font-medium">Email</div><div class="text-sm text-secondary group-hover:text-accent transition-colors">hello@bookledger.in</div></div></a>
-      <a href="https://wa.me/919495770736" class="flex items-center gap-3 group"><span class="w-10 h-10 rounded-xl bg-surface border border-line flex items-center justify-center"><span class="material-symbols-outlined text-accent" style="font-size:18px">chat</span></span><div><div class="text-sm font-medium">WhatsApp</div><div class="text-sm text-secondary group-hover:text-accent transition-colors mono">+91 94957 70736</div></div></a>
-      <div class="flex items-center gap-3"><span class="w-10 h-10 rounded-xl bg-surface border border-line flex items-center justify-center"><span class="material-symbols-outlined text-accent" style="font-size:18px">schedule</span></span><div><div class="text-sm font-medium">Hours</div><div class="text-sm text-secondary">Mon–Sat · 9am–7pm IST</div></div></div>
+      <a href="mailto:hello@bookledger.in" class="flex items-center gap-3 group"><span class="w-10 h-10 rounded-xl bg-surface border border-line flex items-center justify-center"><span class="material-symbols-outlined text-accent-text" style="font-size:18px">mail</span></span><div><div class="text-sm font-medium">Email</div><div class="text-sm text-secondary group-hover:text-accent-text transition-colors">hello@bookledger.in</div></div></a>
+      <a href="https://wa.me/919495770736" class="flex items-center gap-3 group"><span class="w-10 h-10 rounded-xl bg-surface border border-line flex items-center justify-center"><span class="material-symbols-outlined text-accent-text" style="font-size:18px">chat</span></span><div><div class="text-sm font-medium">WhatsApp</div><div class="text-sm text-secondary group-hover:text-accent-text transition-colors mono">+91 94957 70736</div></div></a>
+      <div class="flex items-center gap-3"><span class="w-10 h-10 rounded-xl bg-surface border border-line flex items-center justify-center"><span class="material-symbols-outlined text-accent-text" style="font-size:18px">schedule</span></span><div><div class="text-sm font-medium">Hours</div><div class="text-sm text-secondary">Mon–Sat · 9am–7pm IST</div></div></div>
     </div>
   </div>
 
@@ -68,7 +68,7 @@
       </div>
       <div><label class="text-[11px] font-bold uppercase tracking-wide text-secondary mb-1.5 block">Email</label><input name="email" type="email" required class="w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"/></div>
       <div><label class="text-[11px] font-bold uppercase tracking-wide text-secondary mb-1.5 block">How can we help?</label><textarea name="message" rows="5" required class="w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 resize-none"></textarea></div>
-      <button type="submit" class="w-full bg-accent text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-accent-700 shadow-md shadow-accent/25 transition-colors">Send message →</button>
+      <button type="submit" class="w-full bg-accent-solid text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-accent-hover shadow-md shadow-accent/25 transition-colors">Send message →</button>
       <p id="cnote" class="text-center text-[11px] text-secondary font-light"></p>
     </form>
   </div>

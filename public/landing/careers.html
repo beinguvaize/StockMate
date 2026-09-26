@@ -1,192 +1,108 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Careers — bookledger</title>
-  <meta name="description" content="Small team, high impact, remote-friendly. Build business software that works like India does.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
-  <!-- Analytics -->
-  <script defer data-domain="bookledger.in" src="https://plausible.io/js/script.js"></script>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Careers — bookledger</title>
+<meta name="description" content="We are a small, remote-friendly team building billing, stock and books for Indian shops. No open roles today; send a CV and we will keep it on file."/>
+<link rel="icon" href="favicon-256.png"/>
 <link rel="canonical" href="https://bookledger.in/careers"/>
 <meta property="og:type" content="website"/>
 <meta property="og:site_name" content="bookledger"/>
 <meta property="og:locale" content="en_IN"/>
 <meta property="og:url" content="https://bookledger.in/careers"/>
 <meta property="og:title" content="Careers — bookledger"/>
-<meta property="og:description" content="Small team, high impact, remote-friendly. Build business software that works like India does."/>
+<meta property="og:description" content="We are a small, remote-friendly team building billing, stock and books for Indian shops. No open roles today; send a CV and we will keep it on file."/>
 <meta property="og:image" content="https://bookledger.in/og.webp"/>
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="Careers — bookledger"/>
-<meta name="twitter:description" content="Small team, high impact, remote-friendly. Build business software that works like India does."/>
+<meta name="twitter:description" content="We are a small, remote-friendly team building billing, stock and books for Indian shops. No open roles today; send a CV and we will keep it on file."/>
 <meta name="twitter:image" content="https://bookledger.in/og.webp"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { primary:'#1A1815', secondary:'#6b6660', surface:'#FBFAF7', canvas:'#FFFFFF', line:'#E9E6DF', accent:'#D97706', 'ok':'#047857', 'bad':'#E11D48', 'accent-solid':'#B45309', 'accent-hover':'#92400E', 'accent-text':'#AB4F08', 'accent-700':'#B45309' },
+    fontFamily: { sans:['Manrope','sans-serif'], mono:['JetBrains Mono','monospace'] },
+  }}}
+</script>
+<style>.mono{font-variant-numeric:tabular-nums}</style>
+<link rel="stylesheet" href="reveal.css"/>
+<script>document.documentElement.classList.add('js')</script>
 </head>
-<body class="subpage-body">
+<body class="bg-canvas text-primary font-sans antialiased">
 
-    <!-- ========== NAVBAR ========== -->
-  <nav class="navbar" id="navbar">
-    <div class="container">
-      <a href="./index.html" class="navbar-logo">
-        <img src="bookledger-logo.png" alt="bookledger Logo" class="app-logo">
-      </a>
-      <div class="navbar-links" id="navLinks">
-        <a href="./index.html#features">Features</a>
-        <a href="./index.html#features">Industries</a>
-        <a href="./index.html#pricing">Pricing</a>
-      </div>
-      <div class="navbar-actions">
-        <a href="https://app.bookledger.in/login" style="font-size:0.9rem; font-weight:600; margin-right:15px; color:var(--text-muted); transition: var(--transition);" id="loginBtn">Log In</a>
-        <a href="https://app.bookledger.in/register" class="btn btn-primary" id="trialBtn">Download App</a>
-        <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
-      </div>
+<!-- Nav -->
+<nav class="bg-canvas/80 backdrop-blur-md border-b border-line w-full sticky top-0 z-50">
+  <div class="flex justify-between items-center w-full px-6 lg:px-8 py-4 max-w-[1200px] mx-auto">
+    <a href="/" class="flex items-center gap-2"><img src="bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/></a>
+    <div class="hidden md:flex gap-7 items-center">
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="features.html">Features</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="download.html">Download</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="integrations.html">Integrations</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="about.html">About</a>
     </div>
-  </nav>
+    <div class="hidden md:flex gap-3 items-center">
+      <a href="https://app.bookledger.in/login" class="text-sm font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
+      <a href="https://app.bookledger.in/register" class="bg-accent-solid text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-hover transition-colors">Get Started</a>
+    </div>
+    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent-solid text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+  </div>
+</nav>
 
-  <!-- ========== HERO ========== -->
-  <section class="subpage-hero">
-    <div class="container">
-      <div class="subpage-hero-content">
-        <h1>Small Team, <span class="gradient-text">High Impact</span>.</h1>
-        <p>We're a remote-friendly indie SaaS team building the next-generation operating core for Indian commerce. No corporate fluff, just building great products.</p>
+<main class="w-full">
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 pt-20 lg:pt-28 pb-12">
+    <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-text">Careers</span>
+    <h1 class="mt-4 text-4xl md:text-5xl font-light tracking-tight max-w-3xl leading-tight">Small team. The work reaches a lot of counters.</h1>
+    <p class="mt-6 max-w-2xl text-base text-secondary font-light leading-relaxed">We build the operating core for Indian commerce — billing, stock and books
+    for shops that cannot afford downtime. Remote-friendly, small, and closer to the
+    shopkeeper than to the org chart.</p>
+  </section>
+
+  <section class="w-full bg-surface border-y border-line">
+    <div class="max-w-[1200px] mx-auto px-6 lg:px-8 py-14 grid gap-10 md:grid-cols-[1.1fr_1fr]">
+      <div>
+        <h2 class="text-2xl font-light tracking-tight">No open roles right now</h2>
+        <p class="mt-4 text-base text-secondary font-light leading-relaxed">That is the honest
+        answer today. We still read everything that arrives, and we keep good CVs on file —
+        the last two people who joined wrote to us before a posting existed.</p>
+
+        <p class="mt-6 text-base text-secondary font-light leading-relaxed">Send a CV and a
+        short note about what you have built. Links beat adjectives.</p>
+
+        <a href="mailto:careers@bookledger.in?subject=CV%20%E2%80%94%20bookledger"
+           class="mt-7 inline-flex items-center gap-2 bg-accent-solid text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-accent-hover transition-colors">
+          Email careers@bookledger.in
+        </a>
+        <p class="mt-3 text-xs text-secondary">We reply to everyone, usually within a week.</p>
+      </div>
+
+      <div class="rounded-2xl border border-line bg-canvas p-7">
+        <h3 class="text-sm font-semibold">What we look for</h3>
+        <ul class="mt-5 space-y-4 text-sm text-secondary font-light leading-relaxed">
+          <li class="flex gap-3"><span class="text-accent-text">—</span><span>You have shipped something people depend on, and can say what broke.</span></li>
+          <li class="flex gap-3"><span class="text-accent-text">—</span><span>You are comfortable that the user is behind a counter, not at a desk.</span></li>
+          <li class="flex gap-3"><span class="text-accent-text">—</span><span>You would rather delete code than add a setting.</span></li>
+          <li class="flex gap-3"><span class="text-accent-text">—</span><span>Indian retail, GST or accounting experience is a bonus, not a requirement.</span></li>
+        </ul>
       </div>
     </div>
   </section>
+</main>
 
-  <!-- ========== GENERAL APPLICATION ========== -->
-  <section class="section">
-    <div class="container">
-      <div style="max-width: 620px; margin: 0 auto;">
-        <div style="text-align:center; margin-bottom: 32px;">
-          <h2 style="font-weight: 800; font-size: 1.8rem;">Tell us about you</h2>
-          <p style="color: var(--text-muted); margin-top: 10px; line-height:1.6;">No open postings right now — but we’re always glad to meet talented people. Send your resume and we’ll reach out when there’s a fit.</p>
-        </div>
-
-        <form id="jobForm" style="background:#fff; border:1px solid var(--border); border-radius:18px; padding:28px; display:flex; flex-direction:column; gap:16px;">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-            <div><label style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Full name</label><input name="name" required style="margin-top:6px; width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:11px; font-size:.9rem;"/></div>
-            <div><label style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Phone</label><input name="phone" style="margin-top:6px; width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:11px; font-size:.9rem;"/></div>
-          </div>
-          <div><label style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Email</label><input name="email" type="email" required style="margin-top:6px; width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:11px; font-size:.9rem;"/></div>
-          <div><label style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Role you're interested in</label><input name="role" placeholder="e.g. Developer, Sales, Support…" style="margin-top:6px; width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:11px; font-size:.9rem;"/></div>
-          <div><label style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Resume (PDF / DOC, max 5 MB)</label><input name="resume" type="file" accept=".pdf,.doc,.docx" required style="margin-top:6px; width:100%; font-size:.85rem;"/></div>
-          <div><label style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">A few words (optional)</label><textarea name="note" rows="3" style="margin-top:6px; width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:11px; font-size:.9rem; resize:none;"></textarea></div>
-          <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Submit application</button>
-          <p id="jobNote" style="text-align:center; font-size:.8rem; color:var(--text-muted);"></p>
-        </form>
-      </div>
+<footer class="bg-canvas border-t border-line w-full">
+  <div class="flex flex-col md:flex-row justify-between items-center w-full px-6 lg:px-8 py-8 max-w-[1200px] mx-auto gap-4">
+    <div class="flex items-center gap-2"><img src="bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/></div>
+    <div class="flex flex-wrap justify-center gap-5">
+      <a class="text-xs text-secondary hover:text-primary" href="features.html">Features</a>
+      <a class="text-xs text-secondary hover:text-primary" href="pricing.html">Pricing</a>
+      <a class="text-xs text-secondary hover:text-primary" href="privacy.html">Privacy</a>
+      <a class="text-xs text-secondary hover:text-primary" href="terms.html">Terms</a>
+      <a class="text-xs text-secondary hover:text-primary" href="contact.html">Contact</a>
     </div>
-  </section>
-
-    <!-- ========== FOOTER ========== -->
-  <footer class="footer" id="footer">
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <a href="./index.html" style="display: inline-block; margin-bottom: 20px;">
-            <img src="bookledger-logo.png" alt="bookledger Logo" style="height: 44px; filter: brightness(0) invert(1); opacity: 0.85;">
-          </a>
-          <p>The modern operations and ledger platform built for businesses that want to grow smarter, not harder.</p>
-        </div>
-        <div class="footer-col">
-          <h4>Product</h4>
-          <a href="./index.html#features">Features</a>
-          <a href="./index.html#pricing">Pricing</a>
-          <a href="./integrations.html">Integrations</a>
-          <a href="./changelog.html">Changelog</a>
-        </div>
-        <div class="footer-col">
-          <h4>Support & Company</h4>
-          <a href="./about.html">About Us</a>
-          <a href="./blog.html">Blog</a>
-          <a href="./careers.html">Careers</a>
-          <a href="./contact.html">Contact Support</a>
-        </div>
-        <div class="footer-col">
-          <h4>Legal</h4>
-          <a href="./privacy.html">Privacy Policy</a>
-          <a href="./terms.html">Terms of Service</a>
-          <a href="./security.html">Security Protocol</a>
-        </div>
-      </div>
-
-      <div class="footer-locations" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; padding: 40px 0; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 30px;">
-        <div class="location">
-          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">India</h4>
-          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">Poyisha Rd<br>North Edappally<br>Ernakulam</p>
-        </div>
-        <div class="location">
-          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">London</h4>
-          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">126 Richmond Road, Ilford<br>London, 1G1 1JU</p>
-        </div>
-        <div class="location">
-          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">Qatar</h4>
-          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">Doha</p>
-        </div>
-        <div class="location">
-          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">Canada</h4>
-          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">5415 Cogswell St Halifax<br>B3J 0K8</p>
-        </div>
-      </div>
-
-      <div class="footer-bottom">
-        <span>© 2026 bookledger. All rights reserved.</span>
-        <span>Built for high-performance commerce</span>
-      </div>
-    </div>
-  </footer>
-
-  <script>
-    // Mobile menu toggle
-    const mobileToggle = document.getElementById('mobileToggle');
-    const navLinks = document.getElementById('navLinks');
-    mobileToggle.addEventListener('click', () => {
-      if (navLinks.classList.contains('mobile-active')) {
-        navLinks.classList.remove('mobile-active');
-      } else {
-        navLinks.classList.add('mobile-active');
-      }
-    });
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const SB_URL  = 'https://lmviftlynuhopzmvaxeu.supabase.co';
-    const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdmlmdGx5bnVob3B6bXZheGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMDUxMzEsImV4cCI6MjA4ODg4MTEzMX0.DX0HpM6jEYZrRx8Nl8mZxvTjvvMIY2AneJgnkS-e1xA';
-    const sb = window.supabase.createClient(SB_URL, SB_ANON);
-    const jf = document.getElementById('jobForm'); const jn = document.getElementById('jobNote');
-    jf.addEventListener('submit', async function(e){
-      e.preventDefault();
-      const f = new FormData(jf);
-      const file = f.get('resume');
-      const btn = jf.querySelector('button[type=submit]');
-      jn.style.color = 'var(--text-muted)'; jn.textContent = '';
-      if (file && file.size > 5 * 1024 * 1024) { jn.style.color = '#dc2626'; jn.textContent = 'Resume too large (max 5 MB).'; return; }
-      btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Submitting…';
-      try {
-        let resumeUrl = null;
-        if (file && file.name) {
-          const ext = file.name.split('.').pop();
-          const path = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-          const up = await sb.storage.from('resumes').upload(path, file, { upsert: false });
-          if (up.error) throw up.error;
-          resumeUrl = sb.storage.from('resumes').getPublicUrl(path).data.publicUrl;
-        }
-        const { error } = await sb.from('job_applications').insert({
-          name: (f.get('name')||'').trim(), email: (f.get('email')||'').trim(),
-          phone: (f.get('phone')||'').trim(), role: (f.get('role')||'').trim(),
-          resume_url: resumeUrl, note: (f.get('note')||'').trim(),
-        });
-        if (error) throw error;
-        jf.reset();
-        jn.style.color = '#059669'; jn.textContent = 'Thanks! Application received — we’ll be in touch.';
-        btn.textContent = 'Submitted ✓';
-      } catch (err) {
-        jn.style.color = '#dc2626'; jn.textContent = 'Could not submit — email careers@bookledger.in';
-        btn.disabled = false; btn.textContent = orig;
-      }
-    });
-  </script>
-</body>
-</html>
+    <div class="text-xs text-secondary font-light">© 2026 bookledger. Built for Indian business.</div>
+  </div>
+</footer>
+<script defer src="reveal.js"></script>
+</body></html>
