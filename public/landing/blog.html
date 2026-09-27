@@ -111,16 +111,58 @@
 </main>
 
 <footer class="bg-canvas border-t border-line w-full">
-  <div class="flex flex-col md:flex-row justify-between items-center w-full px-6 lg:px-8 py-8 max-w-[1200px] mx-auto gap-4">
-    <div class="flex items-center gap-2"><img src="bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/></div>
-    <div class="flex flex-wrap justify-center gap-5">
-      <a class="inline-flex items-center min-h-[32px] py-1 text-xs text-secondary hover:text-primary" href="features.html">Features</a>
-      <a class="inline-flex items-center min-h-[32px] py-1 text-xs text-secondary hover:text-primary" href="pricing.html">Pricing</a>
-      <a class="inline-flex items-center min-h-[32px] py-1 text-xs text-secondary hover:text-primary" href="privacy.html">Privacy</a>
-      <a class="inline-flex items-center min-h-[32px] py-1 text-xs text-secondary hover:text-primary" href="terms.html">Terms</a>
-      <a class="inline-flex items-center min-h-[32px] py-1 text-xs text-secondary hover:text-primary" href="contact.html">Contact</a>
+  <div class="max-w-[1200px] mx-auto px-6 lg:px-8 py-12">
+    <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
+      <div class="lg:col-span-1">
+        <img src="bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/>
+        <p class="mt-4 text-[13px] text-secondary font-light leading-relaxed">
+          GST billing, stock and books for Indian shops — built to keep working when the line drops.
+        </p>
+      </div>
+      <div>
+        <h3 class="text-[11px] font-bold uppercase tracking-widest text-primary">Product</h3>
+        <div class="mt-3 flex flex-col">
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="features.html">Features</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="download.html">Download</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="integrations.html">Integrations</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="changelog.html">Changelog</a>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-[11px] font-bold uppercase tracking-widest text-primary">Guides</h3>
+        <div class="mt-3 flex flex-col">
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="blog.html">All guides</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="blog/how-to-file-gstr-1.html">How to file GSTR-1</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="blog/why-your-itc-was-rejected.html">Why ITC gets rejected</a>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-[11px] font-bold uppercase tracking-widest text-primary">Company</h3>
+        <div class="mt-3 flex flex-col">
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="about.html">About</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="careers.html">Careers</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="contact.html">Contact</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="security.html">Security</a>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-[11px] font-bold uppercase tracking-widest text-primary">Talk to us</h3>
+        <div class="mt-3 flex flex-col">
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="https://wa.me/919495770736">WhatsApp +91 94957 70736</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="mailto:hello@bookledger.in">hello@bookledger.in</a>
+          <span class="inline-flex items-center min-h-[30px] text-[13px] text-secondary font-light">Mon–Sat · 9am–7pm IST</span>
+        </div>
+      </div>
     </div>
-    <div class="text-xs text-secondary font-light">© 2026 bookledger. Built for Indian business.</div>
+
+    <div class="mt-10 pt-6 border-t border-line flex flex-col sm:flex-row justify-between gap-3">
+      <div class="text-xs text-secondary font-light">© 2026 bookledger. Built for Indian business.</div>
+      <div class="flex flex-wrap gap-5">
+        <a class="inline-flex items-center min-h-[30px] text-xs text-secondary hover:text-primary" href="privacy.html">Privacy</a>
+        <a class="inline-flex items-center min-h-[30px] text-xs text-secondary hover:text-primary" href="terms.html">Terms</a>
+      </div>
+    </div>
   </div>
 </footer>
 <script defer src="reveal.js"></script>
