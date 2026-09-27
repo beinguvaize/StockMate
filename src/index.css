@@ -704,6 +704,32 @@ body {
   }
 }
 
+/* A menu anchored to a trigger scales FROM that trigger, not from its own
+   centre. These row menus open below the kebab and are right-aligned to it
+   (openMenu sets left = trigger.right - 160), so the trigger sits at the
+   menu's top-right corner and that is where the growth starts.
+
+   Never from scale(0): nothing in the world appears out of nothing, and a
+   menu that does reads as a glitch rather than an opening. 0.96 is enough to
+   register as movement while still having a shape at frame one.
+
+   160ms, because this is a menu someone opens dozens of times an afternoon;
+   anything slower is felt as lag rather than polish. */
+.menu-pop {
+  transform-origin: top right;
+  animation: menuPop 160ms var(--ease-out) forwards;
+}
+
+@keyframes menuPop {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-pop { animation: menuFade 120ms linear forwards; }
+  @keyframes menuFade { from { opacity: 0 } to { opacity: 1 } }
+}
+
 @keyframes modalScaleUp {
   from { opacity: 0; transform: scale(0.95) translateY(20px); }
   to { opacity: 1; transform: scale(1) translateY(0); }

@@ -751,7 +751,7 @@ const PurchasesPage = () => {
                 setMenuBill({ bill, x: r.right, y: r.bottom });
               }}
               title={multi ? 'Bill actions' : 'More'}
-              className="w-8 h-8 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-black/5 hover:text-foreground transition-[background-color,color,transform] duration-150 active:scale-[0.92]"
             >
               <MoreVertical size={16} />
             </button>
@@ -838,8 +838,11 @@ const PurchasesPage = () => {
 
   if (purLoading || prodLoading) return <PageSkeleton cards={3} rows={8} />;
 
+  // No entrance animation on this container. It is a screen someone opens many
+  // times a day, and a 400ms fade on every visit is charged as the app feeling
+  // slow rather than read as polish.
   return (
-    <div className="animate-fade-in flex flex-col gap-6">
+    <div className="flex flex-col gap-6">
       {/* Header, tabs and the one figure you act on, in a single band.
           These were three stacked bands -- a title row, a four-box summary in
           which every figure carried identical weight, and a tab switcher on a
@@ -852,14 +855,14 @@ const PurchasesPage = () => {
           {/* Tabs sit with the title. They are navigation, not a toolbar. */}
           <div className="mt-3 flex items-center gap-1">
             <button onClick={() => setActiveTab('purchases')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] transition-[background-color,color,transform] duration-150 active:scale-[0.98] ${
                 activeTab === 'purchases' ? 'bg-muted text-foreground font-semibold'
                                           : 'text-muted-foreground font-medium hover:text-foreground'}`}>
               <ShoppingCart size={11} /> Purchases
               <span className="text-[9px] font-semibold text-muted-foreground">{purchases.length}</span>
             </button>
             <button onClick={() => setActiveTab('returns')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] transition-[background-color,color,transform] duration-150 active:scale-[0.98] ${
                 activeTab === 'returns' ? 'bg-muted text-foreground font-semibold'
                                         : 'text-muted-foreground font-medium hover:text-foreground'}`}>
               <ArrowLeftRight size={11} /> Returns
@@ -897,7 +900,7 @@ const PurchasesPage = () => {
             </>
           )}
           <button onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-pill bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors shrink-0">
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-pill bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-[background-color,transform] duration-150 active:scale-[0.98] shrink-0">
             <Plus size={14} /> New purchase
           </button>
         </div>
@@ -920,7 +923,7 @@ const PurchasesPage = () => {
                 className="w-full h-9 pl-9 pr-3 bg-card border border-border rounded-lg text-[12px] outline-none focus:border-accent-signature/70" />
             </div>
             <button onClick={() => setOnlyUnpaid(v => !v)}
-              className={`h-9 px-3 rounded-pill text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-colors ${
+              className={`h-9 px-3 rounded-pill text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] ${
                 onlyUnpaid ? 'bg-[color:var(--color-neg)]/10 border-[color:var(--color-neg)]/30 text-[color:var(--color-neg)]'
                            : 'border-border text-muted-foreground hover:text-foreground'}`}>
               Unpaid
@@ -929,7 +932,7 @@ const PurchasesPage = () => {
               )}
             </button>
             <button onClick={() => setShowFilters(v => !v)} aria-expanded={showFilters}
-              className={`h-9 px-3 rounded-pill text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-colors ${
+              className={`h-9 px-3 rounded-pill text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] ${
                 activeFilterCount > 0 ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
                                       : 'border-border text-muted-foreground hover:text-foreground'}`}>
               <SlidersHorizontal size={13} /> Filters
@@ -969,7 +972,7 @@ const PurchasesPage = () => {
               </select>
               <button onClick={() => setDense(v => !v)}
                 title={dense ? 'Comfortable rows' : 'Compact rows — more per screen'}
-                className={`h-9 px-3 rounded-pill text-[12px] font-semibold border transition-colors ${
+                className={`h-9 px-3 rounded-pill text-[12px] font-semibold border transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] ${
                   dense ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
                         : 'border-border text-muted-foreground hover:text-foreground'}`}>
                 {dense ? 'Comfortable' : 'Compact'}
@@ -1006,7 +1009,7 @@ const PurchasesPage = () => {
       {menuRow && createPortal(
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setMenuRow(null)} />
-          <div className="fixed z-[9999] w-44 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left }}>
+          <div className="menu-pop fixed z-[9999] w-44 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left }}>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground"><Printer size={13} /> Voucher</button>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground"><Copy size={13} /> Duplicate</button>
             {/* A one-line bill IS a bill. Editing it through the same form as a
@@ -1028,7 +1031,7 @@ const PurchasesPage = () => {
       {menuBill && createPortal(
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setMenuBill(null)} />
-          <div className="fixed z-[9999] w-52 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold"
+          <div className="menu-pop fixed z-[9999] w-52 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold"
             style={{ top: menuBill.y + 4, left: Math.max(8, menuBill.x - 208) }}>
             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               {menuBill.bill.lines.length} lines · {formatCurrency(menuBill.bill.total)}
