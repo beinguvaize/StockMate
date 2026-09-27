@@ -487,7 +487,12 @@ table.report-table tbody td.numeric {
      dark theme overrides these to the lighter 400 steps. Reports read them via
      var() since this Tailwind v4 setup has no `dark:` variant wired. */
   --color-pos: #047857;
-  --color-neg: #E11D48;
+  /* #E11D48 measured 4.70:1 on white and 4.31:1 on the warm ground the tables
+     actually sit on -- so money owed failed wherever a row was not pure white,
+     which is most of them. #D01040 is 5.48 / 5.03, the SAME pair as --color-pos
+     above, so a loss and a gain now carry equal weight instead of the loss
+     being the fainter of the two. */
+  --color-neg: #D01040;
   --color-accent: var(--color-canvas);
   --color-accent-foreground: var(--color-ink-primary);
   --color-destructive: #DC2626;
@@ -697,6 +702,32 @@ body {
   .glass-modal {
     border-radius: var(--radius-xl);
   }
+}
+
+/* A menu anchored to a trigger scales FROM that trigger, not from its own
+   centre. These row menus open below the kebab and are right-aligned to it
+   (openMenu sets left = trigger.right - 160), so the trigger sits at the
+   menu's top-right corner and that is where the growth starts.
+
+   Never from scale(0): nothing in the world appears out of nothing, and a
+   menu that does reads as a glitch rather than an opening. 0.96 is enough to
+   register as movement while still having a shape at frame one.
+
+   160ms, because this is a menu someone opens dozens of times an afternoon;
+   anything slower is felt as lag rather than polish. */
+.menu-pop {
+  transform-origin: top right;
+  animation: menuPop 160ms var(--ease-out) forwards;
+}
+
+@keyframes menuPop {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-pop { animation: menuFade 120ms linear forwards; }
+  @keyframes menuFade { from { opacity: 0 } to { opacity: 1 } }
 }
 
 @keyframes modalScaleUp {

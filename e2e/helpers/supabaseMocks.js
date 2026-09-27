@@ -62,6 +62,22 @@ export const MOCK_CLIENTS = [
 
 export const MOCK_SUPPLIER = { id: 'SUP-001', name: 'Supplier X', tenant_id: TENANT_ID };
 
+// Purchases in the three states the list has to tell apart: fully settled,
+// part paid, and nothing paid and overdue. With an empty fixture the whole
+// screen rendered as an empty state and could not be looked at.
+const _day = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+export const MOCK_PURCHASES = [
+  { id: 'PUR-1', supplier_id: 'SUP-001', supplier_name: 'Hassan Kouser Sivakasi', linked_product_id: 'PROD-001',
+    date: _day(2), created_at: _day(2) + 'T09:12:00.000Z', payment_type: 'CASH',
+    total_amount: 13800, paid_amount: 13800, quantity: 150, status: 'RECEIVED', tenant_id: TENANT_ID },
+  { id: 'PUR-2', supplier_id: 'SUP-001', supplier_name: 'Reno John', linked_product_id: 'PROD-002',
+    date: _day(5), created_at: _day(5) + 'T11:04:00.000Z', payment_type: 'CREDIT',
+    total_amount: 32320, paid_amount: 12000, quantity: 43, status: 'RECEIVED', tenant_id: TENANT_ID },
+  { id: 'PUR-3', supplier_id: 'SUP-001', supplier_name: 'Astra Bio Carry Bags', linked_product_id: 'PROD-001',
+    date: _day(48), created_at: _day(48) + 'T10:00:00.000Z', payment_type: 'CREDIT',
+    total_amount: 9300, paid_amount: 0, quantity: 30, status: 'PENDING', tenant_id: TENANT_ID },
+];
+
 export const MOCK_INVENTORY_BALANCES = [
   { product_id: 'PROD-001', location_id: '00000000-0000-0000-0000-000000000001', quantity: 75, tenant_id: TENANT_ID }
 ];
@@ -152,7 +168,7 @@ export async function seedAppCache(page, isStaff = false) {
       'ledgr_client_payments':  entry([]),
       'ledgr_vehicles':         entry([]),
       'ledgr_routes':           entry([]),
-      'ledgr_purchases':        entry([]),
+      'ledgr_purchases':        entry(MOCK_PURCHASES),
       'ledgr_suppliers':        entry([MOCK_SUPPLIER]),
       'ledgr_movement_log':     entry([]),
       'ledgr_inventory_balances': entry(MOCK_INVENTORY_BALANCES),
@@ -215,7 +231,7 @@ export async function setupMocks(page, isStaff = false) {
     routes:              [],
     inventory_locations: [],
     inventory_balances:  MOCK_INVENTORY_BALANCES,
-    purchases:           [],
+    purchases:           MOCK_PURCHASES,
     invoices:            [],
     audit_log:           [],
     suppliers:           [MOCK_SUPPLIER],
