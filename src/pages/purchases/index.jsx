@@ -6,7 +6,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Calendar, ChevronRight } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Calendar, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
@@ -48,6 +48,9 @@ const PurchasesPage = () => {
   const [fStatus, setFStatus] = useState('ALL');   // ALL | PENDING | ORDERED | RECEIVED | CANCELLED
   const [sortBy, setSortBy]   = useState('DATE_DESC'); // DATE_DESC | DATE_ASC | AMT_DESC | AMT_ASC
   const [onlyUnpaid, setOnlyUnpaid] = useState(false); // quick chip: credit purchases still owing
+  // `showFilters` hides the controls, never their effect: the count on the
+  // button keeps the state visible.
+  const [showFilters, setShowFilters] = useState(false);
   // Date now lives in the row gutter, so grouping by it as well would say the
   // same thing twice and cost a row each time.
   const [groupBy, setGroupBy] = useState('NONE'); // NONE | SUPPLIER | DATE
@@ -470,6 +473,15 @@ const PurchasesPage = () => {
     .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
   const shortDate = (d) => { const x = new Date(d); return isNaN(x) ? '' : x.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }); };
 
+  const activeFilterCount =
+    (fSupplier !== 'ALL' ? 1 : 0) + (fPay !== 'ALL' ? 1 : 0) + (fStatus !== 'ALL' ? 1 : 0) +
+    (sortBy !== 'DATE_DESC' ? 1 : 0) + (groupBy !== 'NONE' ? 1 : 0);
+
+  const clearFilters = () => {
+    setFSup('ALL'); setFPay('ALL'); setFStatus('ALL');
+    setSortBy('DATE_DESC'); setGroupBy('NONE');
+  };
+
   const _STATUS_STYLES = {
     PENDING:   { bg: 'bg-accent-signature/10',   text: 'text-accent-signature-hover',   border: 'border-accent-signature/25',   label: 'Pending'   },
     ORDERED:   { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    label: 'Ordered'   },
@@ -828,133 +840,148 @@ const PurchasesPage = () => {
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
-      <div className="flex justify-between items-center pb-3 border-b border-border/60">
-        <div>
+      {/* Header, tabs and the one figure you act on, in a single band.
+          These were three stacked bands -- a title row, a four-box summary in
+          which every figure carried identical weight, and a tab switcher on a
+          row of its own -- so the first purchase sat a long way down a page of
+          chrome. */}
+      <div className="flex flex-wrap items-end justify-between gap-4 pb-4 border-b border-border/60">
+        <div className="min-w-0">
           <h1 className="text-base font-semibold text-foreground tracking-tight">Purchases</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Inward stock from suppliers</p>
+          {/* Tabs sit with the title. They are navigation, not a toolbar. */}
+          <div className="mt-3 flex items-center gap-1">
+            <button onClick={() => setActiveTab('purchases')}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] transition-colors ${
+                activeTab === 'purchases' ? 'bg-muted text-foreground font-semibold'
+                                          : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+              <ShoppingCart size={11} /> Purchases
+              <span className="text-[9px] font-semibold text-muted-foreground">{purchases.length}</span>
+            </button>
+            <button onClick={() => setActiveTab('returns')}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] transition-colors ${
+                activeTab === 'returns' ? 'bg-muted text-foreground font-semibold'
+                                        : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+              <ArrowLeftRight size={11} /> Returns
+              <span className={`text-[9px] font-semibold ${purchaseReturns.length > 0 ? 'text-[color:var(--color-neg)]' : 'text-muted-foreground'}`}>
+                {purchaseReturns.length}
+              </span>
+            </button>
+          </div>
         </div>
-        <button onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-pill bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
-          <Plus size={14} /> New purchase
-        </button>
+
+        <div className="flex items-end gap-6">
+          {activeTab === 'purchases' && (
+            <>
+              {/* Payable leads. It is the only figure here anyone can act on;
+                  giving all four the same box, border and type size meant none
+                  of them did. */}
+              <div className="text-right">
+                <div className="text-[11px] font-medium text-muted-foreground">Payable</div>
+                <div className={`text-[26px] font-semibold tabular-nums tracking-tight leading-none mt-1 ${
+                  summary.payable > 0 ? 'text-[color:var(--color-neg)]' : 'text-foreground'}`}>
+                  {formatCurrency(summary.payable)}
+                </div>
+              </div>
+              <div className="hidden lg:block text-right text-[11px] text-muted-foreground leading-relaxed">
+                <div><span className="tabular-nums font-semibold text-foreground">{formatCurrency(summary.month)}</span> this month</div>
+                <div><span className="tabular-nums font-semibold text-foreground">{summary.count}</span> purchases</div>
+                <div><span className="tabular-nums font-semibold text-[color:var(--color-pos)]">{formatCurrency(summary.itc)}</span> ITC
+                  {summary.itcUnverified > 0 && (
+                    <span title={`${summary.missingGstinSuppliers} supplier${summary.missingGstinSuppliers === 1 ? '' : 's'} have no GSTIN on file`}>
+                      {' '}· +{formatCurrency(summary.itcUnverified)} pending
+                    </span>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+          <button onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-pill bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors shrink-0">
+            <Plus size={14} /> New purchase
+          </button>
+        </div>
       </div>
 
-      {/* ── Summary strip ── */}
+      {/* Two filters visible, five folded behind one control.
+          There were nine here -- search, supplier, payment, status, sort, an
+          Unpaid chip, a density toggle, a grouping select and a count -- all
+          on screen permanently for a list most people open to scan. Search and
+          Unpaid are the two that get used. The rest are one click away and
+          announce themselves with a count whenever any is active, so their
+          STATE is never hidden: a filtered list that looks unfiltered is how
+          someone concludes their data has gone missing. */}
       {activeTab === 'purchases' && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/60 rounded-lg overflow-hidden border border-border/60">
-          {[
-            { label: 'This month', value: formatCurrency(summary.month) },
-            { label: 'Purchases', value: summary.count },
-            { label: 'Payable', value: formatCurrency(summary.payable), cls: summary.payable > 0 ? 'text-[color:var(--color-neg)]' : 'text-foreground' },
-            {
-              label: 'ITC this month',
-              value: formatCurrency(summary.itc),
-              cls: 'text-[color:var(--color-pos)]',
-              // Say why the figure is lower than the month's spend suggests,
-              // rather than leaving it looking like data went missing.
-              note: summary.itcUnverified > 0
-                ? `+${formatCurrency(summary.itcUnverified)} pending — ${summary.missingGstinSuppliers} supplier${summary.missingGstinSuppliers === 1 ? '' : 's'} have no GSTIN on file`
-                : null,
-            },
-          ].map((m, i) => (
-            <div key={i} className="bg-card px-4 py-3">
-              <div className="text-[11px] font-medium text-muted-foreground">{m.label}</div>
-              <div className={`text-[19px] font-semibold tabular-nums tracking-tight mt-0.5 ${m.cls || 'text-foreground'}`}>{m.value}</div>
-              {m.note && (
-                <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{m.note}</div>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search product, supplier, ref or notes…"
+                className="w-full h-9 pl-9 pr-3 bg-card border border-border rounded-lg text-[12px] outline-none focus:border-accent-signature/70" />
+            </div>
+            <button onClick={() => setOnlyUnpaid(v => !v)}
+              className={`h-9 px-3 rounded-pill text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-colors ${
+                onlyUnpaid ? 'bg-[color:var(--color-neg)]/10 border-[color:var(--color-neg)]/30 text-[color:var(--color-neg)]'
+                           : 'border-border text-muted-foreground hover:text-foreground'}`}>
+              Unpaid
+              {unpaidCount > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${onlyUnpaid ? 'bg-[color:var(--color-neg)]/15' : 'bg-black/5'}`}>{unpaidCount}</span>
+              )}
+            </button>
+            <button onClick={() => setShowFilters(v => !v)} aria-expanded={showFilters}
+              className={`h-9 px-3 rounded-pill text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-colors ${
+                activeFilterCount > 0 ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
+                                      : 'border-border text-muted-foreground hover:text-foreground'}`}>
+              <SlidersHorizontal size={13} /> Filters
+              {activeFilterCount > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-signature/15">{activeFilterCount}</span>
+              )}
+            </button>
+            <span className="text-[11px] text-muted-foreground ml-auto tabular-nums">
+              {filteredBills.length === allBills.length
+                ? `${allBills.length} bills`
+                : `${filteredBills.length} of ${allBills.length} bills`}
+            </span>
+          </div>
+
+          {showFilters && (
+            <div className="flex flex-wrap items-center gap-2 bg-card border border-border/60 rounded-xl p-2">
+              <select value={fSupplier} onChange={e => setFSup(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px]">
+                <option value="ALL">All suppliers</option>
+                {(suppliers || []).map(sup => <option key={sup.id} value={sup.id}>{sup.name}</option>)}
+              </select>
+              <select value={fPay} onChange={e => setFPay(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px]">
+                <option value="ALL">All payment</option><option value="CASH">Cash</option><option value="CREDIT">Credit</option>
+              </select>
+              <select value={fStatus} onChange={e => setFStatus(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px]">
+                <option value="ALL">All status</option><option value="PENDING">Pending</option><option value="ORDERED">Ordered</option><option value="RECEIVED">Received</option><option value="CANCELLED">Cancelled</option>
+              </select>
+              <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px]">
+                <option value="DATE_DESC">Newest</option><option value="DATE_ASC">Oldest</option>
+                <option value="AMT_DESC">Amount ↓</option><option value="AMT_ASC">Amount ↑</option>
+                <option value="QTY_DESC">Qty ↓</option><option value="QTY_ASC">Qty ↑</option>
+              </select>
+              <select value={groupBy} onChange={e => setGroupBy(e.target.value)} title="Group the list"
+                className="h-9 px-2 border border-border rounded-lg text-[12px]">
+                <option value="NONE">No grouping</option>
+                <option value="DATE">Group by date</option>
+                <option value="SUPPLIER">Group by supplier</option>
+              </select>
+              <button onClick={() => setDense(v => !v)}
+                title={dense ? 'Comfortable rows' : 'Compact rows — more per screen'}
+                className={`h-9 px-3 rounded-pill text-[12px] font-semibold border transition-colors ${
+                  dense ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
+                        : 'border-border text-muted-foreground hover:text-foreground'}`}>
+                {dense ? 'Comfortable' : 'Compact'}
+              </button>
+              {activeFilterCount > 0 && (
+                <button onClick={clearFilters}
+                  className="h-9 px-3 rounded-pill text-[12px] font-semibold text-muted-foreground hover:text-foreground ml-auto">
+                  Clear
+                </button>
               )}
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Tab switcher ── */}
-      <div className="flex items-center bg-muted rounded-lg p-0.5 w-fit">
-        <button
-          onClick={() => setActiveTab('purchases')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
-            activeTab === 'purchases'
-              ? 'bg-card text-foreground font-semibold shadow-sm'
-              : 'text-muted-foreground font-medium hover:text-foreground'
-          }`}
-        >
-          <ShoppingCart size={11} /> Purchases
-          <span className="ml-1 text-[9px] font-semibold bg-black/5 rounded px-1.5 py-0.5">{purchases.length}</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('returns')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
-            activeTab === 'returns'
-              ? 'bg-card text-rose-600 font-semibold shadow-sm'
-              : 'text-muted-foreground font-medium hover:text-foreground'
-          }`}
-        >
-          <ArrowLeftRight size={11} /> Returns
-          <span className={`ml-1 text-[9px] font-semibold rounded px-1.5 py-0.5 ${purchaseReturns.length > 0 ? 'bg-rose-100 text-rose-600' : 'bg-black/5'}`}>
-            {purchaseReturns.length}
-          </span>
-        </button>
-      </div>
-
-      {/* ── Filter / sort bar (purchases tab) ── */}
-      {activeTab === 'purchases' && (
-        <div className="flex flex-wrap items-center gap-2 bg-card border border-border/60 rounded-xl p-2">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search product / ref / supplier / notes…"
-              className="w-full h-9 pl-9 pr-3 bg-card border border-border rounded-lg text-[12px] font-semibold outline-none focus:border-accent-signature/70" />
-          </div>
-          <select value={fSupplier} onChange={e => setFSup(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
-            <option value="ALL">All suppliers</option>
-            {(suppliers || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <select value={fPay} onChange={e => setFPay(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
-            <option value="ALL">All payment</option><option value="CASH">Cash</option><option value="CREDIT">Credit</option>
-          </select>
-          <select value={fStatus} onChange={e => setFStatus(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
-            <option value="ALL">All status</option><option value="PENDING">Pending</option><option value="ORDERED">Ordered</option><option value="RECEIVED">Received</option><option value="CANCELLED">Cancelled</option>
-          </select>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
-            <option value="DATE_DESC">Newest</option><option value="DATE_ASC">Oldest</option>
-            <option value="AMT_DESC">Amount ↓</option><option value="AMT_ASC">Amount ↑</option>
-            <option value="QTY_DESC">Qty ↓</option><option value="QTY_ASC">Qty ↑</option>
-          </select>
-          {/* Quick chip — jump straight to bills still owing. */}
-          <button
-            onClick={() => setOnlyUnpaid(v => !v)}
-            className={`h-9 px-3 rounded-pill text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-colors ${
-              onlyUnpaid ? 'bg-[color:var(--color-neg)]/10 border-[color:var(--color-neg)]/30 text-[color:var(--color-neg)]'
-                         : 'border-border text-muted-foreground hover:text-foreground'}`}
-          >
-            Unpaid
-            {unpaidCount > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${onlyUnpaid ? 'bg-[color:var(--color-neg)]/15' : 'bg-black/5'}`}>{unpaidCount}</span>
-            )}
-          </button>
-          {/* Density — a documented personalisation for long tables. Compact
-              drops the supplier line and the settlement caption, which is what
-              sets the height floor, not the padding. */}
-          <button
-            onClick={() => setDense(v => !v)}
-            title={dense ? 'Comfortable rows' : 'Compact rows — more per screen'}
-            className={`h-9 px-3 rounded-pill text-[12px] font-semibold border transition-colors ${
-              dense ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
-                    : 'border-border text-muted-foreground hover:text-foreground'}`}
-          >
-            {dense ? 'Comfortable' : 'Compact'}
-          </button>
-          {/* Group control — flat by default, or by supplier. */}
-          <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
-            title="Group the list"
-            className={`h-9 px-2 border rounded-lg text-[12px] font-semibold ${
-              groupBy !== 'NONE' ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
-                                 : 'border-border text-muted-foreground'}`}>
-            <option value="DATE">Group by date</option>
-            <option value="SUPPLIER">Group by supplier</option>
-            <option value="NONE">No grouping</option>
-          </select>
-          {/* Counted in bills, which is what the rows now are. */}
-          <span className="text-[11px] font-semibold text-muted-foreground ml-auto">{filteredBills.length} of {allBills.length} bills</span>
+          )}
         </div>
       )}
 

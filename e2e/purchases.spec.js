@@ -87,3 +87,28 @@ test('money owed passes contrast where it is drawn', async ({ page }) => {
   console.log('outstanding figure contrast: ' + ratio + ':1');
   expect(ratio).toBeGreaterThanOrEqual(4.5);
 });
+
+test('the toolbar shows two filters, not nine', async ({ page }) => {
+  // Nine controls sat permanently above a list most people open to scan.
+  // Search and Unpaid stay; the other five fold behind one button.
+  await openPurchases(page);
+
+  const bar = page.locator('div').filter({ has: page.getByPlaceholder(/Search product/) }).last();
+  expect(await bar.locator('select:visible').count()).toBe(0);
+
+  await page.getByRole('button', { name: /Filters/ }).click();
+  expect(await page.locator('select:visible').count()).toBeGreaterThanOrEqual(5);
+});
+
+test('a folded filter still announces itself', async ({ page }) => {
+  // Hiding the controls must never hide their EFFECT: a filtered list that
+  // looks unfiltered is how someone concludes their data has gone missing.
+  await openPurchases(page);
+  await page.getByRole('button', { name: /Filters/ }).click();
+  await page.locator('select').filter({ hasText: 'All payment' }).selectOption('CREDIT');
+  await page.waitForTimeout(300);
+
+  // the count rides on the button, which stays visible when the panel closes
+  await page.getByRole('button', { name: /Filters/ }).click();
+  await expect(page.getByRole('button', { name: /Filters/ })).toContainText('1');
+});
