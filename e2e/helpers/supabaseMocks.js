@@ -78,6 +78,14 @@ export const MOCK_PURCHASES = [
     total_amount: 9300, paid_amount: 0, quantity: 30, status: 'PENDING', tenant_id: TENANT_ID },
 ];
 
+// Two daily-wage staff, because the payroll attendance grid only renders when
+// a tenant has them -- with the old empty fixture that whole screen was
+// untestable, and a test written against it passed by returning early.
+export const MOCK_EMPLOYEES = [
+  { id: 'EMP-001', name: 'Akbar',    pay_type: 'DAILY', daily_rate: 900, salary: 0, status: 'ACTIVE', tenant_id: TENANT_ID },
+  { id: 'EMP-002', name: 'Nadirsha', pay_type: 'DAILY', daily_rate: 900, salary: 0, status: 'ACTIVE', tenant_id: TENANT_ID },
+];
+
 export const MOCK_INVENTORY_BALANCES = [
   { product_id: 'PROD-001', location_id: '00000000-0000-0000-0000-000000000001', quantity: 75, tenant_id: TENANT_ID }
 ];
@@ -161,7 +169,7 @@ export async function seedAppCache(page, isStaff = false) {
       'ledgr_sales':            entry([]),
       'ledgr_expenses':         entry([]),
       'ledgr_users':            entry([isStaff ? MOCK_STAFF_USER : MOCK_USER]),
-      'ledgr_employees':        entry([]),
+      'ledgr_employees':        entry(MOCK_EMPLOYEES),
       'ledgr_payroll':          entry([]),
       'ledgr_business_profile': entry({ id: 'BP-1', name: 'Test Co', currency: 'USD', currencySymbol: '$', tenant_id: TENANT_ID }),
       'ledgr_day_book':         entry([]),
@@ -220,7 +228,7 @@ export async function setupMocks(page, isStaff = false) {
     clients:             MOCK_CLIENTS,
     sales:               [],
     expenses:            [],
-    employees:           [],
+    employees:           MOCK_EMPLOYEES,
     payroll:             [],
     business_profile:    [{ id: 'BP-1', name: 'Test Co', currency: 'USD', currencySymbol: '$', tenant_id: TENANT_ID }],
     day_book:            [],
