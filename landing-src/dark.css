@@ -1,0 +1,88 @@
+/* bookledger — dark landing
+   ==========================================================================
+   A second direction, not a recolour of the first.
+
+   Why dark, and why it is not arbitrary: on white, the brand amber #D97706
+   measures 3.19:1 as text and fails, which is why the light site had to use a
+   darkened #AB4F08 everywhere a word was amber. On this ground the same brand
+   value measures 6.17:1 and passes — dark gives the brand its own colour back.
+
+   The ground is warm, not blue-black. #0C0B0A sits under an amber accent
+   without the two fighting; a blue-black would make the amber read orange and
+   cheap.
+
+   Every value below was measured against the surface it renders on, not
+   chosen by eye. The numbers are in the comments so the next person can
+   check rather than trust. */
+@import "tailwindcss";
+
+@theme {
+  --color-ground:    #0C0B0A;  /* page */
+  --color-panel:     #16130F;  /* raised card */
+  --color-panel-2:   #1D1915;  /* a card on a card */
+
+  --color-ink:       #F7F4EF;  /* 17.92:1 on ground */
+  --color-ink-2:     #A9A199;  /*  7.72:1 */
+  --color-ink-3:     #8A8179;  /*  5.15:1 — the lightest text allowed here */
+
+  /* The brand value, usable as text at last. */
+  --color-accent:    #D97706;  /*  6.17:1 on ground */
+  --color-accent-hi: #E8912A;  /*  7.97:1 — hover and emphasis */
+
+  /* A filled amber button takes INK, not white: ink on amber is 6.17:1
+     where white on amber is 3.19:1. The inverse of the light site, and the
+     reason the two designs cannot share a button. */
+  --color-on-accent: #0C0B0A;
+
+  --color-ok:        #34D399;  /* 10.23:1 */
+  --color-bad:       #FB7185;  /*  7.31:1 */
+
+  /* Two borders, because they do different jobs. `edge` separates panels and
+     is decorative, so 3:1 does not apply to it. `edge-strong` outlines
+     CONTROLS, which WCAG 1.4.11 does hold to 3:1 — it measures 4.32:1 on the ground and 4.07:1 on a panel. */
+  --color-edge:        #2A251E;
+  --color-edge-strong: #7C756B;
+
+  --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+@source "../public/landing/v3.html";
+@source "../public/landing";
+
+.mono { font-variant-numeric: tabular-nums; }
+
+/* Depth, which the light site deliberately had almost none of: it had two
+   shadows on the whole page. On a dark ground a shadow alone does nothing —
+   black on black — so lift comes from a hairline highlight along the top edge
+   plus a deep, wide shadow underneath. */
+.lift {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 24px 60px -20px rgba(0, 0, 0, 0.8);
+}
+
+/* One glow, behind the product, and nothing else on the page competes with
+   it. A dark page with six glows is a screensaver. */
+.glow::before {
+  content: "";
+  position: absolute;
+  inset: -12% -8% auto -8%;
+  height: 60%;
+  background: radial-gradient(60% 100% at 50% 0%, rgba(217, 119, 6, 0.16), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+.js .stage > * { animation: rise .62s cubic-bezier(.16,1,.3,1) both }
+.js .stage > *:nth-child(1) { animation-delay: .04s }
+.js .stage > *:nth-child(2) { animation-delay: .12s }
+.js .stage > *:nth-child(3) { animation-delay: .20s }
+.js .stage > *:nth-child(4) { animation-delay: .28s }
+@keyframes settle { from { opacity: 0; transform: translateY(26px) scale(.985) } to { opacity: 1; transform: none } }
+.js .settle { animation: settle .8s cubic-bezier(.16,1,.3,1) .34s both }
+
+@media (prefers-reduced-motion: reduce) {
+  .js .stage > *, .js .settle { animation: none; opacity: 1; transform: none }
+}
