@@ -926,8 +926,12 @@ const Payroll = () => {
                         </th>
                       );
                     })}
-                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-14">Days</th>
-                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-24">Still due</th>
+                    {/* Pinned, like the name is. A 31-day month is wider than
+                        any laptop, so the two numbers a person opened this
+                        screen FOR -- days worked and money owed -- were the
+                        first things to scroll off the right edge. */}
+                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-14 sticky right-24 bg-canvas z-10">Days</th>
+                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-24 sticky right-0 bg-canvas z-10 border-l border-black/5">Still due</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
@@ -976,7 +980,15 @@ const Payroll = () => {
                           const hasCustomRate = attEntry?.custom_rate != null;
                           const isDirty = pendingAtt[emp.id] && dateStr in pendingAtt[emp.id];
                           const isOpen  = attPicker?.empId === emp.id && attPicker?.day === dateStr;
-                          const rateShown = hasCustomRate ? attEntry.custom_rate : null;
+                          // A day carrying the SAME rate as the employee is not
+                          // an exception to anything. Applying a rate to the month
+                          // writes custom_rate on every present day, so half the
+                          // row ended up ringed blue and labelled 900 while the
+                          // other half was a plain tick -- two cells that both mean
+                          // Rs 900, drawn as though they differed.
+                          const rateDiffers = hasCustomRate
+                            && Math.round(attEntry.custom_rate) !== Math.round(emp.daily_rate || 0);
+                          const rateShown = rateDiffers ? attEntry.custom_rate : null;
                           const paidRun = dayInPaidWindow(emp.id, dateStr);
                           return (
                             // Paid and weekend are both a background on this cell,
@@ -992,7 +1004,7 @@ const Payroll = () => {
                                   setAttPicker({ empId: emp.id, day: dateStr, dayNum: d, rate: emp.daily_rate || 0 });
                                 }}
                                 className={`w-8 rounded text-[10px] font-bold transition-all cursor-pointer leading-none py-1 ${statusStyle(status)} ${
-                                  hasCustomRate ? 'ring-1 ring-blue-400' : ''
+                                  rateDiffers ? 'ring-1 ring-blue-400' : ''
                                 } ${isDirty ? 'outline outline-2 outline-offset-1 outline-accent-signature' : ''} ${isOpen ? 'ring-2 ring-ink-primary' : ''}`}
                                 title={paidRun
                                   ? `${dateStr} — inside the ${describePeriod(paidRun.period)} run, paid ${sym}${Number(paidRun.amount).toLocaleString('en-IN')}${paidRun.processed_at ? ' on ' + new Date(paidRun.processed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}`
@@ -1011,8 +1023,8 @@ const Payroll = () => {
                             </td>
                           );
                         })}
-                        <td className="px-3 py-2 text-right text-xs font-bold text-ink-primary tabular-nums">{days}</td>
-                        <td className="px-3 py-2 text-right align-top tabular-nums">
+                        <td className="px-3 py-2 text-right text-xs font-bold text-ink-primary tabular-nums sticky right-24 bg-white z-10">{days}</td>
+                        <td className="px-3 py-2 text-right align-top tabular-nums sticky right-0 bg-white z-10 border-l border-black/5">
                           {/* Wage earned, then what is actually still owed. Showing
                               only the first is what made an already-paid month look
                               unpaid. */}
