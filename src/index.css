@@ -487,7 +487,12 @@ table.report-table tbody td.numeric {
      dark theme overrides these to the lighter 400 steps. Reports read them via
      var() since this Tailwind v4 setup has no `dark:` variant wired. */
   --color-pos: #047857;
-  --color-neg: #E11D48;
+  /* #E11D48 measured 4.70:1 on white and 4.31:1 on the warm ground the tables
+     actually sit on -- so money owed failed wherever a row was not pure white,
+     which is most of them. #D01040 is 5.48 / 5.03, the SAME pair as --color-pos
+     above, so a loss and a gain now carry equal weight instead of the loss
+     being the fainter of the two. */
+  --color-neg: #D01040;
   --color-accent: var(--color-canvas);
   --color-accent-foreground: var(--color-ink-primary);
   --color-destructive: #DC2626;

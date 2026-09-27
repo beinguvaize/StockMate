@@ -458,7 +458,7 @@ const PurchasesPage = () => {
   const headers = [
     { label: 'Date' },
     { label: 'Product / supplier' },
-    { label: 'Settlement' },
+    { label: 'Outstanding' },
     { label: 'Amount', className: 'text-right' },
     { label: 'Status', className: 'text-center' },
     { label: '', className: 'text-right' },
@@ -473,7 +473,11 @@ const PurchasesPage = () => {
   const _STATUS_STYLES = {
     PENDING:   { bg: 'bg-accent-signature/10',   text: 'text-accent-signature-hover',   border: 'border-accent-signature/25',   label: 'Pending'   },
     ORDERED:   { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    label: 'Ordered'   },
-    RECEIVED:  { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Received'  },
+    // Received is what almost every row is. A green fill and a green border on
+    // the default state is emphasis spent on "nothing to see here", and it
+    // competed with the settlement column for the same colour. Quiet by
+    // default; the states that need a decision keep their colour.
+    RECEIVED:  { bg: 'bg-transparent',  text: 'text-muted-foreground', border: 'border-transparent', label: 'Received'  },
     CANCELLED: { bg: 'bg-muted',   text: 'text-muted-foreground',    border: 'border-border',    label: 'Cancelled' },
   };
 
@@ -613,36 +617,63 @@ const PurchasesPage = () => {
             the proportion is the thing you actually want at a glance. */}
         <td className={pad}>
           {(() => {
-            const pct = bill.total > 0 ? Math.max(0, Math.min(100, (paid / bill.total) * 100)) : 0;
             const settled = due <= 0.5;
-            const label = settled ? (credit ? 'Paid' : (bill.payment_type || 'Cash'))
-              : (paid > 0.5 ? `${formatCurrency(paid)} paid` : (credit ? 'Credit · nothing paid' : 'Unpaid'));
+
+            // A settled bill is the ordinary case and says nothing. It used to
+            // carry a full-width green meter at 100%, the word "Settled" in
+            // green, the payment method, and a green status pill -- the same
+            // fact four times, in the widest column, in the strongest colour on
+            // the page. Identical on every settled row, so it distinguished
+            // nothing; and because an unpaid bill's meter is PARTLY EMPTY, the
+            // six rows that actually wanted attention read as quieter than the
+            // seventy-three that did not.
+            //
+            // Ink is spent on exceptions now. Settled rows carry one muted word
+            // saying how it was paid; the status pill already says Received.
+            if (settled) {
+              return (
+                <span className="text-[11px] text-muted-foreground">
+                  {credit ? 'Paid' : (bill.payment_type || 'Cash')}
+                </span>
+              );
+            }
+
+            // Money still owed, as money -- the number first, at the weight the
+            // amount column uses, because that is what the row is asking for.
+            const pct = bill.total > 0 ? Math.max(0, Math.min(100, (paid / bill.total) * 100)) : 0;
             return (
-              <div className="min-w-[150px]">
-                <div className="h-[5px] rounded-full bg-black/[0.07] overflow-hidden">
-                  <div className="h-full rounded-full transition-all"
-                       style={{ width: `${pct}%`, background: 'var(--color-pos)' }} />
+              <div className="min-w-[132px]">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-[13px] font-semibold tabular-nums text-[color:var(--color-neg)] whitespace-nowrap">
+                    {formatCurrency(due)}
+                  </span>
+                  {overdue && (
+                    <span className="text-[10px] font-semibold text-[color:var(--color-neg)] whitespace-nowrap">
+                      {ageDays(bill)}d overdue
+                    </span>
+                  )}
                 </div>
-                <div className={`flex items-center justify-between gap-2 ${dense ? 'sr-only' : 'mt-1'}`}>
-                  <span className="text-[11px] text-muted-foreground truncate">{label}</span>
-                  {settled
-                    ? <span className="text-[11px] font-semibold text-[color:var(--color-pos)]">Settled</span>
-                    : <span className="text-[11px] font-semibold text-[color:var(--color-neg)] whitespace-nowrap">
-                        {formatCurrency(due)} due{overdue ? ` · ${ageDays(bill)}d` : ''}
-                      </span>}
-                </div>
+                {/* The meter survives only where a proportion means something:
+                    part-paid. It never renders at 0% or 100%. */}
+                {paid > 0.5 && !dense && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <div className="h-[3px] w-16 rounded-full bg-black/[0.07] overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--color-pos)' }} />
+                    </div>
+                    <span className="text-[10.5px] text-muted-foreground whitespace-nowrap">
+                      {formatCurrency(paid)} paid
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })()}
         </td>
         {/* Total */}
         <td className={`${pad} text-right whitespace-nowrap`}>
+          {/* The amount, and only the amount. "62% settled" here restated the
+              cell immediately to its left, in a third wording. */}
           <div className="tabular-nums text-[14px] font-semibold text-foreground">{formatCurrency(bill.total)}</div>
-          {!dense && due > 0.5 && (
-            <div className="text-[10.5px] text-muted-foreground mt-0.5">
-              {paid > 0.5 ? `${Math.round((paid / bill.total) * 100)}% settled` : 'all outstanding'}
-            </div>
-          )}
         </td>
         {/* Status select — drives every line of the bill together */}
         <td className={`${pad} text-center`} onClick={(e) => e.stopPropagation()}>
@@ -653,7 +684,11 @@ const PurchasesPage = () => {
               <select
                 value={st}
                 onChange={(e) => bill.lines.forEach(l => updatePurchaseStatus(l.id, e.target.value))}
-                className={`text-[10px] font-medium px-2.5 py-1 rounded-pill border outline-none cursor-pointer ${s.bg} ${s.text} ${s.border}`}
+                // Borderless until you go near it: 79 outlined dropdowns is a
+                // lot of chrome for a control most rows never use. The border
+                // and fill appear on hover and focus, so it still announces
+                // itself as editable the moment you reach for it.
+                className={`text-[10px] font-medium px-2.5 py-1 rounded-pill border outline-none cursor-pointer transition-colors duration-150 hover:border-border hover:bg-canvas focus:border-border focus:bg-canvas ${s.bg} ${s.text} ${s.border}`}
               >
                 <option value="PENDING">Pending</option>
                 <option value="ORDERED">Ordered</option>
