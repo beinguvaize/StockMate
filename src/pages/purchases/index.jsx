@@ -69,10 +69,20 @@ const PurchasesPage = () => {
   const [dupTarget, setDupTarget]   = useState(null); // purchase to duplicate (prefill single form)
   const [printTarget, setPrintTarget] = useState(null);
   const [menuRow, setMenuRow]       = useState(null); // row whose ⋯ menu is open (portaled)
-  const [menuPos, setMenuPos]       = useState({ top: 0, left: 0 });
+  const [menuPos, setMenuPos]       = useState({ top: 0, left: 0, origin: 'top right' });
   const openMenu = (e, pur) => {
     const r = e.currentTarget.getBoundingClientRect();
-    setMenuPos({ top: r.bottom + 4, left: Math.max(8, r.right - 160) });
+    // Six items at 33px plus padding. The last rows of a long table are exactly
+    // where the menu is most needed and where it used to open off the bottom of
+    // the window, so it flips above when there is no room -- and the corner it
+    // grows from flips with it.
+    const H = 212;
+    const below = window.innerHeight - r.bottom > H + 8;
+    setMenuPos({
+      top: below ? r.bottom + 4 : Math.max(8, r.top - H - 4),
+      left: Math.max(8, r.right - 160),
+      origin: below ? 'top right' : 'bottom right',
+    });
     setMenuRow(pur);
   };
 
@@ -613,7 +623,7 @@ const PurchasesPage = () => {
             <div className="min-w-0">
               <div className="text-[13.5px] font-semibold text-foreground truncate flex items-center gap-1.5" title={names.join(', ')}>
                 {multi
-                  ? <ChevronRight size={12} className={`shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`} />
+                  ? <ChevronRight size={12} className={`shrink-0 text-muted-foreground transition-transform duration-(--dur-press) ease-(--ease-out) ${expanded ? 'rotate-90' : ''}`} />
                   : <span className="w-3 h-3 shrink-0" aria-hidden />}
                 <span className="truncate">{names[0] || 'Unknown Product'}</span>
                 {multi && (
@@ -702,7 +712,7 @@ const PurchasesPage = () => {
               <button
                 onClick={() => { setPayTarget(bill.lines[0]); setPayAmount(String(due)); setPayMethod('CASH'); }}
                 title={`Due ${formatCurrency(due)}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]"
               >
                 <Banknote size={12} /> Pay
               </button>
@@ -711,7 +721,7 @@ const PurchasesPage = () => {
               <button
                 onClick={() => setExpandedBill(expanded ? null : bill.id)}
                 title="Open the bill to pay a line"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]"
               >
                 <Banknote size={12} /> Pay lines
               </button>
@@ -733,7 +743,7 @@ const PurchasesPage = () => {
                 setMenuBill({ bill, x: r.right, y: r.bottom });
               }}
               title={multi ? 'Bill actions' : 'More'}
-              className="w-8 h-8 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-black/5 hover:text-foreground transition-[background-color,color,transform] duration-150 active:scale-[0.92]"
+              className="w-8 h-8 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-black/5 hover:text-foreground transition-[background-color,color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]"
             >
               <MoreVertical size={16} />
             </button>
@@ -755,7 +765,13 @@ const PurchasesPage = () => {
         const lineDue = Math.max(0, lineAmt - paidOf(l));
         const last = i === bill.lines.length - 1;
         return (
-          <tr key={l.id} className="bg-canvas/60">
+          <tr
+            key={l.id}
+            className="bg-canvas/60 line-reveal"
+            // Capped at six steps: past that the stagger stops reading as
+            // sequence and starts reading as waiting.
+            style={{ animationDelay: `${Math.min(i, 6) * 24}ms` }}
+          >
             {/* Gutter carries the grouping rule instead of a box around the set */}
             <td className={`${pad} border-l-2 border-accent-signature`}>
               {i === 0 && (
@@ -793,7 +809,7 @@ const PurchasesPage = () => {
                   </span>
                   <button
                     onClick={() => { setPayTarget(l); setPayAmount(String(lineDue)); setPayMethod('CASH'); }}
-                    className="px-2 py-0.5 rounded-pill text-[10px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
+                    className="px-2 py-0.5 rounded-pill text-[10px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]"
                   >Pay</button>
                 </div>
               ) : (
@@ -811,7 +827,7 @@ const PurchasesPage = () => {
               <button
                 onClick={(e) => openMenu(e, l)}
                 title={`Edit, return or delete ${prod?.name || 'this product'}`}
-                className="w-7 h-7 inline-flex items-center justify-center rounded-xl text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
+                className="w-7 h-7 inline-flex items-center justify-center rounded-xl text-muted-foreground hover:bg-black/5 hover:text-foreground transition-[background-color,color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]"
               >
                 <MoreVertical size={14} />
               </button>
@@ -934,7 +950,19 @@ const PurchasesPage = () => {
             </span>
           </div>
 
-          {showFilters && (
+          {/* The panel used to mount and unmount, so five controls appeared and
+              vanished with nothing in between -- which reads as the page
+              breaking rather than as a drawer opening. It now stays in the DOM
+              and its row track animates: 0fr to 1fr, opening on --dur-menu and
+              closing faster, because a close is the system responding while an
+              open is the user still deciding. `inert` keeps the collapsed
+              controls out of the tab order and away from screen readers. */}
+          <div
+            className={`grid transition-[grid-template-rows,opacity] ease-(--ease-out) ${
+              showFilters ? 'duration-(--dur-menu)' : 'duration-(--dur-press)'}`}
+            style={{ gridTemplateRows: showFilters ? '1fr' : '0fr', opacity: showFilters ? 1 : 0 }}
+          >
+            <div className="overflow-hidden min-h-0" inert={showFilters ? undefined : true}>
             <div className="flex flex-wrap items-center gap-2 bg-card border border-border/60 rounded-xl p-2">
               <select value={fSupplier} onChange={e => setFSup(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px]">
                 <option value="ALL">All suppliers</option>
@@ -966,12 +994,13 @@ const PurchasesPage = () => {
               </button>
               {activeFilterCount > 0 && (
                 <button onClick={clearFilters}
-                  className="h-9 px-3 rounded-pill text-[12px] font-semibold text-muted-foreground hover:text-foreground ml-auto">
+                  className="h-9 px-3 rounded-pill text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-[color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97] ml-auto">
                   Clear
                 </button>
               )}
             </div>
-          )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -996,17 +1025,17 @@ const PurchasesPage = () => {
       {menuRow && createPortal(
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setMenuRow(null)} />
-          <div className="menu-pop fixed z-[9999] w-44 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left }}>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground"><Printer size={13} /> Voucher</button>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground"><Copy size={13} /> Duplicate</button>
+          <div className="menu-pop fixed z-[9999] w-44 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left, '--menu-origin': menuPos.origin }}>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground"><Printer size={13} /> Voucher</button>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground"><Copy size={13} /> Duplicate</button>
             {/* A one-line bill IS a bill. Editing it through the same form as a
                 multi-line one means one write path (edit_purchase_bill, one
                 transaction) instead of two that can disagree -- which is how a
                 line came to leave its own bill in the first place. */}
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setEditBillTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-blue-600"><Pencil size={13} /> Edit</button>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setReturnTarget({ purchase: p, product: products.find(x => x.id === p.linked_product_id), supplier: suppliers.find(s => s.id === p.supplier_id) }); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-rose-600"><RotateCcw size={13} /> Return</button>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setEditBillTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-blue-600"><Pencil size={13} /> Edit</button>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setReturnTarget({ purchase: p, product: products.find(x => x.id === p.linked_product_id), supplier: suppliers.find(s => s.id === p.supplier_id) }); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-rose-600"><RotateCcw size={13} /> Return</button>
             <div className="h-px bg-black/5 my-1" />
-            <button onClick={() => { const p = menuRow; setMenuRow(null); handleDeletePurchase(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-50 text-red-600"><Trash2 size={13} /> Delete</button>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); handleDeletePurchase(p); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-red-50 text-red-600"><Trash2 size={13} /> Delete</button>
           </div>
         </>,
         document.body
@@ -1024,20 +1053,20 @@ const PurchasesPage = () => {
               {menuBill.bill.lines.length} lines · {formatCurrency(menuBill.bill.total)}
             </div>
             <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setEditBillTarget(b); }}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-blue-600">
+              className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-blue-600">
               <Pencil size={13} /> Edit whole bill
             </button>
             <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setPaymentsTarget(b); }}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground">
+              className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground">
               <Banknote size={13} /> Payments
             </button>
             <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setPrintTarget(b); }}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground">
+              className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground">
               <Printer size={13} /> Voucher
             </button>
             <div className="h-px bg-black/5 my-1" />
             <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setExpandedBill(b.id); }}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-muted-foreground">
+              className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-muted-foreground">
               Open lines — to return or delete one
             </button>
           </div>
@@ -1168,7 +1197,7 @@ const PurchasesPage = () => {
                 <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[13px] font-semibold" />
               </label>
             </div>
-            <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold disabled:opacity-40 hover:bg-primary/90 flex items-center justify-center gap-2">
+            <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold disabled:opacity-40 hover:bg-primary/90 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98] disabled:active:scale-100 flex items-center justify-center gap-2">
               <Banknote size={15} /> {paySubmitting ? 'Recording…' : 'Record payment'}
             </button>
           </div>

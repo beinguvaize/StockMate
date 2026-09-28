@@ -16,8 +16,12 @@ async function openPurchases(page) {
   });
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto(`/${TENANT_SLUG}/purchases`);
+  // Wait for CONTENT, not for a spinner to leave. The loading state here is a
+  // skeleton and draws no spinner at all, so the old wait returned on the very
+  // first frame and left every assertion racing a fixed 900ms sleep.
   await page.waitForFunction(() => !document.querySelector('.animate-spin'), { timeout: 15_000 });
-  await page.waitForTimeout(900);
+  await page.getByPlaceholder(/Search product/).waitFor({ state: 'visible', timeout: 15_000 });
+  await page.waitForTimeout(400);
 }
 
 test('every row has the same shape: bill, paid, outstanding', async ({ page }) => {
@@ -99,6 +103,10 @@ test('the toolbar shows two filters, not nine', async ({ page }) => {
   expect(await bar.locator('select:visible').count()).toBe(0);
 
   await page.getByRole('button', { name: /Filters/ }).click();
+  // The panel stays mounted and animates its row track open, so wait for a
+  // control to actually have a box before counting -- mid-animation the height
+  // is real but tiny and the count is whatever that frame happened to be.
+  await expect(page.locator('select').first()).toBeVisible();
   expect(await page.locator('select:visible').count()).toBeGreaterThanOrEqual(5);
 });
 
@@ -174,4 +182,76 @@ test('the form says that price and total fill each other in', async ({ page }) =
   await openPurchases(page);
   await page.getByRole('button', { name: /New purchase/ }).click();
   await expect(page.getByText(/the other is worked out from the quantity/i)).toBeVisible();
+});
+
+test('a folded filter panel is out of reach, not just out of sight', async ({ page }) => {
+  // The panel now stays mounted so it can animate in both directions. Mounted
+  // and invisible is a trap of its own: five controls a sighted user cannot see
+  // but a keyboard or a screen reader walks straight into. Clipping alone does
+  // not do it -- a clipped <select> still has its own 36px box and still takes
+  // focus -- so this measures the TRACK the panel sits in, and inert on top.
+  await openPurchases(page);
+
+  const read = () => page.evaluate(() => {
+    const sel = [...document.querySelectorAll('select')]
+      .find(el => /All suppliers/.test(el.textContent));
+    if (!sel) return null;
+    const clip = sel.closest('[class*="overflow-hidden"]');
+    let inert = false;
+    for (let el = sel; el; el = el.parentElement) if (el.inert) { inert = true; break; }
+    return { h: Math.round(clip.getBoundingClientRect().height), inert };
+  });
+
+  const shut = await read();
+  expect(shut).not.toBeNull();
+  expect(shut.h).toBe(0);
+  expect(shut.inert).toBe(true);
+
+  await page.getByRole('button', { name: /Filters/ }).click();
+  await expect(page.locator('select').filter({ hasText: 'All suppliers' })).toBeVisible();
+  // The track animates open, so settle before measuring -- a frame taken
+  // mid-transition reports whatever height that frame happened to be at.
+  await page.waitForFunction(() => {
+    const sel = [...document.querySelectorAll('select')]
+      .find(el => /All suppliers/.test(el.textContent));
+    const clip = sel && sel.closest('[class*="overflow-hidden"]');
+    return !!clip && clip.getBoundingClientRect().height > 20;
+  }, { timeout: 5000 });
+  const open = await read();
+  expect(open.h).toBeGreaterThan(20);
+  expect(open.inert).toBe(false);
+});
+
+test('the row menu opens inside the window on the last row', async ({ page }) => {
+  // Six items is 212px. On the last rows of a long table the menu used to open
+  // below the trigger and off the bottom of the window, which is exactly where
+  // it is most needed. It flips above instead, and grows from the corner the
+  // trigger is on rather than from its own centre.
+  await openPurchases(page);
+
+  const triggers = page.getByRole('button', { name: /^(Bill actions|More)$/ });
+  await expect(triggers.first()).toBeVisible();
+  const n = await triggers.count();
+  await triggers.nth(n - 1).click();
+
+  const box = await page.evaluate(() => {
+    const el = document.querySelector('.menu-pop');
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return {
+      top: r.top, bottom: r.bottom, left: r.left, right: r.right,
+      vh: window.innerHeight, vw: window.innerWidth,
+      w: el.offsetWidth,
+      origin: getComputedStyle(el).transformOrigin,
+    };
+  });
+  expect(box).not.toBeNull();
+  expect(box.top).toBeGreaterThanOrEqual(0);
+  expect(box.bottom).toBeLessThanOrEqual(box.vh);
+  expect(box.left).toBeGreaterThanOrEqual(0);
+  expect(box.right).toBeLessThanOrEqual(box.vw);
+  // Origin resolves to pixels against the element's own border box, which is
+  // NOT the rect while it is still scaling -- read offsetWidth instead.
+  const [ox] = box.origin.split(' ').map(parseFloat);
+  expect(Math.round(ox)).toBe(box.w);
 });

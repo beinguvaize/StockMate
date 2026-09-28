@@ -71,8 +71,11 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
       </div>
       {open && rect && createPortal(
         <div
-          className="fixed z-[100] bg-card border border-border rounded-xl shadow-xl max-h-64 overflow-y-auto"
-          style={{ left: rect.left, top: rect.bottom + 4, width: rect.width }}
+          // Anchored under the field's left edge, so that is the corner it
+          // grows from. It appeared with no transition at all before, which on
+          // a list that covers what you were reading reads as a glitch.
+          className="menu-pop fixed z-[100] bg-card border border-border rounded-xl shadow-xl max-h-64 overflow-y-auto"
+          style={{ left: rect.left, top: rect.bottom + 4, width: rect.width, '--menu-origin': 'top left' }}
         >
           {filtered.length === 0 && (
             <div className="px-3 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">No matches</div>
@@ -93,7 +96,7 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
             <button
               type="button"
               onMouseDown={e => { e.preventDefault(); const q = query.trim(); setOpen(false); setQuery(''); onCreateNew(q); }}
-              className="w-full text-left px-3 py-2.5 text-xs font-semibold text-accent-signature hover:bg-accent-signature/5 transition-colors border-t border-border/60 flex items-center gap-1.5 sticky bottom-0 bg-card"
+              className="w-full text-left px-3 py-2.5 text-xs font-semibold text-accent-signature hover:bg-accent-signature/5 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] border-t border-border/60 flex items-center gap-1.5 sticky bottom-0 bg-card"
             >
               <Plus size={13} /> Create new product{query.trim() ? ` “${query.trim()}”` : ''}
             </button>
@@ -411,7 +414,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                       <button
                         type="button"
                         onClick={() => setQuickCreate({ lineKey: line._key, barcode: line.barcodeInput })}
-                        className="mt-1 flex items-center gap-1 text-[8px] font-semibold text-red-500 hover:text-red-700 uppercase tracking-widest"
+                        className="mt-1 flex items-center gap-1 text-[8px] font-semibold text-red-500 hover:text-red-700 transition-colors duration-(--dur-hover) uppercase tracking-widest"
                       >
                         <AlertCircle size={9} /> Create product
                       </button>
@@ -505,7 +508,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
 
                   {/* Remove */}
                   <button type="button" onClick={() => removeLine(line._key)} disabled={lines.length === 1}
-                    className="mt-1 w-7 h-7 flex items-center justify-center rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-20">
+                    className="mt-1 w-7 h-7 flex items-center justify-center rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition-[background-color,color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97] disabled:active:scale-100 disabled:opacity-20">
                     <Trash2 size={12} />
                   </button>
                 </div>
@@ -516,7 +519,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
           {/* Add row + grand total */}
           <div className="px-4 py-3 border-t border-border/60 flex items-center justify-between">
             <button type="button" onClick={addLine}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-pill text-[10px] font-semibold uppercase tracking-widest text-accent-signature bg-accent-signature/10 hover:bg-accent-signature/20 transition-colors">
+              className="flex items-center gap-2 px-3 py-1.5 rounded-pill text-[10px] font-semibold uppercase tracking-widest text-accent-signature bg-accent-signature/10 hover:bg-accent-signature/20 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]">
               <Plus size={12} /> Add Row
             </button>
             <div className="flex items-center gap-2">
@@ -532,7 +535,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
         <button
           type="submit"
           disabled={loading || !header.supplier_id || lines.every(l => !l.linked_product_id)}
-          className="w-full h-12 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold text-[10px] uppercase tracking-widest rounded-pill hover:bg-black transition-all shadow-sm disabled:opacity-40"
+          className="w-full h-12 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold text-[10px] uppercase tracking-widest rounded-pill hover:bg-black transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98] disabled:active:scale-100 shadow-sm disabled:opacity-40"
         >
           {loading
             ? <span className="animate-pulse">Saving…</span>
