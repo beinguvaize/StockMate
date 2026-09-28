@@ -144,3 +144,34 @@ test('an opened bill keeps its lines under the same columns', async ({ page }) =
   expect(align).not.toBeNull();
   expect(align.same).toBe(true);
 });
+
+test('every field in the purchase form says what it is', async ({ page }) => {
+  // The line grid is a CSS grid, not a <table>, and its five inputs were named
+  // only by a 9px uppercase header a screen reader has no way to associate.
+  // The header fields had visible <label>s with no htmlFor, which is decoration
+  // rather than a label. Entering a number in the wrong one of these writes a
+  // wrong balance to a supplier's ledger.
+  await openPurchases(page);
+  await page.getByRole('button', { name: /New purchase/ }).click();
+  await expect(page.getByText('Line total').first()).toBeVisible();
+
+  const unnamed = await page.evaluate(() => {
+    const form = document.querySelector('form');
+    return [...form.querySelectorAll('input, select, textarea')]
+      .filter((el) => {
+        const n = el.getAttribute('aria-label') || el.labels?.[0]?.textContent || '';
+        return !n.trim();
+      })
+      .map((el) => el.getAttribute('placeholder') || el.tagName + ':' + el.type);
+  });
+  expect(unnamed).toEqual([]);
+});
+
+test('the form says that price and total fill each other in', async ({ page }) => {
+  // Typing a total rewrites the price each, and vice versa. Useful -- a
+  // supplier's bill often states one and not the other -- but a field changing
+  // itself is alarming when nothing said it would.
+  await openPurchases(page);
+  await page.getByRole('button', { name: /New purchase/ }).click();
+  await expect(page.getByText(/the other is worked out from the quantity/i)).toBeVisible();
+});
