@@ -465,16 +465,20 @@ const PurchasesPage = () => {
   // a progress bar on some of them. That is not a table; it is three widgets
   // sharing a cell, and it cannot be scanned. Bill, paid, still owed: three
   // amounts, right-aligned, tabular, every row the same shape.
+  // Paid is gone. On a settled bill it printed the same figure as Amount, and
+  // 73 of 79 bills are settled -- so the widest thing on the screen was one
+  // number said twice, next to an empty third column. Where it genuinely
+  // differs, the row still says it, under the outstanding figure, because that
+  // is the only place two numbers mean two things.
   const headers = [
     { label: 'Date' },
     { label: 'Product / supplier' },
-    { label: 'Bill', className: 'text-right' },
-    { label: 'Paid', className: 'text-right' },
+    { label: 'Amount', className: 'text-right' },
     { label: 'Outstanding', className: 'text-right' },
     { label: 'Status', className: 'text-center' },
     { label: '', className: 'text-right' },
   ];
-  const PUR_COLS = 7;
+  const PUR_COLS = 6;
 
   // Two-letter supplier initials for the neutral avatar.
   const initialsOf = (name) => (name || '?')
@@ -638,30 +642,25 @@ const PurchasesPage = () => {
         {/* Settlement — a meter reads paid against due before any number does.
             This was three stacked strings (label, paid, due) in a narrow cell;
             the proportion is the thing you actually want at a glance. */}
-        {/* Bill */}
+        {/* Amount — what the supplier billed. One kind of value, every row. */}
         <td className={`${pad} text-right whitespace-nowrap`}>
           <span className="tabular-nums text-[13.5px] text-foreground">{formatCurrency(bill.total)}</span>
         </td>
 
-        {/* Paid. A dash, not a zero: nothing has been paid, which reads faster
-            as an absence than as the number nought. */}
-        <td className={`${pad} text-right whitespace-nowrap`}>
-          <span className={`tabular-nums text-[13.5px] ${paid > 0.5 ? 'text-foreground' : 'text-muted-foreground'}`}>
-            {paid > 0.5 ? formatCurrency(paid) : '—'}
-          </span>
-        </td>
-
-        {/* Outstanding — the column you scan. Always an amount or a dash,
-            never a payment method, a bar or a caption. */}
+        {/* Outstanding — an amount or a dash, never anything else. The part
+            payment appears here and only here, where two numbers actually
+            mean two different things. */}
         <td className={`${pad} text-right whitespace-nowrap`}>
           {due > 0.5 ? (
             <div>
               <span className="tabular-nums text-[13.5px] font-semibold text-[color:var(--color-neg)]">
                 {formatCurrency(due)}
               </span>
-              {overdue && !dense && (
-                <div className="text-[10px] font-semibold text-[color:var(--color-neg)] mt-0.5">
-                  {ageDays(bill)}d overdue
+              {!dense && (
+                <div className="text-[10px] font-semibold text-muted-foreground mt-0.5">
+                  {overdue
+                    ? <span className="text-[color:var(--color-neg)]">{ageDays(bill)}d overdue</span>
+                    : (paid > 0.5 ? `${formatCurrency(paid)} paid` : null)}
                 </div>
               )}
             </div>
@@ -778,11 +777,19 @@ const PurchasesPage = () => {
                 </div>
               </div>
             </td>
-            <td className={pad}>
+            {/* A line sits under its bill's own columns, in the same order:
+                Amount, then Outstanding. These two were the other way round --
+                the line's due figure printed under "Amount" and its amount
+                under "Outstanding" -- so opening a bill swapped two money
+                columns without saying so. */}
+            <td className={`${pad} text-right whitespace-nowrap`}>
+              <span className="tabular-nums text-[12.5px] text-foreground">{formatCurrency(lineAmt)}</span>
+            </td>
+            <td className={`${pad} text-right whitespace-nowrap`}>
               {lineDue > 0.5 ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold tabular-nums text-[color:var(--color-neg)]">
-                    {formatCurrency(lineDue)} due
+                <div className="inline-flex items-center gap-2">
+                  <span className="tabular-nums text-[12.5px] font-semibold text-[color:var(--color-neg)]">
+                    {formatCurrency(lineDue)}
                   </span>
                   <button
                     onClick={() => { setPayTarget(l); setPayAmount(String(lineDue)); setPayMethod('CASH'); }}
@@ -790,11 +797,8 @@ const PurchasesPage = () => {
                   >Pay</button>
                 </div>
               ) : (
-                <span className="text-[11px] font-medium text-[color:var(--color-pos)]">Settled</span>
+                <span className="tabular-nums text-[12.5px] text-muted-foreground">—</span>
               )}
-            </td>
-            <td className={`${pad} text-right tabular-nums text-[12.5px] font-semibold text-foreground whitespace-nowrap`}>
-              {formatCurrency(lineAmt)}
             </td>
             <td className={`${pad} text-center`}>
               {last && (

@@ -39,15 +39,16 @@ test('every row has the same shape: bill, paid, outstanding', async ({ page }) =
   await expect(settled).toContainText(/Cash|Credit/i);
 });
 
-test('an unpaid bill reads across: billed, paid, still owed', async ({ page }) => {
+test('an unpaid bill shows what is owed, and what was paid under it', async ({ page }) => {
   await openPurchases(page);
 
-  // 32,320 billed − 12,000 paid = 20,320 outstanding, as three plain figures
+  // Paid is no longer a column: on 73 of 79 bills it repeated Amount. It
+  // survives only where it differs, as a second line under the outstanding
+  // figure -- the one place two numbers mean two things.
   const row = page.locator('tr', { hasText: '₹32,320.00' }).first();
-  await expect(row).toContainText('₹32,320.00');
-  await expect(row).toContainText('₹12,000.00');
-  await expect(row).toContainText('₹20,320.00');
-  // no bar: the two numbers say the proportion more precisely than a bar does
+  await expect(row).toContainText('₹32,320.00');   // billed
+  await expect(row).toContainText('₹20,320.00');   // still owed
+  await expect(row).toContainText('₹12,000.00 paid');
   expect(await row.locator('div[style*="width:"]').count()).toBe(0);
 });
 
@@ -112,4 +113,34 @@ test('a folded filter still announces itself', async ({ page }) => {
   // the count rides on the button, which stays visible when the panel closes
   await page.getByRole('button', { name: /Filters/ }).click();
   await expect(page.getByRole('button', { name: /Filters/ })).toContainText('1');
+});
+
+test('an opened bill keeps its lines under the same columns', async ({ page }) => {
+  // Twice now a column changed on the bill row and not on the lines it expands
+  // into: once a count mismatch, once the same count in the wrong order, which
+  // silently swapped Amount and Outstanding. Counting cells catches the first
+  // and not the second, so this measures where they actually sit.
+  await openPurchases(page);
+
+  const billRow = page.locator('tr', { hasText: '₹17,250.00' }).first();
+  await expect(billRow).toBeVisible();
+  const cells = await billRow.locator('td').count();
+
+  await billRow.click();
+  await page.waitForTimeout(400);
+
+  const childRow = page.locator('tr').filter({ hasText: '₹6,250.00' }).first();
+  await expect(childRow).toBeVisible();
+  expect(await childRow.locator('td').count()).toBe(cells);
+
+  const align = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('tr')];
+    const bill = rows.find(r => /17,250/.test(r.textContent));
+    const line = rows.find(r => /6,250/.test(r.textContent));
+    if (!bill || !line) return null;
+    const x = (r) => [...r.querySelectorAll('td')].map(td => Math.round(td.getBoundingClientRect().left));
+    return { same: JSON.stringify(x(bill)) === JSON.stringify(x(line)) };
+  });
+  expect(align).not.toBeNull();
+  expect(align.same).toBe(true);
 });
