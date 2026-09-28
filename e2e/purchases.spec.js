@@ -113,3 +113,40 @@ test('a folded filter still announces itself', async ({ page }) => {
   await page.getByRole('button', { name: /Filters/ }).click();
   await expect(page.getByRole('button', { name: /Filters/ })).toContainText('1');
 });
+
+test('an opened bill keeps its lines under the same columns', async ({ page }) => {
+  // The bill row has seven cells. Its lines had six, so opening a bill shifted
+  // every cell after the first money column one to the left: the line's amount
+  // landed under Outstanding and its status under Amount. Nothing in the
+  // fixtures was a multi-line bill, so no test saw it.
+  await openPurchases(page);
+
+  // 11,000 + 6,250 grouped into one bill. Matching the total rather than the
+  // supplier: every fixture shares one supplier id, so the name is not unique.
+  const billRow = page.locator('tr', { hasText: '₹17,250.00' }).first();
+  await expect(billRow).toBeVisible();
+  const cellsInBillRow = await billRow.locator('td').count();
+
+  await billRow.click();
+  await page.waitForTimeout(400);
+
+  // the child rows are siblings in the same table
+  const lineRows = page.locator('tr', { hasText: /in 2|×/ });
+  const childRow = page.locator('tr').filter({ hasText: '₹6,250.00' }).first();
+  await expect(childRow).toBeVisible();
+  expect(await childRow.locator('td').count()).toBe(cellsInBillRow);
+
+  // and the money actually lands under the money headers: compare the x of the
+  // line's Bill figure with the bill's Bill figure
+  const align = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('tr')];
+    const bill = rows.find(r => /17,250/.test(r.textContent));
+    const line = rows.find(r => /6,250/.test(r.textContent));
+    if (!bill || !line) return null;
+    const bx = [...bill.querySelectorAll('td')].map(td => Math.round(td.getBoundingClientRect().left));
+    const lx = [...line.querySelectorAll('td')].map(td => Math.round(td.getBoundingClientRect().left));
+    return { bx, lx, same: JSON.stringify(bx) === JSON.stringify(lx) };
+  });
+  expect(align).not.toBeNull();
+  expect(align.same).toBe(true);
+});

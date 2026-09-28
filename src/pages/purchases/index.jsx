@@ -753,7 +753,8 @@ const PurchasesPage = () => {
         const prod = products.find(x => x.id === l.linked_product_id);
         const lineAmt = Number(l.total_amount || 0);
         const lineQty = Number(l.quantity || 0);
-        const lineDue = Math.max(0, lineAmt - paidOf(l));
+        const linePaid = paidOf(l);
+        const lineDue = Math.max(0, lineAmt - linePaid);
         const last = i === bill.lines.length - 1;
         return (
           <tr key={l.id} className="bg-canvas/60">
@@ -778,11 +779,25 @@ const PurchasesPage = () => {
                 </div>
               </div>
             </td>
-            <td className={pad}>
+            {/* A line sits under the SAME three money columns as its bill.
+                It carried two cells against the parent's three, so every cell
+                after it shifted one column left the moment a bill was opened --
+                the line's amount landed under Outstanding, its status under
+                Amount. Bill, Paid, Outstanding, in that order, like the row
+                above it. */}
+            <td className={`${pad} text-right whitespace-nowrap`}>
+              <span className="tabular-nums text-[12.5px] text-foreground">{formatCurrency(lineAmt)}</span>
+            </td>
+            <td className={`${pad} text-right whitespace-nowrap`}>
+              <span className={`tabular-nums text-[12.5px] ${linePaid > 0.5 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                {linePaid > 0.5 ? formatCurrency(linePaid) : '—'}
+              </span>
+            </td>
+            <td className={`${pad} text-right whitespace-nowrap`}>
               {lineDue > 0.5 ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold tabular-nums text-[color:var(--color-neg)]">
-                    {formatCurrency(lineDue)} due
+                <div className="inline-flex items-center gap-2">
+                  <span className="tabular-nums text-[12.5px] font-semibold text-[color:var(--color-neg)]">
+                    {formatCurrency(lineDue)}
                   </span>
                   <button
                     onClick={() => { setPayTarget(l); setPayAmount(String(lineDue)); setPayMethod('CASH'); }}
@@ -790,11 +805,8 @@ const PurchasesPage = () => {
                   >Pay</button>
                 </div>
               ) : (
-                <span className="text-[11px] font-medium text-[color:var(--color-pos)]">Settled</span>
+                <span className="tabular-nums text-[12.5px] text-muted-foreground">—</span>
               )}
-            </td>
-            <td className={`${pad} text-right tabular-nums text-[12.5px] font-semibold text-foreground whitespace-nowrap`}>
-              {formatCurrency(lineAmt)}
             </td>
             <td className={`${pad} text-center`}>
               {last && (
