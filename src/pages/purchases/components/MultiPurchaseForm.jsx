@@ -48,7 +48,7 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
         <input
           type="text"
           className={`w-full bg-card border border-border shadow-sm rounded-lg pl-6 pr-6 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 ${selected ? '' : 'text-muted-foreground'}`}
-          placeholder="Search product…"
+          placeholder="Search product…" aria-label="Product"
           value={open ? query : (selected?.name || '')}
           // Seed the query with the current product and select it, instead of
           // blanking the box. Clearing on focus made tabbing through a row look
@@ -145,6 +145,20 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
 
   // ── Line helpers ─────────────────────────────────────────────────────────────
   const patchLine = (key, patch) => setLines(prev => prev.map(l => l._key !== key ? l : { ...l, ...patch }));
+
+  // One definition for the column names, so the header and the accessible name
+  // of each input cannot drift apart. The inputs are in a grid, not a <table>,
+  // and their only visible name is the header above them -- which a screen
+  // reader has no way to associate. Each one carries the name itself.
+  const LINE_COLUMNS = [
+    { key: 'barcode',  label: 'Barcode' },
+    { key: 'product',  label: 'Product' },
+    { key: 'qty',      label: 'Quantity' },
+    { key: 'price',    label: 'Price each' },
+    { key: 'total',    label: 'Line total' },
+    { key: 'expiry',   label: 'Expiry', optional: true },
+    { key: 'remove',   label: '' },
+  ];
 
   const updateLine = (key, patch) => {
     setLines(prev => prev.map(l => {
@@ -260,19 +274,20 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
         {/* ── Header ──────────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-canvas rounded-2xl border border-border/60">
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Supplier <span className="text-red-400">*</span></label>
-            <select required className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            <label htmlFor="pf-supplier" className="block text-[11px] font-semibold text-ink-secondary mb-2">Supplier <span className="text-red-400" aria-hidden="true">*</span></label>
+            <select id="pf-supplier" required aria-required="true" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={header.supplier_id} onChange={e => setHeader(h => ({ ...h, supplier_id: e.target.value }))}>
               <option value="">Select supplier...</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            <label htmlFor="pf-warehouse" className="block text-[11px] font-semibold text-ink-secondary mb-2">
               Receive Into Warehouse
               {warehouses.length === 0 && <span className="ml-1 text-muted-foreground">(auto)</span>}
             </label>
             <select
+              id="pf-warehouse"
               className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={header.location_id}
               onChange={e => setHeader(h => ({ ...h, location_id: e.target.value }))}
@@ -282,8 +297,8 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
             </select>
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Payment Type</label>
-            <select className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            <label htmlFor="pf-paytype" className="block text-[11px] font-semibold text-ink-secondary mb-2">Payment Type</label>
+            <select id="pf-paytype" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={header.payment_type} onChange={e => setHeader(h => ({ ...h, payment_type: e.target.value }))}>
               <option value="CASH">Cash (paid now)</option>
               <option value="CREDIT">Credit (pay later)</option>
@@ -293,10 +308,10 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
           {/* Part payment. A bill is often settled with some cash now and the
               rest on credit, which the two payment types alone cannot say. */}
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            <label htmlFor="pf-paidnow" className="block text-[11px] font-semibold text-ink-secondary mb-2">
               Paid now
             </label>
-            <input type="number" step="0.01" min="0"
+            <input id="pf-paidnow" aria-label="Amount paid now" type="number" step="0.01" min="0"
               className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
               placeholder={header.payment_type === 'CREDIT'
                 ? 'Nothing paid yet'
@@ -317,20 +332,20 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
             })()}
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Date</label>
-            <input required type="date" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            <label htmlFor="pf-date" className="block text-[11px] font-semibold text-ink-secondary mb-2">Date</label>
+            <input id="pf-date" required type="date" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={header.date} onChange={e => setHeader(h => ({ ...h, date: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Supplier Bill No</label>
-            <input type="text" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            <label htmlFor="pf-billno" className="block text-[11px] font-semibold text-ink-secondary mb-2">Supplier Bill No</label>
+            <input id="pf-billno" type="text" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
               placeholder="Supplier's invoice no. (for GSTR-2B)" value={header.bill_no}
               onChange={e => setHeader(h => ({ ...h, bill_no: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Notes</label>
-            <input type="text" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-              placeholder="Remarks..." value={header.notes}
+            <label htmlFor="pf-notes" className="block text-[11px] font-semibold text-ink-secondary mb-2">Notes</label>
+            <input id="pf-notes" type="text" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+              placeholder="Remarks…" aria-label="Notes" value={header.notes}
               onChange={e => setHeader(h => ({ ...h, notes: e.target.value }))} />
           </div>
         </div>
@@ -338,12 +353,31 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
         {/* ── Line Items ───────────────────────────────────────────────────────── */}
         <div className="rounded-2xl border border-border/60 overflow-hidden">
 
-          {/* Column headers */}
+          {/* Column headers.
+              They were 9px, uppercase, letter-spaced -- the least readable
+              setting available, on the only thing naming five unlabelled
+              inputs. 11px sentence case reads at a glance, and the two
+              optional columns now say so instead of leaving someone to guess
+              which fields block the save. */}
           <div className="grid grid-cols-[140px_1fr_72px_92px_92px_112px_32px] gap-2 bg-canvas px-4 py-2.5 border-b border-border/60">
-            {['Barcode / SKU', 'Product', 'Qty', 'Unit Price', 'Total', 'Expiry', ''].map(h => (
-              <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+            {LINE_COLUMNS.map(c => (
+              <span key={c.key} className="text-[11px] font-semibold text-ink-secondary">
+                {c.label}
+                {c.optional && <span className="font-normal text-muted-foreground"> · optional</span>}
+              </span>
             ))}
           </div>
+
+          {/* The one rule of this grid that is not visible in it.
+              Price each and Line total fill each other in: type a price and
+              the total appears, type a total and the price is worked back from
+              the quantity. That is genuinely useful -- a supplier's bill often
+              states one and not the other -- but watching a field you did not
+              touch change its own value is alarming if nobody said it would. */}
+          <p className="px-4 py-2 text-[11px] text-muted-foreground bg-canvas/60 border-b border-border/60">
+            Enter either <span className="font-semibold text-ink-secondary">price each</span> or{' '}
+            <span className="font-semibold text-ink-secondary">line total</span> — the other is worked out from the quantity.
+          </p>
 
           {/* Rows */}
           <div ref={rowsRef} className="divide-y divide-black/[0.04]">
@@ -366,6 +400,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                           'border-border/60'
                         }`}
                         placeholder="Scan / type…"
+                        aria-label="Barcode"
                         value={line.barcodeInput}
                         onChange={e => patchLine(line._key, { barcodeInput: e.target.value, barcodeStatus: null })}
                         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBarcodeSearch(line._key, line.barcodeInput); } }}
@@ -412,6 +447,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                   {/* Qty + optional buy-by-alternate-unit toggle */}
                   <div>
                     <input required type="number" min="0" placeholder="0" className={inp}
+                      aria-label="Quantity"
                       value={line.quantity}
                       onChange={e => updateLine(line._key, { quantity: e.target.value })} />
                     {product?.secondary_unit && Number(product.conversion_factor) > 0 && (() => {
@@ -436,6 +472,8 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                   {/* Unit Price */}
                   <div>
                     <input type="number" min="0" step="0.01" placeholder="0.00" className={inp}
+                      aria-label="Price each"
+                      title="Type this or the line total — the other is worked out for you"
                       value={line.unit_price}
                       onChange={e => updateLine(line._key, { unit_price: e.target.value })} />
                     {product?.secondary_unit && line.buyUnit === 'ALT' && (
@@ -455,11 +493,13 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
 
                   {/* Total */}
                   <input required type="number" min="0" step="0.01" placeholder="0.00" className={inp}
+                    aria-label="Line total"
+                    title="Type this or the price each — the other is worked out for you"
                     value={line.total_amount}
                     onChange={e => updateLine(line._key, { total_amount: e.target.value })} />
 
                   {/* Expiry (optional — creates a dated batch) */}
-                  <input type="date" title="Expiry date (optional)" className={inp}
+                  <input type="date" aria-label="Expiry date (optional)" title="Leave blank unless this stock expires" className={inp}
                     value={line.expiry_date}
                     onChange={e => updateLine(line._key, { expiry_date: e.target.value })} />
 
