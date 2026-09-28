@@ -20,34 +20,35 @@ async function openPurchases(page) {
   await page.waitForTimeout(900);
 }
 
-test('a settled bill spends no ink on saying so', async ({ page }) => {
-  // It used to carry a full-width meter at 100%, the word "Settled" in green,
-  // the payment method and a green status pill -- the same fact four times, on
-  // the rows that need nothing from you. The six that DID need attention had
-  // partly-empty meters and so read as quieter.
+test('every row has the same shape: bill, paid, outstanding', async ({ page }) => {
+  // The column this replaced held a payment method on settled rows and an
+  // amount on unpaid ones, plus a bar on some of them -- three kinds of thing
+  // in one column, which is what stops a table being scannable. Now each money
+  // column holds one kind of value in every row.
   await openPurchases(page);
 
   const settled = page.locator('tr', { hasText: '₹13,800.00' }).first();
   await expect(settled).toBeVisible();
-
-  // No meter at all on a settled row.
-  expect(await settled.locator('div[style*="width: 100%"]').count()).toBe(0);
+  // settled: billed, nothing outstanding — a dash, not a zero
+  await expect(settled).toContainText('—');
   await expect(settled).not.toContainText('Settled');
-  // It still says how it was paid.
-  await expect(settled).toContainText('CASH');
+  // no meter anywhere on the row
+  expect(await settled.locator('div[style*="width:"]').count()).toBe(0);
+
+  // and the terms moved to the supplier line, out of the money columns
+  await expect(settled).toContainText(/Cash|Credit/i);
 });
 
-test('an unpaid bill leads with what is owed', async ({ page }) => {
+test('an unpaid bill reads across: billed, paid, still owed', async ({ page }) => {
   await openPurchases(page);
 
-  // 32,320 billed, 12,000 paid → 20,320 outstanding, and that is the figure
-  // the row leads with rather than burying it under a meter.
-  const partPaid = page.locator('tr', { hasText: '₹32,320.00' }).first();
-  await expect(partPaid).toContainText('₹20,320.00');
-  await expect(partPaid).toContainText('₹12,000.00 paid');
-
-  // The meter survives only where a proportion means something.
-  expect(await partPaid.locator('div[style*="width:"]').count()).toBeGreaterThan(0);
+  // 32,320 billed − 12,000 paid = 20,320 outstanding, as three plain figures
+  const row = page.locator('tr', { hasText: '₹32,320.00' }).first();
+  await expect(row).toContainText('₹32,320.00');
+  await expect(row).toContainText('₹12,000.00');
+  await expect(row).toContainText('₹20,320.00');
+  // no bar: the two numbers say the proportion more precisely than a bar does
+  expect(await row.locator('div[style*="width:"]').count()).toBe(0);
 });
 
 test('an overdue bill says how late it is', async ({ page }) => {

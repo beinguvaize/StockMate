@@ -458,15 +458,23 @@ const PurchasesPage = () => {
   // scrolling. Qty and ref fold into the line under the product, which leaves
   // room for settlement to be shown as paid-against-due rather than three
   // stacked strings.
+  // One kind of value per column, so a column can be read down.
+  //
+  // The previous Outstanding column held a payment method on settled rows and
+  // an amount on unpaid ones -- two different kinds of fact in one column, plus
+  // a progress bar on some of them. That is not a table; it is three widgets
+  // sharing a cell, and it cannot be scanned. Bill, paid, still owed: three
+  // amounts, right-aligned, tabular, every row the same shape.
   const headers = [
     { label: 'Date' },
     { label: 'Product / supplier' },
-    { label: 'Outstanding' },
-    { label: 'Amount', className: 'text-right' },
+    { label: 'Bill', className: 'text-right' },
+    { label: 'Paid', className: 'text-right' },
+    { label: 'Outstanding', className: 'text-right' },
     { label: 'Status', className: 'text-center' },
     { label: '', className: 'text-right' },
   ];
-  const PUR_COLS = 6;
+  const PUR_COLS = 7;
 
   // Two-letter supplier initials for the neutral avatar.
   const initialsOf = (name) => (name || '?')
@@ -616,6 +624,9 @@ const PurchasesPage = () => {
                 <div className="text-[11.5px] text-muted-foreground truncate mt-0.5"
                      title={supplier?.name || bill.supplier_name || ''}>
                   <span className="text-ink-secondary">{supplier?.name || bill.supplier_name || '—'}</span>
+                  {/* Cash or credit belongs with the supplier, not in a money
+                      column. It is a term of the bill, not an amount. */}
+                  {' · '}{credit ? 'Credit' : (bill.payment_type || 'Cash')}
                   {' · '}{qtyTotal}{multi ? ` in ${bill.lines.length}` : ''}
                   {' · '}<span className="tabular-nums text-[10px] opacity-70">{bill.id.split('-').pop()}</span>
                   {bill.bill_no ? <span className="opacity-70"> · bill {bill.bill_no}</span> : null}
@@ -627,66 +638,38 @@ const PurchasesPage = () => {
         {/* Settlement — a meter reads paid against due before any number does.
             This was three stacked strings (label, paid, due) in a narrow cell;
             the proportion is the thing you actually want at a glance. */}
-        <td className={pad}>
-          {(() => {
-            const settled = due <= 0.5;
-
-            // A settled bill is the ordinary case and says nothing. It used to
-            // carry a full-width green meter at 100%, the word "Settled" in
-            // green, the payment method, and a green status pill -- the same
-            // fact four times, in the widest column, in the strongest colour on
-            // the page. Identical on every settled row, so it distinguished
-            // nothing; and because an unpaid bill's meter is PARTLY EMPTY, the
-            // six rows that actually wanted attention read as quieter than the
-            // seventy-three that did not.
-            //
-            // Ink is spent on exceptions now. Settled rows carry one muted word
-            // saying how it was paid; the status pill already says Received.
-            if (settled) {
-              return (
-                <span className="text-[11px] text-muted-foreground">
-                  {credit ? 'Paid' : (bill.payment_type || 'Cash')}
-                </span>
-              );
-            }
-
-            // Money still owed, as money -- the number first, at the weight the
-            // amount column uses, because that is what the row is asking for.
-            const pct = bill.total > 0 ? Math.max(0, Math.min(100, (paid / bill.total) * 100)) : 0;
-            return (
-              <div className="min-w-[132px]">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-[13px] font-semibold tabular-nums text-[color:var(--color-neg)] whitespace-nowrap">
-                    {formatCurrency(due)}
-                  </span>
-                  {overdue && (
-                    <span className="text-[10px] font-semibold text-[color:var(--color-neg)] whitespace-nowrap">
-                      {ageDays(bill)}d overdue
-                    </span>
-                  )}
-                </div>
-                {/* The meter survives only where a proportion means something:
-                    part-paid. It never renders at 0% or 100%. */}
-                {paid > 0.5 && !dense && (
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <div className="h-[3px] w-16 rounded-full bg-black/[0.07] overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--color-pos)' }} />
-                    </div>
-                    <span className="text-[10.5px] text-muted-foreground whitespace-nowrap">
-                      {formatCurrency(paid)} paid
-                    </span>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </td>
-        {/* Total */}
+        {/* Bill */}
         <td className={`${pad} text-right whitespace-nowrap`}>
-          {/* The amount, and only the amount. "62% settled" here restated the
-              cell immediately to its left, in a third wording. */}
-          <div className="tabular-nums text-[14px] font-semibold text-foreground">{formatCurrency(bill.total)}</div>
+          <span className="tabular-nums text-[13.5px] text-foreground">{formatCurrency(bill.total)}</span>
         </td>
+
+        {/* Paid. A dash, not a zero: nothing has been paid, which reads faster
+            as an absence than as the number nought. */}
+        <td className={`${pad} text-right whitespace-nowrap`}>
+          <span className={`tabular-nums text-[13.5px] ${paid > 0.5 ? 'text-foreground' : 'text-muted-foreground'}`}>
+            {paid > 0.5 ? formatCurrency(paid) : '—'}
+          </span>
+        </td>
+
+        {/* Outstanding — the column you scan. Always an amount or a dash,
+            never a payment method, a bar or a caption. */}
+        <td className={`${pad} text-right whitespace-nowrap`}>
+          {due > 0.5 ? (
+            <div>
+              <span className="tabular-nums text-[13.5px] font-semibold text-[color:var(--color-neg)]">
+                {formatCurrency(due)}
+              </span>
+              {overdue && !dense && (
+                <div className="text-[10px] font-semibold text-[color:var(--color-neg)] mt-0.5">
+                  {ageDays(bill)}d overdue
+                </div>
+              )}
+            </div>
+          ) : (
+            <span className="tabular-nums text-[13.5px] text-muted-foreground">—</span>
+          )}
+        </td>
+
         {/* Status select — drives every line of the bill together */}
         <td className={`${pad} text-center`} onClick={(e) => e.stopPropagation()}>
           {(() => {
