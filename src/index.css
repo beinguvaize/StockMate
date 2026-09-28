@@ -716,7 +716,12 @@ body {
    160ms, because this is a menu someone opens dozens of times an afternoon;
    anything slower is felt as lag rather than polish. */
 .menu-pop {
-  transform-origin: top right;
+  /* The menu is placed from the trigger's own rect, so its corner nearest the
+     trigger is the corner it should grow from. When there is no room below and
+     it flips above, that corner moves to the bottom -- the JS that decides the
+     flip sets --menu-origin with it. A popover that scales from its centre
+     reads as arriving from nowhere. */
+  transform-origin: var(--menu-origin, top right);
   animation: menuPop 160ms var(--ease-out) forwards;
 }
 
@@ -728,6 +733,33 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .menu-pop { animation: menuFade 120ms linear forwards; }
   @keyframes menuFade { from { opacity: 0 } to { opacity: 1 } }
+}
+
+/* ── A bill unfolding into its lines ────────────────────────────────────────
+   The lines are <tr>s inside a table, where animating height fights the
+   layout engine and janks the whole column. The cell CONTENT carries the
+   entrance instead: opacity plus a 3px lift, which is enough to register as
+   movement without moving anything the eye is reading.
+
+   Staggered 24ms so the lines read as unfolding out of the bill rather than
+   four rows blinking on at once, and capped at six steps -- past that the
+   stagger stops being sequence and becomes waiting. Exit is not animated: the
+   same click removes the rows, and the parent row's own ground colour changing
+   back is the signal. */
+.line-reveal {
+  animation: lineReveal var(--dur-press) var(--ease-out) both;
+}
+
+@keyframes lineReveal {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Reduced motion means gentler, not none -- the opacity still explains
+     where the rows came from; only the movement goes. */
+  .line-reveal { animation: lineFade var(--dur-press) linear both; }
+  @keyframes lineFade { from { opacity: 0 } to { opacity: 1 } }
 }
 
 @keyframes modalScaleUp {
