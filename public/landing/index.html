@@ -55,7 +55,7 @@
     </div>
     <div class="hidden md:flex gap-3 items-center">
       <a href="https://app.bookledger.in/login" class="text-sm font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
-      <a href="https://app.bookledger.in/register" class="bg-accent-solid text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-hover transition-colors">Get Started</a>
+      <a href="https://app.bookledger.in/register" class="bg-accent-solid text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-hover transition-colors">Get Started Free</a>
     </div>
     <a href="https://app.bookledger.in/register" class="md:hidden bg-accent-solid text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
   
@@ -77,97 +77,153 @@
 </nav>
 <main class="w-full">
 
-  <!-- 1 · The claim, and nothing competing with it -->
-  
-  <!-- 1 · The claim, and the product itself, in one view -->
-  <section data-reveal="off" class="max-w-[1180px] mx-auto px-6 lg:px-8 pt-16 lg:pt-24 pb-16">
-    <div class="grid lg:grid-cols-[minmax(0,44%)_minmax(0,56%)] gap-12 lg:gap-14 items-center">
+  <!-- 1 · The retailer, the counter, and the software in their hands ────────
+       The visual story is a real shop being run, not a picture of a dashboard.
+       The product appears twice and quietly: on the laptop the owner is using,
+       and in one small insight card. Everything else is the shop. -->
+  <section data-reveal="off" class="max-w-[1180px] mx-auto px-6 lg:px-8 pt-12 lg:pt-20 pb-14 lg:pb-20">
+    <div class="grid lg:grid-cols-[minmax(0,45%)_minmax(0,55%)] gap-10 lg:gap-x-14 lg:gap-y-8 items-start">
 
-      <div class="stage">
-        <div>
-          <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-text">GST billing · inventory · POS</span>
-          <span class="draw block h-px w-16 bg-accent mt-3"></span>
-        </div>
-        <h1 class="mt-6 text-[2.6rem] md:text-[3.4rem] font-light tracking-[-0.03em] leading-[1.02]">
-          The internet goes down.<br/><span class="font-normal">Your counter doesn't.</span>
+      <!-- ── Left: the claim ─────────────────────────────────────────────── -->
+      <div class="stage order-1 lg:col-start-1 lg:row-start-1 lg:pt-6">
+        <span class="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/[0.07] px-3.5 py-1.5 text-[12px] font-semibold text-accent-text">
+          <span class="mono">₹</span> Built for Indian retail businesses
+        </span>
+
+        <h1 class="mt-6 text-[2.3rem] sm:text-[2.9rem] lg:text-[2.65rem] xl:text-[3.15rem] font-extrabold tracking-[-0.035em] leading-[1.04]">
+          Simplify your retail<br/>
+          <!-- The highlighted half is one unbroken line: the drawn underline
+               is a single stroke across its box, so a wrap would run it under
+               both lines and read as a highlighter block. -->
+          <span class="relative inline-block whitespace-normal sm:whitespace-nowrap text-accent-text">
+            business operations
+            <!-- A drawn underline, not a rectangle: it is the one hand-made
+                 mark on an otherwise machined page, so it stays a single
+                 stroke and never becomes a highlighter block. -->
+            <svg class="hidden sm:block absolute left-0 -bottom-2 w-full h-[14px] overflow-visible" viewBox="0 0 320 14" fill="none" preserveAspectRatio="none" aria-hidden="true">
+              <path class="underline-draw" d="M3 9.5C54 4.2 118 2.6 180 4.1c42 1 89 3.4 137 6.6" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" opacity="0.5"/>
+            </svg>
+          </span>
         </h1>
-        <p class="mt-6 max-w-[30rem] text-lg text-secondary font-light leading-relaxed">
-          Bill, track stock, chase dues and file GSTR — on web, desktop and a free Android app.
-          Sales keep going when the line drops, and sync the moment it returns.
+
+        <p class="mt-7 max-w-[32rem] text-[17px] leading-relaxed text-secondary">
+          bookledger is a modern, all-in-one platform for Indian retailers — run your POS, inventory,
+          billing, expenses, receivables, payroll and GST in one place. It keeps billing when the
+          internet drops, and syncs the moment it returns.
         </p>
-        <div class="mt-8 flex flex-wrap items-center gap-4">
-          <a href="https://app.bookledger.in/register" class="bg-accent-solid text-white text-sm font-semibold px-6 py-3 rounded-full hover:bg-accent-hover transition-colors">Try free for 60 days</a>
-          <a href="features.html" class="text-sm font-semibold px-6 py-3 rounded-full border border-line hover:border-secondary transition-colors">See what it does</a>
-          <span class="text-xs text-secondary">No card. The mobile app stays free.</span>
+
+        <div class="mt-8 flex flex-wrap items-center gap-3">
+          <a href="https://app.bookledger.in/register"
+             class="group inline-flex items-center gap-2 bg-accent-solid text-white text-[15px] font-semibold px-7 py-3.5 rounded-full shadow-[0_10px_30px_-12px_rgba(180,83,9,0.65)] hover:bg-accent-hover transition-[background-color,transform] duration-150 active:scale-[0.98]">
+            Start free for 60 days
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+          </a>
+          <a href="features.html"
+             class="inline-flex items-center gap-2 bg-canvas text-[15px] font-semibold px-6 py-3.5 rounded-full border border-line hover:border-secondary transition-[border-color,transform] duration-150 active:scale-[0.98]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z" fill="currentColor" stroke="none"/></svg>
+            See how it works
+          </a>
         </div>
+        <p class="mt-3 text-[12.5px] text-secondary">No card needed. The Android app stays free.</p>
+
       </div>
 
-      <!-- The product, not a picture of the product. Live markup, so it is
-           sharp on any screen, follows the site's own tokens, and the
-           connection can actually drop in front of you. -->
-      <div class="settle">
-        <div class="rounded-[18px] bg-canvas border border-line shadow-[0_28px_70px_-28px_rgba(26,24,21,0.28)] overflow-hidden">
-          <div class="flex items-center gap-2 px-4 py-3 border-b border-line bg-surface">
-            <span class="w-2.5 h-2.5 rounded-full bg-line"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-line"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-line"></span>
-            <div class="ml-2 flex items-center gap-2 text-[11px] mono text-secondary">
-              <img src="bookledger-logo.png" alt="" class="h-4 w-auto"/> · Sunrise Traders
-            </div>
-            <span class="ml-auto grid offline-seq text-[10px] mono font-bold">
-              <span class="seq-state" data-beat="1"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-ok">● Synced</span></span>
-              <span class="seq-state" data-beat="2"><span class="px-2 py-0.5 rounded-full bg-stone-100 text-secondary">● No internet</span></span>
-              <span class="seq-state" data-beat="3"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-ok">● Synced 1 bill</span></span>
+      <!-- Capabilities sit in their own grid cell so the phone can show the
+           shop BEFORE them, which is the order the eye wants: what is this,
+           who is it for, then what is in it. -->
+      <div class="order-3 lg:order-none lg:col-start-1 lg:row-start-2">
+        <!-- Five capabilities, compact. Indicators, not cards: no box, no
+             shadow, no hover lift -- they sit under the CTA to say "this is
+             the scope", and nothing more. -->
+        <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-x-6 gap-y-4">
+          <li class="flex items-start gap-2.5">
+            <span class="mt-0.5 grid place-items-center w-8 h-8 shrink-0 rounded-full bg-accent/[0.09] text-accent-text">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h4"/></svg>
             </span>
+            <span class="min-w-0">
+              <span class="block text-[13.5px] font-bold leading-tight">POS &amp; billing</span>
+              <span class="block text-[12px] text-secondary leading-tight mt-0.5">Fast, and offline</span>
+            </span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="mt-0.5 grid place-items-center w-8 h-8 shrink-0 rounded-full bg-accent/[0.09] text-accent-text">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+            </span>
+            <span class="min-w-0">
+              <span class="block text-[13.5px] font-bold leading-tight">Inventory</span>
+              <span class="block text-[12px] text-secondary leading-tight mt-0.5">Real-time stock</span>
+            </span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="mt-0.5 grid place-items-center w-8 h-8 shrink-0 rounded-full bg-accent/[0.09] text-accent-text">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 3 6-7"/><path d="M21 8v5h-5"/><path d="M3 21h18"/></svg>
+            </span>
+            <span class="min-w-0">
+              <span class="block text-[13.5px] font-bold leading-tight">Expenses &amp; dues</span>
+              <span class="block text-[12px] text-secondary leading-tight mt-0.5">Better cash flow</span>
+            </span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="mt-0.5 grid place-items-center w-8 h-8 shrink-0 rounded-full bg-accent/[0.09] text-accent-text">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0111 0"/><path d="M16 8.2a3 3 0 010 5.6M18.5 5.5a6 6 0 010 11"/></svg>
+            </span>
+            <span class="min-w-0">
+              <span class="block text-[13.5px] font-bold leading-tight">Payroll</span>
+              <span class="block text-[12px] text-secondary leading-tight mt-0.5">Your team, simplified</span>
+            </span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="mt-0.5 grid place-items-center w-8 h-8 shrink-0 rounded-full bg-accent/[0.09] text-accent-text">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9.5 13h5M9.5 17h5"/></svg>
+            </span>
+            <span class="min-w-0">
+              <span class="block text-[13.5px] font-bold leading-tight">GST &amp; reports</span>
+              <span class="block text-[12px] text-secondary leading-tight mt-0.5">Stay compliant</span>
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- ── Right: the shop ─────────────────────────────────────────────── -->
+      <div class="settle order-2 lg:col-start-2 lg:row-start-1 lg:row-span-2 relative">
+        <figure class="relative m-0">
+          <!-- The shop, not a screenshot of the software. The product is in
+               the picture twice and quietly: the mark on the laptop lid, and
+               the one insight card below. Two crops, because the column is
+               tall and narrow on a desktop and a short wide band on a phone. -->
+          <picture>
+            <source media="(max-width: 1023px)" srcset="retailer-counter-wide.jpg" width="1100" height="550"/>
+            <img src="retailer-counter.jpg" width="1500" height="1000"
+                 alt="A shop owner at the counter of their grocery store, working on a laptop running bookledger, with a card machine and phone beside them."
+                 class="w-full rounded-[22px] border border-line shadow-[0_30px_80px_-32px_rgba(26,24,21,0.35)] aspect-[11/5] lg:aspect-[4/3] object-cover"
+                 fetchpriority="high" decoding="async"/>
+          </picture>
+
+          <!-- One insight card. It sits ON the photograph, upper right, and is
+               the only piece of product UI in the hero. -->
+          <div class="float-card absolute -top-4 right-2 sm:right-6 w-[170px] sm:w-[190px] rounded-2xl bg-canvas border border-line shadow-[0_18px_44px_-18px_rgba(26,24,21,0.35)] px-4 py-3.5">
+            <div class="text-[10px] font-bold uppercase tracking-[0.14em] text-secondary">Today's sales</div>
+            <div class="mono text-[24px] font-extrabold leading-none mt-1.5">₹24,580</div>
+            <div class="mt-2 flex items-center gap-1.5 text-[11.5px] font-bold text-ok">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 15l7-7 7 7"/></svg>
+              18% vs last week
+            </div>
           </div>
 
-          <div class="p-5 bg-surface seq-dim">
-            <div class="grid grid-cols-3 gap-px bg-line rounded-xl overflow-hidden border border-line">
-              <div class="bg-canvas px-4 py-3.5">
-                <div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Today</div>
-                <div class="mono text-xl font-bold mt-1.5"><span class="text-accent-text text-sm">₹</span>84,200</div>
-                <div class="text-[10px] font-bold text-ok mt-1">▲ 12%</div>
-              </div>
-              <div class="bg-canvas px-4 py-3.5">
-                <div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Outstanding</div>
-                <div class="mono text-xl font-bold mt-1.5"><span class="text-accent-text text-sm">₹</span>22,150</div>
-                <div class="text-[10px] font-bold text-secondary mt-1">5 clients</div>
-              </div>
-              <div class="bg-canvas px-4 py-3.5">
-                <div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Stock value</div>
-                <div class="mono text-xl font-bold mt-1.5"><span class="text-accent-text text-sm">₹</span>1,21,326</div>
-                <div class="text-[10px] font-bold text-secondary mt-1">21 SKUs</div>
-              </div>
-            </div>
+          <figcaption class="sr-only">A bookledger customer running their shop from the counter.</figcaption>
+        </figure>
 
-            <div class="mt-4 rounded-xl border border-line bg-canvas overflow-hidden">
-              <div class="px-4 py-2.5 border-b border-line flex items-center justify-between">
-                <span class="text-[11px] font-bold uppercase tracking-widest text-secondary">Today's bills</span>
-                <span class="text-[10px] mono text-secondary">4 · ₹54,930</span>
-              </div>
-              <div class="divide-y divide-line">
-                <div class="px-4 py-2.5 flex items-center justify-between text-[12px]">
-                  <span class="font-medium">Sharma Kirana</span><span class="mono font-semibold">₹12,400</span>
-                </div>
-                <div class="px-4 py-2.5 flex items-center justify-between text-[12px]">
-                  <span class="font-medium">Anwar Traders</span><span class="mono font-semibold">₹1,450</span>
-                </div>
-                <div class="px-4 py-2.5 flex items-center justify-between text-[12px]">
-                  <span class="font-medium">Lakshmi Stores</span>
-                  <span class="mono font-semibold">₹33,200 <span class="text-[10px] font-bold text-accent-text ml-1">CREDIT</span></span>
-                </div>
-                <!-- the bill taken while the line was down -->
-                <div class="seq-bill px-4 py-2.5 flex items-center justify-between text-[12px] bg-accent/[0.05]">
-                  <span class="font-medium">Malik Provisions</span>
-                  <span class="mono font-semibold">₹7,880
-                    <span class="seq-held text-[10px] font-bold text-secondary ml-1">HELD ON DEVICE</span>
-                    <span class="seq-sent text-[10px] font-bold text-ok ml-1">SYNCED</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-            <p class="mt-3 text-[10.5px] text-secondary">Illustrative figures.</p>
-          </div>
+      </div>
+
+      <!-- Trust sits last on a phone, after the capabilities, and tucks under
+           the photograph on a desktop. -->
+      <div class="order-4 lg:order-none lg:col-start-2 lg:row-start-3 lg:-mt-2">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-secondary">
+          <span class="font-semibold text-primary">Made in India, for Indian shops</span>
+          <span class="text-line" aria-hidden="true">•</span>
+          <span>Works offline</span>
+          <span class="text-line" aria-hidden="true">•</span>
+          <span>GST-ready invoices</span>
         </div>
       </div>
 
