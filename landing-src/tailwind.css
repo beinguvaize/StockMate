@@ -86,3 +86,28 @@
     transform: none;
   }
 }
+
+/* ── The hand-drawn underline ──────────────────────────────────────────────
+   Drawn once, after the headline has arrived, so it reads as someone marking
+   the important half of the sentence rather than as a shape that was always
+   there. Stroke length is the real path length; 340 covers it with room. */
+@keyframes underlineDraw {
+  from { stroke-dasharray: 340; stroke-dashoffset: 340; }
+  to   { stroke-dasharray: 340; stroke-dashoffset: 0; }
+}
+.js .underline-draw { animation: underlineDraw .75s cubic-bezier(.16, 1, .3, 1) .55s both; }
+
+/* ── The insight card ──────────────────────────────────────────────────────
+   A slow, small float -- 6px over 6s. Enough that the card reads as sitting
+   in front of the photograph rather than glued to it, and slow enough that
+   nobody watching the headline notices it moving. */
+@keyframes cardFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.js .float-card { animation: cardFloat 6s ease-in-out 1.2s infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .js .underline-draw { animation: none; stroke-dashoffset: 0; }
+  .js .float-card { animation: none; }
+}
