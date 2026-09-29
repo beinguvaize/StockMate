@@ -111,3 +111,14 @@
   .js .underline-draw { animation: none; stroke-dashoffset: 0; }
   .js .float-card { animation: none; }
 }
+
+/* The headline's orange is a step brighter than the one text uses elsewhere.
+   #E8590C measures 3.57:1 on white: short of the 4.5:1 body text needs, clear
+   of the 3:1 that text at 24px and above needs. It is therefore allowed on the
+   headline and nowhere else -- `accent-text` stays the value for running text. */
+@theme {
+  --color-accent-bright: #E8590C;
+}
+
+/* One hand-written face, for one mark on the page. */
+.script { font-family: 'Caveat', 'Segoe Script', cursive; }
