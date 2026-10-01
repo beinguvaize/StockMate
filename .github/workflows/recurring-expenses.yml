@@ -50,3 +50,15 @@ jobs:
                    generate_due_recurring_invoices) || exit 2
           echo "Generated $(printf '%s' "$resp" | jq 'length') recurring invoice(s)."
           printf '%s' "$resp" | jq '[.[] | {invoice_number, client_name, grand_total}]'
+
+  # A cron job's red cross is addressed to nobody. These four failed every run
+  # from June to October without anyone noticing.
+  notify:
+    needs: [generate]
+    if: always() && github.event_name == 'schedule'
+    uses: ./.github/workflows/scheduled-failure-issue.yml
+    with:
+      job: Recurring expense generator
+      outcome: ${{ needs.generate.result }}
+    permissions:
+      issues: write

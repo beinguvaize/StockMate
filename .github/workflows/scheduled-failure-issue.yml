@@ -1,0 +1,92 @@
+# Turn a silently failing scheduled job into an issue that nags.
+#
+# Four scheduled workflows -- the backup, the schema guard, the nightly audit
+# and the recurring-expense generator -- failed every run from June to October
+# and nobody noticed, because a red cross on a cron job is not addressed to
+# anyone. The cost was not the red cross:
+#
+#   - no production backup has ever succeeded
+#   - recurring expenses stopped being generated for every tenant
+#   - the overload guard that exists to catch PGRST203 was not running
+#
+# Each of those is the sort of thing you find out about from a customer. So a
+# failed scheduled run now opens an issue, and a run that keeps failing comments
+# on the same issue rather than opening a new one every night. When it passes
+# again, the issue closes itself.
+
+name: Scheduled failure → issue
+
+on:
+  workflow_call:
+    inputs:
+      job:
+        description: Human name of the job that failed, used as the issue title.
+        required: true
+        type: string
+      outcome:
+        description: '"failure" opens or updates the issue; "success" closes it.'
+        required: true
+        type: string
+
+permissions:
+  issues: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const job = ${{ toJSON(inputs.job) }};
+            const outcome = ${{ toJSON(inputs.outcome) }};
+            const title = `Scheduled job failing: ${job}`;
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            // Find an existing open issue for THIS job, so a job failing every
+            // night leaves one thread rather than ninety.
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'scheduled-failure',
+              per_page: 100,
+            });
+            const existing = open.find((i) => i.title === title);
+
+            if (outcome === 'success') {
+              if (existing) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  issue_number: existing.number,
+                  body: `Passing again as of ${run}. Closing.`,
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  issue_number: existing.number, state: 'closed',
+                });
+              }
+              return;
+            }
+
+            const body = [
+              `**${job}** failed.`,
+              ``,
+              `Run: ${run}`,
+              ``,
+              `This job runs on a schedule, so nothing else will tell you it is broken.`,
+              `It will keep commenting here each time it fails, and close itself once it passes.`,
+            ].join('\n');
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Failed again — ${run}`,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['scheduled-failure'],
+              });
+            }

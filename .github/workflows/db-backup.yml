@@ -100,3 +100,15 @@ jobs:
             exit 1
           fi
           echo "✓ Backup verified in R2: daily/${file} (${size} bytes)"
+
+  # A cron job's red cross is addressed to nobody. These four failed every run
+  # from June to October without anyone noticing.
+  notify:
+    needs: [backup]
+    if: always() && github.event_name == 'schedule'
+    uses: ./.github/workflows/scheduled-failure-issue.yml
+    with:
+      job: Nightly DB backup to R2
+      outcome: ${{ needs.backup.result }}
+    permissions:
+      issues: write
