@@ -15,6 +15,9 @@ import 'package:mobile_app/features/clients_suppliers/data/statement_credits.dar
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_products_card.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/main.dart' show syncServiceProvider;
+import 'package:mobile_app/features/clients_suppliers/data/models/client_payment.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
 
 // ─── Data model ───────────────────────────────────────────────────────────────
 class _StatementRow {
@@ -34,6 +37,16 @@ class _StatementRow {
   /// up, instead of two paths that drift apart.
   final Invoice? bill;
 
+  /// The receipt this row IS, when it is a real client_payments row.
+  ///
+  /// Only those can be edited. Most PAYMENT rows on this statement are not
+  /// records at all: they are credits synthesised from a sale's own paidAmount
+  /// (see creditRows), and there is nothing in client_payments to edit. Giving
+  /// them an edit action would either do nothing or send someone editing a
+  /// sale while they believe they are editing a receipt, so the action is
+  /// offered on exactly the rows that have one of these.
+  final ClientPayment? payment;
+
   _StatementRow({
     required this.date,
     required this.description,
@@ -41,6 +54,7 @@ class _StatementRow {
     required this.credit,
     required this.type,
     this.bill,
+    this.payment,
   });
 }
 
@@ -279,6 +293,7 @@ class ClientStatementSheet extends ConsumerWidget {
           debit: 0,
           credit: payment.amount,
           type: 'PAYMENT',
+          payment: payment,
         ));
       }
 
@@ -673,12 +688,12 @@ class _KpiTile extends StatelessWidget {
 }
 
 // ─── Ledger card ──────────────────────────────────────────────────────────────
-class _LedgerCard extends StatelessWidget {
+class _LedgerCard extends ConsumerWidget {
   final _StatementRow row;
   const _LedgerCard({required this.row});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isDebit    = row.type == 'SALE' || row.type == 'INVOICE';
     final balColor   = row.balance > 0.005 ? AppColors.danger : AppColors.success;
     final balLabel   = row.balance > 0.005
@@ -710,13 +725,17 @@ class _LedgerCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _TypePill(type: row.type),
-                  // Only bill rows open anything, so only they get the hint.
-                  // A chevron on a payment row would promise a screen that
-                  // does not exist.
+                  // The hint marks rows that actually open something: a bill
+                  // row opens the bill, a receipt row opens its editor. A
+                  // synthesised credit opens nothing and gets no hint.
                   if (row.bill != null) ...[
                     const SizedBox(width: 4),
                     const Icon(LucideIcons.chevronRight,
                         size: 13, color: AppColors.inkTertiary),
+                  ] else if (row.payment != null) ...[
+                    const SizedBox(width: 4),
+                    const Icon(LucideIcons.pencil,
+                        size: 12, color: AppColors.inkTertiary),
                   ],
                 ],
               ),
@@ -782,16 +801,30 @@ class _LedgerCard extends StatelessWidget {
 
     // A bill row opens the bill. Without this the statement tells you a bill
     // exists and then makes you go and find it in the invoice list — with the
-    // date and amount held in your head. Payment rows have no bill to open, so
-    // they stay inert rather than pretending to be tappable.
-    if (row.bill == null) return card;
-    return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => InvoiceDetailScreen(invoice: row.bill!)),
-      ),
-      borderRadius: BorderRadius.circular(16),
-      child: card,
-    );
+    // date and amount held in your head.
+    if (row.bill != null) {
+      return InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => InvoiceDetailScreen(invoice: row.bill!)),
+        ),
+        borderRadius: BorderRadius.circular(16),
+        child: card,
+      );
+    }
+
+    // A receipt row opens its own editor. A receipt typed at the counter is
+    // the entry most likely to be wrong -- a digit, a method, a date -- and
+    // until now the only fix on a phone was to leave it wrong.
+    if (row.payment != null) {
+      return InkWell(
+        onTap: () => _openPaymentEditor(context, ref, row.payment!),
+        borderRadius: BorderRadius.circular(16),
+        child: card,
+      );
+    }
+
+    // A credit synthesised from a sale is not a record; nothing to open.
+    return card;
   }
 
   /// "2026-05-17" → "17 May 2026"
@@ -807,6 +840,297 @@ class _LedgerCard extends StatelessWidget {
     } catch (_) {
       return iso;
     }
+  }
+}
+
+
+// ─── Receipt editor ───────────────────────────────────────────────────────────
+//
+// Both actions go to the server as ONE statement each: edit_client_payment and
+// delete_client_payment. Neither is a table write from here.
+//
+// That matters more than it looks. Changing a receipt is not changing a row: it
+// re-pools every receipt for that client and re-applies them FIFO across their
+// credit sales, rewriting paidAmount and paymentStatus on each sale and its
+// invoice, then recomputing outstanding -- and the ledger triggers drop and
+// repost the cash entry. Doing that from a phone, statement by statement, is
+// how a half-applied edit leaves a receipt changed and the sales still showing
+// the old figure, with outstanding matching neither.
+Future<void> _openPaymentEditor(
+  BuildContext context,
+  WidgetRef ref,
+  ClientPayment payment,
+) async {
+  final changed = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _PaymentEditorSheet(payment: payment),
+  );
+  if (changed == true) {
+    ref.invalidate(clientPaymentsForClientProvider(payment.clientId));
+    ref.invalidate(clientPaymentsProvider);
+    ref.invalidate(saleReceiptsForClientProvider(payment.clientId));
+    ref.invalidate(recentSalesProvider);
+    ref.invalidate(invoicesProvider);
+    ref.invalidate(clientsProvider);
+  }
+}
+
+class _PaymentEditorSheet extends ConsumerStatefulWidget {
+  final ClientPayment payment;
+  const _PaymentEditorSheet({required this.payment});
+
+  @override
+  ConsumerState<_PaymentEditorSheet> createState() => _PaymentEditorSheetState();
+}
+
+class _PaymentEditorSheetState extends ConsumerState<_PaymentEditorSheet> {
+  late final TextEditingController _amount =
+      TextEditingController(text: _trimAmount(widget.payment.amount));
+  late final TextEditingController _notes =
+      TextEditingController(text: widget.payment.notes ?? '');
+  late String _method = widget.payment.paymentMethod.toUpperCase();
+  late DateTime _date =
+      DateTime.tryParse(widget.payment.date) ?? DateTime.now();
+  bool _busy = false;
+  String? _error;
+
+  static String _trimAmount(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _notes.dispose();
+    super.dispose();
+  }
+
+  String get _iso =>
+      '${_date.year.toString().padLeft(4, '0')}-'
+      '${_date.month.toString().padLeft(2, '0')}-'
+      '${_date.day.toString().padLeft(2, '0')}';
+
+  Future<void> _save() async {
+    final amount = double.tryParse(_amount.text.trim());
+    // The server raises on a non-positive amount. Saying so here costs one
+    // comparison and saves a round trip that ends in a red snackbar.
+    if (amount == null || amount <= 0) {
+      setState(() => _error = 'Enter an amount greater than zero.');
+      return;
+    }
+    setState(() { _busy = true; _error = null; });
+    try {
+      final ctx = await ref.read(tenantContextProvider.future);
+      if (ctx == null) throw 'No tenant. Sign in again.';
+      final queued = await ref.read(syncServiceProvider).rpcOnlineOrQueue(
+        'edit_client_payment',
+        {
+          'p_tenant_id': ctx.tenantId,
+          'p_payment_id': widget.payment.id,
+          'p_amount': amount,
+          'p_method': _method,
+          'p_date': _iso,
+          'p_notes': _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+        },
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+      _toast(context, queued
+          ? 'Saved offline — the receipt updates when you reconnect.'
+          : 'Receipt updated.');
+    } catch (e) {
+      // Never swallow the reason: a bare "could not save" here hides a server
+      // rejection that the person could act on.
+      if (mounted) setState(() { _busy = false; _error = '$e'; });
+    }
+  }
+
+  Future<void> _delete() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('Delete this receipt?'),
+        content: Text(
+          'The ${_fmtRupee(widget.payment.amount)} comes back off this '
+          'customer’s account and their bills are re-settled from what is '
+          'left. This can be undone only by entering the receipt again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(false),
+            child: const Text('Keep it'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    setState(() { _busy = true; _error = null; });
+    try {
+      final ctx = await ref.read(tenantContextProvider.future);
+      if (ctx == null) throw 'No tenant. Sign in again.';
+      final queued = await ref.read(syncServiceProvider).rpcOnlineOrQueue(
+        'delete_client_payment',
+        {'p_tenant_id': ctx.tenantId, 'p_payment_id': widget.payment.id},
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+      _toast(context, queued
+          ? 'Deleted offline — it reverses when you reconnect.'
+          : 'Receipt deleted.');
+    } catch (e) {
+      if (mounted) setState(() { _busy = false; _error = '$e'; });
+    }
+  }
+
+  static void _toast(BuildContext context, String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: inset),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 38, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Edit receipt', style: AppText.heading),
+            const SizedBox(height: 4),
+            Text(
+              'Recorded ${_LedgerCard._fmtDate(widget.payment.date)}',
+              style: AppText.label.copyWith(color: AppColors.inkTertiary),
+            ),
+            const SizedBox(height: 18),
+
+            Text('Amount', style: AppText.label.copyWith(color: AppColors.inkTertiary)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _amount,
+              autofocus: true,
+              enabled: !_busy,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: AppText.money,
+              decoration: const InputDecoration(
+                prefixText: '₹ ',
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            Text('Method', style: AppText.label.copyWith(color: AppColors.inkTertiary)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final m in const ['CASH', 'UPI', 'BANK', 'CARD', 'CHEQUE'])
+                  ChoiceChip(
+                    label: Text(_methodLabel(m)),
+                    selected: _method == m,
+                    onSelected: _busy ? null : (_) => setState(() => _method = m),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            Text('Date', style: AppText.label.copyWith(color: AppColors.inkTertiary)),
+            const SizedBox(height: 6),
+            OutlinedButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _date,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now().add(const Duration(days: 1)),
+                      );
+                      if (picked != null) setState(() => _date = picked);
+                    },
+              icon: const Icon(LucideIcons.calendar, size: 16),
+              label: Text(_LedgerCard._fmtDate(_iso)),
+            ),
+            const SizedBox(height: 16),
+
+            Text('Note', style: AppText.label.copyWith(color: AppColors.inkTertiary)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _notes,
+              enabled: !_busy,
+              decoration: const InputDecoration(
+                hintText: 'Optional',
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+            ),
+
+            if (_error != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.danger.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  _error!,
+                  style: AppText.label.copyWith(color: AppColors.danger),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: _busy ? null : _delete,
+                  icon: const Icon(LucideIcons.trash2, size: 16),
+                  label: const Text('Delete'),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+                ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: _busy ? null : _save,
+                  child: _busy
+                      ? const SizedBox(
+                          width: 16, height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Save changes'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
