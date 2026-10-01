@@ -24,23 +24,42 @@ async function openPurchases(page) {
   await page.waitForTimeout(400);
 }
 
-test('every row has the same shape: bill, paid, outstanding', async ({ page }) => {
-  // The column this replaced held a payment method on settled rows and an
-  // amount on unpaid ones, plus a bar on some of them -- three kinds of thing
-  // in one column, which is what stops a table being scannable. Now each money
-  // column holds one kind of value in every row.
+/** A row of the register, never the day band above it. The band totals the
+ *  day, so it contains the same figures as the rows it covers and a plain
+ *  hasText match finds it first. The band is one cell spanning the table; a
+ *  row has four. */
+const billRow = (page, text) =>
+  page.locator('tr').filter({ hasText: text }).filter({ has: page.locator('td:nth-child(4)') });
+
+test('a settled bill carries one money figure and nothing else', async ({ page }) => {
+  // Measured on the live book: Outstanding was blank on 195 purchases of 205
+  // and Status read RECEIVED on all 205. Both are gone as columns. A settled
+  // row is now the amount and nothing beside it -- not a dash standing in for
+  // a column that had nothing to say.
   await openPurchases(page);
 
-  const settled = page.locator('tr', { hasText: '₹13,800.00' }).first();
+  const settled = billRow(page, '₹13,800.00').first();
   await expect(settled).toBeVisible();
-  // settled: billed, nothing outstanding — a dash, not a zero
-  await expect(settled).toContainText('—');
-  await expect(settled).not.toContainText('Settled');
-  // no meter anywhere on the row
-  expect(await settled.locator('div[style*="width:"]').count()).toBe(0);
-
-  // and the terms moved to the supplier line, out of the money columns
+  await expect(settled).toContainText('₹13,800.00');
+  await expect(settled).not.toContainText('due');
+  await expect(settled).not.toContainText('—');
+  // the status dropdown is gone from the row; it lives in the row's menu
+  expect(await settled.locator('select').count()).toBe(0);
+  // terms sit under the supplier, out of the money column
   await expect(settled).toContainText(/Cash|Credit/i);
+});
+
+test('the day is a band, and it carries the day total', async ({ page }) => {
+  // The date left the rows so it could be stated once per day. The exchange is
+  // that the screen can finally total a day -- nothing in the old layout had a
+  // scope wider than one row.
+  await openPurchases(page);
+
+  const band = page.locator('tr', { hasText: /\d+ bills?/ }).first();
+  await expect(band).toBeVisible();
+  await expect(band).toContainText(/₹[\d,]+/);
+  // one cell spanning the table, not a row of columns
+  expect(await band.locator('td').count()).toBe(1);
 });
 
 test('an unpaid bill shows what is owed, and what was paid under it', async ({ page }) => {
@@ -49,17 +68,17 @@ test('an unpaid bill shows what is owed, and what was paid under it', async ({ p
   // Paid is no longer a column: on 73 of 79 bills it repeated Amount. It
   // survives only where it differs, as a second line under the outstanding
   // figure -- the one place two numbers mean two things.
-  const row = page.locator('tr', { hasText: '₹32,320.00' }).first();
-  await expect(row).toContainText('₹32,320.00');   // billed
-  await expect(row).toContainText('₹20,320.00');   // still owed
+  const row = billRow(page, '₹32,320.00').first();
+  await expect(row).toContainText('₹32,320.00');        // billed
+  await expect(row).toContainText('₹20,320.00 due');    // still owed, under it
   await expect(row).toContainText('₹12,000.00 paid');
   expect(await row.locator('div[style*="width:"]').count()).toBe(0);
 });
 
 test('an overdue bill says how late it is', async ({ page }) => {
   await openPurchases(page);
-  const overdue = page.locator('tr', { hasText: '₹9,300.00' }).first();
-  await expect(overdue).toContainText(/\d+d overdue/);
+  const overdue = billRow(page, '₹9,300.00').first();
+  await expect(overdue).toContainText(/\d+d late/);
 });
 
 test('money owed passes contrast where it is drawn', async ({ page }) => {
@@ -68,8 +87,8 @@ test('money owed passes contrast where it is drawn', async ({ page }) => {
   // Use the locator that the other assertions already rely on, rather than
   // re-finding the node by hand inside evaluate -- a hand-rolled selector that
   // misses reports "no element" and a test that skips is not a test.
-  const due = page.locator('tr', { hasText: '₹32,320.00' })
-    .locator('span', { hasText: '₹20,320.00' }).first();
+  const due = billRow(page, '₹32,320.00')
+    .locator('div', { hasText: '₹20,320.00' }).last();
   await expect(due).toBeVisible();
 
   const ratio = await due.evaluate((el) => {
@@ -130,19 +149,22 @@ test('an opened bill keeps its lines under the same columns', async ({ page }) =
   // and not the second, so this measures where they actually sit.
   await openPurchases(page);
 
-  const billRow = page.locator('tr', { hasText: '₹17,250.00' }).first();
-  await expect(billRow).toBeVisible();
-  const cells = await billRow.locator('td').count();
+  const row = billRow(page, '₹17,250.00').first();
+  await expect(row).toBeVisible();
+  const cells = await row.locator('td').count();
 
-  await billRow.click();
+  await row.click();
   await page.waitForTimeout(400);
 
-  const childRow = page.locator('tr').filter({ hasText: '₹6,250.00' }).first();
+  const childRow = billRow(page, '₹6,250.00').first();
   await expect(childRow).toBeVisible();
   expect(await childRow.locator('td').count()).toBe(cells);
 
   const align = await page.evaluate(() => {
-    const rows = [...document.querySelectorAll('tr')];
+    // Rows only -- the day band totals the day, so it carries the same figures
+    // and would otherwise be compared against a line as if it were a row.
+    const rows = [...document.querySelectorAll('tr')]
+      .filter(r => r.querySelectorAll('td').length === 4);
     const bill = rows.find(r => /17,250/.test(r.textContent));
     const line = rows.find(r => /6,250/.test(r.textContent));
     if (!bill || !line) return null;

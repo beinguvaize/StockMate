@@ -53,7 +53,7 @@ const PurchasesPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   // Date now lives in the row gutter, so grouping by it as well would say the
   // same thing twice and cost a row each time.
-  const [groupBy, setGroupBy] = useState('NONE'); // NONE | SUPPLIER | DATE
+  const [groupBy, setGroupBy] = useState('DATE'); // DATE | SUPPLIER | NONE
   const [expandedBill, setExpandedBill] = useState(null); // bill id whose products are open
   // Row density. 52-56px is the readable default for an enterprise table and
   // 40-44px the compact one; compact drops the supplier line and the settlement
@@ -72,11 +72,12 @@ const PurchasesPage = () => {
   const [menuPos, setMenuPos]       = useState({ top: 0, left: 0, origin: 'top right' });
   const openMenu = (e, pur) => {
     const r = e.currentTarget.getBoundingClientRect();
-    // Six items at 33px plus padding. The last rows of a long table are exactly
-    // where the menu is most needed and where it used to open off the bottom of
-    // the window, so it flips above when there is no room -- and the corner it
-    // grows from flips with it.
-    const H = 212;
+    // Six items at 33px, plus the status block (a label and four pills), plus
+    // padding. The last rows of a long table are exactly where the menu is
+    // most needed and where it used to open off the bottom of the window, so
+    // it flips above when there is no room -- and the corner it grows from
+    // flips with it. This number has to grow whenever the menu does.
+    const H = 300;
     const below = window.innerHeight - r.bottom > H + 8;
     setMenuPos({
       top: below ? r.bottom + 4 : Math.max(8, r.top - H - 4),
@@ -480,24 +481,43 @@ const PurchasesPage = () => {
   // number said twice, next to an empty third column. Where it genuinely
   // differs, the row still says it, under the outstanding figure, because that
   // is the only place two numbers mean two things.
+  // The register's columns.
+  //
+  // Measured on the live book before this was cut: 205 purchases, of which
+  // Status reads RECEIVED on 205 -- one value in the entire history -- and
+  // Outstanding is blank on 195. Two of five columns said nothing on almost
+  // every row, while the one column that varies, what was bought and from
+  // whom, had the least room.
+  //
+  // Status moves into the row menu, where a control used on a handful of rows
+  // belongs. Outstanding stops being a column and becomes a treatment on the
+  // ten rows that have one: the figure under the amount, and a tint on the
+  // row. The date leaves the rows entirely and becomes the band above them,
+  // which is also the only way this screen can show a day's total.
   const headers = [
-    { label: 'Date' },
-    { label: 'Product / supplier' },
+    { label: 'Item' },
+    { label: 'Supplier' },
     { label: 'Amount', className: 'text-right' },
-    { label: 'Outstanding', className: 'text-right' },
-    { label: 'Status', className: 'text-center' },
     { label: '', className: 'text-right' },
   ];
-  const PUR_COLS = 6;
+  const PUR_COLS = 4;
 
   // Two-letter supplier initials for the neutral avatar.
   const initialsOf = (name) => (name || '?')
     .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+  // Suppliers are typed in capitals and were printed raw, so every row SHOUTED
+  // its supplier at the same weight as the product. Lowered for display only --
+  // a name that is not all-caps is left exactly as its owner wrote it.
+  const titleCase = (name) => {
+    const n = (name || '').trim();
+    if (!n || n !== n.toUpperCase()) return n;
+    return n.toLowerCase().replace(/(^|[\s\-/&.])([a-z])/g, (_, a, b) => a + b.toUpperCase());
+  };
   const shortDate = (d) => { const x = new Date(d); return isNaN(x) ? '' : x.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }); };
 
   const activeFilterCount =
     (fSupplier !== 'ALL' ? 1 : 0) + (fPay !== 'ALL' ? 1 : 0) + (fStatus !== 'ALL' ? 1 : 0) +
-    (sortBy !== 'DATE_DESC' ? 1 : 0) + (groupBy !== 'NONE' ? 1 : 0);
+    (sortBy !== 'DATE_DESC' ? 1 : 0) + (groupBy !== 'DATE' ? 1 : 0);
 
   const clearFilters = () => {
     setFSup('ALL'); setFPay('ALL'); setFStatus('ALL');
@@ -562,23 +582,36 @@ const PurchasesPage = () => {
 
   // Subtotal band between groups. Date groups lead with a calendar glyph and
   // the full date; supplier groups with the supplier's initials.
+  // The band a day's purchases sit under. It is the spine of the register:
+  // the date leaves the rows to live here once, and in exchange the screen can
+  // state the day's total -- a figure the old layout could not show at all,
+  // because nothing on it had a scope wider than one row.
+  //
+  // Supplier grouping reuses the same band; only the glyph and the label
+  // differ, so the two groupings cannot drift apart in how they read.
   const renderGroupHeader = (g) => (
     <tr key={`g-${g.key}`} className="bg-canvas/70 border-y border-black/[0.04]">
       <td colSpan={PUR_COLS} className="px-4 py-2">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-baseline gap-2.5">
           {g.isDate ? (
-            <div className="w-6 h-6 rounded-md bg-card border border-border/60 flex items-center justify-center text-muted-foreground shrink-0"><Calendar size={12} /></div>
+            <Calendar size={12} className="self-center text-muted-foreground shrink-0" />
           ) : (
-            <div className="w-6 h-6 rounded-md bg-card border border-border/60 flex items-center justify-center text-[10px] font-semibold text-muted-foreground shrink-0">{initialsOf(g.name)}</div>
+            <span className="self-center w-5 h-5 rounded bg-card border border-border/60 flex items-center justify-center text-[9px] font-semibold text-muted-foreground shrink-0">{initialsOf(g.name)}</span>
           )}
-          <span className="text-xs font-semibold text-foreground truncate" title={g.name}>{g.isDate ? formatDate(g.name) : g.name}</span>
-          <span className="text-[11px] text-muted-foreground">{g.count} bill{g.count === 1 ? '' : 's'}</span>
-          <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
-            {formatCurrency(g.total)}
-            {g.due > 0.5
-              ? <> · <span className="text-[color:var(--color-neg)]">{formatCurrency(g.due)} due</span></>
-              : <> · settled</>}
+          <span className="text-[12.5px] font-semibold text-foreground truncate" title={g.name}>
+            {g.isDate ? formatDate(g.name) : titleCase(g.name)}
           </span>
+          <span className="text-[11px] text-muted-foreground shrink-0">
+            {g.count} bill{g.count === 1 ? '' : 's'}
+          </span>
+          <span className="ml-auto text-[12.5px] font-semibold tabular-nums text-foreground shrink-0">
+            {formatCurrency(g.total)}
+          </span>
+          {g.due > 0.5 && (
+            <span className="text-[11px] font-semibold tabular-nums text-[color:var(--color-neg)] shrink-0">
+              {formatCurrency(g.due)} due
+            </span>
+          )}
         </div>
       </td>
     </tr>
@@ -606,102 +639,65 @@ const PurchasesPage = () => {
         className={`transition-colors ${multi ? 'cursor-pointer' : ''} ${expanded ? 'bg-canvas' : 'hover:bg-canvas'}`}
         onClick={() => multi && setExpandedBill(expanded ? null : bill.id)}
         style={overdue ? { boxShadow: 'inset 2px 0 0 0 var(--color-neg)' } : undefined}>
-        {/* Date gutter — printed once per day, so a run of bills on one date
-            reads as a block without a header row costing a whole row of height. */}
-        <td className={`${pad} align-middle whitespace-nowrap`}>
-          <div className={row.__firstOfDay ? '' : 'invisible'}>
-            <div className="text-[12.5px] font-semibold text-foreground leading-tight">{shortDate(bill.date)}</div>
-            {!dense && <div className="text-[10.5px] text-muted-foreground">{String(bill.date).slice(0, 4)}</div>}
+        {/* Item. The date is gone from the row: it is the band above, which
+            is also the only way this screen can show a day's total. When the
+            list is grouped some other way, or not at all, there is no band, so
+            the date comes back here as a prefix rather than as a column that
+            is blank most of the time. */}
+        <td className={`${pad} max-w-[460px]`}>
+          <div className="flex items-baseline gap-2 min-w-0">
+            {multi
+              ? <ChevronRight size={12} className={`shrink-0 self-center text-muted-foreground transition-transform duration-(--dur-press) ease-(--ease-out) ${expanded ? 'rotate-90' : ''}`} />
+              : <span className="w-3 h-3 shrink-0" aria-hidden />}
+            {groupBy !== 'DATE' && (
+              <span className="shrink-0 text-[11.5px] tabular-nums text-muted-foreground">{shortDate(bill.date)}</span>
+            )}
+            <span className="text-[13.5px] text-foreground truncate" title={names.join(', ')}>
+              {names[0] || 'Unknown Product'}
+            </span>
+            {multi && (
+              <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-black/[0.06] text-ink-secondary">
+                +{bill.lines.length - 1}
+              </span>
+            )}
           </div>
-        </td>
-        {/* Avatar + what was bought + supplier */}
-        <td className={`${pad} max-w-[280px]`}>
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-md bg-canvas border border-border/60 flex items-center justify-center text-[10px] font-semibold text-muted-foreground shrink-0">
-              {initialsOf(supplier?.name || bill.supplier_name)}
-            </div>
-            <div className="min-w-0">
-              <div className="text-[13.5px] font-semibold text-foreground truncate flex items-center gap-1.5" title={names.join(', ')}>
-                {multi
-                  ? <ChevronRight size={12} className={`shrink-0 text-muted-foreground transition-transform duration-(--dur-press) ease-(--ease-out) ${expanded ? 'rotate-90' : ''}`} />
-                  : <span className="w-3 h-3 shrink-0" aria-hidden />}
-                <span className="truncate">{names[0] || 'Unknown Product'}</span>
-                {multi && (
-                  <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-black/[0.06] text-ink-secondary">
-                    +{bill.lines.length - 1}
-                  </span>
-                )}
-              </div>
-              {/* Supplier, quantity and ref on one quiet line. They were three
-                  separate columns; none of them is what you scan for. */}
-              {!dense && (
-                <div className="text-[11.5px] text-muted-foreground truncate mt-0.5"
-                     title={supplier?.name || bill.supplier_name || ''}>
-                  <span className="text-ink-secondary">{supplier?.name || bill.supplier_name || '—'}</span>
-                  {/* Cash or credit belongs with the supplier, not in a money
-                      column. It is a term of the bill, not an amount. */}
-                  {' · '}{credit ? 'Credit' : (bill.payment_type || 'Cash')}
-                  {' · '}{qtyTotal}{multi ? ` in ${bill.lines.length}` : ''}
-                  {' · '}<span className="tabular-nums text-[10px] opacity-70">{bill.id.split('-').pop()}</span>
-                  {bill.bill_no ? <span className="opacity-70"> · bill {bill.bill_no}</span> : null}
-                </div>
-              )}
-            </div>
-          </div>
-        </td>
-        {/* Settlement — a meter reads paid against due before any number does.
-            This was three stacked strings (label, paid, due) in a narrow cell;
-            the proportion is the thing you actually want at a glance. */}
-        {/* Amount — what the supplier billed. One kind of value, every row. */}
-        <td className={`${pad} text-right whitespace-nowrap`}>
-          <span className="tabular-nums text-[13.5px] text-foreground">{formatCurrency(bill.total)}</span>
         </td>
 
-        {/* Outstanding — an amount or a dash, never anything else. The part
-            payment appears here and only here, where two numbers actually
-            mean two different things. */}
-        <td className={`${pad} text-right whitespace-nowrap`}>
-          {due > 0.5 ? (
-            <div>
-              <span className="tabular-nums text-[13.5px] font-semibold text-[color:var(--color-neg)]">
-                {formatCurrency(due)}
-              </span>
-              {!dense && (
-                <div className="text-[10px] font-semibold text-muted-foreground mt-0.5">
-                  {overdue
-                    ? <span className="text-[color:var(--color-neg)]">{ageDays(bill)}d overdue</span>
-                    : (paid > 0.5 ? `${formatCurrency(paid)} paid` : null)}
-                </div>
-              )}
+        {/* Supplier, with the quantity and the terms under it. A bill number
+            prints only when there IS one -- 93% of rows have none, and what
+            used to fill the gap was a slice of the row's own id, which reads
+            as a reference and refers to nothing. */}
+        <td className={`${pad} max-w-[260px]`}>
+          <div className="min-w-0">
+            <div className="text-[12.5px] text-ink-secondary truncate"
+                 title={supplier?.name || bill.supplier_name || ''}>
+              {titleCase(supplier?.name || bill.supplier_name) || '—'}
             </div>
-          ) : (
-            <span className="tabular-nums text-[13.5px] text-muted-foreground">—</span>
+            {!dense && (
+              <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                {qtyTotal}{multi ? ` in ${bill.lines.length}` : ''}
+                {' · '}{credit ? 'Credit' : (bill.payment_type || 'Cash')}
+                {bill.bill_no ? ` · bill ${bill.bill_no}` : ''}
+              </div>
+            )}
+          </div>
+        </td>
+
+        {/* Amount, and underneath it the only thing that ever varied: what is
+            still owed. On this book that is 10 rows in 205, so it is a mark on
+            those rows rather than a column standing empty on the other 195. */}
+        <td className={`${pad} text-right whitespace-nowrap align-middle`}>
+          <span className="tabular-nums text-[13.5px] text-foreground">{formatCurrency(bill.total)}</span>
+          {due > 0.5 && (
+            <div className="text-[11px] font-semibold text-[color:var(--color-neg)] mt-0.5 tabular-nums">
+              {formatCurrency(due)} due
+              {!dense && (overdue
+                ? <span className="font-semibold"> · {ageDays(bill)}d late</span>
+                : (paid > 0.5 ? <span className="text-muted-foreground font-medium"> · {formatCurrency(paid)} paid</span> : null))}
+            </div>
           )}
         </td>
 
-        {/* Status select — drives every line of the bill together */}
-        <td className={`${pad} text-center`} onClick={(e) => e.stopPropagation()}>
-          {(() => {
-            const st = (bill.status || 'RECEIVED').toUpperCase();
-            const s = _STATUS_STYLES[st] || _STATUS_STYLES.RECEIVED;
-            return (
-              <select
-                value={st}
-                onChange={(e) => bill.lines.forEach(l => updatePurchaseStatus(l.id, e.target.value))}
-                // Borderless until you go near it: 79 outlined dropdowns is a
-                // lot of chrome for a control most rows never use. The border
-                // and fill appear on hover and focus, so it still announces
-                // itself as editable the moment you reach for it.
-                className={`text-[10px] font-medium px-2.5 py-1 rounded-pill border outline-none cursor-pointer transition-colors duration-150 hover:border-border hover:bg-canvas focus:border-border focus:bg-canvas ${s.bg} ${s.text} ${s.border}`}
-              >
-                <option value="PENDING">Pending</option>
-                <option value="ORDERED">Ordered</option>
-                <option value="RECEIVED">Received</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-            );
-          })()}
-        </td>
         {/* Actions */}
         <td className={`${pad} text-right`} onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-1.5 justify-end">
@@ -740,7 +736,16 @@ const PurchasesPage = () => {
                 // this menu offers only what is meaningful for a whole bill.
                 e.stopPropagation();
                 const r = e.currentTarget.getBoundingClientRect();
-                setMenuBill({ bill, x: r.right, y: r.bottom });
+                // Same flip as the line menu. This one never had it, so on the
+                // last bill of a long list it opened straight off the bottom.
+                const H = 320;
+                const below = window.innerHeight - r.bottom > H + 8;
+                setMenuBill({
+                  bill,
+                  x: r.right,
+                  y: below ? r.bottom + 4 : Math.max(8, r.top - H - 4),
+                  origin: below ? 'top right' : 'bottom right',
+                });
               }}
               title={multi ? 'Bill actions' : 'More'}
               className="w-8 h-8 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-black/5 hover:text-foreground transition-[background-color,color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]"
@@ -772,57 +777,44 @@ const PurchasesPage = () => {
             // sequence and starts reading as waiting.
             style={{ animationDelay: `${Math.min(i, 6) * 24}ms` }}
           >
-            {/* Gutter carries the grouping rule instead of a box around the set */}
-            <td className={`${pad} border-l-2 border-accent-signature`}>
-              {i === 0 && (
-                <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {bill.lines.length} items
-                </span>
-              )}
-            </td>
-            {/* Indented to start where the parent's product text starts:
-                28px avatar + 10px gap. */}
-            <td className={`${pad} max-w-[280px]`}>
-              <div className="pl-[38px] min-w-0">
-                <div className="text-[12.5px] font-medium text-foreground truncate">
+            {/* Item, under its bill's item column and ruled to it. */}
+            <td className={`${pad} max-w-[460px] border-l-2 border-accent-signature`}>
+              <div className="pl-[20px] min-w-0">
+                <div className="text-[12.5px] text-foreground truncate">
                   {prod?.name || l.notes || '—'}
-                </div>
-                <div className="text-[11px] text-muted-foreground truncate">
-                  {lineQty} {prod?.unit || 'pcs'} × {formatCurrency(lineQty > 0 ? lineAmt / lineQty : 0)}
-                  {' · '}<span className="tabular-nums text-[10px] opacity-70">{l.id.split('-').pop()}</span>
                 </div>
               </div>
             </td>
-            {/* A line sits under its bill's own columns, in the same order:
-                Amount, then Outstanding. These two were the other way round --
-                the line's due figure printed under "Amount" and its amount
-                under "Outstanding" -- so opening a bill swapped two money
-                columns without saying so. */}
-            <td className={`${pad} text-right whitespace-nowrap`}>
-              <span className="tabular-nums text-[12.5px] text-foreground">{formatCurrency(lineAmt)}</span>
+
+            {/* Where the bill prints its supplier, a line prints what it is:
+                how many, at what each. The supplier is the bill's, and saying
+                it again on every line is four copies of one fact. */}
+            <td className={`${pad} max-w-[260px]`}>
+              <div className="text-[11.5px] text-muted-foreground truncate">
+                {lineQty} {prod?.unit || 'pcs'} × {formatCurrency(lineQty > 0 ? lineAmt / lineQty : 0)}
+                {last && bill.lines.length > 1 && (
+                  <span className="opacity-70"> · bill {formatCurrency(bill.total)}</span>
+                )}
+              </div>
             </td>
-            <td className={`${pad} text-right whitespace-nowrap`}>
-              {lineDue > 0.5 ? (
-                <div className="inline-flex items-center gap-2">
-                  <span className="tabular-nums text-[12.5px] font-semibold text-[color:var(--color-neg)]">
-                    {formatCurrency(lineDue)}
+
+            {/* Same column, same treatment as the bill above: the amount, and
+                what is still owed on it underneath. */}
+            <td className={`${pad} text-right whitespace-nowrap align-middle`}>
+              <span className="tabular-nums text-[12.5px] text-foreground">{formatCurrency(lineAmt)}</span>
+              {lineDue > 0.5 && (
+                <div className="mt-0.5 inline-flex items-center gap-2 justify-end w-full">
+                  <span className="tabular-nums text-[11px] font-semibold text-[color:var(--color-neg)]">
+                    {formatCurrency(lineDue)} due
                   </span>
                   <button
-                    onClick={() => { setPayTarget(l); setPayAmount(String(lineDue)); setPayMethod('CASH'); }}
+                    onClick={(e) => { e.stopPropagation(); setPayTarget(l); setPayAmount(String(lineDue)); setPayMethod('CASH'); }}
                     className="px-2 py-0.5 rounded-pill text-[10px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]"
                   >Pay</button>
                 </div>
-              ) : (
-                <span className="tabular-nums text-[12.5px] text-muted-foreground">—</span>
               )}
             </td>
-            <td className={`${pad} text-center`}>
-              {last && (
-                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                  bill {formatCurrency(bill.total)}
-                </span>
-              )}
-            </td>
+
             <td className={`${pad} text-right`} onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={(e) => openMenu(e, l)}
@@ -1036,6 +1028,25 @@ const PurchasesPage = () => {
             <button onClick={() => { const p = menuRow; setMenuRow(null); setReturnTarget({ purchase: p, product: products.find(x => x.id === p.linked_product_id), supplier: suppliers.find(s => s.id === p.supplier_id) }); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-rose-600"><RotateCcw size={13} /> Return</button>
             <div className="h-px bg-black/5 my-1" />
             <button onClick={() => { const p = menuRow; setMenuRow(null); handleDeletePurchase(p); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-red-50 text-red-600"><Trash2 size={13} /> Delete</button>
+            {/* Same control as the bill menu, acting on this line alone. */}
+            <div className="h-px bg-black/5 my-1" />
+            <div className="px-3 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Mark as</div>
+            <div className="px-2 pb-2 flex flex-wrap gap-1">
+              {['PENDING', 'ORDERED', 'RECEIVED', 'CANCELLED'].map((st) => {
+                const cur = (menuRow.status || 'RECEIVED').toUpperCase() === st;
+                const sty = _STATUS_STYLES[st] || _STATUS_STYLES.RECEIVED;
+                return (
+                  <button
+                    key={st}
+                    onClick={() => { const p = menuRow; setMenuRow(null); updatePurchaseStatus(p.id, st); }}
+                    className={`text-[10px] font-semibold px-2 py-1 rounded-pill border transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97] ${
+                      cur ? `${sty.bg} ${sty.text} ${sty.border}` : 'border-border text-muted-foreground hover:text-foreground'}`}
+                  >
+                    {st.charAt(0) + st.slice(1).toLowerCase()}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </>,
         document.body
@@ -1048,7 +1059,7 @@ const PurchasesPage = () => {
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setMenuBill(null)} />
           <div className="menu-pop fixed z-[9999] w-52 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold"
-            style={{ top: menuBill.y + 4, left: Math.max(8, menuBill.x - 208) }}>
+            style={{ top: menuBill.y, left: Math.max(8, menuBill.x - 208), '--menu-origin': menuBill.origin }}>
             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               {menuBill.bill.lines.length} lines · {formatCurrency(menuBill.bill.total)}
             </div>
@@ -1069,6 +1080,28 @@ const PurchasesPage = () => {
               className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-muted-foreground">
               Open lines — to return or delete one
             </button>
+            {/* Status, where a control used on a handful of rows belongs.
+                It had a column and a dropdown on every row, for a field that
+                reads RECEIVED on all 205 purchases in this book -- furniture
+                on 205 rows to serve the few that are ever changed. */}
+            <div className="h-px bg-black/5 my-1" />
+            <div className="px-3 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Mark as</div>
+            <div className="px-2 pb-2 flex flex-wrap gap-1">
+              {['PENDING', 'ORDERED', 'RECEIVED', 'CANCELLED'].map((st) => {
+                const cur = (menuBill.bill.status || 'RECEIVED').toUpperCase() === st;
+                const sty = _STATUS_STYLES[st] || _STATUS_STYLES.RECEIVED;
+                return (
+                  <button
+                    key={st}
+                    onClick={() => { const b = menuBill.bill; setMenuBill(null); b.lines.forEach(l => updatePurchaseStatus(l.id, st)); }}
+                    className={`text-[10px] font-semibold px-2 py-1 rounded-pill border transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97] ${
+                      cur ? `${sty.bg} ${sty.text} ${sty.border}` : 'border-border text-muted-foreground hover:text-foreground'}`}
+                  >
+                    {st.charAt(0) + st.slice(1).toLowerCase()}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </>,
         document.body
