@@ -99,10 +99,10 @@ serve(async (req) => {
         plan: plan,
         business_type: business_type,
         status: 'TRIAL',
-        // Six months. Must stay equal to TRIAL_DAYS in src/lib/tenancy.js:
-        // this line is what actually grants the trial, and the constant only
-        // describes it to the rest of the app.
-        trial_end_date: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
+        // Must stay equal to TRIAL_DAYS in src/lib/tenancy.js: this line is
+        // what actually grants the trial, and the constant only describes it
+        // to the rest of the app.
+        trial_end_date: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
         owner_id: user.id,
       })
       .select()
