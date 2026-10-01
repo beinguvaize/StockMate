@@ -159,14 +159,15 @@ export const TENANT_STATUS = {
 // and the one existing trial_end_date values were written against, so nobody's
 // trial is shortened by the decision. The landing copy said 30 and was wrong.
 //
-// 180 days, decided 29 Sep 2026, to match the offer the site now makes. The
-// number is only half of it: create-tenant writes trial_end_date at signup, so
-// the offer is whatever THAT function grants until it is redeployed, no matter
-// what this constant says. Existing trials keep the end date they were given;
-// nothing here moves a date that has already been written.
+// It went to 180 on 29 Sep 2026 and came back on 1 Oct, before the edge
+// function was ever redeployed -- so production never granted anything but 60
+// and no trial was affected either way. Kept as a note because the site said
+// six months for two days, and because it is the standing example of the rule:
+// create-tenant writes trial_end_date at signup, so the offer is whatever THAT
+// function grants, no matter what this constant says.
 
 /** Days a trial runs. Must match create-tenant and the pricing page. */
-export const TRIAL_DAYS = 180;
+export const TRIAL_DAYS = 60;
 
 /** What a trial is worth while it lasts. */
 export const TRIAL_PLAN = 'PRO';
