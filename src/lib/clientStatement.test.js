@@ -377,3 +377,71 @@ describe('a sale receipt names the method the customer actually used', () => {
     expect(creditRowFor(undefined).description).toContain('Payment (Cash)');
   });
 });
+
+describe('an invoice whose sale is no longer loaded', () => {
+  // Both sales and invoices arrive capped at the 500 most recent rows, and
+  // there are far more sales than invoices, so an old invoice routinely
+  // outlives its sale. The statement then knew the bill and not the payment.
+  const client = { id: 'C1', name: 'Kuzhivila Store' };
+
+  const paidInvoice = (id, total) => ({
+    id, client_id: 'C1', sale_id: `SAL-${id}`, invoice_number: id,
+    invoice_date: '2026-05-16', grand_total: total,
+    paid_amount: 0, payment_status: 'PAID',
+  });
+
+  it('credits a counter-settled bill even with no sale to read it from', () => {
+    const rows = buildClientStatement({
+      client,
+      sales: [],                       // the 500-row window has moved past May
+      invoices: [paidInvoice('INV-A', 12340)],
+      paymentHistory: [],
+      saleReceipts: [],
+      includeSettled: true,
+    });
+    const debit  = rows.reduce((s, r) => s + (r.debit || 0), 0);
+    const credit = rows.reduce((s, r) => s + (r.credit || 0), 0);
+    expect(debit).toBe(12340);
+    expect(credit).toBe(12340);
+    expect(rows[rows.length - 1].balance).toBe(0);
+  });
+
+  it('leaves the closing balance at what is genuinely owed', () => {
+    // The real shape of the bug: five settled May bills (27,970) plus one
+    // September credit sale part-paid, which is the only real debt.
+    const settled = [
+      paidInvoice('INV-1', 360), paidInvoice('INV-2', 12340),
+      paidInvoice('INV-3', 650), paidInvoice('INV-4', 1500),
+      paidInvoice('INV-5', 13120),
+    ];
+    const open = {
+      id: 'INV-6', client_id: 'C1', sale_id: 'SAL-6', invoice_number: 'INV-0171',
+      invoice_date: '2026-09-19', grand_total: 9480,
+      paid_amount: 2125, payment_status: 'PARTIAL',
+    };
+    const rows = buildClientStatement({
+      client, sales: [], invoices: [...settled, open],
+      paymentHistory: [{ id: 'P1', client_id: 'C1', date: '2026-09-26', amount: 2125, payment_method: 'CASH' }],
+      saleReceipts: [], includeSettled: true,
+    });
+    expect(rows[rows.length - 1].balance).toBe(9480 - 2125);
+  });
+
+  it('does not credit a part-paid invoice twice', () => {
+    // PARTIAL is not the counter-settled shape, so the receipt in
+    // client_payments stays the only credit.
+    const rows = buildClientStatement({
+      client, sales: [],
+      invoices: [{
+        id: 'INV-9', client_id: 'C1', sale_id: 'SAL-9', invoice_number: 'INV-9',
+        invoice_date: '2026-09-19', grand_total: 1000,
+        paid_amount: 400, payment_status: 'PARTIAL',
+      }],
+      paymentHistory: [{ id: 'P9', client_id: 'C1', date: '2026-09-20', amount: 400, payment_method: 'CASH' }],
+      saleReceipts: [], includeSettled: true,
+    });
+    const credit = rows.reduce((s, r) => s + (r.credit || 0), 0);
+    expect(credit).toBe(400);
+    expect(rows[rows.length - 1].balance).toBe(600);
+  });
+});

@@ -168,7 +168,43 @@ export function buildClientStatement({
       // Fall back to the sale's own paidAmount: a POS-settled invoice carries 0
       // while the sale it came from holds the money.
       const orphanPaid = num(inv.paid_amount) || salePaidMap[inv.sale_id] || 0;
-      if (orphanPaid > 0 && saleMethod !== 'CREDIT' && saleMethod !== '') {
+
+      // ...and when the sale is not loaded at all, fall back to what the
+      // INVOICE says about itself.
+      //
+      // Both sales and invoices arrive capped at the 500 most recent rows, and
+      // there are far more sales than invoices, so an old invoice routinely
+      // outlives the sale it came from. The method is then unknown, the guard
+      // below refused to credit anything, and the bill stood on the statement
+      // as a debit with no payment under it -- a settled bill shown as money
+      // owed.
+      //
+      // On KUZHIVILA STORE that was five invoices from May, ₹27,970, which is
+      // exactly the gap between the balance this statement closed at and the
+      // outstanding figure in its own header. Two numbers for one thing, on one
+      // screen.
+      //
+      // Only the one shape is safe to assume: PAID with paid_amount 0 is the
+      // signature of a sale settled at the counter, where the money sits on the
+      // sale row. A CREDIT sale is never that -- settle_client_payment writes
+      // paid_amount on it -- so this cannot double-credit a receipt that also
+      // appears in client_payments.
+      const settledAtCounter =
+        saleMethod === ''
+        && String(inv.payment_status || '').toUpperCase() === 'PAID'
+        && num(inv.paid_amount) === 0;
+
+      if (settledAtCounter) {
+        rows.push({
+          id: `${inv.id}-settled`,
+          date: invDate,
+          created_at: inv.created_at,
+          description: `Payment — Invoice #${n}`,
+          debit: 0,
+          credit: num(inv.grand_total),
+          type: 'PAYMENT',
+        });
+      } else if (orphanPaid > 0 && saleMethod !== 'CREDIT' && saleMethod !== '') {
         // Keep the historical `<invoice>-orphan` id when there is a single
         // credit, so nothing downstream keyed on that shape changes for the
         // common case; only a split sale gains suffixed ids.
