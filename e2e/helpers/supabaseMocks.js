@@ -269,7 +269,11 @@ export async function setupMocks(page, isStaff = false) {
         return;
       }
       // GET → return fixture array (or single object for business_profile maybeSingle)
-      const isSingle = url.includes('limit=1') || table === 'business_profile';
+      // `limit=1` means maybeSingle. It must be the WHOLE value: a paged read
+      // asks for limit=1000, and `'limit=1000'.includes('limit=1')` is true, so
+      // the mock answered every paged query with a single object where the
+      // client expected an array -- and the screen rendered empty.
+      const isSingle = /[?&]limit=1(&|$)/.test(url) || table === 'business_profile';
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
