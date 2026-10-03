@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate, isElectron } from '../lib/offline/hookAdapter';
+import { fetchAllPages } from '../lib/fetchAllPages';
 import { realtimeEnabled } from '../lib/realtime';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
@@ -34,7 +35,10 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
       const [purCached, supCached, retCached] = await Promise.all([
         readCacheThenRevalidate(
           'purchases',
-          () => supabase.from('purchases').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(200),
+          // Was .limit(200) against 277 rows on the largest tenant, so the
+          // Purchases list could not show every bill it had and the page's own
+          // totals covered the newest 200.
+          () => fetchAllPages(() => supabase.from('purchases').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('created_at', { ascending: false, nullsFirst: false }), { label: 'purchases' }),
           (rows) => setData(normalizeNumericRows(rows, PURCHASE_NUMERIC)),
         ),
         readCacheThenRevalidate(

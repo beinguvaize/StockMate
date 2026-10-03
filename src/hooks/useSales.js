@@ -3,6 +3,7 @@ import { hydrateSales, hydrateInvoicesFromSales, SALE_ITEMS_EMBED } from '../lib
 import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { readCacheThenRevalidate, queueMutation, isOfflineError, decrementCachedStock, isElectron, upsertCachedRow } from '../lib/offline/hookAdapter';
+import { fetchAllPages } from '../lib/fetchAllPages';
 import { generateRef, todayISOInAppTZ } from '../lib/utils';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { getPlanLimits } from '../lib/tenancy';
@@ -79,10 +80,15 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
           //
           // The blob column is still selected, and hydrateSale falls back to
           // it for any sale the table has no rows for. See lib/saleLines.js.
-          () => supabase.from('sales')
+          // Paged rather than capped. The cap was 500 and the largest tenant
+          // already has 1,187 sales, so every total over "all sales" was a
+          // total over the newest 500 -- and the client statement, which joins
+          // the far fewer invoices to these, credited a settled bill as debt
+          // once its sale aged out. See lib/fetchAllPages.js.
+          () => fetchAllPages(() => supabase.from('sales')
             .select((lean && !isElectron() ? SALE_LEAN_COLS + ', items' : '*') + ', ' + SALE_ITEMS_EMBED)
             .is('deleted_at', null).eq('tenant_id', tenantId)
-            .order('created_at', { ascending: false, nullsFirst: false }).limit(500),
+            .order('created_at', { ascending: false, nullsFirst: false }), { label: 'sales' }),
           (fresh) => {
             const hydrated = hydrateSales(fresh);
             salesRef.current = hydrated;
@@ -94,12 +100,12 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
           (fresh) => setClients(fresh.map(r => normalizeRow(r, NUMERIC_CLIENT_COLS))),
         ),
         readCacheThenRevalidate('invoices',
-          () => supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(500),
+          () => fetchAllPages(() => supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }), { label: 'invoices' }),
           (fresh) => setInvoices(hydrateInvoicesFromSales(fresh, salesRef.current)
             .map(r => normalizeRow(r, NUMERIC_INVOICE_COLS))),
         ),
         readCacheThenRevalidate('sales_returns',
-          () => supabase.from('sales_returns').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          () => fetchAllPages(() => supabase.from('sales_returns').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }), { label: 'sales_returns' }),
           (fresh) => setSalesReturns(fresh),
         ),
       ]);
