@@ -224,6 +224,16 @@ test('a folded filter panel is out of reach, not just out of sight', async ({ pa
     return { h: Math.round(clip.getBoundingClientRect().height), inert };
   });
 
+  // Settle before measuring, the same way the open direction does. The track
+  // animates, and a frame read on arrival is whatever that frame was at -- which
+  // is why this passed alone and failed in a full run.
+  await page.waitForFunction(() => {
+    const sel = [...document.querySelectorAll('select')]
+      .find(el => /All suppliers/.test(el.textContent));
+    const clip = sel && sel.closest('[class*="overflow-hidden"]');
+    return !!clip && clip.getBoundingClientRect().height === 0;
+  }, { timeout: 5000 });
+
   const shut = await read();
   expect(shut).not.toBeNull();
   expect(shut.h).toBe(0);
@@ -276,4 +286,57 @@ test('the row menu opens inside the window on the last row', async ({ page }) =>
   // NOT the rect while it is still scaling -- read offsetWidth instead.
   const [ox] = box.origin.split(' ').map(parseFloat);
   expect(Math.round(ox)).toBe(box.w);
+});
+
+async function openEditBill(page) {
+  await openPurchases(page);
+  await page.getByRole('button', { name: /^(Bill actions|More)$/ }).first().click();
+  await page.getByRole('button', { name: /Edit/ }).first().click();
+  await expect(page.getByRole('button', { name: /Add another product/ })).toBeVisible();
+}
+
+test('a bill can gain a line', async ({ page }) => {
+  // A delivery is not always counted in one go: five things are booked in and
+  // the sixth turns up in the van an hour later. Without this the only way to
+  // record it was a second bill for the same delivery -- the same split this
+  // form exists to prevent, reached from the other side.
+  await openEditBill(page);
+
+  const before = await page.locator('select').filter({ hasText: /Widget|Gadget/ }).count();
+  await page.getByRole('button', { name: /Add another product/ }).click();
+  const after = await page.locator('select').filter({ hasText: /Widget|Gadget/ }).count();
+  expect(after).toBe(before + 1);
+
+  // the added row says it is not saved yet
+  await expect(page.getByText('new line')).toBeVisible();
+  // and the button counts it
+  await expect(page.getByRole('button', { name: /Save bill · 2 lines/ })).toBeVisible();
+});
+
+test('an empty added line cannot be saved', async ({ page }) => {
+  // Quantity and amount are required on every line, and a blank new row must
+  // not slip through as a zero-quantity purchase.
+  await openEditBill(page);
+  await page.getByRole('button', { name: /Add another product/ }).click();
+
+  await expect(page.getByRole('button', { name: /Save bill/ })).toBeDisabled();
+
+  const qtyBoxes = page.locator('input[type="number"]');
+  await qtyBoxes.nth(2).fill('5');     // new line qty
+  await qtyBoxes.nth(3).fill('250');   // new line amount
+  await expect(page.getByRole('button', { name: /Save bill/ })).toBeEnabled();
+});
+
+test('only the unsaved line can be dropped here', async ({ page }) => {
+  // Removing a SAVED line is a different act -- stock has moved, the ledger
+  // has a row -- and belongs to the line's own Delete, which reverses that.
+  await openEditBill(page);
+  await page.getByRole('button', { name: /Add another product/ }).click();
+
+  const removers = page.getByRole('button', { name: 'Remove this new line' });
+  expect(await removers.count()).toBe(1);
+
+  await removers.first().click();
+  await expect(page.getByText('new line')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Save bill · 1 line/ })).toBeVisible();
 });
