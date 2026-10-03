@@ -1122,12 +1122,63 @@ const PurchasesPage = () => {
             onSave={async (payload) => {
               setBillSaving(true);
               try {
+                // Lines split on whether they already exist. edit_purchase_bill
+                // refuses an id it does not know -- deliberately, because a
+                // partial payload used to orphan lines on the old header -- so
+                // added lines cannot go through it and are inserted the way any
+                // purchase is, by process_purchase.
+                const keptLines = payload.lines.filter(l => l.id);
+                const newLines  = payload.lines.filter(l => !l.id);
+
                 const { error } = await withTimeout(editPurchaseBill({
                   ...payload,
+                  lines: keptLines,
                   userId: currentUser?.id,
                   accountId: accountForMethod(payAccounts, payload.paymentType),
                 }), 20000, 'Save bill');
                 if (error) throw error;
+
+                // Added lines, after the edit. Before it, they would be part of
+                // the bill the RPC then checks its payload against, and it would
+                // refuse the save for lines it had just been given.
+                const billId = payload.billId;
+                const supplierName = suppliers.find(s2 => s2.id === payload.supplierId)?.name || '';
+                for (const l of newLines) {
+                  const newId = generateRef('PUR');
+                  const { error: addErr } = await addPurchase({
+                    id: newId,
+                    linked_product_id: l.linked_product_id,
+                    supplier_id: payload.supplierId,
+                    supplier_name: supplierName,
+                    quantity: l.quantity,
+                    unit_cost: l.unit_cost,
+                    total_amount: l.total_amount,
+                    payment_type: payload.paymentType,
+                    date: payload.date,
+                    notes: l.notes,
+                    bill_no: payload.billNo || null,
+                    userId: currentUser?.id,
+                  });
+                  if (addErr) throw addErr;
+
+                  // The one write not inside an RPC. process_purchase does the
+                  // money -- stock, batch, ledger -- but knows nothing about
+                  // bills, and the row's own trigger only joins a bill created
+                  // in the last ten minutes, so an older bill would get a line
+                  // of its own instead. bill_id is a grouping column, not a
+                  // figure; if this fails the line still exists and is visible,
+                  // just under its own heading, which is recoverable in a way
+                  // that losing it would not be.
+                  const { supabase } = await import('../../lib/supabase');
+                  const { error: joinErr } = await supabase.from('purchases')
+                    .update({ bill_id: billId })
+                    .eq('id', newId).eq('tenant_id', currentTenantId);
+                  if (joinErr) {
+                    addNotification(
+                      `The line saved but did not join this bill (${joinErr.message}). It is on the Purchases list as its own bill.`,
+                      'error');
+                  }
+                }
 
                 // A part payment is recorded AFTER the bill saves, and as a real
                 // payment via settle_purchase_payment -- never by writing
