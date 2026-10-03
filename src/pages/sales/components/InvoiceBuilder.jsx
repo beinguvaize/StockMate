@@ -3,6 +3,7 @@ import { parseScaleBarcode, quantityFrom } from '../../../lib/scaleBarcode';
 import { useDialogClose } from '../../../hooks/useDialogClose';
 import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
 import Button from '../../../shared/Button';
+import QtyField from './QtyField';
 import { allowsFraction, qtyStep, qtyMin, qtyStepButton, clampQty, formatQty, formatQtyWithUnit, subQtyLabel, exceedsStock } from '../../../lib/units';
 import { checkoutMoney } from '../lib/checkoutMoney';
 import { formatCurrency, generateRef } from '../../../lib/utils';
@@ -1235,7 +1236,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
         {/* Column headers */}
         {cart.length > 0 && (
-          <div className="grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-border/60">
+          <div className="grid grid-cols-[1fr_120px_80px_64px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-border/60">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Product</span>
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest text-center">Qty</span>
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest text-right">Unit Price</span>
@@ -1253,7 +1254,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               <div
                 key={k}
                 data-cart-row={k}
-                className={`grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 items-center px-4 py-2.5 border-b border-border/60 last:border-0 transition-colors ${
+                className={`grid grid-cols-[1fr_120px_80px_64px_20px] gap-2 items-center px-4 py-2.5 border-b border-border/60 last:border-0 transition-colors ${
                   belowCost ? 'bg-red-50/60' : 'hover:bg-canvas/40'
                 }`}
               >
@@ -1283,46 +1284,23 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   )}
                 </div>
 
-                {/* Qty stepper + gram gloss stacked in ONE grid cell — the
-                    gloss used to be a separate grid child, which stole the price
-                    column and pushed the remove button onto its own line. */}
+                {/* Quantity. The control is its own component because what
+                    was here -- a number input with the browser's spinners, a
+                    20px stepper either side, and a write-through that deleted
+                    the line the moment the box read 0 -- was three problems in
+                    one cell. See QtyField. */}
                 <div className="flex flex-col items-center gap-0.5">
-                <div className="flex items-center justify-center gap-0.5 bg-card border border-border rounded-lg p-0.5">
-                  <button
-                    onClick={() => updateQuantity(k, -1)}
-                    className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-foreground shrink-0"
-                  >
-                    <Minus size={9} strokeWidth={3} />
-                  </button>
-                  {/* Without a step the browser defaults to 1 and rejects 0.25
-                      outright. Weight units get gram precision; pieces stay whole. */}
-                  <input
-                    type="number"
-                    min={qtyMin(dispUnit(item))}
-                    step={qtyStep(dispUnit(item))}
-                    inputMode={allowsFraction(dispUnit(item)) ? 'decimal' : 'numeric'}
+                  <QtyField
                     value={toDispQty(item)}
-                    onChange={e => setQuantityDirect(k, e.target.value)}
-                    className={`${allowsFraction(dispUnit(item)) ? 'w-14' : 'w-8'} text-center text-sm font-semibold text-foreground bg-transparent outline-none tabular-nums`}
+                    unit={dispUnit(item)}
+                    onStep={(d) => updateQuantity(k, d)}
+                    onCommit={(text) => setQuantityDirect(k, text)}
                   />
-                  {/* Unit beside the number — base or the alt (packet) label. */}
-                  {String(dispUnit(item) ?? '').trim() && (
-                    <span className="text-[10px] text-muted-foreground shrink-0 leading-none">
-                      {String(dispUnit(item)).trim()}
-                    </span>
+                  {!isAlt(item) && subQtyLabel(item.quantity, unitOf(item.productId)) && (
+                    <div className="text-[10px] text-muted-foreground tabular-nums leading-none">
+                      {subQtyLabel(item.quantity, unitOf(item.productId))}
+                    </div>
                   )}
-                  <button
-                    onClick={() => updateQuantity(k, 1)}
-                    className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-foreground shrink-0"
-                  >
-                    <Plus size={9} strokeWidth={3} />
-                  </button>
-                </div>
-                {!isAlt(item) && subQtyLabel(item.quantity, unitOf(item.productId)) && (
-                  <div className="text-[10px] text-muted-foreground tabular-nums leading-none">
-                    {subQtyLabel(item.quantity, unitOf(item.productId))}
-                  </div>
-                )}
                 </div>
 
                 {/* Unit price input */}
