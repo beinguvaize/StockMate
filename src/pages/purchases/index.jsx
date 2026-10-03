@@ -660,6 +660,11 @@ const PurchasesPage = () => {
                 +{bill.lines.length - 1}
               </span>
             )}
+            {/* How many, beside what it is. It used to sit under the SUPPLIER,
+                which is the one thing a quantity does not describe. */}
+            <span className="shrink-0 text-[11.5px] tabular-nums text-muted-foreground">
+              {qtyTotal}{multi ? ` in ${bill.lines.length}` : ''}
+            </span>
           </div>
         </td>
 
@@ -675,8 +680,7 @@ const PurchasesPage = () => {
             </div>
             {!dense && (
               <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-                {qtyTotal}{multi ? ` in ${bill.lines.length}` : ''}
-                {' · '}{credit ? 'Credit' : (bill.payment_type || 'Cash')}
+                {credit ? 'Credit' : (bill.payment_type || 'Cash')}
                 {bill.bill_no ? ` · bill ${bill.bill_no}` : ''}
               </div>
             )}
@@ -837,7 +841,12 @@ const PurchasesPage = () => {
   // times a day, and a 400ms fade on every visit is charged as the app feeling
   // slow rather than read as polish.
   return (
-    <div className="flex flex-col gap-6">
+    // Capped and centred. A row of this table is four columns the eye has to
+    // pair up -- item with its amount -- and on a 2000px monitor there was
+    // 1,300px of nothing between them. The cap is on the whole page rather
+    // than the table alone, so the header does not span a width the rows
+    // deliberately refuse.
+    <div className="flex flex-col gap-6 max-w-[1180px] mx-auto w-full">
       {/* Header, tabs and the one figure you act on, in a single band.
           These were three stacked bands -- a title row, a four-box summary in
           which every figure carried identical weight, and a tab switcher on a
