@@ -340,3 +340,36 @@ test('only the unsaved line can be dropped here', async ({ page }) => {
   await expect(page.getByText('new line')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Save bill · 1 line/ })).toBeVisible();
 });
+
+test('a row can be read across without crossing the monitor', async ({ page }) => {
+  // On a 2000px screen the four columns were four islands with roughly 1,300px
+  // of nothing between an item and its amount, and pairing them is the whole
+  // job of this table. The page is capped so a row stays one object.
+  await page.setViewportSize({ width: 2000, height: 900 });
+  await openPurchases(page);
+
+  const row = billRow(page, '₹13,800.00').first();
+  await expect(row).toBeVisible();
+
+  const gap = await row.evaluate((tr) => {
+    const cells = [...tr.querySelectorAll('td')];
+    const item = cells[0].getBoundingClientRect();
+    const amount = cells[2].getBoundingClientRect();
+    return Math.round(amount.left - item.right);
+  });
+  // Item and Amount are the pair the eye has to make. Keep them within a
+  // readable sweep rather than at opposite ends of the glass.
+  expect(gap).toBeLessThan(700);
+});
+
+test('quantity sits with the item, not with the supplier', async ({ page }) => {
+  // A quantity describes what was bought. It was printed under the SUPPLIER,
+  // which is the one thing it does not describe.
+  await openPurchases(page);
+
+  const row = billRow(page, '₹13,800.00').first();
+  const itemCell = row.locator('td').first();
+  await expect(itemCell).toContainText(/\d/);          // the qty is here
+  const supplierCell = row.locator('td').nth(1);
+  await expect(supplierCell).toContainText(/Cash|Credit/i);
+});
