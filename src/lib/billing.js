@@ -11,8 +11,14 @@
  * what to SAY about a state the server already settled.
  */
 
-/** Plans a shop can buy without talking to anyone. */
-export const SELF_SERVE_PLANS = ['GROWTH', 'PRO'];
+/**
+ * Plans a shop can buy without talking to anyone.
+ *
+ * ENTERPRISE joined this list when it stopped being "Custom" and got a
+ * published price (Rs 3,999/yr, Oct 2026). A tier with a number on the
+ * pricing page and no checkout behind it is worse than either one alone.
+ */
+export const SELF_SERVE_PLANS = ['GROWTH', 'PRO', 'ENTERPRISE'];
 
 /**
  * Razorpay's subscription states, in the terms a shopkeeper uses.
@@ -52,14 +58,19 @@ export const canManageBilling = (role) => ['OWNER', 'ADMIN'].includes(String(rol
 /**
  * What the upgrade control should say.
  *
- * ENTERPRISE has no checkout on purpose: it is priced per customer, so a
- * "Buy" button would promise a number nobody has agreed.
+ * Every paid plan now has a published price, so every paid plan gets a
+ * checkout. ENTERPRISE used to be the exception -- priced per customer, so a
+ * Buy button would have promised a number nobody had agreed. It now carries
+ * Rs 3,999/yr on the pricing page, which is that agreement.
+ *
+ * The checkout still needs a billing_plan_map row per plan; without one the
+ * edge function refuses, which is the correct failure and not this file's
+ * decision to make.
  */
 export function upgradeAction({ plan, currentPlan, role }) {
   if (!canManageBilling(role)) return { kind: 'hidden' };
   if (plan === currentPlan)     return { kind: 'current', label: 'Current plan' };
   if (plan === 'FREE')          return { kind: 'none' };
-  if (plan === 'ENTERPRISE')    return { kind: 'contact', label: 'Contact sales' };
   return { kind: 'checkout', label: `Upgrade to ${plan[0]}${plan.slice(1).toLowerCase()}` };
 }
 

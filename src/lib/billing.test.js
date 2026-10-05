@@ -45,10 +45,10 @@ describe('what the upgrade control offers', () => {
     expect(upgradeAction({ ...owner, plan: 'PRO' }).label).toBe('Upgrade to Pro');
   });
 
-  it('never offers a price for ENTERPRISE', () => {
-    // It is priced per customer, so a Buy button would promise a number
-    // nobody has agreed to.
-    expect(upgradeAction({ ...owner, plan: 'ENTERPRISE' })).toMatchObject({ kind: 'contact' });
+  it('offers checkout for ENTERPRISE too, now that it has a price', () => {
+    // It was 'Custom' and therefore a contact-sales button. It is Rs 3,999/yr
+    // on the pricing page as of Oct 2026, so a shop can buy it unaided.
+    expect(upgradeAction({ ...owner, plan: 'ENTERPRISE' })).toMatchObject({ kind: 'checkout' });
   });
 
   it('does not offer to sell the plan you are already on', () => {
