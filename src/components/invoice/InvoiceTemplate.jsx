@@ -17,6 +17,7 @@ import { formatINR, amountToWords } from '../../lib/gstEngine';
 import { INVOICE_LAYOUTS, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, Editable, CustomFields } from './invoiceLayouts';
 import { formatDate, formatTime } from '../../lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
+import BillBarcode from './BillBarcode';
 
 const Totals = ({ k, v, bold }) => (
   <div className={`flex justify-between items-center py-0.5 ${bold ? 'font-bold' : ''}`}>
@@ -593,6 +594,21 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
               </div>
               <div className="p-3 flex flex-col justify-between text-[10px]">
                 <div>
+                  {/* The number this invoice is filed under, scannable. Sits
+                      with the declaration rather than in the header: the header
+                      already prints it as text, and a second copy up there
+                      reads as decoration. Down here it is the thing you scan
+                      when the paper comes back. */}
+                  {invOpts.barcode && (invoice?.invoice_number || invoice?.id) && (
+                    <div className="mb-2">
+                      <BillBarcode
+                        value={invoice.invoice_number || invoice.id}
+                        width={1.3}
+                        height={30}
+                        fontSize={9}
+                      />
+                    </div>
+                  )}
                   <div className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Declaration</div>
                   <div className="text-slate-700 leading-snug">We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.</div>
                 </div>

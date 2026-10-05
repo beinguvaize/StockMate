@@ -85,8 +85,15 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
           // total over the newest 500 -- and the client statement, which joins
           // the far fewer invoices to these, credited a settled bill as debt
           // once its sale aged out. See lib/fetchAllPages.js.
+          // `lean` means "this screen shows totals, never lines". It was
+          // selecting SALE_LEAN_COLS -- every column EXCEPT items -- and then
+          // appending `, items` and the sale_items embed anyway, so it fetched
+          // MORE than a plain `*` while claiming to fetch less. The three lean
+          // screens (dashboard, revenue trend, clients list) read neither.
           () => fetchAllPages(() => supabase.from('sales')
-            .select((lean && !isElectron() ? SALE_LEAN_COLS + ', items' : '*') + ', ' + SALE_ITEMS_EMBED)
+            .select(lean && !isElectron()
+              ? SALE_LEAN_COLS
+              : '*, ' + SALE_ITEMS_EMBED)
             .is('deleted_at', null).eq('tenant_id', tenantId)
             .order('created_at', { ascending: false, nullsFirst: false }), { label: 'sales' }),
           (fresh) => {

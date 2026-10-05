@@ -26,6 +26,10 @@ export const DEFAULT_INV_OPTS = {
   logo: true, gstin: true, hsn: true, clientAddr: true, phone: true,
   words: true, terms: true, sign: true, upiQr: true,
   desc: false, partyBalance: false, bank: true,
+  // The invoice number as a scannable code. On, because a bill that comes back
+  // over the counter has to be found again and the only handle on it is a
+  // number somebody reads off paper.
+  barcode: true,
 };
 export const ACCENT_SWATCHES = ['#0f172a', '#166534', '#0e7490', '#7e22ce', '#b91c1c', '#4f46e5', '#b45309', '#c2410c'];
 
