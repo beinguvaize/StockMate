@@ -75,6 +75,13 @@ const Inventory = () => {
   const [stockFilter,  setStockFilter]  = useState('ALL');   // ALL | IN | LOW | OUT
   const [categoryFilter, setCategoryFilter] = useState('');
 
+  // Every barcode already in use, so "Assign" in the item form cannot mint one
+  // a product already carries. A duplicate barcode rings up the wrong item at
+  // the counter, which is the single failure a barcode exists to prevent.
+  const existingBarcodes = useMemo(
+    () => new Set((products || []).map(p => p.barcode).filter(Boolean)),
+    [products]);
+
   const categoryOptions = useMemo(() => {
     const set = new Set(products.map(p => p.category).filter(Boolean));
     return Array.from(set).sort();
@@ -377,6 +384,8 @@ const Inventory = () => {
         editingProduct={editingProduct}
         productCategories={categories}
         tenantId={currentTenantId}
+        /* So "Assign" cannot mint a code another product already has. */
+        existingBarcodes={existingBarcodes}
       />
 
       <BatchesModal

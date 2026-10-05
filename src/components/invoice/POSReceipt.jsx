@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatDate, formatTime } from '../../lib/utils';
+import BillBarcode from './BillBarcode';
 
 const LINE  = '--------------------------------';
 const DLINE = '================================';
@@ -30,6 +31,10 @@ const resolveSettings = (raw) => { raw = raw ?? {}; return ({
   show_customer_phone: raw.show_customer_phone ?? true,
   show_payment_status: raw.show_payment_status ?? true,
   show_footer:         raw.show_footer         ?? true,
+  // The bill's own number as a scannable code. On by default: the counter
+  // already has a scanner, and finding a returned bill by reading digits
+  // off paper is the slow half of a return.
+  show_barcode:        raw.show_barcode        ?? true,
   show_terms:          raw.show_terms          ?? true,
   // Thermal paper width: '80' (302px) or '58' (219px). Drives the print @page.
   paper_width:         raw.paper_width         || '80',
@@ -363,6 +368,19 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
         {s.show_payment_status && (
           <div className="text-center text-[10px] font-bold uppercase tracking-widest">
             {isVoid ? '*** VOIDED ***' : isPaid ? '*** PAID ***' : '*** PAYMENT DUE ***'}
+          </div>
+        )}
+
+        {/* ── The bill's number, scannable ─────────────────── */}
+        {s.show_barcode && (invoice?.invoice_number || invoice?.id) && (
+          <div className="mt-2">
+            <BillBarcode
+              value={invoice.invoice_number || invoice.id}
+              /* 58mm paper is 219px wide; a 1.6px bar overflows it. */
+              width={s.paper_width === '58' ? 1.1 : 1.6}
+              height={34}
+              fontSize={9}
+            />
           </div>
         )}
 

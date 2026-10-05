@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { validateItemPricing, stockFieldsFor, isServiceForm, defaultProductType } from '../../../lib/itemForm';
 import { ImagePlus, CheckCircle2, Percent, Camera, Images, Upload, X, Loader2, Wand2 } from 'lucide-react';
-import { ean13CheckDigit } from '../../../lib/labelPrint';
+import { ean13CheckDigit, genInternalBarcode } from '../../../lib/labelPrint';
 import Modal from '../../../shared/Modal';
 import Button from '../../../shared/Button';
 import { TAX_SLABS, TAX_SLABS_WITH_CESS, UNITS } from '../../../lib/constants';
@@ -16,7 +16,7 @@ const DEFAULT_CATEGORIES = [
   'Sports & Fitness', 'Automotive', 'Other'
 ];
 
-const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId }) => {
+const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId, existingBarcodes }) => {
   const { businessType, isModuleOn } = useTenant();
   const isResto = businessType === 'RESTAURANT';
 
@@ -345,9 +345,18 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
                   <button type="button"
                     onClick={() => {
-                      // Internal EAN-13: GS1 in-store prefix 21 + random body + check digit
-                      const body = '21' + String(Math.floor(Math.random() * 1e10)).padStart(10, '0');
-                      setFormData({ ...formData, barcode: body + ean13CheckDigit(body) });
+                      // genInternalBarcode, not a second copy of the same
+                      // arithmetic. This button rolled its own random body and
+                      // checked it against nothing, so it could hand a product
+                      // a code another product already carried -- and a
+                      // duplicate barcode at the counter rings up the wrong
+                      // item, which is the one failure a barcode exists to
+                      // prevent. The shared generator retries against the
+                      // codes already in use.
+                      setFormData({
+                        ...formData,
+                        barcode: genInternalBarcode(existingBarcodes || new Set()),
+                      });
                     }}
                     title="Auto-generate an EAN-13 barcode"
                     className="shrink-0 flex items-center gap-1.5 px-3 rounded-pill border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
