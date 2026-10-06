@@ -13,7 +13,7 @@
 <meta name="twitter:title" content="bookledger — GST Billing &amp; Inventory Software"/>
 <meta name="twitter:description" content="GST invoices, POS, inventory, van sales — one platform for Indian retailers &amp; distributors."/>
 <meta name="twitter:image" content="https://bookledger.in/og.webp"/>
-<link rel="stylesheet" href="tw.css?v=aec25d0665"/>
+<link rel="stylesheet" href="tw.css?v=0f2cc458a2"/>
 <link rel="icon" href="favicon-256.png"/>
 <link rel="canonical" href="https://bookledger.in/"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
@@ -412,6 +412,101 @@
     </div>
   </section>
 
+  <!-- 6 · What our customers say ───────────────────────────────────────────
+       The quotes are real ones or there is no section. Each <figure> inside
+       the track is one testimonial, authored as ordinary HTML so it is in the
+       page source for a crawler rather than injected from a data blob. Adding
+       one is copying a figure; the arrows, the dots and the counter all read
+       the track and need no edit.
+
+       An EMPTY track hides the whole section. That is the point: a
+       testimonial carousel with invented customers in it is worse than no
+       carousel, and a page that silently shows a placeholder quote is how an
+       invented customer ships. -->
+  <section id="testimonials" data-carousel class="max-w-[1320px] mx-auto px-6 lg:px-10 py-20 lg:py-24" hidden>
+    <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <div>
+        <span class="text-[12px] font-bold uppercase tracking-[0.16em] text-accent-text">What our customers say</span>
+        <h2 class="mt-4 text-[2rem] lg:text-[2.6rem] font-extrabold tracking-[-0.03em] leading-[1.1]">
+          Real People.<br class="hidden sm:block"/> Real Businesses.
+        </h2>
+        <p class="mt-5 max-w-[32rem] text-[16px] leading-relaxed text-secondary">
+          Hear from Indian retailers who are already running their shop on bookledger.
+        </p>
+
+        <!-- One grid, two arrangements. On a phone the card takes the full
+             width and the arrows drop beneath it beside the dots: flanking a
+             375px column with two 44px buttons left the quote about thirty
+             characters wide, which set a four-line quote as fourteen lines.
+             From sm up it is the design's row -- arrow, card, arrow -- with the
+             dots centred underneath. One pair of buttons either way; duplicating
+             them per breakpoint would announce two "next" controls. -->
+        <div class="mt-9 grid grid-cols-[auto_1fr_auto] items-center gap-x-3 sm:gap-x-4 gap-y-5">
+          <!-- 44px, so they clear the 24x24 floor with room for a thumb at the
+               counter. -->
+          <button type="button" data-carousel-prev
+                  class="col-start-1 row-start-2 sm:row-start-1 shrink-0 grid place-items-center w-11 h-11 rounded-full bg-surface border border-line text-secondary
+                         hover:text-primary hover:bg-canvas transition-[background-color,color,transform] duration-150 active:scale-[0.96]
+                         disabled:opacity-40 disabled:pointer-events-none"
+                  aria-label="Previous testimonial">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+          </button>
+
+          <div data-carousel-track
+               class="col-span-3 row-start-1 sm:col-span-1 sm:col-start-2 min-w-0 bg-canvas border border-line rounded-2xl p-6 lg:p-7 shadow-[0_18px_50px_-32px_rgba(26,24,21,0.45)]"
+               aria-live="polite">
+
+
+
+            <!-- One <figure> per testimonial. Real quote, real name, real town.
+                 Nothing invented goes in here.
+
+            <figure>
+              <div class="flex gap-4">
+                <svg width="34" height="26" viewBox="0 0 34 26" fill="currentColor" class="shrink-0 text-accent/35" aria-hidden="true"><path d="M0 26V14.6C0 6.6 4.6 1.3 13 0l1.6 4.2C9.9 5.6 7.4 8 7.3 11.4H13V26H0zm20 0V14.6C20 6.6 24.6 1.3 33 0l1.6 4.2C29.9 5.6 27.4 8 27.3 11.4H33V26H20z"/></svg>
+                <blockquote class="text-[15.5px] leading-relaxed text-secondary">
+                  Their words, as they wrote them.
+                </blockquote>
+              </div>
+              <figcaption class="mt-5 flex items-center gap-3">
+                <img src="" width="80" height="80" loading="lazy" decoding="async" alt=""
+                     class="w-10 h-10 rounded-full object-cover outline outline-1 outline-black/10"/>
+                <span>
+                  <span class="block text-[14px] font-bold leading-tight">Their name</span>
+                  <span class="block text-[13px] text-secondary leading-snug mt-0.5">What they do, their town</span>
+                </span>
+              </figcaption>
+            </figure>
+
+                 -->
+          </div>
+
+          <button type="button" data-carousel-next
+                  class="col-start-3 row-start-2 sm:row-start-1 shrink-0 grid place-items-center w-11 h-11 rounded-full bg-surface border border-line text-secondary
+                         hover:text-primary hover:bg-canvas transition-[background-color,color,transform] duration-150 active:scale-[0.96]
+                         disabled:opacity-40 disabled:pointer-events-none"
+                  aria-label="Next testimonial">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+
+          <!-- Dots are built from the track, so they cannot disagree with it. -->
+          <div data-carousel-dots
+               class="col-start-2 row-start-2 sm:col-start-1 sm:col-span-3 sm:row-start-2 flex justify-center gap-2"></div>
+        </div>
+      </div>
+
+      <div class="relative">
+        <!-- The peach panel behind the photo, offset and tilted the other way.
+             Decoration only: it carries no text, so accent at 3.19:1 is the
+             right value for it. -->
+        <div class="absolute inset-0 -rotate-2 translate-x-3 translate-y-3 rounded-[26px] bg-accent/15" aria-hidden="true"></div>
+        <img src="shopkeeper-2.jpg" width="760" height="1016" loading="lazy" decoding="async"
+             alt="A shop owner standing with her arms folded in front of her stocked grocery shelves."
+             class="relative w-full rounded-[22px] rotate-1 outline outline-1 outline-black/10 shadow-[0_28px_70px_-32px_rgba(26,24,21,0.35)]"/>
+      </div>
+    </div>
+  </section>
+
 <section class="ruled bg-surface">
     <div class="max-w-[1080px] mx-auto px-6 lg:px-8 py-12 flex flex-wrap items-baseline gap-x-10 gap-y-4">
       <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-text">Runs everywhere</span>
@@ -636,4 +731,5 @@
 
 <script defer src="reveal.js"></script>
 <script src="nav.js" defer></script>
+<script src="testimonials.js" defer></script>
 </body></html>
