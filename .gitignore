@@ -47,3 +47,4 @@ supabase.exe
 
 # Screenshots the sidebar e2e writes for eyeballing; not artefacts to keep.
 shot-*.png
+supabase/.temp/

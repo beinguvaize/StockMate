@@ -75,7 +75,13 @@ $function$;
 CREATE OR REPLACE FUNCTION public.is_tenant_member()
  RETURNS boolean
  LANGUAGE sql
- SECURITY DEFINER
+ -- STABLE, like production. Recorded rather than inferred: the sibling
+ -- predicates is_staff() and is_admin_safe() are VOLATILE there and are left
+ -- that way. Declaring this one VOLATILE would have been a change, not a
+ -- capture -- a volatile function cannot be hoisted to an InitPlan, so every
+ -- policy calling it would go back to one call per row, which is the exact
+ -- cost 20261008 exists to remove.
+ STABLE SECURITY DEFINER
  SET search_path TO 'public', 'auth'
 AS $function$
   SELECT EXISTS (
