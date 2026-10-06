@@ -13,7 +13,7 @@
 <meta name="twitter:title" content="bookledger — GST Billing &amp; Inventory Software"/>
 <meta name="twitter:description" content="GST invoices, POS, inventory, van sales — one platform for Indian retailers &amp; distributors."/>
 <meta name="twitter:image" content="https://bookledger.in/og.webp"/>
-<link rel="stylesheet" href="tw.css?v=0f2cc458a2"/>
+<link rel="stylesheet" href="tw.css?v=00e960bc83"/>
 <link rel="icon" href="favicon-256.png"/>
 <link rel="canonical" href="https://bookledger.in/"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
@@ -458,6 +458,7 @@
 
 
 
+
             <!-- One <figure> per testimonial. Real quote, real name, real town.
                  Nothing invented goes in here.
 
@@ -503,6 +504,38 @@
         <img src="shopkeeper-2.jpg" width="760" height="1016" loading="lazy" decoding="async"
              alt="A shop owner standing with her arms folded in front of her stocked grocery shelves."
              class="relative w-full rounded-[22px] rotate-1 outline outline-1 outline-black/10 shadow-[0_28px_70px_-32px_rgba(26,24,21,0.35)]"/>
+
+        <!-- The hand-written mark over the photograph.
+             Markup, not pixels. It was baked into the photo as supplied, which
+             is why shopkeeper-2.jpg was cropped to remove it: a number set in a
+             JPEG cannot be edited, cannot be read by a screen reader, and is
+             soft on a Retina display at this size. Here the figure lives in one
+             text node and the photo stays a photo.
+             The number is a claim about the business, and the business makes
+             it; this file only sets it. Change it in the <strong> below. -->
+        <figure class="absolute right-2 sm:right-[-26px] top-[44%] w-[48%] sm:w-[38%] min-w-[150px] max-w-[178px] rotate-[-4deg]">
+          <div class="bg-canvas rounded-xl shadow-[0_16px_40px_-16px_rgba(26,24,21,0.4)] px-4 py-3 text-center">
+            <figcaption class="script text-[20px] sm:text-[23px] leading-[1.15] text-primary">
+              Trusted by <strong class="font-semibold">100+</strong><br/>Retailers
+            </figcaption>
+            <!-- The swash under it, drawn rather than underlined: a text-decoration
+                 would sit level and read as a link. -->
+            <svg class="mt-1 w-[72%] mx-auto text-accent" height="7" viewBox="0 0 120 7" fill="none" aria-hidden="true">
+              <path d="M2 4.6C22 1.9 52 1.2 78 2.4c14 .6 28 1.8 40 2.6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <!-- Three rays off the corner, as in the design. Decoration, so they
+               are hidden from the accessibility tree along with everything else
+               that only repeats the caption.
+
+               They are also the reason the badge sits INSIDE the photo on a
+               phone rather than overhanging it: the rays plus the overhang put
+               5px past the viewport at 375, and five pixels of sideways scroll
+               on a whole page is a real bug for one decorative mark. -->
+          <svg class="hidden sm:block absolute -right-4 top-1/2 -translate-y-1/2 text-accent" width="17" height="34" viewBox="0 0 17 34" fill="none" aria-hidden="true">
+            <path d="M2 6l7 3M2 17h8M2 28l7-3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+        </figure>
       </div>
     </div>
   </section>
