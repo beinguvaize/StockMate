@@ -24,7 +24,7 @@ const PLANS = [
   {
     id: 'GROWTH',
     label: 'Growth',
-    price: '₹2,999/yr',
+    price: '₹1,999/yr',
     tagline: 'For a shop finding its feet.',
     badge: 'Most Popular',
     features: ['All Free features', 'Purchases & Suppliers', 'Payroll', 'Reports', 'GSTR Export', '1,000 invoices/mo', '3 users'],
@@ -34,7 +34,7 @@ const PLANS = [
   {
     id: 'PRO',
     label: 'Pro',
-    price: '₹5,999/yr',
+    price: '₹2,999/yr',
     tagline: 'For growing teams that need the full stack.',
     features: ['All Growth features', 'Vehicles & Routes', 'Estimates', 'Manufacturing', 'Multi-Location Inventory', 'Price Lists', 'WAC Costing', 'Unlimited invoices', '5 users'],
     locked: ['White Label', 'API Access'],
@@ -43,7 +43,7 @@ const PLANS = [
   {
     id: 'ENTERPRISE',
     label: 'Enterprise',
-    price: 'Custom',
+    price: '₹3,999/yr',
     tagline: 'For multi-location & power operations.',
     features: ['All Pro features', 'User Management', 'Audit Log', 'API Access', 'White Label', 'Priority Support', 'Unlimited users'],
     locked: [],

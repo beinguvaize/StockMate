@@ -21,7 +21,7 @@ export const PLANS = {
   },
   GROWTH: {
     label: 'Growth',
-    price: '₹2,999/yr',
+    price: '₹1,999/yr',
     modules: [
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'payroll', 'reports', 'estimates',
@@ -38,7 +38,7 @@ export const PLANS = {
   },
   PRO: {
     label: 'Pro',
-    price: '₹5,999/yr',
+    price: '₹2,999/yr',
     modules: [
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports',
@@ -56,7 +56,7 @@ export const PLANS = {
   },
   ENTERPRISE: {
     label: 'Enterprise',
-    price: 'Custom',
+    price: '₹3,999/yr',
     modules: [
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports',
