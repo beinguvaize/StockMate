@@ -103,7 +103,10 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
           },
         ),
         readCacheThenRevalidate('clients',
-          () => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
+          // Paged like its siblings above. It was the one read here without a
+          // .range(), so past 1000 customers the POS could not find the client
+          // it was about to put a credit sale on.
+          () => fetchAllPages(() => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'), { label: 'clients' }),
           (fresh) => setClients(fresh.map(r => normalizeRow(r, NUMERIC_CLIENT_COLS))),
         ),
         readCacheThenRevalidate('invoices',
@@ -309,11 +312,21 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
           }
           // Optimistic sale row so lists/DayBook reflect it before sync.
           const optimisticPaid = paidAmount ?? (paymentStatus === 'PAID' ? totalAmount : 0);
+          // The tender rides on the payload because the POS can no longer write
+          // it after the fact when the sale is queued -- there is no server row
+          // to update. Queue it as its own op and keep it on the cached row so a
+          // reprint before sync still shows what the customer actually handed
+          // over, not the capped paidAmount.
+          const tendered = sale.amountReceived == null ? null : Number(sale.amountReceived);
+          if (tendered != null && Number.isFinite(tendered)) {
+            await queueMutation({ table: 'sales', type: 'update', payload: { id, amount_received: tendered } });
+          }
           await upsertCachedRow('sales', {
             id, tenant_id: tenantId, shopId: clientId, items,
             totalAmount, discount: Number(sale.discount) || 0,
             paymentMethod: sale.paymentMethod || 'CASH', paymentStatus,
             paidAmount: optimisticPaid,
+            amount_received: tendered,
             date: sale.date || todayISOInAppTZ(), created_at: new Date().toISOString(),
           });
           // Credit/partial sale: bump the client's outstanding in state AND the

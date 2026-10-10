@@ -790,9 +790,19 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         }
         return out;
       });
+      // The actual cash handed over (may exceed the bill -> change, or be
+      // applied to previous dues). paidAmount is capped at the bill, so without
+      // this the real tender is lost on reprint.
+      //
+      // Computed here rather than after the sale so it can ride along on the
+      // payload: a sale queued offline has no second chance to send it.
+      const tendered = explicitPaid !== null
+        ? explicitPaid
+        : (isCreditSale ? 0 : total);
       const saleData = {
         id: saleId,
         clientId: selectedClientId,
+        amountReceived: tendered,
         items: itemsWithSerials,
         totalAmount: total,
         subtotal: taxableAmount,
@@ -827,27 +837,30 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         addNotification(overLimit ? `Credit limit reached — ${msg}` : `Checkout failed: ${msg}`, 'error');
         return; // keep cart + modal so user can retry
       }
-      // Persist the actual amount the customer handed over (may exceed the
-      // bill → change, or applied to previous dues). paidAmount is capped at
-      // the bill, so without this the real tender is lost on reprint.
+      // Persist the tender computed above.
       //
       // This used to run only when the cashier typed into "Amount received",
       // which is the slow path — on a normal cash sale the field is left blank
       // and the column was never written at all (populated on 1 of 437 sales
       // for one live tenant). The tender is known in that case: a non-credit
       // sale is paid in full, a credit sale tenders nothing at the till.
-      const tendered = explicitPaid !== null
-        ? explicitPaid
-        : (isCreditSale ? 0 : total);
-      try {
-        const { supabase } = await import('../../../lib/supabase');
-        const { error: arErr } = await supabase
-          .from('sales').update({ amount_received: tendered }).eq('id', saleId);
-        // Non-fatal (the sale itself is already recorded) but never silent —
-        // a swallowed failure here is exactly how the column went empty.
-        if (arErr) console.error('[SALE] amount_received save failed:', arErr.message, arErr);
-      } catch (e) {
-        console.error('[SALE] amount_received save threw:', e);
+      //
+      // SKIPPED when the sale was queued rather than sent. There is no row on
+      // the server to update yet, so this awaited a call that could not
+      // succeed: the cashier waited for it to fail and the tender was lost
+      // anyway. A queued sale carries amountReceived on its payload instead,
+      // and placeSale queues the update alongside the sale (see useSales.js).
+      if (!result?.queued) {
+        try {
+          const { supabase } = await import('../../../lib/supabase');
+          const { error: arErr } = await supabase
+            .from('sales').update({ amount_received: tendered }).eq('id', saleId);
+          // Non-fatal (the sale itself is already recorded) but never silent —
+          // a swallowed failure here is exactly how the column went empty.
+          if (arErr) console.error('[SALE] amount_received save failed:', arErr.message, arErr);
+        } catch (e) {
+          console.error('[SALE] amount_received save threw:', e);
+        }
       }
       // Money received → the DB trigger trg_sales_post_ledger posts the
       // account_transactions IN entry server-side now (idempotent on sale id),

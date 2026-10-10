@@ -363,10 +363,15 @@ class SyncService {
       }
       final tenantId = supabase.auth.currentUser?.userMetadata?['tenant_id'] as String?
           ?? (await supabase.from('users').select('tenant_id').eq('id', uid).maybeSingle())?['tenant_id'] as String?;
-      var q = supabase.from('products').select().isFilter('deleted_at', null);
-      if (tenantId != null) q = q.eq('tenant_id', tenantId);
-      final response = await q;
-      final List<dynamic> data = response as List<dynamic>;
+      // Paged. This was a bare select, so a shop with more than 1000 SKUs
+      // cached the first 1000 and the scanner silently failed to resolve the
+      // rest -- the same truncation the web catalogue had.
+      final List<dynamic> data = await _pageAll('products', (from, to) async {
+        var q = supabase.from('products').select().isFilter('deleted_at', null);
+        if (tenantId != null) q = q.eq('tenant_id', tenantId);
+        final res = await q.order('id').range(from, to);
+        return res as List<dynamic>;
+      });
       await db.batch((batch) {
         for (final item in data) {
           batch.insert(
@@ -652,13 +657,55 @@ class SyncService {
 
   DateTime? _ts(dynamic v) => v == null ? null : DateTime.tryParse(v as String);
 
+  /// PostgREST answers with at most this many rows per request, whatever the
+  /// query asks for. A pull without a .range() loop therefore returns the first
+  /// 1000 rows and no error -- which for `products` means the scanner stops
+  /// resolving anything past the thousandth SKU and nothing says why.
+  static const int kPageSize = 1000;
+
+  /// Stop rather than pull an unbounded table into a phone. Hitting it is
+  /// reported, because the failure this replaces was the silent one.
+  static const int kPullCeiling = 50000;
+
+  /// Read every page of a query instead of its first 1000 rows.
+  ///
+  /// [page] is handed a zero-based inclusive range and must apply its own
+  /// ORDER BY: range paging over an unordered query can repeat a row on one
+  /// page and skip it on the next, because Postgres is free to return rows in
+  /// a different order each time.
+  Future<List<dynamic>> _pageAll(
+    String label,
+    Future<List<dynamic>> Function(int from, int to) page,
+  ) async {
+    final out = <dynamic>[];
+    for (var from = 0; from < kPullCeiling; from += kPageSize) {
+      final batch = await page(from, from + kPageSize - 1);
+      out.addAll(batch);
+      if (batch.length < kPageSize) return out;   // short page = end of table
+    }
+    debugPrint('[pullSync] $label: stopped at the $kPullCeiling-row ceiling; '
+        'the local cache is incomplete past that point.');
+    return out;
+  }
+
   /// Fetch a tenant-scoped, non-deleted slice of [table].
+  ///
+  /// With no [limit] this pages the whole table rather than taking PostgREST's
+  /// first 1000 rows.
   Future<List<dynamic>?> _fetch(String table, String columns, {int? limit}) async {
     final tenantId = await _currentTenantId();
     if (tenantId == null) return null;
-    var q = supabase.from(table).select(columns).eq('tenant_id', tenantId).isFilter('deleted_at', null);
-    final res = limit == null ? await q : await q.limit(limit);
-    return res as List<dynamic>;
+    if (limit != null) {
+      final res = await supabase.from(table).select(columns)
+          .eq('tenant_id', tenantId).isFilter('deleted_at', null).limit(limit);
+      return res as List<dynamic>;
+    }
+    return _pageAll(table, (from, to) async {
+      final res = await supabase.from(table).select(columns)
+          .eq('tenant_id', tenantId).isFilter('deleted_at', null)
+          .order('id').range(from, to);
+      return res as List<dynamic>;
+    });
   }
 
   Future<void> _pullDayBook() async {
