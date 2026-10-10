@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restInsert, restUpdate, restRpc } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { fetchWithCache, readCacheThenRevalidate, queueMutation, upsertCachedRow, isOfflineError, isElectron } from '../lib/offline/hookAdapter';
+import { fetchAllPages } from '../lib/fetchAllPages';
 import { realtimeEnabled } from '../lib/realtime';
 
 // Postgres `numeric` arrives as string over the wire (supabase-js preserves
@@ -57,22 +58,30 @@ export const useInventory = (tenantId) => {
       const [cachedProds, cachedCats, cachedBals, cachedLocs] = await Promise.all([
         readCacheThenRevalidate(
           'products',
-          () => supabase.from('products').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
+          // Paged, not a bare select. PostgREST stops at 1000 rows per request
+          // (fetchAllPages.js), and this read had no .range() and no .limit() --
+          // so a shop with more than 1000 SKUs got the first 1000 and nothing
+          // said so. At the till that is not a short list: a scanned barcode for
+          // product 1001 does not resolve, and the cashier is told the shop does
+          // not stock something that is on the shelf in front of them.
+          () => fetchAllPages(() => supabase.from('products').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'), { label: 'products' }),
           (rows) => setProducts(rows.map(r => normalizeRow(r, NUMERIC_PRODUCT_COLS))),
         ),
         readCacheThenRevalidate(
           'product_categories',
-          () => supabase.from('product_categories').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
+          () => fetchAllPages(() => supabase.from('product_categories').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'), { label: 'product_categories' }),
           (rows) => setProductCategories(rows),
         ),
         readCacheThenRevalidate(
           'inventory_balances',
-          () => supabase.from('inventory_balances').select('*').eq('tenant_id', tenantId),
+          // One row per product PER LOCATION, so this is the first read to pass
+          // 1000 -- a 600-SKU shop with two stores is already over.
+          () => fetchAllPages(() => supabase.from('inventory_balances').select('*').eq('tenant_id', tenantId), { label: 'inventory_balances' }),
           (rows) => setInventoryBalances(rows.map(r => normalizeRow(r, NUMERIC_BALANCE_COLS))),
         ),
         readCacheThenRevalidate(
           'inventory_locations',
-          () => supabase.from('inventory_locations').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
+          () => fetchAllPages(() => supabase.from('inventory_locations').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'), { label: 'inventory_locations' }),
           (rows) => setInventoryLocations(rows),
         ),
       ]);
