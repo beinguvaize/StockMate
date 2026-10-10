@@ -51,8 +51,16 @@ export const MOCK_TENANT = {
 };
 
 export const MOCK_PRODUCTS = [
-  { id: 'PROD-001', name: 'Widget A', sku: 'WGT-001', category: 'General', stock: 100, sellingPrice: 50, costPrice: 30, taxRate: 18, tenant_id: TENANT_ID },
-  { id: 'PROD-002', name: 'Gadget B', sku: 'GDG-002', category: 'General', stock: 50,  sellingPrice: 120, costPrice: 80, taxRate: 18, tenant_id: TENANT_ID },
+  // Widget A carries a 13-digit EAN that begins with a zero, because that is
+  // the case the till used to get wrong: the label on the shelf is the
+  // 12-digit UPC-A form and an exact string compare never matched it.
+  { id: 'PROD-001', name: 'Widget A', sku: 'WGT-001', barcode: '0012345678905', category: 'General', stock: 100, sellingPrice: 50, costPrice: 30, taxRate: 18, tenant_id: TENANT_ID },
+  { id: 'PROD-002', name: 'Gadget B', sku: 'GDG-002', barcode: '8901234567890', category: 'General', stock: 50,  sellingPrice: 120, costPrice: 80, taxRate: 18, tenant_id: TENANT_ID },
+  // Shares the 12-digit substring with Widget A's barcode ('...12345678905').
+  // That is what makes the UPC case a real miss rather than one the old fuzzy
+  // fallback happened to cover: with two substring matches it resolved to
+  // NEITHER and the scan silently did nothing.
+  { id: 'PROD-003', name: 'Doohickey C', sku: 'DOO-003', barcode: '912345678905', category: 'General', stock: 25, sellingPrice: 75, costPrice: 40, taxRate: 18, tenant_id: TENANT_ID },
 ];
 
 export const MOCK_CLIENTS = [

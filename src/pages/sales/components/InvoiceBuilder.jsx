@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { parseScaleBarcode, quantityFrom } from '../../../lib/scaleBarcode';
+import { buildCatalogIndex, resolveScan, resolvePlu } from '../../../lib/pos/catalog';
 import { useDialogClose } from '../../../hooks/useDialogClose';
 import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
 import Button from '../../../shared/Button';
@@ -356,6 +357,17 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     return Array.from(set).sort();
   }, [products]);
 
+  /**
+   * The scan lookup, built once per catalogue change.
+   *
+   * It replaces two linear passes over every product per scan, each of which
+   * lowercased both sides on every candidate. It also resolves a 12-digit UPC
+   * label against a product entered in 13-digit EAN form, which the exact
+   * string compare could not -- that was reported at the counter as "not in
+   * the catalog" for something on the shelf.
+   */
+  const catalogIndex = useMemo(() => buildCatalogIndex(products), [products]);
+
   const filteredProducts = useMemo(() => {
     // RAW materials are consume-only (manufacturing) — never sold at POS.
     let sellable = products.filter(p => p.product_type !== 'RAW');
@@ -399,9 +411,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       if (weighed) {
         // The PLU is matched against barcode OR sku, because shops put it in
         // whichever field they already use.
-        const item = products.find(p =>
-          (p.barcode && String(p.barcode) === weighed.itemCode) ||
-          (p.sku && String(p.sku) === weighed.itemCode));
+        const item = resolvePlu(catalogIndex, weighed.itemCode);
         if (!item) {
           addNotification(`Scale item ${weighed.itemCode} is not in the catalog`, 'error');
           setSearchTerm('');
@@ -421,22 +431,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       }
     }
 
-    // Exact barcode match first (fastest for scanner)
-    const exactBarcode = products.find(
-      p => p.barcode && p.barcode.toLowerCase() === q.toLowerCase()
-    );
-    if (exactBarcode) {
-      addToCart(exactBarcode);
-      setSearchTerm('');
-      return;
-    }
-
-    // Exact SKU match
-    const exactSku = products.find(
-      p => p.sku && p.sku.toLowerCase() === q.toLowerCase()
-    );
-    if (exactSku) {
-      addToCart(exactSku);
+    // Barcode, then SKU — one Map hit each, not a pass over the catalogue.
+    const scanned = resolveScan(catalogIndex, q);
+    if (scanned) {
+      addToCart(scanned);
       setSearchTerm('');
       return;
     }
