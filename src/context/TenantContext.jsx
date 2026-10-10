@@ -6,6 +6,7 @@ import { normalizeType, resolveModules, isModuleEnabled, term } from '../lib/ver
 import { cacheClear as libCacheClear } from '../lib/cache';
 import { setAppTZ } from '../lib/utils';
 import { goHref } from '../lib/nav';
+import { configureLocalFirst } from '../lib/offline/mode';
 
 // Reject a pending request after `ms` so a hung network call can never
 // freeze the app on the loading screen.
@@ -48,6 +49,16 @@ export const TenantProvider = ({ children }) => {
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
   const currentTenantId = currentTenant?.id || null;
+
+  // Resolve "does this install bill from the local database" as soon as the
+  // tenant is known, and again whenever it changes. The offline gates read a
+  // cached boolean rather than recomputing per call, because they sit in
+  // render paths and on every write -- so something has to tell them, and the
+  // moment the tenant is known is that something.
+  useEffect(() => {
+    const on = configureLocalFirst(currentTenantId);
+    if (on) console.info('[offline] local-first billing is ON for this tenant');
+  }, [currentTenantId]);
 
   // Depend only on user ID — not the full object — so that TOKEN_REFRESHED
   // (which creates a new currentUser reference with same ID) does not trigger

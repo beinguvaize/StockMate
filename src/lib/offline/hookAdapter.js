@@ -20,6 +20,7 @@
 
 import { putRecords, getRecords } from './cache.js';
 import { enqueue, allOps } from './outbox.js';
+import { localFirstEnabled, isElectron as detectElectron } from './mode.js';
 
 /**
  * Cache-first read. Returns the cached snapshot SYNCHRONOUSLY from IDB so
@@ -37,9 +38,10 @@ import { enqueue, allOps } from './outbox.js';
  *   setProducts(cached);  // instant render
  */
 export async function readCacheThenRevalidate(table, queryFn, onRefresh) {
-  if (!isElectron()) {
-    // Web: skip cache. Block until the network resolves so the existing
-    // hook contract stays the same.
+  if (!localFirstEnabled()) {
+    // Server-first: skip the cache and block until the network resolves, so
+    // the hook contract is exactly what it was before any of this existed.
+    // This is still the path for every web tenant not in the rollout.
     const run = async () => {
       const res = await queryFn();
       if (res?.error) throw res.error;
@@ -136,12 +138,15 @@ export async function readCacheThenRevalidate(table, queryFn, onRefresh) {
   return cached;
 }
 
-// Offline scaffolding is desktop-only. Web users get the original
-// supabase-direct behaviour — no cache writes, no outbox.
-export const isElectron = () => {
-  if (typeof navigator === 'undefined') return false;
-  return /Electron/i.test(navigator.userAgent) || !!(typeof window !== 'undefined' && window.electron);
-};
+/**
+ * Re-exported so the twenty-odd callers outside this file keep working, but it
+ * is no longer the gate. "Is this the desktop build" and "may we use the cache
+ * and the outbox" were the same question only for as long as the web app was
+ * never allowed a local database. mode.js answers the second one now; callers
+ * that genuinely mean "is this Electron" -- kiosk mode, the updater, the
+ * Troubleshoot menu -- still mean this.
+ */
+export const isElectron = detectElectron;
 
 /**
  * Run a supabase select that returns { data, error }. Caches successful
@@ -162,9 +167,9 @@ const withTimeout = (promise, ms, label = 'request') =>
   ]);
 
 export async function fetchWithCache(table, queryFn) {
-  // Web → pass through, no caching. Keeps web hooks 1:1 with previous
-  // behaviour so nothing on the cashier surface changes.
-  if (!isElectron()) {
+  // Server-first → pass through, no caching. Keeps those hooks 1:1 with
+  // previous behaviour so nothing on the cashier surface changes.
+  if (!localFirstEnabled()) {
     const res = await queryFn();
     if (res?.error) throw res.error;
     return { data: Array.isArray(res?.data) ? res.data : [], fromCache: false, error: null };
@@ -221,9 +226,9 @@ function scheduleSyncSoon() {
 }
 
 export async function queueMutation({ table, type = 'insert', payload }) {
-  // Outbox queue only meaningful on desktop. Web hooks should never call
-  // this — if they do, no-op so we don't grow web's IDB silently.
-  if (!isElectron()) return null;
+  // No outbox unless this install bills locally. A server-first tab calling
+  // this would grow an IndexedDB nothing ever flushes.
+  if (!localFirstEnabled()) return null;
   const opId = await enqueue({ table, type, payload });
   scheduleSyncSoon();
   return opId;
@@ -244,7 +249,7 @@ export async function queueMutation({ table, type = 'insert', payload }) {
  *   });
  */
 export async function localFirstWrite({ table, type = 'insert', payload, cacheRow, onlineWrite }) {
-  if (!isElectron()) return onlineWrite();
+  if (!localFirstEnabled()) return onlineWrite();
   await enqueue({ table, type, payload });
   if (cacheRow) {
     try { await putRecords(table, [cacheRow]); } catch (_) {/* best-effort */}
@@ -277,12 +282,12 @@ export function isOfflineError(err) {
  *   - decrementCachedStock([{ id, quantity }])
  */
 export async function upsertCachedRow(table, row) {
-  if (!isElectron() || !row || !row.id) return;
+  if (!localFirstEnabled() || !row || !row.id) return;
   try { await putRecords(table, [row]); } catch (_) {}
 }
 
 export async function decrementCachedStock(items = []) {
-  if (!isElectron() || !items.length) return;
+  if (!localFirstEnabled() || !items.length) return;
   try {
     const cached = await getRecords('products');
     if (!cached.length) return;
