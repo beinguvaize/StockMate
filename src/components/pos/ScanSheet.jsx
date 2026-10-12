@@ -112,7 +112,7 @@ const ScanSheet = ({ open, onClose, onCode }) => {
             type="button"
             onClick={onClose}
             aria-label="Close scanner"
-            className="w-9 h-9 grid place-items-center rounded-pill hover:bg-canvas
+            className="w-9 h-9 grid place-items-center rounded-xl hover:bg-canvas
                        transition-[background-color,transform] duration-150 active:scale-[0.96]"
           >
             <X size={18} />

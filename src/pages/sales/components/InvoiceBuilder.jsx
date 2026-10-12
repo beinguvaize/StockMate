@@ -1013,7 +1013,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               onClick={() => setScanOpen(true)}
               aria-label="Scan a barcode with the camera"
               className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center
-                         rounded-pill text-muted-foreground hover:text-foreground hover:bg-canvas
+                         rounded-xl text-muted-foreground hover:text-foreground hover:bg-canvas
                          transition-[background-color,color,transform] duration-150 active:scale-[0.96]"
             >
               <ScanBarcode size={18} />
