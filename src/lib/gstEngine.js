@@ -57,7 +57,22 @@ export const amountToWords = (amount) => {
  * Comprehensive GST Calculation
  * Returns all tax components and summaries for an invoice.
  */
-export const calculateGST = (items = [], businessState = '', clientState = '') => {
+/**
+ * @param opts.taxMode  'EXCLUSIVE' (default) | 'INCLUSIVE' | 'NONE'
+ *
+ * INCLUSIVE means the rate on the line already contains the tax, so it is
+ * extracted rather than added -- see taxLine.js. NONE is a shop that does not
+ * file GST: the price is final and no tax is split out, which is what the POS
+ * has always done for that mode and what sale_gst_amount does server-side.
+ *
+ * A fourth argument rather than a positional one because the three before it
+ * are already positional and a caller passing 'INCLUSIVE' into the wrong slot
+ * would silently become a client state.
+ */
+export const calculateGST = (items = [], businessState = '', clientState = '', opts = {}) => {
+  const mode = String(opts.taxMode || 'EXCLUSIVE').toUpperCase();
+  const inclusive = mode === 'INCLUSIVE';
+  const noTax = mode === 'NONE';
   const safeBusinessState = typeof businessState === 'string' ? businessState.trim().toLowerCase() : '';
   const safeClientState = typeof clientState === 'string' ? clientState.trim().toLowerCase() : '';
   // Inter-state only when BOTH states are known and differ. If the seller's
@@ -82,11 +97,13 @@ export const calculateGST = (items = [], businessState = '', clientState = '') =
     // Honour an explicit 0% — `|| 18` wrongly treated 0 as "missing" and taxed
     // GST-exempt items at 18%. Only fall back to 18 when truly absent.
     const _tr = parseFloat(item.taxRate);
-    const taxRate = Number.isFinite(_tr) ? _tr : 18;
+    // NONE: the shop does not file GST, so nothing is split out and the price
+    // stands as the final figure -- the same rule the POS applies.
+    const taxRate = noTax ? 0 : (Number.isFinite(_tr) ? _tr : 18);
     const hsn = item.hsn_code || item.sku || 'N/A';
 
     // Shared per-line math (same primitive the report engine uses).
-    const L = computeLineTax({ qty, rate, discountPercent: discPercent, taxRate, interstate: isInterstate });
+    const L = computeLineTax({ qty, rate, discountPercent: discPercent, taxRate, interstate: isInterstate, inclusive });
     const itemSubtotal = L.gross;
     const itemDiscount = L.discount;
     const itemTaxable = L.taxable;
