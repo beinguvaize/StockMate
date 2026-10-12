@@ -141,17 +141,68 @@ export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, on
 
 const miniInput = 'w-24 text-right text-[12px] tabular-nums border border-black/10 rounded px-2 py-1 outline-none focus:border-accent-signature/40';
 
+/**
+ * The tax-mode switch.
+ *
+ * Inclusive and exclusive are not a formatting choice, they change what the
+ * customer pays: at 18%, a Rs 125 line is Rs 147.50 exclusive and Rs 125
+ * inclusive. So the control says which one is in force on THIS document rather
+ * than leaving the reader to infer it from the arithmetic.
+ *
+ * Rendered read-only where the server owns the answer -- see the note in
+ * CreateDocument -- because a control that looks settable and is then
+ * overruled on save is worse than a label.
+ */
+export const TaxModeToggle = ({ value = 'EXCLUSIVE', onChange, locked = false, hint }) => {
+  const opts = [
+    ['EXCLUSIVE', 'Tax extra'],
+    ['INCLUSIVE', 'Tax included'],
+  ];
+  return (
+    <div className="flex items-center justify-between gap-3 py-1.5">
+      <span className="text-[13px] text-muted-foreground">
+        Prices are
+        {hint && <span className="block text-[11px] text-muted-foreground/80">{hint}</span>}
+      </span>
+      {locked ? (
+        <span className="text-[12px] font-semibold text-ink-primary">
+          {value === 'INCLUSIVE' ? 'Tax included' : value === 'NONE' ? 'No GST' : 'Tax extra'}
+        </span>
+      ) : (
+        <div className="inline-flex rounded-pill bg-muted p-0.5">
+          {opts.map(([val, label]) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => onChange(val)}
+              aria-pressed={value === val}
+              className={`px-3 h-7 rounded-pill text-[12px] font-semibold transition-[background-color,color] duration-150
+                ${value === val ? 'bg-white text-ink-primary shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const TotalsPanel = ({
   gst, gstOn = true, interstate = false, showPayment = false,
   markPaid, setMarkPaid, payMethod, setPayMethod,
   charges = '', setCharges, billDiscount = '', setBillDiscount,
   received = '', setReceived,
+  taxMode, setTaxMode, taxModeLocked = false, taxModeHint,
 }) => {
   const base = gstOn ? Number(gst.grandTotal) || 0 : Number(gst.subtotal) || 0;
   const total = Math.max(0, base + (Number(charges) || 0) - (Number(billDiscount) || 0));
   const balance = Math.max(0, total - (Number(received) || 0));
   return (
     <div className="bg-white rounded-2xl border border-black/10 shadow-sm p-4">
+      {gstOn && taxMode && (
+        <TaxModeToggle value={taxMode} onChange={setTaxMode} locked={taxModeLocked} hint={taxModeHint} />
+      )}
       <Row label="Taxable value" value={inr(gst.taxable)} />
       {gstOn && interstate ? (
         <Row label="IGST" value={inr(gst.igst)} />

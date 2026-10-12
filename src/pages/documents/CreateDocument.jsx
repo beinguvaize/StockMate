@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, FileText, FileCheck, Wallet,
@@ -75,6 +75,25 @@ const CreateDocument = () => {
 
   const businessState = businessProfile?.state || businessProfile?.business_state || '';
 
+  /**
+   * Whether the rates typed on this document already contain the tax.
+   *
+   * Defaults to the shop's own setting, because that is how it prices
+   * everywhere else -- the POS reads the same business_profile.tax_mode. It is
+   * then changeable PER DOCUMENT, which is the thing that was missing: a shop
+   * that sells inclusive over the counter still issues the occasional
+   * exclusive B2B bill, and had no way to say so here.
+   *
+   * NOT changeable on a sales invoice. That path saves through process_sale,
+   * which resolves the mode from business_profile server-side and would
+   * silently overrule anything chosen here -- a toggle that does nothing is
+   * worse than a label that tells the truth.
+   */
+  const tenantTaxMode = String(businessProfile?.tax_mode || 'EXCLUSIVE').toUpperCase();
+  const [taxMode, setTaxMode] = useState(tenantTaxMode);
+  useEffect(() => { setTaxMode(tenantTaxMode); }, [tenantTaxMode]);
+  const taxModeLocked = cfg.save === 'invoice';
+
   // Live GST totals — single source of truth, recomputed from the lines.
   const gst = useMemo(() => calculateGST(
     lines.map((l) => ({
@@ -82,7 +101,8 @@ const CreateDocument = () => {
       taxRate: cfg.gst ? l.taxRate : 0, hsn_code: l.hsn,
     })),
     businessState, party?.state || '',
-  ), [lines, cfg.gst, businessState, party]);
+    { taxMode: cfg.gst ? taxMode : 'NONE' },
+  ), [lines, cfg.gst, businessState, party, taxMode]);
 
   // Final payable = line totals + extra charges − bill discount.
   const finalTotal = Math.max(0, (Number(gst.grandTotal) || 0) + (Number(charges) || 0) - (Number(billDiscount) || 0));
@@ -294,7 +314,11 @@ const CreateDocument = () => {
             <TotalsPanel gst={gst} gstOn={cfg.gst} interstate={interstate} showPayment={cfg.save === 'invoice'}
               markPaid={markPaid} setMarkPaid={setMarkPaid} payMethod={payMethod} setPayMethod={setPayMethod}
               charges={charges} setCharges={setCharges} billDiscount={billDiscount} setBillDiscount={setBillDiscount}
-              received={received} setReceived={setReceived} />
+              received={received} setReceived={setReceived}
+              taxMode={taxMode} setTaxMode={setTaxMode} taxModeLocked={taxModeLocked}
+              taxModeHint={taxModeLocked
+                ? 'Set by your GST settings; a sales invoice is taxed server-side.'
+                : undefined} />
           </div>
         </div>
         )}
