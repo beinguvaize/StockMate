@@ -46,9 +46,20 @@ serve(async (req) => {
     if (authError || !user) return json({ error: "Unauthorized" }, 401);
 
     const { plan } = await req.json();
-    if (!["GROWTH", "PRO"].includes(plan)) {
-      // FREE needs no subscription; ENTERPRISE is a conversation, not a
-      // checkout. Anything else is someone probing the endpoint.
+    if (!["GROWTH", "PRO", "ENTERPRISE"].includes(plan)) {
+      // FREE needs no subscription. Anything else is someone probing the
+      // endpoint.
+      //
+      // ENTERPRISE used to be excluded here, on the grounds that it was a
+      // conversation rather than a checkout. It stopped being one when it got
+      // a published price (Rs 3,999/yr, Oct 2026) -- the pricing page now
+      // offers a trial button rather than Contact sales, and src/lib/billing.js
+      // returns a checkout for it. A plan with a number on the page and a 400
+      // behind the button is the worse of the two failures.
+      //
+      // This does not conjure a plan to bill: the lookup below still needs a
+      // billing_plan_map row for ENTERPRISE in the active mode, and says so
+      // plainly when there is none.
       return json({ error: "unsupported plan" }, 400);
     }
 
