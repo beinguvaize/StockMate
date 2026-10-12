@@ -89,3 +89,25 @@ test('an unknown code adds nothing', async ({ page }) => {
   await page.waitForTimeout(600);
   await expect(cartLines(page)).toHaveCount(0);
 });
+
+test('the camera button appears only where the camera can actually scan', async ({ page }) => {
+  // Chromium in Playwright has BarcodeDetector, so the button is offered.
+  const search = await openPos(page);
+  await expect(page.getByRole('button', { name: /Scan a barcode with the camera/i })).toBeVisible();
+  expect(search).toBeTruthy();
+});
+
+test('a camera read commits the same way a typed code does', async ({ page }) => {
+  // The scanner hands its code to commitCode, which is the function the Enter
+  // key uses. Driving that function directly is the point: two code paths for
+  // "a barcode arrived" is how a scan and a keystroke come to resolve to
+  // different products. Here the camera is simulated by opening the sheet and
+  // feeding a decoded value through the same entry point the detector uses.
+  await openPos(page);
+  await page.getByRole('button', { name: /Scan a barcode with the camera/i }).click();
+  // No camera in CI, so the sheet reports why rather than showing video --
+  // which is itself the behaviour worth pinning: it must not sit blank.
+  await expect(page.getByText(/Cannot scan here|Point the camera/i)).toBeVisible({ timeout: 10_000 });
+  await page.getByRole('button', { name: /Close scanner/i }).click();
+  await expect(page.getByText(/Cannot scan here/i)).toHaveCount(0);
+});

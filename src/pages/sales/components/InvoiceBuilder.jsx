@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { parseScaleBarcode, quantityFrom } from '../../../lib/scaleBarcode';
 import { buildCatalogIndex, resolveScan, resolvePlu } from '../../../lib/pos/catalog';
+import { cameraScanSupported } from '../../../lib/pos/cameraScan';
+import ScanSheet from '../../../components/pos/ScanSheet';
 import { useDialogClose } from '../../../hooks/useDialogClose';
 import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
 import Button from '../../../shared/Button';
@@ -368,6 +370,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
    */
   const catalogIndex = useMemo(() => buildCatalogIndex(products), [products]);
 
+  // The camera scanner. Offered only where it can actually work: on a desktop
+  // till with a scanner gun the button would be a dead end, and the gun
+  // already types into the box beside it.
+  const [scanOpen, setScanOpen] = useState(false);
+  const canCameraScan = useMemo(() => cameraScanSupported(), []);
+
   const filteredProducts = useMemo(() => {
     // RAW materials are consume-only (manufacturing) — never sold at POS.
     let sellable = products.filter(p => p.product_type !== 'RAW');
@@ -395,11 +403,16 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     return [...ranked, ...filler].slice(0, 6);
   }, [products, warehouseStock, topSellingIds]);
 
-  // Called when scanner (or user) presses Enter in search box
-  const handleSearchEnter = (e) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    const q = searchTerm.trim();
+  /**
+   * One code in, one cart line out.
+   *
+   * Extracted from the Enter handler so the CAMERA scanner commits through
+   * exactly this path. Two code paths for "a barcode arrived" is how a scan
+   * and a keystroke come to resolve to different products -- the scale-label
+   * branch in particular is easy to leave out of a second copy.
+   */
+  const commitCode = (raw) => {
+    const q = String(raw ?? '').trim();
     if (!q) return;
 
     // A weighing-scale label, before anything else: it looks like a barcode
@@ -443,7 +456,21 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     if (filteredProducts.length === 1) {
       addToCart(filteredProducts[0]);
       setSearchTerm('');
+      return;
     }
+
+    // Nothing matched. A typed search can simply stand (the list is already
+    // filtered), but a SCAN that resolves to nothing has to say so -- the
+    // camera gives no other feedback, and silence reads as "it did not see it"
+    // when the truth is "this code is not in the catalogue".
+    if (scanOpen) addNotification(`No product with code ${q}`, 'error');
+  };
+
+  // Called when a scanner gun (or the cashier) presses Enter in the search box.
+  const handleSearchEnter = (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    commitCode(searchTerm);
   };
 
   // Editing a sale: its original quantities are still deducted from current
@@ -980,10 +1007,25 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             onChange={e => setSearchTerm(e.target.value)}
             onKeyDown={handleSearchEnter}
           />
-          <ScanBarcode
-            size={18}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-          />
+          {canCameraScan ? (
+            <button
+              type="button"
+              onClick={() => setScanOpen(true)}
+              aria-label="Scan a barcode with the camera"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center
+                         rounded-xl text-muted-foreground hover:text-foreground hover:bg-canvas
+                         transition-[background-color,color,transform] duration-150 active:scale-[0.96]"
+            >
+              <ScanBarcode size={18} />
+            </button>
+          ) : (
+            // No camera API here -- a scanner gun types into this box instead,
+            // so the icon stays as a hint about what the field accepts.
+            <ScanBarcode
+              size={18}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
+          )}
         </div>
 
         {/* Category chips + list/grid toggle */}
@@ -2139,6 +2181,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       </div>
     )}
   </div>
+
+    {/* The camera scanner. Commits through commitCode, exactly as a typed
+        code does, and stays open so a basket can be scanned in one go. */}
+    <ScanSheet open={scanOpen} onClose={() => setScanOpen(false)} onCode={commitCode} />
     </>
   );
 };
