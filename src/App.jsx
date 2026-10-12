@@ -60,6 +60,7 @@ const AdminPanel       = lazy(() => import('./pages/AdminPanel'));
 const TenantSetup      = lazy(() => import('./pages/TenantSetup'));
 const SuperAdminPortal = lazy(() => import('./pages/admin/SuperAdminPortal'));
 const DataToolsPage    = lazy(() => import('./pages/DataToolsPage'));
+const BackupRestore    = lazy(() => import('./pages/BackupRestore.jsx'));
 const VanSalePage      = lazy(() => import('./pages/VanSalePage'));
 const Manufacturing    = lazy(() => import('./pages/Manufacturing'));
 const KDS              = lazy(() => import('./pages/KDS'));
@@ -268,6 +269,7 @@ function AppRoutes() {
         <Route path="clients/settle/:id" element={<ProtectedRoute><ClientSettlement /></ProtectedRoute>} />
         <Route path="clients/collect"   element={<ProtectedRoute><CashCollection /></ProtectedRoute>} />
         <Route path="data-tools" element={<ProtectedRoute><DataToolsPage /></ProtectedRoute>} />
+        <Route path="backup" element={<ProtectedRoute><BackupRestore /></ProtectedRoute>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
