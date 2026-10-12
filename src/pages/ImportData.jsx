@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { useTenant } from '../context/TenantContext';
-import { supabase, restInsert } from '../lib/supabase';
+import { restInsert, restRpc } from '../lib/supabase';
 import { normalizeHsn } from '../lib/hsn';
+import { resolveHeaders, ITEM_COLUMNS, PARTY_COLUMNS, SUPPLIER_COLUMNS } from '../lib/importSheet';
 import {
   Upload, Download, CheckCircle2, XCircle, AlertCircle,
   Users, Package, Truck, Loader2, FileSpreadsheet, ChevronRight,
@@ -84,7 +85,7 @@ const buildTemplate = (cols, sheetName) => {
   XLSX.writeFile(wb, `${sheetName}_Import_Template.xlsx`);
 };
 
-const parseSheet = (file, cols) =>
+const parseSheet = (file, cols, kind) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -93,28 +94,34 @@ const parseSheet = (file, cols) =>
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-        // ── Header validation ──────────────────────────────────────────
-        const requiredLabels = cols.filter(c => c.required).map(c => c.label.toLowerCase());
-        const fileHeaders = raw.length > 0
-          ? Object.keys(raw[0]).map(k => k.trim().toLowerCase())
-          : [];
-        const missing = requiredLabels.filter(l => !fileHeaders.includes(l));
-        if (missing.length > 0) {
-          reject(new Error(`HEADER_MISMATCH:${missing.map(m => `"${m}"`).join(', ')}`));
+        // ── Header matching ────────────────────────────────────────────
+        // This used to accept one spelling per column: its own label,
+        // lowercased. A sheet exported from another billing app says "Item
+        // Name" and "Sale Price" where ours say "Name" and "Selling Price", so
+        // every such file failed the header check and the shopkeeper had to
+        // rename columns by hand first -- which is where most migrations are
+        // abandoned. resolveHeaders knows the common spellings AND still
+        // prefers our own labels, so templates downloaded from here behave
+        // exactly as before.
+        const aliasTable = kind === 'products' ? ITEM_COLUMNS
+          : kind === 'suppliers' ? SUPPLIER_COLUMNS : PARTY_COLUMNS;
+        const fileHeaders = raw.length > 0 ? Object.keys(raw[0]) : [];
+        const { headerToKey, missingRequired, ignored } = resolveHeaders(fileHeaders, aliasTable, cols);
+
+        if (missingRequired.length > 0) {
+          reject(new Error(`HEADER_MISMATCH:${missingRequired.map(m => `"${m}"`).join(', ')}`));
           return;
         }
 
-        // normalise keys: match by label (case-insensitive)
-        const labelToKey = {};
-        cols.forEach(c => { labelToKey[c.label.toLowerCase()] = c.key; });
         const rows = raw.map(r => {
           const out = {};
           Object.entries(r).forEach(([k, v]) => {
-            const mapped = labelToKey[k.trim().toLowerCase()];
+            const mapped = headerToKey[k];
             if (mapped) out[mapped] = v;
           });
           return out;
         });
+        rows.ignoredColumns = ignored;
         resolve(rows);
       } catch (err) {
         reject(err);
@@ -204,7 +211,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
     const file = e.target.files[0];
     if (!file) return;
     try {
-      const rows = await parseSheet(file, cols);
+      const rows = await parseSheet(file, cols, type);
       if (!rows.length) { setErrorMsg('File is empty.'); setStatus('error'); return; }
       setValidated(validate(rows, cols));
       setStatus('previewing');
@@ -228,6 +235,8 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
     let inserted = 0, failed = 0;
     // HSN values dropped for not being a legal code — reported, never silent.
     const badHsn = [];
+    // Products that imported but whose opening quantity did not land.
+    const badStock = [];
 
     for (const { row } of validRows) {
       const id = generateId();
@@ -274,7 +283,14 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           category: String(row.category || '').trim() || null,
           sellingPrice: Number(row.sellingPrice) || 0,
           costPrice: Number(row.costPrice) || 0,
-          stock: Number(row.stock) || 0,
+          // NOT stock. products.stock is a derived mirror of
+          // inventory_balances maintained by trg_sync_product_stock
+          // (20260730_products_stock_single_writer.sql). Writing it here set a
+          // number no location actually held: the opening quantity showed on
+          // the item and in no warehouse, and the next movement recomputed it
+          // from the balances and wiped it. The opening stock is applied below
+          // through adjust_inventory_atomic, which is how the stock screen
+          // does it and the only writer the trigger agrees with.
           taxRate: Number(row.taxRate) || 0,
           unit: String(row.unit || '').trim() || null,
           // Only a real 4/6/8-digit code. A SKU in the HSN column used to be
@@ -289,11 +305,35 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
         };
         const { error } = await restInsert('products', payload);
         if (error) { console.error('Product import error:', error.message, payload); failed++; }
-        else inserted++;
+        else {
+          inserted++;
+          const opening = Number(row.stock) || 0;
+          if (opening > 0) {
+            const { error: stockErr } = await restRpc('adjust_inventory_atomic', {
+              p_product_id: id,
+              p_location_id: null,
+              p_amount: opening,
+              p_reason: 'Opening stock (import)',
+              p_user_id: null,
+              p_tenant_id: tenantId,
+              p_consume_batches: true,
+              // A cost on the opening quantity creates a real FIFO batch, so
+              // the first sale of an imported item has a COGS instead of
+              // falling back to costPrice.
+              p_unit_cost: Number(payload.costPrice) > 0 ? Number(payload.costPrice) : null,
+            });
+            // Never silent: the product exists but holds no stock, and only
+            // saying so lets anyone put that right.
+            if (stockErr) {
+              console.error('Opening stock failed:', stockErr.message, payload.name);
+              badStock.push(`${payload.name} (${opening})`);
+            }
+          }
+        }
       }
     }
 
-    setResult({ inserted, failed, badHsn });
+    setResult({ inserted, failed, badHsn, badStock });
     setStatus('done');
     if (inserted > 0) onDone?.();
   };
@@ -427,6 +467,20 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
                 <p className="text-[11px] text-amber-600 mt-0.5 leading-relaxed">
                   An HSN must be 4, 6 or 8 digits. {result.badHsn.slice(0, 6).join(', ')}
                   {result.badHsn.length > 6 ? ` and ${result.badHsn.length - 6} more` : ''}.
+                </p>
+              </div>
+            )}
+            {/* The product imported; its opening quantity did not. Saying so
+                is the difference between a shelf count somebody can fix and a
+                catalogue that quietly reads zero. */}
+            {result.badStock?.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-emerald-200">
+                <p className="text-xs font-semibold text-amber-700">
+                  {result.badStock.length} {result.badStock.length === 1 ? 'item' : 'items'} imported without the opening stock
+                </p>
+                <p className="text-[11px] text-amber-600 mt-0.5 leading-relaxed">
+                  Set the quantity from Inventory. {result.badStock.slice(0, 6).join(', ')}
+                  {result.badStock.length > 6 ? ` and ${result.badStock.length - 6} more` : ''}.
                 </p>
               </div>
             )}
