@@ -13,6 +13,8 @@ import { useNotifications } from '../hooks/useNotifications';
 import { useTenant } from '../context/TenantContext';
 import { useAuth } from '../context/AuthContext';
 import ImportData from './ImportData';
+import { usePurchases } from '../hooks/usePurchases';
+import TallyExportPanel from '../components/documents/TallyExportPanel';
 
 // ─── CSV helpers (export only) ───────────────────────────────────────────────
 
@@ -37,7 +39,7 @@ const escapeCSV = (val) => {
 
 export default function DataToolsPage() {
   const navigate = useNavigate();
-  const { currentTenantId } = useTenant();
+  const { currentTenantId, currentTenant } = useTenant();
   const { isOwner } = useAuth();
   const { products, addProduct, updateProduct } = useInventory(currentTenantId);
   const { clients: shops, addClient: addShop, updateClient: updateShop } = usePeople(currentTenantId);
@@ -46,9 +48,14 @@ export default function DataToolsPage() {
   const { employees, addEmployee, updateEmployee } = usePayroll(currentTenantId);
   const { addNotification } = useNotifications();
 
+  // Suppliers come from here rather than usePeople's list so the Tally file's
+  // creditor ledgers and its purchase vouchers are built from one source.
+  const { purchases = [], suppliers = [] } = usePurchases(currentTenantId) || {};
+
   const TABS = [
     { key: 'export', label: 'Export Data' },
     ...(isOwner ? [{ key: 'excel', label: 'Bulk Import · Upload Excel' }] : []),
+    ...(isOwner ? [{ key: 'tally', label: 'Export to Tally' }] : []),
   ];
 
   const [activeTab, setActiveTab]           = useState('export');
@@ -145,6 +152,17 @@ export default function DataToolsPage() {
           <div className="p-6">
             <ImportData modal />
           </div>
+        )}
+
+        {/* Tally XML export */}
+        {activeTab === 'tally' && (
+          <TallyExportPanel
+            sales={orders}
+            purchases={purchases}
+            clients={shops}
+            suppliers={suppliers}
+            shopName={currentTenant?.name}
+          />
         )}
 
         {/* Export / CSV-Import tabs */}
