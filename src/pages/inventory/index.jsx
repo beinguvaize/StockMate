@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useInventory } from '../../hooks/useInventory';
 import { useOrders } from '../../hooks/useOrders';
-import { Plus, History, PackagePlus, AlertCircle, Tag as TagIcon, TrendingUp, DollarSign, BarChart3, ShoppingBag, Search, X, Filter } from 'lucide-react';
+import { Plus, History, PackagePlus, AlertCircle, Tag as TagIcon, TrendingUp, DollarSign, BarChart3, ShoppingBag, Search, X, Filter, ArrowLeftRight } from 'lucide-react';
 import Button from '../../shared/Button';
 import StockTable from './components/StockTable';
 import AddItemModal from './components/AddItemModal';
@@ -15,6 +15,7 @@ import BatchesModal from './components/BatchesModal';
 import PriceListsModal from './components/PriceListsModal';
 import StockAdjustModal from './components/StockAdjustModal';
 import StockHistoryModal from './components/StockHistoryModal';
+import TransferStockModal from './components/TransferStockModal';
 import ItemDetailView from './components/ItemDetailView';
 import { PageSkeleton } from '../../components/ui/States';
 
@@ -30,7 +31,8 @@ const Inventory = () => {
     addProduct,
     updateProduct,
     deleteProduct,
-    adjustStock
+    adjustStock,
+    transferStock
   } = useInventory(currentTenantId);
 
   const { priceLists, upsertPrice, deletePrice } = useOrders(currentTenantId);
@@ -68,6 +70,7 @@ const Inventory = () => {
   const [bulkEdit, setBulkEdit] = useState(null); // { products, clear }
   const [adjustSaving,     setAdjustSaving]     = useState(false);
   const [showHistory,      setShowHistory]      = useState(false);
+  const [showTransfer,     setShowTransfer]     = useState(false);
 
   // Filter + search state
   const [searchTerm,   setSearchTerm]   = useState('');
@@ -201,6 +204,14 @@ const Inventory = () => {
             className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
             <TagIcon size={15} className="text-muted-foreground" /> Price Lists
           </button>
+          {/* Offered only to a shop that has somewhere to move stock TO. One
+              location means the button could do nothing but explain itself. */}
+          {inventoryLocations.length > 1 && (
+            <button onClick={() => setShowTransfer(true)}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
+              <ArrowLeftRight size={15} className="text-muted-foreground" /> Transfer
+            </button>
+          )}
           <button onClick={() => setShowHistory(true)}
             className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
             <History size={15} className="text-muted-foreground" /> History
@@ -412,6 +423,17 @@ const Inventory = () => {
           onConfirm={handleAdjust}
           onClose={() => setAdjustingProduct(null)}
           saving={adjustSaving}
+        />
+      )}
+
+      {showTransfer && (
+        <TransferStockModal
+          products={products}
+          locations={inventoryLocations}
+          balances={balances}
+          onTransfer={transferStock}
+          onClose={() => setShowTransfer(false)}
+          userId={currentUser?.id || currentUser?.email || null}
         />
       )}
 
