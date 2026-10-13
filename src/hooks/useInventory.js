@@ -234,20 +234,43 @@ export const useInventory = (tenantId) => {
     return { error };
   };
 
-  const transferStock = async (productId, fromLocId, toLocId, quantity) => {
+  // Move stock between two of the shop's locations.
+  //
+  // This called a function that did not exist -- not in production, not in dev,
+  // not in any migration -- for as long as the hook has been here. Nothing ever
+  // noticed because no screen called it; the first real call would have failed
+  // with PGRST202. The function now exists (20261014_transfer_stock_between
+  // _locations.sql) and refuses to overdraw the source, so the error from here
+  // is worth showing rather than swallowing.
+  //
+  // `note` is what the user typed and becomes the reason on both movement_log
+  // rows, which is the only record of WHY stock moved; `userId` is who did it.
+  const transferStock = async (productId, fromLocId, toLocId, quantity, { note, userId } = {}) => {
     const { error } = await supabase.rpc('transfer_inventory_atomic', {
       p_product_id: productId,
       p_from_location_id: fromLocId,
       p_to_location_id: toLocId,
       p_qty: quantity,
-      p_tenant_id: tenantId
+      p_tenant_id: tenantId,
+      p_user_id: userId ?? null,
+      p_note: note?.trim() ? note.trim() : null,
     });
-    if (!error) await fetchInventory();
-    return { error };
+    if (error) {
+      // Surfaced AND logged. A transfer that failed silently leaves the shop
+      // believing stock is in a place it never reached.
+      console.error('[useInventory] transfer_inventory_atomic failed:', error);
+      return { error };
+    }
+    await fetchInventory();
+    return { error: null };
   };
 
   // ── Location (Branch) CRUD ────────────────────────────────────────────────
-  const addLocation = async ({ name, type = 'BRANCH', address = '' }) => {
+  // `type` defaults to WAREHOUSE, not BRANCH. inventory_locations_type_check
+  // allows only WAREHOUSE and VEHICLE, so every call that took the old default
+  // was rejected by the database -- there was no way to create the second
+  // location a transfer needs.
+  const addLocation = async ({ name, type = 'WAREHOUSE', address = '' }) => {
     const id = crypto.randomUUID();
     const { data, error } = await supabase
       .from('inventory_locations')
