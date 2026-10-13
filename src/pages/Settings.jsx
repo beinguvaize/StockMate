@@ -178,6 +178,7 @@ const Settings = ({ embedded = false, section = null }) => {
     gst_no: profile.gst_no || '',
     tax_mode: profile.tax_mode || 'EXCLUSIVE',
     auto_irn_enabled: profile.auto_irn_enabled ?? false,
+    block_negative_stock: profile.block_negative_stock ?? false,
     bank_name: profile.bank_name || '',
     account_no: profile.account_no || '',
     ifsc_code: profile.ifsc_code || '',
@@ -529,6 +530,29 @@ const Settings = ({ embedded = false, section = null }) => {
        className={`relative w-11 h-6 rounded-xl transition-colors ${profileData.auto_irn_enabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
      >
        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${profileData.auto_irn_enabled ? 'translate-x-5' : ''}`} />
+     </button>
+   </div>
+ </div>
+
+ {/* Stop sale on negative stock */}
+ <div className="mt-5">
+   <label className="block text-sm font-semibold text-ink-secondary opacity-[0.85] mb-3">Stock control</label>
+   <div className="flex items-center justify-between px-4 py-3 rounded-xl border-2 bg-canvas border-black/10">
+     <div className="flex-1 pr-4">
+       <p className="text-xs font-black text-ink-primary">Refuse a sale that would take stock below zero</p>
+       <p className="text-[10px] mt-0.5 font-medium text-muted-foreground">
+         Enforced on the server, so it holds for the counter, the mobile app and a sale
+         that syncs later. Services are never blocked. Turn this on once the shelves have
+         been counted — a shop with negative balances today could not bill until they are fixed.
+       </p>
+     </div>
+     <button
+       type="button"
+       onClick={() => setProfileData(p => ({ ...p, block_negative_stock: !p.block_negative_stock }))}
+       aria-pressed={profileData.block_negative_stock}
+       className={`relative w-11 h-6 rounded-xl transition-colors ${profileData.block_negative_stock ? 'bg-emerald-500' : 'bg-gray-300'}`}
+     >
+       <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${profileData.block_negative_stock ? 'translate-x-5' : ''}`} />
      </button>
    </div>
  </div>

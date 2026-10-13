@@ -851,15 +851,20 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       const result = await onPlaceSale(saleData);
       if (result && result.error) {
         const raw = result.error.message || 'Sale could not be recorded';
-        // process_sale raises CREDIT_LIMIT_EXCEEDED with a readable sentence
-        // after the marker. The marker is for code; the cashier gets the
-        // sentence, and this is a refusal rather than a failure -- the bill
-        // is fine, the customer is simply over their limit.
-        const overLimit = raw.includes('CREDIT_LIMIT_EXCEEDED');
-        const msg = overLimit
-          ? raw.replace(/^.*CREDIT_LIMIT_EXCEEDED:\s*/, '')
+        // process_sale raises a MARKER followed by a readable sentence. The
+        // marker is for code; the cashier gets the sentence. Both of these are
+        // REFUSALS rather than failures -- the bill is fine, the shop's own
+        // rule says this one cannot go through -- so the cart and the modal
+        // stay exactly as they are and the cashier decides what to do.
+        const REFUSALS = [
+          ['CREDIT_LIMIT_EXCEEDED', 'Credit limit reached'],
+          ['NEGATIVE_STOCK_BLOCKED', 'Not enough stock'],
+        ];
+        const hit = REFUSALS.find(([marker]) => raw.includes(marker));
+        const msg = hit
+          ? raw.replace(new RegExp(`^.*${hit[0]}:\\s*`), '')
           : raw;
-        addNotification(overLimit ? `Credit limit reached — ${msg}` : `Checkout failed: ${msg}`, 'error');
+        addNotification(hit ? `${hit[1]} — ${msg}` : `Checkout failed: ${msg}`, 'error');
         return; // keep cart + modal so user can retry
       }
       // Persist the tender computed above.
