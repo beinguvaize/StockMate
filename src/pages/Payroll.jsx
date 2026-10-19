@@ -17,6 +17,7 @@ import { salariedBasePay } from '../lib/monthlyPay';
 import { statutoryDeductions, PT_STATES } from '../lib/statutory';
 import { needsOverlapConfirmation } from '../lib/payrollPeriods';
 import { iso } from '../lib/reportPeriods';
+import { classifyWriteFailure } from '../lib/writeOutcome';
 
 // HOURLY is gone. It never computed by the hour -- openPayRun paid hourly staff
 // by the DAY off daily_rate, and hoursWorked was the constant 160 everywhere --
@@ -75,7 +76,14 @@ const Payroll = () => {
   // Edits not yet written. A day mapped to null means "clear this one".
   const [pendingAtt, setPendingAtt] = useState({});
   const [attSaving, setAttSaving] = useState(false);
-  const [attSaveError, setAttSaveError] = useState(null);
+  // The whole outcome of the last failed save, not just its text: whether the
+  // write MAY have landed decides what this screen is allowed to claim and
+  // which button it offers. See lib/writeOutcome.js.
+  const [attSaveError, setAttSaveError] = useState(null); // { kind, title, detail, maySaved }
+  // Not every message in that bar is a failed write. A validation message and
+  // a failed LOAD both leave the buffer exactly as it was and say nothing
+  // about whether anything reached the server.
+  const attNotice = (title, detail = '') => ({ kind: 'NOTICE', maySaved: false, title, detail });
   const [attPicker, setAttPicker] = useState(null); // { empId, day, dayNum, rate } — open cell
   // The picker is rendered through a portal, because its cell sits inside an
   // overflow-hidden card AND an overflow-x-auto scroller — an absolutely
@@ -252,7 +260,7 @@ const Payroll = () => {
    */
   const applyRateToPresentDays = (empId, value) => {
     const rate = parseFloat(value);
-    if (!(rate > 0)) { setAttSaveError('Enter a rate above zero to apply.'); return; }
+    if (!(rate > 0)) { setAttSaveError(attNotice('Enter a rate above zero to apply.')); return; }
 
     const days = attendance[empId] || {};
     let set = 0, skipped = 0;
@@ -266,9 +274,9 @@ const Payroll = () => {
     }
 
     if (!set) {
-      setAttSaveError(skipped
+      setAttSaveError(attNotice(skipped
         ? `Every present day already has its own rate (${skipped}).`
-        : 'No days marked Present this month yet.');
+        : 'No days marked Present this month yet.'));
       return;
     }
 
@@ -296,9 +304,14 @@ const Payroll = () => {
     const { success, error } = await saveAttendanceBatch(marks, clears);
     setAttSaving(false);
     if (!success) {
-      // Say what actually went wrong. A bare "failed to save" is how the schema
-      // mismatch behind all of this went unnoticed for weeks.
-      setAttSaveError(error?.message || 'Could not save attendance');
+      // Say what actually went wrong, and be honest about whether it went
+      // wrong at all. A transport failure proves nothing: a real batch for a
+      // real shop committed four rows in Postgres while the browser was
+      // showing "Not saved · TypeError: Failed to fetch". The buffer is kept
+      // either way -- re-saving is an upsert on (tenant_id, employee_id, day)
+      // and costs nothing, while discarding edits the server already holds is
+      // the one move that loses work.
+      setAttSaveError(classifyWriteFailure(error, { noun: 'attendance save' }));
       return;
     }
 
@@ -742,18 +755,27 @@ const Payroll = () => {
     return () => { document.body.style.overflow = 'unset'; };
   }, [showForm, showPayRunModal, showSalaryModal, deleteConfirm]);
 
-  // Load attendance whenever the active month changes
-  useEffect(() => {
+  /**
+   * Re-read the month from the server and show what is actually there.
+   *
+   * This is both the month-change load and the way out of an unconfirmed
+   * save: when the app cannot tell whether a write landed, the only honest
+   * answer is to go and look. It drops the pending buffer, which is correct
+   * HERE and nowhere else -- the server's answer is now the truth on screen.
+   */
+  const reloadAttendance = useCallback(async () => {
     if (!currentTenantId) return;
     setAttLoading(true);
-    loadAttendance(attYear, attMonth).then(map => {
-      if (map?.error) { setAttSaveError(map.error.message || 'Could not load attendance'); setSavedAtt({}); }
-      else setSavedAtt(map);
-      setPendingAtt({});
-      setAttPicker(null);
-      setAttLoading(false);
-    });
-  }, [attYear, attMonth, currentTenantId]);
+    const map = await loadAttendance(attYear, attMonth);
+    if (map?.error) { setAttSaveError(attNotice('Could not load attendance', map.error.message)); setSavedAtt({}); }
+    else { setSavedAtt(map); setAttSaveError(null); }
+    setPendingAtt({});
+    setAttPicker(null);
+    setAttLoading(false);
+  }, [currentTenantId, attYear, attMonth, loadAttendance]);
+
+  // Load attendance whenever the active month changes
+  useEffect(() => { reloadAttendance(); }, [reloadAttendance]);
 
   // Buffered work that disappears without a word is worse than no buffer.
   useEffect(() => {
@@ -872,14 +894,28 @@ const Payroll = () => {
 
         {/* Save bar. Nothing in this grid is written until this is pressed. */}
         {(pendingCount > 0 || attSaveError) && (
-          <div className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-2.5 ${
-            attSaveError ? 'bg-red-50 border-red-200' : 'bg-accent-signature/10 border-accent-signature/25'
+          <div data-testid="att-save-bar" className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-2.5 ${
+            !attSaveError ? 'bg-accent-signature/10 border-accent-signature/25'
+              : attSaveError.maySaved ? 'bg-amber-50 border-amber-200'   // unknown, not lost
+              : 'bg-red-50 border-red-200'
           }`}>
             <div className="min-w-0">
               {attSaveError ? (
                 <>
-                  <span className="text-[12px] font-bold text-red-700">Not saved</span>
-                  <span className="text-[11px] text-red-600 ml-2">{attSaveError}</span>
+                  <span className={`text-[12px] font-bold ${attSaveError.maySaved ? 'text-amber-800' : 'text-red-700'}`}>
+                    {attSaveError.title}
+                  </span>
+                  <span className={`text-[11px] ml-2 ${attSaveError.maySaved ? 'text-amber-800/90' : 'text-red-600'}`}>
+                    {attSaveError.detail}
+                  </span>
+                  {/* The sentence that stops someone discarding committed work. */}
+                  {attSaveError.maySaved && (
+                    <p data-testid="att-unconfirmed-note" className="text-[11px] text-amber-800/90 mt-0.5">
+                      The connection dropped before the server answered, so this may already
+                      be saved. Check what the server has, or save again — re-saving the same
+                      days changes nothing.
+                    </p>
+                  )}
                 </>
               ) : (
                 <>
@@ -891,13 +927,23 @@ const Payroll = () => {
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={discardAtt} disabled={attSaving}
-                className="px-3 py-1.5 rounded-pill border border-black/10 bg-white text-[11px] font-bold text-ink-secondary hover:text-ink-primary disabled:opacity-50 transition-all">
-                Discard
-              </button>
-              <button onClick={saveAttendance} disabled={attSaving || !pendingCount}
+              {/* After an unconfirmed save, Discard is the one button that can
+                  lose work -- it would throw away edits the database may
+                  already hold. It is replaced, not merely demoted. */}
+              {attSaveError?.maySaved ? (
+                <button data-testid="att-check-server" onClick={reloadAttendance} disabled={attSaving || attLoading}
+                  className="px-3 py-1.5 rounded-pill border border-black/10 bg-white text-[11px] font-bold text-ink-secondary hover:text-ink-primary disabled:opacity-50 transition-all">
+                  {attLoading ? 'Checking…' : 'Check the server'}
+                </button>
+              ) : (
+                <button data-testid="att-discard" onClick={discardAtt} disabled={attSaving}
+                  className="px-3 py-1.5 rounded-pill border border-black/10 bg-white text-[11px] font-bold text-ink-secondary hover:text-ink-primary disabled:opacity-50 transition-all">
+                  Discard
+                </button>
+              )}
+              <button data-testid="att-save" onClick={saveAttendance} disabled={attSaving || !pendingCount}
                 className="px-4 py-1.5 rounded-pill bg-ink-primary text-white text-[11px] font-bold hover:bg-black disabled:opacity-50 transition-all">
-                {attSaving ? 'Saving…' : `Save ${pendingCount || ''}`.trim()}
+                {attSaving ? 'Saving…' : attSaveError?.maySaved ? `Save again ${pendingCount || ''}`.trim() : `Save ${pendingCount || ''}`.trim()}
               </button>
             </div>
           </div>
@@ -998,6 +1044,7 @@ const Payroll = () => {
                             // window. Pick one: paid is the more important fact.
                             <td key={d} className={`p-0.5 text-center align-top ${paidRun ? 'bg-emerald-50/70' : isWeekend ? 'bg-orange-50/60' : ''}`}>
                               <button
+                                data-testid="att-day"
                                 onClick={(e) => {
                                   if (isOpen) { setAttPicker(null); return; }
                                   attAnchorRef.current = e.currentTarget;
