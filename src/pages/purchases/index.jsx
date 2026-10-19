@@ -28,7 +28,7 @@ const PurchasesPage = () => {
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
   const { purchases, purchaseReturns, suppliers, add: addPurchase, editPurchaseBill, supplierPayments, editSupplierPayment, deleteSupplierPayment, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
-  const { products, inventoryLocations, loading: prodLoading, updateProduct, addProduct } = useInventory(currentTenantId);
+  const { products, inventoryLocations, loading: prodLoading, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
   const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' | 'returns'
@@ -303,17 +303,21 @@ const PurchasesPage = () => {
     setPayTarget(null); setPayAmount('');
   };
 
-  // ── WAC helper ──────────────────────────────────────────────────────────────
-  const updateWAC = async (productId, qty, unitCost) => {
-    const product = products.find(p => p.id === productId);
-    if (!product || unitCost <= 0) return;
-    const oldStock = Number(product.stock) || 0;
-    const oldCost  = Number(product.costPrice) || 0;
-    const denom    = oldStock + qty;
-    const newCost  = denom > 0 ? (oldStock * oldCost + qty * unitCost) / denom : unitCost;
-    const rounded  = Math.round(newCost * 100) / 100;
-    if (rounded !== oldCost) await updateProduct(product.id, { costPrice: rounded });
-  };
+  // The WAC helper that used to live here is gone, and must not come back.
+  //
+  // It blended the new line's rate into the product's previous cost, weighted
+  // by the stock figure in the React copy of that product -- a row already one
+  // purchase out of date -- and wrote the result immediately after
+  // addPurchase. process_purchase had just set that same column from the
+  // actual open batches, so the client's answer landed on top of the
+  // database's and won.
+  //
+  // Two writers, two definitions of "cost", last one wins. That is how the
+  // item screen came to show Rs 5.50 for stock that cost Rs 7.82, and a
+  // 35.3 % margin on units being sold at a Rs 0.50 loss.
+  //
+  // recompute_product_cost is now the only writer, and consume_fifo calls it
+  // too, so the figure tracks the shelf rather than only tracking purchases.
 
   // ── Quick-create product from barcode ──────────────────────────────────────
   const handleCreateProduct = async (productData) => {
@@ -372,7 +376,6 @@ const PurchasesPage = () => {
         failed++;
         continue;
       }
-      await updateWAC(item.linked_product_id, item.quantity, item.unit_price);
       // Expiry tracking: a dated batch per line when expiry was provided.
       if (item.expiry_date) {
         const { supabase } = await import('../../lib/supabase');
@@ -422,7 +425,6 @@ const PurchasesPage = () => {
     });
     setAddLoading(false);
     if (error) { addNotification('Duplicate failed: ' + error.message, 'error'); return; }
-    if (qty > 0 && data.linked_product_id) await updateWAC(data.linked_product_id, qty, Number(data.unit_price) || total / qty);
     addNotification('Purchase duplicated', 'success');
     setDupTarget(null);
   };
