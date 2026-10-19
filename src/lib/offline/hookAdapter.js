@@ -21,6 +21,7 @@
 import { putRecords, getRecords } from './cache.js';
 import { enqueue, allOps } from './outbox.js';
 import { localFirstEnabled, isElectron as detectElectron } from './mode.js';
+import { isTransportFailure } from '../writeOutcome.js';
 
 /**
  * Cache-first read. Returns the cached snapshot SYNCHRONOUSLY from IDB so
@@ -261,17 +262,11 @@ export async function localFirstWrite({ table, type = 'insert', payload, cacheRo
  * Convenience: detect whether an error is a network/offline error vs
  * a real domain error (RLS, constraint, etc).
  */
-export function isOfflineError(err) {
-  if (!err) return false;
-  const msg = String(err.message || err).toLowerCase();
-  return (
-    msg.includes('network') ||
-    msg.includes('failed to fetch') ||
-    msg.includes('timed out') ||
-    msg.includes('abort') ||
-    (typeof navigator !== 'undefined' && !navigator.onLine)
-  );
-}
+// The rule itself now lives in lib/writeOutcome.js, because the same question
+// -- "did this request complete a round trip?" -- also decides what a screen is
+// allowed to claim after a failed save, and two copies of it would drift.
+// This name stays: five hooks call it to decide whether to queue for replay.
+export const isOfflineError = isTransportFailure;
 
 /**
  * Optimistic local cache mutation — used when a write was queued to the
