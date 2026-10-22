@@ -1,19 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Calendar, ChevronRight, SlidersHorizontal, LineChart } from 'lucide-react';
-import Button from '../../shared/Button';
+import { Plus, Banknote, Printer } from 'lucide-react';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
 import { PageSkeleton } from '../../components/ui/States';
-import { formatCurrency, formatDate, generateRef } from '../../lib/utils';
-import { groupPurchasesIntoBills, filterBills, paidOf, dueOf as billDueOf, isCreditType } from '../../lib/bills';
-import { buildVoucherModel } from './lib/voucher';
+import { formatCurrency, formatDate, generateRef, todayISOInAppTZ } from '../../lib/utils';
+import { groupPurchasesIntoBills, dueOf as billDueOf, isCreditType } from '../../lib/bills';
+import { buildVoucherModel, voucherNo } from './lib/voucher';
+import { decorateBills, lineDeltas, allocatePayment } from './lib/register';
+import { classifyWriteFailure } from '../../lib/writeOutcome';
 import { voucherHtml } from './lib/voucherHtml';
 import PurchaseForm from './components/PurchaseForm';
 import BillEditForm from './components/BillEditForm';
@@ -21,6 +21,7 @@ import BillPaymentsModal from './components/BillPaymentsModal';
 import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
 import PriceHistory from './components/PriceHistory';
+import BillRegister from './components/BillRegister';
 
 const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
@@ -35,60 +36,21 @@ const PurchasesPage = () => {
   const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' | 'returns'
   const [showAddModal, setShowAddModal] = useState(false);
   const [editBillTarget, setEditBillTarget] = useState(null); // whole bill being edited
-  const [menuBill, setMenuBill] = useState(null);       // bill whose header menu is open
   const [billSaving, setBillSaving] = useState(false);
   const [paymentsTarget, setPaymentsTarget] = useState(null); // bill whose payments are open
   const [returnTarget, setReturnTarget] = useState(null); // purchase being returned
   const [returnLoading, setReturnLoading] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
 
-  // ── Filter / sort ──────────────────────────────────────────────────────────
-  const [search, setSearch]   = useState('');
-  const [fSupplier, setFSup]  = useState('ALL');
-  const [fPay, setFPay]       = useState('ALL');   // ALL | CASH | CREDIT
-  const [fStatus, setFStatus] = useState('ALL');   // ALL | PENDING | ORDERED | RECEIVED | CANCELLED
-  const [sortBy, setSortBy]   = useState('DATE_DESC'); // DATE_DESC | DATE_ASC | AMT_DESC | AMT_ASC
-  const [onlyUnpaid, setOnlyUnpaid] = useState(false); // quick chip: credit purchases still owing
-  // `showFilters` hides the controls, never their effect: the count on the
-  // button keeps the state visible.
-  const [showFilters, setShowFilters] = useState(false);
-  // Date now lives in the row gutter, so grouping by it as well would say the
-  // same thing twice and cost a row each time.
-  const [groupBy, setGroupBy] = useState('DATE'); // DATE | SUPPLIER | NONE
-  const [expandedBill, setExpandedBill] = useState(null); // bill id whose products are open
-  // Row density. 52-56px is the readable default for an enterprise table and
-  // 40-44px the compact one; compact drops the supplier line and the settlement
-  // caption, which is what actually sets the height floor.
-  const [dense, setDense] = useState(false);
-
   // ── Pay / Duplicate / Print targets ─────────────────────────────────────────
   const [payTarget, setPayTarget] = useState(null);
   const [payAmount, setPayAmount] = useState('');
   const [payMethod, setPayMethod] = useState('CASH');
-  const [payDate, setPayDate]     = useState(() => new Date().toISOString().slice(0, 10));
+  const [payDate, setPayDate]     = useState(() => todayISOInAppTZ());
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [dupTarget, setDupTarget]   = useState(null); // purchase to duplicate (prefill single form)
   const [printTarget, setPrintTarget] = useState(null);
-  const [menuRow, setMenuRow]       = useState(null); // row whose ⋯ menu is open (portaled)
   const [historyProduct, setHistoryProduct] = useState(null); // product whose price history is open
-  const [menuPos, setMenuPos]       = useState({ top: 0, left: 0, origin: 'top right' });
-  const openMenu = (e, pur) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    // Six items at 33px, plus the status block (a label and four pills), plus
-    // padding. The last rows of a long table are exactly where the menu is
-    // most needed and where it used to open off the bottom of the window, so
-    // it flips above when there is no room -- and the corner it grows from
-    // flips with it. This number has to grow whenever the menu does.
-    const H = 300;
-    const below = window.innerHeight - r.bottom > H + 8;
-    setMenuPos({
-      top: below ? r.bottom + 4 : Math.max(8, r.top - H - 4),
-      left: Math.max(8, r.right - 160),
-      origin: below ? 'top right' : 'bottom right',
-    });
-    setMenuRow(pur);
-  };
-
   // Credit terms, paid and due all come from src/lib/bills.js so this screen and
   // the supplier ledger cannot disagree about what is owed.
   const _credit = isCreditType;
@@ -162,11 +124,6 @@ const PurchasesPage = () => {
     return m;
   }, [products]);
 
-  // A voucher covers the bill a line belongs to. Printing from a product row
-  // must produce the whole document, not that row's share of it.
-  const billOfLine = (line) =>
-    (allBills || []).find(b => b.lines.some(l => l.id === line?.id)) || null;
-
   // The voucher needs the whole product, not just its name — hsn_code, unit and
   // taxRate all appear on the printed document.
   const productById = useMemo(() => {
@@ -175,86 +132,21 @@ const PurchasesPage = () => {
     return m;
   }, [products]);
 
-  // Bills first, then filter whole bills.
-  //
-  // Filtering the product rows first and grouping after left a bill missing any
-  // line the filter rejected: ticking "Unpaid" showed SAJJAD's 1 Aug bill as
-  // Rs 10,260 with Rs 3,260 paid, because its three settled lines were gone
-  // before the total was added up. It is Rs 28,770 with Rs 21,770 paid.
-  const allBills = useMemo(
-    () => groupPurchasesIntoBills(purchases || []).map(b => ({
-      ...b,
-      __bill: true,
-      notes: b.lines.map(l => l.notes).filter(Boolean).join(' · '),
-    })),
-    [purchases]);
-
-  const filteredBills = useMemo(() => {
-    const rows = filterBills(allBills, {
-      q: search,
-      supplierId: fSupplier,
-      pay: fPay,
-      status: fStatus,
-      onlyUnpaid,
-      productNameOf: (id) => productNameById[id] || '',
-    });
-    const qtyOf = (b) => b.lines.reduce((s2, l) => s2 + Number(l.quantity || 0), 0);
-    return [...rows].sort((a, b) => {
-      if (sortBy === 'AMT_DESC') return b.total - a.total;
-      if (sortBy === 'AMT_ASC')  return a.total - b.total;
-      if (sortBy === 'QTY_DESC') return qtyOf(b) - qtyOf(a);
-      if (sortBy === 'QTY_ASC')  return qtyOf(a) - qtyOf(b);
-      if (sortBy === 'DATE_ASC') return String(a.date).localeCompare(String(b.date));
-      return String(b.date).localeCompare(String(a.date)); // DATE_DESC
-    });
-  }, [allBills, search, fSupplier, fPay, fStatus, sortBy, onlyUnpaid, productNameById]);
-
-  // Count for the Unpaid chip badge — bills still carrying a balance.
-  const unpaidCount = useMemo(() => allBills.filter(b => b.due > 0.5).length, [allBills]);
-
-  // Age of a bill in days, and whether one still owing is overdue (>30 days).
-  const ageDays = (p) => {
-    const d = new Date(p.date);
-    if (isNaN(d)) return 0;
-    return Math.floor((Date.now() - d.getTime()) / 86400000);
-  };
-
-  const displayRows = useMemo(() => {
-    // Mark the first bill of each date so the gutter prints the date once and
-    // the rest of that day's bills read as a block. This is what replaces the
-    // full-width date header rows.
-    const withDayMarks = (rows) => {
-      let last = null;
-      return rows.map((b) => {
-        const first = b.date !== last;
-        last = b.date;
-        return first ? { ...b, __firstOfDay: true } : b;
-      });
-    };
-
-    if (groupBy === 'NONE') return withDayMarks(filteredBills);
-    const byDate = groupBy === 'DATE';
-    const map = new Map();
-    filteredBills.forEach(b => {
-      const key = byDate ? (b.date || '—') : (b.supplier_id || b.supplier_name || '—');
-      if (!map.has(key)) {
-        map.set(key, {
-          name: byDate ? (b.date || 'No date') : (b.supplier_name || 'Unknown supplier'),
-          isDate: byDate, rows: [], total: 0, due: 0,
-        });
-      }
-      const g = map.get(key);
-      g.rows.push(b);
-      g.total += b.total;
-      g.due += b.due;
-    });
-    const out = [];
-    for (const [key, g] of map) {
-      out.push({ __group: true, key, name: g.name, isDate: g.isDate, count: g.rows.length, total: g.total, due: g.due });
-      withDayMarks(g.rows).forEach(r => out.push(r));
-    }
-    return out;
-  }, [filteredBills, groupBy]);
+  // Every bill, from the one definition of a bill (src/lib/bills.js), then
+  // given what the register needs: due date, state, price movement per line,
+  // and how it was paid. The register filters and totals whole bills, so a
+  // part-matching bill never loses lines before it is added up.
+  const today = todayISOInAppTZ();
+  const allBills = useMemo(() => groupPurchasesIntoBills(purchases || []), [purchases]);
+  const deltas = useMemo(() => lineDeltas(purchases || []), [purchases]);
+  const registerBills = useMemo(() => decorateBills(allBills, {
+    suppliers: suppliers || [],
+    payments: supplierPayments || [],
+    deltas,
+    productById,
+    homeStateCode: String(businessProfile?.gst_no || '').slice(0, 2),
+    today,
+  }), [allBills, suppliers, supplierPayments, deltas, productById, businessProfile, today]);
 
   // Professional, self-contained printable purchase voucher (own CSS — the
   // print window has none of the app's styles).
@@ -284,24 +176,74 @@ const PurchasesPage = () => {
     w.document.close();
   };
 
+  // Pay one bill, or several of one supplier's bills from the register's bulk
+  // bar. The money is spread oldest bill first, and within a bill oldest line
+  // first, never past what a line owes; each slice is recorded against its own
+  // purchase row by settle_purchase_payment, so balances move on the server.
+  const openPay = (bills) => {
+    const list = [...bills].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    if (!list.length) return;
+    const total = list.reduce((s2, b) => s2 + b.total, 0);
+    const paid = list.reduce((s2, b) => s2 + b.paid, 0);
+    setPayTarget({
+      id: list[0].id,
+      bills: list,
+      lines: list.flatMap(b => b.lines),
+      supplier_id: list[0].supplier_id,
+      supplier_name: list[0].supplier_name,
+      total_amount: total,
+      paid_amount: paid,
+    });
+    setPayAmount((Math.round((total - paid) * 100) / 100).toFixed(2));
+    setPayMethod('CASH');
+    setPayDate(todayISOInAppTZ());
+  };
+
   const submitPay = async () => {
     if (!payTarget) return;
     const amt = Number(payAmount);
     if (!(amt > 0)) { addNotification('Enter a valid amount', 'error'); return; }
+    const due = dueOf(payTarget);
+    if (amt > due + 0.005) { addNotification(`That is more than the ${formatCurrency(due)} due`, 'error'); return; }
     // Confirm before paying a supplier — blocks the thread so a double-tap can't
     // fire two payments.
     if (!window.confirm(`Pay ${formatCurrency(amt)} to ${payTarget.supplier_name || 'supplier'} (${payMethod})?`)) return;
     setPaySubmitting(true);
-    const { error } = await payPurchase({ supplierId: payTarget.supplier_id, purchaseId: payTarget.id, amount: amt, method: payMethod, date: payDate });
+    const slices = allocatePayment(payTarget.lines || [payTarget], amt);
+    const planned = Math.round(slices.reduce((s2, x) => s2 + x.amount, 0) * 100) / 100;
+    if (Math.abs(planned - amt) > 0.005) {
+      setPaySubmitting(false);
+      addNotification(`Only ${formatCurrency(planned)} of ${formatCurrency(amt)} can be placed against these bills. Nothing was recorded.`, 'error');
+      return;
+    }
+    let done = 0;
+    let failure = null;
+    for (const sl of slices) {
+      const { error } = await payPurchase({ supplierId: payTarget.supplier_id, purchaseId: sl.purchaseId, amount: sl.amount, method: payMethod, date: payDate });
+      if (error) { failure = error; break; }
+      done += sl.amount;
+    }
     setPaySubmitting(false);
-    if (error) { addNotification(`Payment failed: ${error.message}`, 'error'); return; }
     // The Cash/Bank posting is NOT done here any more.
     // trg_supplier_payments_post_ledger writes it from the payment row itself,
     // which covers every path that records one -- this button, the supplier
     // ledger, the bulk FIFO settle, offline replay and mobile. Posting here as
     // well would book the same money out twice. (Only 11 of 34 payments ever
     // reached an account, precisely because this was the one path that did it.)
-    addNotification('Payment recorded', 'success');
+    if (failure) {
+      // Never swallowed: say what went through and what did not. A dropped
+      // connection may still have recorded the last slice, so it is not
+      // reported as unsaved.
+      console.error('[purchases] payment failed after', done, failure);
+      const outcome = classifyWriteFailure(failure, { noun: 'payment' });
+      const head = done > 0 ? `${formatCurrency(done)} of ${formatCurrency(amt)} was recorded. ` : '';
+      addNotification(`${head}${outcome.title}: ${outcome.detail}`, 'error');
+      // The dialog's lines and due are now stale; close it so a retry starts
+      // from the bills as they stand.
+      setPayTarget(null); setPayAmount('');
+      return;
+    }
+    addNotification(`Payment of ${formatCurrency(amt)} recorded`, 'success');
     setPayTarget(null); setPayAmount('');
   };
 
@@ -490,78 +432,6 @@ const PurchasesPage = () => {
     }
   };
 
-  // ── Purchases table ──────────────────────────────────────────────────────────
-  // Date moves to a gutter that prints once per day, so the full-width date
-  // header rows can go -- at 55 bills those cost about 30 rows of pure
-  // scrolling. Qty and ref fold into the line under the product, which leaves
-  // room for settlement to be shown as paid-against-due rather than three
-  // stacked strings.
-  // One kind of value per column, so a column can be read down.
-  //
-  // The previous Outstanding column held a payment method on settled rows and
-  // an amount on unpaid ones -- two different kinds of fact in one column, plus
-  // a progress bar on some of them. That is not a table; it is three widgets
-  // sharing a cell, and it cannot be scanned. Bill, paid, still owed: three
-  // amounts, right-aligned, tabular, every row the same shape.
-  // Paid is gone. On a settled bill it printed the same figure as Amount, and
-  // 73 of 79 bills are settled -- so the widest thing on the screen was one
-  // number said twice, next to an empty third column. Where it genuinely
-  // differs, the row still says it, under the outstanding figure, because that
-  // is the only place two numbers mean two things.
-  // The register's columns.
-  //
-  // Measured on the live book before this was cut: 205 purchases, of which
-  // Status reads RECEIVED on 205 -- one value in the entire history -- and
-  // Outstanding is blank on 195. Two of five columns said nothing on almost
-  // every row, while the one column that varies, what was bought and from
-  // whom, had the least room.
-  //
-  // Status moves into the row menu, where a control used on a handful of rows
-  // belongs. Outstanding stops being a column and becomes a treatment on the
-  // ten rows that have one: the figure under the amount, and a tint on the
-  // row. The date leaves the rows entirely and becomes the band above them,
-  // which is also the only way this screen can show a day's total.
-  const headers = [
-    { label: 'Item' },
-    { label: 'Supplier' },
-    { label: 'Amount', className: 'text-right' },
-    { label: '', className: 'text-right' },
-  ];
-  const PUR_COLS = 4;
-
-  // Two-letter supplier initials for the neutral avatar.
-  const initialsOf = (name) => (name || '?')
-    .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
-  // Suppliers are typed in capitals and were printed raw, so every row SHOUTED
-  // its supplier at the same weight as the product. Lowered for display only --
-  // a name that is not all-caps is left exactly as its owner wrote it.
-  const titleCase = (name) => {
-    const n = (name || '').trim();
-    if (!n || n !== n.toUpperCase()) return n;
-    return n.toLowerCase().replace(/(^|[\s\-/&.])([a-z])/g, (_, a, b) => a + b.toUpperCase());
-  };
-  const shortDate = (d) => { const x = new Date(d); return isNaN(x) ? '' : x.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }); };
-
-  const activeFilterCount =
-    (fSupplier !== 'ALL' ? 1 : 0) + (fPay !== 'ALL' ? 1 : 0) + (fStatus !== 'ALL' ? 1 : 0) +
-    (sortBy !== 'DATE_DESC' ? 1 : 0) + (groupBy !== 'DATE' ? 1 : 0);
-
-  const clearFilters = () => {
-    setFSup('ALL'); setFPay('ALL'); setFStatus('ALL');
-    setSortBy('DATE_DESC'); setGroupBy('NONE');
-  };
-
-  const _STATUS_STYLES = {
-    PENDING:   { bg: 'bg-accent-signature/10',   text: 'text-accent-signature-hover',   border: 'border-accent-signature/25',   label: 'Pending'   },
-    ORDERED:   { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    label: 'Ordered'   },
-    // Received is what almost every row is. A green fill and a green border on
-    // the default state is emphasis spent on "nothing to see here", and it
-    // competed with the settlement column for the same colour. Quiet by
-    // default; the states that need a decision keep their colour.
-    RECEIVED:  { bg: 'bg-transparent',  text: 'text-muted-foreground', border: 'border-transparent', label: 'Received'  },
-    CANCELLED: { bg: 'bg-muted',   text: 'text-muted-foreground',    border: 'border-border',    label: 'Cancelled' },
-  };
-
   // ── Returns table ────────────────────────────────────────────────────────────
   const returnHeaders = [
     { label: 'Date' },
@@ -607,266 +477,8 @@ const PurchasesPage = () => {
     );
   };
 
-  // Subtotal band between groups. Date groups lead with a calendar glyph and
-  // the full date; supplier groups with the supplier's initials.
-  // The band a day's purchases sit under. It is the spine of the register:
-  // the date leaves the rows to live here once, and in exchange the screen can
-  // state the day's total -- a figure the old layout could not show at all,
-  // because nothing on it had a scope wider than one row.
-  //
-  // Supplier grouping reuses the same band; only the glyph and the label
-  // differ, so the two groupings cannot drift apart in how they read.
-  const renderGroupHeader = (g) => (
-    <tr key={`g-${g.key}`} className="bg-canvas/70 border-y border-black/[0.04]">
-      <td colSpan={PUR_COLS} className="px-4 py-2">
-        <div className="flex items-baseline gap-2.5">
-          {g.isDate ? (
-            <Calendar size={12} className="self-center text-muted-foreground shrink-0" />
-          ) : (
-            <span className="self-center w-5 h-5 rounded bg-card border border-border/60 flex items-center justify-center text-[9px] font-semibold text-muted-foreground shrink-0">{initialsOf(g.name)}</span>
-          )}
-          <span className="text-[12.5px] font-semibold text-foreground truncate" title={g.name}>
-            {g.isDate ? formatDate(g.name) : titleCase(g.name)}
-          </span>
-          <span className="text-[11px] text-muted-foreground shrink-0">
-            {g.count} bill{g.count === 1 ? '' : 's'}
-          </span>
-          <span className="ml-auto text-[12.5px] font-semibold tabular-nums text-foreground shrink-0">
-            {formatCurrency(g.total)}
-          </span>
-          {g.due > 0.5 && (
-            <span className="text-[11px] font-semibold tabular-nums text-[color:var(--color-neg)] shrink-0">
-              {formatCurrency(g.due)} due
-            </span>
-          )}
-        </div>
-      </td>
-    </tr>
-  );
-
-  const renderRow = (row) => {
-    if (row.__group) return renderGroupHeader(row);
-    const bill = row;
-    const supplier = suppliers.find(s => s.id === bill.supplier_id);
-    const credit = _credit(bill.payment_type);
-    const due = bill.due;
-    const paid = bill.paid;
-    const multi = bill.lines.length > 1;
-    const expanded = expandedBill === bill.id;
-    const overdue = due > 0.5 && ageDays(bill) > 30;
-    const names = bill.lines.map(l => productNameById[l.linked_product_id]).filter(Boolean);
-    const qtyTotal = bill.lines.reduce((s, l) => s + Number(l.quantity || 0), 0);
-    // Comfortable lands ~54px, compact ~42px — the readable and dense ends of
-    // the range for a table this long.
-    const pad = dense ? 'px-4 py-1.5' : 'px-4 py-2.5';
-
-    return (
-      <React.Fragment key={bill.id}>
-      <tr
-        className={`transition-colors ${multi ? 'cursor-pointer' : ''} ${expanded ? 'bg-canvas' : 'hover:bg-canvas'}`}
-        onClick={() => multi && setExpandedBill(expanded ? null : bill.id)}
-        style={overdue ? { boxShadow: 'inset 2px 0 0 0 var(--color-neg)' } : undefined}>
-        {/* Item. The date is gone from the row: it is the band above, which
-            is also the only way this screen can show a day's total. When the
-            list is grouped some other way, or not at all, there is no band, so
-            the date comes back here as a prefix rather than as a column that
-            is blank most of the time. */}
-        <td className={`${pad} max-w-[460px]`}>
-          <div className="flex items-baseline gap-2 min-w-0">
-            {multi
-              ? <ChevronRight size={12} className={`shrink-0 self-center text-muted-foreground transition-transform duration-(--dur-press) ease-(--ease-out) ${expanded ? 'rotate-90' : ''}`} />
-              : <span className="w-3 h-3 shrink-0" aria-hidden />}
-            {groupBy !== 'DATE' && (
-              <span className="shrink-0 text-[11.5px] tabular-nums text-muted-foreground">{shortDate(bill.date)}</span>
-            )}
-            <span className="text-[13.5px] text-foreground truncate" title={names.join(', ')}>
-              {names[0] || 'Unknown Product'}
-            </span>
-            {multi && (
-              <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-black/[0.06] text-ink-secondary">
-                +{bill.lines.length - 1}
-              </span>
-            )}
-            {/* How many, beside what it is. It used to sit under the SUPPLIER,
-                which is the one thing a quantity does not describe. */}
-            <span className="shrink-0 text-[11.5px] tabular-nums text-muted-foreground">
-              {qtyTotal}{multi ? ` in ${bill.lines.length}` : ''}
-            </span>
-          </div>
-        </td>
-
-        {/* Supplier, with the quantity and the terms under it. A bill number
-            prints only when there IS one -- 93% of rows have none, and what
-            used to fill the gap was a slice of the row's own id, which reads
-            as a reference and refers to nothing. */}
-        <td className={`${pad} max-w-[260px]`}>
-          <div className="min-w-0">
-            <div className="text-[12.5px] text-ink-secondary truncate"
-                 title={supplier?.name || bill.supplier_name || ''}>
-              {titleCase(supplier?.name || bill.supplier_name) || '—'}
-            </div>
-            {!dense && (
-              <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-                {credit ? 'Credit' : (bill.payment_type || 'Cash')}
-                {bill.bill_no ? ` · bill ${bill.bill_no}` : ''}
-              </div>
-            )}
-          </div>
-        </td>
-
-        {/* Amount, and underneath it the only thing that ever varied: what is
-            still owed. On this book that is 10 rows in 205, so it is a mark on
-            those rows rather than a column standing empty on the other 195. */}
-        <td className={`${pad} text-right whitespace-nowrap align-middle`}>
-          <span className="tabular-nums text-[13.5px] text-foreground">{formatCurrency(bill.total)}</span>
-          {due > 0.5 && (
-            <div className="text-[11px] font-semibold text-[color:var(--color-neg)] mt-0.5 tabular-nums">
-              {formatCurrency(due)} due
-              {!dense && (overdue
-                ? <span className="font-semibold"> · {ageDays(bill)}d late</span>
-                : (paid > 0.5 ? <span className="text-muted-foreground font-medium"> · {formatCurrency(paid)} paid</span> : null))}
-            </div>
-          )}
-        </td>
-
-        {/* Actions */}
-        <td className={`${pad} text-right`} onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-1.5 justify-end">
-            {/* Paying is per line, because the money lands on separate purchase
-                rows. A single-line bill is the common case and behaves as
-                before; a multi-line one opens to pay each line. */}
-            {due > 0.5 && !multi && (
-              <button
-                onClick={() => { setPayTarget(bill.lines[0]); setPayAmount(String(due)); setPayMethod('CASH'); }}
-                title={`Due ${formatCurrency(due)}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]"
-              >
-                <Banknote size={12} /> Pay
-              </button>
-            )}
-            {due > 0.5 && multi && (
-              <button
-                onClick={() => setExpandedBill(expanded ? null : bill.id)}
-                title="Open the bill to pay a line"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]"
-              >
-                <Banknote size={12} /> Pay lines
-              </button>
-            )}
-            {/* Edit, Return and Delete act on a single purchase row, but a bill
-                can hold several. Firing them at lines[0] silently targeted the
-                first product and left the rest unreachable -- a Return would
-                open on the wrong item and move real stock. So the menu only
-                sits on the header when the bill IS one line; otherwise it opens
-                the bill, where each line carries its own menu. */}
-            <button
-              onClick={(e) => {
-                if (!multi) { openMenu(e, bill.lines[0]); return; }
-                // A multi-line bill gets its OWN menu. Firing the line actions at
-                // lines[0] is what silently targeted the first product before, so
-                // this menu offers only what is meaningful for a whole bill.
-                e.stopPropagation();
-                const r = e.currentTarget.getBoundingClientRect();
-                // Same flip as the line menu. This one never had it, so on the
-                // last bill of a long list it opened straight off the bottom.
-                const H = 320;
-                const below = window.innerHeight - r.bottom > H + 8;
-                setMenuBill({
-                  bill,
-                  x: r.right,
-                  y: below ? r.bottom + 4 : Math.max(8, r.top - H - 4),
-                  origin: below ? 'top right' : 'bottom right',
-                });
-              }}
-              title={multi ? 'Bill actions' : 'More'}
-              className="w-8 h-8 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-black/5 hover:text-foreground transition-[background-color,color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]"
-            >
-              <MoreVertical size={16} />
-            </button>
-          </div>
-        </td>
-      </tr>
-
-      {/* The bill's lines, as real rows of THIS table.
-          They were a nested <table> inside one full-width cell, so their
-          columns were independent of the parent's: product names started at the
-          far left while the bill's product sat 260px in, and the amounts landed
-          in a different place to the Amount column above them. Emitting them as
-          siblings makes every column line up by construction rather than by
-          matching widths twice. */}
-      {expanded && bill.lines.map((l, i) => {
-        const prod = products.find(x => x.id === l.linked_product_id);
-        const lineAmt = Number(l.total_amount || 0);
-        const lineQty = Number(l.quantity || 0);
-        const lineDue = Math.max(0, lineAmt - paidOf(l));
-        const last = i === bill.lines.length - 1;
-        return (
-          <tr
-            key={l.id}
-            className="bg-canvas/60 line-reveal"
-            // Capped at six steps: past that the stagger stops reading as
-            // sequence and starts reading as waiting.
-            style={{ animationDelay: `${Math.min(i, 6) * 24}ms` }}
-          >
-            {/* Item, under its bill's item column and ruled to it. */}
-            <td className={`${pad} max-w-[460px] border-l-2 border-accent-signature`}>
-              <div className="pl-[20px] min-w-0">
-                <div className="text-[12.5px] text-foreground truncate">
-                  {prod?.name || l.notes || '—'}
-                </div>
-              </div>
-            </td>
-
-            {/* Where the bill prints its supplier, a line prints what it is:
-                how many, at what each. The supplier is the bill's, and saying
-                it again on every line is four copies of one fact. */}
-            <td className={`${pad} max-w-[260px]`}>
-              <div className="text-[11.5px] text-muted-foreground truncate">
-                {lineQty} {prod?.unit || 'pcs'} × {formatCurrency(lineQty > 0 ? lineAmt / lineQty : 0)}
-                {last && bill.lines.length > 1 && (
-                  <span className="opacity-70"> · bill {formatCurrency(bill.total)}</span>
-                )}
-              </div>
-            </td>
-
-            {/* Same column, same treatment as the bill above: the amount, and
-                what is still owed on it underneath. */}
-            <td className={`${pad} text-right whitespace-nowrap align-middle`}>
-              <span className="tabular-nums text-[12.5px] text-foreground">{formatCurrency(lineAmt)}</span>
-              {lineDue > 0.5 && (
-                <div className="mt-0.5 inline-flex items-center gap-2 justify-end w-full">
-                  <span className="tabular-nums text-[11px] font-semibold text-[color:var(--color-neg)]">
-                    {formatCurrency(lineDue)} due
-                  </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setPayTarget(l); setPayAmount(String(lineDue)); setPayMethod('CASH'); }}
-                    className="px-2 py-0.5 rounded-pill text-[10px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]"
-                  >Pay</button>
-                </div>
-              )}
-            </td>
-
-            <td className={`${pad} text-right`} onClick={(e) => e.stopPropagation()}>
-              <button
-                onClick={(e) => openMenu(e, l)}
-                title={`Edit, return or delete ${prod?.name || 'this product'}`}
-                className="w-7 h-7 inline-flex items-center justify-center rounded-xl text-muted-foreground hover:bg-black/5 hover:text-foreground transition-[background-color,color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]"
-              >
-                <MoreVertical size={14} />
-              </button>
-            </td>
-          </tr>
-        );
-      })}
-      </React.Fragment>
-    );
-  };
-
   if (purLoading || prodLoading) return <PageSkeleton cards={3} rows={8} />;
 
-  // No entrance animation on this container. It is a screen someone opens many
-  // times a day, and a 400ms fade on every visit is charged as the app feeling
-  // slow rather than read as polish.
   return (
     // Capped and centred. A row of this table is four columns the eye has to
     // pair up -- item with its amount -- and on a 2000px monitor there was
@@ -874,170 +486,64 @@ const PurchasesPage = () => {
     // than the table alone, so the header does not span a width the rows
     // deliberately refuse.
     <div className="flex flex-col gap-6 max-w-[1180px] mx-auto w-full">
-      {/* Header, tabs and the one figure you act on, in a single band.
-          These were three stacked bands -- a title row, a four-box summary in
-          which every figure carried identical weight, and a tab switcher on a
-          row of its own -- so the first purchase sat a long way down a page of
-          chrome. */}
-      <div className="flex flex-wrap items-end justify-between gap-4 pb-4 border-b border-border/60">
-        <div className="min-w-0">
+      {/* One quiet title row. The register below carries its own tabs, so
+          Purchases / Returns is a small segmented switch beside the title
+          rather than a second tab strip with a divider of its own. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex items-center gap-3 min-w-0">
           <h1 className="text-base font-semibold text-foreground tracking-tight">Purchases</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Inward stock from suppliers</p>
-          {/* Tabs sit with the title. They are navigation, not a toolbar. */}
-          <div className="mt-3 flex items-center gap-1">
-            <button onClick={() => setActiveTab('purchases')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] transition-[background-color,color,transform] duration-150 active:scale-[0.98] ${
-                activeTab === 'purchases' ? 'bg-muted text-foreground font-semibold'
-                                          : 'text-muted-foreground font-medium hover:text-foreground'}`}>
-              <ShoppingCart size={11} /> Purchases
-              <span className="text-[9px] font-semibold text-muted-foreground">{purchases.length}</span>
-            </button>
-            <button onClick={() => setActiveTab('returns')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] transition-[background-color,color,transform] duration-150 active:scale-[0.98] ${
-                activeTab === 'returns' ? 'bg-muted text-foreground font-semibold'
-                                        : 'text-muted-foreground font-medium hover:text-foreground'}`}>
-              <ArrowLeftRight size={11} /> Returns
-              <span className={`text-[9px] font-semibold ${purchaseReturns.length > 0 ? 'text-[color:var(--color-neg)]' : 'text-muted-foreground'}`}>
-                {purchaseReturns.length}
-              </span>
-            </button>
+          <div className="inline-flex h-8 p-0.5 rounded-md bg-canvas border border-border/60" role="group" aria-label="Show">
+            {[['purchases', 'Bills', purchases.length], ['returns', 'Returns', purchaseReturns.length]].map(([k, label, n]) => (
+              <button key={k} type="button" onClick={() => setActiveTab(k)} aria-pressed={activeTab === k}
+                className={`px-2.5 rounded text-[12px] inline-flex items-center gap-1.5 transition-[background-color,color] duration-(--dur-hover) ${
+                  activeTab === k ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+                {label}<span className="text-[11px] tabular-nums text-muted-foreground">{n}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="flex items-end gap-6">
+        <div className="flex items-center gap-6">
           {activeTab === 'purchases' && (
-            <>
-              {/* Payable leads. It is the only figure here anyone can act on;
-                  giving all four the same box, border and type size meant none
-                  of them did. */}
-              <div className="text-right">
-                <div className="text-[11px] font-medium text-muted-foreground">Payable</div>
-                <div className={`text-[26px] font-semibold tabular-nums tracking-tight leading-none mt-1 ${
-                  summary.payable > 0 ? 'text-[color:var(--color-neg)]' : 'text-foreground'}`}>
-                  {formatCurrency(summary.payable)}
-                </div>
-              </div>
-              <div className="hidden lg:block text-right text-[11px] text-muted-foreground leading-relaxed">
-                <div><span className="tabular-nums font-semibold text-foreground">{formatCurrency(summary.month)}</span> this month</div>
-                <div><span className="tabular-nums font-semibold text-foreground">{summary.count}</span> purchases</div>
-                <div><span className="tabular-nums font-semibold text-[color:var(--color-pos)]">{formatCurrency(summary.itc)}</span> ITC
-                  {summary.itcUnverified > 0 && (
-                    <span title={`${summary.missingGstinSuppliers} supplier${summary.missingGstinSuppliers === 1 ? '' : 's'} have no GSTIN on file`}>
-                      {' '}· +{formatCurrency(summary.itcUnverified)} pending
-                    </span>
-                  )}
-                </div>
-              </div>
-            </>
+            // What is owed lives in the register's Due tab, with the overdue part
+            // as its own red figure. A big red Payable here said the same number
+            // again and painted all of it red, overdue or not.
+            <div className="hidden lg:flex items-baseline gap-3 text-[12px] text-muted-foreground">
+              <span><span className="tabular-nums font-semibold text-foreground">{formatCurrency(summary.month)}</span> this month</span>
+              <span><span className="tabular-nums font-semibold text-[color:var(--color-pos)]">{formatCurrency(summary.itc)}</span> ITC
+                {summary.itcUnverified > 0 && (
+                  <span title={`${summary.missingGstinSuppliers} supplier${summary.missingGstinSuppliers === 1 ? '' : 's'} have no GSTIN on file`}>
+                    {' '}· +{formatCurrency(summary.itcUnverified)} pending
+                  </span>
+                )}
+              </span>
+            </div>
           )}
-          <button onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-pill bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-[background-color,transform] duration-150 active:scale-[0.98] shrink-0">
-            <Plus size={14} /> New purchase
+          <button onClick={() => setShowAddModal(true)} aria-label="New purchase"
+            className="flex items-center gap-1.5 h-8 px-3 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 transition-[background-color,transform] duration-150 active:scale-[0.98] shrink-0">
+            <Plus size={14} /><span className="hidden sm:inline">New purchase</span>
           </button>
         </div>
       </div>
 
-      {/* Two filters visible, five folded behind one control.
-          There were nine here -- search, supplier, payment, status, sort, an
-          Unpaid chip, a density toggle, a grouping select and a count -- all
-          on screen permanently for a list most people open to scan. Search and
-          Unpaid are the two that get used. The rest are one click away and
-          announce themselves with a count whenever any is active, so their
-          STATE is never hidden: a filtered list that looks unfiltered is how
-          someone concludes their data has gone missing. */}
       {activeTab === 'purchases' && (
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[220px]">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search product, supplier, ref or notes…"
-                className="w-full h-9 pl-9 pr-3 bg-card border border-border rounded-lg text-[12px] outline-none focus:border-accent-signature/70" />
-            </div>
-            <button onClick={() => setOnlyUnpaid(v => !v)}
-              className={`h-9 px-3 rounded-pill text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] ${
-                onlyUnpaid ? 'bg-[color:var(--color-neg)]/10 border-[color:var(--color-neg)]/30 text-[color:var(--color-neg)]'
-                           : 'border-border text-muted-foreground hover:text-foreground'}`}>
-              Unpaid
-              {unpaidCount > 0 && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${onlyUnpaid ? 'bg-[color:var(--color-neg)]/15' : 'bg-black/5'}`}>{unpaidCount}</span>
-              )}
-            </button>
-            <button onClick={() => setShowFilters(v => !v)} aria-expanded={showFilters}
-              className={`h-9 px-3 rounded-pill text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] ${
-                activeFilterCount > 0 ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
-                                      : 'border-border text-muted-foreground hover:text-foreground'}`}>
-              <SlidersHorizontal size={13} /> Filters
-              {activeFilterCount > 0 && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-signature/15">{activeFilterCount}</span>
-              )}
-            </button>
-            <span className="text-[11px] text-muted-foreground ml-auto tabular-nums">
-              {filteredBills.length === allBills.length
-                ? `${allBills.length} bills`
-                : `${filteredBills.length} of ${allBills.length} bills`}
-            </span>
-          </div>
-
-          {/* The panel used to mount and unmount, so five controls appeared and
-              vanished with nothing in between -- which reads as the page
-              breaking rather than as a drawer opening. It now stays in the DOM
-              and its row track animates: 0fr to 1fr, opening on --dur-menu and
-              closing faster, because a close is the system responding while an
-              open is the user still deciding. `inert` keeps the collapsed
-              controls out of the tab order and away from screen readers. */}
-          <div
-            className={`grid transition-[grid-template-rows,opacity] ease-(--ease-out) ${
-              showFilters ? 'duration-(--dur-menu)' : 'duration-(--dur-press)'}`}
-            style={{ gridTemplateRows: showFilters ? '1fr' : '0fr', opacity: showFilters ? 1 : 0 }}
-          >
-            <div className="overflow-hidden min-h-0" inert={showFilters ? undefined : true}>
-            <div className="flex flex-wrap items-center gap-2 bg-card border border-border/60 rounded-xl p-2">
-              <select value={fSupplier} onChange={e => setFSup(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px]">
-                <option value="ALL">All suppliers</option>
-                {(suppliers || []).map(sup => <option key={sup.id} value={sup.id}>{sup.name}</option>)}
-              </select>
-              <select value={fPay} onChange={e => setFPay(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px]">
-                <option value="ALL">All payment</option><option value="CASH">Cash</option><option value="CREDIT">Credit</option>
-              </select>
-              <select value={fStatus} onChange={e => setFStatus(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px]">
-                <option value="ALL">All status</option><option value="PENDING">Pending</option><option value="ORDERED">Ordered</option><option value="RECEIVED">Received</option><option value="CANCELLED">Cancelled</option>
-              </select>
-              <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px]">
-                <option value="DATE_DESC">Newest</option><option value="DATE_ASC">Oldest</option>
-                <option value="AMT_DESC">Amount ↓</option><option value="AMT_ASC">Amount ↑</option>
-                <option value="QTY_DESC">Qty ↓</option><option value="QTY_ASC">Qty ↑</option>
-              </select>
-              <select value={groupBy} onChange={e => setGroupBy(e.target.value)} title="Group the list"
-                className="h-9 px-2 border border-border rounded-lg text-[12px]">
-                <option value="NONE">No grouping</option>
-                <option value="DATE">Group by date</option>
-                <option value="SUPPLIER">Group by supplier</option>
-              </select>
-              <button onClick={() => setDense(v => !v)}
-                title={dense ? 'Comfortable rows' : 'Compact rows — more per screen'}
-                className={`h-9 px-3 rounded-pill text-[12px] font-semibold border transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] ${
-                  dense ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
-                        : 'border-border text-muted-foreground hover:text-foreground'}`}>
-                {dense ? 'Comfortable' : 'Compact'}
-              </button>
-              {activeFilterCount > 0 && (
-                <button onClick={clearFilters}
-                  className="h-9 px-3 rounded-pill text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-[color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97] ml-auto">
-                  Clear
-                </button>
-              )}
-            </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'purchases' && (
-        <Table
-          headers={headers}
-          rows={displayRows}
-          renderRow={renderRow}
-          emptyMessage="No purchases match the filters"
+        <BillRegister
+          bills={registerBills}
+          today={today}
+          suppliers={suppliers}
+          productById={productById}
+          voucherNoOf={voucherNo}
+          onNew={() => setShowAddModal(true)}
+          onPay={(b) => openPay([b])}
+          onBulkPay={(bs) => openPay(bs)}
+          onVoucher={(b) => setPrintTarget(b)}
+          onPayments={(b) => setPaymentsTarget(b)}
+          onEdit={(b) => setEditBillTarget(b)}
+          onHistory={(l) => setHistoryProduct(products.find(x => x.id === l.linked_product_id) || { id: l.linked_product_id, name: productNameById[l.linked_product_id] })}
+          onDuplicate={(l) => setDupTarget(l)}
+          onReturn={(l) => setReturnTarget({ purchase: l, product: products.find(x => x.id === l.linked_product_id), supplier: suppliers.find(s => s.id === l.supplier_id) })}
+          onDelete={(l) => handleDeletePurchase(l)}
+          onSetStatus={(b, st) => b.lines.forEach(l => updatePurchaseStatus(l.id, st))}
         />
       )}
       {activeTab === 'returns' && (
@@ -1047,101 +553,6 @@ const PurchasesPage = () => {
           renderRow={renderReturnRow}
           emptyMessage="No purchase returns yet"
         />
-      )}
-
-      {/* Row ⋯ menu — portaled to body so the table's overflow can't clip it */}
-      {menuRow && createPortal(
-        <>
-          <div className="fixed inset-0 z-[9998]" onClick={() => setMenuRow(null)} />
-          <div className="menu-pop fixed z-[9999] w-44 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left, '--menu-origin': menuPos.origin }}>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground"><Printer size={13} /> Voucher</button>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground"><Copy size={13} /> Duplicate</button>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setHistoryProduct(products.find(x => x.id === p.linked_product_id) || { id: p.linked_product_id, name: productNameById[p.linked_product_id] }); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground"><LineChart size={13} /> Price history</button>
-            {/* A one-line bill IS a bill. Editing it through the same form as a
-                multi-line one means one write path (edit_purchase_bill, one
-                transaction) instead of two that can disagree -- which is how a
-                line came to leave its own bill in the first place. */}
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setEditBillTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-blue-600"><Pencil size={13} /> Edit</button>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setReturnTarget({ purchase: p, product: products.find(x => x.id === p.linked_product_id), supplier: suppliers.find(s => s.id === p.supplier_id) }); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-rose-600"><RotateCcw size={13} /> Return</button>
-            <div className="h-px bg-black/5 my-1" />
-            <button onClick={() => { const p = menuRow; setMenuRow(null); handleDeletePurchase(p); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-red-50 text-red-600"><Trash2 size={13} /> Delete</button>
-            {/* Same control as the bill menu, acting on this line alone. */}
-            <div className="h-px bg-black/5 my-1" />
-            <div className="px-3 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Mark as</div>
-            <div className="px-2 pb-2 flex flex-wrap gap-1">
-              {['PENDING', 'ORDERED', 'RECEIVED', 'CANCELLED'].map((st) => {
-                const cur = (menuRow.status || 'RECEIVED').toUpperCase() === st;
-                const sty = _STATUS_STYLES[st] || _STATUS_STYLES.RECEIVED;
-                return (
-                  <button
-                    key={st}
-                    onClick={() => { const p = menuRow; setMenuRow(null); updatePurchaseStatus(p.id, st); }}
-                    className={`text-[10px] font-semibold px-2 py-1 rounded-pill border transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97] ${
-                      cur ? `${sty.bg} ${sty.text} ${sty.border}` : 'border-border text-muted-foreground hover:text-foreground'}`}
-                  >
-                    {st.charAt(0) + st.slice(1).toLowerCase()}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </>,
-        document.body
-      )}
-
-      {/* Bill ⋯ menu — only the actions that mean something for a WHOLE bill.
-          Return and Delete stay on the lines: they move stock for one product,
-          and a bill-level version of either would have to pick a line. */}
-      {menuBill && createPortal(
-        <>
-          <div className="fixed inset-0 z-[9998]" onClick={() => setMenuBill(null)} />
-          <div className="menu-pop fixed z-[9999] w-52 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold"
-            style={{ top: menuBill.y, left: Math.max(8, menuBill.x - 208), '--menu-origin': menuBill.origin }}>
-            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              {menuBill.bill.lines.length} lines · {formatCurrency(menuBill.bill.total)}
-            </div>
-            <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setEditBillTarget(b); }}
-              className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-blue-600">
-              <Pencil size={13} /> Edit whole bill
-            </button>
-            <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setPaymentsTarget(b); }}
-              className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground">
-              <Banknote size={13} /> Payments
-            </button>
-            <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setPrintTarget(b); }}
-              className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground">
-              <Printer size={13} /> Voucher
-            </button>
-            <div className="h-px bg-black/5 my-1" />
-            <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setExpandedBill(b.id); }}
-              className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-muted-foreground">
-              Open lines — to return or delete one
-            </button>
-            {/* Status, where a control used on a handful of rows belongs.
-                It had a column and a dropdown on every row, for a field that
-                reads RECEIVED on all 205 purchases in this book -- furniture
-                on 205 rows to serve the few that are ever changed. */}
-            <div className="h-px bg-black/5 my-1" />
-            <div className="px-3 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Mark as</div>
-            <div className="px-2 pb-2 flex flex-wrap gap-1">
-              {['PENDING', 'ORDERED', 'RECEIVED', 'CANCELLED'].map((st) => {
-                const cur = (menuBill.bill.status || 'RECEIVED').toUpperCase() === st;
-                const sty = _STATUS_STYLES[st] || _STATUS_STYLES.RECEIVED;
-                return (
-                  <button
-                    key={st}
-                    onClick={() => { const b = menuBill.bill; setMenuBill(null); b.lines.forEach(l => updatePurchaseStatus(l.id, st)); }}
-                    className={`text-[10px] font-semibold px-2 py-1 rounded-pill border transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97] ${
-                      cur ? `${sty.bg} ${sty.text} ${sty.border}` : 'border-border text-muted-foreground hover:text-foreground'}`}
-                  >
-                    {st.charAt(0) + st.slice(1).toLowerCase()}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </>,
-        document.body
       )}
 
       {/* Edit whole bill */}
@@ -1304,31 +715,56 @@ const PurchasesPage = () => {
         )}
       </Modal>
 
-      {/* Pay Purchase Modal */}
-      <Modal isOpen={!!payTarget} onClose={() => setPayTarget(null)} title="Record Payment" subtitle={payTarget ? `#${payTarget.id.split('-').pop()} · ${payTarget.supplier_name || ''}` : ''}>
-        {payTarget && (
-          <div className="flex flex-col gap-3">
-            <div className="flex justify-between text-[13px]"><span className="font-semibold text-muted-foreground">Order total</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.total_amount)}</span></div>
-            <div className="flex justify-between text-[13px]"><span className="font-semibold text-muted-foreground">Already paid</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.paid_amount || 0)}</span></div>
-            <div className="flex justify-between text-[13px] pt-2 border-t border-border/60"><span className="font-semibold">Due</span><span className="tabular-nums font-semibold text-red-600">{formatCurrency(dueOf(payTarget))}</span></div>
-            <label className="block"><span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-widest">Amount</span>
-              <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[14px] tabular-nums font-semibold outline-none focus:border-accent-signature/70" autoFocus />
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block"><span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-widest">Method</span>
-                <select value={payMethod} onChange={e => setPayMethod(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[13px] font-semibold">
-                  <option value="CASH">Cash</option><option value="BANK">Bank</option><option value="UPI">UPI</option>
-                </select>
+      {/* Pay one bill, or several of one supplier's bills. Same rules as the
+          register: red only for what is overdue, labels in sentence case. */}
+      <Modal isOpen={!!payTarget} onClose={() => setPayTarget(null)} title="Record payment"
+        subtitle={payTarget ? `${payTarget.bills?.length > 1 ? `${payTarget.bills.length} bills` : (payTarget.bills?.[0]?.bill_no || voucherNo(payTarget.bills?.[0] || payTarget))} · ${payTarget.supplier_name || ''}` : ''}>
+        {payTarget && (() => {
+          const due = dueOf(payTarget);
+          const overdue = (payTarget.bills || []).reduce((s2, b) => s2 + (b.overdue || 0), 0);
+          const lbl = 'text-[12px] font-medium text-muted-foreground';
+          return (
+            <div className="flex flex-col gap-3" data-testid="pay-dialog">
+              {payTarget.bills?.length > 1 && (
+                <div className="rounded-lg border border-border/60 divide-y divide-border/60 text-[12.5px]">
+                  {payTarget.bills.map(b => (
+                    <div key={b.id} className="flex justify-between gap-3 px-3 py-2">
+                      <span className="truncate"><span className="font-semibold">{b.bill_no || voucherNo(b)}</span>
+                        <span className="text-muted-foreground"> · {formatDate(b.date)}</span></span>
+                      <span className={`tabular-nums font-semibold ${b.state === 'over' ? 'text-[color:var(--color-neg)]' : ''}`}>{formatCurrency(b.due)}</span>
+                    </div>
+                  ))}
+                  <p className="px-3 py-2 text-[12px] text-muted-foreground">A part payment settles the oldest bill first.</p>
+                </div>
+              )}
+              <div className="flex justify-between text-[13px]"><span className={lbl}>{payTarget.bills?.length > 1 ? 'Bills total' : 'Bill total'}</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.total_amount)}</span></div>
+              <div className="flex justify-between text-[13px]"><span className={lbl}>Already paid</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.paid_amount || 0)}</span></div>
+              <div className="flex justify-between text-[13px] pt-2 border-t border-border/60">
+                <span className="font-semibold">Due</span>
+                <span className="text-right">
+                  <span className="tabular-nums font-semibold">{formatCurrency(due)}</span>
+                  {overdue > 0.005 && <span className="block text-[12px] font-semibold text-[color:var(--color-neg)]">{Math.abs(overdue - due) < 0.005 ? 'all overdue' : `${formatCurrency(overdue)} overdue`}</span>}
+                </span>
+              </div>
+              <label className="block"><span className={lbl}>Amount</span>
+                <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-lg text-[14px] tabular-nums font-semibold outline-none focus:border-accent-signature/70" autoFocus />
               </label>
-              <label className="block"><span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-widest">Date</span>
-                <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[13px] font-semibold" />
-              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block"><span className={lbl}>Method</span>
+                  <select value={payMethod} onChange={e => setPayMethod(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-lg text-[13px] font-semibold">
+                    <option value="CASH">Cash</option><option value="BANK">Bank</option><option value="UPI">UPI</option>
+                  </select>
+                </label>
+                <label className="block"><span className={lbl}>Date</span>
+                  <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-lg text-[13px] font-semibold" />
+                </label>
+              </div>
+              <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold disabled:opacity-40 hover:bg-primary/90 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98] disabled:active:scale-100 flex items-center justify-center gap-2">
+                <Banknote size={15} /> {paySubmitting ? 'Recording…' : 'Record payment'}
+              </button>
             </div>
-            <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold disabled:opacity-40 hover:bg-primary/90 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98] disabled:active:scale-100 flex items-center justify-center gap-2">
-              <Banknote size={15} /> {paySubmitting ? 'Recording…' : 'Record payment'}
-            </button>
-          </div>
-        )}
+          );
+        })()}
       </Modal>
 
       {/* View / Print voucher */}
