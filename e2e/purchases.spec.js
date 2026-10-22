@@ -314,3 +314,47 @@ test("an item's price history lists every purchase against the one before", asyn
   });
   expect(inside).toBe(true);
 });
+
+test('a bill from last year that is still owed stays on the Due tab', async ({ page }) => {
+  // The date range is "This FY" by default. What is owed is owed whatever its
+  // date, so the open tabs ignore it -- otherwise on 1 April every unpaid bill
+  // from the year before would vanish from Due and Overdue.
+  await openPurchases(page);
+  await page.getByTestId('any-date').waitFor();
+  await tab(page, 'All').click();
+  await page.getByRole('button', { name: /This FY/ }).click();
+  await page.getByRole('menuitemradio', { name: /Last month/ }).click();
+  await tab(page, 'Due').click();
+  // Due still holds all three open bills, from any date
+  await expect(page.getByTestId('bill')).toHaveCount(3);
+  await expect(tab(page, 'Due')).toContainText('₹42,870.00');
+});
+
+test('tapping a row opens it, and Enter on its menu button opens the menu', async ({ page }) => {
+  await openPurchases(page);
+  const b = bill(page, '32,320.00');
+  await b.locator('.c-sup').click();
+  await expect(b.getByTestId('bill-line').first()).toBeVisible();
+  await b.getByRole('button', { name: /^Actions for/ }).first().focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('menuitem', { name: /Voucher/ })).toBeVisible();
+});
+
+test('one line of a multi-line bill can be returned on its own', async ({ page }) => {
+  await openPurchases(page);
+  const b = bill(page, '17,250.00');
+  await b.locator('.c-sup').click();
+  await b.getByTestId('bill-line').nth(1).getByRole('button', { name: /Actions for/ }).click();
+  await page.getByRole('menuitem', { name: /Return to supplier/ }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+});
+
+test('the register fits a 1024px window with the nav rail open', async ({ page }) => {
+  await seedAppCache(page);
+  await setupMocks(page);
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await page.goto(`/${TENANT_SLUG}/purchases`);
+  await page.getByTestId('bill').first().waitFor({ timeout: 15_000 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});

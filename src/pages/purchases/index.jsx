@@ -5,8 +5,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Calendar, ChevronRight, SlidersHorizontal, LineChart } from 'lucide-react';
-import Button from '../../shared/Button';
+import { Plus, Banknote, Printer } from 'lucide-react';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
 import { PageSkeleton } from '../../components/ui/States';
@@ -47,7 +46,7 @@ const PurchasesPage = () => {
   const [payTarget, setPayTarget] = useState(null);
   const [payAmount, setPayAmount] = useState('');
   const [payMethod, setPayMethod] = useState('CASH');
-  const [payDate, setPayDate]     = useState(() => new Date().toISOString().slice(0, 10));
+  const [payDate, setPayDate]     = useState(() => todayISOInAppTZ());
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [dupTarget, setDupTarget]   = useState(null); // purchase to duplicate (prefill single form)
   const [printTarget, setPrintTarget] = useState(null);
@@ -144,9 +143,10 @@ const PurchasesPage = () => {
     suppliers: suppliers || [],
     payments: supplierPayments || [],
     deltas,
-    taxRateOf: (id) => productById[id]?.taxRate,
+    productById,
+    homeStateCode: String(businessProfile?.gst_no || '').slice(0, 2),
     today,
-  }), [allBills, suppliers, supplierPayments, deltas, productById, today]);
+  }), [allBills, suppliers, supplierPayments, deltas, productById, businessProfile, today]);
 
   // Professional, self-contained printable purchase voucher (own CSS — the
   // print window has none of the app's styles).
@@ -196,6 +196,7 @@ const PurchasesPage = () => {
     });
     setPayAmount((Math.round((total - paid) * 100) / 100).toFixed(2));
     setPayMethod('CASH');
+    setPayDate(todayISOInAppTZ());
   };
 
   const submitPay = async () => {
@@ -209,6 +210,12 @@ const PurchasesPage = () => {
     if (!window.confirm(`Pay ${formatCurrency(amt)} to ${payTarget.supplier_name || 'supplier'} (${payMethod})?`)) return;
     setPaySubmitting(true);
     const slices = allocatePayment(payTarget.lines || [payTarget], amt);
+    const planned = Math.round(slices.reduce((s2, x) => s2 + x.amount, 0) * 100) / 100;
+    if (Math.abs(planned - amt) > 0.005) {
+      setPaySubmitting(false);
+      addNotification(`Only ${formatCurrency(planned)} of ${formatCurrency(amt)} can be placed against these bills. Nothing was recorded.`, 'error');
+      return;
+    }
     let done = 0;
     let failure = null;
     for (const sl of slices) {
@@ -231,6 +238,9 @@ const PurchasesPage = () => {
       const outcome = classifyWriteFailure(failure, { noun: 'payment' });
       const head = done > 0 ? `${formatCurrency(done)} of ${formatCurrency(amt)} was recorded. ` : '';
       addNotification(`${head}${outcome.title}: ${outcome.detail}`, 'error');
+      // The dialog's lines and due are now stale; close it so a retry starts
+      // from the bills as they stand.
+      setPayTarget(null); setPayAmount('');
       return;
     }
     addNotification(`Payment of ${formatCurrency(amt)} recorded`, 'success');
@@ -476,57 +486,41 @@ const PurchasesPage = () => {
     // than the table alone, so the header does not span a width the rows
     // deliberately refuse.
     <div className="flex flex-col gap-6 max-w-[1180px] mx-auto w-full">
-      {/* Header, tabs and the one figure you act on, in a single band.
-          These were three stacked bands -- a title row, a four-box summary in
-          which every figure carried identical weight, and a tab switcher on a
-          row of its own -- so the first purchase sat a long way down a page of
-          chrome. */}
-      <div className="flex flex-wrap items-end justify-between gap-4 pb-4 border-b border-border/60">
-        <div className="min-w-0">
+      {/* One quiet title row. The register below carries its own tabs, so
+          Purchases / Returns is a small segmented switch beside the title
+          rather than a second tab strip with a divider of its own. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex items-center gap-3 min-w-0">
           <h1 className="text-base font-semibold text-foreground tracking-tight">Purchases</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Inward stock from suppliers</p>
-          {/* Tabs sit with the title. They are navigation, not a toolbar. */}
-          <div className="mt-3 flex items-center gap-1">
-            <button onClick={() => setActiveTab('purchases')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] transition-[background-color,color,transform] duration-150 active:scale-[0.98] ${
-                activeTab === 'purchases' ? 'bg-muted text-foreground font-semibold'
-                                          : 'text-muted-foreground font-medium hover:text-foreground'}`}>
-              <ShoppingCart size={11} /> Purchases
-              <span className="text-[9px] font-semibold text-muted-foreground">{purchases.length}</span>
-            </button>
-            <button onClick={() => setActiveTab('returns')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] transition-[background-color,color,transform] duration-150 active:scale-[0.98] ${
-                activeTab === 'returns' ? 'bg-muted text-foreground font-semibold'
-                                        : 'text-muted-foreground font-medium hover:text-foreground'}`}>
-              <ArrowLeftRight size={11} /> Returns
-              <span className={`text-[9px] font-semibold ${purchaseReturns.length > 0 ? 'text-[color:var(--color-neg)]' : 'text-muted-foreground'}`}>
-                {purchaseReturns.length}
-              </span>
-            </button>
+          <div className="inline-flex h-8 p-0.5 rounded-md bg-canvas border border-border/60" role="group" aria-label="Show">
+            {[['purchases', 'Bills', purchases.length], ['returns', 'Returns', purchaseReturns.length]].map(([k, label, n]) => (
+              <button key={k} type="button" onClick={() => setActiveTab(k)} aria-pressed={activeTab === k}
+                className={`px-2.5 rounded text-[12px] inline-flex items-center gap-1.5 transition-[background-color,color] duration-(--dur-hover) ${
+                  activeTab === k ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+                {label}<span className="text-[11px] tabular-nums text-muted-foreground">{n}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="flex items-end gap-6">
+        <div className="flex items-center gap-6">
           {activeTab === 'purchases' && (
-            <>
-              {/* What is owed lives in the register's Due tab, with the overdue
-                  part as its own red figure. A big red Payable here said the
-                  same number again and painted all of it red, overdue or not. */}
-              <div className="hidden lg:block text-right text-[11px] text-muted-foreground leading-relaxed">
-                <div><span className="tabular-nums font-semibold text-foreground">{formatCurrency(summary.month)}</span> this month</div>
-                <div><span className="tabular-nums font-semibold text-foreground">{summary.count}</span> purchases</div>
-                <div><span className="tabular-nums font-semibold text-[color:var(--color-pos)]">{formatCurrency(summary.itc)}</span> ITC
-                  {summary.itcUnverified > 0 && (
-                    <span title={`${summary.missingGstinSuppliers} supplier${summary.missingGstinSuppliers === 1 ? '' : 's'} have no GSTIN on file`}>
-                      {' '}· +{formatCurrency(summary.itcUnverified)} pending
-                    </span>
-                  )}
-                </div>
-              </div>
-            </>
+            // What is owed lives in the register's Due tab, with the overdue part
+            // as its own red figure. A big red Payable here said the same number
+            // again and painted all of it red, overdue or not.
+            <div className="hidden lg:flex items-baseline gap-3 text-[12px] text-muted-foreground">
+              <span><span className="tabular-nums font-semibold text-foreground">{formatCurrency(summary.month)}</span> this month</span>
+              <span><span className="tabular-nums font-semibold text-[color:var(--color-pos)]">{formatCurrency(summary.itc)}</span> ITC
+                {summary.itcUnverified > 0 && (
+                  <span title={`${summary.missingGstinSuppliers} supplier${summary.missingGstinSuppliers === 1 ? '' : 's'} have no GSTIN on file`}>
+                    {' '}· +{formatCurrency(summary.itcUnverified)} pending
+                  </span>
+                )}
+              </span>
+            </div>
           )}
           <button onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-pill bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-[background-color,transform] duration-150 active:scale-[0.98] shrink-0">
+            className="flex items-center gap-1.5 h-8 px-3 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 transition-[background-color,transform] duration-150 active:scale-[0.98] shrink-0">
             <Plus size={14} /> New purchase
           </button>
         </div>
@@ -721,31 +715,56 @@ const PurchasesPage = () => {
         )}
       </Modal>
 
-      {/* Pay Purchase Modal */}
-      <Modal isOpen={!!payTarget} onClose={() => setPayTarget(null)} title="Record Payment" subtitle={payTarget ? `${payTarget.bills?.length > 1 ? `${payTarget.bills.length} bills` : (payTarget.bills?.[0]?.bill_no || voucherNo(payTarget.bills?.[0] || payTarget))} · ${payTarget.supplier_name || ''}` : ''}>
-        {payTarget && (
-          <div className="flex flex-col gap-3">
-            <div className="flex justify-between text-[13px]"><span className="font-semibold text-muted-foreground">{payTarget.bills?.length > 1 ? 'Bills total' : 'Bill total'}</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.total_amount)}</span></div>
-            <div className="flex justify-between text-[13px]"><span className="font-semibold text-muted-foreground">Already paid</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.paid_amount || 0)}</span></div>
-            <div className="flex justify-between text-[13px] pt-2 border-t border-border/60"><span className="font-semibold">Due</span><span className="tabular-nums font-semibold text-red-600">{formatCurrency(dueOf(payTarget))}</span></div>
-            <label className="block"><span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-widest">Amount</span>
-              <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[14px] tabular-nums font-semibold outline-none focus:border-accent-signature/70" autoFocus />
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block"><span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-widest">Method</span>
-                <select value={payMethod} onChange={e => setPayMethod(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[13px] font-semibold">
-                  <option value="CASH">Cash</option><option value="BANK">Bank</option><option value="UPI">UPI</option>
-                </select>
+      {/* Pay one bill, or several of one supplier's bills. Same rules as the
+          register: red only for what is overdue, labels in sentence case. */}
+      <Modal isOpen={!!payTarget} onClose={() => setPayTarget(null)} title="Record payment"
+        subtitle={payTarget ? `${payTarget.bills?.length > 1 ? `${payTarget.bills.length} bills` : (payTarget.bills?.[0]?.bill_no || voucherNo(payTarget.bills?.[0] || payTarget))} · ${payTarget.supplier_name || ''}` : ''}>
+        {payTarget && (() => {
+          const due = dueOf(payTarget);
+          const overdue = (payTarget.bills || []).reduce((s2, b) => s2 + (b.overdue || 0), 0);
+          const lbl = 'text-[12px] font-medium text-muted-foreground';
+          return (
+            <div className="flex flex-col gap-3" data-testid="pay-dialog">
+              {payTarget.bills?.length > 1 && (
+                <div className="rounded-lg border border-border/60 divide-y divide-border/60 text-[12.5px]">
+                  {payTarget.bills.map(b => (
+                    <div key={b.id} className="flex justify-between gap-3 px-3 py-2">
+                      <span className="truncate"><span className="font-semibold">{b.bill_no || voucherNo(b)}</span>
+                        <span className="text-muted-foreground"> · {formatDate(b.date)}</span></span>
+                      <span className={`tabular-nums font-semibold ${b.state === 'over' ? 'text-[color:var(--color-neg)]' : ''}`}>{formatCurrency(b.due)}</span>
+                    </div>
+                  ))}
+                  <p className="px-3 py-2 text-[12px] text-muted-foreground">A part payment settles the oldest bill first.</p>
+                </div>
+              )}
+              <div className="flex justify-between text-[13px]"><span className={lbl}>{payTarget.bills?.length > 1 ? 'Bills total' : 'Bill total'}</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.total_amount)}</span></div>
+              <div className="flex justify-between text-[13px]"><span className={lbl}>Already paid</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.paid_amount || 0)}</span></div>
+              <div className="flex justify-between text-[13px] pt-2 border-t border-border/60">
+                <span className="font-semibold">Due</span>
+                <span className="text-right">
+                  <span className="tabular-nums font-semibold">{formatCurrency(due)}</span>
+                  {overdue > 0.005 && <span className="block text-[12px] font-semibold text-[color:var(--color-neg)]">{Math.abs(overdue - due) < 0.005 ? 'all overdue' : `${formatCurrency(overdue)} overdue`}</span>}
+                </span>
+              </div>
+              <label className="block"><span className={lbl}>Amount</span>
+                <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-lg text-[14px] tabular-nums font-semibold outline-none focus:border-accent-signature/70" autoFocus />
               </label>
-              <label className="block"><span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-widest">Date</span>
-                <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[13px] font-semibold" />
-              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block"><span className={lbl}>Method</span>
+                  <select value={payMethod} onChange={e => setPayMethod(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-lg text-[13px] font-semibold">
+                    <option value="CASH">Cash</option><option value="BANK">Bank</option><option value="UPI">UPI</option>
+                  </select>
+                </label>
+                <label className="block"><span className={lbl}>Date</span>
+                  <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-lg text-[13px] font-semibold" />
+                </label>
+              </div>
+              <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold disabled:opacity-40 hover:bg-primary/90 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98] disabled:active:scale-100 flex items-center justify-center gap-2">
+                <Banknote size={15} /> {paySubmitting ? 'Recording…' : 'Record payment'}
+              </button>
             </div>
-            <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold disabled:opacity-40 hover:bg-primary/90 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98] disabled:active:scale-100 flex items-center justify-center gap-2">
-              <Banknote size={15} /> {paySubmitting ? 'Recording…' : 'Record payment'}
-            </button>
-          </div>
-        )}
+          );
+        })()}
       </Modal>
 
       {/* View / Print voucher */}

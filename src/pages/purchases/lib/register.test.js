@@ -21,7 +21,7 @@ const purchases = [
 const suppliers = [{ id: 'vtc', credit_days: 30, gstin: '32AAKFV4417L1ZQ' }, { id: 'mak', credit_days: 15 }, { id: 'rjt' }];
 const deltas = lineDeltas(purchases);
 const bills = decorateBills(groupPurchasesIntoBills(purchases), {
-  suppliers, deltas, today: TODAY, taxRateOf: (p) => (p === 'cv' ? 18 : 5),
+  suppliers, deltas, today: TODAY, homeStateCode: '32', productById: { fp: { taxRate: 5 }, cv: { taxRate: 18 } },
   payments: [{ purchase_id: 'b1', date: '2026-10-12', method: 'UPI', amount: 2000 }],
 });
 const by = (id) => bills.find((b) => b.bill_id === id);
@@ -47,9 +47,19 @@ describe('a bill state', () => {
     expect(by('D').cheaper).toBe(0);                      // under the 5% hint
   });
 
-  it('backs GST out of the inclusive amount at each item rate', () => {
-    // 10500 @5% + 1500 @18%
-    expect(by('B').tax).toBeCloseTo(10500 - 10500 / 1.05 + 1500 - 1500 / 1.18, 2);
+  it('splits GST the way the voucher does: only for a registered supplier, IGST across states', () => {
+    // vtc has a Kerala GSTIN: bill D is 5000 @5%, intrastate
+    expect(by('D').tax).toBeCloseTo(5000 - 5000 / 1.05, 2);
+    expect(by('D').interstate).toBe(false);
+    // mak has no GSTIN: no input tax on its bill, same as its voucher
+    expect(by('B').tax).toBe(0);
+  });
+
+  it('a cancelled bill is owed by nobody', () => {
+    const [x] = decorateBills(groupPurchasesIntoBills([row('z1', 'Z', '2026-09-01', 'vtc', 'CREDIT', 'fp', 1, 500, 0, { status: 'CANCELLED' })]), { suppliers, today: TODAY });
+    expect(x.state).toBe('cancelled');
+    expect(tabStats([x]).due.count).toBe(0);
+    expect(totals([x]).due).toBe(0);
   });
 });
 
@@ -104,9 +114,9 @@ describe('paying', () => {
 describe('dates and export', () => {
   it('works out FY presets in Indian financial years', () => {
     const p = Object.fromEntries(datePresets(TODAY).map((x) => [x.id, x]));
-    expect(p.fy).toMatchObject({ from: '2026-04-01', to: TODAY, sub: '2026–27' });
+    expect(p.fy).toMatchObject({ from: '2026-04-01', to: '2027-03-31', sub: '2026–27' });
     expect(p.lfy).toMatchObject({ from: '2025-04-01', to: '2026-03-31' });
-    expect(p.q.from).toBe('2026-10-01');
+    expect(p.q).toMatchObject({ from: '2026-10-01', to: '2026-12-31' });
     expect(p.lq).toMatchObject({ from: '2026-07-01', to: '2026-09-30' });
     expect(p.lmonth).toMatchObject({ from: '2026-09-01', to: '2026-09-30' });
     const jan = Object.fromEntries(datePresets('2027-01-15').map((x) => [x.id, x]));

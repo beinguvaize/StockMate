@@ -14,6 +14,7 @@
  */
 
 import { isCreditType } from '../../../lib/bills';
+import { buildVoucherModel } from './voucher';
 
 const DAY = 864e5;
 export const HINT_PCT = 5;          // a price move that earns a hint on the collapsed row
@@ -61,11 +62,11 @@ export function datePresets(today) {
   const fy = fyStart(today);
   return [
     { id: 'today', label: 'Today', from: today, to: today },
-    { id: 'month', label: 'This month', from: monthStart(y, m), to: today },
+    { id: 'month', label: 'This month', from: monthStart(y, m), to: monthEnd(y, m) },
     { id: 'lmonth', label: 'Last month', from: monthStart(...lm), to: monthEnd(...lm) },
-    { id: 'q', label: 'This quarter', from: monthStart(y, qs), to: today },
+    { id: 'q', label: 'This quarter', from: monthStart(y, qs), to: monthEnd(y, qs + 2) },
     { id: 'lq', label: 'Last quarter', from: monthStart(lqY, lqS), to: monthEnd(lqY, lqS + 2) },
-    { id: 'fy', label: 'This FY', sub: `${fy}–${String(fy + 1).slice(2)}`, from: `${fy}-04-01`, to: today },
+    { id: 'fy', label: 'This FY', sub: `${fy}–${String(fy + 1).slice(2)}`, from: `${fy}-04-01`, to: `${fy + 1}-03-31` },
     { id: 'lfy', label: 'Last FY', sub: `${fy - 1}–${String(fy).slice(2)}`, from: `${fy - 1}-04-01`, to: `${fy}-03-31` },
     { id: 'all', label: 'All time', from: '0000-01-01', to: '9999-12-31' },
   ];
@@ -112,7 +113,7 @@ export function creditDays(bill, supplier, termsById) {
  * Add what the register needs to each bill: due date, days left, state,
  * the overdue part, when and how it was paid, and the price hints.
  */
-export function decorateBills(bills, { suppliers = [], termsById = new Map(), payments = [], deltas = new Map(), taxRateOf = () => 0, today }) {
+export function decorateBills(bills, { suppliers = [], termsById = new Map(), payments = [], deltas = new Map(), productById = {}, homeStateCode = '', today }) {
   const supById = new Map(suppliers.map((s) => [s.id, s]));
   const payByLine = new Map();
   for (const p of payments) {
@@ -125,7 +126,9 @@ export function decorateBills(bills, { suppliers = [], termsById = new Map(), pa
     const dueOn = addDays(b.date, credit);
     const dleft = daysBetween(dueOn, today);
     const settled = b.due < 0.5;
-    const state = settled ? 'paid' : dleft < 0 ? 'over' : b.paid > 0.005 ? 'part' : 'due';
+    // A cancelled bill is owed by nobody: it never counts as due or overdue.
+    const cancelled = String(b.status || '').toUpperCase() === 'CANCELLED';
+    const state = cancelled ? 'cancelled' : settled ? 'paid' : dleft < 0 ? 'over' : b.paid > 0.005 ? 'part' : 'due';
 
     const pays = b.lines.flatMap((l) => payByLine.get(l.id) || []);
     const lastPay = pays.sort((x, y) => iso(y.date).localeCompare(iso(x.date)))[0];
@@ -134,22 +137,23 @@ export function decorateBills(bills, { suppliers = [], termsById = new Map(), pa
 
     let dearer = 0;
     let cheaper = 0;
-    let tax = 0;
     const lines = b.lines.map((l) => {
       const delta = deltas.get(l.id) ?? null;
       if (delta && delta.pct >= HINT_PCT) dearer += 1;
       if (delta && delta.pct <= -HINT_PCT) cheaper += 1;
-      const amt = Number(l.total_amount) || 0;
-      const rate = Number(taxRateOf(l.linked_product_id)) || 0;
-      tax += rate > 0 ? amt - amt / (1 + rate / 100) : 0;
       return { ...l, delta };
     });
+    // The tax split is the voucher's: no GST without a supplier GSTIN, IGST
+    // across states. One rule, so the register, its export and the printed
+    // voucher always agree.
+    const vm = buildVoucherModel({ bill: b, supplier: { ...supplier, __homeStateCode: homeStateCode }, productById });
 
     return {
       ...b, lines, supplier, credit, dueOn, dleft, state,
       overdue: state === 'over' ? b.due : 0,
       paidOn, paidVia, dearer, cheaper,
-      tax: Math.round(tax * 100) / 100,
+      tax: Math.round(vm.tax * 100) / 100,
+      interstate: vm.interstate,
     };
   });
 }
@@ -157,9 +161,9 @@ export function decorateBills(bills, { suppliers = [], termsById = new Map(), pa
 // ── tabs, filters, sorts ────────────────────────────────────────────────────
 
 export const TABS = [
-  { id: 'due', label: 'Due', test: (b) => b.state !== 'paid', money: true },
+  { id: 'due', label: 'Due', test: (b) => b.state !== 'paid' && b.state !== 'cancelled', money: true },
   { id: 'over', label: 'Overdue', test: (b) => b.state === 'over', money: true, neg: true },
-  { id: 'part', label: 'Part paid', test: (b) => b.paid > 0.005 && b.due >= 0.5, money: true },
+  { id: 'part', label: 'Part paid', test: (b) => b.state === 'part' || (b.state === 'over' && b.paid > 0.005), money: true },
   { id: 'paid', label: 'Paid', test: (b) => b.state === 'paid' },
   { id: 'all', label: 'All', test: () => true },
 ];
@@ -212,7 +216,10 @@ const r2 = (n) => Math.round(n * 100) / 100;
 
 export function totals(bills) {
   let total = 0, paid = 0, due = 0, overdue = 0;
-  for (const b of bills) { total += b.total; paid += b.paid; due += b.due; overdue += b.overdue; }
+  for (const b of bills) {
+    total += b.total; paid += b.paid; overdue += b.overdue;
+    if (b.state !== 'cancelled') due += b.due;
+  }
   return { count: bills.length, total: r2(total), paid: r2(paid), due: r2(due), overdue: r2(overdue) };
 }
 
@@ -231,6 +238,7 @@ const mondayOf = (s) => {
 
 function bandOf(b, group, today) {
   if (group === 'status') {
+    if (b.state === 'cancelled') return { key: '4cancelled', label: 'Cancelled' };
     if (b.state === 'paid') return { key: '3paid', label: 'Paid' };
     if (b.state === 'over') return { key: '0over', label: 'Overdue', over: true };
     if (b.dleft <= 7) return { key: '1week', label: 'Due in 7 days' };
@@ -302,7 +310,7 @@ const csvCell = (v) => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-export const STATE_LABEL = { paid: 'Paid', over: 'Overdue', part: 'Part paid', due: 'Due' };
+export const STATE_LABEL = { paid: 'Paid', over: 'Overdue', part: 'Part paid', due: 'Due', cancelled: 'Cancelled' };
 
 /** The bills shown, one row each, with the GST split an accountant needs. */
 export function registerCsv(bills, { productNameOf = () => '', voucherNoOf = () => '' } = {}) {

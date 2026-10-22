@@ -129,14 +129,22 @@ export default function BillRegister({
     : presets.find((p) => p.id === rangeId) || presets.find((p) => p.id === 'fy')), [rangeId, custom, presets]);
 
   // ── data ─────────────────────────────────────────────────────────────────
-  const filtered = useMemo(() => filterRegister(bills, {
-    range, suppliers: sups, terms, q, productNameOf: nameOf, voucherNoOf,
-  }), [bills, range, sups, terms, q, nameOf, voucherNoOf]);
-  const stats = useMemo(() => tabStats(filtered), [filtered]);
+  // What is owed is owed whatever the date: last year's unpaid bill is still
+  // due this year. So the open tabs (Due, Overdue, Part paid) ignore the date
+  // range; it applies to Paid and All.
+  const anyDate = useMemo(() => filterRegister(bills, {
+    suppliers: sups, terms, q, productNameOf: nameOf, voucherNoOf,
+  }), [bills, sups, terms, q, nameOf, voucherNoOf]);
+  const inRange = useMemo(() => filterRegister(anyDate, { range }), [anyDate, range]);
+  const stats = useMemo(() => {
+    const open = tabStats(anyDate);
+    const ranged = tabStats(inRange);
+    return Object.fromEntries(TABS.map((t) => [t.id, OPEN_TABS.includes(t.id) ? open[t.id] : ranged[t.id]]));
+  }, [anyDate, inRange]);
   const tabDef = TABS.find((t) => t.id === tab) || TABS[0];
-  const shown = useMemo(() => filtered.filter(tabDef.test), [filtered, tabDef]);
-  const sum = useMemo(() => totals(shown), [shown]);
   const isOpenTab = OPEN_TABS.includes(tab);
+  const shown = useMemo(() => (isOpenTab ? anyDate : inRange).filter(tabDef.test), [isOpenTab, anyDate, inRange, tabDef]);
+  const sum = useMemo(() => totals(shown), [shown]);
 
   // Open tabs draw every open bill: what is owed must never sit behind a
   // "load more". Paid and All draw PAGE rows at a time.
@@ -146,7 +154,14 @@ export default function BillRegister({
     const sorted = [...shown].sort((SORTS[view.sort] || SORTS.new).fn);
     return sorted.slice(0, limit);
   }, [shown, paged, limit, view.sort]);
-  const bands = useMemo(() => bandRegister(drawn, { group: view.group, sort: view.sort, today }), [drawn, view, today]);
+  // Bands are worked out over every bill shown, so a band's subtotal is the
+  // whole band's even when only some of its rows are drawn yet.
+  const bands = useMemo(() => {
+    const all = bandRegister(shown, { group: view.group, sort: view.sort, today });
+    if (!paged) return all;
+    const keep = new Set(drawn.map((b) => b.id));
+    return all.map((band) => ({ ...band, bills: band.bills.filter((b) => keep.has(b.id)) })).filter((band) => band.bills.length);
+  }, [shown, drawn, paged, view, today]);
   const supplierOptions = useMemo(() => {
     const due = new Map();
     for (const b of bills) due.set(b.supplier_id, (due.get(b.supplier_id) || 0) + b.due);
@@ -179,7 +194,11 @@ export default function BillRegister({
   };
   useEffect(() => {
     if (!toast?.run) return undefined;
-    const k = (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) { e.preventDefault(); toast.run(); } };
+    const k = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z' || /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      e.preventDefault(); toast.run();
+    };
     document.addEventListener('keydown', k);
     return () => document.removeEventListener('keydown', k);
   }, [toast]);
@@ -222,7 +241,9 @@ export default function BillRegister({
   const rowsOnScreen = () => [...(bodyRef.current?.querySelectorAll('.row') || [])];
   const onRegisterKey = (e) => {
     const row = e.target.closest?.('.row');
-    if (!row || e.metaKey || e.ctrlKey || e.altKey) return;
+    // Keys belong to the row itself. On its own buttons and checkbox, Enter
+    // and Space must do what those controls do.
+    if (!row || e.target !== row || e.metaKey || e.ctrlKey || e.altKey) return;
     const b = shown.find((x) => x.id === row.dataset.id);
     if (!b) return;
     const k = e.key;
@@ -239,7 +260,7 @@ export default function BillRegister({
   useEffect(() => {
     const k = (e) => {
       if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (document.querySelector('[role="dialog"]')) return;
+      if (document.querySelector('[role="dialog"], .breg-pop')) return;
       if (e.key === '/') { e.preventDefault(); searchRef.current?.focus(); }
       else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); onNew?.(); }
     };
@@ -304,9 +325,15 @@ export default function BillRegister({
             autoComplete="off" value={q} onChange={(e) => { const v = e.target.value; changeView(() => setQ(v)); }} />
           <kbd>/</kbd>
         </label>
-        <button type="button" className="fbtn on" aria-haspopup="menu" aria-expanded={menu?.kind === 'date'} onClick={(e) => openMenu('date', e)}>
-          <Calendar size={14} /><span>{range.label}</span><span className="rng">{rangeText}</span><ChevronDown size={14} className="chev" />
-        </button>
+        {isOpenTab ? (
+          <span className="fbtn static" title="Every bill still owed is shown, whatever its date" data-testid="any-date">
+            <Calendar size={14} /><span>Any date</span><span className="rng">every open bill</span>
+          </span>
+        ) : (
+          <button type="button" className="fbtn on" aria-haspopup="menu" aria-expanded={menu?.kind === 'date'} onClick={(e) => openMenu('date', e)}>
+            <Calendar size={14} /><span>{range.label}</span><span className="rng">{rangeText}</span><ChevronDown size={14} className="chev" />
+          </button>
+        )}
         <button type="button" className={`fbtn${sups.length ? ' on' : ' dflt'}`} aria-haspopup="menu" aria-expanded={menu?.kind === 'sup'} onClick={(e) => openMenu('sup', e, { align: 'left' })}>
           <span className="lbl">Supplier</span><span className="v">{supLabel}</span><ChevronDown size={14} className="chev" />
         </button>
@@ -351,7 +378,7 @@ export default function BillRegister({
               <span><b>{rupee(sum.paid)}</b> paid</span>
               {tab !== 'paid' && <span><b>{rupee(sum.due)}</b> due{overTxt}</span>}
             </div>
-            <span className="ctx">{range.label} · {rangeText}</span>
+            <span className="ctx">{isOpenTab ? 'Every open bill, any date' : `${range.label} · ${rangeText}`}</span>
             <div className="msum">
               {tab === 'paid'
                 ? <><b>{rupee(sum.paid)}</b> paid · {billsWord(shown.length)}</>
@@ -371,6 +398,7 @@ export default function BillRegister({
         range={range} q={q} hasFilters={q || sups.length || terms.length}
         onClear={() => changeView(() => { setQ(''); setSups([]); setTerms([]); })}
         filteredDue={stats.due.due}
+        drawnIds={drawn.map((b) => b.id)}
       />
 
       <div className="foot-note">
@@ -467,6 +495,17 @@ export default function BillRegister({
         </Pop>
       )}
 
+      {menu?.kind === 'line' && menu.line && (
+        <Pop anchor={menu.anchor} onClose={closeMenu} label={`Actions for ${nameOf(menu.line.linked_product_id) || 'line'}`}>
+          <div className="hd">{nameOf(menu.line.linked_product_id) || 'This line'}</div>
+          <MenuItem icon={LineChart} onSelect={() => { closeMenu(); onHistory?.(menu.line); }}>Price history</MenuItem>
+          <MenuItem icon={Copy} onSelect={() => { closeMenu(); onDuplicate?.(menu.line); }}>Duplicate as a new purchase</MenuItem>
+          <MenuItem icon={RotateCcw} onSelect={() => { closeMenu(); onReturn?.(menu.line); }}>Return to supplier</MenuItem>
+          <div className="sep" />
+          <MenuItem icon={Trash2} danger onSelect={() => { closeMenu(); onDelete?.(menu.line); }}>Delete this line</MenuItem>
+        </Pop>
+      )}
+
       {toast && createPortal(
         <div className="breg-toast" role="status">
           {toast.text}
@@ -501,7 +540,9 @@ function StatusCell({ b }) {
   const term = termOf(b);
   const mode = term === 'CREDIT' ? `Credit ${b.credit}d` : TERMS[term] || term;
   let cls, t, m;
-  if (b.state === 'paid') {
+  if (b.state === 'cancelled') {
+    cls = 'paid'; t = 'Cancelled'; m = 'Not owed';
+  } else if (b.state === 'paid') {
     cls = 'paid'; t = 'Paid';
     m = `${term === 'CREDIT' ? 'Credit · settled' : mode}${b.paidOn ? ` ${fmtDate(b.paidOn, { year: false })}` : ''}`;
   } else if (b.state === 'over') {
@@ -550,12 +591,14 @@ function BillRow({ b, group, isOpen, isSel, onToggleOpen, onToggleSel, productBy
     ? <span className="creep" title={`${b.dearer} item${b.dearer > 1 ? 's' : ''} up 5% or more on the last purchase`}>▲ {b.dearer} costlier</span>
     : b.cheaper ? <span className="creep" title={`${b.cheaper} item${b.cheaper > 1 ? 's' : ''} down 5% or more on the last purchase`}>▼ {b.cheaper} cheaper</span> : null;
   const yearInDate = group === 'status' || group === 'supplier' || group === 'none';
-  const inter = sup.gstin && String(sup.gstin).slice(0, 2) !== String(b.__homeState || '').slice(0, 2) && b.__homeState;
   const menuOpen = menu?.kind === 'row' && menu.bill?.id === b.id;
 
   return (
     <div className={`bill${isOpen ? ' open' : ''}${isSel ? ' sel' : ''}`} data-testid="bill" data-bill={b.bill_id}>
       <div className="row grid" role="row" tabIndex={0} data-id={b.id} aria-expanded={isOpen}
+        // A tap anywhere on the row opens it -- on a phone the chevron is
+        // hidden and this is the only way to reach a bill's lines.
+        onClick={(e) => { if (!e.target.closest('button, input, a, label')) onToggleOpen(); }}
         aria-label={`${ref}, ${b.supplier_name || ''}, ${money(b.total)}`}>
         <div className="cb" role="cell"><input type="checkbox" checked={isSel} onChange={onToggleSel} aria-label={`Select bill ${ref}`} /></div>
         <div className="chev" role="cell">
@@ -584,7 +627,7 @@ function BillRow({ b, group, isOpen, isSel, onToggleOpen, onToggleSel, productBy
             <span className="t">{group !== 'day' && <span className="mdate">{fmtDate(b.date, { year: false })} · </span>}{first ? name(first) : '—'}</span>
             <span className="m">
               {more > 0 ? <span className="more">+{more} more</span> : <span>{Number(first?.quantity || 0).toLocaleString('en-IN')} {unit}</span>}
-              {creep && <> · {creep}</>}
+              {creep && <span className="creep-wrap"> · {creep}</span>}
             </span>
           </div>
         </div>
@@ -618,8 +661,10 @@ function BillRow({ b, group, isOpen, isSel, onToggleOpen, onToggleSel, productBy
                 <div className="c-amt amt r" role="cell">{money(l.total_amount)}</div>
                 <div className="c-paid" /><div className="c-due" />
                 <div className="c-x">
-                  <button className="linkicon" type="button" title="Price history" aria-label={`Price history for ${name(l)}`} onClick={() => handlers.onHistory?.(l)}>
-                    <LineChart size={15} />
+                  <button className="morebtn" type="button" aria-haspopup="menu" aria-label={`Actions for ${name(l)}`}
+                    aria-expanded={menu?.kind === 'line' && menu.line?.id === l.id}
+                    onClick={(e) => { const anchor = e.currentTarget; setMenu((m) => (m?.kind === 'line' && m.line?.id === l.id ? null : { kind: 'line', anchor, line: l, bill: b })); }}>
+                    <MoreVertical size={15} />
                   </button>
                 </div>
               </div>
@@ -629,7 +674,7 @@ function BillRow({ b, group, isOpen, isSel, onToggleOpen, onToggleSel, productBy
             <div className="cb" /><div className="rail" />
             <div className="meta">
               <span>Taxable <b>{money(b.total - b.tax)}</b></span>
-              <span>{inter ? 'IGST' : 'GST'} <b>{money(b.tax)}</b></span>
+              <span>{b.tax > 0.005 ? <>{b.interstate ? 'IGST' : 'CGST + SGST'} <b>{money(b.tax)}</b></> : 'No GST claimed · supplier has no GSTIN'}</span>
               <span>{b.paid > 0.005 ? <>Paid <b>{money(b.paid)}</b>{b.paidVia ? ` by ${b.paidVia}` : ''}{b.paidOn ? ` on ${fmtDate(b.paidOn, { year: false })}` : ''}</> : 'Nothing paid yet'}</span>
               {b.due >= 0.5 && <span>Balance <b>{money(b.due)}</b> due {fmtDate(b.dueOn, { year: false })}</span>}
               <span>{pv}</span>
@@ -680,13 +725,15 @@ function Band({ band, group, isOpenTab }) {
 function Register({
   bands, view, tab, isOpenTab, shown, drawn, sum, open, setOpen, sel, setSel, toggle, shownIds, selected,
   handlers, productById, voucherNoOf, menu, setMenu, bodyRef, onKeyDown, sortOn, ariaSort, headSort, paged,
-  onMore, onBulkPay, onBulkExport, range, q, hasFilters, onClear, filteredDue,
+  onMore, onBulkPay, onBulkExport, range, q, hasFilters, onClear, filteredDue, drawnIds,
 }) {
   const nSel = selected.length;
-  const allSel = nSel > 0 && nSel === shown.length;
+  // Select-all takes the rows drawn, never bills the user has not seen.
+  const allSel = nSel > 0 && nSel === drawnIds.length;
   const selAllRef = useRef(null);
-  useEffect(() => { if (selAllRef.current) selAllRef.current.indeterminate = nSel > 0 && nSel < shown.length; }, [nSel, shown.length]);
+  useEffect(() => { if (selAllRef.current) selAllRef.current.indeterminate = nSel > 0 && nSel < drawnIds.length; }, [nSel, drawnIds.length]);
   const tabLabel = TABS.find((t) => t.id === tab)?.label || '';
+  const period = { fy: 'this FY', lfy: 'last FY', all: 'any period', custom: 'this date range' }[range.id] || range.label.toLowerCase();
 
   const selSum = totals(selected);
   const selSups = new Set(selected.map((b) => b.supplier_id));
@@ -700,7 +747,7 @@ function Register({
     <div className={`reg${isOpenTab ? ' open-tab' : ''}`} id="breg-register" role="table" aria-label="Purchase bills" data-group={view.group}>
       <div className="thead grid" role="row">
         <div className="cb"><input ref={selAllRef} type="checkbox" aria-label="Select all shown bills" checked={allSel}
-          onChange={() => setSel(allSel ? new Set() : new Set(shown.map((b) => b.id)))} /></div>
+          onChange={() => setSel(allSel ? new Set() : new Set(drawnIds))} /></div>
         <div className="chev" />
         <div role="columnheader" aria-sort={ariaSort('date')}>
           <button className="sortable" type="button" data-on={sortOn('date') || undefined} onClick={() => headSort('date')}>Bill no. · date<ArrowUpDown size={13} /></button>
@@ -722,8 +769,8 @@ function Register({
         {!shown.length && (
           <div className="empty" data-testid="register-empty">
             {tab === 'over' && !hasFilters
-              ? <><p>Nothing overdue in {range.label.toLowerCase()}.</p><p>{rupee(filteredDue)} is due, all within its credit days.</p></>
-              : <><p>No {tab === 'all' ? '' : `${tabLabel.toLowerCase()} `}bills{q ? ` match “${q}”` : ''} in {range.label.toLowerCase()}.</p>
+              ? <><p>Nothing is overdue.</p><p>{filteredDue >= 0.5 ? `${rupee(filteredDue)} is due, all within its credit days.` : 'Nothing is owed to suppliers.'}</p></>
+              : <><p>No {tab === 'all' ? '' : `${tabLabel.toLowerCase()} `}bills{q ? ` match “${q}”` : ''}{isOpenTab ? '' : ` in ${period}`}.</p>
                 {hasFilters ? <p><button className="linkbtn" type="button" onClick={onClear}>Clear filters</button></p> : null}</>}
           </div>
         )}
@@ -749,14 +796,18 @@ function Register({
         {nSel > 0 && (
           <div className="bulk" role="region" aria-label="Selected bills" data-testid="bulk-bar">
             <span className="cnt">{nSel} selected</span><span className="note">·</span>
-            {Math.abs(selSum.total - selSum.due) < 0.005
-              ? <><span className="tot">{rupee(selSum.due)}</span><span className="note">due</span></>
-              : <><span className="tot">{rupee(selSum.total)}</span>{selSum.due >= 0.5 && <span className="note">· {rupee(selSum.due)} due</span>}</>}
+            <span className="desk">
+              {Math.abs(selSum.total - selSum.due) < 0.005
+                ? <><span className="tot">{rupee(selSum.due)}</span> <span className="note">due</span></>
+                : <><span className="tot">{rupee(selSum.total)}</span>{selSum.due >= 0.5 && <span className="note"> · {rupee(selSum.due)} due</span>}</>}
+            </span>
+            {/* On a phone the bar shows what Record payment would pay. */}
+            <span className="mob tot">{selSum.due >= 0.5 ? `${rupee(selSum.due)} due` : rupee(selSum.total)}</span>
             <span className="div" /><span className="note">{why}</span><span className="sp" />
             <button type="button" className="primary" disabled={!onePay} title={why} onClick={() => onBulkPay?.(selected.filter((b) => b.due >= 0.5))}>
               <Banknote size={15} />Record payment
             </button>
-            <button type="button" onClick={onBulkExport}><Download size={15} />Export</button>
+            <button type="button" onClick={onBulkExport} aria-label="Export selected"><Download size={15} /><span className="hide-sm">Export</span></button>
             <button type="button" aria-label="Clear selection" onClick={() => setSel(new Set())}><X size={15} /></button>
           </div>
         )}
