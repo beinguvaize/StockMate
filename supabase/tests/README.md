@@ -23,6 +23,7 @@ it raises an exception naming the specific assertion that broke.
 |---|---|
 | `rls01_plan_gates_test.sql` | `has_module_access()` returns correct allow/deny for STARTER / PRO / ENTERPRISE across representative modules |
 | `restore_test.sql` | Restore round trip: every shop table byte-identical after restore and after undo; every insert/delete trigger guarded; incomplete backups and non-owners refused |
+| `gl_posting_test.sql` | GL posts each event once on its own date: a payment never rewrites the sale journal; sales debit Receivables; ledger receipts, supplier payments and UPI purchases post to Cash; a real receipt replaces an inferred one |
 
 ## Conventions
 
