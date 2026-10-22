@@ -618,7 +618,7 @@ function BillRow({ b, group, isOpen, isSel, onToggleOpen, onToggleSel, productBy
         </div>
         <div className="c-sup sup" role="cell">
           <div className="two">
-            <span className="t" title={sup.gstin ? `GSTIN ${sup.gstin}` : undefined}>{b.supplier_name || 'Unknown supplier'}</span>
+            <span className="t" title={`${b.supplier_name || 'Unknown supplier'}${sup.gstin ? ` · GSTIN ${sup.gstin}` : ''}`}>{b.supplier_name || 'Unknown supplier'}</span>
             <span className="m">{sup.address ? String(sup.address).split(',').slice(-2).join(',').trim() : (sup.gstin || '')}</span>
           </div>
         </div>
