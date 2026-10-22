@@ -82,6 +82,10 @@ describe('products.costPrice', () => {
     // Nothing on that screen should be able to edit a product at all now.
     const PURCHASES = readFileSync(join(SRC, 'pages', 'purchases', 'index.jsx'), 'utf8');
     expect(PURCHASES).not.toMatch(/\bupdateProduct\b/);
+    // It may set a selling price after a price-change review -- through a
+    // handle that cannot carry any other column.
+    const HOOK = readFileSync(join(SRC, 'hooks', 'useInventory.js'), 'utf8');
+    expect(HOOK).toMatch(/setSellingPrice: \(id, sellingPrice\) => update\(id, \{ sellingPrice \}\)/);
   });
 
   it('the Inventory margin column reads the cost rather than recomputing one', () => {

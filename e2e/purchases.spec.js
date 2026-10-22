@@ -373,3 +373,34 @@ test('quantity sits with the item, not with the supplier', async ({ page }) => {
   const supplierCell = row.locator('td').nth(1);
   await expect(supplierCell).toContainText(/Cash|Credit/i);
 });
+
+test("an item's price history lists every purchase against the one before", async ({ page }) => {
+  // Widget A was bought three times: Rs 310 (48 days ago, Astra), Rs 110
+  // (9 days, Madeena), Rs 92 (2 days, Hassan). The history has to say which
+  // way each one moved and how far it is from the selling price.
+  await openPurchases(page);
+  await billRow(page, '₹13,800.00').first().getByTitle('More').click();
+  await page.getByRole('button', { name: 'Price history' }).click();
+
+  const h = page.getByTestId('price-history');
+  await expect(h).toBeVisible();
+  const rows = h.getByTestId('price-history-row');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toContainText('₹92.00');
+  await expect(rows.nth(0)).toContainText('-16.4%');
+  await expect(rows.nth(1)).toContainText('-64.5%');
+  await expect(rows.nth(2)).toContainText('First');
+
+  // Every fixture purchase shares supplier id SUP-001, so this is one
+  // supplier and the by-supplier list (unit-tested) correctly stays hidden.
+  await expect(h.getByTestId('price-history-suppliers')).toHaveCount(0);
+  // The chart draws, and nothing in it falls outside its box.
+  const box = await h.locator('svg[role="img"]').evaluate((svg) => {
+    const vb = svg.viewBox.baseVal;
+    return [...svg.querySelectorAll('text, circle')].every((el) => {
+      const b = el.getBBox();
+      return b.x >= -0.5 && b.y >= -0.5 && b.x + b.width <= vb.width + 0.5 && b.y + b.height <= vb.height + 0.5;
+    });
+  });
+  expect(box).toBe(true);
+});

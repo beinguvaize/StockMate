@@ -332,6 +332,9 @@ export const useInventory = (tenantId) => {
     refetch: fetchInventory, 
     addProduct: add, 
     updateProduct: update, 
+    // Writes the selling price and nothing else. The purchases screen gets
+    // this, never updateProduct: cost belongs to recompute_product_cost.
+    setSellingPrice: (id, sellingPrice) => update(id, { sellingPrice }),
     deleteProduct: remove,
     adjustStock,
     transferStock,

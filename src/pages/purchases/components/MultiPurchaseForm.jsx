@@ -1,8 +1,101 @@
 import React, { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Trash2, CheckCircle2, Barcode, AlertCircle, Search, X } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Barcode, AlertCircle, Search, X, TrendingUp, TrendingDown, ArrowLeft } from 'lucide-react';
 import { todayISOInAppTZ } from '../../../lib/utils';
 import QuickCreateProductModal from './QuickCreateProductModal';
+import { lineUnitCost, priceChanges, priceKeepingMargin } from '../lib/priceChange';
+
+const inr = (n) => `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * The step between "Save" and saving, shown only when the bill changes what
+ * an item costs. Each changed item can get a new selling price here; leaving
+ * the field as it is keeps the current one.
+ */
+const PriceChangeReview = ({ changes, prices, setPrice, onBack, onConfirm, loading }) => {
+  const ups = changes.filter((c) => c.direction === 'UP').length;
+  const downs = changes.length - ups;
+  return (
+    <div className="flex flex-col gap-4" data-testid="price-change-review">
+      <div>
+        <h3 className="text-[15px] font-semibold text-foreground">
+          {changes.length === 1 ? 'This bill changes an item’s cost' : `This bill changes the cost of ${changes.length} items`}
+        </h3>
+        <p className="text-[12px] text-muted-foreground mt-1">
+          {[ups && `${ups} went up`, downs && `${downs} came down`].filter(Boolean).join(' · ')}.
+          {' '}Check the selling prices before saving. Leave a price as it is to keep it.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-border/60 overflow-x-auto">
+        <table className="w-full text-[12px] tabular-nums">
+          <thead className="bg-canvas text-ink-secondary">
+            <tr className="text-left">
+              <th className="px-3 py-2 font-semibold">Item</th>
+              <th className="px-3 py-2 font-semibold text-right">Cost was</th>
+              <th className="px-3 py-2 font-semibold text-right">Cost now</th>
+              <th className="px-3 py-2 font-semibold text-right">Margin now</th>
+              <th className="px-3 py-2 font-semibold">Selling price</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-black/[0.04]">
+            {changes.map((c) => {
+              const typed = parseFloat(prices[c.productId]);
+              const sell = typed > 0 ? typed : c.sellingPrice;
+              const margin = sell > 0 ? ((sell - c.newCost) / sell) * 100 : null;
+              const keep = priceKeepingMargin(c);
+              const up = c.direction === 'UP';
+              return (
+                <tr key={c.productId} data-testid="price-change-row" data-direction={c.direction}>
+                  <td className="px-3 py-2.5">
+                    <div className="font-semibold text-foreground">{c.name}</div>
+                    <div className={`mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold ${up ? 'text-[color:var(--color-neg)]' : 'text-[color:var(--color-pos)]'}`}>
+                      {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                      {up ? 'Up' : 'Down'} {Math.abs(c.pct).toFixed(1)}%
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-muted-foreground">{inr(c.oldCost)}</td>
+                  <td className="px-3 py-2.5 text-right font-semibold">{inr(c.newCost)}{c.unit && <span className="text-muted-foreground font-normal"> /{c.unit}</span>}</td>
+                  <td className={`px-3 py-2.5 text-right font-semibold ${margin !== null && margin <= 0 ? 'text-[color:var(--color-neg)]' : ''}`}>
+                    {margin === null ? '—' : `${margin.toFixed(1)}%`}
+                    {margin !== null && margin <= 0 && <div className="text-[10px] font-semibold">Sells at a loss</div>}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <input type="number" min="0" step="0.01"
+                        aria-label={`Selling price for ${c.name}`}
+                        placeholder={c.sellingPrice > 0 ? c.sellingPrice.toFixed(2) : 'Set price'}
+                        value={prices[c.productId] ?? ''}
+                        onChange={(e) => setPrice(c.productId, e.target.value)}
+                        className="w-24 bg-card border border-border rounded-lg px-2 py-1.5 text-[12px] font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
+                      {keep !== null && Math.abs(keep - c.sellingPrice) >= 0.005 && (
+                        <button type="button" onClick={() => setPrice(c.productId, keep.toFixed(2))}
+                          className="text-[11px] font-semibold text-accent-signature hover:underline whitespace-nowrap">
+                          {inr(keep)} keeps {c.marginBefore.toFixed(0)}%
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex gap-3">
+        <button type="button" onClick={onBack}
+          className="h-12 px-5 flex items-center gap-2 rounded-pill border border-border text-[12px] font-semibold text-foreground hover:bg-canvas transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98]">
+          <ArrowLeft size={14} /> Back to bill
+        </button>
+        <button type="button" onClick={onConfirm} disabled={loading} data-testid="price-change-confirm"
+          className="flex-1 h-12 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold text-[12px] rounded-pill hover:bg-black transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98] disabled:opacity-40">
+          {loading ? <span className="animate-pulse">Saving…</span> : <><CheckCircle2 size={14} /> Save purchase</>}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // Searchable product combobox — plain <select> is unusable once the catalog
 // grows past a few dozen items (no way to filter by typing). The results list
@@ -239,12 +332,34 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
     setQuickCreate(null);
   };
 
+  // ── Price changes ────────────────────────────────────────────────────────────
+  // null = not reviewing; an array = the review step is showing these.
+  const [review, setReview] = useState(null);
+  const [newPrices, setNewPrices] = useState({});
+
   // ── Submit ───────────────────────────────────────────────────────────────────
+  const validLines = () =>
+    lines.filter(l => l.linked_product_id && parseFloat(l.quantity) > 0 && parseFloat(l.total_amount) > 0);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    const valid = lines.filter(l => l.linked_product_id && parseFloat(l.quantity) > 0 && parseFloat(l.total_amount) > 0);
+    const valid = validLines();
     if (!valid.length) return;
+    const changes = priceChanges(valid, products);
+    if (changes.length) { setReview(changes); return; }
+    save(valid, []);
+  };
+
+  const confirmReview = () => {
+    const priceUpdates = (review || [])
+      .map(c => ({ productId: c.productId, name: c.name, sellingPrice: parseFloat(newPrices[c.productId]) }))
+      .filter(u => u.sellingPrice > 0 && Math.abs(u.sellingPrice - (review.find(c => c.productId === u.productId)?.sellingPrice || 0)) >= 0.005);
+    save(validLines(), priceUpdates);
+  };
+
+  const save = (valid, priceUpdates) => {
     onSave({
+      priceUpdates,
       header,
       items: valid.map(l => {
         const total = parseFloat(l.total_amount);
@@ -269,6 +384,19 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
   };
 
   const inp = 'w-full bg-card border border-border shadow-sm rounded-lg p-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums';
+
+  if (review) {
+    return (
+      <PriceChangeReview
+        changes={review}
+        prices={newPrices}
+        setPrice={(id, v) => setNewPrices(p => ({ ...p, [id]: v }))}
+        onBack={() => setReview(null)}
+        onConfirm={confirmReview}
+        loading={loading}
+      />
+    );
+  }
 
   return (
     <>
@@ -386,7 +514,10 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
           <div ref={rowsRef} className="divide-y divide-black/[0.04]">
             {lines.map((line) => {
               const product = products.find(p => p.id === line.linked_product_id);
-              const unitCost = parseFloat(line.unit_price) || null;
+              // Per base unit, so a packet price is not compared with a piece cost.
+              const unitCost = product ? lineUnitCost(line, product) : null;
+              const costPct = unitCost !== null && product?.costPrice > 0
+                ? ((unitCost - product.costPrice) / product.costPrice) * 100 : null;
 
               return (
                 <div key={line._key} className="grid grid-cols-[140px_1fr_72px_92px_92px_112px_32px] gap-2 items-start px-4 py-3">
@@ -482,9 +613,10 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                     {product?.secondary_unit && line.buyUnit === 'ALT' && (
                       <p className="text-[8px] text-muted-foreground mt-1 ml-1">per {product.secondary_unit}</p>
                     )}
-                    {unitCost !== null && product?.costPrice > 0 && (
-                      <p className={`text-[8px] font-semibold mt-1 ml-1 ${unitCost > product.costPrice ? 'text-accent-signature' : 'text-emerald-500'}`}>
-                        {unitCost > product.costPrice ? '▲' : '▼'} ₹{product.costPrice}
+                    {costPct !== null && Math.abs(unitCost - product.costPrice) >= 0.005 && (
+                      <p data-testid="line-cost-change"
+                        className={`text-[10px] font-semibold mt-1 ml-1 tabular-nums ${costPct > 0 ? 'text-[color:var(--color-neg)]' : 'text-[color:var(--color-pos)]'}`}>
+                        {costPct > 0 ? '▲' : '▼'} {Math.abs(costPct).toFixed(1)}% vs ₹{product.costPrice}
                       </p>
                     )}
                     {unitCost !== null && product?.sellingPrice > 0 && unitCost > product.sellingPrice && (

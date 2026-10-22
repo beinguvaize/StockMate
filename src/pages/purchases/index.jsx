@@ -6,7 +6,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Calendar, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Calendar, ChevronRight, SlidersHorizontal, LineChart } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
@@ -20,6 +20,7 @@ import BillEditForm from './components/BillEditForm';
 import BillPaymentsModal from './components/BillPaymentsModal';
 import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
+import PriceHistory from './components/PriceHistory';
 
 const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
@@ -28,7 +29,7 @@ const PurchasesPage = () => {
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
   const { purchases, purchaseReturns, suppliers, add: addPurchase, editPurchaseBill, supplierPayments, editSupplierPayment, deleteSupplierPayment, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
-  const { products, inventoryLocations, loading: prodLoading, addProduct } = useInventory(currentTenantId);
+  const { products, inventoryLocations, loading: prodLoading, addProduct, setSellingPrice } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
   const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' | 'returns'
@@ -69,6 +70,7 @@ const PurchasesPage = () => {
   const [dupTarget, setDupTarget]   = useState(null); // purchase to duplicate (prefill single form)
   const [printTarget, setPrintTarget] = useState(null);
   const [menuRow, setMenuRow]       = useState(null); // row whose ⋯ menu is open (portaled)
+  const [historyProduct, setHistoryProduct] = useState(null); // product whose price history is open
   const [menuPos, setMenuPos]       = useState({ top: 0, left: 0, origin: 'top right' });
   const openMenu = (e, pur) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -327,7 +329,7 @@ const PurchasesPage = () => {
   };
 
   // ── Multi-item purchase save ─────────────────────────────────────────────────
-  const handleSaveMultiPurchase = async ({ header, items }) => {
+  const handleSaveMultiPurchase = async ({ header, items, priceUpdates = [] }) => {
     setAddLoading(true);
     const supplierName = suppliers.find(s => s.id === header.supplier_id)?.name || '';
     let failed = 0;
@@ -399,9 +401,32 @@ const PurchasesPage = () => {
     // never moved the cash with it, and only this one screen did it at all.
     // Posting from here as well would now double the money out — the same
     // mistake the supplier-payment trigger already caused once.
+    // New selling prices chosen on the price-change step. Only once the whole
+    // bill is in: a half-saved bill must not leave prices raised for stock
+    // that never arrived.
+    let priceFailed = [];
+    if (failed === 0) {
+      for (const u of priceUpdates) {
+        const { error } = await setSellingPrice(u.productId, u.sellingPrice);
+        if (error) {
+          console.error('[purchase] selling price update failed for', u.productId, error);
+          priceFailed.push(`${u.name}: ${error.message || String(error)}`);
+        }
+      }
+    }
     setAddLoading(false);
-    if (failed > 0) alert(`${failed} item(s) failed to save.${firstError ? `\n\nReason: ${firstError}` : ''}`);
-    else setShowAddModal(false);
+    if (failed > 0) {
+      alert(`${failed} item(s) failed to save.${firstError ? `\n\nReason: ${firstError}` : ''}`
+        + (priceUpdates.length ? '\n\nSelling prices were not changed.' : ''));
+    } else if (priceFailed.length) {
+      alert(`The purchase is saved, but these selling prices were not updated:\n\n${priceFailed.join('\n')}`);
+      setShowAddModal(false);
+    } else {
+      if (priceUpdates.length) {
+        addNotification?.(`Selling price updated for ${priceUpdates.length} item${priceUpdates.length > 1 ? 's' : ''}`, 'success');
+      }
+      setShowAddModal(false);
+    }
   };
 
   // Duplicate → create a brand-new purchase from a prefilled single form.
@@ -1031,6 +1056,7 @@ const PurchasesPage = () => {
           <div className="menu-pop fixed z-[9999] w-44 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left, '--menu-origin': menuPos.origin }}>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground"><Printer size={13} /> Voucher</button>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground"><Copy size={13} /> Duplicate</button>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setHistoryProduct(products.find(x => x.id === p.linked_product_id) || { id: p.linked_product_id, name: productNameById[p.linked_product_id] }); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground"><LineChart size={13} /> Price history</button>
             {/* A one-line bill IS a bill. Editing it through the same form as a
                 multi-line one means one write path (edit_purchase_bill, one
                 transaction) instead of two that can disagree -- which is how a
@@ -1244,6 +1270,12 @@ const PurchasesPage = () => {
             onDelete={(id) => deleteSupplierPayment(id)}
           />
         )}
+      </Modal>
+
+      {/* What this item has cost, purchase by purchase. */}
+      <Modal isOpen={!!historyProduct} onClose={() => setHistoryProduct(null)}
+        title="Price history" subtitle={historyProduct?.name || ''}>
+        {historyProduct && <PriceHistory product={historyProduct} purchases={purchases} />}
       </Modal>
 
       {/* Add Purchase Modal — multi-line */}
