@@ -165,7 +165,7 @@ const TallyExportPanel = ({ sales = [], purchases = [], clients = [], suppliers 
         type="button"
         onClick={download}
         disabled={vouchers.length === 0 || unbalanced.length > 0}
-        className="inline-flex items-center gap-2 px-5 h-11 rounded-pill bg-accent-solid text-white
+        className="inline-flex items-center gap-2 px-5 h-11 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white
                    text-[14px] font-bold disabled:opacity-40 disabled:pointer-events-none
                    transition-[background-color,transform] duration-150 active:scale-[0.97]"
       >
