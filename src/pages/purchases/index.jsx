@@ -28,7 +28,7 @@ const PurchasesPage = () => {
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
   const { purchases, purchaseReturns, suppliers, add: addPurchase, editPurchaseBill, supplierPayments, editSupplierPayment, deleteSupplierPayment, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
-  const { products, inventoryLocations, loading: prodLoading, addProduct } = useInventory(currentTenantId);
+  const { products, inventoryLocations, loading: prodLoading, addProduct, setSellingPrice } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
   const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' | 'returns'
@@ -327,7 +327,7 @@ const PurchasesPage = () => {
   };
 
   // ── Multi-item purchase save ─────────────────────────────────────────────────
-  const handleSaveMultiPurchase = async ({ header, items }) => {
+  const handleSaveMultiPurchase = async ({ header, items, priceUpdates = [] }) => {
     setAddLoading(true);
     const supplierName = suppliers.find(s => s.id === header.supplier_id)?.name || '';
     let failed = 0;
@@ -399,9 +399,32 @@ const PurchasesPage = () => {
     // never moved the cash with it, and only this one screen did it at all.
     // Posting from here as well would now double the money out — the same
     // mistake the supplier-payment trigger already caused once.
+    // New selling prices chosen on the price-change step. Only once the whole
+    // bill is in: a half-saved bill must not leave prices raised for stock
+    // that never arrived.
+    let priceFailed = [];
+    if (failed === 0) {
+      for (const u of priceUpdates) {
+        const { error } = await setSellingPrice(u.productId, u.sellingPrice);
+        if (error) {
+          console.error('[purchase] selling price update failed for', u.productId, error);
+          priceFailed.push(`${u.name}: ${error.message || String(error)}`);
+        }
+      }
+    }
     setAddLoading(false);
-    if (failed > 0) alert(`${failed} item(s) failed to save.${firstError ? `\n\nReason: ${firstError}` : ''}`);
-    else setShowAddModal(false);
+    if (failed > 0) {
+      alert(`${failed} item(s) failed to save.${firstError ? `\n\nReason: ${firstError}` : ''}`
+        + (priceUpdates.length ? '\n\nSelling prices were not changed.' : ''));
+    } else if (priceFailed.length) {
+      alert(`The purchase is saved, but these selling prices were not updated:\n\n${priceFailed.join('\n')}`);
+      setShowAddModal(false);
+    } else {
+      if (priceUpdates.length) {
+        addNotification?.(`Selling price updated for ${priceUpdates.length} item${priceUpdates.length > 1 ? 's' : ''}`, 'success');
+      }
+      setShowAddModal(false);
+    }
   };
 
   // Duplicate → create a brand-new purchase from a prefilled single form.
