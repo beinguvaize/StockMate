@@ -289,7 +289,7 @@
      above would otherwise conjure extra columns here, and a cell that is
      merely invisible still takes one -- so folded cells leave the grid. */
   .breg .band > *, .breg .tfoot > *, .breg .bfoot > *, .breg .row.grid > *, .breg .line.grid > * { grid-column: auto; }
-  .breg .c-paid, .breg .row .c-due, .breg .row .chev, .breg .line .c-due, .breg .line .c-x, .breg .line .cb { display: none !important; }
+  .breg .c-paid, .breg .row .c-due, .breg .row .chev, .breg .line .c-due, .breg .line .cb, .breg .bfoot .rail { display: none !important; }
   .breg .grid > .c-items { visibility: visible; }
   .breg .c-items { display: block !important; }
   .breg .bulk .desk { display: none; }
@@ -310,7 +310,10 @@
   .breg .msum b { font: 600 13px var(--b-mono); letter-spacing: -0.02em; color: var(--b-ink-1); }
   .breg .msum b.neg { color: var(--b-neg); }
   .breg .reg { margin: 0 -16px; }
+  /* Pad by the row's 8px + 32px ⋮ column: totals end on the row-amount edge
+     (measured: 350 at 390, 720 at 768). */
   .breg .band { top: 0; padding: 0 40px 0 16px; }
+  .breg .band .lbl { white-space: normal; flex-wrap: wrap; row-gap: 0; }
   .breg .band.grid { grid-template-columns: 1fr auto; column-gap: 12px; }
   .breg .band .lbl { grid-column: 1; padding-left: 0; }
   .breg .band .c-paid, .breg .band .c-x { display: none; }
@@ -334,11 +337,12 @@
   .breg .st { align-items: flex-end; }
   .breg .st .t { font-size: 12px; }
   .breg .st .t .dueamt { display: inline; }
-  /* Right padding = the row's ⋮ column, so a line's amount and a band's
-     total end where the row amounts end. */
-  .breg .line.grid { grid-template-columns: 28px 1fr auto; grid-template-areas: "rail nm amt" "rail qty delta"; row-gap: 2px; padding: 6px 40px 6px 16px; }
+  /* Lines share the row's columns, ⋮ included: its menu is the only way to
+     return, duplicate or delete one item of a bill. */
+  .breg .line.grid { grid-template-columns: 28px 1fr auto 32px; grid-template-areas: "rail nm amt more" "rail qty delta more"; row-gap: 2px; padding: 6px 8px 6px 16px; }
+  .breg .line .c-x { grid-area: more; align-self: center; display: block; }
   .breg .line.grid > * { padding: 0; }
-  .breg .line .cb, .breg .line .c-paid, .breg .line .c-due, .breg .line .c-x, .breg .line .nm .h { display: none; }
+  .breg .line .cb, .breg .line .c-paid, .breg .line .c-due, .breg .line .nm .h { display: none; }
   .breg .line .rail { grid-area: rail; }
   .breg .line .nm { grid-area: nm; grid-column: auto; }
   .breg .line .qty { grid-area: qty; }

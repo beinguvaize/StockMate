@@ -358,3 +358,14 @@ test('the register fits a 1024px window with the nav rail open', async ({ page }
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });
+
+test('on a phone, one item of a multi-item bill can still be returned', async ({ page }) => {
+  // The list layout once hid each line's menu, which is the only way to
+  // return, duplicate or delete a single item of a bill.
+  await openPurchases(page, { width: 390, height: 844 });
+  const b = bill(page, '17,250.00');
+  await b.locator('.c-sup').click();
+  await b.getByTestId('bill-line').nth(1).getByRole('button', { name: /Actions for/ }).click();
+  await page.getByRole('menuitem', { name: /Return to supplier/ }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+});
