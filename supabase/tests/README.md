@@ -22,6 +22,7 @@ it raises an exception naming the specific assertion that broke.
 | File | What it verifies |
 |---|---|
 | `rls01_plan_gates_test.sql` | `has_module_access()` returns correct allow/deny for STARTER / PRO / ENTERPRISE across representative modules |
+| `restore_test.sql` | Restore round trip: every shop table byte-identical after restore and after undo; every insert/delete trigger guarded; incomplete backups and non-owners refused |
 
 ## Conventions
 
