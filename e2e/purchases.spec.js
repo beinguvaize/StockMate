@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { setupMocks, seedAppCache, TENANT_SLUG } from './helpers/supabaseMocks.js';
 
@@ -170,7 +171,7 @@ test('export gives the bills on screen with the GST split', async ({ page }) => 
   const dl = page.waitForEvent('download');
   await page.getByRole('menuitem', { name: /CSV/ }).click();
   const file = await dl;
-  const text = await (await file.createReadStream()).toArray().then((c) => Buffer.concat(c).toString('utf8'));
+  const text = fs.readFileSync(await file.path(), 'utf8');
   const lines = text.replace(/^﻿/, '').trim().split('\n');
   expect(lines[0]).toMatch(/^Supplier bill no,Voucher no,Bill date,Supplier,Supplier GSTIN,Items,Terms,Due date,Status,Taxable value,GST,Amount,Paid,Due$/);
   expect(lines).toHaveLength(4);                                    // header + the 3 bills on the Due tab
