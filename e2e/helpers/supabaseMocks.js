@@ -109,6 +109,15 @@ export const MOCK_INVENTORY_BALANCES = [
   { product_id: 'PROD-001', location_id: '00000000-0000-0000-0000-000000000001', quantity: 75, tenant_id: TENANT_ID }
 ];
 
+// Two places, because a shop with one cannot transfer anything and the screen
+// that moves stock between them has nothing to render. Deliberately NO second
+// balance row: the inventory page sums balances per product, and adding one
+// would change the 75 that the stock-override test exists to pin.
+export const MOCK_INVENTORY_LOCATIONS = [
+  { id: '00000000-0000-0000-0000-000000000001', name: 'Main Warehouse', type: 'WAREHOUSE', address: '', tenant_id: TENANT_ID, deleted_at: null },
+  { id: '00000000-0000-0000-0000-000000000002', name: 'Second Counter', type: 'WAREHOUSE', address: '', tenant_id: TENANT_ID, deleted_at: null },
+];
+
 // ─── Auth session injected into localStorage ──────────────────────────────────
 
 const FAKE_SESSION = {
@@ -199,6 +208,7 @@ export async function seedAppCache(page, isStaff = false) {
       'ledgr_suppliers':        entry([MOCK_SUPPLIER]),
       'ledgr_movement_log':     entry([]),
       'ledgr_inventory_balances': entry(MOCK_INVENTORY_BALANCES),
+      'ledgr_inventory_locations': entry(MOCK_INVENTORY_LOCATIONS),
       'ledgr_invoices':         entry([]),
     },
   });
@@ -256,7 +266,7 @@ export async function setupMocks(page, isStaff = false) {
     vehicles:            [],
     movement_log:        [],
     routes:              [],
-    inventory_locations: [],
+    inventory_locations: MOCK_INVENTORY_LOCATIONS,
     inventory_balances:  MOCK_INVENTORY_BALANCES,
     purchases:           MOCK_PURCHASES,
     invoices:            [],
