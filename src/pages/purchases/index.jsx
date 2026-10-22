@@ -6,7 +6,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Calendar, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Calendar, ChevronRight, SlidersHorizontal, LineChart } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
@@ -20,6 +20,7 @@ import BillEditForm from './components/BillEditForm';
 import BillPaymentsModal from './components/BillPaymentsModal';
 import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
+import PriceHistory from './components/PriceHistory';
 
 const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
@@ -69,6 +70,7 @@ const PurchasesPage = () => {
   const [dupTarget, setDupTarget]   = useState(null); // purchase to duplicate (prefill single form)
   const [printTarget, setPrintTarget] = useState(null);
   const [menuRow, setMenuRow]       = useState(null); // row whose ⋯ menu is open (portaled)
+  const [historyProduct, setHistoryProduct] = useState(null); // product whose price history is open
   const [menuPos, setMenuPos]       = useState({ top: 0, left: 0, origin: 'top right' });
   const openMenu = (e, pur) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -1054,6 +1056,7 @@ const PurchasesPage = () => {
           <div className="menu-pop fixed z-[9999] w-44 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left, '--menu-origin': menuPos.origin }}>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground"><Printer size={13} /> Voucher</button>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground"><Copy size={13} /> Duplicate</button>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setHistoryProduct(products.find(x => x.id === p.linked_product_id) || { id: p.linked_product_id, name: productNameById[p.linked_product_id] }); }} className="w-full flex items-center gap-2 px-3 py-2 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] hover:bg-muted text-foreground"><LineChart size={13} /> Price history</button>
             {/* A one-line bill IS a bill. Editing it through the same form as a
                 multi-line one means one write path (edit_purchase_bill, one
                 transaction) instead of two that can disagree -- which is how a
@@ -1267,6 +1270,12 @@ const PurchasesPage = () => {
             onDelete={(id) => deleteSupplierPayment(id)}
           />
         )}
+      </Modal>
+
+      {/* What this item has cost, purchase by purchase. */}
+      <Modal isOpen={!!historyProduct} onClose={() => setHistoryProduct(null)}
+        title="Price history" subtitle={historyProduct?.name || ''}>
+        {historyProduct && <PriceHistory product={historyProduct} purchases={purchases} />}
       </Modal>
 
       {/* Add Purchase Modal — multi-line */}
