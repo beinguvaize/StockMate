@@ -3,384 +3,296 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { setupMocks, seedAppCache, TENANT_SLUG } from './helpers/supabaseMocks.js';
 
+/**
+ * The purchase bill register (design approved by the Director at v3).
+ *
+ * Fixtures (MOCK_PURCHASES), all one supplier id, 30 days credit by default:
+ *   PUR-1  ₹13,800  cash, paid             2 days ago     -> Paid
+ *   PUR-2  ₹32,320  credit, ₹12,000 paid   5 days ago     -> Part paid
+ *   PUR-3  ₹9,300   credit, nothing paid   48 days ago    -> Overdue 18d
+ *   PUR-4/5 one bill ₹17,250 (11,000 + 6,250), ₹4,000 paid, 9 days ago -> Part paid
+ */
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 test.use({ storageState: path.join(__dirname, '.auth/user.json') });
 
-async function openPurchases(page) {
+async function openPurchases(page, { width = 1600, height = 900 } = {}) {
   await seedAppCache(page);
   await setupMocks(page);
-  // The rail costs 248px, and the list drops to its card layout below a width
-  // the table needs. Collapse it so these assertions are about the table.
+  // The rail costs 248px; collapse it so these assertions are about the register.
   await page.addInitScript(() => {
     try { localStorage.setItem('nav_rail_collapsed', '1'); localStorage.setItem('nav_rail_epoch', '2'); } catch { /* ignore */ }
   });
-  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.setViewportSize({ width, height });
   await page.goto(`/${TENANT_SLUG}/purchases`);
-  // Wait for CONTENT, not for a spinner to leave. The loading state here is a
-  // skeleton and draws no spinner at all, so the old wait returned on the very
-  // first frame and left every assertion racing a fixed 900ms sleep.
-  await page.waitForFunction(() => !document.querySelector('.animate-spin'), { timeout: 15_000 });
-  await page.getByPlaceholder(/Search product/).waitFor({ state: 'visible', timeout: 15_000 });
-  await page.waitForTimeout(400);
+  await page.getByTestId('bill-register').waitFor({ timeout: 15_000 });
+  await page.getByTestId('bill').first().waitFor({ timeout: 15_000 });
 }
 
-/** A row of the register, never the day band above it. The band totals the
- *  day, so it contains the same figures as the rows it covers and a plain
- *  hasText match finds it first. The band is one cell spanning the table; a
- *  row has four. */
-const billRow = (page, text) =>
-  page.locator('tr').filter({ hasText: text }).filter({ has: page.locator('td:nth-child(4)') });
+const tab = (page, name) => page.getByRole('tab', { name: new RegExp(`^${name}`) });
+const bill = (page, text) => page.getByTestId('bill').filter({ hasText: text });
 
-test('a settled bill carries one money figure and nothing else', async ({ page }) => {
-  // Measured on the live book: Outstanding was blank on 195 purchases of 205
-  // and Status read RECEIVED on all 205. Both are gone as columns. A settled
-  // row is now the amount and nothing beside it -- not a dash standing in for
-  // a column that had nothing to say.
+test('the tabs count bills and money over the whole filtered set', async ({ page }) => {
   await openPurchases(page);
-
-  const settled = billRow(page, '₹13,800.00').first();
-  await expect(settled).toBeVisible();
-  await expect(settled).toContainText('₹13,800.00');
-  await expect(settled).not.toContainText('due');
-  await expect(settled).not.toContainText('—');
-  // the status dropdown is gone from the row; it lives in the row's menu
-  expect(await settled.locator('select').count()).toBe(0);
-  // terms sit under the supplier, out of the money column
-  await expect(settled).toContainText(/Cash|Credit/i);
+  await expect(tab(page, 'Due')).toHaveAttribute('aria-selected', 'true');
+  await expect(tab(page, 'Due')).toContainText('3');
+  await expect(tab(page, 'Due')).toContainText('₹42,870.00');
+  await expect(tab(page, 'Overdue')).toContainText('₹9,300.00');
+  await expect(tab(page, 'Part paid')).toContainText('2');
+  await expect(tab(page, 'Paid')).toContainText('1');
+  await expect(tab(page, 'All')).toContainText('4');
 });
 
-test('the day is a band, and it carries the day total', async ({ page }) => {
-  // The date left the rows so it could be stated once per day. The exchange is
-  // that the screen can finally total a day -- nothing in the old layout had a
-  // scope wider than one row.
+test('what needs action comes first: overdue leads the Due tab', async ({ page }) => {
   await openPurchases(page);
-
-  const band = page.locator('tr', { hasText: /\d+ bills?/ }).first();
-  await expect(band).toBeVisible();
-  await expect(band).toContainText(/₹[\d,]+/);
-  // one cell spanning the table, not a row of columns
-  expect(await band.locator('td').count()).toBe(1);
+  const firstBand = page.getByTestId('band').first();
+  await expect(firstBand).toContainText('Overdue');
+  await expect(page.getByTestId('bill').first()).toContainText('₹9,300.00'.slice(1));
+  await expect(page.getByTestId('bill').first()).toContainText(/Overdue \d+d/);
 });
 
-test('an unpaid bill shows what is owed, and what was paid under it', async ({ page }) => {
+test('red marks only money that is overdue', async ({ page }) => {
   await openPurchases(page);
-
-  // Paid is no longer a column: on 73 of 79 bills it repeated Amount. It
-  // survives only where it differs, as a second line under the outstanding
-  // figure -- the one place two numbers mean two things.
-  const row = billRow(page, '₹32,320.00').first();
-  await expect(row).toContainText('₹32,320.00');        // billed
-  await expect(row).toContainText('₹20,320.00 due');    // still owed, under it
-  await expect(row).toContainText('₹12,000.00 paid');
-  expect(await row.locator('div[style*="width:"]').count()).toBe(0);
+  const colour = (loc) => loc.evaluate((el) => getComputedStyle(el).color);
+  const neg = await page.evaluate(() => {
+    const p = document.createElement('span'); p.style.color = 'var(--color-neg)';
+    document.querySelector('.breg').appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c;
+  });
+  // the overdue bill's due figure is red ...
+  expect(await colour(bill(page, '9,300.00').locator('.c-due'))).toBe(neg);
+  // ... a part-paid bill that is not late is not
+  expect(await colour(bill(page, '32,320.00').locator('.c-due'))).not.toBe(neg);
+  // the total's due figure is not red; the overdue part is said separately
+  const total = page.getByTestId('register-total');
+  expect(await colour(total.locator('.c-due'))).not.toBe(neg);
+  await expect(total).toContainText('of which ₹9,300.00 overdue');
 });
 
-test('an overdue bill says how late it is', async ({ page }) => {
+test('the total row is the sum of the rows above it', async ({ page }) => {
   await openPurchases(page);
-  const overdue = billRow(page, '₹9,300.00').first();
-  await expect(overdue).toContainText(/\d+d late/);
+  await tab(page, 'All').click();
+  const nums = await page.getByTestId('bill').evaluateAll((rows) => rows.map((r) => {
+    const n = (sel) => Number((r.querySelector(sel)?.textContent || '0').replace(/[^\d.]/g, '') || 0);
+    return [n('.row .c-amt'), n('.row .c-due')];
+  }));
+  const sum = (i) => nums.reduce((s, x) => s + x[i], 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  const total = page.getByTestId('register-total');
+  await expect(total.locator('.c-amt')).toHaveText(`₹${sum(0)}`);
+  await expect(total.locator('.c-due')).toHaveText(`₹${sum(1)}`);
+  await expect(page.getByTestId('register-summary')).toContainText(`₹${sum(0)}`);
+});
+
+test('an opened bill keeps its lines under the bill’s own columns', async ({ page }) => {
+  await openPurchases(page);
+  const b = bill(page, '17,250.00');
+  await b.getByRole('button', { name: /Show 2 lines/ }).click();
+  const lines = b.getByTestId('bill-line');
+  await expect(lines).toHaveCount(2);
+  const right = (loc) => loc.evaluate((el) => Math.round(el.getBoundingClientRect().right));
+  const billAmt = await right(b.locator('.row .c-amt'));
+  expect(await right(lines.nth(0).locator('.c-amt'))).toBe(billAmt);
+  expect(await right(lines.nth(1).locator('.c-amt'))).toBe(billAmt);
+  expect(await right(page.getByTestId('register-total').locator('.c-amt'))).toBe(billAmt);
+  // each line says how its price moved against the previous purchase
+  await expect(lines.nth(0)).toContainText(/First purchase|%/);
 });
 
 test('money owed passes contrast where it is drawn', async ({ page }) => {
   await openPurchases(page);
-
-  // Use the locator that the other assertions already rely on, rather than
-  // re-finding the node by hand inside evaluate -- a hand-rolled selector that
-  // misses reports "no element" and a test that skips is not a test.
-  const due = billRow(page, '₹32,320.00')
-    .locator('div', { hasText: '₹20,320.00' }).last();
-  await expect(due).toBeVisible();
-
-  const ratio = await due.evaluate((el) => {
+  const ratio = await bill(page, '9,300.00').locator('.c-due').evaluate((el) => {
     const cv = document.createElement('canvas'); cv.width = cv.height = 1;
     const ctx = cv.getContext('2d');
-    const rgba = (c) => { ctx.fillStyle = '#000'; ctx.fillStyle = c; ctx.clearRect(0,0,1,1); ctx.fillRect(0,0,1,1);
-      const d = ctx.getImageData(0,0,1,1).data; return [d[0],d[1],d[2],d[3]/255]; };
-    const lin = (c) => { c/=255; return c<=0.04045 ? c/12.92 : ((c+0.055)/1.055)**2.4; };
-    const L = ([r,g,b]) => 0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b);
-    let n = el, bg = [255,255,255];
+    const rgba = (c) => { ctx.fillStyle = '#000'; ctx.fillStyle = c; ctx.clearRect(0, 0, 1, 1); ctx.fillRect(0, 0, 1, 1);
+      const d = ctx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255]; };
+    const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+    const L = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    let n = el, bg = [255, 255, 255];
     while (n && n !== document.documentElement) {
       const c = rgba(getComputedStyle(n).backgroundColor);
       if (c[3] === 1) { bg = c; break; }
       n = n.parentElement;
     }
-    const fg = rgba(getComputedStyle(el).color);
-    const [hi, lo] = [L(fg), L(bg)].sort((a,b) => b-a);
+    const [hi, lo] = [L(rgba(getComputedStyle(el).color)), L(bg)].sort((a, b) => b - a);
     return +((hi + 0.05) / (lo + 0.05)).toFixed(2);
   });
-
-  console.log('outstanding figure contrast: ' + ratio + ':1');
   expect(ratio).toBeGreaterThanOrEqual(4.5);
 });
 
-test('the toolbar shows two filters, not nine', async ({ page }) => {
-  // Nine controls sat permanently above a list most people open to scan.
-  // Search and Unpaid stay; the other five fold behind one button.
+test('changing tab clears a selection it would hide, and Undo brings it back', async ({ page }) => {
   await openPurchases(page);
-
-  const bar = page.locator('div').filter({ has: page.getByPlaceholder(/Search product/) }).last();
-  expect(await bar.locator('select:visible').count()).toBe(0);
-
-  await page.getByRole('button', { name: /Filters/ }).click();
-  // The panel stays mounted and animates its row track open, so wait for a
-  // control to actually have a box before counting -- mid-animation the height
-  // is real but tiny and the count is whatever that frame happened to be.
-  await expect(page.locator('select').first()).toBeVisible();
-  expect(await page.locator('select:visible').count()).toBeGreaterThanOrEqual(5);
+  await bill(page, '32,320.00').getByRole('checkbox').check();
+  await expect(page.getByTestId('bulk-bar')).toContainText('1 selected');
+  await tab(page, 'Overdue').click();
+  await expect(page.getByTestId('bulk-bar')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(tab(page, 'Due')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('bulk-bar')).toContainText('1 selected');
 });
 
-test('a folded filter still announces itself', async ({ page }) => {
-  // Hiding the controls must never hide their EFFECT: a filtered list that
-  // looks unfiltered is how someone concludes their data has gone missing.
+test('a filter is never hidden: each one shows as a chip', async ({ page }) => {
   await openPurchases(page);
-  await page.getByRole('button', { name: /Filters/ }).click();
-  await page.locator('select').filter({ hasText: 'All payment' }).selectOption('CREDIT');
-  await page.waitForTimeout(300);
-
-  // the count rides on the button, which stays visible when the panel closes
-  await page.getByRole('button', { name: /Filters/ }).click();
-  await expect(page.getByRole('button', { name: /Filters/ })).toContainText('1');
+  await page.getByRole('button', { name: /^Terms/ }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Credit' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.chip', { hasText: 'Terms: Credit' })).toBeVisible();
+  await page.getByRole('button', { name: 'Remove terms Credit' }).click();
+  await expect(page.locator('.chip')).toHaveCount(0);
 });
 
-test('an opened bill keeps its lines under the same columns', async ({ page }) => {
-  // Twice now a column changed on the bill row and not on the lines it expands
-  // into: once a count mismatch, once the same count in the wrong order, which
-  // silently swapped Amount and Outstanding. Counting cells catches the first
-  // and not the second, so this measures where they actually sit.
+test('search finds a bill by what was bought', async ({ page }) => {
   await openPurchases(page);
+  await tab(page, 'All').click();
+  await page.getByPlaceholder('Search bills').fill('Gadget');
+  await expect(page.getByTestId('bill')).toHaveCount(2);           // PUR-2, and the bill holding PUR-5
+  await expect(page.locator('.chip', { hasText: 'Search: Gadget' })).toBeVisible();
+});
 
-  const row = billRow(page, '₹17,250.00').first();
-  await expect(row).toBeVisible();
-  const cells = await row.locator('td').count();
-
-  await row.click();
-  await page.waitForTimeout(400);
-
-  const childRow = billRow(page, '₹6,250.00').first();
-  await expect(childRow).toBeVisible();
-  expect(await childRow.locator('td').count()).toBe(cells);
-
-  const align = await page.evaluate(() => {
-    // Rows only -- the day band totals the day, so it carries the same figures
-    // and would otherwise be compared against a line as if it were a row.
-    const rows = [...document.querySelectorAll('tr')]
-      .filter(r => r.querySelectorAll('td').length === 4);
-    const bill = rows.find(r => /17,250/.test(r.textContent));
-    const line = rows.find(r => /6,250/.test(r.textContent));
-    if (!bill || !line) return null;
-    const x = (r) => [...r.querySelectorAll('td')].map(td => Math.round(td.getBoundingClientRect().left));
-    return { same: JSON.stringify(x(bill)) === JSON.stringify(x(line)) };
+test('paying a two-line bill fills its oldest line first, never past what a line owes', async ({ page }) => {
+  await openPurchases(page);
+  const calls = [];
+  await page.route('**/rest/v1/rpc/settle_purchase_payment', (r) => {
+    calls.push(r.request().postDataJSON());
+    return r.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
   });
-  expect(align).not.toBeNull();
-  expect(align.same).toBe(true);
+  page.on('dialog', (d) => d.accept());
+  const b = bill(page, '17,250.00');
+  await b.getByRole('button', { name: /Actions for/ }).click();
+  await page.getByRole('menuitem', { name: /Record payment/ }).click();
+  await expect(page.getByRole('spinbutton').first()).toHaveValue('13250.00');
+  await page.getByRole('button', { name: /Record payment/ }).last().click();
+  await expect.poll(() => calls.length).toBe(2);
+  expect(calls.map((c) => [c.p_purchase_id, c.p_amount])).toEqual([['PUR-4', 7000], ['PUR-5', 6250]]);
+});
+
+test('export gives the bills on screen with the GST split', async ({ page }) => {
+  await openPurchases(page);
+  await page.getByRole('button', { name: /^Export/ }).click();
+  const dl = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: /CSV/ }).click();
+  const file = await dl;
+  const text = await (await file.createReadStream()).toArray().then((c) => Buffer.concat(c).toString('utf8'));
+  const lines = text.replace(/^﻿/, '').trim().split('\n');
+  expect(lines[0]).toMatch(/^Supplier bill no,Voucher no,Bill date,Supplier,Supplier GSTIN,Items,Terms,Due date,Status,Taxable value,GST,Amount,Paid,Due$/);
+  expect(lines).toHaveLength(4);                                    // header + the 3 bills on the Due tab
+  expect(text).toContain('Overdue');
+});
+
+test('the row menu opens inside the window on the last row', async ({ page }) => {
+  await openPurchases(page, { height: 700 });
+  await tab(page, 'All').click();
+  const triggers = page.getByRole('button', { name: /^Actions for/ });
+  await triggers.last().click();
+  const box = await page.locator('.breg-pop').evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, vh: innerHeight, vw: innerWidth };
+  });
+  expect(box.top).toBeGreaterThanOrEqual(0);
+  expect(box.bottom).toBeLessThanOrEqual(box.vh);
+  expect(box.left).toBeGreaterThanOrEqual(0);
+  expect(box.right).toBeLessThanOrEqual(box.vw);
+});
+
+test('the keyboard does what the legend says', async ({ page }) => {
+  await openPurchases(page);
+  const first = page.locator('.breg .row').first();
+  await first.focus();
+  await page.keyboard.press('j');
+  await expect(page.locator('.breg .row').nth(1)).toBeFocused();
+  await page.keyboard.press('x');
+  await expect(page.getByTestId('bulk-bar')).toContainText('1 selected');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByTestId('bill').nth(1).getByTestId('bill-line').first()).toBeVisible();
+  await page.keyboard.press('.');
+  await expect(page.getByRole('menuitem', { name: /Voucher/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.breg-pop')).toHaveCount(0);
+  // tabs move with the arrow keys
+  await tab(page, 'Due').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(tab(page, 'Overdue')).toHaveAttribute('aria-selected', 'true');
+});
+
+test('on a phone the first bill is near the top and nothing scrolls sideways', async ({ page }) => {
+  await openPurchases(page, { width: 390, height: 844 });
+  const y = await page.getByTestId('bill').first().evaluate((el) => el.getBoundingClientRect().top);
+  expect(y).toBeLessThan(560);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test('a row can be read across without crossing the monitor', async ({ page }) => {
+  await openPurchases(page, { width: 2000 });
+  const gap = await page.locator('.breg .row').first().evaluate((r) => {
+    const items = r.querySelector('.c-items').getBoundingClientRect();
+    const amt = r.querySelector('.c-amt').getBoundingClientRect();
+    return Math.round(amt.left - items.right);
+  });
+  expect(gap).toBeLessThan(700);
 });
 
 test('every field in the purchase form says what it is', async ({ page }) => {
-  // The line grid is a CSS grid, not a <table>, and its five inputs were named
-  // only by a 9px uppercase header a screen reader has no way to associate.
-  // The header fields had visible <label>s with no htmlFor, which is decoration
-  // rather than a label. Entering a number in the wrong one of these writes a
-  // wrong balance to a supplier's ledger.
+  // Entering a number in the wrong one of these writes a wrong balance to a
+  // supplier's ledger, so every input carries its own name.
   await openPurchases(page);
   await page.getByRole('button', { name: /New purchase/ }).click();
   await expect(page.getByText('Line total').first()).toBeVisible();
-
   const unnamed = await page.evaluate(() => {
     const form = document.querySelector('form');
     return [...form.querySelectorAll('input, select, textarea')]
-      .filter((el) => {
-        const n = el.getAttribute('aria-label') || el.labels?.[0]?.textContent || '';
-        return !n.trim();
-      })
+      .filter((el) => !(el.getAttribute('aria-label') || el.labels?.[0]?.textContent || '').trim())
       .map((el) => el.getAttribute('placeholder') || el.tagName + ':' + el.type);
   });
   expect(unnamed).toEqual([]);
 });
 
 test('the form says that price and total fill each other in', async ({ page }) => {
-  // Typing a total rewrites the price each, and vice versa. Useful -- a
-  // supplier's bill often states one and not the other -- but a field changing
-  // itself is alarming when nothing said it would.
   await openPurchases(page);
   await page.getByRole('button', { name: /New purchase/ }).click();
   await expect(page.getByText(/the other is worked out from the quantity/i)).toBeVisible();
 });
 
-test('a folded filter panel is out of reach, not just out of sight', async ({ page }) => {
-  // The panel now stays mounted so it can animate in both directions. Mounted
-  // and invisible is a trap of its own: five controls a sighted user cannot see
-  // but a keyboard or a screen reader walks straight into. Clipping alone does
-  // not do it -- a clipped <select> still has its own 36px box and still takes
-  // focus -- so this measures the TRACK the panel sits in, and inert on top.
-  await openPurchases(page);
-
-  const read = () => page.evaluate(() => {
-    const sel = [...document.querySelectorAll('select')]
-      .find(el => /All suppliers/.test(el.textContent));
-    if (!sel) return null;
-    const clip = sel.closest('[class*="overflow-hidden"]');
-    let inert = false;
-    for (let el = sel; el; el = el.parentElement) if (el.inert) { inert = true; break; }
-    return { h: Math.round(clip.getBoundingClientRect().height), inert };
-  });
-
-  // Settle before measuring, the same way the open direction does. The track
-  // animates, and a frame read on arrival is whatever that frame was at -- which
-  // is why this passed alone and failed in a full run.
-  await page.waitForFunction(() => {
-    const sel = [...document.querySelectorAll('select')]
-      .find(el => /All suppliers/.test(el.textContent));
-    const clip = sel && sel.closest('[class*="overflow-hidden"]');
-    return !!clip && clip.getBoundingClientRect().height === 0;
-  }, { timeout: 5000 });
-
-  const shut = await read();
-  expect(shut).not.toBeNull();
-  expect(shut.h).toBe(0);
-  expect(shut.inert).toBe(true);
-
-  await page.getByRole('button', { name: /Filters/ }).click();
-  await expect(page.locator('select').filter({ hasText: 'All suppliers' })).toBeVisible();
-  // The track animates open, so settle before measuring -- a frame taken
-  // mid-transition reports whatever height that frame happened to be at.
-  await page.waitForFunction(() => {
-    const sel = [...document.querySelectorAll('select')]
-      .find(el => /All suppliers/.test(el.textContent));
-    const clip = sel && sel.closest('[class*="overflow-hidden"]');
-    return !!clip && clip.getBoundingClientRect().height > 20;
-  }, { timeout: 5000 });
-  const open = await read();
-  expect(open.h).toBeGreaterThan(20);
-  expect(open.inert).toBe(false);
-});
-
-test('the row menu opens inside the window on the last row', async ({ page }) => {
-  // Six items is 212px. On the last rows of a long table the menu used to open
-  // below the trigger and off the bottom of the window, which is exactly where
-  // it is most needed. It flips above instead, and grows from the corner the
-  // trigger is on rather than from its own centre.
-  await openPurchases(page);
-
-  const triggers = page.getByRole('button', { name: /^(Bill actions|More)$/ });
-  await expect(triggers.first()).toBeVisible();
-  const n = await triggers.count();
-  await triggers.nth(n - 1).click();
-
-  const box = await page.evaluate(() => {
-    const el = document.querySelector('.menu-pop');
-    if (!el) return null;
-    const r = el.getBoundingClientRect();
-    return {
-      top: r.top, bottom: r.bottom, left: r.left, right: r.right,
-      vh: window.innerHeight, vw: window.innerWidth,
-      w: el.offsetWidth,
-      origin: getComputedStyle(el).transformOrigin,
-    };
-  });
-  expect(box).not.toBeNull();
-  expect(box.top).toBeGreaterThanOrEqual(0);
-  expect(box.bottom).toBeLessThanOrEqual(box.vh);
-  expect(box.left).toBeGreaterThanOrEqual(0);
-  expect(box.right).toBeLessThanOrEqual(box.vw);
-  // Origin resolves to pixels against the element's own border box, which is
-  // NOT the rect while it is still scaling -- read offsetWidth instead.
-  const [ox] = box.origin.split(' ').map(parseFloat);
-  expect(Math.round(ox)).toBe(box.w);
-});
-
 async function openEditBill(page) {
   await openPurchases(page);
-  await page.getByRole('button', { name: /^(Bill actions|More)$/ }).first().click();
-  await page.getByRole('button', { name: /Edit/ }).first().click();
+  await page.getByRole('button', { name: /^Actions for/ }).first().click();
+  await page.getByRole('menuitem', { name: /Edit bill/ }).click();
   await expect(page.getByRole('button', { name: /Add another product/ })).toBeVisible();
 }
 
 test('a bill can gain a line', async ({ page }) => {
-  // A delivery is not always counted in one go: five things are booked in and
-  // the sixth turns up in the van an hour later. Without this the only way to
-  // record it was a second bill for the same delivery -- the same split this
-  // form exists to prevent, reached from the other side.
+  // The sixth item turns up in the van an hour later. Without this it needed a
+  // second bill for the same delivery.
   await openEditBill(page);
-
   const before = await page.locator('select').filter({ hasText: /Widget|Gadget/ }).count();
   await page.getByRole('button', { name: /Add another product/ }).click();
   const after = await page.locator('select').filter({ hasText: /Widget|Gadget/ }).count();
   expect(after).toBe(before + 1);
-
-  // the added row says it is not saved yet
   await expect(page.getByText('new line')).toBeVisible();
-  // and the button counts it
-  await expect(page.getByRole('button', { name: /Save bill · 2 lines/ })).toBeVisible();
 });
 
 test('an empty added line cannot be saved', async ({ page }) => {
-  // Quantity and amount are required on every line, and a blank new row must
-  // not slip through as a zero-quantity purchase.
   await openEditBill(page);
   await page.getByRole('button', { name: /Add another product/ }).click();
-
   await expect(page.getByRole('button', { name: /Save bill/ })).toBeDisabled();
-
-  const qtyBoxes = page.locator('input[type="number"]');
-  await qtyBoxes.nth(2).fill('5');     // new line qty
-  await qtyBoxes.nth(3).fill('250');   // new line amount
-  await expect(page.getByRole('button', { name: /Save bill/ })).toBeEnabled();
 });
 
 test('only the unsaved line can be dropped here', async ({ page }) => {
-  // Removing a SAVED line is a different act -- stock has moved, the ledger
-  // has a row -- and belongs to the line's own Delete, which reverses that.
+  // Removing a SAVED line moves stock and the ledger; it belongs to the
+  // line's own Delete, which reverses that.
   await openEditBill(page);
   await page.getByRole('button', { name: /Add another product/ }).click();
-
   const removers = page.getByRole('button', { name: 'Remove this new line' });
   expect(await removers.count()).toBe(1);
-
   await removers.first().click();
   await expect(page.getByText('new line')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Save bill · 1 line/ })).toBeVisible();
-});
-
-test('a row can be read across without crossing the monitor', async ({ page }) => {
-  // On a 2000px screen the four columns were four islands with roughly 1,300px
-  // of nothing between an item and its amount, and pairing them is the whole
-  // job of this table. The page is capped so a row stays one object.
-  await page.setViewportSize({ width: 2000, height: 900 });
-  await openPurchases(page);
-
-  const row = billRow(page, '₹13,800.00').first();
-  await expect(row).toBeVisible();
-
-  const gap = await row.evaluate((tr) => {
-    const cells = [...tr.querySelectorAll('td')];
-    const item = cells[0].getBoundingClientRect();
-    const amount = cells[2].getBoundingClientRect();
-    return Math.round(amount.left - item.right);
-  });
-  // Item and Amount are the pair the eye has to make. Keep them within a
-  // readable sweep rather than at opposite ends of the glass.
-  expect(gap).toBeLessThan(700);
-});
-
-test('quantity sits with the item, not with the supplier', async ({ page }) => {
-  // A quantity describes what was bought. It was printed under the SUPPLIER,
-  // which is the one thing it does not describe.
-  await openPurchases(page);
-
-  const row = billRow(page, '₹13,800.00').first();
-  const itemCell = row.locator('td').first();
-  await expect(itemCell).toContainText(/\d/);          // the qty is here
-  const supplierCell = row.locator('td').nth(1);
-  await expect(supplierCell).toContainText(/Cash|Credit/i);
 });
 
 test("an item's price history lists every purchase against the one before", async ({ page }) => {
-  // Widget A was bought three times: Rs 310 (48 days ago, Astra), Rs 110
-  // (9 days, Madeena), Rs 92 (2 days, Hassan). The history has to say which
-  // way each one moved and how far it is from the selling price.
+  // Widget A was bought three times: Rs 310 (48 days ago), Rs 110 (9 days),
+  // Rs 92 (2 days).
   await openPurchases(page);
-  await billRow(page, '₹13,800.00').first().getByTitle('More').click();
-  await page.getByRole('button', { name: 'Price history' }).click();
+  await tab(page, 'Paid').click();
+  await bill(page, '13,800.00').getByRole('button', { name: /Actions for/ }).click();
+  await page.getByRole('menuitem', { name: 'Price history' }).click();
 
   const h = page.getByTestId('price-history');
   await expect(h).toBeVisible();
@@ -390,17 +302,15 @@ test("an item's price history lists every purchase against the one before", asyn
   await expect(rows.nth(0)).toContainText('-16.4%');
   await expect(rows.nth(1)).toContainText('-64.5%');
   await expect(rows.nth(2)).toContainText('First');
-
-  // Every fixture purchase shares supplier id SUP-001, so this is one
-  // supplier and the by-supplier list (unit-tested) correctly stays hidden.
+  // Every fixture purchase shares supplier id SUP-001: one supplier, so the
+  // by-supplier list (unit-tested) correctly stays hidden.
   await expect(h.getByTestId('price-history-suppliers')).toHaveCount(0);
-  // The chart draws, and nothing in it falls outside its box.
-  const box = await h.locator('svg[role="img"]').evaluate((svg) => {
+  const inside = await h.locator('svg[role="img"]').evaluate((svg) => {
     const vb = svg.viewBox.baseVal;
     return [...svg.querySelectorAll('text, circle')].every((el) => {
       const b = el.getBBox();
       return b.x >= -0.5 && b.y >= -0.5 && b.x + b.width <= vb.width + 0.5 && b.y + b.height <= vb.height + 0.5;
     });
   });
-  expect(box).toBe(true);
+  expect(inside).toBe(true);
 });
