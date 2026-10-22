@@ -519,9 +519,9 @@ const PurchasesPage = () => {
               </span>
             </div>
           )}
-          <button onClick={() => setShowAddModal(true)}
+          <button onClick={() => setShowAddModal(true)} aria-label="New purchase"
             className="flex items-center gap-1.5 h-8 px-3 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 transition-[background-color,transform] duration-150 active:scale-[0.98] shrink-0">
-            <Plus size={14} /> New purchase
+            <Plus size={14} /><span className="hidden sm:inline">New purchase</span>
           </button>
         </div>
       </div>

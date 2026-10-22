@@ -78,7 +78,7 @@ const MenuItem = ({ icon: Icon, children, hint, onSelect, danger, disabled, role
 function rowActions(b, h) {
   const one = b.lines.length === 1 ? b.lines[0] : null;
   return [
-    b.due >= 0.5 && { key: 'p', label: 'Record payment', icon: Banknote, run: () => h.onPay?.(b) },
+    b.due >= 0.5 && b.state !== 'cancelled' && { key: 'p', label: 'Record payment', icon: Banknote, run: () => h.onPay?.(b) },
     { key: 'v', label: 'Voucher', icon: FileText, run: () => h.onVoucher?.(b) },
     b.paid > 0.005 && { key: null, label: 'Payments', icon: Receipt, run: () => h.onPayments?.(b) },
     one && { key: 'h', label: 'Price history', icon: LineChart, run: () => h.onHistory?.(one) },
@@ -164,7 +164,7 @@ export default function BillRegister({
   }, [shown, drawn, paged, view, today]);
   const supplierOptions = useMemo(() => {
     const due = new Map();
-    for (const b of bills) due.set(b.supplier_id, (due.get(b.supplier_id) || 0) + b.due);
+    for (const b of bills) due.set(b.supplier_id, (due.get(b.supplier_id) || 0) + (b.state === 'cancelled' ? 0 : b.due));
     return suppliers.filter((s) => due.has(s.id)).map((s) => ({ ...s, due: due.get(s.id) }))
       .sort((a, b) => b.due - a.due || String(a.name).localeCompare(String(b.name)));
   }, [bills, suppliers]);
@@ -220,7 +220,7 @@ export default function BillRegister({
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `purchases-${tab}-${range.from}-to-${range.to}.csv`.replace(/0000-01-01|9999-12-31/g, 'all');
+    a.download = isOpenTab ? `purchases-${tab}-every-open-bill.csv` : `purchases-${tab}-${range.from}-to-${range.to}.csv`.replace(/0000-01-01|9999-12-31/g, 'all');
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
@@ -231,7 +231,7 @@ export default function BillRegister({
     const t = totals(list);
     const rows = list.map((b) => `<tr><td>${esc(b.bill_no || voucherNoOf(b))}</td><td>${esc(fmtDate(b.date))}</td><td>${esc(b.supplier_name)}</td><td>${esc(STATE_LABEL[b.state])}</td><td class=r>${money(b.total)}</td><td class=r>${money(b.paid)}</td><td class=r>${money(b.due)}</td></tr>`).join('');
     w.document.write(`<!doctype html><title>Purchase bills</title><style>body{font:12px/1.4 Manrope,Arial,sans-serif;margin:24px;color:#111}h1{font-size:16px;margin:0 0 4px}p{color:#555;margin:0 0 12px}table{border-collapse:collapse;width:100%}th,td{padding:6px 8px;border-bottom:1px solid #ddd;text-align:left}th{background:#f6f5f3}.r{text-align:right;font-variant-numeric:tabular-nums}tfoot td{font-weight:700}</style>
-      <h1>Purchase bills · ${esc(tabDef.label)}</h1><p>${esc(range.label)} · ${esc(fmtDate(range.from))} – ${esc(fmtDate(range.to))} · ${billsWord(list.length)}</p>
+      <h1>Purchase bills · ${esc(tabDef.label)}</h1><p>${isOpenTab ? 'Every open bill, any date' : `${esc(range.label)} · ${esc(fmtDate(range.from))} – ${esc(fmtDate(range.to))}`} · ${billsWord(list.length)}</p>
       <table><thead><tr><th>Bill no.</th><th>Date</th><th>Supplier</th><th>Status</th><th class=r>Amount</th><th class=r>Paid</th><th class=r>Due</th></tr></thead><tbody>${rows}</tbody>
       <tfoot><tr><td colspan=4>Total</td><td class=r>${money(t.total)}</td><td class=r>${money(t.paid)}</td><td class=r>${money(t.due)}</td></tr></tfoot></table><script>window.print()</' + 'script>`);
     w.document.close();
@@ -610,7 +610,7 @@ function BillRow({ b, group, isOpen, isSel, onToggleOpen, onToggleSel, productBy
           <div className="two">
             {b.bill_no ? <span className="t billno">{b.bill_no}</span> : <span className="t billno pv">{pv}</span>}
             <span className="m">
-              {!b.bill_no ? <>No supplier bill no.{group !== 'day' && <> · {fmtDate(b.date, { year: false })}</>}</>
+              {!b.bill_no ? <span title="No supplier bill number recorded">{group !== 'day' && <>{fmtDate(b.date, { year: false })} · </>}no bill no.</span>
                 : group === 'day' ? pv
                   : <><span className="dl">{fmtDate(b.date, { year: yearInDate })}</span><span className="ds">{fmtDate(b.date, { year: false })}</span><span className="pvs"> · {pv}</span></>}
             </span>
@@ -674,13 +674,13 @@ function BillRow({ b, group, isOpen, isSel, onToggleOpen, onToggleSel, productBy
             <div className="cb" /><div className="rail" />
             <div className="meta">
               <span>Taxable <b>{money(b.total - b.tax)}</b></span>
-              <span>{b.tax > 0.005 ? <>{b.interstate ? 'IGST' : 'CGST + SGST'} <b>{money(b.tax)}</b></> : 'No GST claimed · supplier has no GSTIN'}</span>
+              <span>{b.tax > 0.005 ? <>{b.interstate ? 'IGST' : 'CGST + SGST'} <b>{money(b.tax)}</b></> : sup.gstin ? 'No GST on these items' : 'No GST claimed · supplier has no GSTIN'}</span>
               <span>{b.paid > 0.005 ? <>Paid <b>{money(b.paid)}</b>{b.paidVia ? ` by ${b.paidVia}` : ''}{b.paidOn ? ` on ${fmtDate(b.paidOn, { year: false })}` : ''}</> : 'Nothing paid yet'}</span>
               {b.due >= 0.5 && <span>Balance <b>{money(b.due)}</b> due {fmtDate(b.dueOn, { year: false })}</span>}
               <span>{pv}</span>
             </div>
             <div className="go">
-              {b.due >= 0.5 && <button className="linkbtn" type="button" onClick={() => handlers.onPay?.(b)}>Record payment</button>}
+              {b.due >= 0.5 && b.state !== 'cancelled' && <button className="linkbtn" type="button" onClick={() => handlers.onPay?.(b)}>Record payment</button>}
               <button className="linkbtn" type="button" onClick={() => handlers.onVoucher?.(b)}>Open voucher</button>
             </div>
           </div>
@@ -717,7 +717,7 @@ function Band({ band, group, isOpenTab }) {
           <div className="c-x" />
         </>
       )}
-      {!showTotals && isOpenTab && <div className="num r c-due" style={{ gridColumn: '9' }}>{rupee(band.due)}<span className="w"> due</span></div>}
+      {!showTotals && isOpenTab && <div className="num r c-due">{rupee(band.due)}<span className="w"> due</span></div>}
     </div>
   );
 }
@@ -749,20 +749,20 @@ function Register({
         <div className="cb"><input ref={selAllRef} type="checkbox" aria-label="Select all shown bills" checked={allSel}
           onChange={() => setSel(allSel ? new Set() : new Set(drawnIds))} /></div>
         <div className="chev" />
-        <div role="columnheader" aria-sort={ariaSort('date')}>
+        <div role="columnheader" className="h-bill" aria-sort={ariaSort('date')}>
           <button className="sortable" type="button" data-on={sortOn('date') || undefined} onClick={() => headSort('date')}>Bill no. · date<ArrowUpDown size={13} /></button>
         </div>
         <div role="columnheader" className="h-sup">Supplier</div>
         <div role="columnheader" className="h-items">Items</div>
-        <div role="columnheader">Status</div>
-        <div role="columnheader" className="r" aria-sort={ariaSort('amt')}>
+        <div role="columnheader" className="h-st">Status</div>
+        <div role="columnheader" className="r c-amt" aria-sort={ariaSort('amt')}>
           <button className="sortable" type="button" data-on={sortOn('amt') || undefined} onClick={() => headSort('amt')}>Amount<ArrowUpDown size={13} /></button>
         </div>
         <div role="columnheader" className="r c-paid">Paid</div>
-        <div role="columnheader" className="r" aria-sort={ariaSort('due')}>
+        <div role="columnheader" className="r c-due" aria-sort={ariaSort('due')}>
           <button className="sortable" type="button" data-on={sortOn('due') || undefined} onClick={() => headSort('due')}>Due<ArrowUpDown size={13} /></button>
         </div>
-        <div />
+        <div className="c-x" />
       </div>
 
       <div ref={bodyRef} onKeyDown={onKeyDown}>
@@ -804,8 +804,8 @@ function Register({
             {/* On a phone the bar shows what Record payment would pay. */}
             <span className="mob tot">{selSum.due >= 0.5 ? `${rupee(selSum.due)} due` : rupee(selSum.total)}</span>
             <span className="div" /><span className="note">{why}</span><span className="sp" />
-            <button type="button" className="primary" disabled={!onePay} title={why} onClick={() => onBulkPay?.(selected.filter((b) => b.due >= 0.5))}>
-              <Banknote size={15} />Record payment
+            <button type="button" className="primary" disabled={!onePay} title={why} onClick={() => onBulkPay?.(selected.filter((b) => b.due >= 0.5 && b.state !== 'cancelled'))}>
+              <Banknote size={15} /><span className="pay-long">Record payment</span><span className="pay-short">Pay</span>
             </button>
             <button type="button" onClick={onBulkExport} aria-label="Export selected"><Download size={15} /><span className="hide-sm">Export</span></button>
             <button type="button" aria-label="Clear selection" onClick={() => setSel(new Set())}><X size={15} /></button>

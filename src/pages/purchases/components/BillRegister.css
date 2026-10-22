@@ -34,7 +34,9 @@
   --b-r-sm: 4px; --b-r-md: 6px; --b-r-xl: 8px;
   --b-ease: cubic-bezier(0.23, 1, 0.32, 1);
   --b-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --cols: 36px 28px 168px minmax(170px, 1.15fr) minmax(200px, 1.5fr) 158px 128px 120px 128px 40px;
+  /* Named lines: every cell is placed by its column's NAME, so a folded
+     column (width 0) never shifts a total into the wrong column. */
+  --cols: [cb] 36px [chev] 28px [bill] 184px [sup] minmax(150px, 1.15fr) [items] minmax(190px, 1.5fr) [st] 158px [amt] 128px [paid] 120px [due] 128px [x] 40px [end];
   --head-h: 36px;
   color: var(--b-ink-1);
   font-size: 13px;
@@ -47,6 +49,7 @@
 }
 .breg .search input::-webkit-search-cancel-button { display: none; }
 .breg .bulk .mob { display: none; }
+.breg .pay-short { display: none; }
 .breg button { background: none; border: 0; cursor: pointer; font: inherit; color: inherit; letter-spacing: inherit; }
 .breg .num { font-family: var(--b-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .breg :focus-visible { outline: 2px solid var(--b-focus); outline-offset: 2px; border-radius: var(--b-r-sm); }
@@ -106,6 +109,16 @@
 /* register */
 .breg .reg { position: relative; border-top: 1px solid var(--b-border-2); }
 .breg .grid { display: grid; grid-template-columns: var(--cols); align-items: center; column-gap: 0; }
+.breg .grid > .cb { grid-column: cb; }
+.breg .grid > .chev, .breg .grid > .rail { grid-column: chev; }
+.breg .grid > .c-bill, .breg .grid > .h-bill { grid-column: bill; }
+.breg .grid > .c-sup, .breg .grid > .h-sup { grid-column: sup; }
+.breg .grid > .c-items, .breg .grid > .h-items { grid-column: items; }
+.breg .grid > .c-st, .breg .grid > .h-st, .breg .grid > .c-delta { grid-column: st; }
+.breg .grid > .c-amt { grid-column: amt; }
+.breg .grid > .c-paid { grid-column: paid; }
+.breg .grid > .c-due { grid-column: due; }
+.breg .grid > .c-x, .breg .grid > .c-more { grid-column: x; }
 .breg .grid > * { min-width: 0; padding: 0 8px; }
 .breg .grid > .cb { padding: 0 0 0 8px; display: flex; align-items: center; }
 .breg .grid > .chev { padding: 0; display: flex; justify-content: center; }
@@ -118,7 +131,7 @@
 .breg .thead .sortable[data-on] svg { opacity: 1; }
 
 .breg .band { position: sticky; top: var(--head-h); z-index: 3; min-height: 32px; background: var(--b-canvas); border-bottom: 1px solid var(--b-border); font-size: 12px; }
-.breg .band .lbl { grid-column: 1 / 7; padding-left: 16px; display: flex; align-items: baseline; gap: 10px; white-space: nowrap; overflow: hidden; }
+.breg .band .lbl { grid-column: cb / amt; padding-left: 16px; display: flex; align-items: baseline; gap: 10px; white-space: nowrap; overflow: hidden; }
 .breg .band .lbl b { font-weight: 700; color: var(--b-ink-1); font-size: 12.5px; }
 .breg .band .lbl b.over { color: var(--b-neg); }
 .breg .band .lbl span { color: var(--b-ink-3); }
@@ -172,10 +185,10 @@
 .breg .line { min-height: 40px; padding: 4px 0; font-size: 12.5px; }
 .breg .line .rail, .breg .bfoot .rail { align-self: stretch; position: relative; }
 .breg .line .rail::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--b-rail); }
-.breg .line .nm { grid-column: 3 / 5; display: flex; align-items: baseline; gap: 8px; white-space: nowrap; overflow: hidden; }
+.breg .line .nm { grid-column: bill / items; display: flex; align-items: baseline; gap: 8px; white-space: nowrap; overflow: hidden; }
 .breg .line .nm .t { color: var(--b-ink-1); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
 .breg .line .nm .h { font: 400 11.5px var(--b-mono); color: var(--b-ink-3); }
-.breg .line .qty { font: 400 12px var(--b-mono); color: var(--b-ink-2); letter-spacing: -0.02em; white-space: nowrap; }
+.breg .line .qty { grid-column: items; font: 400 12px var(--b-mono); color: var(--b-ink-2); letter-spacing: -0.02em; white-space: nowrap; }
 .breg .line .qty u { text-decoration: none; color: var(--b-ink-3); }
 .breg .delta { display: flex; flex-direction: column; line-height: 1.3; white-space: nowrap; }
 .breg .delta .p { font: 600 12px var(--b-mono); letter-spacing: -0.02em; }
@@ -188,11 +201,11 @@
 .breg .linkicon:hover { background: var(--b-canvas); color: var(--b-ink-1); }
 .breg .bfoot { min-height: 36px; font-size: 12px; color: var(--b-ink-3); padding-top: 4px; }
 .breg .bfoot .rail::before { content: ""; position: absolute; left: 50%; top: 0; height: 14px; width: 2px; margin-left: -1px; background: var(--b-rail); }
-.breg .bfoot .meta { grid-column: 3 / 7; display: flex; flex-wrap: wrap; gap: 2px 0; align-items: baseline; }
+.breg .bfoot .meta { grid-column: bill / amt; display: flex; flex-wrap: wrap; gap: 2px 0; align-items: baseline; }
 .breg .bfoot .meta > span { white-space: nowrap; }
 .breg .bfoot .meta > span + span::before { content: "·"; padding: 0 8px; }
 .breg .bfoot .meta b { font: 500 12px var(--b-mono); color: var(--b-ink-2); letter-spacing: -0.02em; }
-.breg .bfoot .go { grid-column: 7 / -1; display: flex; justify-content: flex-end; gap: 4px; padding-right: 8px; }
+.breg .bfoot .go { grid-column: amt / end; display: flex; justify-content: flex-end; gap: 4px; padding-right: 8px; }
 
 .breg .loadmore { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--b-border); color: var(--b-ink-3); font-size: 12px; flex-wrap: wrap; }
 .breg .loadmore .btn { height: 28px; font-size: 12.5px; }
@@ -211,7 +224,7 @@
 .breg .bulk button[disabled], .breg .bulk .primary[disabled] { background: transparent; box-shadow: inset 0 0 0 1px rgba(127, 127, 127, .35); color: var(--b-invert-3); cursor: not-allowed; }
 .breg .bulk .div { width: 1px; height: 20px; background: rgba(127, 127, 127, .35); margin: 0 4px; }
 .breg .tfoot { min-height: 44px; background: var(--b-canvas); border-top: 1px solid var(--b-border-2); font-weight: 600; }
-.breg .tfoot .lbl { grid-column: 1 / 7; padding-left: 16px; display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
+.breg .tfoot .lbl { grid-column: cb / amt; padding-left: 16px; display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
 .breg .tfoot .lbl span { color: var(--b-ink-3); font-weight: 500; font-size: 12px; }
 .breg .tfoot .num { font-weight: 600; font-size: 13px; }
 
@@ -244,34 +257,42 @@
 .breg-toast button { color: var(--color-accent-signature); font-weight: 700; margin-left: 12px; padding: 2px 4px; border-radius: 4px; background: none; border: 0; cursor: pointer; font: inherit; }
 
 /* group-specific columns */
-@container breg (min-width: 641px) {
+@container breg (min-width: 781px) {
   .breg .reg[data-group="supplier"] .row .c-sup, .breg .reg[data-group="supplier"] .h-sup { display: none; }
-  .breg .reg[data-group="supplier"] .row .c-items, .breg .reg[data-group="supplier"] .h-items { grid-column: 4 / 6; }
+  .breg .reg[data-group="supplier"] .grid > .c-items, .breg .reg[data-group="supplier"] .grid > .h-items { grid-column: sup / st; }
+  .breg .reg[data-group="supplier"] .line .nm { grid-column: bill / sup; }
+  .breg .reg[data-group="supplier"] .line .qty { grid-column: sup / st; }
   .breg .reg[data-group="supplier"] .line .qty { justify-self: end; }
 }
 
 /* 1180 and below: Paid folds away */
-@container breg (max-width: 1180px) {
-  .breg .reg { --cols: 36px 28px 140px minmax(150px, 1.25fr) minmax(130px, 1fr) 140px 116px 116px 40px; }
-  .breg .c-paid { display: none !important; }
+@container breg (max-width: 1179px) {
+  .breg .reg { --cols: [cb] 36px [chev] 28px [bill] 168px [sup] minmax(140px, 1.2fr) [items] minmax(130px, 1fr) [st] 140px [amt] 116px [paid] 0px [due] 116px [x] 40px [end]; }
+  .breg .c-paid { visibility: hidden; overflow: hidden; padding: 0 !important; }
   .breg .search { flex: 1 1 200px; min-width: 180px; }
   .breg .c-bill .dl { display: none; }
   .breg .c-bill .ds { display: inline; }
 }
 /* Narrower still: Items folds away (it is one tap away in the opened bill). */
-@container breg (max-width: 900px) {
-  .breg .reg { --cols: 36px 28px 132px minmax(140px, 1fr) 132px 112px 112px 40px; }
-  .breg .c-items, .breg .h-items { display: none !important; }
-  .breg .line .nm { grid-column: 3 / 4; }
+@container breg (max-width: 940px) {
+  .breg .reg { --cols: [cb] 36px [chev] 28px [bill] 168px [sup] minmax(130px, 1fr) [items] 0px [st] 136px [amt] 112px [paid] 0px [due] 112px [x] 40px [end]; }
+  .breg .grid > .c-items, .breg .grid > .h-items { visibility: hidden; overflow: hidden; padding: 0; }
+  .breg .line .nm { grid-column: bill / sup; }
+  .breg .line .qty { grid-column: sup; }
   .breg .search { flex-basis: 100%; max-width: none; }
   .breg .tb-right { margin-left: 0; }
 }
 
 /* 640 and below: bills become a short list */
-@container breg (max-width: 640px) {
+@container breg (max-width: 780px) {
+  .breg .band > *, .breg .tfoot > *, .breg .bfoot > * { grid-column: auto; }
+  .breg .grid > .c-items { visibility: visible; }
   .breg .c-items { display: block !important; }
   .breg .bulk .desk { display: none; }
   .breg .bulk .mob { display: inline; }
+  .breg .bulk .pay-long { display: none; }
+  .breg .bulk .pay-short { display: inline; }
+  .breg .bulk .cnt + .note { display: none; }
   .breg .tfoot { display: none; }
   .breg .row .c-items .creep-wrap { display: none; }
   .breg .tab .a, .breg .search kbd, .breg .toolbar .fbtn .rng, .breg .tb-right, .breg .summary .s, .breg .summary .ctx, .breg .thead, .breg .foot-note, .breg .hide-sm { display: none !important; }
@@ -331,7 +352,7 @@
   .breg .bulk .note, .breg .bulk .div { display: none; }
 }
 .breg .sm-only { display: none; }
-@container breg (min-width: 641px) { .breg .row .c-items .mdate { display: none; } }
+@container breg (min-width: 781px) { .breg .row .c-items .mdate { display: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   .breg *, .breg *::before, .breg *::after, .breg-pop, .breg-toast { transition: none !important; animation: none !important; }
