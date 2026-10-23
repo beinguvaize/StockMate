@@ -103,3 +103,28 @@ test('Back returns to the bill with every line as it was', async ({ page }) => {
   await expect(page.getByLabel('Line total', { exact: true }).first()).toHaveValue('400');
   await expect(page.getByLabel('Quantity', { exact: true }).first()).toHaveValue('10');
 });
+
+test('an expiry date stamps the batch the server made, never a second batch', async ({ page }) => {
+  // process_purchase creates the line's batch. Inserting another one for the
+  // same stock doubled it in batches (13 purchases at one shop: 134 units in
+  // batches for 67 bought), which skews FIFO cost.
+  const calls = await openForm(page);
+  const batch = { posts: 0, patches: [] };
+  await page.route('**/rest/v1/product_batches*', (r) => {
+    const m = r.request().method();
+    if (m === 'POST') { batch.posts += 1; return r.fulfill({ status: 201, body: '' }); }
+    if (m === 'PATCH') {
+      batch.patches.push({ url: r.request().url(), body: r.request().postDataJSON() });
+      return r.fulfill({ status: 204, headers: { 'content-range': '0-0/1' }, body: '' });
+    }
+    return r.fallback();
+  });
+  await buy(page, 10, 300);                                   // no cost change: saves directly
+  await page.getByLabel('Expiry date (optional)').first().fill('2027-03-31');
+  await page.getByRole('button', { name: /Save 1 Item/ }).click();
+  await expect.poll(() => calls.purchases).toBe(1);
+  await expect.poll(() => batch.patches.length).toBe(1);
+  expect(batch.posts).toBe(0);
+  expect(batch.patches[0].body).toEqual({ expiry_date: '2027-03-31' });
+  expect(batch.patches[0].url).toMatch(/purchase_id=eq\.PUR-/);
+});
