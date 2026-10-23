@@ -276,6 +276,7 @@ const PurchasesPage = () => {
     const supplierName = suppliers.find(s => s.id === header.supplier_id)?.name || '';
     let failed = 0;
     let firstError = '';
+    const expiryMissed = [];
 
     // A part payment has to be spread across the bill's lines, because each
     // product becomes its own purchases row. Fill the lines in order until the
@@ -311,7 +312,8 @@ const PurchasesPage = () => {
         userId:            currentUser?.id,
         locationId:        header.location_id || null,
       };
-      const { error } = await addPurchase(payload);
+      const { error, queued } = await addPurchase(payload);
+      if (queued && item.expiry_date) expiryMissed.push(productNameById[item.linked_product_id] || item.linked_product_id);
       if (error) {
         // Surface the real reason — swallowing it turned a hard DB error
         // ("function is not unique") into a bare "N item(s) failed to save".
@@ -320,21 +322,19 @@ const PurchasesPage = () => {
         failed++;
         continue;
       }
-      // Expiry tracking: a dated batch per line when expiry was provided.
-      if (item.expiry_date) {
+      // Expiry: process_purchase has already created this line's batch. Stamp
+      // the expiry on THAT batch. This used to insert a second batch for the
+      // same stock -- 13 purchases at one shop held 134 units in batches for
+      // 67 bought, which skews FIFO cost and the average cost.
+      if (item.expiry_date && !queued) {
         const { supabase } = await import('../../lib/supabase');
-        await supabase.from('product_batches').insert({
-          tenant_id: currentTenantId,
-          product_id: item.linked_product_id,
-          purchase_id: payload.id,
-          supplier_id: header.supplier_id,
-          received_date: header.date,
-          unit_cost: item.unit_price,
-          qty_received: item.quantity,
-          qty_remaining: item.quantity,
-          expiry_date: item.expiry_date,
-          warehouse_id: header.location_id || null,
-        });
+        const { error: expErr, count } = await supabase.from('product_batches')
+          .update({ expiry_date: item.expiry_date }, { count: 'exact' })
+          .eq('purchase_id', payload.id).eq('tenant_id', currentTenantId);
+        if (expErr || !count) {
+          console.error('[purchase] expiry not recorded for', payload.id, expErr);
+          expiryMissed.push(productNameById[item.linked_product_id] || item.linked_product_id);
+        }
       }
     }
     // The money-OUT for a non-credit purchase is posted by the database, in
@@ -357,6 +357,10 @@ const PurchasesPage = () => {
       }
     }
     setAddLoading(false);
+    if (expiryMissed.length) {
+      // Never silent: the purchase is saved, its expiry date is not.
+      addNotification(`Purchase saved, but the expiry date was not recorded for: ${expiryMissed.join(', ')}. Set it from the product's batches.`, 'error');
+    }
     if (failed > 0) {
       alert(`${failed} item(s) failed to save.${firstError ? `\n\nReason: ${firstError}` : ''}`
         + (priceUpdates.length ? '\n\nSelling prices were not changed.' : ''));
