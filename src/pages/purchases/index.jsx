@@ -12,7 +12,7 @@ import { PageSkeleton } from '../../components/ui/States';
 import { formatCurrency, formatDate, generateRef, todayISOInAppTZ } from '../../lib/utils';
 import { groupPurchasesIntoBills, dueOf as billDueOf, isCreditType } from '../../lib/bills';
 import { buildVoucherModel, voucherNo } from './lib/voucher';
-import { decorateBills, lineDeltas, allocatePayment } from './lib/register';
+import { decorateBills, lineDeltas, allocatePayment, fmtDate } from './lib/register';
 import { classifyWriteFailure } from '../../lib/writeOutcome';
 import { voucherHtml } from './lib/voucherHtml';
 import PurchaseForm from './components/PurchaseForm';
@@ -313,7 +313,7 @@ const PurchasesPage = () => {
         locationId:        header.location_id || null,
       };
       const { error, queued } = await addPurchase(payload);
-      if (queued && item.expiry_date) expiryMissed.push(productNameById[item.linked_product_id] || item.linked_product_id);
+      if (queued && item.expiry_date) expiryMissed.push(`${productNameById[item.linked_product_id] || item.linked_product_id} (${fmtDate(item.expiry_date)})`);
       if (error) {
         // Surface the real reason — swallowing it turned a hard DB error
         // ("function is not unique") into a bare "N item(s) failed to save".
@@ -333,7 +333,7 @@ const PurchasesPage = () => {
           .eq('purchase_id', payload.id).eq('tenant_id', currentTenantId);
         if (expErr || !count) {
           console.error('[purchase] expiry not recorded for', payload.id, expErr);
-          expiryMissed.push(productNameById[item.linked_product_id] || item.linked_product_id);
+          expiryMissed.push(`${productNameById[item.linked_product_id] || item.linked_product_id} (${fmtDate(item.expiry_date)})`);
         }
       }
     }
@@ -359,7 +359,8 @@ const PurchasesPage = () => {
     setAddLoading(false);
     if (expiryMissed.length) {
       // Never silent: the purchase is saved, its expiry date is not.
-      addNotification(`Purchase saved, but the expiry date was not recorded for: ${expiryMissed.join(', ')}. Set it from the product's batches.`, 'error');
+      const many = expiryMissed.length > 1;
+      addNotification(`Purchase saved, but the expiry date was not recorded for ${expiryMissed.join(', ')}. ${many ? 'These batches' : 'This batch'} will show no expiry; keep a note of the ${many ? 'dates' : 'date'}.`, 'error', 0); // stays until closed
     }
     if (failed > 0) {
       alert(`${failed} item(s) failed to save.${firstError ? `\n\nReason: ${firstError}` : ''}`
