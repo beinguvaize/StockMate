@@ -189,6 +189,11 @@ export const useFinance = (tenantId) => {
       day_of_month:   Math.min(Math.max(parseInt(tpl.day_of_month, 10) || 1, 1), 28),
       start_date:     tpl.start_date ?? null,
       last_generated: tpl.last_generated ?? null,
+      location_id:    tpl.location_id ?? null,
+      exclude_from_pl: !!tpl.exclude_from_pl,
+      gst_rate:       tpl.gst_rate ?? null,
+      gst_amount:     tpl.gst_amount ?? null,
+      vendor_gstin:   tpl.vendor_gstin ?? null,
       active:         true,
     };
     const { error } = await supabase.from('recurring_expense_templates').insert(row);

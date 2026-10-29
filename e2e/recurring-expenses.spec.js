@@ -36,3 +36,27 @@ test('a daily expense that skips Sunday is saved with its schedule', async ({ pa
   const today = await page.evaluate(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date()));
   expect(templates[0]).toMatchObject({ frequency: 'DAILY', weekdays: [1, 2, 3, 4, 5, 6], amount: 50, start_date: today, last_generated: today });
 });
+
+test('the repeat control states the real next date and works from the keyboard', async ({ page }) => {
+  await seedAppCache(page);
+  await setupMocks(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/${TENANT_SLUG}/expenses`);
+  await page.getByRole('button', { name: /Log expense/ }).first().click();
+  const repeat = page.getByTestId('repeat-control');
+  const daily = repeat.getByRole('radio', { name: 'Daily' });
+  await daily.click();
+  await expect(page.getByTestId('repeat-line')).toContainText(/· next (Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} [A-Z][a-z]{2}/);
+  // arrows move AND select, one tab stop for the group
+  await daily.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(repeat.getByRole('radio', { name: 'Monthly' })).toHaveAttribute('aria-checked', 'true');
+  await expect(repeat.getByRole('radio', { name: 'Monthly' })).toBeFocused();
+  await expect(repeat.getByRole('radio', { name: 'Daily' })).toHaveAttribute('tabindex', '-1');
+  await expect(page.getByTestId('repeat-line')).toContainText(/Monthly on the \d+(st|nd|rd|th)/);
+  // the last day cannot be switched off silently
+  await page.keyboard.press('ArrowLeft');
+  for (const d of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) await repeat.getByRole('button', { name: d }).click();
+  await expect(repeat).toContainText('Keep at least one day');
+  await expect(repeat.getByRole('button', { name: 'Sun' })).toHaveAttribute('aria-pressed', 'true');
+});
