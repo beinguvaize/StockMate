@@ -54,18 +54,75 @@ void main() {
     }
   });
 
+  List<Map<String, dynamic>> section(String name) {
+    final s = fx[name];
+    if (s is! List || s.isEmpty) throw StateError('fixture section "$name" is missing or empty');
+    return s.cast<Map<String, dynamic>>();
+  }
+
+  group('ordinal', () {
+    for (final c in section('ordinal')) {
+      test('${c['n']} -> ${c['expect']}', () => expect(ordinal(c['n'] as int), c['expect']));
+    }
+  });
+
+  group('nextRun', () {
+    for (final c in section('nextRun')) {
+      test('${jsonEncode(c['input'])} -> ${c['expect']}', () {
+        expect(nextRun(c['input'] as Map<String, dynamic>), c['expect']);
+      });
+    }
+  });
+
+  group('recurringTemplateFor then nextRun', () {
+    for (final c in section('templateThenNextRun')) {
+      final input = c['input'] as Map<String, dynamic>;
+      test('${jsonEncode(input)} -> ${c['expect']}', () {
+        final t = recurringTemplateFor(
+          frequency: input['frequency'] as String,
+          weekdays: input['weekdays'] as List?,
+          date: input['date'] as String?,
+          today: input['today'] as String,
+        );
+        expect(nextRun(t), c['expect']);
+      });
+    }
+  });
+
+  group('scheduleLine', () {
+    for (final c in section('scheduleLine')) {
+      test('${jsonEncode(c['input'])} -> ${c['expect']}', () {
+        expect(scheduleLine(c['input'] as Map<String, dynamic>), c['expect']);
+      });
+    }
+  });
+
+  test('nextRun is null without a last_generated', () {
+    expect(nextRun({'frequency': 'DAILY'}), isNull);
+    expect(scheduleLine({'frequency': 'DAILY'}), 'Every day');
+  });
+
   group('recurringTemplateRow', () {
     test('writes the same columns as the web addRecurringTemplate', () {
       final row = recurringTemplateRow(
         id: 'RET-x', tenantId: 't1', note: 'Tea', amount: 120,
         category: 'Food', paymentMethod: 'CASH', frequency: 'DAILY',
+        locationId: 'store-2', excludeFromPl: true, gstRate: 18,
+        gstAmount: 18.31, vendorGstin: '29ABCDE1234F1Z5',
         weekdays: {6, 1, 2, 3, 4, 5}, date: '2026-10-28', today: '2026-10-28',
       );
       expect(row.keys.toSet(), {
         'id', 'tenant_id', 'note', 'amount', 'category', 'payment_method',
+        'location_id', 'exclude_from_pl', 'gst_rate', 'gst_amount', 'vendor_gstin',
         'frequency', 'weekdays', 'day_of_month', 'start_date', 'last_generated',
         'active',
       });
+      // Carried as given: the nightly job copies them onto every logged expense.
+      expect(row['location_id'], 'store-2');
+      expect(row['exclude_from_pl'], isTrue);
+      expect(row['gst_rate'], 18);
+      expect(row['gst_amount'], 18.31);
+      expect(row['vendor_gstin'], '29ABCDE1234F1Z5');
       expect(row['weekdays'], [1, 2, 3, 4, 5, 6]); // a Set from the chips, sorted
       expect(row['active'], isTrue);
       expect(describeRecurringRow(row), 'Every day except Sun');

@@ -315,6 +315,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               amount: amount,
               category: _selectedCategory,
               paymentMethod: _paymentMethod,
+              // The same values the expense was saved with (row above).
+              locationId: row['location_id'] as String?,
+              excludeFromPl: row['exclude_from_pl'] as bool,
+              gstRate: row['gst_rate'] as double?,
+              gstAmount: row['gst_amount'] as double?,
+              vendorGstin: row['vendor_gstin'] as String?,
               frequency: _repeat,
               weekdays: _weekdays,
               date: row['date'] as String,
@@ -373,9 +379,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   // Repeat: No / Daily / Monthly, with weekday chips for Daily. The label is
   // the shared describeRecurring, so it reads exactly as the web's.
   Widget _repeatControl() {
+    // The line states the real next date by the database's rule, and flags
+    // a 29th-31st pick being capped to the 28th (shared scheduleLine).
+    final date = _selectedDate.toIso8601String().split('T')[0];
     final sub = _repeat == 'NONE'
         ? 'Log this once'
-        : '${describeRecurring(frequency: _repeat, weekdays: _weekdays, dayOfMonth: _selectedDate.day)}, logged automatically from tomorrow';
+        : scheduleLine({
+            ...recurringTemplateFor(
+                frequency: _repeat, weekdays: _weekdays, date: date, today: todayIst()),
+            'asked_day': _selectedDate.day,
+          });
 
     Widget pill(String label, bool on, VoidCallback onTap, {String? semantics}) =>
         Semantics(

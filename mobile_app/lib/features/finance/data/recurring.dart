@@ -38,7 +38,14 @@ List<int> _cleanWeekdays(Iterable<Object?>? days) {
   return out.toList()..sort();
 }
 
-/// "Every day", "Every day except Sun", "Mon, Wed, Fri", "Monthly on day 5".
+/// 1st, 2nd, 3rd, 4th … 11th, 12th, 13th … 21st, 22nd.
+String ordinal(int n) {
+  final v = n % 100;
+  if (v >= 11 && v <= 13) return '${n}th';
+  return '$n${const {1: 'st', 2: 'nd', 3: 'rd'}[n % 10] ?? 'th'}';
+}
+
+/// "Every day", "Every day except Sun", "Mon, Wed, Fri", "Monthly on the 5th".
 String describeRecurring({
   required String? frequency,
   Iterable<Object?>? weekdays,
@@ -51,7 +58,7 @@ String describeRecurring({
     if (off.length <= 2) return 'Every day except ${off.join(' and ')}';
     return _weekdayNames(include: days).join(', ');
   }
-  return 'Monthly on day ${_clampDay(dayOfMonth)}';
+  return 'Monthly on the ${ordinal(_clampDay(dayOfMonth))}';
 }
 
 List<String> _weekdayNames({List<int>? include, List<int>? exclude}) => [
@@ -95,6 +102,57 @@ Map<String, dynamic> recurringTemplateFor({
   };
 }
 
+const _monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const _dowShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']; // DateTime.weekday 1..7
+
+DateTime? _utcDate(Object? v) {
+  final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(v?.toString() ?? '');
+  if (m == null) return null;
+  return DateTime.utc(int.parse(m.group(1)!), int.parse(m.group(2)!), int.parse(m.group(3)!));
+}
+
+String _isoDate(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
+    '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// The next date the nightly job will log this template, by the database's
+/// own rule (generate_due_recurring_expenses): it resumes the day after
+/// last_generated and logs on the first due day. Null when last_generated is
+/// missing or no due day falls in the next 62 days.
+String? nextRun(Map<String, dynamic> t) {
+  final last = _utcDate(t['last_generated']);
+  if (last == null) return null;
+  final daily = (t['frequency']?.toString() ?? '').toUpperCase() == 'DAILY';
+  final days = [
+    for (final d in (t['weekdays'] as Iterable<Object?>?) ?? const [])
+      if (d is num) d.toInt() else if (_parseIntLoose(d) != null) _parseIntLoose(d)!,
+  ];
+  final dom = _clampDay(t['day_of_month']);
+  for (var i = 0; i < 62; i++) {
+    // Day arithmetic in UTC: no DST or local zone can shift the date.
+    final d = last.add(Duration(days: 1 + i));
+    final due = daily ? (days.isEmpty || days.contains(d.weekday)) : d.day == dom;
+    if (due) return _isoDate(d);
+  }
+  return null;
+}
+
+/// "Every day except Sun · next Fri 30 Oct" -- what the form promises.
+/// `asked_day` is the day of the month the person picked; past the 28th the
+/// line says the schedule is capped.
+String scheduleLine(Map<String, dynamic> t) {
+  final next = _utcDate(nextRun(t));
+  final when = next == null
+      ? ''
+      : 'next ${_dowShort[next.weekday - 1]} ${next.day} ${_monthShort[next.month - 1]}';
+  final asked = _parseIntLoose(t['asked_day']);
+  final capped = (t['frequency']?.toString() ?? '').toUpperCase() != 'DAILY' &&
+          asked != null && asked > 28
+      ? " (29th–31st aren't in every month)"
+      : '';
+  return '${describeRecurringRow(t)}$capped${when.isEmpty ? '' : ' · $when'}';
+}
+
 /// Today's date in IST as 'YYYY-MM-DD' -- the shop's day, whatever the
 /// phone's own time zone.
 String todayIst([DateTime? now]) {
@@ -107,6 +165,8 @@ String todayIst([DateTime? now]) {
 /// The full row to insert into recurring_expense_templates for a new
 /// recurring expense: what was logged, plus the schedule from
 /// [recurringTemplateFor]. Same columns the web's addRecurringTemplate writes.
+/// Store, P&L flag and GST are the values the expense itself was saved with;
+/// the nightly job copies them onto every logged expense.
 Map<String, dynamic> recurringTemplateRow({
   required String id,
   required String tenantId,
@@ -114,6 +174,11 @@ Map<String, dynamic> recurringTemplateRow({
   required double amount,
   required String category,
   required String paymentMethod,
+  String? locationId,
+  bool excludeFromPl = false,
+  double? gstRate,
+  double? gstAmount,
+  String? vendorGstin,
   required String frequency,
   Iterable<Object?>? weekdays,
   required String date,
@@ -126,6 +191,11 @@ Map<String, dynamic> recurringTemplateRow({
       'amount': amount,
       'category': category,
       'payment_method': paymentMethod,
+      'location_id': locationId,
+      'exclude_from_pl': excludeFromPl,
+      'gst_rate': gstRate,
+      'gst_amount': gstAmount,
+      'vendor_gstin': vendorGstin,
       ...recurringTemplateFor(
           frequency: frequency, weekdays: weekdays, date: date, today: today),
       'active': true,
