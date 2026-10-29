@@ -184,8 +184,11 @@ export const useFinance = (tenantId) => {
       amount:         tpl.amount,
       category:       tpl.category ?? 'Other',
       payment_method: tpl.payment_method ?? 'CASH',
-      frequency:      'MONTHLY',
+      frequency:      tpl.frequency === 'DAILY' ? 'DAILY' : 'MONTHLY',
+      weekdays:       tpl.weekdays ?? null,
       day_of_month:   Math.min(Math.max(parseInt(tpl.day_of_month, 10) || 1, 1), 28),
+      start_date:     tpl.start_date ?? null,
+      last_generated: tpl.last_generated ?? null,
       active:         true,
     };
     const { error } = await supabase.from('recurring_expense_templates').insert(row);
