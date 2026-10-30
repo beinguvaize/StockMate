@@ -338,11 +338,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               repeatProblem =
                   'Expense saved, but the repeat could not be set up: ${e.message}';
             } catch (e) {
-              // A dropped connection may still have created it.
+              // A dropped connection may still have created it. The raw error
+              // (a timeout or socket message) is logged, not shown.
               debugPrint('[expenses] recurring setup unconfirmed: $e');
               repeatProblem =
-                  "Expense saved, but we couldn't confirm the repeat was set up ($e). "
-                  'Check Recurring on the web before adding it again.';
+                  "Expense saved, but we couldn't confirm the repeat was set up. "
+                  'Check your connection, then look for it on the web.';
             }
           }
         }
