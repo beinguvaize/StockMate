@@ -44,6 +44,28 @@ void main() {
     });
   }
 
+  // The amount row is ₹, a gap and a field capped at 280dp, centred in what
+  // is left of the phone after 24dp padding each side. Under a large system
+  // font or a long figure the cap is wider than the room, so the field must
+  // give way rather than push the row off the right edge.
+  for (final width in [320.0, 360.0]) {
+    testWidgets('amount row fits ${width.toInt()}dp under a 1.3x font',
+        (t) async {
+      t.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
+      await pump(t, width);
+      expect(t.takeException(), isNull);
+    });
+
+    testWidgets('a long amount fits ${width.toInt()}dp', (t) async {
+      await pump(t, width);
+      await t.enterText(find.byType(TextField).first, '1234567.89');
+      await t.pump();
+      expect(t.takeException(), isNull);
+      expect(find.text('1234567.89'), findsOneWidget);
+    });
+  }
+
   testWidgets('five tiles still share one row at 360dp', (t) async {
     await pump(t, 360);
     final food = t.getTopLeft(find.text('FOOD'));
