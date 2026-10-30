@@ -71,9 +71,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       text: e?.amount != null ? e!.amount!.toStringAsFixed(0) : '',
     );
     _selectedCategory = e?.category ?? 'Other';
+    // A new expense defaults to today in IST, the shop's day (the web's
+    // todayISOInAppTZ), whatever zone the phone is set to.
     _selectedDate = e?.date != null
-        ? DateTime.tryParse(e!.date!) ?? DateTime.now()
-        : DateTime.now();
+        ? DateTime.tryParse(e!.date!) ?? DateTime.parse(todayIst())
+        : DateTime.parse(todayIst());
     _excludeFromPl = e?.excludeFromPl ?? false;
     _gstinController = TextEditingController();
   }
@@ -188,7 +190,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   String _dateLabel() {
-    final today = DateTime.now();
+    final today = DateTime.parse(todayIst());
     final isToday = today.year == _selectedDate.year &&
         today.month == _selectedDate.month &&
         today.day == _selectedDate.day;
@@ -343,7 +345,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               debugPrint('[expenses] recurring setup unconfirmed: $e');
               repeatProblem =
                   "Expense saved, but we couldn't confirm the repeat was set up. "
-                  'Check your connection, then look for it on the web.';
+                  "Check the Expenses page on the web; if it isn't listed, set the repeat up again.";
             }
           }
         }
@@ -380,6 +382,28 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   // Repeat: No / Daily / Monthly, with weekday chips for Daily. The label is
   // the shared describeRecurring, so it reads exactly as the web's.
+  /// Pills of equal visible width in a row, with the gap between two of
+  /// them split across their own tap areas so the gap is never a dead zone.
+  /// Edge slots carry only an inner half-gap, so they are sized to match.
+  Widget _gaplessRow({
+    required double gap,
+    required List<Widget Function(EdgeInsets gap)> children,
+  }) {
+    final n = children.length;
+    final half = gap / 2;
+    return LayoutBuilder(builder: (context, c) {
+      final visible = (c.maxWidth - gap * (n - 1)) / n;
+      return Row(children: [
+        for (var i = 0; i < n; i++)
+          SizedBox(
+            width: visible + (i > 0 ? half : 0) + (i < n - 1 ? half : 0),
+            child: children[i](EdgeInsets.only(
+                left: i > 0 ? half : 0, right: i < n - 1 ? half : 0)),
+          ),
+      ]);
+    });
+  }
+
   Widget _repeatControl() {
     // The line states the real next date by the database's rule, and flags
     // a 29th-31st pick being capped to the 28th (shared scheduleLine).
@@ -392,7 +416,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             'asked_day': _selectedDate.day,
           });
 
-    Widget pill(String label, bool on, VoidCallback onTap, {String? semantics}) =>
+    // `gap` is padding INSIDE the tappable: the space between two pills
+    // belongs to them, so a tap there is never a dead zone.
+    Widget pill(String label, bool on, VoidCallback onTap,
+            {String? semantics, EdgeInsets gap = EdgeInsets.zero}) =>
         Semantics(
           button: true,
           selected: on,
@@ -400,7 +427,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           child: AppTappable(
             ripple: false,
             onTap: onTap,
-            child: Container(
+            child: Padding(
+              padding: gap,
+              child: Container(
               // Size to the label (or to the slot an Expanded gives it).
               // `alignment` here would make every pill as wide as its parent
               // allows -- inside a Wrap that was one weekday per line.
@@ -418,6 +447,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   fontSize: 13, fontWeight: on ? FontWeight.w800 : FontWeight.w600,
                   color: on ? AppColors.primary : AppColors.inkSecondary)),
               ),
+            ),
             ),
           ),
         );
@@ -438,42 +468,34 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           Text(sub, key: const Key('repeat-label'), style: GoogleFonts.publicSans(
             fontSize: 13, color: AppColors.inkTertiary)),
           const SizedBox(height: 10),
-          Row(children: [
+          _gaplessRow(gap: 6, children: [
             for (final (k, label) in const [('NONE', 'No'), ('DAILY', 'Daily'), ('MONTHLY', 'Monthly')])
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(right: k == 'MONTHLY' ? 0 : 6),
-                  child: pill(label, _repeat == k, () => setState(() => _repeat = k),
-                      semantics: 'Repeat $label'),
-                ),
-              ),
+              (gap) => pill(label, _repeat == k, () => setState(() => _repeat = k),
+                  semantics: 'Repeat $label', gap: gap),
           ]),
           if (_repeat == 'DAILY') ...[
             const SizedBox(height: 10),
             // One row of seven, Mon first, the same order as the web.
-            Row(children: [
+            _gaplessRow(gap: 4, children: [
               for (final w in weekdays)
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(right: w.n == 7 ? 0 : 4),
-                    child: pill(w.short, _weekdays.contains(w.n), () {
-                      final next = {..._weekdays};
-                      if (!next.remove(w.n)) next.add(w.n);
-                      // At least one day: an empty list would mean "every
-                      // day". Say so instead of ignoring the tap.
-                      setState(() {
-                        _keepOneDay = next.isEmpty;
-                        if (next.isNotEmpty) _weekdays = next;
-                      });
-                    }, semantics: '${w.short}, ${_weekdays.contains(w.n) ? 'on' : 'off'}'),
-                  ),
-                ),
+                (gap) => pill(w.short, _weekdays.contains(w.n), () {
+                  final next = {..._weekdays};
+                  if (!next.remove(w.n)) next.add(w.n);
+                  // At least one day: an empty list would mean "every
+                  // day". Say so instead of ignoring the tap.
+                  setState(() {
+                    _keepOneDay = next.isEmpty;
+                    if (next.isNotEmpty) _weekdays = next;
+                  });
+                }, semantics: '${w.short}, ${_weekdays.contains(w.n) ? 'on' : 'off'}', gap: gap),
             ]),
             if (_keepOneDay) ...[
               const SizedBox(height: 8),
+              // Secondary text, like "Log this once". Red is kept for money
+              // that is overdue or lost.
               Text('Keep at least one day', key: const Key('keep-one-day'),
                   style: GoogleFonts.publicSans(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.danger)),
+                    fontSize: 13, color: AppColors.inkTertiary)),
             ],
           ],
         ],
