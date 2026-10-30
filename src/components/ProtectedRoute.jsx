@@ -5,6 +5,7 @@ import { useTenant } from '../context/TenantContext';
 import { ShieldAlert, Lock, Sparkles, Blocks } from 'lucide-react';
 import { getRequiredPlan, PLANS } from '../lib/tenancy';
 import { MODULE_META, VERTICAL_META } from '../lib/verticals';
+import { RBAC_MODULE_MAP } from '../lib/rbac';
 
 export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOwner = false }) {
   const { session, currentUser, hasPermission, isOwner, loading: authLoading } = useAuth();
@@ -122,32 +123,17 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOw
  // The RBAC module is NOT always the plan module.
  //
  // moduleMap above answers "which plan sells this page", and those keys are
- // per-page: `labels` is its own ENTERPRISE line item. The role matrix in
- // hasPermission() speaks a smaller vocabulary -- the job someone does, not the
- // page -- so it has no 'labels', no 'estimates', no 'kds'. Asking it about a
- // page name it does not know means only OWNER and GLOBAL_ADMIN get through.
+ // per-page: `labels` is its own ENTERPRISE line item. The role matrix speaks a
+ // smaller vocabulary -- the job someone does, not the page -- so it has no
+ // 'labels', no 'estimates', no 'kds'. Asking it about a page name it does not
+ // know means only OWNER and GLOBAL_ADMIN get through, which is how an
+ // INVENTORY-role user ended up seeing Labels in the nav (AppLayout gates that
+ // link on 'inventory') and then hitting Security Restricted.
  //
- // That is how an INVENTORY-role user ended up seeing Labels in the nav and
- // then hitting Security Restricted: AppLayout gates that link on 'inventory'
- // (AppLayout.jsx), the router asked about 'labels', and the two disagreed.
- //
- // The nav's key is the right one for a role check, so these paths override it
- // here. Remapping moduleMap itself would have been wrong: `inventory` ships in
- // every plan down to FREE, so pointing the PLAN gate at it would have handed
- // Labels, Kitchen and Manufacturing to tenants who never paid for them.
- //
- // Only paths whose nav key already differs are listed, so nobody gains a page
- // the nav was not already offering them.
- const rbacMap = {
-   'labels': 'inventory',          // Barcode & Labels is inventory work
-   'manufacturing': 'inventory',   // production orders consume stock
-   'invoices': 'sales',            // issuing an invoice is a sale
-   'estimates': 'sales',
-   'appointments': 'sales',        // booking a slot is the service sale
-   'kds': 'sales',                 // the kitchen works the sales queue
-   'accounts': 'daybook',          // Cash & Bank is the day book's other face
- };
- const rbacKey = rbacMap[path] || moduleKey;
+ // RBAC_MODULE_MAP carries the nav's key for the paths where the two differ.
+ // It lives beside the matrix in src/lib/rbac.js and rbac.test.js pins the two
+ // together, because a copy here is what drifted in the first place.
+ const rbacKey = RBAC_MODULE_MAP[path] || moduleKey;
 
  // Vertical-based module gating.
  //

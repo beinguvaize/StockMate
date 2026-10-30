@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { permits } from '../lib/rbac';
 import { realtimeEnabled } from '../lib/realtime';
 
 // Reject a pending request after `ms` so a hung network call can never
@@ -405,38 +406,9 @@ export const AuthProvider = ({ children }) => {
     } catch (_) {/* ignore */}
   };
 
-  const hasPermission = (moduleKey, action = 'view') => {
-    if (!currentUser) return false;
-    const roles = currentUser.roles || [];
-    if (roles.includes('GLOBAL_ADMIN')) return true;
-    if (roles.includes('OWNER')) return true;
-    if (roles.includes('STAFF')) {
-      if (action === 'view') return true;
-      return ['sales', 'clients', 'daybook'].includes(moduleKey);
-    }
-    // SALES template — no dashboard (privacy)
-    if (roles.includes('SALES')) {
-      const salesModules = ['sales', 'clients', 'daybook'];
-      return salesModules.includes(moduleKey);
-    }
-    // INVENTORY template — no dashboard (privacy)
-    if (roles.includes('INVENTORY')) {
-      const invModules = ['inventory', 'purchases', 'suppliers'];
-      return invModules.includes(moduleKey);
-    }
-    // DRIVER — van sales + operations only
-    if (roles.includes('DRIVER')) {
-      const driverModules = ['vehicles', 'sales'];
-      return driverModules.includes(moduleKey);
-    }
-    // CUSTOM role (and any other): respect granular permissions object
-    const perms = currentUser.permissions;
-    if (perms && typeof perms === 'object') {
-      const mod = perms[moduleKey];
-      if (mod && typeof mod === 'object') return !!mod[action];
-    }
-    return false;
-  };
+  // The matrix itself lives in src/lib/rbac.js, because ProtectedRoute needs
+  // the same answers for a typed URL and the two copies had drifted.
+  const hasPermission = (moduleKey, action = 'view') => permits(currentUser, moduleKey, action);
 
   const hasRole = (role) => {
     if (!currentUser) return false;
