@@ -66,6 +66,47 @@ void main() {
     });
   }
 
+  // A long figure that scrolls hides its first digits with nothing to say
+  // so: ₹12,34,567.89 reads as 2,34,567.89. The figure must shrink to stay
+  // whole, down to a floor, and only scroll past it. The test font draws
+  // every glyph as a square, wider than Public Sans, so the figures here are
+  // shorter than the ones that bite on a real phone.
+  Finder amountText() => find.descendant(
+      of: find.byType(TextField).first, matching: find.byType(EditableText));
+  double amountSize(WidgetTester t) =>
+      t.widget<EditableText>(amountText()).style.fontSize!;
+  ScrollPosition amountScroll(WidgetTester t) => t
+      .state<ScrollableState>(find.descendant(
+          of: find.byType(TextField).first, matching: find.byType(Scrollable)))
+      .position;
+
+  testWidgets('a long amount shrinks to stay whole at 320dp', (t) async {
+    await pump(t, 320);
+    await t.enterText(find.byType(TextField).first, '12345.67');
+    await t.pump();
+    expect(t.takeException(), isNull);
+    expect(amountSize(t), lessThan(56));
+    expect(amountSize(t), greaterThanOrEqualTo(28));
+    expect(amountScroll(t).maxScrollExtent, 0,
+        reason: 'the whole figure fits, so nothing is scrolled out of view');
+  });
+
+  testWidgets('the figure never shrinks below 28 and scrolls past it',
+      (t) async {
+    await pump(t, 320);
+    await t.enterText(find.byType(TextField).first, '1234567890.12');
+    await t.pump();
+    expect(t.takeException(), isNull);
+    expect(amountSize(t), 28);
+  });
+
+  testWidgets('an everyday amount keeps the full 56 size', (t) async {
+    await pump(t, 360);
+    await t.enterText(find.byType(TextField).first, '2500');
+    await t.pump();
+    expect(amountSize(t), 56);
+  });
+
   testWidgets('five tiles still share one row at 360dp', (t) async {
     await pump(t, 360);
     final food = t.getTopLeft(find.text('FOOD'));
