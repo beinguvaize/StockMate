@@ -575,7 +575,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              ConstrainedBox(
+                              // Flexible so the 280dp cap gives way to the
+                              // room actually left on a narrow phone or under
+                              // a large font; a long figure scrolls inside.
+                              Flexible(
+                                child: ConstrainedBox(
                                 constraints: const BoxConstraints(maxWidth: 280),
                                 child: IntrinsicWidth(
                                   child: TextField(
@@ -608,6 +612,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                       ),
                                     ),
                                   ),
+                                ),
                                 ),
                               ),
                             ],
