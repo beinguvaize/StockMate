@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect} from 'react';
 import Button from '../shared/Button';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
-import { describeRecurring, recurringTemplateFor, scheduleLine, WEEKDAYS } from '../lib/recurring';
+import { describeRecurring, recurringTemplateFor, scheduleLine, paymentLabel, WEEKDAYS } from '../lib/recurring';
 import { useFinance } from '../hooks/useFinance';
 import { useInventory } from '../hooks/useInventory';
 import { useAccounts, accountForMethod } from '../hooks/useAccounts';
@@ -494,29 +494,33 @@ const Expenses = () => {
      <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">
        Recurring · {recurringTemplates.length}
      </div>
-     <div className="flex flex-wrap gap-2">
+     <div className="grid gap-2 sm:grid-cols-2" data-testid="recurring-list">
        {recurringTemplates.map(t => (
-         <div key={t.id} className={`flex items-center gap-2 rounded-pill border px-3 py-1.5 text-xs ${t.active ? 'border-accent-signature/40 bg-accent-signature/10' : 'border-black/10 bg-muted opacity-60'}`}>
-           <span className="font-bold text-ink-primary">{t.note || t.category}</span>
-           <span className="tabular-nums text-accent-signature-hover">{formatCurrency(t.amount)}</span>
-           <span className="text-[11px] text-muted-foreground">{describeRecurring(t)} · {String(t.payment_method || 'CASH').charAt(0) + String(t.payment_method || 'CASH').slice(1).toLowerCase()}</span>
-           {t.last_error && (
-             <span className="text-[11px] font-semibold text-[color:var(--color-neg)]" title={t.last_error}>
-               Couldn’t log{t.last_error_at ? ` on ${new Date(t.last_error_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}: {t.last_error.slice(0, 80)}
+         <div key={t.id} data-testid="recurring-item"
+           className={`rounded-xl border px-3 py-2.5 text-xs ${t.active ? 'border-accent-signature/40 bg-accent-signature/5' : 'border-black/10 bg-muted'}`}>
+           <div className="flex items-baseline justify-between gap-3">
+             <span className={`font-bold truncate ${t.active ? 'text-ink-primary' : 'text-ink-secondary'}`}>{t.note || t.category}</span>
+             <span className="tabular-nums font-semibold text-ink-primary shrink-0">{formatCurrency(t.amount)}</span>
+           </div>
+           <div className="mt-1 flex items-center justify-between gap-2">
+             <span className="text-[12px] text-ink-secondary">
+               {t.active ? '' : 'Paused · '}{describeRecurring(t)} · {paymentLabel(t.payment_method)}
              </span>
+             <span className="flex items-center gap-1 shrink-0">
+               <button type="button" onClick={() => setRecurringActive(t.id, !t.active)}
+                 className="h-7 px-2.5 rounded-pill text-[12px] font-semibold text-accent-text hover:bg-accent-signature/10">
+                 {t.active ? 'Pause' : 'Resume'}
+               </button>
+               <button type="button" aria-label={`Remove ${t.note || t.category}`}
+                 onClick={() => { if (window.confirm('Remove this recurring expense?')) deleteRecurringTemplate(t.id); }}
+                 className="w-7 h-7 rounded-xl grid place-items-center text-muted-foreground hover:text-red-500 hover:bg-red-50">✕</button>
+             </span>
+           </div>
+           {t.last_error && (
+             <p className="mt-1.5 text-[12px] font-semibold text-[color:var(--color-neg)]" title={t.last_error}>
+               Couldn’t log{t.last_error_at ? ` on ${new Date(t.last_error_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}: {t.last_error.slice(0, 120)}
+             </p>
            )}
-           <button
-             type="button"
-             title={t.active ? 'Pause' : 'Resume'}
-             onClick={() => setRecurringActive(t.id, !t.active)}
-             className="text-[9px] font-bold uppercase text-accent-signature hover:underline"
-           >{t.active ? 'Pause' : 'Resume'}</button>
-           <button
-             type="button"
-             title="Remove"
-             onClick={() => { if (window.confirm('Remove this recurring expense?')) deleteRecurringTemplate(t.id); }}
-             className="text-muted-foreground hover:text-red-500"
-           >✕</button>
          </div>
        ))}
      </div>

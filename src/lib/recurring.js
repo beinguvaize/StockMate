@@ -81,3 +81,7 @@ export function scheduleLine(t) {
     ? ' (29th–31st aren\'t in every month)' : '';
   return `${describeRecurring(t)}${capped}${when ? ` · ${when}` : ''}`;
 }
+
+const PAY_LABEL = { CASH: 'Cash', BANK: 'Bank', UPI: 'UPI', CARD: 'Card', CHEQUE: 'Cheque' };
+/** "Cash", "UPI" -- never a title-cased "Upi". */
+export const paymentLabel = (m) => PAY_LABEL[String(m || 'CASH').toUpperCase()] || String(m || 'Cash');

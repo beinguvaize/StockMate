@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { describeRecurring, recurringTemplateFor, nextRun, scheduleLine } from './recurring';
+import { describeRecurring, recurringTemplateFor, nextRun, scheduleLine, paymentLabel } from './recurring';
 
 describe('describeRecurring', () => {
   it('names daily schedules the way a shop says them', () => {
@@ -51,5 +51,11 @@ describe('nextRun / scheduleLine', () => {
     expect(scheduleLine({ frequency: 'DAILY', weekdays: [1, 2, 3, 4, 5, 6], last_generated: '2026-10-29' })).toBe('Every day except Sun · next Fri 30 Oct');
     expect(scheduleLine({ frequency: 'MONTHLY', day_of_month: 28, asked_day: 29, last_generated: '2026-10-29' }))
       .toBe("Monthly on the 28th (29th–31st aren't in every month) · next Sat 28 Nov");
+  });
+});
+
+describe('paymentLabel', () => {
+  it('names methods the way the form does', () => {
+    expect(['CASH', 'BANK', 'UPI', 'upi', 'CARD', null].map(paymentLabel)).toEqual(['Cash', 'Bank', 'UPI', 'UPI', 'Card', 'Cash']);
   });
 });
