@@ -157,3 +157,69 @@ describe('the seven bridged pages, per role', () => {
     }
   });
 });
+
+/**
+ * This table is mirrored in SQL by public.can_write_inventory(p_action), which
+ * the products RLS policies call: tenant_insert passes 'create', tenant_update
+ * passes 'edit' OR 'delete' (a soft delete is an UPDATE of deleted_at, and a
+ * policy cannot see a column transition, so UPDATE must accept either).
+ *
+ * The two are written in different languages and cannot import each other, so
+ * if a case here changes, the function changes in the same breath -- otherwise
+ * the database and the app disagree about who may edit a product, and the
+ * database is the side users cannot see.
+ *
+ * Migration: supabase/migrations/20261030_can_write_inventory_per_action.sql
+ */
+describe('inventory writes — mirrored in SQL by can_write_inventory(action)', () => {
+  const cases = [
+    [['GLOBAL_ADMIN'],        null,                            'create', true],
+    [['GLOBAL_ADMIN'],        null,                            'delete', true],
+    [['OWNER'],               null,                            'create', true],
+    [['OWNER'],               null,                            'edit',   true],
+    [['OWNER'],               null,                            'delete', true],
+    [['OWNER', 'STAFF'],      null,                            'edit',   true],
+    [['STAFF'],               null,                            'create', false],
+    [['STAFF'],               null,                            'edit',   false],
+    [['STAFF'],               null,                            'delete', false],
+    // Why the SQL was rewritten: it used to OR the templates with the
+    // permissions object and granted this one.
+    [['STAFF'],               { inventory: { edit: true } },   'edit',   false],
+    [['SALES'],               null,                            'edit',   false],
+    [['INVENTORY'],           null,                            'create', true],
+    [['INVENTORY'],           null,                            'edit',   true],
+    [['INVENTORY'],           null,                            'delete', true],
+    // SALES is tested before INVENTORY, so holding both denies. Deliberate.
+    [['SALES', 'INVENTORY'],  null,                            'edit',   false],
+    [['INVENTORY', 'DRIVER'], null,                            'edit',   true],
+    [['DRIVER'],              null,                            'edit',   false],
+    [['DRIVER'],              { inventory: { edit: true } },   'edit',   false],
+    // Per-action granularity: the old 0-arg SQL ORed these three together and
+    // let a create-only CUSTOM user edit.
+    [['CUSTOM'],              { inventory: { create: true } }, 'create', true],
+    [['CUSTOM'],              { inventory: { create: true } }, 'edit',   false],
+    [['CUSTOM'],              { inventory: { edit: true } },   'edit',   true],
+    [['CUSTOM'],              { inventory: { edit: true } },   'create', false],
+    [['CUSTOM'],              { inventory: { delete: true } }, 'delete', true],
+    [['CUSTOM'],              { inventory: { view: true } },   'edit',   false],
+    [['CUSTOM'],              { sales: { edit: true } },       'edit',   false],
+    [['CUSTOM'],              null,                            'edit',   false],
+    [[],                      { inventory: { edit: true } },   'edit',   true],
+  ];
+
+  it.each(cases)('%s with %o may %s inventory: %s', (roles, permissions, action, expected) => {
+    expect(permits(user(roles, permissions), 'inventory', action)).toBe(expected);
+  });
+
+  it('covers every role template the matrix knows', () => {
+    const covered = new Set(cases.flatMap(([roles]) => roles));
+    for (const role of Object.keys(ROLE_MODULES)) {
+      expect(covered, `no case holds ${role}`).toContain(role);
+    }
+  });
+
+  it('covers all three write actions', () => {
+    const actions = new Set(cases.map(([, , action]) => action));
+    expect([...actions].sort()).toEqual(['create', 'delete', 'edit']);
+  });
+});
