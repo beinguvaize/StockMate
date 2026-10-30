@@ -12,6 +12,10 @@
 --
 -- Identity is resolved from auth.uid() against public.users. Never from
 -- auth.jwt() -> 'user_metadata' / raw_user_meta_data, which the user can write.
+--
+-- The helper calls stay wrapped in (SELECT ...) to match the other policies on
+-- this table: a STABLE function behind an InitPlan is evaluated once per
+-- statement instead of once per row, which matters on a full products scan.
 
 CREATE OR REPLACE FUNCTION public.can_write_inventory()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
@@ -45,14 +49,14 @@ DROP POLICY IF EXISTS tenant_insert ON public.products;
 CREATE POLICY tenant_insert ON public.products
   FOR INSERT
   WITH CHECK (
-    (tenant_id = current_tenant_id() AND can_write_inventory())
-    OR is_global_admin()
+    ((tenant_id = (SELECT current_tenant_id())) AND (SELECT can_write_inventory()))
+    OR (SELECT is_global_admin())
   );
 
 DROP POLICY IF EXISTS tenant_update ON public.products;
 CREATE POLICY tenant_update ON public.products
   FOR UPDATE
   USING (
-    (tenant_id = current_tenant_id() AND can_write_inventory())
-    OR is_global_admin()
+    ((tenant_id = (SELECT current_tenant_id())) AND (SELECT can_write_inventory()))
+    OR (SELECT is_global_admin())
   );
