@@ -885,19 +885,22 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           const _CatTile('Add', '__ADD__', LucideIcons.plus,
                               custom: false, isAdd: true),
                         ];
-                        return GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 5,
-                            mainAxisSpacing: 14,
-                            crossAxisSpacing: 8,
-                            childAspectRatio: 0.78,
-                          ),
-                          itemCount: tiles.length,
-                          itemBuilder: (_, i) {
-                            final t = tiles[i];
+                        // Fixed-width tiles in a Wrap, not a fixed-ratio grid:
+                        // the row height follows the icon and label, so a
+                        // 320-360dp phone or a larger system font never
+                        // overflows the cell. The icon shrinks only when the
+                        // column is narrower than its 56dp.
+                        return LayoutBuilder(builder: (context, box) {
+                          const columns = 5;
+                          const gap = 8.0;
+                          final tileWidth =
+                              ((box.maxWidth - gap * (columns - 1)) / columns)
+                                  .floorToDouble();
+                          final iconSize = tileWidth < 56 ? tileWidth : 56.0;
+                          return Wrap(
+                            spacing: gap,
+                            runSpacing: 14,
+                            children: tiles.map((t) {
                             final selected =
                                 !t.isAdd && _selectedCategory == t.value;
                             return GestureDetector(
@@ -911,13 +914,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               onLongPress: t.custom
                                   ? () => _deleteCategoryDialog(t.value)
                                   : null,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              child: SizedBox(
+                                width: tileWidth,
+                                child: Column(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   AnimatedContainer(
                                     duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
-                                    width: 56,
-                                    height: 56,
+                                    width: iconSize,
+                                    height: iconSize,
                                     decoration: BoxDecoration(
                                       color: selected
                                           ? AppColors.primary
@@ -971,10 +976,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                     ),
                                   ),
                                 ],
+                                ),
                               ),
                             );
-                          },
-                        );
+                            }).toList(),
+                          );
+                        });
                       }),
                     ),
 
