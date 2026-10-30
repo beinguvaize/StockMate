@@ -119,6 +119,36 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOw
 
  const moduleKey = moduleMap[path];
 
+ // The RBAC module is NOT always the plan module.
+ //
+ // moduleMap above answers "which plan sells this page", and those keys are
+ // per-page: `labels` is its own ENTERPRISE line item. The role matrix in
+ // hasPermission() speaks a smaller vocabulary -- the job someone does, not the
+ // page -- so it has no 'labels', no 'estimates', no 'kds'. Asking it about a
+ // page name it does not know means only OWNER and GLOBAL_ADMIN get through.
+ //
+ // That is how an INVENTORY-role user ended up seeing Labels in the nav and
+ // then hitting Security Restricted: AppLayout gates that link on 'inventory'
+ // (AppLayout.jsx), the router asked about 'labels', and the two disagreed.
+ //
+ // The nav's key is the right one for a role check, so these paths override it
+ // here. Remapping moduleMap itself would have been wrong: `inventory` ships in
+ // every plan down to FREE, so pointing the PLAN gate at it would have handed
+ // Labels, Kitchen and Manufacturing to tenants who never paid for them.
+ //
+ // Only paths whose nav key already differs are listed, so nobody gains a page
+ // the nav was not already offering them.
+ const rbacMap = {
+   'labels': 'inventory',          // Barcode & Labels is inventory work
+   'manufacturing': 'inventory',   // production orders consume stock
+   'invoices': 'sales',            // issuing an invoice is a sale
+   'estimates': 'sales',
+   'appointments': 'sales',        // booking a slot is the service sale
+   'kds': 'sales',                 // the kitchen works the sales queue
+   'accounts': 'daybook',          // Cash & Bank is the day book's other face
+ };
+ const rbacKey = rbacMap[path] || moduleKey;
+
  // Vertical-based module gating.
  //
  // AppLayout already hides these nav items when the tenant's vertical has them
@@ -216,7 +246,7 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOw
  }
 
  // RBAC permission guard
- if (moduleKey && !hasPermission(moduleKey, 'view')) {
+ if (rbacKey && !hasPermission(rbacKey, 'view')) {
  return (
  <div className="flex flex-col items-center justify-center min-h-[80vh] p-5 animate-in fade-in zoom-in duration-500">
  <div className="glass-panel max-w-[500px] w-full text-center p-6 border-red-500/10">
