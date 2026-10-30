@@ -200,3 +200,12 @@ Map<String, dynamic> recurringTemplateRow({
           frequency: frequency, weekdays: weekdays, date: date, today: today),
       'active': true,
     };
+
+const _payLabel = {'CASH': 'Cash', 'BANK': 'Bank', 'UPI': 'UPI', 'CARD': 'Card', 'CHEQUE': 'Cheque'};
+
+/// "Cash", "UPI" -- never a title-cased "Upi". Blank means cash; a method
+/// not in the map is shown as stored.
+String paymentLabel(String? m) {
+  final raw = (m == null || m.isEmpty) ? null : m;
+  return _payLabel[(raw ?? 'CASH').toUpperCase()] ?? raw ?? 'Cash';
+}

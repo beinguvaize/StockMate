@@ -97,6 +97,14 @@ void main() {
     }
   });
 
+  group('paymentLabel', () {
+    for (final c in section('paymentLabel')) {
+      test('${jsonEncode(c['input'])} -> ${c['expect']}', () {
+        expect(paymentLabel(c['input'] as String?), c['expect']);
+      });
+    }
+  });
+
   test('nextRun is null without a last_generated', () {
     expect(nextRun({'frequency': 'DAILY'}), isNull);
     expect(scheduleLine({'frequency': 'DAILY'}), 'Every day');
