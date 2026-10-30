@@ -43,6 +43,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   // 7 = Sun); all seven chosen is stored as "every day".
   String _repeat = 'NONE';
   Set<int> _weekdays = {1, 2, 3, 4, 5, 6, 7};
+  bool _keepOneDay = false; // tried to turn off the last selected day
   bool _excludeFromPl = false;
   String? _storeId; // store/till this expense was paid from (multi-store)
 
@@ -399,17 +400,23 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             ripple: false,
             onTap: onTap,
             child: Container(
-              constraints: const BoxConstraints(minHeight: 40, minWidth: 44),
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              alignment: Alignment.center,
+              // Size to the label (or to the slot an Expanded gives it).
+              // `alignment` here would make every pill as wide as its parent
+              // allows -- inside a Wrap that was one weekday per line.
+              constraints: const BoxConstraints(minHeight: 44),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
                 color: on ? AppColors.primary.withValues(alpha: 0.12) : Colors.white,
                 border: Border.all(color: on ? AppColors.primary : AppColors.outlineVariant),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Text(label, style: GoogleFonts.publicSans(
-                fontSize: 13, fontWeight: on ? FontWeight.w800 : FontWeight.w600,
-                color: on ? AppColors.primary : AppColors.inkSecondary)),
+              child: Center(
+                widthFactor: 1,
+                heightFactor: 1,
+                child: Text(label, maxLines: 1, style: GoogleFonts.publicSans(
+                  fontSize: 13, fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                  color: on ? AppColors.primary : AppColors.inkSecondary)),
+              ),
             ),
           ),
         );
@@ -442,19 +449,31 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           ]),
           if (_repeat == 'DAILY') ...[
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final w in weekdays)
-                  pill(w.short, _weekdays.contains(w.n), () {
-                    final next = {..._weekdays};
-                    if (!next.remove(w.n)) next.add(w.n);
-                    // At least one day: an empty list would mean "every day".
-                    if (next.isNotEmpty) setState(() => _weekdays = next);
-                  }),
-              ],
-            ),
+            // One row of seven, Mon first, the same order as the web.
+            Row(children: [
+              for (final w in weekdays)
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: w.n == 7 ? 0 : 4),
+                    child: pill(w.short, _weekdays.contains(w.n), () {
+                      final next = {..._weekdays};
+                      if (!next.remove(w.n)) next.add(w.n);
+                      // At least one day: an empty list would mean "every
+                      // day". Say so instead of ignoring the tap.
+                      setState(() {
+                        _keepOneDay = next.isEmpty;
+                        if (next.isNotEmpty) _weekdays = next;
+                      });
+                    }, semantics: '${w.short}, ${_weekdays.contains(w.n) ? 'on' : 'off'}'),
+                  ),
+                ),
+            ]),
+            if (_keepOneDay) ...[
+              const SizedBox(height: 8),
+              Text('Keep at least one day', key: const Key('keep-one-day'),
+                  style: GoogleFonts.publicSans(
+                    fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.danger)),
+            ],
           ],
         ],
       ),
