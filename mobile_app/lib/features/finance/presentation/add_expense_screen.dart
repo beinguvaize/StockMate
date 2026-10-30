@@ -89,21 +89,22 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   // ── Amount figure sizing ──
-  // The amount is drawn at 56 and shrinks, no lower than 28, so a long
-  // figure on a narrow phone or under a large system font stays whole
-  // instead of silently scrolling its first digits out of sight (₹12,34,567
-  // read as 2,34,567). Only past the floor does the field scroll.
+  // The amount is drawn at 56 and shrinks, never rendering smaller than 28,
+  // so a long figure on a narrow phone or under a large system font stays
+  // whole instead of silently scrolling its first digits out of sight
+  // (₹12,34,567 read as 2,34,567). Only past the floor does the field scroll.
   static const _amountMaxSize = 56.0;
-  static const _amountMinSize = 28.0;
+  static const _amountMinRendered = 28.0;
   static const _amountHint = '0.00';
 
-  TextStyle get _rupeeStyle => GoogleFonts.publicSans(
-        fontSize: 24,
+  // ₹, its offset and the letter spacing all scale with the figure, so the
+  // row keeps the proportions it has at 56.
+  TextStyle _rupeeStyle(double size) => GoogleFonts.publicSans(
+        fontSize: 24 * size / _amountMaxSize,
         fontWeight: FontWeight.w300,
         color: AppColors.inkTertiary,
       );
 
-  // Letter spacing scales with the size, so width is proportional to it.
   TextStyle _amountStyle(double size) => GoogleFonts.publicSans(
         fontSize: size,
         fontWeight: FontWeight.w800,
@@ -119,29 +120,74 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         letterSpacing: -2 * size / _amountMaxSize,
       );
 
+  Size _measure(String s, TextStyle style, TextScaler scaler) {
+    final painter = TextPainter(
+      text: TextSpan(text: s, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    final size = painter.size;
+    painter.dispose();
+    return size;
+  }
+
+  /// The largest size, up to 56, at which [text] fits beside ₹ in
+  /// [maxWidth]. Each candidate is laid out with the real text scaler and
+  /// bisected, because Android 14 scales large text non-linearly: shrinking
+  /// in proportion to one measurement at 56 picks a size that still scrolls.
   double _amountFontSize(BuildContext context, String text, double maxWidth) {
     final scaler = MediaQuery.textScalerOf(context);
-    double widthOf(String s, TextStyle style) {
-      final painter = TextPainter(
-        text: TextSpan(text: s, style: style),
-        textDirection: TextDirection.ltr,
-        textScaler: scaler,
-        maxLines: 1,
-      )..layout();
-      final width = painter.width;
-      painter.dispose();
-      return width;
+    final shown = text.isEmpty ? _amountHint : text;
+    bool fits(double size) {
+      final style =
+          text.isEmpty ? _amountHintStyle(size) : _amountStyle(size);
+      // The field's 280dp cap, or what the row has after ₹ and its 6dp
+      // gap, less a little for the cursor.
+      final room = (maxWidth - _measure('₹', _rupeeStyle(size), scaler).width - 6)
+              .clamp(0.0, 280.0) -
+          4;
+      return _measure(shown, style, scaler).width <= room;
     }
 
-    // Room for the field: what the row has after ₹ and its 6dp gap, capped
-    // at the field's 280dp, less a little for the cursor.
-    final room = (maxWidth - widthOf('₹', _rupeeStyle) - 6).clamp(0.0, 280.0) - 4;
-    final natural = text.isEmpty
-        ? widthOf(_amountHint, _amountHintStyle(_amountMaxSize))
-        : widthOf(text, _amountStyle(_amountMaxSize));
-    if (natural <= room) return _amountMaxSize;
-    return (_amountMaxSize * room / natural)
-        .clamp(_amountMinSize, _amountMaxSize);
+    if (fits(_amountMaxSize)) return _amountMaxSize;
+    // The floor is on the rendered size: under a 2x font a nominal 28 would
+    // draw 56 tall and still scroll.
+    var lo = 1.0, hi = _amountMinRendered;
+    if (scaler.scale(_amountMinRendered) <= _amountMinRendered) {
+      lo = _amountMinRendered;
+    } else {
+      for (var i = 0; i < 10; i++) {
+        final mid = (lo + hi) / 2;
+        if (scaler.scale(mid) >= _amountMinRendered) {
+          hi = mid;
+        } else {
+          lo = mid;
+        }
+      }
+      lo = hi;
+    }
+    if (!fits(lo)) return lo;
+    hi = _amountMaxSize;
+    for (var i = 0; i < 8; i++) {
+      final mid = (lo + hi) / 2;
+      if (fits(mid)) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
+  }
+
+  /// The amount row's height at the full 56, held while the figure shrinks
+  /// so the form below does not climb as a long figure is typed.
+  double _amountRowHeight(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final figure = _measure('0', _amountStyle(_amountMaxSize), scaler).height;
+    final rupee =
+        12 + _measure('₹', _rupeeStyle(_amountMaxSize), scaler).height;
+    return figure > rupee ? figure : rupee;
   }
 
   Future<void> _pickDate() async {
@@ -621,14 +667,19 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 LayoutBuilder(builder: (context, box) {
                             final size = _amountFontSize(
                                 context, value.text, box.maxWidth);
-                            return Row(
+                            return ConstrainedBox(
+                            constraints: BoxConstraints(
+                                minHeight: _amountRowHeight(context)),
+                            child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
                                 padding: EdgeInsets.only(
                                     top: 12 * size / _amountMaxSize),
-                                child: Text('₹', style: _rupeeStyle),
+                                child: Text('₹', style: _rupeeStyle(size)),
                               ),
                               const SizedBox(width: 6),
                               // Flexible so the 280dp cap gives way to the
@@ -663,6 +714,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 ),
                               ),
                             ],
+                          ),
+                          ),
                           );
                           }),
                           ),
