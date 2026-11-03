@@ -88,6 +88,108 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     super.dispose();
   }
 
+  // ── Amount figure sizing ──
+  // The amount is drawn at 56 and shrinks, never rendering smaller than 28,
+  // so a long figure on a narrow phone or under a large system font stays
+  // whole instead of silently scrolling its first digits out of sight
+  // (₹12,34,567 read as 2,34,567). Only past the floor does the field scroll.
+  static const _amountMaxSize = 56.0;
+  static const _amountMinRendered = 28.0;
+  static const _amountHint = '0.00';
+
+  // ₹, its offset and the letter spacing all scale with the figure, so the
+  // row keeps the proportions it has at 56.
+  TextStyle _rupeeStyle(double size) => GoogleFonts.publicSans(
+        fontSize: 24 * size / _amountMaxSize,
+        fontWeight: FontWeight.w300,
+        color: AppColors.inkTertiary,
+      );
+
+  TextStyle _amountStyle(double size) => GoogleFonts.publicSans(
+        fontSize: size,
+        fontWeight: FontWeight.w800,
+        color: AppColors.inkPrimary,
+        letterSpacing: -2 * size / _amountMaxSize,
+        height: 1,
+      );
+
+  TextStyle _amountHintStyle(double size) => GoogleFonts.publicSans(
+        fontSize: size,
+        fontWeight: FontWeight.w800,
+        color: AppColors.inkTertiary.withValues(alpha: 0.25),
+        letterSpacing: -2 * size / _amountMaxSize,
+      );
+
+  Size _measure(String s, TextStyle style, TextScaler scaler) {
+    final painter = TextPainter(
+      text: TextSpan(text: s, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    final size = painter.size;
+    painter.dispose();
+    return size;
+  }
+
+  /// The largest size, up to 56, at which [text] fits beside ₹ in
+  /// [maxWidth]. Each candidate is laid out with the real text scaler and
+  /// bisected, because Android 14 scales large text non-linearly: shrinking
+  /// in proportion to one measurement at 56 picks a size that still scrolls.
+  double _amountFontSize(BuildContext context, String text, double maxWidth) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final shown = text.isEmpty ? _amountHint : text;
+    bool fits(double size) {
+      final style =
+          text.isEmpty ? _amountHintStyle(size) : _amountStyle(size);
+      // The field's 280dp cap, or what the row has after ₹ and its 6dp
+      // gap, less a little for the cursor.
+      final room = (maxWidth - _measure('₹', _rupeeStyle(size), scaler).width - 6)
+              .clamp(0.0, 280.0) -
+          4;
+      return _measure(shown, style, scaler).width <= room;
+    }
+
+    if (fits(_amountMaxSize)) return _amountMaxSize;
+    // The floor is on the rendered size: under a 2x font a nominal 28 would
+    // draw 56 tall and still scroll.
+    var lo = 1.0, hi = _amountMinRendered;
+    if (scaler.scale(_amountMinRendered) <= _amountMinRendered) {
+      lo = _amountMinRendered;
+    } else {
+      for (var i = 0; i < 10; i++) {
+        final mid = (lo + hi) / 2;
+        if (scaler.scale(mid) >= _amountMinRendered) {
+          hi = mid;
+        } else {
+          lo = mid;
+        }
+      }
+      lo = hi;
+    }
+    if (!fits(lo)) return lo;
+    hi = _amountMaxSize;
+    for (var i = 0; i < 8; i++) {
+      final mid = (lo + hi) / 2;
+      if (fits(mid)) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
+  }
+
+  /// The amount row's height at the full 56, held while the figure shrinks
+  /// so the form below does not climb as a long figure is typed.
+  double _amountRowHeight(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final figure = _measure('0', _amountStyle(_amountMaxSize), scaler).height;
+    final rupee =
+        12 + _measure('₹', _rupeeStyle(_amountMaxSize), scaler).height;
+    return figure > rupee ? figure : rupee;
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -559,25 +661,32 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             ),
                           ),
                           const SizedBox(height: 14),
-                          Row(
+                          ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: _amountController,
+                            builder: (context, value, _) =>
+                                LayoutBuilder(builder: (context, box) {
+                            final size = _amountFontSize(
+                                context, value.text, box.maxWidth);
+                            return ConstrainedBox(
+                            constraints: BoxConstraints(
+                                minHeight: _amountRowHeight(context)),
+                            child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
-                                padding: const EdgeInsets.only(top: 12),
-                                child: Text(
-                                  '₹',
-                                  style: GoogleFonts.publicSans(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w300,
-                                    color: AppColors.inkTertiary,
-                                  ),
-                                ),
+                                padding: EdgeInsets.only(
+                                    top: 12 * size / _amountMaxSize),
+                                child: Text('₹', style: _rupeeStyle(size)),
                               ),
                               const SizedBox(width: 6),
                               // Flexible so the 280dp cap gives way to the
                               // room actually left on a narrow phone or under
-                              // a large font; a long figure scrolls inside.
+                              // a large font. The figure shrinks to fit that
+                              // room (see _amountFontSize) and only scrolls
+                              // once it reaches the floor size.
                               Flexible(
                                 child: ConstrainedBox(
                                 constraints: const BoxConstraints(maxWidth: 280),
@@ -590,32 +699,25 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                     ],
                                     cursorColor: AppColors.primary,
                                     textAlign: TextAlign.center,
-                                    style: GoogleFonts.publicSans(
-                                      fontSize: 56,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.inkPrimary,
-                                      letterSpacing: -2,
-                                      height: 1,
-                                    ),
+                                    style: _amountStyle(size),
                                     decoration: InputDecoration(
                                       isDense: true,
                                       contentPadding: EdgeInsets.zero,
                                       border: InputBorder.none,
                                       enabledBorder: InputBorder.none,
                                       focusedBorder: InputBorder.none,
-                                      hintText: '0.00',
-                                      hintStyle: GoogleFonts.publicSans(
-                                        fontSize: 56,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.inkTertiary.withValues(alpha: 0.25),
-                                        letterSpacing: -2,
-                                      ),
+                                      hintText: _amountHint,
+                                      hintStyle: _amountHintStyle(size),
                                     ),
                                   ),
                                 ),
                                 ),
                               ),
                             ],
+                          ),
+                          ),
+                          );
+                          }),
                           ),
                           const SizedBox(height: 22),
                           // Decorative accent bar (h-1 w-12, primary @ 20%)
