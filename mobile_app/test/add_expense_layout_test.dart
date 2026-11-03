@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/features/finance/data/models/expense.dart';
 import 'package:mobile_app/features/finance/presentation/add_expense_screen.dart';
 import 'package:mobile_app/features/finance/presentation/providers/finance_provider.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart'
@@ -14,7 +15,7 @@ import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart'
 /// real phone widths and fail on any layout exception.
 void main() {
   Future<void> pump(WidgetTester tester, double width,
-      {List<String> custom = const [], TextScaler? scaler}) async {
+      {List<String> custom = const [], TextScaler? scaler, Expense? expense}) async {
     tester.view.physicalSize = Size(width, 780);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -31,7 +32,7 @@ void main() {
                   data: MediaQuery.of(context).copyWith(textScaler: scaler),
                   child: child!,
                 ),
-        home: const AddExpenseScreen(),
+        home: AddExpenseScreen(expense: expense),
       ),
     ));
     await tester.pump();
@@ -100,10 +101,12 @@ void main() {
         reason: 'the whole figure fits, so nothing is scrolled out of view');
   });
 
+  // 123456789.12 is the longest figure the field accepts; at 320dp it still
+  // needs well under 28 to fit, so it reaches the floor.
   testWidgets('the figure never shrinks below 28 and scrolls past it',
       (t) async {
     await pump(t, 320);
-    await t.enterText(find.byType(TextField).first, '1234567890.12');
+    await t.enterText(find.byType(TextField).first, '123456789.12');
     await t.pump();
     expect(t.takeException(), isNull);
     expect(amountSize(t), 28);
@@ -165,7 +168,7 @@ void main() {
     addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
     final errors = await otherErrors(() async {
       await pump(t, 320);
-      await t.enterText(find.byType(TextField).first, '1234567890.12');
+      await t.enterText(find.byType(TextField).first, '123456789.12');
       await t.pump();
     });
     expect(errors, isEmpty);
@@ -202,6 +205,113 @@ void main() {
     final purchase = t.getTopLeft(find.text('PURCHASE'));
     expect(utility.dy, food.dy);
     expect(purchase.dy, greaterThan(food.dy));
+  });
+
+  // The test font draws every glyph as a full square, wider than Public
+  // Sans, so at 2x it overflows the CATEGORY header and the Log Expense
+  // button where real glyphs do not. These look at one widget's geometry
+  // and drop that unrelated noise.
+  Future<void> pumpScaled(WidgetTester t, double width, double scale) async {
+    await pump(t, width, scaler: TextScaler.linear(scale));
+    t.takeException();
+  }
+
+  // A paragraph squeezed below what its text needs is cut off: narrower
+  // than its one-line width (CASH drawn as CAS), or shorter than its lines
+  // (the date's descenders lost at the baseline).
+  void expectWhole(WidgetTester t, Finder text, {bool oneLine = false}) {
+    final p = t.renderObject<RenderParagraph>(text);
+    if (oneLine) {
+      expect(
+        p.size.width,
+        greaterThanOrEqualTo(p.getMaxIntrinsicWidth(double.infinity) - 0.01),
+        reason: 'label is narrower than its text',
+      );
+    }
+    expect(
+      p.size.height,
+      greaterThanOrEqualTo(p.getMinIntrinsicHeight(p.size.width) - 0.01),
+      reason: 'label is shorter than its lines',
+    );
+  }
+
+  for (final scale in [1.3, 2.0]) {
+    for (final width in [320.0, 360.0, 412.0]) {
+      testWidgets('PAID VIA chips show whole labels at ${width.toInt()}dp, '
+          '${scale}x', (t) async {
+        await pumpScaled(t, width, scale);
+        for (final m in ['CASH', 'UPI', 'BANK', 'CARD']) {
+          expectWhole(t, find.text(m), oneLine: true);
+          expect(t.getBottomRight(find.text(m)).dx, lessThanOrEqualTo(width));
+        }
+      });
+
+      testWidgets(
+        'date field holds its text at ${width.toInt()}dp, ${scale}x',
+        (t) async {
+          await pumpScaled(t, width, scale);
+          expectWhole(t, find.textContaining('Today, '));
+        },
+      );
+    }
+  }
+
+  testWidgets('PAID VIA stays one row of four at 1x', (t) async {
+    await pump(t, 360);
+    final cash = t.getTopLeft(find.text('CASH'));
+    expect(t.getTopLeft(find.text('CARD')).dy, cash.dy);
+    expectWhole(t, find.text('CASH'), oneLine: true);
+  });
+
+  group('amount field takes a well-formed figure only', () {
+    Future<String> type(WidgetTester t, List<String> steps) async {
+      await pump(t, 360);
+      final field = find.byType(TextField).first;
+      for (final s in steps) {
+        await t.enterText(field, s);
+        await t.pump();
+      }
+      return t.widget<TextField>(field).controller!.text;
+    }
+
+    testWidgets('a second dot is refused', (t) async {
+      expect(await type(t, ['12.5', '12.5.']), '12.5');
+    });
+
+    testWidgets('a third decimal is refused', (t) async {
+      expect(await type(t, ['12.34', '12.345']), '12.34');
+    });
+
+    testWidgets('a tenth rupee digit is refused', (t) async {
+      expect(await type(t, ['123456789', '1234567890']), '123456789');
+      await t.enterText(find.byType(TextField).first, '123456789.99');
+      await t.pump();
+      expect(find.text('123456789.99'), findsOneWidget);
+    });
+
+    testWidgets('pasted grouping commas are still stripped', (t) async {
+      expect(await type(t, ['1,234.50']), '1234.50');
+    });
+  });
+
+  testWidgets('edit mode opens on the stored amount, paise included', (
+    t,
+  ) async {
+    await pump(
+      t,
+      360,
+      expense: Expense(id: 'e1', category: 'Food', amount: 150.5),
+    );
+    expect(find.text('150.5'), findsOneWidget);
+  });
+
+  testWidgets('edit mode shows a whole amount without decimals', (t) async {
+    await pump(
+      t,
+      360,
+      expense: Expense(id: 'e1', category: 'Food', amount: 2000),
+    );
+    expect(find.text('2000'), findsOneWidget);
   });
 }
 
