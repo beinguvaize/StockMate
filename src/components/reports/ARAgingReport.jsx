@@ -1,309 +1,152 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
-import {
-  AlertTriangle, UserCircle, Phone, Calendar, DollarSign,
-  TrendingDown, Clock, FileWarning
-} from 'lucide-react';
-import {
-  formatINR, daysBetween, getAgingBucket, AGING_BUCKETS,
-  AGING_BUCKET_COLORS, round2
-} from '../../utils/financialCalculations';
+import { AlertTriangle, UserCircle, Phone, Calendar, FileWarning } from 'lucide-react';
+import { formatINR, AGING_BUCKET_COLORS } from '../../utils/financialCalculations';
+import { supabase } from '../../lib/supabase';
+import { useTenant } from '../../context/TenantContext';
+import { todayISOInAppTZ } from '../../lib/utils';
+import { AGE_BUCKETS, ageBucket, buildAging } from '../../lib/receivableAging';
+
+// The palette keys predate these buckets: the youngest takes the "current" colour.
+const colourOf = (b) => AGING_BUCKET_COLORS[b === '0-30' ? 'CURRENT' : b];
 
 /**
- * AR Aging Report — per-invoice / per-client aging analysis
- * Buckets: CURRENT | 1-30 | 31-60 | 61-90 | 91-120 | 120+
+ * Customer Aging: what customers owe, by how long it has been unpaid.
  *
- * Uses invoices table if available; falls back to clients table with balance.
+ * Reads get_unpaid_sales, not invoices: most sales never get an invoice row,
+ * and that table showed Rs 1,761 where customers owed Rs 73,819. Bills carry
+ * no due dates, so this ages from the sale date and says "unpaid for", never
+ * "overdue".
  */
 const ARAgingReport = () => {
-  // Try invoices table first (per-invoice aging is more accurate)
-  const { data: invoices, loading: invLoading } = useReportData({
-    table: 'invoices',
-    select: '*',
-    dateColumn: 'date',
-  });
+  const { currentTenantId } = useTenant();
+  const [unpaid, setUnpaid] = useState([]);
+  const [unpaidLoading, setUnpaidLoading] = useState(true);
+  const [failure, setFailure] = useState('');
+
+  const load = useCallback(async () => {
+    if (!currentTenantId) return;
+    setUnpaidLoading(true);
+    setFailure('');
+    const { data, error } = await supabase.rpc('get_unpaid_sales', { p_tenant_id: currentTenantId });
+    if (error) {
+      console.error('[aging] get_unpaid_sales failed', error);
+      setFailure(error.message || 'Could not load what customers owe');
+      setUnpaid([]);
+    } else {
+      setUnpaid(data || []);
+    }
+    setUnpaidLoading(false);
+  }, [currentTenantId]);
+  useEffect(() => { load(); }, [load]);
 
   const { data: clients, loading: cliLoading } = useReportData({
     table: 'clients',
-    select: '*',
+    select: 'id, outstanding_balance',
     nullFilters: { deleted_at: null },
   });
 
-  const loading = invLoading || cliLoading;
+  const loading = unpaidLoading || cliLoading;
+  const aging = useMemo(() => buildAging(unpaid, clients, todayISOInAppTZ()), [unpaid, clients]);
 
-  // --- Per-invoice aging ---
-  const invoiceAging = useMemo(() => {
-    if (!invoices || !invoices.length) return { rows: [], bucketTotals: {}, total: 0 };
-
-    const rows = invoices
-      .filter((inv) => {
-        const status = (inv.status || '').toUpperCase();
-        return status !== 'PAID' && Number(inv.amount ?? inv.total_amount ?? inv.balance ?? 0) > 0;
-      })
-      .map((inv) => {
-        const client = clients.find((c) => c.id === inv.clientId || c.id === inv.client_id);
-        const dueDate = inv.due_date || inv.dueDate || inv.date;
-        const daysOverdue = daysBetween(dueDate);
-        const bucket = getAgingBucket(daysOverdue);
-        const amount = Number(inv.amount ?? inv.total_amount ?? inv.balance ?? 0);
-
-        return {
-          id: inv.id,
-          invoice_no: inv.invoice_no || (inv.id || '').slice(0, 8).toUpperCase(),
-          client_name: client?.name || inv.client_name || 'Unknown',
-          phone: client?.phone || '',
-          date: inv.date,
-          due_date: dueDate,
-          days_overdue: daysOverdue > 0 ? daysOverdue : 0,
-          bucket: bucket,
-          amount: round2(amount),
-          status: (inv.status || 'OPEN').toUpperCase(),
-        };
-      });
-
-    const bucketTotals = AGING_BUCKETS.reduce((acc, b) => ({ ...acc, [b]: 0 }), {});
-    let total = 0;
-    rows.forEach((r) => {
-      bucketTotals[r.bucket] = (bucketTotals[r.bucket] || 0) + r.amount;
-      total += r.amount;
-    });
-
-    return { rows, bucketTotals, total };
-  }, [invoices, clients]);
-
-  // --- Per-client aging (fallback when invoices empty, OR pivoted from invoices) ---
-  const clientAging = useMemo(() => {
-    if (invoiceAging.rows.length > 0) {
-      // Pivot invoice aging by client
-      const byClient = {};
-      invoiceAging.rows.forEach((r) => {
-        if (!byClient[r.client_name]) {
-          byClient[r.client_name] = {
-            client_name: r.client_name,
-            phone: r.phone,
-            total: 0,
-            CURRENT: 0, '1-30': 0, '31-60': 0, '61-90': 0, '91-120': 0, '120+': 0,
-          };
-        }
-        byClient[r.client_name][r.bucket] += r.amount;
-        byClient[r.client_name].total += r.amount;
-      });
-      return Object.values(byClient).sort((a, b) => b.total - a.total);
-    }
-
-    // Fallback: use client.balance with last_payment_date / updated_at as due proxy
-    return (clients || [])
-      .filter((c) => Number(c.balance || 0) > 0)
-      .map((c) => {
-        const dueDate = c.due_date || c.last_payment_date || c.updated_at || c.created_at;
-        const daysOverdue = daysBetween(dueDate);
-        const bucket = getAgingBucket(daysOverdue);
-        const balance = round2(Number(c.balance || 0));
-
-        const row = {
-          client_name: c.name,
-          phone: c.phone || '',
-          total: balance,
-          CURRENT: 0, '1-30': 0, '31-60': 0, '61-90': 0, '91-120': 0, '120+': 0,
-        };
-        row[bucket] = balance;
-        return row;
-      })
-      .sort((a, b) => b.total - a.total);
-  }, [invoiceAging, clients]);
-
-  // --- Bucket totals for the client-level view ---
-  const clientBucketTotals = useMemo(() => {
-    const totals = AGING_BUCKETS.reduce((acc, b) => ({ ...acc, [b]: 0 }), {});
-    let grand = 0;
-    clientAging.forEach((c) => {
-      AGING_BUCKETS.forEach((b) => {
-        totals[b] += c[b] || 0;
-      });
-      grand += c.total;
-    });
-    return { totals, grand };
-  }, [clientAging]);
-
-  // --- KPI cards ---
   const kpis = useMemo(() => {
-    const grand = clientBucketTotals.grand;
-    const current = clientBucketTotals.totals['CURRENT'] || 0;
-    const overdue = grand - current;
-    const severeOverdue = (clientBucketTotals.totals['91-120'] || 0) + (clientBucketTotals.totals['120+'] || 0);
-    const overdueRate = grand > 0 ? (overdue / grand) * 100 : 0;
-
-    const bucketChart = AGING_BUCKETS.map((b) => ({ value: clientBucketTotals.totals[b] || 0 }));
-
+    const series = AGE_BUCKETS.map((b) => ({ value: aging.totals[b] || 0 }));
+    const share = aging.total > 0 ? (aging.over30 / aging.total) * 100 : 0;
     return [
-      {
-        id: 'total_ar',
-        label: 'Total Receivables',
-        value: grand,
-        trend: 0,
-        trendDir: 'none',
-        color: 'indigo',
-        chartData: bucketChart,
-      },
-      {
-        id: 'overdue',
-        label: 'Past Due',
-        value: overdue,
-        trend: overdueRate.toFixed(1),
-        trendDir: 'up',
-        color: 'amber',
-        chartData: bucketChart.slice(1),
-      },
-      {
-        id: 'severe',
-        label: 'Severely Overdue (>90d)',
-        value: severeOverdue,
-        trend: 0,
-        trendDir: 'none',
-        color: 'rose',
-        chartData: bucketChart.slice(4),
-      },
-      {
-        id: 'rate',
-        label: 'Overdue Rate',
-        value: `${overdueRate.toFixed(1)}%`,
-        trend: 0,
-        trendDir: 'none',
-        color: overdueRate > 30 ? 'rose' : 'emerald',
-        chartData: bucketChart,
-      },
+      { id: 'total_ar', label: 'Customers owe', value: aging.total, trend: 0, trendDir: 'none', color: 'indigo', chartData: series },
+      { id: 'over30', label: 'Unpaid over 30 days', value: aging.over30, trend: 0, trendDir: 'none', color: 'amber', chartData: series.slice(1) },
+      { id: 'over90', label: 'Unpaid over 90 days', value: aging.over90, trend: 0, trendDir: 'none', color: 'rose', chartData: series.slice(3) },
+      { id: 'share', label: 'Share over 30 days', value: `${share.toFixed(1)}%`, trend: 0, trendDir: 'none', color: share > 30 ? 'rose' : 'emerald', chartData: series },
     ];
-  }, [clientBucketTotals]);
+  }, [aging]);
 
-  // --- Chart data: bucket distribution ---
-  const chartData = AGING_BUCKETS.map((b) => ({
-    name: b,
-    value: clientBucketTotals.totals[b] || 0,
-  }));
+  const chartData = AGE_BUCKETS.map((b) => ({ name: `${b} days`, value: aging.totals[b] || 0 }));
 
-  // ---- Tab: Aging Summary (by client) ----
   const bucketColumn = (bucket) => ({
     key: bucket,
-    label: bucket === 'CURRENT' ? 'Current' : `${bucket} days`,
+    label: `${bucket} days`,
     type: 'currency',
     align: 'right',
     sortable: true,
     width: 130,
     render: (val) => {
-      const c = AGING_BUCKET_COLORS[bucket];
       if (!val || val <= 0) return <span className="text-muted-foreground">—</span>;
-      return <span className={`font-semibold ${c.text}`}>{formatINR(val)}</span>;
+      return <span className={`font-semibold ${colourOf(bucket).text}`}>{formatINR(val)}</span>;
     },
   });
 
   const summaryTab = {
     id: 'AR_AGING_SUMMARY',
-    label: 'Aging by Client',
+    label: 'By customer',
     icon: <UserCircle size={18} />,
-    data: clientAging,
-    loading: loading,
-    totals: {
-      total: clientBucketTotals.grand,
-      ...clientBucketTotals.totals,
-    },
+    data: aging.customers,
+    loading,
+    totals: { total: aging.total, ...aging.totals },
     columns: [
-      {
-        key: 'client_name', label: 'Client', sortable: true, width: 220,
-        render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>,
-      },
-      { key: 'phone', label: 'Contact', width: 140, render: (val) => <span className="text-[10px] font-semibold text-muted-foreground">{val || '—'}</span> },
-      bucketColumn('CURRENT'),
-      bucketColumn('1-30'),
-      bucketColumn('31-60'),
-      bucketColumn('61-90'),
-      bucketColumn('91-120'),
-      bucketColumn('120+'),
-      {
-        key: 'total', label: 'Total Outstanding', type: 'currency', align: 'right', sortable: true, width: 160,
-        render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span>,
-      },
+      { key: 'client_name', label: 'Customer', sortable: true, width: 220, render: (val) => <span className="font-semibold text-foreground">{val}</span> },
+      { key: 'phone', label: 'Contact', width: 130, render: (val) => <span className="text-[11px] text-muted-foreground">{val || '—'}</span> },
+      { key: 'bills', label: 'Bills', align: 'right', sortable: true, width: 70 },
+      { key: 'oldest', label: 'Oldest', align: 'right', sortable: true, width: 90, render: (val) => <span className="text-[12px] text-muted-foreground">{val} days</span> },
+      ...AGE_BUCKETS.map(bucketColumn),
+      { key: 'total', label: 'Total owed', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span> },
     ],
-    kpis: kpis,
+    kpis,
     chartConfig: {
-      title: 'Receivables by Aging Bucket',
+      title: 'What customers owe, by age',
       type: 'bar',
       data: chartData,
-      series: [{ key: 'value', name: 'Outstanding', color: '#ef4444' }],
+      series: [{ key: 'value', name: 'Owed', color: '#f59e0b' }],
     },
     detailFields: [
-      { key: 'total', label: 'Total Due', type: 'currency', isHero: true },
-      { key: 'client_name', label: 'Client Entity', icon: <UserCircle size={12} /> },
+      { key: 'total', label: 'Total owed', type: 'currency', isHero: true },
+      { key: 'client_name', label: 'Customer', icon: <UserCircle size={12} /> },
       { key: 'phone', label: 'Phone', icon: <Phone size={12} /> },
-      { key: 'CURRENT', label: 'Current', type: 'currency' },
-      { key: '1-30', label: '1-30 Days', type: 'currency' },
-      { key: '31-60', label: '31-60 Days', type: 'currency' },
-      { key: '61-90', label: '61-90 Days', type: 'currency' },
-      { key: '91-120', label: '91-120 Days', type: 'currency' },
-      { key: '120+', label: '120+ Days', type: 'currency' },
+      { key: 'bills', label: 'Unpaid bills' },
+      { key: 'oldest', label: 'Oldest (days)', icon: <AlertTriangle size={12} /> },
+      ...AGE_BUCKETS.map((b) => ({ key: b, label: `${b} days`, type: 'currency' })),
     ],
   };
 
-  // ---- Tab: Per-Invoice detail (if invoices available) ----
-  const invoiceTab = {
-    id: 'AR_AGING_INVOICES',
-    label: 'Invoice Detail',
+  const billTab = {
+    id: 'AR_AGING_BILLS',
+    label: 'By bill',
     icon: <FileWarning size={18} />,
-    data: invoiceAging.rows,
-    loading: loading,
-    totals: { amount: invoiceAging.total },
+    data: aging.bills,
+    loading,
+    totals: { unpaid: aging.total },
     columns: [
-      {
-        key: 'invoice_no', label: 'Invoice #', sortable: true, width: 130,
-        render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-semibold">{val}</span>,
-      },
-      { key: 'client_name', label: 'Client', sortable: true, width: 220, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
-      { key: 'date', label: 'Invoice Date', type: 'date', sortable: true, width: 130 },
-      { key: 'due_date', label: 'Due Date', type: 'date', sortable: true, width: 130 },
-      {
-        key: 'days_overdue', label: 'Days Overdue', align: 'right', sortable: true, width: 120,
-        render: (val) => {
-          if (!val || val <= 0) return <span className="text-[10px] font-semibold text-emerald-500">CURRENT</span>;
-          return <span className={`text-[10px] font-semibold ${val > 90 ? 'text-red-600' : val > 60 ? 'text-orange-500' : 'text-accent-signature'}`}>{val} DAYS</span>;
-        },
-      },
-      {
-        key: 'bucket', label: 'Aging Bucket', width: 140,
-        render: (val) => {
-          const c = AGING_BUCKET_COLORS[val];
-          return (
-            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-semibold uppercase ${c.bg} ${c.text}`}>
-              <div className="w-1 h-1 rounded-full" style={{ backgroundColor: c.chart }} />
-              {val}
-            </div>
-          );
-        },
-      },
-      { key: 'amount', label: 'Amount Due', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => <span className="font-semibold">{formatINR(val)}</span> },
-      { key: 'status', label: 'Status', width: 110 },
+      { key: 'sale_id', label: 'Bill', sortable: true, width: 140, render: (val) => <span className="tabular-nums text-[11px] font-semibold">{val}</span> },
+      { key: 'client_name', label: 'Customer', sortable: true, width: 220, render: (val) => <span className="font-semibold text-foreground">{val}</span> },
+      { key: 'sale_date', label: 'Sale date', type: 'date', sortable: true, width: 130 },
+      { key: 'days_unpaid', label: 'Unpaid for', align: 'right', sortable: true, width: 110, render: (val) => <span className={`text-[12px] font-semibold ${colourOf(ageBucket(val)).text}`}>{val} days</span> },
+      { key: 'total', label: 'Bill total', type: 'currency', align: 'right', sortable: true, width: 130 },
+      { key: 'paid', label: 'Paid', type: 'currency', align: 'right', sortable: true, width: 130 },
+      { key: 'unpaid', label: 'Still owed', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-semibold">{formatINR(val)}</span> },
     ],
-    kpis: kpis,
-    chartConfig: {
-      title: 'Invoice Aging Distribution',
-      type: 'pie',
-      data: chartData.filter((d) => d.value > 0),
-    },
+    kpis,
+    chartConfig: { title: 'What customers owe, by age', type: 'pie', data: chartData.filter((d) => d.value > 0) },
     detailFields: [
-      { key: 'amount', label: 'Amount Due', type: 'currency', isHero: true },
-      { key: 'invoice_no', label: 'Invoice Number', icon: <FileWarning size={12} /> },
-      { key: 'client_name', label: 'Client', icon: <UserCircle size={12} /> },
-      { key: 'date', label: 'Issued', type: 'date', icon: <Calendar size={12} /> },
-      { key: 'due_date', label: 'Due Date', type: 'date', icon: <Clock size={12} /> },
-      { key: 'days_overdue', label: 'Days Past Due', icon: <AlertTriangle size={12} /> },
-      { key: 'bucket', label: 'Aging Bucket' },
-      { key: 'status', label: 'Status' },
+      { key: 'unpaid', label: 'Still owed', type: 'currency', isHero: true },
+      { key: 'sale_id', label: 'Bill', icon: <FileWarning size={12} /> },
+      { key: 'client_name', label: 'Customer', icon: <UserCircle size={12} /> },
+      { key: 'sale_date', label: 'Sale date', type: 'date', icon: <Calendar size={12} /> },
+      { key: 'days_unpaid', label: 'Unpaid for (days)', icon: <AlertTriangle size={12} /> },
+      { key: 'total', label: 'Bill total', type: 'currency' },
+      { key: 'paid', label: 'Paid', type: 'currency' },
     ],
   };
 
-  // Only include invoice tab if we actually have invoices
-  const tabs = invoiceAging.rows.length > 0 ? [summaryTab, invoiceTab] : [summaryTab];
+  // The total must agree with what the rest of the app says customers owe. If
+  // it does not, say by how much rather than leave two numbers to be found.
+  const gap = Math.abs(aging.difference);
+  const subtitle = failure
+    ? `Could not load this report: ${failure}`
+    : gap < 0.5
+      ? `Aged from the sale date. Matches customer balances of ${formatINR(aging.outstanding)}.`
+      : `Aged from the sale date. Customer balances total ${formatINR(aging.outstanding)}: ${formatINR(gap)} ${aging.difference > 0 ? 'less' : 'more'} than these bills (customer credit, or a sale with no customer on it).`;
 
-  return <PremiumReportView title="Customer Aging" tabs={tabs} />;
+  return <PremiumReportView title="Customer Aging" subtitle={subtitle} tabs={[summaryTab, billTab]} />;
 };
 
 export default ARAgingReport;
