@@ -1,0 +1,29 @@
+// Dates as 'YYYY-MM-DD' in the shop's timezone. Weeks start on Monday and the
+// prior window is priorRange() in reportUtils.js: equal length, immediately before.
+
+const DAY = 864e5;
+const ms = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return Date.UTC(y, m - 1, d);
+};
+const toIso = (t: number) => new Date(t).toISOString().slice(0, 10);
+
+export const shopToday = (now: Date, tz: string) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+
+export const addDays = (iso: string, n: number) => toIso(ms(iso) + n * DAY);
+export const monthStart = (iso: string) => `${iso.slice(0, 7)}-01`;
+export const mondayOf = (iso: string) => addDays(iso, -((new Date(ms(iso)).getUTCDay() + 6) % 7));
+export const lastMonth = (iso: string) => {
+  const to = addDays(monthStart(iso), -1);
+  return { from: monthStart(to), to };
+};
+export const priorWindow = (from: string, to: string) => {
+  const days = Math.round((ms(to) - ms(from)) / DAY) + 1;
+  const end = addDays(from, -1);
+  return { from: addDays(end, -(days - 1)), to: end };
+};
+
+/** Percent change, one decimal. null when there is no positive base to compare with. */
+export const changePct = (current: number, prior: number) =>
+  prior > 0 ? Math.round(((current - prior) / prior) * 1000) / 10 : null;
