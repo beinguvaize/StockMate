@@ -68,7 +68,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final e = widget.expense;
     _noteController = TextEditingController(text: e?.note ?? '');
     _amountController = TextEditingController(
-      text: e?.amount != null ? e!.amount!.toStringAsFixed(0) : '',
+      text: e?.amount != null ? expenseAmountText(e!.amount!) : '',
     );
     _selectedCategory = e?.category ?? 'Other';
     // A new expense defaults to today in IST, the shop's day (the web's
@@ -696,6 +696,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                     inputFormatters: [
                                       FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                                      const ExpenseAmountFormatter(),
                                     ],
                                     cursorColor: AppColors.primary,
                                     textAlign: TextAlign.center,
@@ -796,28 +797,58 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             fontSize: 13, fontWeight: FontWeight.w800,
                             letterSpacing: 1, color: AppColors.inkTertiary)),
                           const SizedBox(height: 8),
-                          Row(children: [
-                            for (final m in const ['CASH','UPI','BANK','CARD'])
-                              Expanded(child: Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: AppTappable(
-   ripple: false,
+                          // Four across when the widest label fits, else
+                          // two by two, else one per row: a large system font
+                          // would otherwise clip CASH to CAS.
+                          LayoutBuilder(builder: (context, box) {
+                            const methods = ['CASH', 'UPI', 'BANK', 'CARD'];
+                            final style = GoogleFonts.publicSans(
+                                fontSize: 13, fontWeight: FontWeight.w800);
+                            final scaler = MediaQuery.textScalerOf(context);
+                            var widest = 0.0;
+                            for (final m in methods) {
+                              final tp = TextPainter(
+                                text: TextSpan(text: m, style: style),
+                                textDirection: TextDirection.ltr,
+                                textScaler: scaler,
+                              )..layout();
+                              if (tp.width > widest) widest = tp.width;
+                              tp.dispose();
+                            }
+                            const gap = 6.0, pad = 8.0 * 2 + 2;
+                            var perRow = 4;
+                            while (perRow > 1 &&
+                                (box.maxWidth - gap * (perRow - 1)) / perRow <
+                                    widest + pad) {
+                              perRow ~/= 2;
+                            }
+                            Widget chip(String m) => AppTappable(
+                                  ripple: false,
                                   onTap: () => setState(() => _paymentMethod = m),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
                                       color: _paymentMethod == m ? AppColors.primary.withValues(alpha: 0.12) : Colors.white,
                                       border: Border.all(color: _paymentMethod == m ? AppColors.primary : AppColors.outlineVariant),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: Text(m, style: GoogleFonts.publicSans(
-                                      fontSize: 13, fontWeight: FontWeight.w800,
+                                    child: Text(m, maxLines: 1, softWrap: false, style: style.copyWith(
                                       color: _paymentMethod == m ? AppColors.primary : AppColors.inkSecondary)),
                                   ),
- ),
-                              )),
-                          ]),
+                                );
+                            return Column(children: [
+                              for (var r = 0; r < methods.length; r += perRow) ...[
+                                if (r > 0) const SizedBox(height: gap),
+                                Row(children: [
+                                  for (var i = r; i < r + perRow; i++) ...[
+                                    if (i > r) const SizedBox(width: gap),
+                                    Expanded(child: chip(methods[i])),
+                                  ],
+                                ]),
+                              ],
+                            ]);
+                          }),
                         ],
                       ),
                     ),
@@ -1239,8 +1270,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             ),
           ),
         ),
+        // A floor, not a fixed height: a large system font wraps the date
+        // or grows the line, and a fixed 56 cut it off at the baseline.
         Container(
-          height: 56,
+          constraints: const BoxConstraints(minHeight: 56),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -1284,4 +1317,26 @@ class _CatTile {
   final bool isAdd; // the trailing "+ Add" tile
   const _CatTile(this.label, this.value, this.icon,
       {this.custom = false, this.isAdd = false});
+}
+
+/// The amount as the field shows it: up to two decimals, no trailing zeros,
+/// so an edit opens on 150.5 rather than rounding it to 151.
+String expenseAmountText(double amount) {
+  final fixed = amount.toStringAsFixed(2);
+  return fixed.replaceFirst(RegExp(r'\.?0+$'), '');
+}
+
+/// Keeps the amount field to a figure `double.tryParse` reads as entered:
+/// at most nine rupee digits, one dot and two paise digits. An edit that
+/// breaks the shape is dropped and the previous text stays.
+class ExpenseAmountFormatter extends TextInputFormatter {
+  const ExpenseAmountFormatter();
+
+  static final _shape = RegExp(r'^\d{0,9}(\.\d{0,2})?$');
+
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    return _shape.hasMatch(newValue.text) ? newValue : oldValue;
+  }
 }
