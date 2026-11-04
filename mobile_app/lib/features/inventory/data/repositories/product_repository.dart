@@ -97,17 +97,17 @@ class ProductRepository {
     );
   }
 
-  /// Delete a product with offline support
+  /// Delete a product with offline support.
+  ///
+  /// Server first, local second. The old order dropped the row locally and
+  /// queued the delete unconditionally, so a delete the server refused — a
+  /// soft delete is an UPDATE, and the products UPDATE policy now carries a
+  /// role dimension — took the product off the screen and reported success. deleteOnlineOrQueue queues only a genuine
+  /// connectivity failure and rethrows a server rejection, so the caller can
+  /// say what the server said.
   Future<void> deleteProduct(String productId) async {
-    // 1. Local Delete
+    await syncService.deleteOnlineOrQueue('products', productId);
     await (db.delete(db.products)..where((t) => t.id.equals(productId))).go();
-
-    // 2. Sync Queue
-    await syncService.queueMutation(
-      targetTable: 'products',
-      action: 'delete',
-      payload: {'id': productId},
-    );
   }
 
   /// Update the stock value of a product (manual adjustment).

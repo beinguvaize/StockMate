@@ -101,6 +101,30 @@ class SyncService {
     return true;                               // socket / timeout / DNS → offline
   }
 
+  /// Flag a row deleted and insist the server say which row it flagged.
+  ///
+  /// A soft delete is a PATCH, and PostgREST answers a PATCH that RLS let
+  /// match nothing with 204 No Content — indistinguishable from success, so a
+  /// refused delete was recorded as synced and the row came back on the next
+  /// pull. Asking for the row back turns that refusal into a PostgrestException
+  /// the caller and the queue both treat as a server rejection, not as being
+  /// offline.
+  Future<void> _softDelete(String table, String id) async {
+    final rows = await supabase
+        .from(table)
+        .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('id', id)
+        .select('id')
+        .timeout(_netTimeout);
+    if (rows.isEmpty) {
+      throw PostgrestException(
+        message:
+            'The server refused to delete this $table row, or it no longer exists.',
+        code: '42501',
+      );
+    }
+  }
+
   Future<bool> upsertOnlineOrQueue(String table, Map<String, dynamic> row) async {
     try {
       await supabase.from(table).upsert(row).timeout(_netTimeout);
@@ -115,9 +139,15 @@ class SyncService {
   Future<bool> deleteOnlineOrQueue(String table, String id) async {
     try {
       // Soft delete — rows are flagged, never dropped (recoverable + audit).
-      await supabase.from(table).update({'deleted_at': DateTime.now().toUtc().toIso8601String()}).eq('id', id).timeout(_netTimeout);
+      await _softDelete(table, id);
       return false;
     } catch (e) {
+      if (!_isNetworkError(e)) {
+        // Server rejected it — replaying would never help. Surface the real
+        // reason to the caller instead of a false "saved offline".
+        debugPrint('[sync] delete($table) REJECTED by server — not queueing: $e');
+        rethrow;
+      }
       debugPrint('[sync] delete($table) failed online — queueing: $e');
       await queueMutation(
         targetTable: table,
@@ -247,7 +277,7 @@ class SyncService {
           final id = payload['id'];
           if (id == null) throw Exception('delete payload missing id');
           // Soft delete — flag, don't drop.
-          await supabase.from(job.targetTable).update({'deleted_at': DateTime.now().toUtc().toIso8601String()}).eq('id', id).timeout(_netTimeout);
+          await _softDelete(job.targetTable, id as String);
           break;
         case 'rpc':
           final name = job.rpcName;
