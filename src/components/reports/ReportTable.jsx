@@ -40,7 +40,7 @@ const ReportTable = ({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [localSearch, setLocalSearch] = useState('');
-  const [visibleColumns, setVisibleColumns] = useState(columns.map(c => c.key));
+  const [visibleColumns, setVisibleColumns] = useState(columns.filter(c => !c.defaultHidden).map(c => c.key));
   const [columnWidths, setColumnWidths] = useState(
     columns.reduce((acc, col) => ({ ...acc, [col.key]: col.width || 150 }), {})
   );
@@ -302,7 +302,7 @@ const ReportTable = ({
                   key={col.key}
                   className={`
                     group px-6 py-5 text-[10px] font-semibold uppercase text-muted-foreground tracking-wider cursor-default relative select-none
-                    ${i === 0 ? 'sticky left-0 z-40 bg-card/95 border-r border-border/60' : ''}
+                    ${i === 0 ? 'md:sticky md:left-0 z-40 bg-card/95 border-r border-border/60' : ''}
                     ${col.sortable ? 'cursor-pointer hover:text-foreground' : ''}
                   `}
                   style={{ width: columnWidths[col.key], minWidth: columnWidths[col.key] }}
@@ -359,7 +359,7 @@ const ReportTable = ({
                       key={col.key}
                       className={`
                         px-6 py-4.5 text-[12px] font-semibold text-foreground whitespace-nowrap border-x border-transparent
-                        ${colIndex === 0 ? 'sticky left-0 z-20 bg-card group-hover/row:bg-[#FAF9F5] transition-colors border-r border-border/60' : ''}
+                        ${colIndex === 0 ? 'md:sticky md:left-0 z-20 bg-card group-hover/row:bg-[#FAF9F5] transition-colors border-r border-border/60' : ''}
                         ${col.align === 'right' ? 'text-right tabular-nums' : ''}
                       `}
                     >
@@ -380,7 +380,7 @@ const ReportTable = ({
                     key={col.key}
                     className={`
                       px-6 py-5 text-[12px] font-semibold uppercase tracking-tight
-                      ${i === 0 ? 'sticky left-0 z-40 bg-ink-primary' : ''}
+                      ${i === 0 ? 'md:sticky md:left-0 z-40 bg-ink-primary' : ''}
                       ${col.align === 'right' ? 'text-right tabular-nums' : ''}
                     `}
                   >

@@ -365,7 +365,10 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
           <SectionHead title={activeTab.label} sub={`${(activeTab.data || []).length} records`} />
         </div>
         <div className="p-4">
+          {/* key: columns, sort and paging belong to a tab. Without it the table
+              kept the first tab's column list and lost the second tab's. */}
           <ReportTable
+            key={activeTab.id}
             columns={activeTab.columns || []}
             data={activeTab.data || []}
             loading={loading}

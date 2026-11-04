@@ -40,9 +40,29 @@ test('shows what is still owed, by age, and states any gap to client balances', 
   await expect(page.locator('body')).not.toContainText('1,250.00');
   await expect(page.getByText(/Customer balances total .*800.*50.* less than these bills/)).toBeVisible();
   await expect(page.locator('body')).not.toContainText(/overdue/i);
+  // headline money is formatted, in rupees
+  await expect(page.getByText('₹850.00').first()).toBeVisible();
+
+  // the second tab keeps its own columns: switching must not lose them
+  await page.getByRole('button', { name: 'By bill' }).click();
+  await expect(page.getByRole('columnheader', { name: /Still owed/ })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: /Unpaid for/ })).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'S-OLD' })).toBeVisible();
+});
+
+test('total owed is on screen without scrolling at 1440', async ({ page }) => {
+  await open(page, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(UNPAID) }));
+  const head = page.getByRole('columnheader', { name: /Total owed/ });
+  await expect(head).toBeVisible({ timeout: 15_000 });
+  const right = await head.evaluate((el) => el.getBoundingClientRect().right);
+  expect(right).toBeLessThan(1440);
 });
 
 test('says why when the figures cannot load, rather than showing zero as fact', async ({ page }) => {
   await open(page, (r) => r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'Access denied' }) }));
-  await expect(page.getByText(/Could not load this report: Access denied/)).toBeVisible({ timeout: 15_000 });
+  const err = page.getByTestId('aging-error');
+  await expect(err).toContainText('Access denied', { timeout: 15_000 });
+  await expect(err.getByRole('button', { name: 'Retry' })).toBeVisible();
+  // never zero as fact
+  await expect(page.getByText('Customers owe')).toHaveCount(0);
 });

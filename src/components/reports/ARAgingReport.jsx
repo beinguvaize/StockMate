@@ -2,14 +2,11 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
 import { AlertTriangle, UserCircle, Phone, Calendar, FileWarning } from 'lucide-react';
-import { formatINR, AGING_BUCKET_COLORS } from '../../utils/financialCalculations';
+import { formatINR } from '../../utils/financialCalculations';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../context/TenantContext';
 import { todayISOInAppTZ } from '../../lib/utils';
-import { AGE_BUCKETS, ageBucket, buildAging } from '../../lib/receivableAging';
-
-// The palette keys predate these buckets: the youngest takes the "current" colour.
-const colourOf = (b) => AGING_BUCKET_COLORS[b === '0-30' ? 'CURRENT' : b];
+import { AGE_BUCKETS, buildAging } from '../../lib/receivableAging';
 
 /**
  * Customer Aging: what customers owe, by how long it has been unpaid.
@@ -41,7 +38,7 @@ const ARAgingReport = () => {
   }, [currentTenantId]);
   useEffect(() => { load(); }, [load]);
 
-  const { data: clients, loading: cliLoading } = useReportData({
+  const { data: clients, loading: cliLoading, error: clientsError, refetch: refetchClients } = useReportData({
     table: 'clients',
     select: 'id, outstanding_balance',
     nullFilters: { deleted_at: null },
@@ -50,14 +47,17 @@ const ARAgingReport = () => {
   const loading = unpaidLoading || cliLoading;
   const aging = useMemo(() => buildAging(unpaid, clients, todayISOInAppTZ()), [unpaid, clients]);
 
+  // Neutral on purpose: bills have no due dates, so nothing here is known to be
+  // late, and red or green would claim otherwise. Size and weight carry it.
   const kpis = useMemo(() => {
     const series = AGE_BUCKETS.map((b) => ({ value: aging.totals[b] || 0 }));
     const share = aging.total > 0 ? (aging.over30 / aging.total) * 100 : 0;
+    const card = (id, label, value, chartData) => ({ id, label, value, chartData, color: 'slate' });
     return [
-      { id: 'total_ar', label: 'Customers owe', value: aging.total, trend: 0, trendDir: 'none', color: 'indigo', chartData: series },
-      { id: 'over30', label: 'Unpaid over 30 days', value: aging.over30, trend: 0, trendDir: 'none', color: 'amber', chartData: series.slice(1) },
-      { id: 'over90', label: 'Unpaid over 90 days', value: aging.over90, trend: 0, trendDir: 'none', color: 'rose', chartData: series.slice(3) },
-      { id: 'share', label: 'Share over 30 days', value: `${share.toFixed(1)}%`, trend: 0, trendDir: 'none', color: share > 30 ? 'rose' : 'emerald', chartData: series },
+      card('total_ar', 'Customers owe', formatINR(aging.total), series),
+      card('over30', 'Unpaid over 30 days', formatINR(aging.over30), series.slice(1)),
+      card('over90', 'Unpaid over 90 days', formatINR(aging.over90), series.slice(3)),
+      card('share', 'Share over 30 days', `${share.toFixed(1)}%`, series),
     ];
   }, [aging]);
 
@@ -69,12 +69,14 @@ const ARAgingReport = () => {
     type: 'currency',
     align: 'right',
     sortable: true,
-    width: 130,
+    width: 118,
     render: (val) => {
       if (!val || val <= 0) return <span className="text-muted-foreground">—</span>;
-      return <span className={`font-semibold ${colourOf(bucket).text}`}>{formatINR(val)}</span>;
+      return <span className={bucket === '120+' ? 'font-bold' : 'font-medium'}>{formatINR(val)}</span>;
     },
   });
+  const nameCell = (val) => <span className="font-semibold text-foreground block max-w-[170px] truncate" title={val}>{val}</span>;
+  const days = (val) => (val === undefined || val === null ? '' : <span className="text-[12px] text-muted-foreground">{val} days</span>);
 
   const summaryTab = {
     id: 'AR_AGING_SUMMARY',
@@ -82,14 +84,14 @@ const ARAgingReport = () => {
     icon: <UserCircle size={18} />,
     data: aging.customers,
     loading,
-    totals: { total: aging.total, ...aging.totals },
+    totals: { total: aging.total, bills: aging.bills.length, ...aging.totals },
     columns: [
-      { key: 'client_name', label: 'Customer', sortable: true, width: 220, render: (val) => <span className="font-semibold text-foreground">{val}</span> },
-      { key: 'phone', label: 'Contact', width: 130, render: (val) => <span className="text-[11px] text-muted-foreground">{val || '—'}</span> },
-      { key: 'bills', label: 'Bills', align: 'right', sortable: true, width: 70 },
-      { key: 'oldest', label: 'Oldest', align: 'right', sortable: true, width: 90, render: (val) => <span className="text-[12px] text-muted-foreground">{val} days</span> },
+      { key: 'client_name', label: 'Customer', sortable: true, width: 190, render: nameCell },
+      { key: 'total', label: 'Total owed', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span> },
+      { key: 'bills', label: 'Bills', align: 'right', sortable: true, width: 76 },
+      { key: 'oldest', label: 'Oldest', align: 'right', sortable: true, width: 92, render: days },
       ...AGE_BUCKETS.map(bucketColumn),
-      { key: 'total', label: 'Total owed', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span> },
+      { key: 'phone', label: 'Contact', width: 130, defaultHidden: true, render: (val) => (val === undefined ? '' : <span className="text-[11px] text-muted-foreground">{val || '—'}</span>) },
     ],
     kpis,
     chartConfig: {
@@ -117,15 +119,20 @@ const ARAgingReport = () => {
     totals: { unpaid: aging.total },
     columns: [
       { key: 'sale_id', label: 'Bill', sortable: true, width: 140, render: (val) => <span className="tabular-nums text-[11px] font-semibold">{val}</span> },
-      { key: 'client_name', label: 'Customer', sortable: true, width: 220, render: (val) => <span className="font-semibold text-foreground">{val}</span> },
+      { key: 'client_name', label: 'Customer', sortable: true, width: 190, render: nameCell },
+      { key: 'unpaid', label: 'Still owed', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-semibold">{formatINR(val)}</span> },
       { key: 'sale_date', label: 'Sale date', type: 'date', sortable: true, width: 130 },
-      { key: 'days_unpaid', label: 'Unpaid for', align: 'right', sortable: true, width: 110, render: (val) => <span className={`text-[12px] font-semibold ${colourOf(ageBucket(val)).text}`}>{val} days</span> },
+      { key: 'days_unpaid', label: 'Unpaid for', align: 'right', sortable: true, width: 110, render: days },
       { key: 'total', label: 'Bill total', type: 'currency', align: 'right', sortable: true, width: 130 },
       { key: 'paid', label: 'Paid', type: 'currency', align: 'right', sortable: true, width: 130 },
-      { key: 'unpaid', label: 'Still owed', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-semibold">{formatINR(val)}</span> },
     ],
     kpis,
-    chartConfig: { title: 'What customers owe, by age', type: 'pie', data: chartData.filter((d) => d.value > 0) },
+    chartConfig: {
+      title: 'What customers owe, by age',
+      type: 'bar',
+      data: chartData,
+      series: [{ key: 'value', name: 'Owed', color: '#f59e0b' }],
+    },
     detailFields: [
       { key: 'unpaid', label: 'Still owed', type: 'currency', isHero: true },
       { key: 'sale_id', label: 'Bill', icon: <FileWarning size={12} /> },
@@ -137,14 +144,31 @@ const ARAgingReport = () => {
     ],
   };
 
+  // Zero must never stand in for "could not load": it reads as "nobody owes".
+  const loadError = failure || (clientsError ? `Could not load customer balances: ${clientsError}` : '');
+  if (loadError && !loading) {
+    return (
+      <div className="bg-card rounded-[10px] border border-border/60 p-8" role="alert" data-testid="aging-error">
+        <h2 className="text-base font-semibold text-foreground">Customer Aging could not load</h2>
+        <p className="mt-1 text-[13px] text-ink-secondary">{loadError}</p>
+        <p className="mt-1 text-[13px] text-muted-foreground">Nothing here is a figure yet. Try again, or check Clients for balances.</p>
+        <button type="button" onClick={() => { load(); refetchClients?.(); }}
+          className="mt-4 h-9 px-4 rounded-pill border border-border text-[13px] font-semibold text-foreground hover:bg-canvas">
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   // The total must agree with what the rest of the app says customers owe. If
   // it does not, say by how much rather than leave two numbers to be found.
   const gap = Math.abs(aging.difference);
-  const subtitle = failure
-    ? `Could not load this report: ${failure}`
-    : gap < 0.5
-      ? `Aged from the sale date. Matches customer balances of ${formatINR(aging.outstanding)}.`
-      : `Aged from the sale date. Customer balances total ${formatINR(aging.outstanding)}: ${formatINR(gap)} ${aging.difference > 0 ? 'less' : 'more'} than these bills (customer credit, or a sale with no customer on it).`;
+  let subtitle = 'No customer owes anything.';
+  if (aging.total > 0 || aging.outstanding > 0.5) {
+    if (gap < 0.5) subtitle = `Aged from the sale date. Matches customer balances of ${formatINR(aging.outstanding)}.`;
+    else if (aging.difference > 0) subtitle = `Aged from the sale date. Customer balances total ${formatINR(aging.outstanding)}: ${formatINR(gap)} less than these bills (customer credit, or a sale with no customer on it).`;
+    else subtitle = `Aged from the sale date. Customer balances total ${formatINR(aging.outstanding)}: ${formatINR(gap)} more than these bills (an opening balance, or an entry not tied to a sale).`;
+  }
 
   return <PremiumReportView title="Customer Aging" subtitle={subtitle} tabs={[summaryTab, billTab]} />;
 };
