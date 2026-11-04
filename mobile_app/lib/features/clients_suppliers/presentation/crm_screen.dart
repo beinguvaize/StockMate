@@ -537,7 +537,7 @@ class _ClientsTab extends ConsumerWidget {
               child: Row(children: [
                 _ToolbarBtn(
                   icon: LucideIcons.calendarClock,
-                  label: 'Overdue report',
+                  label: 'Aging report',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const ClientAgingScreen())),
                 ),

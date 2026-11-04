@@ -152,7 +152,7 @@ class _HubItem {
 final _reportHubItems = <_HubItem>[
   _HubItem('Sales Summary', 'Revenue, COGS, margin by day',
       LucideIcons.trendingUp, const Color(0xFF059669), () => const SalesSummaryScreen()),
-  _HubItem('Money to Collect', 'Client dues by how overdue',
+  _HubItem('Money to Collect', 'What customers owe, by age',
       LucideIcons.users, const Color(0xFF2563EB), () => const ArAgingScreen()),
   _HubItem('Money to Pay', 'Supplier dues by how overdue',
       LucideIcons.truck, const Color(0xFF7C3AED), () => const ApAgingScreen()),
