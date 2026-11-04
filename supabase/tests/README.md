@@ -23,6 +23,7 @@ it raises an exception naming the specific assertion that broke.
 |---|---|
 | `rls01_plan_gates_test.sql` | `has_module_access()` returns correct allow/deny for STARTER / PRO / ENTERPRISE across representative modules |
 | `restore_test.sql` | Restore round trip: every shop table byte-identical after restore and after undo; every insert/delete trigger guarded; incomplete backups and non-owners refused |
+| `ai_chat_test.sql` | AI chat read functions: STABLE, no tenant argument, no DML, anon refused; one shop cannot read another; a global admin gets their own tenant only; staff refused; voided and soft-deleted rows excluded; cache, quota and the on/off switch; both tables outside shop backups. Over MCP, swap the closing SELECT and ROLLBACK for a RAISE so the pass list shows and nothing can commit |
 | `gl_posting_test.sql` | GL posts each event once on its own date: a payment never rewrites the sale journal; sales debit Receivables; ledger receipts, supplier payments and UPI purchases post to Cash; a real receipt replaces an inferred one |
 
 ## Conventions
