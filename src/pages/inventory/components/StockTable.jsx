@@ -278,8 +278,12 @@ const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit,
                           {onAdjust && (
                             <button onClick={() => onAdjust(product)} title="Adjust stock" className="w-7 h-7 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"><SlidersHorizontal size={14} /></button>
                           )}
-                          <button onClick={() => onEdit(product)} title="View / edit" className="w-7 h-7 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/[0.05] hover:text-foreground transition-colors"><Eye size={14} /></button>
-                          <button onClick={() => onDelete(product.id)} title="Delete" className="w-7 h-7 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                          {onEdit && (
+                            <button onClick={() => onEdit(product)} title="View / edit" className="w-7 h-7 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/[0.05] hover:text-foreground transition-colors"><Eye size={14} /></button>
+                          )}
+                          {onDelete && (
+                            <button onClick={() => onDelete(product.id)} title="Delete" className="w-7 h-7 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                          )}
                         </div>
                       </td>
                     </tr>

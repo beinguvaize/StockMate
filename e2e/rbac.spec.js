@@ -33,12 +33,16 @@ test.describe('RBAC and Tenant Isolation', () => {
       await expect(addStockBtn).toHaveCount(0);
     });
 
-    test('write actions are hidden for STAFF users on Sales', async ({ page }) => {
+    // The matrix in hasPermission() grants STAFF write on sales, clients and
+    // daybook. So Sales is the opposite case to Inventory: checkout MUST stay
+    // reachable. This asserted zero checkout buttons and only passed because
+    // the staff fixture used to serve the OWNER row, which hid the gate
+    // entirely -- it would have gone on passing if sales were wrongly locked.
+    test('STAFF users keep sale write on Sales', async ({ page }) => {
       await gotoTenant(page, 'sales');
-      
-      // Look for the "Confirm Sale" or checkout button — usually hidden or disabled for view-only
+
       const checkoutBtn = page.locator('button').filter({ hasText: /confirm|place sale|checkout/i });
-      await expect(checkoutBtn).toHaveCount(0);
+      await expect(checkoutBtn.first()).toBeVisible();
     });
   });
 
