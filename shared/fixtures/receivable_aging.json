@@ -1,0 +1,510 @@
+{
+ "_about": "Shared contract for how old the money customers owe is. Web: src/lib/receivableAging.js. Mobile: mobile_app/lib/features/clients_suppliers/data/receivable_aging.dart. Both test suites read THIS file; add a case here, never to one suite only. Rows have the shape of get_unpaid_sales. In buildAging, 'expect' is matched key by key. 'customers' are [name, total, bills, oldest]; 'bill_order' is sale ids in order. tie_out_line uses a plain formatter, 'Rs ' + amount to 2 decimals, so the wording is pinned without depending on either surface's rupee format.",
+ "ageBucket": [
+  {
+   "days": 0,
+   "expect": "0-30"
+  },
+  {
+   "days": 30,
+   "expect": "0-30"
+  },
+  {
+   "days": 31,
+   "expect": "31-60"
+  },
+  {
+   "days": 60,
+   "expect": "31-60"
+  },
+  {
+   "days": 61,
+   "expect": "61-90"
+  },
+  {
+   "days": 90,
+   "expect": "61-90"
+  },
+  {
+   "days": 91,
+   "expect": "91-120"
+  },
+  {
+   "days": 120,
+   "expect": "91-120"
+  },
+  {
+   "days": 121,
+   "expect": "120+"
+  },
+  {
+   "days": 1000,
+   "expect": "120+"
+  }
+ ],
+ "daysUnpaid": [
+  {
+   "sale_date": "2026-10-31",
+   "today": "2026-11-04",
+   "expect": 4
+  },
+  {
+   "sale_date": "2026-11-10",
+   "today": "2026-11-04",
+   "expect": 0
+  },
+  {
+   "sale_date": "2026-11-04",
+   "today": "2026-11-04",
+   "expect": 0
+  },
+  {
+   "sale_date": "2025-12-31",
+   "today": "2026-01-01",
+   "expect": 1
+  },
+  {
+   "sale_date": "2028-02-28",
+   "today": "2028-03-01",
+   "expect": 2
+  },
+  {
+   "sale_date": "2026-03-28T23:30:00+05:30",
+   "today": "2026-03-30",
+   "expect": 2
+  }
+ ],
+ "buildAging": [
+  {
+   "name": "customers, buckets, gap and bill order",
+   "today": "2026-11-04",
+   "unpaid": [
+    {
+     "sale_id": "S1",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-11-01",
+     "unpaid": "100.50"
+    },
+    {
+     "sale_id": "S2",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-06-01",
+     "unpaid": "200"
+    },
+    {
+     "sale_id": "S3",
+     "client_id": "b",
+     "client_name": "B",
+     "phone": "",
+     "sale_date": "2026-09-01",
+     "unpaid": 50
+    },
+    {
+     "sale_id": "S4",
+     "client_id": null,
+     "client_name": "No customer on the bill",
+     "phone": "",
+     "sale_date": "2026-11-02",
+     "unpaid": 10
+    }
+   ],
+   "clients": [
+    {
+     "outstanding_balance": 300.5
+    },
+    {
+     "outstanding_balance": 50
+    },
+    {
+     "outstanding_balance": -50
+    }
+   ],
+   "expect": {
+    "customers": [
+     [
+      "A",
+      300.5,
+      2,
+      156
+     ],
+     [
+      "B",
+      50,
+      1,
+      64
+     ],
+     [
+      "No customer on the bill",
+      10,
+      1,
+      2
+     ]
+    ],
+    "totals": {
+     "0-30": 110.5,
+     "31-60": 0,
+     "61-90": 50,
+     "91-120": 0,
+     "120+": 200
+    },
+    "total": 360.5,
+    "over30": 250,
+    "over90": 200,
+    "outstanding": 300.5,
+    "difference": 60,
+    "bill_order": [
+     "S2",
+     "S3",
+     "S1",
+     "S4"
+    ],
+    "tie_out_line": "Aged from the sale date. Customer balances total Rs 300.50: Rs 60.00 less than these bills (customer credit, or a sale with no customer on it)."
+   }
+  },
+  {
+   "name": "nothing owed",
+   "today": "2026-11-04",
+   "unpaid": [],
+   "clients": [],
+   "expect": {
+    "customers": [],
+    "bill_order": [],
+    "total": 0,
+    "difference": 0,
+    "over30": 0,
+    "over90": 0,
+    "outstanding": 0,
+    "tie_out_line": "No customer owes anything."
+   }
+  },
+  {
+   "name": "exact tie",
+   "today": "2026-11-04",
+   "unpaid": [
+    {
+     "sale_id": "S1",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-10-01",
+     "unpaid": 1000
+    }
+   ],
+   "clients": [
+    {
+     "outstanding_balance": "1000.00"
+    }
+   ],
+   "expect": {
+    "total": 1000,
+    "outstanding": 1000,
+    "difference": 0,
+    "tie_out_line": "Aged from the sale date. Matches customer balances of Rs 1000.00."
+   }
+  },
+  {
+   "name": "a gap under 50 paise still counts as a tie",
+   "today": "2026-11-04",
+   "unpaid": [
+    {
+     "sale_id": "S1",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-10-01",
+     "unpaid": 100.49
+    }
+   ],
+   "clients": [
+    {
+     "outstanding_balance": 100
+    }
+   ],
+   "expect": {
+    "difference": 0.49,
+    "tie_out_line": "Aged from the sale date. Matches customer balances of Rs 100.00."
+   }
+  },
+  {
+   "name": "a gap of 50 paise is stated",
+   "today": "2026-11-04",
+   "unpaid": [
+    {
+     "sale_id": "S1",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-10-01",
+     "unpaid": 100.5
+    }
+   ],
+   "clients": [
+    {
+     "outstanding_balance": 100
+    }
+   ],
+   "expect": {
+    "difference": 0.5,
+    "tie_out_line": "Aged from the sale date. Customer balances total Rs 100.00: Rs 0.50 less than these bills (customer credit, or a sale with no customer on it)."
+   }
+  },
+  {
+   "name": "balances above the bills read as more",
+   "today": "2026-11-04",
+   "unpaid": [
+    {
+     "sale_id": "S1",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-10-01",
+     "unpaid": 100
+    }
+   ],
+   "clients": [
+    {
+     "outstanding_balance": 192
+    }
+   ],
+   "expect": {
+    "total": 100,
+    "outstanding": 192,
+    "difference": -92,
+    "tie_out_line": "Aged from the sale date. Customer balances total Rs 192.00: Rs 92.00 more than these bills (an opening balance, or an entry not tied to a sale)."
+   }
+  },
+  {
+   "name": "balances owed with no bill at all still show a gap",
+   "today": "2026-11-04",
+   "unpaid": [],
+   "clients": [
+    {
+     "outstanding_balance": 500
+    }
+   ],
+   "expect": {
+    "total": 0,
+    "outstanding": 500,
+    "difference": -500,
+    "tie_out_line": "Aged from the sale date. Customer balances total Rs 500.00: Rs 500.00 more than these bills (an opening balance, or an entry not tied to a sale)."
+   }
+  },
+  {
+   "name": "money adds to the paisa",
+   "today": "2026-11-04",
+   "unpaid": [
+    {
+     "sale_id": "S1",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-11-01",
+     "unpaid": 0.1
+    },
+    {
+     "sale_id": "S2",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-11-01",
+     "unpaid": 0.2
+    }
+   ],
+   "clients": [],
+   "expect": {
+    "total": 0.3,
+    "customers": [
+     [
+      "A",
+      0.3,
+      2,
+      3
+     ]
+    ],
+    "difference": 0.3
+   }
+  },
+  {
+   "name": "a bill of the same age keeps its place",
+   "today": "2026-11-04",
+   "unpaid": [
+    {
+     "sale_id": "S9",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-11-01",
+     "unpaid": 1
+    },
+    {
+     "sale_id": "S1",
+     "client_id": "b",
+     "client_name": "B",
+     "phone": "",
+     "sale_date": "2026-11-01",
+     "unpaid": 1
+    },
+    {
+     "sale_id": "S5",
+     "client_id": "c",
+     "client_name": "C",
+     "phone": "",
+     "sale_date": "2026-11-01",
+     "unpaid": 1
+    }
+   ],
+   "clients": [],
+   "expect": {
+    "bill_order": [
+     "S9",
+     "S1",
+     "S5"
+    ],
+    "customers": [
+     [
+      "A",
+      1,
+      1,
+      3
+     ],
+     [
+      "B",
+      1,
+      1,
+      3
+     ],
+     [
+      "C",
+      1,
+      1,
+      3
+     ]
+    ]
+   }
+  },
+  {
+   "name": "no client id groups by name",
+   "today": "2026-11-04",
+   "unpaid": [
+    {
+     "sale_id": "S1",
+     "client_id": null,
+     "client_name": "Ravi",
+     "phone": "",
+     "sale_date": "2026-11-01",
+     "unpaid": 5
+    },
+    {
+     "sale_id": "S2",
+     "client_id": null,
+     "client_name": "Ravi",
+     "phone": "",
+     "sale_date": "2026-11-02",
+     "unpaid": 5
+    },
+    {
+     "sale_id": "S3",
+     "client_id": "",
+     "client_name": "Mina",
+     "phone": "",
+     "sale_date": "2026-11-02",
+     "unpaid": 1
+    }
+   ],
+   "clients": [],
+   "expect": {
+    "customers": [
+     [
+      "Ravi",
+      10,
+      2,
+      3
+     ],
+     [
+      "Mina",
+      1,
+      1,
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "an unreadable amount counts as nothing",
+   "today": "2026-11-04",
+   "unpaid": [
+    {
+     "sale_id": "S1",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-11-01",
+     "unpaid": null
+    }
+   ],
+   "clients": [
+    {
+     "outstanding_balance": null
+    }
+   ],
+   "expect": {
+    "total": 0,
+    "outstanding": 0
+   }
+  },
+  {
+   "name": "a bucket edge across buckets",
+   "today": "2026-11-04",
+   "unpaid": [
+    {
+     "sale_id": "S1",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-10-05",
+     "unpaid": 1
+    },
+    {
+     "sale_id": "S2",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-10-04",
+     "unpaid": 2
+    },
+    {
+     "sale_id": "S3",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-07-07",
+     "unpaid": 4
+    },
+    {
+     "sale_id": "S4",
+     "client_id": "a",
+     "client_name": "A",
+     "phone": "",
+     "sale_date": "2026-07-06",
+     "unpaid": 8
+    }
+   ],
+   "clients": [],
+   "expect": {
+    "totals": {
+     "0-30": 1,
+     "31-60": 2,
+     "61-90": 0,
+     "91-120": 4,
+     "120+": 8
+    },
+    "over30": 14,
+    "over90": 12
+   }
+  }
+ ]
+}

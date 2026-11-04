@@ -6,7 +6,7 @@ import { formatINR } from '../../utils/financialCalculations';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../context/TenantContext';
 import { todayISOInAppTZ } from '../../lib/utils';
-import { AGE_BUCKETS, buildAging } from '../../lib/receivableAging';
+import { AGE_BUCKETS, buildAging, tieOutLine } from '../../lib/receivableAging';
 
 /**
  * Customer Aging: what customers owe, by how long it has been unpaid.
@@ -164,15 +164,7 @@ const ARAgingReport = () => {
     );
   }
 
-  // The total must agree with what the rest of the app says customers owe. If
-  // it does not, say by how much rather than leave two numbers to be found.
-  const gap = Math.abs(aging.difference);
-  let subtitle = 'No customer owes anything.';
-  if (aging.total > 0 || aging.outstanding > 0.5) {
-    if (gap < 0.5) subtitle = `Aged from the sale date. Matches customer balances of ${formatINR(aging.outstanding)}.`;
-    else if (aging.difference > 0) subtitle = `Aged from the sale date. Customer balances total ${formatINR(aging.outstanding)}: ${formatINR(gap)} less than these bills (customer credit, or a sale with no customer on it).`;
-    else subtitle = `Aged from the sale date. Customer balances total ${formatINR(aging.outstanding)}: ${formatINR(gap)} more than these bills (an opening balance, or an entry not tied to a sale).`;
-  }
+  const subtitle = tieOutLine(aging, formatINR);
 
   return <PremiumReportView title="Customer Aging" subtitle={subtitle} tabs={[summaryTab, billTab]} />;
 };

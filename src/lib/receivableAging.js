@@ -66,3 +66,18 @@ export function buildAging(unpaid, clients, today) {
     difference: r2(total - outstanding),
   };
 }
+
+/**
+ * The line under the report. The total must agree with what the rest of the
+ * app says customers owe; if it does not, say by how much rather than leave
+ * two numbers to be found.
+ */
+export function tieOutLine(aging, fmt) {
+  if (!(aging.total > 0 || aging.outstanding > 0.5)) return 'No customer owes anything.';
+  const gap = Math.abs(aging.difference);
+  if (gap < 0.5) return `Aged from the sale date. Matches customer balances of ${fmt(aging.outstanding)}.`;
+  const why = aging.difference > 0
+    ? 'less than these bills (customer credit, or a sale with no customer on it)'
+    : 'more than these bills (an opening balance, or an entry not tied to a sale)';
+  return `Aged from the sale date. Customer balances total ${fmt(aging.outstanding)}: ${fmt(gap)} ${why}.`;
+}
