@@ -189,7 +189,15 @@ export const useInventory = (tenantId) => {
   };
 
   const remove = async (id) => {
-    const { error } = await restUpdate('products', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
+    // expectRow: a soft delete is a PATCH, and PostgREST answers a PATCH that
+    // RLS let match nothing with 204 — a silent success that leaves the product
+    // on screen. Ask for the row back so a refused delete reaches the caller.
+    const { error } = await restUpdate(
+      'products',
+      { deleted_at: new Date().toISOString() },
+      { id, tenant_id: tenantId },
+      { expectRow: true }
+    );
     if (!error) fetchInventory().catch(e => console.error('remove product refetch error:', e));
     return { error };
   };

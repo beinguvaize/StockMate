@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/database/offline_reads.dart';
@@ -73,6 +74,17 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     // productsProvider while this screen is visible.
     ref.watch(productsRealtimeSubscriberProvider);
 
+    // The role matrix is the gate on every control that writes a product. A
+    // STAFF user has view on inventory and nothing more, so the Add button is
+    // not theirs; the products RLS policies carry no role dimension, so the
+    // server would let the write through if the UI offered it.
+    final ctx = ref.watch(tenantContextProvider).valueOrNull;
+    final canCreate = ctx != null &&
+        canEdit('inventory',
+            roles: ctx.roles,
+            permissions: ctx.permissions,
+            action: 'create');
+
     final filters = ['All', 'Low Stock', 'Out of Stock'];
 
     // For the header line only. The list below does its own watching; this is
@@ -90,7 +102,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         toolbarHeight: 0,
         actions: const [],
       ),
-      floatingActionButton: !widget.showAddButton
+      floatingActionButton: !widget.showAddButton || !canCreate
           ? null
           : FloatingActionButton(
               heroTag: null,
@@ -882,6 +894,17 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // Same matrix as the list's Add button: a STAFF user may open this sheet
+    // to read a product and may not edit, adjust or delete it.
+    final ctx = ref.watch(tenantContextProvider).valueOrNull;
+    final canWrite = ctx != null &&
+        canEdit('inventory', roles: ctx.roles, permissions: ctx.permissions);
+    final canDelete = ctx != null &&
+        canEdit('inventory',
+            roles: ctx.roles,
+            permissions: ctx.permissions,
+            action: 'delete');
+
     final p = widget.product;
     final stock = p.stock.toInt();
     final isOut = stock == 0;
@@ -1020,12 +1043,14 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
             value: '${p.taxRate.toStringAsFixed(0)}%',
           ),
 
-          const SizedBox(height: 24),
+          if (canWrite || canDelete) const SizedBox(height: 24),
 
           // Action buttons
+          if (canWrite || canDelete)
           Row(
             children: [
               // Edit
+              if (canWrite)
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {
@@ -1054,9 +1079,10 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              if (canWrite) const SizedBox(width: 10),
 
               // Adjust Stock
+              if (canWrite)
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: _showAdjustStock,
@@ -1074,9 +1100,10 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              if (canWrite && canDelete) const SizedBox(width: 10),
 
               // Delete
+              if (canDelete)
               SizedBox(
                 height: 44,
                 width: 44,

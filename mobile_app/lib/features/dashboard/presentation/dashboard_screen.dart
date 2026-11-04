@@ -103,7 +103,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // bar, since the bar is a Positioned overlay and Scaffold therefore never
       // offsets a FAB above it. The button was rendering and invisible.
       // The shell owns the offset, so the shell owns the button.
-      floatingActionButton: (currentFeature == 'sales' || currentFeature == 'inventory')
+      // The inventory "+" writes a product, so it answers to the role matrix
+      // and not just to which tab is open. A STAFF user sees the Inventory tab
+      // (view is theirs) with no way to add from it.
+      floatingActionButton: (currentFeature == 'sales' ||
+              (currentFeature == 'inventory' &&
+                  canEdit('inventory',
+                      roles: ctx?.roles ?? const [],
+                      permissions: ctx?.permissions,
+                      action: 'create')))
           ? Padding(
               padding: EdgeInsets.only(
                   bottom: 76 + MediaQuery.of(context).viewPadding.bottom),

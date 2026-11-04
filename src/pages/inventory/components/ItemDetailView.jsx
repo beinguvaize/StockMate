@@ -225,12 +225,16 @@ const ItemDetailView = ({
                 <SlidersHorizontal size={14} /> Adjust Stock
               </button>
             )}
-            <button onClick={() => onEdit?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
-              <Pencil size={14} /> Edit
-            </button>
-            <button onClick={() => onDelete?.(product)} className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors">
-              <Trash2 size={14} />
-            </button>
+            {onEdit && (
+              <button onClick={() => onEdit(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
+                <Pencil size={14} /> Edit
+              </button>
+            )}
+            {onDelete && (
+              <button onClick={() => onDelete(product)} className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors">
+                <Trash2 size={14} />
+              </button>
+            )}
           </div>
         </div>
 

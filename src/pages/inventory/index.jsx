@@ -20,7 +20,7 @@ import ItemDetailView from './components/ItemDetailView';
 import { PageSkeleton } from '../../components/ui/States';
 
 const Inventory = () => {
-  const { currentUser, isOwner } = useAuth();
+  const { currentUser, hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { 
     products, 
@@ -37,6 +37,16 @@ const Inventory = () => {
 
   const { priceLists, upsertPrice, deletePrice } = useOrders(currentTenantId);
   const navigate = useNavigate();
+
+  // The role matrix is the gate, not the OWNER flag. A STAFF user has view on
+  // inventory and nothing more, so every control that writes a product — add,
+  // import, edit, adjust, transfer, price lists, delete, and the bulk versions
+  // of each — is rendered only when the matrix allows that action. Gating on
+  // isOwner used to hide bulk edit from the INVENTORY role, which the matrix
+  // does grant inventory writes, while leaving Add Product open to everyone.
+  const canCreate = hasPermission('inventory', 'create');
+  const canEdit   = hasPermission('inventory', 'edit');
+  const canDelete = hasPermission('inventory', 'delete');
   const [viewingProduct, setViewingProduct] = useState(null);
 
   // Last purchase rate per product = the newest batch's unit_cost. Distinct
@@ -180,6 +190,19 @@ const Inventory = () => {
     return result;
   };
 
+  // A product delete is a soft delete, i.e. an UPDATE, and PostgREST answers a
+  // PATCH that RLS matched nothing with 204 No Content. Ask for the row back so
+  // a refused delete is an error instead of a row that reappears on refresh,
+  // and say what the server said.
+  const handleDeleteProduct = async (id) => {
+    const { error } = await deleteProduct(id);
+    if (error) {
+      window.alert(`The product could not be deleted.\n\n${error.message || String(error)}`);
+      return { error };
+    }
+    return { error: null };
+  };
+
   const handleSaveProduct = async (data) => {
     if (editingProduct) {
       const { error } = await updateProduct(editingProduct.id, data);
@@ -200,13 +223,15 @@ const Inventory = () => {
           <span className="text-xs text-muted-foreground hidden sm:block">Manage products and stock</span>
         </div>
         <div className="flex gap-2 items-center">
+          {canEdit && (
           <button onClick={() => setShowPriceLists(true)}
             className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
             <TagIcon size={15} className="text-muted-foreground" /> Price Lists
           </button>
+          )}
           {/* Offered only to a shop that has somewhere to move stock TO. One
               location means the button could do nothing but explain itself. */}
-          {inventoryLocations.length > 1 && (
+          {canEdit && inventoryLocations.length > 1 && (
             <button onClick={() => setShowTransfer(true)}
               className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
               <ArrowLeftRight size={15} className="text-muted-foreground" /> Transfer
@@ -216,14 +241,18 @@ const Inventory = () => {
             className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
             <History size={15} className="text-muted-foreground" /> History
           </button>
-          <button onClick={() => { window.location.href = '/bulk-add?type=products'; }}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
-            Bulk Import
-          </button>
-          <button onClick={openAddModal}
-            className="inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md transition-colors">
-            <Plus size={16} strokeWidth={2.5} /> Add Product
-          </button>
+          {canCreate && (
+            <>
+              <button onClick={() => { window.location.href = '/bulk-add?type=products'; }}
+                className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
+                Bulk Import
+              </button>
+              <button onClick={openAddModal}
+                className="inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md transition-colors">
+                <Plus size={16} strokeWidth={2.5} /> Add Product
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -334,14 +363,19 @@ const Inventory = () => {
         lastBuy={lastBuy}
         currencySymbol={businessProfile?.currencySymbol || '₹'}
         onView={setViewingProduct}
-        onEdit={openEditModal}
-        onDelete={(id) => { if (window.confirm('Delete this product?')) deleteProduct(id); }}
-        onAdjust={isOwner ? (product) => setAdjustingProduct(product) : null}
+        onEdit={canEdit ? openEditModal : null}
+        onDelete={canDelete ? (id) => { if (window.confirm('Delete this product?')) handleDeleteProduct(id); } : null}
+        onAdjust={canEdit ? (product) => setAdjustingProduct(product) : null}
         onBatches={setBatchesFor}
-        onBulkEdit={isOwner ? (prods, clear) => setBulkEdit({ products: prods, clear }) : null}
-        onBulkDelete={isOwner ? async (prods, clear) => {
+        onBulkEdit={canEdit ? (prods, clear) => setBulkEdit({ products: prods, clear }) : null}
+        onBulkDelete={canDelete ? async (prods, clear) => {
           if (!window.confirm(`Delete ${prods.length} selected product${prods.length === 1 ? '' : 's'}?`)) return;
-          for (const p of prods) await deleteProduct(p.id);
+          // Stop at the first refusal rather than firing the rest and leaving
+          // the user to guess which of them landed.
+          for (const p of prods) {
+            const { error } = await handleDeleteProduct(p.id);
+            if (error) break;
+          }
           clear();
         } : null}
       />
@@ -375,16 +409,20 @@ const Inventory = () => {
           product={viewingProduct}
           items={filteredProducts}
           onSelect={setViewingProduct}
-          onCreate={() => { setViewingProduct(null); openAddModal(); }}
+          onCreate={canCreate ? () => { setViewingProduct(null); openAddModal(); } : null}
           locations={inventoryLocations || []}
           balances={balances || []}
           tenantId={currentTenantId}
           currencySymbol={businessProfile?.currencySymbol || '₹'}
           onClose={() => setViewingProduct(null)}
-          onEdit={(p) => { setViewingProduct(null); openEditModal(p); }}
-          onAdjust={isOwner ? (p) => { setViewingProduct(null); setAdjustingProduct(p); } : null}
+          onEdit={canEdit ? (p) => { setViewingProduct(null); openEditModal(p); } : null}
+          onAdjust={canEdit ? (p) => { setViewingProduct(null); setAdjustingProduct(p); } : null}
           onPrintBarcode={() => navigate('/labels')}
-          onDelete={(p) => { if (window.confirm('Delete this product?')) { deleteProduct(p.id); setViewingProduct(null); } }}
+          onDelete={canDelete ? async (p) => {
+            if (!window.confirm('Delete this product?')) return;
+            const { error } = await handleDeleteProduct(p.id);
+            if (!error) setViewingProduct(null);
+          } : null}
         />
       )}
 

@@ -250,7 +250,10 @@ export async function setupMocks(page, isStaff = false) {
 
   // 4. REST — table-specific responses (order matters: specific before catch-all)
   const tableFixtures = {
-    users:               [MOCK_USER],
+    // The staff fixture has to answer the users read too. With [MOCK_USER]
+    // here a STAFF session resolved to the OWNER row, so every role-gated
+    // control rendered and the RBAC tests could not see a gate at all.
+    users:               [isStaff ? MOCK_STAFF_USER : MOCK_USER],
     tenants:             [MOCK_TENANT],
     products:            MOCK_PRODUCTS,
     product_categories:  [],

@@ -127,18 +127,23 @@ bool canAccess(
   );
 }
 
-/// Returns true if the user can edit [feature].
-/// Uses the web role matrix with action='edit'.
+/// Returns true if the user can write to [feature].
+/// Uses the web role matrix; [action] is 'edit' unless a caller needs the
+/// finer 'create' / 'delete' verbs the web matrix also accepts. The role
+/// templates treat every non-view action alike, so the verb only changes the
+/// answer for a CUSTOM role, whose granular permissions map is keyed by it —
+/// exactly as `hasPermission(moduleKey, action)` behaves on the web.
 /// No plan check (caller should use canAccess for plan gate).
 bool canEdit(
   String feature, {
   required List<String> roles,
   Map<dynamic, dynamic>? permissions,
+  String action = 'edit',
 }) {
   final moduleKey = _toModuleKey(feature);
   return hasModulePermission(
     moduleKey,
-    'edit',
+    action,
     roles: roles,
     permissions: permissions,
   );
