@@ -88,7 +88,7 @@ const ARAgingReport = () => {
     columns: [
       { key: 'client_name', label: 'Customer', sortable: true, width: 160, render: nameCell },
       { key: 'total', label: 'Total owed', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span> },
-      { key: 'bills', label: 'Bills', align: 'right', sortable: true, width: 76 },
+      { key: 'bills', label: 'Bills', align: 'right', sortable: true, width: 76, defaultHidden: true },
       { key: 'oldest', label: 'Oldest', align: 'right', sortable: true, width: 92, render: days },
       ...AGE_BUCKETS.map(bucketColumn),
       { key: 'phone', label: 'Contact', width: 130, defaultHidden: true, render: (val) => (val === undefined ? '' : <span className="text-[11px] text-muted-foreground">{val || '—'}</span>) },

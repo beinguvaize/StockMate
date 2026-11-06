@@ -63,6 +63,16 @@ test('total owed fits inside the table on a phone', async ({ page }) => {
   })).toBeGreaterThanOrEqual(0);
 });
 
+test('a crore in the headline is not cut off on a small phone', async ({ page }) => {
+  const big = [{ ...UNPAID[0], total: 12345678, paid: 0, unpaid: 12345678 }];
+  await open(page, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(big) }));
+  await page.setViewportSize({ width: 360, height: 780 });
+  const value = page.getByText('₹1,23,45,678.00', { exact: true }).first();
+  await expect(value).toBeVisible({ timeout: 15_000 });
+  await expect.poll(() => value.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  await expect.poll(() => value.evaluate((el) => el.parentElement.getBoundingClientRect().right - el.getBoundingClientRect().right)).toBeGreaterThanOrEqual(0);
+});
+
 test('total owed is on screen without scrolling at 1440', async ({ page }) => {
   await open(page, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(UNPAID) }));
   const head = page.getByRole('columnheader', { name: /Total owed/ });
