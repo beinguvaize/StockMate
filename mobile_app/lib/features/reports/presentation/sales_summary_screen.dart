@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_states.dart';
+import 'package:mobile_app/features/reports/data/profit_loss.dart';
+import 'package:mobile_app/features/reports/data/profit_loss_provider.dart';
 import 'package:mobile_app/features/reports/data/report_params.dart';
 import 'package:mobile_app/features/reports/data/report_providers.dart';
 import 'package:mobile_app/features/reports/presentation/widgets/date_range_chip.dart';
@@ -20,10 +23,7 @@ class SalesSummaryScreen extends ConsumerStatefulWidget {
 }
 
 class _SalesSummaryScreenState extends ConsumerState<SalesSummaryScreen> {
-  DateTimeRange _range = DateTimeRange(
-    start: DateTime.now().subtract(const Duration(days: 30)),
-    end: DateTime.now(),
-  );
+  DateTimeRange _range = defaultPlRange();
 
   @override
   Widget build(BuildContext context) {
@@ -94,35 +94,55 @@ class _SalesSummaryView extends ConsumerWidget {
       ),
       body: salesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Text(
-            'Failed to load sales\n$e',
-            textAlign: TextAlign.center,
-            style: AppText.caption.copyWith(color: AppColors.danger),
-          ),
+        error: (e, _) => isConnectionError(e)
+            ? AppEmptyState(
+                icon: LucideIcons.wifiOff,
+                title: 'Needs internet',
+                message: 'Sales and margin come from the server, so they match the web.',
+                actionLabel: 'Try again',
+                onAction: () => ref.invalidate(reportSalesProvider(params)),
+              )
+            : Center(
+                child: Text(
+                  'Failed to load sales\n$e',
+                  textAlign: TextAlign.center,
+                  style: AppText.caption.copyWith(color: AppColors.danger),
+                ),
+              ),
+        data: (sales) => _SalesBody(
+          sales: sales,
+          query: (tenantId: params.tenantId, from: params.fromIso, to: params.toIso),
         ),
-        data: (sales) => _SalesBody(sales: sales),
       ),
     );
   }
 }
 
-class _SalesBody extends StatelessWidget {
+class _SalesBody extends ConsumerWidget {
   final List<Map<String, dynamic>> sales;
+  final PlQuery query;
 
-  const _SalesBody({required this.sales});
+  const _SalesBody({required this.sales, required this.query});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // ── Computations ──────────────────────────────────────────────────────────
     final totalRevenue = sales.fold(
         0.0, (s, e) => s + ((e['totalAmount'] as num?)?.toDouble() ?? 0));
-    final totalCogs = sales.fold(
-        0.0, (s, e) => s + ((e['totalCogs'] as num?)?.toDouble() ?? 0));
     final totalOrders = sales.length;
     final aov = totalOrders > 0 ? totalRevenue / totalOrders : 0.0;
-    final profit = totalRevenue - totalCogs;
-    final marginPct = totalRevenue > 0 ? profit / totalRevenue * 100 : 0.0;
+    // Net sales and margin are the server's, the same call as the Reports hub
+    // and the web's Financial report. The bills below them are as billed, with
+    // GST, which is why their total is not labelled as revenue or profit.
+    final plAsync = ref.watch(profitLossProvider(query));
+    final pl = plAsync.valueOrNull;
+    final plNote = plAsync.isLoading
+        ? 'Loading'
+        : plAsync.error is ProfitOffline
+            ? 'Needs internet'
+            : plAsync.hasError
+                ? 'Could not load'
+                : null;
 
     // Group by date for bar chart
     final Map<String, double> byDate = {};
@@ -178,8 +198,9 @@ class _SalesBody extends StatelessWidget {
           children: [
             Expanded(
               child: ReportKpiTile(
-                label: 'Total Revenue',
-                value: compactINR(totalRevenue),
+                label: 'Net sales',
+                value: pl == null ? '—' : compactINR(pl.netSales),
+                subtitle: plNote ?? 'after GST and returns',
                 icon: LucideIcons.indianRupee,
                 color: const Color(0xFF16A34A),
               ),
@@ -187,10 +208,15 @@ class _SalesBody extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: ReportKpiTile(
-                label: 'Total Orders',
-                value: '$totalOrders',
-                icon: LucideIcons.shoppingCart,
-                color: const Color(0xFF2563EB),
+                label: 'Gross margin',
+                value: pl == null
+                    ? '—'
+                    : pl.grossMarginPct == null
+                        ? 'No sales'
+                        : '${pl.grossMarginPct!.toStringAsFixed(1)}%',
+                subtitle: plNote ?? 'of net sales',
+                icon: LucideIcons.percent,
+                color: const Color(0xFF0D9488),
               ),
             ),
           ],
@@ -200,19 +226,21 @@ class _SalesBody extends StatelessWidget {
           children: [
             Expanded(
               child: ReportKpiTile(
-                label: 'Avg Order Value',
-                value: compactINR(aov),
-                icon: LucideIcons.barChart2,
-                color: const Color(0xFF7C3AED),
+                label: 'Billed',
+                value: compactINR(totalRevenue),
+                subtitle: 'with GST',
+                icon: LucideIcons.receipt,
+                color: const Color(0xFF2563EB),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: ReportKpiTile(
-                label: 'Gross Margin %',
-                value: '${marginPct.toStringAsFixed(1)}%',
-                icon: LucideIcons.percent,
-                color: const Color(0xFF0D9488),
+                label: 'Bills',
+                value: '$totalOrders',
+                subtitle: 'average ${compactINR(aov)}',
+                icon: LucideIcons.shoppingCart,
+                color: const Color(0xFF7C3AED),
               ),
             ),
           ],
@@ -220,7 +248,7 @@ class _SalesBody extends StatelessWidget {
 
         // ── Bar chart ─────────────────────────────────────────────────────────
         const SizedBox(height: 24),
-        _SectionLabel('Revenue by Day'),
+        _SectionLabel('Billed by day, with GST'),
         const SizedBox(height: 10),
         _ChartCard(
           child: SimpleBarChart(bars: bars, height: 14.0 * chartDates.length.clamp(4, 14) + 20),

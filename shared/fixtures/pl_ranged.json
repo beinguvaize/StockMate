@@ -1,0 +1,10 @@
+{
+ "_about": "How both surfaces ask for profit. Web: supabase.rpc in src/components/reports/usePLRanged.js and FinancialReport.jsx. Mobile: mobile_app/lib/features/reports/data/profit_loss.dart. Both suites read THIS file, so the same period sends the same call. get_pl_ranged is the only definition of profit; neither client works it out. 'row' is Demo Kirana Store for this period, read from prod on 2026-11-04.",
+ "rpc": "get_pl_ranged",
+ "params": ["p_tenant_id", "p_from", "p_to"],
+ "row": {
+  "revenue_net": 425073.59, "output_gst": 34165.88, "cogs": 357070.00, "returns_total": 0,
+  "expenses": 100933.00, "gross_profit": 68003.59, "net_profit": -32929.41
+ },
+ "period": {"from": "2026-01-01", "to": "2026-11-04"}
+}

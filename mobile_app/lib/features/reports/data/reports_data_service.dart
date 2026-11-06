@@ -9,7 +9,7 @@ class ReportsDataService {
   }) async {
     final data = await supabase
         .from('sales')
-        .select('id, date, totalAmount, totalCogs, customerInfo, items, paymentMethod, status, note').isFilter('deleted_at', null)
+        .select('id, date, totalAmount, customerInfo, items, paymentMethod, status, note').isFilter('deleted_at', null)
         .eq('tenant_id', tenantId)
         .gte('date', from)
         .lte('date', to);

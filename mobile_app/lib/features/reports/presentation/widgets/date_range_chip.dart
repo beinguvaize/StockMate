@@ -23,10 +23,12 @@ class DateRangeChip extends StatelessWidget {
       '${d.day.toString().padLeft(2, '0')} ${_months[d.month]}';
 
   Future<void> _pick(BuildContext context) async {
+    // Today in IST can be ahead of the phone's own date.
+    final now = DateTime.now();
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: range.end.isAfter(now) ? range.end : now,
       initialDateRange: range,
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(

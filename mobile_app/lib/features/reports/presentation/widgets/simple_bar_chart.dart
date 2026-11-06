@@ -17,11 +17,13 @@ class BarData {
 class SimpleBarChart extends StatelessWidget {
   final List<BarData> bars;
   final double height;
+  final double labelWidth;
 
   const SimpleBarChart({
     super.key,
     required this.bars,
     this.height = 120,
+    this.labelWidth = 40,
   });
 
   @override
@@ -51,7 +53,7 @@ class SimpleBarChart extends StatelessWidget {
             child: Row(
               children: [
                 SizedBox(
-                  width: 40,
+                  width: labelWidth,
                   child: Text(
                     bar.label,
                     overflow: TextOverflow.ellipsis,
@@ -62,10 +64,12 @@ class SimpleBarChart extends StatelessWidget {
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
+                      // The longest bar must leave room for its figure.
+                      final room = constraints.maxWidth - 60;
                       return Row(
                         children: [
                           Container(
-                            width: constraints.maxWidth * ratio,
+                            width: (room > 0 ? room : 0) * ratio,
                             height: 14,
                             decoration: BoxDecoration(
                               color: bar.color,
@@ -73,7 +77,7 @@ class SimpleBarChart extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          Text(
+                          Flexible(child: Text(
                             bar.value >= 1e7
                                 ? '${(bar.value / 1e7).toStringAsFixed(1)}Cr'
                                 : bar.value >= 1e5
@@ -81,8 +85,10 @@ class SimpleBarChart extends StatelessWidget {
                                     : bar.value >= 1e3
                                         ? '${(bar.value / 1e3).toStringAsFixed(1)}K'
                                         : bar.value.toStringAsFixed(0),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: AppText.label.copyWith(color: AppColors.inkPrimary),
-                          ),
+                          )),
                         ],
                       );
                     },

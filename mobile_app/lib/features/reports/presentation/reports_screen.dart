@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
-import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 
 // Sub-report screens (built by parallel agents)
@@ -21,114 +20,8 @@ import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import '../../../core/widgets/app_surfaces.dart';
 import 'package:mobile_app/core/utils/money.dart';
-
-// ---------------------------------------------------------------------------
-// Internal summary provider (kept for overview KPIs)
-// ---------------------------------------------------------------------------
-class _ReportSummary {
-  final double totalSales;
-  final double totalCogs;
-  final double totalExpenses;
-  final double totalPurchases;
-  final double totalReturns;
-  final double netProfit;
-
-  const _ReportSummary({
-    required this.totalSales,
-    required this.totalCogs,
-    required this.totalExpenses,
-    required this.totalPurchases,
-    required this.totalReturns,
-    required this.netProfit,
-  });
-}
-
-final _reportSummaryProvider = FutureProvider.family<_ReportSummary,
-    ({String tenantId, DateTimeRange range})>((ref, params) async {
-  final start = params.range.start.toIso8601String().split('T').first;
-  final end = params.range.end.toIso8601String().split('T').first;
-
-  // Every one of these used to rely on RLS alone. params.tenantId was
-  // accepted and then never used, so the filter that the rest of the app
-  // applies everywhere was the one thing this screen left to the server.
-  final tenantId = params.tenantId;
-
-  final salesData = await supabase
-      .from('sales')
-      .select('totalAmount, totalCogs').isFilter('deleted_at', null)
-      .eq('tenant_id', tenantId)
-      .gte('date', start)
-      .lte('date', end);
-
-  final expensesData = await supabase
-      .from('expenses')
-      .select('amount').isFilter('deleted_at', null)
-      .eq('tenant_id', tenantId)
-      .gte('date', start)
-      .lte('date', end);
-
-  final purchasesData = await supabase
-      .from('purchases')
-      .select('total_amount').isFilter('deleted_at', null)
-      .eq('tenant_id', tenantId)
-      .gte('date', start)
-      .lte('date', end);
-
-  double totalReturns = 0;
-  try {
-    final returnsData = await supabase
-        .from('sales_returns')
-        .select('total_amount').isFilter('deleted_at', null)
-        .eq('tenant_id', tenantId)
-        .gte('date', start)
-        .lte('date', end);
-    for (final row in returnsData as List) {
-      totalReturns += (row['total_amount'] as num? ?? 0).toDouble();
-    }
-  } catch (_) {
-    // Shown as a line, never part of the headline, so a failure here must not
-    // take the whole report down with it.
-  }
-
-  double totalSales = 0;
-  double totalCogs = 0;
-  for (final row in salesData as List) {
-    totalSales += (row['totalAmount'] as num? ?? 0).toDouble();
-    totalCogs += (row['totalCogs'] as num? ?? 0).toDouble();
-  }
-  double totalExpenses = 0;
-  for (final row in expensesData as List) {
-    totalExpenses += (row['amount'] as num? ?? 0).toDouble();
-  }
-  double totalPurchases = 0;
-  for (final row in purchasesData as List) {
-    totalPurchases += (row['total_amount'] as num? ?? 0).toDouble();
-  }
-
-  return _ReportSummary(
-    totalSales: totalSales,
-    totalCogs: totalCogs,
-    totalExpenses: totalExpenses,
-    totalPurchases: totalPurchases,
-    totalReturns: totalReturns,
-    // Revenue less the cost of what was SOLD, less expenses.
-    //
-    // This subtracted PURCHASES, which is stock BOUGHT -- money that has left
-    // the till but is still sitting on the shelf as an asset, not a cost. On
-    // FUTURE DISPO this month that reported a ₹17,611 PROFIT for a month that
-    // actually ran a ₹14,076 LOSS: wrong by ₹31,687 and, worse, wrong in SIGN.
-    //
-    // sales.totalCogs is the settled source of truth for cost of goods (batch
-    // FIFO with a costPrice fallback) and is what the web P&L uses, so mobile
-    // and web now answer the same question the same way.
-    //
-    // Returns are reported as a line but deliberately left OUT of this figure:
-    // return COGS is a known open question in the GL/P&L reconciliation, and
-    // folding an unsettled number into the headline would be trading one
-    // wrong profit for another.
-    netProfit: totalSales - totalCogs - totalExpenses,
-  );
-});
+import 'package:mobile_app/features/reports/data/profit_loss.dart';
+import 'package:mobile_app/features/reports/data/profit_loss_provider.dart';
 
 // ---------------------------------------------------------------------------
 // Hub item model
@@ -150,7 +43,7 @@ class _HubItem {
 }
 
 final _reportHubItems = <_HubItem>[
-  _HubItem('Sales Summary', 'Revenue, COGS, margin by day',
+  _HubItem('Sales Summary', 'Sales by day, with margin',
       LucideIcons.trendingUp, const Color(0xFF059669), () => const SalesSummaryScreen()),
   _HubItem('Money to Collect', 'Client dues by how overdue',
       LucideIcons.users, const Color(0xFF2563EB), () => const ArAgingScreen()),
@@ -179,16 +72,15 @@ class ReportsScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
-  DateTimeRange _dateRange = DateTimeRange(
-    start: DateTime.now().subtract(const Duration(days: 30)),
-    end: DateTime.now(),
-  );
+  DateTimeRange _dateRange = defaultPlRange();
 
   Future<void> _pickDateRange() async {
+    // Today in IST can be ahead of the phone's own date.
+    final now = DateTime.now();
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: _dateRange.end.isAfter(now) ? _dateRange.end : now,
       initialDateRange: _dateRange,
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
@@ -268,128 +160,25 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             return _UpgradeBanner();
           }
 
-          final params = (tenantId: ctx.tenantId, range: _dateRange);
-          final summaryAsync = ref.watch(_reportSummaryProvider(params));
+          final query = plQuery(ctx.tenantId, _dateRange);
 
-          return summaryAsync.when(
-            data: (summary) => SingleChildScrollView(
+          return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // -------------------------------------------------------
-                  // Net profit hero
-                  // -------------------------------------------------------
-                  // The card no longer changes colour with the result.
-                  //
-                  // It was amber when in profit and a red wash when not, so the
-                  // surface itself passed judgement before the figure was read
-                  // — and a loss arrived looking like an error state rather
-                  // than a number. It is now the same dark ground every other
-                  // headline figure uses, and only the FIGURE carries the
-                  // sign: green in profit, red in loss. Contrast on the dark
-                  // card is 8.52:1 green and 5.37:1 red, both past AA, which
-                  // neither reading had on the amber tint.
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [AppColors.surfaceInverse, AppColors.surfaceInverseDeep],
-                      ),
-                      borderRadius: Radii.rLg,
+                  // The reports below stay reachable whatever happens to the
+                  // profit figures.
+                  ref.watch(profitLossProvider(query)).when(
+                    skipLoadingOnRefresh: false,
+                    loading: () => const _PlCard(
+                      child: Center(child: CircularProgressIndicator(color: Colors.white)),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              summary.netProfit >= 0
-                                  ? LucideIcons.trendingUp
-                                  : LucideIcons.trendingDown,
-                              size: 16,
-                              color: summary.netProfit >= 0
-                                  ? AppColors.successOnInverse
-                                  : AppColors.errorOnInverse,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'NET PROFIT / LOSS',
-                              style: AppText.label.copyWith(
-                                letterSpacing: 0.6,
-                                color: AppColors.onSurfaceInverseMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          // _compact prints ₹-19062. The one figure the whole
-                          // screen exists for was the only one not grouped.
-                          // The sign leads, so it reads -₹19,062 rather than
-                          // ₹-19,062.
-                          '${summary.netProfit < 0 ? '-' : '+'}'
-                          '${Money.inr(summary.netProfit.abs())}',
-                          style: AppText.moneyHero.copyWith(
-                            fontSize: 40,
-                            letterSpacing: -2,
-                            color: summary.netProfit >= 0
-                                ? AppColors.successOnInverse
-                                : AppColors.errorOnInverse,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
-                          style: AppText.caption
-                              .copyWith(color: AppColors.onSurfaceInverseMuted),
-                        ),
-
-                        // The figures that MAKE the number above, on the same
-                        // card as the number. They were three separate tiles
-                        // below it, so the headline and its own arithmetic
-                        // were different objects and the bars had nothing to
-                        // be read against. Each bar is a share of revenue,
-                        // which is what makes their lengths comparable.
-                        const SizedBox(height: Gap.lg),
-                        _PlBar(
-                          label: 'Revenue',
-                          value: summary.totalSales,
-                          of: summary.totalSales,
-                          tint: AppColors.successOnInverse,
-                        ),
-                        _PlBar(
-                          label: 'COGS',
-                          value: summary.totalCogs,
-                          of: summary.totalSales,
-                          tint: AppColors.brandFill,
-                        ),
-                        _PlBar(
-                          label: 'Expenses',
-                          value: summary.totalExpenses,
-                          of: summary.totalSales,
-                          tint: AppColors.errorOnInverse,
-                        ),
-                        _PlBar(
-                          label: 'Returns',
-                          value: summary.totalReturns,
-                          of: summary.totalSales,
-                          tint: AppColors.onSurfaceInverseMuted,
-                        ),
-                        // Stock BOUGHT, not stock sold. It is not part of the
-                        // profit above and is labelled so it cannot be read
-                        // as though it were -- subtracting it is exactly the
-                        // bug this screen used to ship.
-                        _PlBar(
-                          label: 'Stock bought',
-                          value: summary.totalPurchases,
-                          of: summary.totalSales,
-                          tint: AppColors.onSurfaceInverseMuted,
-                        ),
-                      ],
+                    error: (e, _) => _PlProblem(
+                      error: e,
+                      onRetry: () => ref.invalidate(profitLossProvider(query)),
                     ),
+                    data: (pl) => _PlFigures(pl: pl, period: '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}'),
                   ),
 
                   const SizedBox(height: 28),
@@ -410,16 +199,151 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       )),
                 ],
               ),
-            ),
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(
-              child: Text('Error: $e',
-                  style: GoogleFonts.manrope(color: AppColors.danger)),
-            ),
-          );
+            );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
+      ),
+    );
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// Profit card. Every figure on it comes from get_pl_ranged.
+// ---------------------------------------------------------------------------
+// The card no longer changes colour with the result.
+//
+// It was amber when in profit and a red wash when not, so the
+// surface itself passed judgement before the figure was read
+// — and a loss arrived looking like an error state rather
+// than a number. It is now the same dark ground every other
+// headline figure uses, and only the FIGURE carries the
+// sign: green in profit, red in loss. Contrast on the dark
+// card is 8.52:1 green and 5.37:1 red, both past AA, which
+// neither reading had on the amber tint.
+class _PlCard extends StatelessWidget {
+  final Widget child;
+  const _PlCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.surfaceInverse, AppColors.surfaceInverseDeep],
+          ),
+          borderRadius: Radii.rLg,
+        ),
+        child: child,
+      );
+}
+
+/// No figure at all: a failed load must not read as a zero or as an old total.
+class _PlProblem extends StatelessWidget {
+  final Object error;
+  final VoidCallback onRetry;
+  const _PlProblem({required this.error, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final offline = error is ProfitOffline;
+    return _PlCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            offline ? 'Needs internet' : 'Profit could not load',
+            style: AppText.heading.copyWith(color: Colors.white),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            offline
+                ? 'Profit is worked out on the server, so it matches the web. Connect and try again.'
+                : '$error',
+            style: AppText.caption.copyWith(color: AppColors.onSurfaceInverseMuted, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          AppButton(label: 'Try again', onPressed: onRetry, size: AppButtonSize.small),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlFigures extends StatelessWidget {
+  final ProfitLoss pl;
+  final String period;
+  const _PlFigures({required this.pl, required this.period});
+
+  @override
+  Widget build(BuildContext context) {
+    return _PlCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                pl.netProfit >= 0
+                    ? LucideIcons.trendingUp
+                    : LucideIcons.trendingDown,
+                size: 16,
+                color: pl.netProfit >= 0
+                    ? AppColors.successOnInverse
+                    : AppColors.errorOnInverse,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'NET PROFIT / LOSS',
+                style: AppText.label.copyWith(
+                  letterSpacing: 0.6,
+                  color: AppColors.onSurfaceInverseMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            // _compact prints ₹-19062. The one figure the whole
+            // screen exists for was the only one not grouped.
+            // The sign leads, so it reads -₹19,062 rather than
+            // ₹-19,062.
+            '${pl.netProfit < 0 ? '-' : '+'}'
+            '${Money.inr(pl.netProfit.abs())}',
+            style: AppText.moneyHero.copyWith(
+              fontSize: 40,
+              letterSpacing: -2,
+              color: pl.netProfit >= 0
+                  ? AppColors.successOnInverse
+                  : AppColors.errorOnInverse,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            period,
+            style: AppText.caption
+                .copyWith(color: AppColors.onSurfaceInverseMuted),
+          ),
+
+
+          // The figures that make the number above, on the same card. Each bar
+          // is a share of net sales, which makes their lengths comparable.
+          const SizedBox(height: Gap.lg),
+          _PlBar(label: 'Net sales', value: pl.netSales, of: pl.netSales, tint: AppColors.successOnInverse),
+          _PlBar(label: 'COGS', value: pl.cogs, of: pl.netSales, tint: AppColors.brandFill),
+          _PlBar(label: 'Gross profit', value: pl.grossProfit, of: pl.netSales, tint: AppColors.successOnInverse),
+          _PlBar(label: 'Expenses', value: pl.expenses, of: pl.netSales, tint: AppColors.errorOnInverse),
+          _PlBar(label: 'Returns', value: pl.returnsTotal, of: pl.netSales, tint: AppColors.onSurfaceInverseMuted),
+          _PlBar(label: 'GST on sales', value: pl.outputGst, of: pl.netSales, tint: AppColors.onSurfaceInverseMuted),
+          const SizedBox(height: Gap.sm),
+          Text(
+            'Net sales are after GST and returns.',
+            style: AppText.caption.copyWith(color: AppColors.onSurfaceInverseMuted),
+          ),
+        ],
       ),
     );
   }
