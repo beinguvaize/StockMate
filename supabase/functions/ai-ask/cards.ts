@@ -1,94 +1,167 @@
-// The card every client draws without per-question code. Labels arrive in the
-// chosen language; clients only format the value for its `kind`.
+// The card every client draws without per-question code, built from the figures
+// and shared/ai_chat/strings.json. Labels and sentences arrive in the chosen
+// language; clients only format a value for its `kind`, and never compute one.
+//
+// Order on screen: hero, AI text, rows, table, rows_after, note, footnote.
+// `headline` stays for clients built against the first contract.
 
 export type Kind = "money" | "count" | "qty" | "percent" | "date" | "days" | "text";
-type Cell = { label: string; value: unknown; kind: Kind };
+type Row = { label: string; value: unknown; kind: Kind; tone?: "total" };
 
-export function buildCard(id: string, f: Record<string, any>, strings: any) {
+const inr = (n: number) =>
+  `${n < 0 ? "-" : ""}₹${Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const count = (n: number) => Number(n ?? 0).toLocaleString("en-IN");
+const fill = (t: string, vars: Record<string, unknown>) =>
+  t.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
+const parts = (iso: string) => String(iso).slice(0, 10).split("-").map(Number);
+
+export function buildCard(id: string, f: Record<string, any>, strings: any, empty = false) {
   const L = strings.card as Record<string, string>;
-  const cell = (key: string, value: unknown, kind: Kind): Cell => ({ label: L[key], value, kind });
-  const cols = (...c: [string, Kind][]) => c.map(([key, kind]) => ({ label: L[key], kind }));
-  let headline: Cell;
-  let rows: Cell[] = [];
-  let table: { columns: { label: string; kind: Kind }[]; rows: unknown[][] } | null = null;
+  const H = strings.hero[id] ?? {};
+  const day = (iso: string) => { const [, m, d] = parts(iso); return `${d} ${strings.months_short[m - 1]}`; };
+  // "16 to 18 Nov": the first date drops a month the second one repeats.
+  const lead = (a: string, b: string) => { const [, m1, d1] = parts(a); const [, m2] = parts(b); return m1 === m2 ? String(d1) : day(a); };
+  const span = (a: string, b: string) => {
+    const [, m1, d1] = parts(a); const [, m2] = parts(b);
+    return m1 === m2 ? `${d1}–${day(b)}` : `${day(a)}–${day(b)}`;
+  };
+  const row = (key: string, value: unknown, kind: Kind, tone?: "total"): Row =>
+    ({ label: L[key], value, kind, ...(tone ? { tone } : {}) });
+  const method = (m: string) => strings.methods[m] ?? m;
+  const change = (pct: number) => `${pct >= 0 ? "▲" : "▼"} ${Math.abs(pct).toFixed(1)}%`;
+  const compare = (vars: Record<string, unknown>) =>
+    fill(f.change_pct === null || f.change_pct === undefined ? H.plain : H.compare,
+      { ...vars, change: f.change_pct === null || f.change_pct === undefined ? "" : change(f.change_pct) });
+  const qty = (n: unknown, unit?: string | null) => `${count(Number(n))}${unit ? ` ${unit}` : ""}`;
+  const col = (key: string, kind: Kind, right = true) => ({ label: L[key], kind, align: right ? "right" : "left" });
+  const foot = (vars: Record<string, unknown> = {}) => fill(strings.footnotes[id] ?? "", vars) || null;
+
+  let value: unknown = 0;
+  let kind: Kind = "money";
+  let unit: string | null = null;
+  let caption = "";
+  let detail: string | null = null;
+  let rows: Row[] = [];
+  let rowsAfter: Row[] = [];
+  let table: any = null;
+  let footnote: string | null = null;
 
   switch (id) {
-    case "sales_today":
-      headline = cell("sales", f.gross_sales, "money");
-      rows = [cell("bills", f.bill_count, "count"), cell("average_bill", f.average_bill, "money"),
-        cell("returns", f.returns_amount, "money"), cell("same_day_last_week", f.previous_gross_sales, "money"),
-        cell("change", f.change_pct, "percent")];
-      table = { columns: cols(["method", "text"], ["amount", "money"]), rows: f.by_method.map((m: any) => [m.method, m.amount]) };
+    case "sales_today": {
+      value = f.gross_sales;
+      caption = fill(H.caption, { bills: count(f.bill_count) });
+      const [y, m, d] = parts(f.period_from);
+      detail = compare({ prev: inr(f.previous_gross_sales), weekday: strings.weekdays[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] });
+      rows = [...f.by_method.map((x: any) => ({ label: method(x.method), value: x.amount, kind: "money" as Kind })),
+        row("total_sold", f.gross_sales, "money", "total"), row("average_bill", f.average_bill, "money"), row("returns", f.returns_amount, "money")];
       break;
+    }
     case "profit_month":
-      headline = cell("net_profit", f.net_profit, "money");
-      rows = [cell("revenue", f.revenue_net, "money"), cell("cogs", f.cogs, "money"), cell("gross_profit", f.gross_profit, "money"),
-        cell("expenses", f.expenses, "money"), cell("returns", f.returns_total, "money"),
-        cell("previous_period", f.previous_net_profit, "money"), cell("change", f.change_pct, "percent")];
+      value = f.net_profit;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to) });
+      detail = compare({ prev: inr(f.previous_net_profit), pfrom: lead(f.previous_from, f.previous_to), pto: day(f.previous_to) });
+      rows = [row("sales_after_returns", f.revenue_net, "money"), row("cogs", f.cogs, "money"), row("gross_profit", f.gross_profit, "money", "total"),
+        row("expenses", f.expenses, "money"), row("net_profit", f.net_profit, "money", "total"), row("returns", f.returns_total, "money")];
       break;
-    case "top_items":
-      headline = cell("total_sales", f.total_sales_value, "money");
-      rows = [cell("items_sold", f.distinct_items_sold, "count")];
-      table = { columns: cols(["item", "text"], ["qty_sold", "qty"], ["value", "money"], ["bills", "count"]),
-        rows: f.items.map((i: any) => [i.product_name, i.qty_sold, i.sales_value, i.bill_count]) };
+    case "top_items": {
+      const top = f.items[0];
+      value = top?.sales_value ?? 0;
+      caption = top ? fill(H.caption, { name: top.product_name }) : "";
+      table = { columns: [col("item", "text", false), col("sold", "text"), col("bills", "count"), col("value", "money")],
+        rows: f.items.map((i: any) => [i.product_name, qty(i.qty_sold, i.unit), i.bill_count, i.sales_value]) };
+      if (top) footnote = foot({ shown: count(f.items.length), n: count(f.distinct_items_sold) });
       break;
+    }
     case "low_stock":
-      headline = cell("items_low", f.items_low, "count");
-      rows = [cell("items_out", f.items_out, "count"), cell("reorder_value", f.reorder_value, "money")];
-      table = { columns: cols(["item", "text"], ["stock", "qty"], ["reorder_level", "qty"], ["short_by", "qty"]),
-        rows: f.items.map((i: any) => [i.product_name, i.stock, i.threshold, i.shortfall]) };
+      value = f.items_low; kind = "count"; unit = H.unit;
+      caption = fill(H.caption, { out: count(f.items_out) });
+      table = { columns: [col("item", "text", false), col("stock", "text"), col("limit", "qty"), col("short", "qty")],
+        rows: f.items.map((i: any) => [i.product_name, qty(i.stock, i.unit), i.threshold, i.shortfall]) };
+      rowsAfter = [{ label: fill(L.cost_to_refill, { n: count(f.items_low) }), value: f.reorder_value, kind: "money", tone: "total" }];
+      footnote = foot({ shown: count(f.items.length), n: count(f.items_low) });
       break;
     case "expiring_stock":
-      headline = cell("expiring_value", f.expiring_value, "money");
-      rows = [cell("expiring_batches", f.expiring_batches, "count"), cell("expired_batches", f.expired_batches, "count"),
-        cell("expired_value", f.expired_value, "money")];
-      table = { columns: cols(["item", "text"], ["expiry", "date"], ["days_left", "days"], ["qty", "qty"], ["value", "money"]),
-        rows: f.items.map((i: any) => [i.product_name, i.expiry_date, i.days_left, i.qty_remaining, i.value]) };
+      value = f.expiring_value;
+      caption = fill(H.caption, { to: day(f.period_to), n: count(f.expiring_batches) });
+      table = { columns: [col("item", "text", false), col("expiry", "text"), col("left", "text"), col("value", "money")],
+        rows: f.items.map((i: any) => [i.product_name, i.days_left < 0 ? fill(L.expired_suffix, { date: day(i.expiry_date) }) : day(i.expiry_date), qty(i.qty_remaining, i.unit), i.value]),
+        // Red only for stock already lost.
+        tones: f.items.map((i: any) => (i.days_left < 0 ? "neg" : null)) };
+      if (Number(f.expired_value) > 0) footnote = foot({ value: inr(f.expired_value) });
       break;
     case "dead_stock":
-      headline = cell("value_stuck", f.value_stuck, "money");
-      rows = [cell("items_dead", f.items_dead, "count")];
-      table = { columns: cols(["item", "text"], ["stock", "qty"], ["value", "money"]),
-        rows: f.items.map((i: any) => [i.product_name, i.stock, i.value]) };
+      value = f.value_stuck;
+      caption = fill(H.caption, { n: count(f.items_dead), from: day(f.period_from) });
+      table = { columns: [col("item", "text", false), col("stock", "text"), col("value", "money")],
+        rows: f.items.map((i: any) => [i.product_name, qty(i.stock, i.unit), i.value]) };
+      footnote = foot({ shown: count(f.items.length), n: count(f.items_dead) });
       break;
-    case "top_dues":
-      headline = cell("total_owed", f.total_outstanding, "money");
-      rows = [cell("customers_owing", f.customers_with_dues, "count")];
-      table = { columns: cols(["customer", "text"], ["owed", "money"], ["last_payment", "date"]),
-        rows: f.customers.map((c: any) => [c.name, c.outstanding, c.last_payment_date]) };
+    case "top_dues": {
+      const top = f.customers[0];
+      value = top?.outstanding ?? 0;
+      caption = top ? fill(H.caption, { name: top.name }) : "";
+      detail = fill(H.detail, { total: inr(f.total_outstanding), n: count(f.customers_with_dues) });
+      table = { columns: [col("customer", "text", false), col("last_paid", "text"), col("unpaid", "money")],
+        rows: f.customers.map((c: any) => [c.name, c.last_payment_date ? day(c.last_payment_date) : L.never, c.outstanding]) };
+      footnote = foot({ shown: count(f.customers.length), n: count(f.customers_with_dues) });
       break;
-    case "dues_age":
-      headline = cell("total_owed", f.total_outstanding, "money");
-      rows = [cell("oldest_unpaid", f.oldest_days, "days"), cell("not_matched", f.unmatched_amount, "money")];
-      table = { columns: cols(["unpaid_for_days", "text"], ["amount", "money"], ["bills", "count"]),
-        rows: f.buckets.map((b: any) => [b.label, b.amount, b.bill_count]) };
+    }
+    case "dues_age": {
+      value = f.total_outstanding;
+      caption = fill(H.caption, { days: count(f.oldest_days) });
+      const keys = ["bucket_0_30", "bucket_31_60", "bucket_61_90", "bucket_90"];
+      const all = f.buckets.reduce((s: number, b: any) => s + Number(b.amount), 0);
+      table = { columns: [col("unpaid_for", "text", false), col("bills", "count"), col("amount", "money")],
+        rows: f.buckets.map((b: any, i: number) => [L[keys[i]], b.bill_count, b.amount]),
+        // Share of the unpaid total, for drawing only. Ink, never red: no due dates exist.
+        bars: f.buckets.map((b: any) => (all > 0 ? Math.round((Number(b.amount) / all) * 1000) / 10 : 0)),
+        tones: f.buckets.map((_: any, i: number) => (i === f.buckets.length - 1 ? "strong" : null)) };
+      rowsAfter = [row("not_matched", f.unmatched_amount, "money"), row("total_unpaid", f.total_outstanding, "money", "total")];
+      footnote = foot();
       break;
+    }
     case "collections_week":
-      headline = cell("collected", f.collected, "money");
-      rows = [cell("receipts", f.receipt_count, "count"), cell("customers_paid", f.customers_paid, "count"),
-        cell("same_days_last_week", f.previous_collected, "money"), cell("change", f.change_pct, "percent")];
-      table = { columns: cols(["method", "text"], ["amount", "money"]), rows: f.by_method.map((m: any) => [m.method, m.amount]) };
+      value = f.collected;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to) });
+      detail = compare({ prev: inr(f.previous_collected), range: span(f.previous_from, f.previous_to) });
+      rows = [...f.by_method.map((x: any) => ({ label: method(x.method), value: x.amount, kind: "money" as Kind })),
+        row("total_collected", f.collected, "money", "total"), row("receipts", f.receipt_count, "count"), row("customers_paid", f.customers_paid, "count")];
+      footnote = foot();
       break;
     case "cash_bank":
-      headline = cell("total_money", f.total_balance, "money");
-      rows = [cell("cash", f.cash_total, "money"), cell("bank", f.bank_total, "money"),
-        cell("in_today", f.today_in, "money"), cell("out_today", f.today_out, "money")];
-      table = { columns: cols(["account", "text"], ["type", "text"], ["balance", "money"]),
-        rows: f.accounts.map((a: any) => [a.label, a.type, a.balance]) };
+      value = f.total_balance;
+      caption = H.caption;
+      rows = [...f.accounts.map((a: any) => ({ label: a.label, value: a.balance, kind: "money" as Kind })),
+        row("total", f.total_balance, "money", "total"), row("in_today", f.today_in, "money"), row("out_today", f.today_out, "money")];
+      footnote = foot();
       break;
-    case "gst_collected":
-      headline = cell("gst_on_sales", f.output_gst, "money");
-      rows = [cell("taxable_sales", f.taxable_sales, "money"), cell("last_month", f.last_month_output_gst, "money")];
+    case "gst_collected": {
+      value = f.output_gst;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to) });
+      const [, m] = parts(f.last_month_from ?? f.period_from);
+      rows = [row("sales_in_period", f.taxable_sales, "money"), row("gst_on_sales", f.output_gst, "money", "total"),
+        { label: fill(L.full_month, { month: strings.months_long[m - 1] }), value: f.last_month_output_gst, kind: "money" }];
       break;
+    }
     case "gst_gaps":
-      headline = cell("purchases_no_bill", f.purchases_no_bill_no, "count");
-      rows = [cell("value_no_bill", f.purchases_no_bill_no_value, "money"),
-        cell("lines_no_hsn", f.sale_lines_no_hsn, "count"), cell("products_no_hsn", f.products_no_hsn, "count"),
-        cell("suppliers_no_gstin", f.suppliers_used_no_gstin, "count")];
+      value = f.purchases_no_bill_no; kind = "count";
+      unit = fill(H.unit, { n: count(f.purchases_total) });
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to) });
+      table = { columns: [col("record", "text", false), col("missing", "count"), col("of", "count")],
+        rows: [[L.purchases_no_bill, f.purchases_no_bill_no, f.purchases_total], [L.lines_no_hsn, f.sale_lines_no_hsn, f.sale_lines_total],
+          [L.products_no_hsn, f.products_no_hsn, f.products_total], [L.suppliers_no_gstin, f.suppliers_used_no_gstin, f.suppliers_used]] };
+      rowsAfter = [row("value_no_bill", f.purchases_no_bill_no_value, "money", "total")];
       break;
     default:
       throw new Error(`no card for ${id}`);
   }
 
-  return { title: strings.titles[id], headline, rows, table, note: strings.notes[id] ?? null };
+  if (empty) { detail = null; footnote = null; caption = strings.no_data_by_question[id] ?? strings.no_data; }
+  const headline = { label: caption, value, kind };
+  return {
+    title: strings.titles[id], headline,
+    hero: { value, kind, unit, caption, detail },
+    rows, table, rows_after: rowsAfter,
+    note: strings.notes[id] ?? null, footnote,
+  };
 }

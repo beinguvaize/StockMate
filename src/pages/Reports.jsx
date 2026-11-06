@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ReportShell from '../components/reports/ReportShell';
 import BusinessReport from '../components/reports/BusinessReport';
@@ -53,6 +54,8 @@ import {
 
 const Reports = () => {
   const { hasPermission } = useAuth();
+  const [searchParams] = useSearchParams();
+  const linkedTab = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState('BUSINESS');
   const [activeGroup, setActiveGroup] = useState('OPERATIONAL');
 
@@ -110,6 +113,14 @@ const Reports = () => {
     });
     return groups;
   }, [TABS]);
+
+  // ?tab=DAILY_SALES opens a report directly, in its own group. A tab this user
+  // has no permission for is not in TABS, so the link falls back to the default.
+  useEffect(() => {
+    const linked = TABS.find((t) => t.id === linkedTab);
+    if (linked) { setActiveGroup(linked.group); setActiveTab(linked.id); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedTab]);
 
   const visibleTabs = groupedTabs[activeGroup] || [];
   const currentTab = visibleTabs.find(t => t.id === activeTab) || visibleTabs[0];

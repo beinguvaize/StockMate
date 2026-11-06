@@ -1,84 +1,518 @@
 {
-  "en": {
-    "ui": {
-      "title": "Ask your books", "needs_internet": "Needs internet", "cannot_reach": "Couldn't reach the server, try again",
-      "ai_explanation": "AI explanation of the figures shown", "turn_on": "Turn on", "turn_off": "Turn off",
-      "category_sales": "Sales", "category_stock": "Stock", "category_dues": "Dues", "category_cash": "Cash", "category_gst": "GST",
-      "reason_ai_off": "AI is off for this shop", "reason_ai_not_configured": "AI text is not set up yet. These are your figures.",
-      "reason_quota_reached": "This month's AI answers are used up. These are your figures.",
-      "reason_rate_limited": "Too many questions just now. These are your figures.",
-      "reason_model_error": "AI text isn't available right now. These are your figures.",
-      "reason_refused": "AI text isn't available for this one. These are your figures.",
-      "reason_guard_rejected": "AI text was dropped because a number could not be checked. These are your figures.",
-      "reason_not_owner": "Only the shop owner can use this", "reason_suspended": "This shop is suspended",
-      "reason_module_locked": "Your plan doesn't include this", "reason_lang_unsupported": "That language isn't available",
-      "reason_read_failed": "Couldn't read your figures, try again",
-      "reason_not_signed_in": "Please sign in again", "reason_bad_request": "That request wasn't understood", "reason_unknown_question": "That question isn't available"
-    },
-    "no_data": "Nothing to show for this yet.",
-    "card": {
-      "sales": "Sales", "bills": "Bills", "average_bill": "Average bill", "returns": "Returns", "same_day_last_week": "Same day last week", "same_days_last_week": "Same days last week",
-      "change": "Change", "method": "Method", "amount": "Amount", "net_profit": "Net profit", "revenue": "Revenue", "cogs": "Cost of goods",
-      "gross_profit": "Gross profit", "expenses": "Expenses", "previous_period": "Previous period", "item": "Item", "qty_sold": "Qty sold",
-      "items_sold": "Items sold", "total_sales": "Total sales", "items_low": "Items low", "items_out": "Out of stock", "reorder_value": "Reorder value",
-      "stock": "Stock", "reorder_level": "Reorder level", "short_by": "Short by", "expiring_value": "Expiring value", "expiring_batches": "Batches expiring",
-      "expired_batches": "Batches expired", "expired_value": "Expired value", "expiry": "Expiry", "days_left": "Days left", "qty": "Qty", "value": "Value",
-      "value_stuck": "Value stuck", "items_dead": "Items not selling", "total_owed": "Total owed", "customers_owing": "Customers owing", "customer": "Customer",
-      "owed": "Owed", "last_payment": "Last payment", "oldest_unpaid": "Oldest unpaid", "not_matched": "Not matched to bills", "unpaid_for_days": "Unpaid for (days)",
-      "collected": "Collected", "receipts": "Receipts", "customers_paid": "Customers paid", "total_money": "Total money", "cash": "Cash", "bank": "Bank",
-      "in_today": "In today", "out_today": "Out today", "account": "Account", "type": "Type", "balance": "Balance", "gst_on_sales": "GST on sales",
-      "taxable_sales": "Taxable sales", "last_month": "Last month", "purchases_no_bill": "Purchases with no bill no.", "value_no_bill": "Value with no bill no.",
-      "lines_no_hsn": "Sale lines with no HSN", "products_no_hsn": "Products with no HSN", "suppliers_no_gstin": "Suppliers with no GSTIN", "of_total": "of"
-    },
-    "titles": {
-      "sales_today": "Sales today", "profit_month": "Profit this month", "top_items": "Top items this month", "low_stock": "Reorder list",
-      "expiring_stock": "Expiring in 30 days", "dead_stock": "Not sold for 30 days", "top_dues": "Who owes you", "dues_age": "How old your dues are",
-      "collections_week": "Collected this week", "cash_bank": "Cash and bank", "gst_collected": "GST collected this month", "gst_gaps": "Gaps in GST records"
-    },
-    "notes": {
-      "gst_collected": "GST on your sales, from your books. This is before input credit and is not a filing figure.",
-      "dues_age": "Aged by sale date. There are no due dates, so this shows how long each bill has been unpaid."
-    }
+ "en": {
+  "ui": {
+   "title": "Ask",
+   "tagline": "Answers come from your books. AI only explains them.",
+   "from_books": "From your books",
+   "ai_label": "Written by AI from the figures below",
+   "figures_only": "Figures only",
+   "reading": "Reading your books",
+   "also_ask": "Also ask",
+   "usage_line": "{used} of {limit} explanations used in {month}. Figures never count.",
+   "usage_full": "All {limit} explanations used in {month}. Figures keep working. Explanations return on {reset}.",
+   "intro_title": "Tap a question",
+   "intro_1": "Each answer shows your real figures, read fresh from your books.",
+   "intro_2": "AI adds 2 to 4 sentences about those figures. It cannot change them.",
+   "intro_3": "Every answer links to the screen where you can check the same numbers.",
+   "reason_guard_rejected": "The explanation was left out because a number in it did not match your books. The figures below are correct.",
+   "reason_model_error": "The explanation could not be written just now. The figures below are correct.",
+   "reason_refused": "The explanation could not be written just now. The figures below are correct.",
+   "reason_ai_not_configured": "Explanations are not set up yet. The figures below are correct.",
+   "reason_rate_limited": "Too many questions in one minute. Wait a moment for the explanation. The figures below are correct.",
+   "reason_quota_reached": "You have used all {limit} explanations for {month}. They return on {reset}. Your figures keep working.",
+   "reason_ai_off": "Ask is turned off for this shop.",
+   "quota_title": "Explanations used up",
+   "retry": "Try again",
+   "see_plans": "See plans",
+   "offline_title": "Needs internet",
+   "offline_body": "Answers are read live from your books, so they cannot be worked out on this device. Questions will work again when you are back online.",
+   "error_title": "Could not read your figures",
+   "error_connection": "Connection lost.",
+   "error_slow": "Your books took too long to answer.",
+   "error_read": "Your books could not be read.",
+   "error_nothing": "Nothing is shown rather than a wrong number.",
+   "staff_title": "Ask is for the shop owner",
+   "staff_body": "It shows profit, cash and dues, so staff accounts do not have it for now. Your owner can see these answers on their login.",
+   "staff_back": "Back to dashboard",
+   "on_title": "Turn on Ask for your shop",
+   "on_body": "Tap a question and see your real figures, with a short explanation written by AI.",
+   "sent_title": "Sent to the AI",
+   "never_title": "Never sent",
+   "sent_1": "Totals, counts and dates",
+   "sent_2": "Product names and units",
+   "never_1": "Customer, supplier and staff names. The AI sees a code like C1.",
+   "never_2": "Phone numbers, addresses, email",
+   "never_3": "GSTIN, PAN, Aadhaar",
+   "never_4": "Bank and UPI details",
+   "never_5": "Your shop's name",
+   "on_fine": "The AI is Claude, from Anthropic, and it runs outside India. Anthropic does not use this data for training by default, and deletes it within 30 days unless its usage policy or the law requires longer. Only you see Ask. You can turn it off any time in Settings.",
+   "turn_on": "Turn on",
+   "not_now": "Not now",
+   "turn_off": "Turn off",
+   "entry_title": "Ask about your shop",
+   "entry_sub": "Sales, stock, dues, cash, GST",
+   "category_sales": "Sales",
+   "category_stock": "Stock",
+   "category_dues": "Dues",
+   "category_cash": "Cash",
+   "category_gst": "GST",
+   "reason_not_owner": "Only the shop owner can use this",
+   "reason_suspended": "This shop is suspended",
+   "reason_module_locked": "Your plan doesn't include this",
+   "reason_lang_unsupported": "That language isn't available",
+   "reason_read_failed": "Couldn't read your figures, try again",
+   "reason_not_signed_in": "Please sign in again",
+   "reason_bad_request": "That request wasn't understood",
+   "reason_unknown_question": "That question isn't available"
   },
-  "hi": {
-    "ui": {
-      "title": "अपने खाते से पूछें", "needs_internet": "इंटरनेट चाहिए", "cannot_reach": "सर्वर से नहीं जुड़ पाए, फिर कोशिश करें",
-      "ai_explanation": "दिखाए गए आँकड़ों की AI व्याख्या", "turn_on": "चालू करें", "turn_off": "बंद करें",
-      "category_sales": "बिक्री", "category_stock": "स्टॉक", "category_dues": "बकाया", "category_cash": "नकद", "category_gst": "GST",
-      "reason_ai_off": "इस दुकान के लिए AI बंद है", "reason_ai_not_configured": "AI टेक्स्ट अभी चालू नहीं है। ये आपके आँकड़े हैं।",
-      "reason_quota_reached": "इस महीने के AI जवाब पूरे हो गए। ये आपके आँकड़े हैं।",
-      "reason_rate_limited": "अभी बहुत सवाल हो गए। ये आपके आँकड़े हैं।",
-      "reason_model_error": "AI टेक्स्ट अभी उपलब्ध नहीं है। ये आपके आँकड़े हैं।",
-      "reason_refused": "इसके लिए AI टेक्स्ट उपलब्ध नहीं है। ये आपके आँकड़े हैं।",
-      "reason_guard_rejected": "एक संख्या जाँची नहीं जा सकी, इसलिए AI टेक्स्ट हटा दिया गया। ये आपके आँकड़े हैं।",
-      "reason_not_owner": "इसे केवल दुकान के मालिक इस्तेमाल कर सकते हैं", "reason_suspended": "यह दुकान निलंबित है",
-      "reason_module_locked": "यह आपके प्लान में शामिल नहीं है", "reason_lang_unsupported": "यह भाषा उपलब्ध नहीं है",
-      "reason_read_failed": "आपके आँकड़े नहीं पढ़ पाए, फिर कोशिश करें",
-      "reason_not_signed_in": "कृपया फिर से साइन इन करें", "reason_bad_request": "अनुरोध समझ नहीं आया", "reason_unknown_question": "यह सवाल उपलब्ध नहीं है"
-    },
-    "no_data": "इसके लिए अभी दिखाने को कुछ नहीं है।",
-    "card": {
-      "sales": "बिक्री", "bills": "बिल", "average_bill": "औसत बिल", "returns": "वापसी", "same_day_last_week": "पिछले हफ़्ते इसी दिन", "same_days_last_week": "पिछले हफ़्ते के इन्हीं दिनों",
-      "change": "बदलाव", "method": "तरीका", "amount": "रकम", "net_profit": "शुद्ध मुनाफ़ा", "revenue": "आय", "cogs": "माल की लागत",
-      "gross_profit": "सकल मुनाफ़ा", "expenses": "खर्च", "previous_period": "पिछली अवधि", "item": "सामान", "qty_sold": "बिकी मात्रा",
-      "items_sold": "बिके सामान", "total_sales": "कुल बिक्री", "items_low": "कम स्टॉक वाले सामान", "items_out": "स्टॉक ख़त्म", "reorder_value": "मँगाने की लागत",
-      "stock": "स्टॉक", "reorder_level": "न्यूनतम स्तर", "short_by": "कमी", "expiring_value": "एक्सपायर होने वाला मूल्य", "expiring_batches": "एक्सपायर होने वाले बैच",
-      "expired_batches": "एक्सपायर बैच", "expired_value": "एक्सपायर मूल्य", "expiry": "एक्सपायरी", "days_left": "बचे दिन", "qty": "मात्रा", "value": "मूल्य",
-      "value_stuck": "फँसा हुआ मूल्य", "items_dead": "न बिकने वाले सामान", "total_owed": "कुल बकाया", "customers_owing": "बकाया ग्राहक", "customer": "ग्राहक",
-      "owed": "बकाया", "last_payment": "आख़िरी भुगतान", "oldest_unpaid": "सबसे पुराना बकाया", "not_matched": "बिलों से मेल नहीं", "unpaid_for_days": "बकाया (दिन)",
-      "collected": "वसूली", "receipts": "रसीदें", "customers_paid": "भुगतान करने वाले ग्राहक", "total_money": "कुल पैसा", "cash": "नकद", "bank": "बैंक",
-      "in_today": "आज आया", "out_today": "आज गया", "account": "खाता", "type": "प्रकार", "balance": "बैलेंस", "gst_on_sales": "बिक्री पर GST",
-      "taxable_sales": "कर योग्य बिक्री", "last_month": "पिछला महीना", "purchases_no_bill": "बिना बिल नंबर की ख़रीद", "value_no_bill": "बिना बिल नंबर का मूल्य",
-      "lines_no_hsn": "बिना HSN की बिक्री पंक्तियाँ", "products_no_hsn": "बिना HSN के सामान", "suppliers_no_gstin": "बिना GSTIN के सप्लायर", "of_total": "में से"
-    },
-    "titles": {
-      "sales_today": "आज की बिक्री", "profit_month": "इस महीने का मुनाफ़ा", "top_items": "इस महीने के टॉप सामान", "low_stock": "दोबारा मँगाने की सूची",
-      "expiring_stock": "30 दिनों में एक्सपायर", "dead_stock": "30 दिनों से नहीं बिका", "top_dues": "किस पर बकाया है", "dues_age": "बकाया कितना पुराना है",
-      "collections_week": "इस हफ़्ते की वसूली", "cash_bank": "नकद और बैंक", "gst_collected": "इस महीने लिया गया GST", "gst_gaps": "GST रिकॉर्ड की कमियाँ"
-    },
-    "notes": {
-      "gst_collected": "आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले है और फ़ाइलिंग का आँकड़ा नहीं है।",
-      "dues_age": "बिक्री की तारीख़ से गिना गया। कोई देय तारीख़ नहीं है, इसलिए यह दिखाता है कि हर बिल कितने समय से बकाया है।"
-    }
-  }
+  "card": {
+   "sales": "Sales",
+   "bills": "Bills",
+   "average_bill": "Average bill",
+   "returns": "Returns",
+   "total_sold": "Total sold",
+   "sales_after_returns": "Sales after returns",
+   "cogs": "Cost of goods",
+   "gross_profit": "Gross profit",
+   "expenses": "Expenses",
+   "net_profit": "Net profit",
+   "item": "Item",
+   "sold": "Sold",
+   "value": "Value",
+   "stock": "Stock",
+   "limit": "Limit",
+   "short": "Short",
+   "cost_to_refill": "Cost to refill all {n}",
+   "expiry": "Expiry",
+   "left": "Left",
+   "customer": "Customer",
+   "last_paid": "Last paid",
+   "unpaid": "Unpaid",
+   "never": "Never",
+   "unpaid_for": "Unpaid for",
+   "amount": "Amount",
+   "bucket_0_30": "0 to 30 days",
+   "bucket_31_60": "31 to 60 days",
+   "bucket_61_90": "61 to 90 days",
+   "bucket_90": "More than 90 days",
+   "not_matched": "Not matched to a bill",
+   "total_unpaid": "Total unpaid",
+   "total_collected": "Total collected",
+   "receipts": "Receipts",
+   "customers_paid": "Customers who paid",
+   "total": "Total",
+   "in_today": "In today",
+   "out_today": "Out today",
+   "sales_in_period": "Sales in this period",
+   "gst_on_sales": "GST on these sales",
+   "full_month": "{month}, full month",
+   "record": "Record",
+   "missing": "Missing",
+   "of": "Of",
+   "purchases_no_bill": "Purchases with no bill number",
+   "lines_no_hsn": "Sale lines with no HSN",
+   "products_no_hsn": "Products with no HSN",
+   "suppliers_no_gstin": "Suppliers with no GSTIN",
+   "value_no_bill": "Value of purchases with no bill number",
+   "expired_suffix": "{date}, expired"
+  },
+  "hero": {
+   "sales_today": {
+    "caption": "Sold today, {bills} bills",
+    "compare": "{change} vs {prev} last {weekday}",
+    "plain": "{prev} last {weekday}"
+   },
+   "profit_month": {
+    "caption": "Net profit, {from} to {to}",
+    "compare": "{change} vs {prev} for {pfrom} to {pto}",
+    "plain": "{prev} for {pfrom} to {pto}"
+   },
+   "top_items": {
+    "caption": "Top item: {name}"
+   },
+   "low_stock": {
+    "unit": "items",
+    "caption": "Low on stock, {out} of them at zero"
+   },
+   "expiring_stock": {
+    "caption": "Expires by {to}, {n} batches"
+   },
+   "dead_stock": {
+    "caption": "Stuck in {n} items, no sale since {from}"
+   },
+   "top_dues": {
+    "caption": "{name} owes the most",
+    "detail": "{total} unpaid by {n} customers"
+   },
+   "dues_age": {
+    "caption": "Unpaid in total, oldest bill unpaid for {days} days"
+   },
+   "collections_week": {
+    "caption": "Collected, {from} to {to}",
+    "compare": "{change} vs {prev}, same days last week ({range})",
+    "plain": "{prev}, same days last week ({range})"
+   },
+   "cash_bank": {
+    "caption": "Cash and bank now"
+   },
+   "gst_collected": {
+    "caption": "GST on your sales, {from} to {to}"
+   },
+   "gst_gaps": {
+    "unit": "of {n}",
+    "caption": "Purchases with no bill number, {from} to {to}"
+   }
+  },
+  "titles": {
+   "sales_today": "Sales today",
+   "profit_month": "Profit this month",
+   "top_items": "Top items this month",
+   "low_stock": "Reorder list",
+   "expiring_stock": "Expiring in 30 days",
+   "dead_stock": "Not sold for 30 days",
+   "top_dues": "Who owes you",
+   "dues_age": "How old your dues are",
+   "collections_week": "Collected this week",
+   "cash_bank": "Cash and bank",
+   "gst_collected": "GST collected this month",
+   "gst_gaps": "Gaps in GST records"
+  },
+  "notes": {
+   "gst_collected": "GST on your sales, from your books. This is before input credit and is not a filing figure."
+  },
+  "footnotes": {
+   "top_items": "Top {shown} of {n} items sold this month. By sales value, not margin.",
+   "low_stock": "Top {shown} of {n} shown. The cost covers all {n}.",
+   "expiring_stock": "{value} of stock lost.",
+   "dead_stock": "Top {shown} of {n} shown. The total covers all {n}, at cost price.",
+   "top_dues": "Top {shown} of {n} shown. The total covers all {n}.",
+   "dues_age": "Age is counted from the sale date.",
+   "collections_week": "Day Book shows one day at a time.",
+   "cash_bank": "Transfers between your own accounts are left out of in and out."
+  },
+  "links": {
+   "reports_daily_sales": "Open Daily Sales",
+   "sales": "Open Sales",
+   "reports_financials": "Open Financials",
+   "reports_product_sales": "Open Product Sales",
+   "reports_low_stock": "Open Low Stock",
+   "inventory": "Open Inventory",
+   "reports_expiry": "Open Expiry report",
+   "reports_inventory_dead": "Open Dead Stock",
+   "clients": "Open Customers",
+   "daybook": "Open Day Book",
+   "accounts": "Open Accounts",
+   "dashboard": "Open Dashboard",
+   "reports_gstr3b": "Open GSTR-3B",
+   "reports_purchase_register": "Open Purchase Register"
+  },
+  "methods": {
+   "CASH": "Cash",
+   "UPI": "UPI",
+   "BANK": "Bank",
+   "CARD": "Card",
+   "CREDIT": "Credit",
+   "CHEQUE": "Cheque",
+   "UNKNOWN": "Not recorded"
+  },
+  "no_data": "Nothing to show for this yet.",
+  "no_data_by_question": {
+   "sales_today": "No sales recorded yet today."
+  },
+  "months_short": [
+   "Jan",
+   "Feb",
+   "Mar",
+   "Apr",
+   "May",
+   "Jun",
+   "Jul",
+   "Aug",
+   "Sep",
+   "Oct",
+   "Nov",
+   "Dec"
+  ],
+  "months_long": [
+   "January",
+   "February",
+   "March",
+   "April",
+   "May",
+   "June",
+   "July",
+   "August",
+   "September",
+   "October",
+   "November",
+   "December"
+  ],
+  "weekdays": [
+   "Sunday",
+   "Monday",
+   "Tuesday",
+   "Wednesday",
+   "Thursday",
+   "Friday",
+   "Saturday"
+  ]
+ },
+ "hi": {
+  "ui": {
+   "title": "पूछें",
+   "tagline": "जवाब आपके खातों से आते हैं। AI सिर्फ़ उन्हें समझाता है।",
+   "from_books": "आपके खातों से",
+   "ai_label": "नीचे के आँकड़ों से AI ने लिखा",
+   "figures_only": "सिर्फ़ आँकड़े",
+   "reading": "आपके खाते पढ़े जा रहे हैं",
+   "also_ask": "यह भी पूछें",
+   "usage_line": "{month} में {limit} में से {used} व्याख्याएँ इस्तेमाल हुईं। आँकड़ों की गिनती नहीं होती।",
+   "usage_full": "{month} की सभी {limit} व्याख्याएँ इस्तेमाल हो चुकीं। आँकड़े चलते रहेंगे। व्याख्याएँ {reset} को फिर मिलेंगी।",
+   "intro_title": "कोई सवाल चुनें",
+   "intro_1": "हर जवाब में आपके असली आँकड़े होते हैं, जो अभी आपके खातों से पढ़े जाते हैं।",
+   "intro_2": "AI उन आँकड़ों पर 2 से 4 वाक्य लिखता है। वह उन्हें बदल नहीं सकता।",
+   "intro_3": "हर जवाब से आप उस स्क्रीन पर जा सकते हैं जहाँ यही आँकड़े मिलते हैं।",
+   "reason_guard_rejected": "व्याख्या हटा दी गई क्योंकि उसका एक आँकड़ा आपके खातों से मेल नहीं खाया। नीचे के आँकड़े सही हैं।",
+   "reason_model_error": "अभी व्याख्या नहीं लिखी जा सकी। नीचे के आँकड़े सही हैं।",
+   "reason_refused": "अभी व्याख्या नहीं लिखी जा सकी। नीचे के आँकड़े सही हैं।",
+   "reason_ai_not_configured": "व्याख्याएँ अभी चालू नहीं हुई हैं। नीचे के आँकड़े सही हैं।",
+   "reason_rate_limited": "एक मिनट में बहुत सवाल हो गए। व्याख्या के लिए थोड़ा रुकें। नीचे के आँकड़े सही हैं।",
+   "reason_quota_reached": "आपने {month} की सभी {limit} व्याख्याएँ इस्तेमाल कर लीं। वे {reset} को फिर मिलेंगी। आपके आँकड़े चलते रहेंगे।",
+   "reason_ai_off": "इस दुकान के लिए पूछें सुविधा बंद है।",
+   "quota_title": "व्याख्याएँ खत्म",
+   "retry": "फिर कोशिश करें",
+   "see_plans": "प्लान देखें",
+   "offline_title": "इंटरनेट चाहिए",
+   "offline_body": "जवाब सीधे आपके खातों से पढ़े जाते हैं, इसलिए इस डिवाइस पर नहीं निकाले जा सकते। इंटरनेट आते ही सवाल फिर चलेंगे।",
+   "error_title": "आपके आँकड़े नहीं पढ़े जा सके",
+   "error_connection": "कनेक्शन टूट गया।",
+   "error_slow": "आपके खातों से जवाब आने में बहुत देर लगी।",
+   "error_read": "आपके खाते नहीं पढ़े जा सके।",
+   "error_nothing": "गलत आँकड़ा दिखाने के बजाय कुछ नहीं दिखाया गया।",
+   "staff_title": "पूछें सुविधा सिर्फ़ दुकान के मालिक के लिए है",
+   "staff_body": "इसमें मुनाफ़ा, नकद और बकाया दिखता है, इसलिए अभी स्टाफ़ खातों में यह नहीं है। मालिक अपने लॉगिन पर ये जवाब देख सकते हैं।",
+   "staff_back": "डैशबोर्ड पर लौटें",
+   "on_title": "अपनी दुकान के लिए पूछें सुविधा चालू करें",
+   "on_body": "सवाल चुनें और अपने असली आँकड़े देखें, साथ में AI की लिखी छोटी व्याख्या।",
+   "sent_title": "AI को भेजा जाता है",
+   "never_title": "कभी नहीं भेजा जाता",
+   "sent_1": "कुल रकम, गिनती और तारीखें",
+   "sent_2": "उत्पादों के नाम और यूनिट",
+   "never_1": "ग्राहक, सप्लायर और स्टाफ़ के नाम। AI को C1 जैसा कोड दिखता है।",
+   "never_2": "फ़ोन नंबर, पते, ईमेल",
+   "never_3": "GSTIN, PAN, आधार",
+   "never_4": "बैंक और UPI की जानकारी",
+   "never_5": "आपकी दुकान का नाम",
+   "on_fine": "यह AI Anthropic का Claude है और भारत के बाहर चलता है। Anthropic सामान्य तौर पर इस डेटा से अपने AI को ट्रेन नहीं करता, और इसे 30 दिनों में हटा देता है, जब तक कि उसकी उपयोग नीति या कानून के कारण ज़्यादा समय रखना ज़रूरी न हो। पूछें सुविधा सिर्फ़ आपको दिखती है। आप इसे कभी भी Settings में बंद कर सकते हैं।",
+   "turn_on": "चालू करें",
+   "not_now": "अभी नहीं",
+   "turn_off": "बंद करें",
+   "entry_title": "अपनी दुकान के बारे में पूछें",
+   "entry_sub": "बिक्री, स्टॉक, बकाया, नकद, GST",
+   "category_sales": "बिक्री",
+   "category_stock": "स्टॉक",
+   "category_dues": "बकाया",
+   "category_cash": "नकद और बैंक",
+   "category_gst": "GST",
+   "reason_not_owner": "इसे केवल दुकान के मालिक इस्तेमाल कर सकते हैं",
+   "reason_suspended": "यह दुकान निलंबित है",
+   "reason_module_locked": "यह आपके प्लान में शामिल नहीं है",
+   "reason_lang_unsupported": "यह भाषा उपलब्ध नहीं है",
+   "reason_read_failed": "आपके आँकड़े नहीं पढ़ पाए, फिर कोशिश करें",
+   "reason_not_signed_in": "कृपया फिर से साइन इन करें",
+   "reason_bad_request": "अनुरोध समझ नहीं आया",
+   "reason_unknown_question": "यह सवाल उपलब्ध नहीं है"
+  },
+  "card": {
+   "sales": "बिक्री",
+   "bills": "बिल",
+   "average_bill": "औसत बिल",
+   "returns": "वापसी",
+   "total_sold": "कुल बिक्री",
+   "sales_after_returns": "वापसी के बाद बिक्री",
+   "cogs": "माल की लागत",
+   "gross_profit": "सकल मुनाफ़ा",
+   "expenses": "खर्च",
+   "net_profit": "शुद्ध मुनाफ़ा",
+   "item": "आइटम",
+   "sold": "बिका",
+   "value": "रकम",
+   "stock": "स्टॉक",
+   "limit": "सीमा",
+   "short": "कमी",
+   "cost_to_refill": "सभी {n} भरने की लागत",
+   "expiry": "एक्सपायरी",
+   "left": "बचा",
+   "customer": "ग्राहक",
+   "last_paid": "आखिरी भुगतान",
+   "unpaid": "बाकी",
+   "never": "कभी नहीं",
+   "unpaid_for": "कितने दिन से बकाया",
+   "amount": "रकम",
+   "bucket_0_30": "0 से 30 दिन",
+   "bucket_31_60": "31 से 60 दिन",
+   "bucket_61_90": "61 से 90 दिन",
+   "bucket_90": "90 दिन से ज़्यादा",
+   "not_matched": "किसी बिल से मेल नहीं",
+   "total_unpaid": "कुल बकाया",
+   "total_collected": "कुल वसूली",
+   "receipts": "रसीदें",
+   "customers_paid": "भुगतान करने वाले ग्राहक",
+   "total": "कुल",
+   "in_today": "आज आए",
+   "out_today": "आज गए",
+   "sales_in_period": "इस अवधि की बिक्री",
+   "gst_on_sales": "इस बिक्री पर GST",
+   "full_month": "{month}, पूरा महीना",
+   "record": "रिकॉर्ड",
+   "missing": "कमी",
+   "of": "कुल",
+   "purchases_no_bill": "बिना बिल नंबर की खरीद",
+   "lines_no_hsn": "बिना HSN की बिक्री लाइनें",
+   "products_no_hsn": "बिना HSN के उत्पाद",
+   "suppliers_no_gstin": "बिना GSTIN के सप्लायर",
+   "value_no_bill": "बिना बिल नंबर की खरीद की रकम",
+   "expired_suffix": "{date}, एक्सपायर"
+  },
+  "hero": {
+   "sales_today": {
+    "caption": "आज की बिक्री, {bills} बिल",
+    "compare": "{change}, पिछले {weekday} {prev} थी",
+    "plain": "पिछले {weekday} {prev} थी"
+   },
+   "profit_month": {
+    "caption": "शुद्ध मुनाफ़ा, {from} से {to}",
+    "compare": "{change}, {pfrom} से {pto} में {prev} था",
+    "plain": "{pfrom} से {pto} में {prev} था"
+   },
+   "top_items": {
+    "caption": "सबसे आगे: {name}"
+   },
+   "low_stock": {
+    "unit": "आइटम",
+    "caption": "स्टॉक कम, इनमें {out} खत्म"
+   },
+   "expiring_stock": {
+    "caption": "{to} तक एक्सपायर, {n} बैच"
+   },
+   "dead_stock": {
+    "caption": "{n} आइटम में अटका, {from} से बिक्री नहीं"
+   },
+   "top_dues": {
+    "caption": "सबसे ज़्यादा {name} पर बाकी",
+    "detail": "{n} ग्राहकों पर कुल {total} बाकी"
+   },
+   "dues_age": {
+    "caption": "कुल बकाया, सबसे पुराना बिल {days} दिन से बकाया"
+   },
+   "collections_week": {
+    "caption": "वसूली, {from} से {to}",
+    "compare": "{change}, पिछले हफ़्ते के इन्हीं दिनों ({range}) में {prev} थी",
+    "plain": "पिछले हफ़्ते के इन्हीं दिनों ({range}) में {prev} थी"
+   },
+   "cash_bank": {
+    "caption": "अभी नकद और बैंक"
+   },
+   "gst_collected": {
+    "caption": "आपकी बिक्री पर GST, {from} से {to}"
+   },
+   "gst_gaps": {
+    "unit": "{n} में से",
+    "caption": "बिना बिल नंबर की खरीद, {from} से {to}"
+   }
+  },
+  "titles": {
+   "sales_today": "आज की बिक्री",
+   "profit_month": "इस महीने का मुनाफ़ा",
+   "top_items": "इस महीने के टॉप सामान",
+   "low_stock": "दोबारा मँगाने की सूची",
+   "expiring_stock": "30 दिनों में एक्सपायर",
+   "dead_stock": "30 दिनों से नहीं बिका",
+   "top_dues": "किस पर बकाया है",
+   "dues_age": "बकाया कितना पुराना है",
+   "collections_week": "इस हफ़्ते की वसूली",
+   "cash_bank": "नकद और बैंक",
+   "gst_collected": "इस महीने लिया गया GST",
+   "gst_gaps": "GST रिकॉर्ड की कमियाँ"
+  },
+  "notes": {
+   "gst_collected": "आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले का है और फ़ाइलिंग का आँकड़ा नहीं है।"
+  },
+  "footnotes": {
+   "top_items": "इस महीने बिके {n} आइटम में से शीर्ष {shown}। बिक्री रकम के हिसाब से, मार्जिन के नहीं।",
+   "low_stock": "{n} में से {shown} दिखाए गए। लागत सभी {n} की है।",
+   "expiring_stock": "{value} का स्टॉक बेकार हो गया।",
+   "dead_stock": "{n} में से {shown} दिखाए गए। कुल रकम सभी {n} की है, लागत पर।",
+   "top_dues": "{n} में से {shown} दिखाए गए। कुल रकम सभी {n} की है।",
+   "dues_age": "उम्र बिक्री की तारीख से गिनी गई है।",
+   "collections_week": "Day Book एक बार में एक दिन दिखाता है।",
+   "cash_bank": "आपके अपने खातों के बीच ट्रांसफ़र आए-गए में नहीं गिने गए।"
+  },
+  "links": {
+   "reports_daily_sales": "Daily Sales खोलें",
+   "sales": "Sales खोलें",
+   "reports_financials": "Financials खोलें",
+   "reports_product_sales": "Product Sales खोलें",
+   "reports_low_stock": "Low Stock खोलें",
+   "inventory": "Inventory खोलें",
+   "reports_expiry": "Expiry report खोलें",
+   "reports_inventory_dead": "Dead Stock खोलें",
+   "clients": "Customers खोलें",
+   "daybook": "Day Book खोलें",
+   "accounts": "Accounts खोलें",
+   "dashboard": "Dashboard खोलें",
+   "reports_gstr3b": "GSTR-3B खोलें",
+   "reports_purchase_register": "Purchase Register खोलें"
+  },
+  "methods": {
+   "CASH": "नकद",
+   "UPI": "UPI",
+   "BANK": "बैंक",
+   "CARD": "कार्ड",
+   "CREDIT": "उधार",
+   "CHEQUE": "चेक",
+   "UNKNOWN": "दर्ज नहीं"
+  },
+  "no_data": "इसके लिए अभी दिखाने को कुछ नहीं है।",
+  "no_data_by_question": {
+   "sales_today": "आज अभी तक कोई बिक्री दर्ज नहीं हुई।"
+  },
+  "months_short": [
+   "जनवरी",
+   "फ़रवरी",
+   "मार्च",
+   "अप्रैल",
+   "मई",
+   "जून",
+   "जुलाई",
+   "अगस्त",
+   "सितंबर",
+   "अक्टूबर",
+   "नवंबर",
+   "दिसंबर"
+  ],
+  "months_long": [
+   "जनवरी",
+   "फ़रवरी",
+   "मार्च",
+   "अप्रैल",
+   "मई",
+   "जून",
+   "जुलाई",
+   "अगस्त",
+   "सितंबर",
+   "अक्टूबर",
+   "नवंबर",
+   "दिसंबर"
+  ],
+  "weekdays": [
+   "रविवार",
+   "सोमवार",
+   "मंगलवार",
+   "बुधवार",
+   "गुरुवार",
+   "शुक्रवार",
+   "शनिवार"
+  ]
+ }
 }

@@ -73,7 +73,7 @@ BEGIN
     IF r.provolatile = 'v' THEN RAISE EXCEPTION 'SHAPE: % is VOLATILE and is called from a STABLE function', r.proname; END IF;
   END LOOP;
 
-  IF (SELECT count(*) FROM pg_proc WHERE proname IN ('ai_save_answer','ai_usage_claim','ai_usage_record','ai_set_enabled')
+  IF (SELECT count(*) FROM pg_proc WHERE proname IN ('ai_save_answer','ai_usage_claim','ai_usage_record','ai_set_enabled','ai_usage_status')
        AND has_function_privilege('anon', oid, 'EXECUTE')) > 0 THEN
     RAISE EXCEPTION 'SHAPE: anon can execute a write function';
   END IF;
