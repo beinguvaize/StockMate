@@ -40,7 +40,7 @@ const ReportTable = ({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [localSearch, setLocalSearch] = useState('');
-  const [visibleColumns, setVisibleColumns] = useState(columns.map(c => c.key));
+  const [visibleColumns, setVisibleColumns] = useState(columns.filter(c => !c.defaultHidden).map(c => c.key));
   const [columnWidths, setColumnWidths] = useState(
     columns.reduce((acc, col) => ({ ...acc, [col.key]: col.width || 150 }), {})
   );

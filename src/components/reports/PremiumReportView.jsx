@@ -28,6 +28,7 @@ import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 const COLOR_HEX = {
   indigo: 'var(--color-accent-signature)', emerald: '#10b981', amber: '#f59e0b', rose: '#ef4444',
   orange: '#f97316', sky: '#0ea5e9', violet: '#8b5cf6', blue: '#3b82f6',
+  slate: 'var(--color-ink-tertiary)',
 };
 const PIE_COLORS = ['var(--color-accent-signature)', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
@@ -86,7 +87,7 @@ const KPI = ({ card, loading }) => {
       </div>
       {loading
         ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-        : <div className="tabular-nums text-2xl font-semibold text-foreground tabular-nums leading-none truncate">
+        : <div className={`tabular-nums font-semibold text-foreground leading-none ${String(kpiDisplay(card.label, card.value)).length > 10 ? 'text-[14px] sm:text-2xl' : 'text-2xl truncate'}`}>
             {kpiDisplay(card.label, card.value)}
           </div>
       }
@@ -365,7 +366,10 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
           <SectionHead title={activeTab.label} sub={`${(activeTab.data || []).length} records`} />
         </div>
         <div className="p-4">
+          {/* key: columns, sort and paging belong to a tab. Without it the table
+              kept the first tab's column list and lost the second tab's. */}
           <ReportTable
+            key={activeTab.id}
             columns={activeTab.columns || []}
             data={activeTab.data || []}
             loading={loading}
