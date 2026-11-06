@@ -71,6 +71,28 @@ describe('number guard: allowed', () => {
   });
 });
 
+describe('Hindi month names in AI prose', () => {
+  const f = { period_from: '2026-11-01', period_to: '2026-11-18', previous_from: '2026-10-14', previous_to: '2026-10-31', net_profit: 1000 };
+  const ok = (t) => checkReply(t, f, {}).ok;
+  it('accepts a date in the figures, however it is written', () => {
+    expect(ok('18 नवंबर तक मुनाफ़ा ₹1,000.00 है।')).toBe(true);
+    expect(ok('1 से 18 नवंबर में मुनाफ़ा ₹1,000.00 है।')).toBe(true);
+    expect(ok('14 से 31 अक्टूबर से तुलना।')).toBe(true);
+    expect(ok('नवंबर 2026 में मुनाफ़ा ₹1,000.00 है।')).toBe(true);
+    expect(ok('नवम्बर 18 को मुनाफ़ा ₹1,000.00 है।')).toBe(true);
+    expect(ok('पूरे अक्टूबर में।')).toBe(true);
+  });
+  it('rejects a Hindi date that is not in the figures', () => {
+    expect(ok('19 नवंबर तक मुनाफ़ा ₹1,000.00 है।')).toBe(false);
+    expect(ok('1 से 19 नवंबर में।')).toBe(false);
+    expect(ok('दिसंबर 2026 में।')).toBe(false);
+  });
+  it('keeps stand-ins next to a Hindi date', () => {
+    expect(checkReply('[C1] ने 18 नवंबर को भुगतान किया।', f, { '[C1]': 'Hotel Arya Bhavan' }).ok).toBe(true);
+    expect(restoreNames('[C1] ने 18 नवंबर को भुगतान किया।', { '[C1]': 'Hotel Arya Bhavan' })).toBe('Hotel Arya Bhavan ने 18 नवंबर को भुगतान किया।');
+  });
+});
+
 describe('number guard: rejected', () => {
   const bad = (t, f = SALES, m = none) => expect(checkReply(t, f, m).ok).toBe(false);
   it('a number not in the figures', () => {

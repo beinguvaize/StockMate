@@ -14,7 +14,7 @@ Rules for numbers, which matter more than style:
 - Money is in rupees and is written with the ₹ sign. You may write large amounts in lakh or crore with 1 or 2 decimals, such as ₹2.35 lakh. Otherwise use the figure as given, or rounded to a whole rupee.
 - Percentages come only from change_pct. If change_pct is null, say nothing about a percentage or a rise or fall.
 - Direction words must agree with the sign of change_pct: up, more or higher only when it is positive; down, less or lower only when it is negative. Do not describe a change when change_pct is missing.
-- Dates may be stated only if they are in the figures.
+- Dates may be stated only if they are in the figures. In Hindi, write month names in Hindi, such as 18 नवंबर, with Western digits.
 
 Rules for names and data:
 - Customers and accounts appear as stand-ins such as [C1] and [A1]. Keep each stand-in exactly as written, with its square brackets. Never invent one, never translate one and never guess who it is.
