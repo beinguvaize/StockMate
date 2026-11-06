@@ -251,7 +251,7 @@ class _SalesBody extends ConsumerWidget {
         _SectionLabel('Billed by day, with GST'),
         const SizedBox(height: 10),
         _ChartCard(
-          child: SimpleBarChart(bars: bars, height: 14.0 * chartDates.length.clamp(4, 14) + 20),
+          child: SimpleBarChart(bars: bars, height: 24.0 * chartDates.length.clamp(4, 14) + 8),
         ),
 
         // ── Sales list ────────────────────────────────────────────────────────

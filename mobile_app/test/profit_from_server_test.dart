@@ -187,6 +187,15 @@ void main() {
       expect(find.text('NET SALES'), findsOneWidget);
     });
 
+    testWidgets('a fortnight of bars fits its chart', (t) async {
+      await pump(t, const SalesSummaryScreen(), _Fake(rows: [row]), sales: [
+        for (var d = 10; d < 24; d++)
+          {'id': 'S$d', 'date': '2026-10-$d', 'totalAmount': 1000 + d, 'items': []},
+      ]);
+      expect(t.takeException(), isNull);
+      expect(find.text('23/10'), findsOneWidget);
+    });
+
     testWidgets('without the server, the tiles show no figure', (t) async {
       await pump(t, const SalesSummaryScreen(), _Fake(error: const SocketException('down')));
       expect(find.text('—'), findsNWidgets(2));
