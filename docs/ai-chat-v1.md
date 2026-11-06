@@ -51,7 +51,7 @@ The checks in this spec overturned or corrected these points. Build from this fi
 | 6 | `dead_stock` | Stock | Which stock has not sold for 30 days? | Now, last 30 days | `inventory` |
 | 7 | `top_dues` | Dues | Who owes me the most? | Now | `clients` |
 | 8 | `dues_age` | Dues | How old is my unpaid money? | Now | `clients` |
-| 9 | `collections_week` | Dues | How much did I collect this week? | Monday to today vs prior window of equal length | `clients` |
+| 9 | `collections_week` | Dues | How much did I collect this week? | Monday to today vs the same days last week | `clients` |
 | 10 | `cash_bank` | Cash | How much cash and bank money do I have? | Now, plus today's in and out | `daybook` |
 | 11 | `gst_collected` | GST | How much GST did I collect this month? | Month to date vs last full month | `reports` |
 | 12 | `gst_gaps` | GST | What is missing in my GST records? | First of last month to today | `reports` |
@@ -132,9 +132,9 @@ All dates use the shop's timezone from `business_profile.timezone` (`Asia/Kolkat
 - **Don't reuse:** `invoices.due_date`, the Customer Aging report, or `ar_aging_screen.dart` until each ties to `outstanding_balance` (§12).
 
 ### 9. `collections_week`
-- **Source:** new `ai_collections(p_from date, p_to date)`, called for this week and for the prior equal-length window. Weeks start on Monday, as in `reportUtils.js`.
+- **Source:** new `ai_collections(p_from date, p_to date)`, called for this week and for the same days last week: on a Wednesday, Monday to Wednesday against last Monday to Wednesday. Weeks start on Monday, as in `reportUtils.js`. This is not `priorRange()`, which would compare Monday to Wednesday with the Friday to Sunday just before.
 - **Reads:** live `client_payments` (`amount`, `date`, `payment_method`).
-- **Figures returned:** `collected`, `receipt_count`, `customers_paid`, `by_method[] {method, amount}`. The Edge Function adds `change_pct`.
+- **Figures returned:** `collected`, `receipt_count`, `customers_paid`, `by_method[] {method, amount}`. The Edge Function adds `previous_collected`, `previous_from`, `previous_to` and `change_pct`.
 - **Web link:** `/daybook`. **Mobile:** `ClientPaymentsScreen`.
 - **Known gap:** I found no web screen listing a week of receipts. Day Book shows one day at a time. The Director decides whether that is enough for v1.
 - **Don't reuse:** changes in `sales."paidAmount"`. It is a running total, and `src/lib/dayBook.js` records the double counting it causes.

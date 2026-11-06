@@ -1,6 +1,6 @@
 // Runs each question's reads with the caller's JWT. Dates are worked out here,
 // so a client can never choose them. A failed read throws: it is never a zero.
-import { addDays, changePct, lastMonth, mondayOf, monthStart, priorWindow } from "./periods.ts";
+import { addDays, changePct, lastMonth, mondayOf, monthStart, priorWindow, sameDaysLastWeek } from "./periods.ts";
 
 export class ReadFailed extends Error {}
 
@@ -83,11 +83,11 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
     }
     case "collections_week": {
       const from = mondayOf(today);
-      const p = priorWindow(from, today);
+      const p = sameDaysLastWeek(from, today);
       const cur = await rpc(db, "ai_collections", { p_from: from, p_to: today });
       const prev = await rpc(db, "ai_collections", { p_from: p.from, p_to: p.to });
       return {
-        figures: { ...cur, previous_collected: prev.collected, change_pct: changePct(cur.collected, prev.collected) },
+        figures: { ...cur, previous_collected: prev.collected, previous_from: p.from, previous_to: p.to, change_pct: changePct(cur.collected, prev.collected) },
         params: { from, to: today },
         empty: cur.receipt_count === 0 && prev.receipt_count === 0,
       };

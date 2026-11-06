@@ -33,7 +33,7 @@
       "label": { "en": "How much cash and bank money do I have?", "hi": "मेरे पास कितना नकद और बैंक में पैसा है?" },
       "screen": { "key": "accounts", "fallback_key": "dashboard", "module": "accounts", "mobile": true } },
     { "id": "gst_collected", "category": "gst", "module": "reports", "roles": ["OWNER"], "needs_tax": true,
-      "label": { "en": "How much GST did I collect this month?", "hi": "इस महीने मैंने कितना GST लिया?" },
+      "label": { "en": "How much GST did I collect this month?", "hi": "इस महीने मेरी बिक्री पर कितना GST आया?" },
       "screen": { "key": "reports_gstr3b", "fallback_key": null, "module": "reports", "mobile": true } },
     { "id": "gst_gaps", "category": "gst", "module": "reports", "roles": ["OWNER"], "needs_tax": true,
       "label": { "en": "What is missing in my GST records?", "hi": "मेरे GST रिकॉर्ड में क्या कमी है?" },

@@ -5,7 +5,8 @@ import { toModelFigures, restoreNames, figuresHash } from '../../supabase/functi
 import { handle, CONTRACT_VERSION } from '../../supabase/functions/ai-ask/handler.ts';
 import { buildCard } from '../../supabase/functions/ai-ask/cards.ts';
 import { SYSTEM_PROMPT } from '../../supabase/functions/ai-ask/prompt.ts';
-import { priorWindow, mondayOf, lastMonth, shopToday, changePct } from '../../supabase/functions/ai-ask/periods.ts';
+import { priorWindow, mondayOf, lastMonth, shopToday, changePct, sameDaysLastWeek } from '../../supabase/functions/ai-ask/periods.ts';
+import { runQuestion } from '../../supabase/functions/ai-ask/runs.ts';
 import strings from '../../shared/ai_chat/strings.json';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -154,6 +155,50 @@ describe('periods', () => {
     expect(changePct(5, 0)).toBeNull();
     expect(changePct(5, -2)).toBeNull();
     expect(changePct(150, 100)).toBe(50);
+  });
+});
+
+describe('collections_week comparison', () => {
+  const run = async (today) => {
+    const calls = [];
+    const db = {
+      rpc: async (name, args) => {
+        calls.push(args);
+        return { data: { collected: calls.length === 1 ? 120 : 100, receipt_count: 1, by_method: [] }, error: null };
+      },
+    };
+    const r = await runQuestion('collections_week', db, { tenantId: 'T', today, taxMode: null });
+    return { calls, r };
+  };
+
+  it('compares Monday to today with the same days last week, not the days just before', async () => {
+    // Wed 11 Nov 2026: 9-11 Nov against 2-4 Nov. The old window was 6-8 Nov.
+    const { calls, r } = await run('2026-11-11');
+    expect(calls[0]).toEqual({ p_from: '2026-11-09', p_to: '2026-11-11' });
+    expect(calls[1]).toEqual({ p_from: '2026-11-02', p_to: '2026-11-04' });
+    expect(r.figures).toMatchObject({ previous_from: '2026-11-02', previous_to: '2026-11-04', previous_collected: 100, change_pct: 20 });
+  });
+
+  it('holds on a Monday and on a Sunday', async () => {
+    expect((await run('2026-11-09')).calls[1]).toEqual({ p_from: '2026-11-02', p_to: '2026-11-02' });
+    expect((await run('2026-11-15')).calls[1]).toEqual({ p_from: '2026-11-02', p_to: '2026-11-08' });
+  });
+
+  it('leaves the profit comparison on the equal-length window before', () => {
+    expect(priorWindow('2026-11-01', '2026-11-04')).toEqual({ from: '2026-10-28', to: '2026-10-31' });
+    expect(sameDaysLastWeek('2026-11-09', '2026-11-11')).toEqual({ from: '2026-11-02', to: '2026-11-04' });
+  });
+
+  it('labels it as the same days', () => {
+    const card = buildCard('collections_week', { collected: 1, receipt_count: 1, customers_paid: 1, previous_collected: 1, change_pct: 0, by_method: [] }, strings.en);
+    expect(card.rows.map((r) => r.label)).toContain('Same days last week');
+  });
+});
+
+describe('the GST label', () => {
+  it('is the one in the approved design', () => {
+    const reg = JSON.parse(read('../../supabase/functions/ai-ask/questions.json'));
+    expect(reg.questions.find((q) => q.id === 'gst_collected').label.hi).toBe('इस महीने मेरी बिक्री पर कितना GST आया?');
   });
 });
 

@@ -19,10 +19,6 @@
 -- is fixture data in this transaction, and ends in ROLLBACK. On failure it
 -- raises naming the assertion. Must not run against real tenants' prod data
 -- without review: the rows are rolled back, but it does lock them meanwhile.
---
--- dev drift: dev has RLS on accounts and account_transactions with NO policy,
--- so nothing can read them there. prod has accounts_all and acctxn_all. They
--- are recreated in this transaction only, so ai_cash_bank can be tested.
 
 BEGIN;
 
@@ -103,14 +99,6 @@ BEGIN
   PERFORM set_config('ai_test.ua', v_ua, true);
   PERFORM set_config('ai_test.ub', v_ub, true);
   PERFORM set_config('ai_test.day', v_day::text, true);
-
-  -- dev drift, see the header. Inside this transaction only.
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'accounts') THEN
-    CREATE POLICY accounts_all ON public.accounts USING (tenant_id = public.current_tenant_id() OR public.is_global_admin());
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'account_transactions') THEN
-    CREATE POLICY acctxn_all ON public.account_transactions USING (tenant_id = public.current_tenant_id() OR public.is_global_admin());
-  END IF;
 
   -- The sentinels are plain rows; triggers are off so they post nothing to the
   -- ledgers. Amounts are unique to each shop, so a leak shows up exactly.

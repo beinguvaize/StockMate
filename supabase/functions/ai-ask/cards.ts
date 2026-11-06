@@ -66,7 +66,7 @@ export function buildCard(id: string, f: Record<string, any>, strings: any) {
     case "collections_week":
       headline = cell("collected", f.collected, "money");
       rows = [cell("receipts", f.receipt_count, "count"), cell("customers_paid", f.customers_paid, "count"),
-        cell("previous_period", f.previous_collected, "money"), cell("change", f.change_pct, "percent")];
+        cell("same_days_last_week", f.previous_collected, "money"), cell("change", f.change_pct, "percent")];
       table = { columns: cols(["method", "text"], ["amount", "money"]), rows: f.by_method.map((m: any) => [m.method, m.amount]) };
       break;
     case "cash_bank":
