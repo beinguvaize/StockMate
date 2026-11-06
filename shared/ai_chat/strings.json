@@ -17,7 +17,7 @@
     },
     "no_data": "Nothing to show for this yet.",
     "card": {
-      "sales": "Sales", "bills": "Bills", "average_bill": "Average bill", "returns": "Returns", "same_day_last_week": "Same day last week",
+      "sales": "Sales", "bills": "Bills", "average_bill": "Average bill", "returns": "Returns", "same_day_last_week": "Same day last week", "same_days_last_week": "Same days last week",
       "change": "Change", "method": "Method", "amount": "Amount", "net_profit": "Net profit", "revenue": "Revenue", "cogs": "Cost of goods",
       "gross_profit": "Gross profit", "expenses": "Expenses", "previous_period": "Previous period", "item": "Item", "qty_sold": "Qty sold",
       "items_sold": "Items sold", "total_sales": "Total sales", "items_low": "Items low", "items_out": "Out of stock", "reorder_value": "Reorder value",
@@ -58,7 +58,7 @@
     },
     "no_data": "इसके लिए अभी दिखाने को कुछ नहीं है।",
     "card": {
-      "sales": "बिक्री", "bills": "बिल", "average_bill": "औसत बिल", "returns": "वापसी", "same_day_last_week": "पिछले हफ़्ते इसी दिन",
+      "sales": "बिक्री", "bills": "बिल", "average_bill": "औसत बिल", "returns": "वापसी", "same_day_last_week": "पिछले हफ़्ते इसी दिन", "same_days_last_week": "पिछले हफ़्ते के इन्हीं दिनों",
       "change": "बदलाव", "method": "तरीका", "amount": "रकम", "net_profit": "शुद्ध मुनाफ़ा", "revenue": "आय", "cogs": "माल की लागत",
       "gross_profit": "सकल मुनाफ़ा", "expenses": "खर्च", "previous_period": "पिछली अवधि", "item": "सामान", "qty_sold": "बिकी मात्रा",
       "items_sold": "बिके सामान", "total_sales": "कुल बिक्री", "items_low": "कम स्टॉक वाले सामान", "items_out": "स्टॉक ख़त्म", "reorder_value": "मँगाने की लागत",

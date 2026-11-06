@@ -24,6 +24,9 @@ export const priorWindow = (from: string, to: string) => {
   return { from: addDays(end, -(days - 1)), to: end };
 };
 
+/** The same days of last week: Mon-Wed compares with last Mon-Wed. */
+export const sameDaysLastWeek = (from: string, to: string) => ({ from: addDays(from, -7), to: addDays(to, -7) });
+
 /** Percent change, one decimal. null when there is no positive base to compare with. */
 export const changePct = (current: number, prior: number) =>
   prior > 0 ? Math.round(((current - prior) / prior) * 1000) / 10 : null;
