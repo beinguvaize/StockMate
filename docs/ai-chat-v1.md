@@ -136,7 +136,7 @@ All dates use the shop's timezone from `business_profile.timezone` (`Asia/Kolkat
 - **Reads:** live `client_payments` (`amount`, `date`, `payment_method`).
 - **Figures returned:** `collected`, `receipt_count`, `customers_paid`, `by_method[] {method, amount}`. The Edge Function adds `previous_collected`, `previous_from`, `previous_to` and `change_pct`.
 - **Web link:** `/daybook`. **Mobile:** `ClientPaymentsScreen`.
-- **Known gap:** I found no web screen listing a week of receipts. Day Book shows one day at a time. The Director decides whether that is enough for v1.
+- **Link decided:** `/daybook` is accepted for v1 and this is closed (Director, mockup v2 review). The card keeps the footnote "Day Book shows one day at a time." A screen listing a week of receipts is a follow-up, because the week's total cannot be checked on Day Book.
 - **Don't reuse:** changes in `sales."paidAmount"`. It is a running total, and `src/lib/dayBook.js` records the double counting it causes.
 
 ### 10. `cash_bank`
@@ -443,10 +443,10 @@ Nobody may run write or repro SQL on real shops for this work. Use Demo Kirana S
 
 ### Director: design review, about 2 days of review time
 
-1. Approve the chat panel for web and desktop, and the adapted mobile screen: category tabs, question cards, answer layout.
+1. Approve the chat panel for web and desktop, and the adapted mobile screen: the question list with category headings, answer layout.
 2. The figures card is the main element, and the AI text is clearly a labelled explanation of it.
 3. Approve every state: first-use turn-on, loading, no data, offline ("Needs internet"), quota reached, AI off, not configured, text dropped by guard.
-4. Decide whether `/daybook` is an acceptable link for `collections_week` (§3).
+4. `/daybook` for `collections_week` (§3): accepted for v1, closed. A week-of-receipts screen is a follow-up.
 5. Approve the GST wording on the card, and "unpaid for" wording for dues.
 
 ### AI Researcher and Lead
