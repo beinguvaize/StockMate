@@ -43,7 +43,7 @@ import ProductMovementReport from '../components/reports/ProductMovementReport';
 
 import {
   TrendingUp, Package, UserCircle, Truck,
-  DollarSign, Briefcase, Activity, Shield, Layers,
+  DollarSign, Briefcase, Activity, Layers,
   Globe, Landmark, BarChart3, Scale, BookOpen, Droplets, FileWarning,
   FileText, FileCheck, Target, CalendarRange, Receipt, Tag,
   BookMarked, BarChart2, AlertTriangle, Users,
@@ -227,12 +227,6 @@ const Reports = () => {
       {/* Active Report Node */}
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
         {currentTab?.component}
-      </div>
-
-      {/* Security Footer */}
-      <div className="flex items-center justify-center gap-4 py-12 opacity-20 no-print">
-        <Shield size={16} />
-        <span className="text-[8px] font-black uppercase tracking-[0.2em]">End-to-End Encrypted Analytical Node</span>
       </div>
     </div>
   );
