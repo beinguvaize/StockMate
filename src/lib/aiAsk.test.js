@@ -29,7 +29,7 @@ describe('the shared registry', () => {
     const reg = JSON.parse(read('../../shared/ai_chat/questions.json'));
     expect(reg.questions).toHaveLength(12);
     for (const q of reg.questions) for (const l of reg.languages) expect(q.label[l]).toBeTruthy();
-    for (const k of ['ui', 'card', 'titles', 'notes']) {
+    for (const k of ['ui', 'card', 'titles', 'notes', 'footnotes', 'links', 'methods']) {
       expect(Object.keys(strings.hi[k]).sort()).toEqual(Object.keys(strings.en[k]).sort());
     }
   });
@@ -212,8 +212,8 @@ describe('collections_week comparison', () => {
   });
 
   it('labels it as the same days', () => {
-    const card = buildCard('collections_week', { collected: 1, receipt_count: 1, customers_paid: 1, previous_collected: 1, change_pct: 0, by_method: [] }, strings.en);
-    expect(card.rows.map((r) => r.label)).toContain('Same days last week');
+    const card = buildCard('collections_week', { collected: 1, receipt_count: 1, customers_paid: 1, previous_collected: 1, change_pct: null, by_method: [], period_from: '2026-11-09', period_to: '2026-11-11', previous_from: '2026-11-02', previous_to: '2026-11-04' }, strings.en);
+    expect(card.hero.detail).toBe('₹1.00, same days last week (2–4 Nov)');
   });
 });
 
@@ -228,12 +228,33 @@ describe('cards', () => {
   it('uses only the agreed kinds, in the chosen language', () => {
     const card = buildCard('sales_today', SALES, strings.hi);
     expect(card.title).toBe(strings.hi.titles.sales_today);
-    expect(card.headline).toEqual({ label: strings.hi.card.sales, value: 234567.5, kind: 'money' });
+    expect(card.hero).toMatchObject({ value: 234567.5, kind: 'money', caption: 'आज की बिक्री, 31 बिल' });
+    expect(card.hero.detail).toBe('▲ 24.5%, पिछले बुधवार ₹10,000.00 थी');
     const kinds = new Set(['money', 'count', 'qty', 'percent', 'date', 'days', 'text']);
-    for (const c of [card.headline, ...card.rows, ...card.table.columns]) {
+    for (const c of [card.headline, ...card.rows]) {
       expect(kinds.has(c.kind)).toBe(true);
       expect(c.label).toBeTruthy();
     }
+  });
+
+  it('puts dates in the chosen language, and shortens the comparison range', () => {
+    const f = { collected: 100, receipt_count: 2, customers_paid: 1, by_method: [], period_from: '2026-11-09', period_to: '2026-11-11',
+      previous_collected: 80, previous_from: '2026-11-02', previous_to: '2026-11-04', change_pct: 25 };
+    expect(buildCard('collections_week', f, strings.en).hero).toMatchObject({
+      caption: 'Collected, 9 to 11 Nov', detail: '▲ 25.0% vs ₹80.00, same days last week (2–4 Nov)' });
+    expect(buildCard('collections_week', f, strings.hi).hero.detail).toBe('▲ 25.0%, पिछले हफ़्ते के इन्हीं दिनों (2–4 नवंबर) में ₹80.00 थी');
+  });
+
+  it('marks only expired stock red, and the oldest dues in ink', () => {
+    const exp = buildCard('expiring_stock', { expiring_value: 5, expiring_batches: 1, expired_value: 4, period_to: '2026-12-18',
+      items: [{ product_name: 'A', expiry_date: '2026-11-12', days_left: -6, qty_remaining: 24, unit: 'KG', value: 4 },
+        { product_name: 'B', expiry_date: '2026-12-02', days_left: 14, qty_remaining: 60, unit: 'KG', value: 5 }] }, strings.hi);
+    expect(exp.table.tones).toEqual(['neg', null]);
+    expect(exp.table.rows[0].slice(1, 3)).toEqual(['12 नवंबर, एक्सपायर', '24 KG']);
+    const age = buildCard('dues_age', { total_outstanding: 100, oldest_days: 147, unmatched_amount: 0,
+      buckets: [{ label: '0-30', amount: 75, bill_count: 1 }, { label: '31-60', amount: 0, bill_count: 0 }, { label: '61-90', amount: 0, bill_count: 0 }, { label: '90+', amount: 25, bill_count: 1 }] }, strings.en);
+    expect(age.table.tones).toEqual([null, null, null, 'strong']);
+    expect(age.table.bars).toEqual([75, 0, 0, 25]);
   });
 });
 
@@ -298,7 +319,7 @@ describe('ai-ask flow', () => {
     const { status, json, model } = await call(db);
     expect(status).toBe(200);
     expect(json).toMatchObject({ contract_version: CONTRACT_VERSION, text: 'You sold ₹234567.50 across 31 bills.', reason: null });
-    expect(json.card.headline.value).toBe(234567.5);
+    expect(json.card.hero.value).toBe(234567.5);
     expect(json.screen).toEqual({ key: 'reports_daily_sales', fallback_key: 'sales', mobile: true, params: { from: '2026-11-04', to: '2026-11-04' } });
     expect(model).toHaveBeenCalledOnce();
     expect(db.calls.usage[0]).toMatchObject({ p_id: 'U1', p_outcome: 'answered', p_input_tokens: 10 });

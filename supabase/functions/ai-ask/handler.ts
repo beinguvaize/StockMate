@@ -96,7 +96,9 @@ async function list(deps: Deps, db: any, ctx: any, lang: string) {
       };
     });
   const state = !ctx.aiOn ? "off" : deps.apiKey() ? "on" : "not_configured";
-  return json(deps, 200, { state, plan: ctx.plan, lang, languages: registry.languages, strings: strings[lang], questions });
+  const { data: usage, error } = await db.rpc("ai_usage_status");
+  if (error) console.error("[ai-ask] usage status failed:", error.message);
+  return json(deps, 200, { state, plan: ctx.plan, lang, languages: registry.languages, strings: strings[lang], questions, usage: usage ?? null });
 }
 
 async function logUsage(db: any, row: {
@@ -119,11 +121,13 @@ async function ask(deps: Deps, db: any, ctx: any, q: any, lang: string, userId: 
   const screen = resolveScreen(q, ctx.modules);
   const langStrings = strings[lang];
 
+  let usage: { used: number; limit: number; resets_on: string } | null = null;
   const respond = (text: string | null, reason: string | null) => json(deps, 200, {
-    text, figures: run.figures, card: buildCard(q.id, run.figures, langStrings),
+    text, figures: run.figures, card: buildCard(q.id, run.figures, langStrings, run.empty),
     screen: { ...screen, params: run.params },
     as_of: run.figures.as_of, label: q.label[lang] ?? q.label.en, reason,
     reason_message: reason ? langStrings.ui[`reason_${reason}`] ?? null : null,
+    usage,
   });
   const cardOnly = async (reason: string) => {
     await logUsage(db, { question: q.id, lang, outcome: reason, latency: Date.now() - started });
@@ -159,6 +163,7 @@ async function ask(deps: Deps, db: any, ctx: any, q: any, lang: string, userId: 
     console.error("[ai-ask] quota check failed:", claim.error.message);
     return respond(null, "model_error");
   }
+  if (claim.data) usage = { used: claim.data.used, limit: claim.data.limit, resets_on: claim.data.resets_on };
   if (!claim.data?.ok) return cardOnly(claim.data?.reason ?? "quota_reached");
   const claimId = claim.data.id;
 

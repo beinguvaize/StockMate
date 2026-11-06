@@ -49,7 +49,7 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
           period_from: from, period_to: today, as_of: asOf,
           revenue_net: Number(cur.revenue_net), cogs: Number(cur.cogs), gross_profit: Number(cur.gross_profit),
           expenses: Number(cur.expenses), net_profit: net, returns_total: Number(cur.returns_total),
-          previous_net_profit: prior, change_pct: changePct(net, prior),
+          previous_net_profit: prior, previous_from: p.from, previous_to: p.to, change_pct: changePct(net, prior),
         },
         params: { from, to: today },
         empty: Number(cur.revenue_net) === 0 && Number(cur.expenses) === 0 && Number(cur.cogs) === 0,
@@ -105,7 +105,7 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
         figures: {
           period_from: from, period_to: today, as_of: asOf,
           output_gst: Number(cur.output_gst), taxable_sales: Number(cur.revenue_net),
-          last_month_output_gst: Number(prev.output_gst), tax_mode: ctx.taxMode,
+          last_month_output_gst: Number(prev.output_gst), last_month_from: last.from, last_month_to: last.to, tax_mode: ctx.taxMode,
         },
         params: { from, to: today },
         empty: Number(cur.output_gst) === 0 && Number(cur.revenue_net) === 0 && Number(prev.output_gst) === 0,
