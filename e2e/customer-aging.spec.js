@@ -50,6 +50,19 @@ test('shows what is still owed, by age, and states any gap to client balances', 
   await expect(page.getByRole('cell', { name: 'S-OLD' })).toBeVisible();
 });
 
+test('total owed fits inside the table on a phone', async ({ page }) => {
+  await open(page, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(UNPAID) }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  const head = page.getByRole('columnheader', { name: /Total owed/ });
+  await expect(head).toBeVisible({ timeout: 15_000 });
+  // The rail animates shut after the resize, so wait for the layout to settle.
+  await expect.poll(() => head.evaluate((el) => {
+    let box = el.parentElement;
+    while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowX)) box = box.parentElement;
+    return box.getBoundingClientRect().right - el.getBoundingClientRect().right;
+  })).toBeGreaterThanOrEqual(0);
+});
+
 test('total owed is on screen without scrolling at 1440', async ({ page }) => {
   await open(page, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(UNPAID) }));
   const head = page.getByRole('columnheader', { name: /Total owed/ });

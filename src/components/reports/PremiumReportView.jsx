@@ -28,6 +28,7 @@ import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 const COLOR_HEX = {
   indigo: 'var(--color-accent-signature)', emerald: '#10b981', amber: '#f59e0b', rose: '#ef4444',
   orange: '#f97316', sky: '#0ea5e9', violet: '#8b5cf6', blue: '#3b82f6',
+  slate: 'var(--color-ink-tertiary)',
 };
 const PIE_COLORS = ['var(--color-accent-signature)', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 

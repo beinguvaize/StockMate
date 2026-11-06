@@ -50,14 +50,14 @@ const ARAgingReport = () => {
   // Neutral on purpose: bills have no due dates, so nothing here is known to be
   // late, and red or green would claim otherwise. Size and weight carry it.
   const kpis = useMemo(() => {
-    const series = AGE_BUCKETS.map((b) => ({ value: aging.totals[b] || 0 }));
     const share = aging.total > 0 ? (aging.over30 / aging.total) * 100 : 0;
-    const card = (id, label, value, chartData) => ({ id, label, value, chartData, color: 'slate' });
+    // No sparkline: these are age buckets, not a trend over time.
+    const card = (id, label, value) => ({ id, label, value, color: 'slate' });
     return [
-      card('total_ar', 'Customers owe', formatINR(aging.total), series),
-      card('over30', 'Unpaid over 30 days', formatINR(aging.over30), series.slice(1)),
-      card('over90', 'Unpaid over 90 days', formatINR(aging.over90), series.slice(3)),
-      card('share', 'Share over 30 days', `${share.toFixed(1)}%`, series),
+      card('total_ar', 'Customers owe', formatINR(aging.total)),
+      card('over30', 'Unpaid over 30 days', formatINR(aging.over30)),
+      card('over90', 'Unpaid over 90 days', formatINR(aging.over90)),
+      card('share', 'Share over 30 days', `${share.toFixed(1)}%`),
     ];
   }, [aging]);
 
@@ -75,7 +75,7 @@ const ARAgingReport = () => {
       return <span className={bucket === '120+' ? 'font-bold' : 'font-medium'}>{formatINR(val)}</span>;
     },
   });
-  const nameCell = (val) => <span className="font-semibold text-foreground block max-w-[170px] truncate" title={val}>{val}</span>;
+  const nameCell = (val) => <span className="font-semibold text-foreground block max-w-[120px] md:max-w-[160px] truncate" title={val}>{val}</span>;
   const days = (val) => (val === undefined || val === null ? '' : <span className="text-[12px] text-muted-foreground">{val} days</span>);
 
   const summaryTab = {
@@ -86,7 +86,7 @@ const ARAgingReport = () => {
     loading,
     totals: { total: aging.total, bills: aging.bills.length, ...aging.totals },
     columns: [
-      { key: 'client_name', label: 'Customer', sortable: true, width: 190, render: nameCell },
+      { key: 'client_name', label: 'Customer', sortable: true, width: 160, render: nameCell },
       { key: 'total', label: 'Total owed', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span> },
       { key: 'bills', label: 'Bills', align: 'right', sortable: true, width: 76 },
       { key: 'oldest', label: 'Oldest', align: 'right', sortable: true, width: 92, render: days },
@@ -116,10 +116,14 @@ const ARAgingReport = () => {
     icon: <FileWarning size={18} />,
     data: aging.bills,
     loading,
-    totals: { unpaid: aging.total },
+    totals: {
+      unpaid: aging.total,
+      total: aging.bills.reduce((n, b) => n + Number(b.total || 0), 0),
+      paid: aging.bills.reduce((n, b) => n + Number(b.paid || 0), 0),
+    },
     columns: [
       { key: 'sale_id', label: 'Bill', sortable: true, width: 140, render: (val) => <span className="tabular-nums text-[11px] font-semibold">{val}</span> },
-      { key: 'client_name', label: 'Customer', sortable: true, width: 190, render: nameCell },
+      { key: 'client_name', label: 'Customer', sortable: true, width: 160, render: nameCell },
       { key: 'unpaid', label: 'Still owed', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-semibold">{formatINR(val)}</span> },
       { key: 'sale_date', label: 'Sale date', type: 'date', sortable: true, width: 130 },
       { key: 'days_unpaid', label: 'Unpaid for', align: 'right', sortable: true, width: 110, render: days },
