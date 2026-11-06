@@ -187,13 +187,15 @@ ReceivableAging buildAging(
 /// app says customers owe; if it does not, say by how much rather than leave
 /// two numbers to be found.
 String tieOutLine(ReceivableAging a, String Function(num) fmt) {
+  if (!(a.total > 0 || a.outstanding > 0.5)) return 'No customer owes anything.';
   final gap = a.difference.abs();
   if (gap < 0.5) {
     return 'Aged from the sale date. Matches customer balances of ${fmt(a.outstanding)}.';
   }
-  return 'Aged from the sale date. Customer balances total ${fmt(a.outstanding)}: '
-      '${fmt(gap)} ${a.difference > 0 ? 'less' : 'more'} than these bills '
-      '(customer credit, or a sale with no customer on it).';
+  final why = a.difference > 0
+      ? 'less than these bills (customer credit, or a sale with no customer on it)'
+      : 'more than these bills (an opening balance, or an entry not tied to a sale)';
+  return 'Aged from the sale date. Customer balances total ${fmt(a.outstanding)}: ${fmt(gap)} $why.';
 }
 
 /// Most rows one report will read. Hitting it fails the load: a total summed

@@ -96,30 +96,27 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                 _kpiPair(
                   ReportKpiTile(
                     label: 'Customers owe',
-                    value: compactINR(a.total),
-                    subtitle: formatINR(a.total),
-                    color: const Color(0xFF1D4ED8),
+                    value: formatINR(a.total),
+                    color: AppColors.inkPrimary,
                   ),
                   ReportKpiTile(
                     label: 'Unpaid over 30 days',
-                    value: compactINR(a.over30),
-                    subtitle: formatINR(a.over30),
-                    color: const Color(0xFFEA580C),
+                    value: formatINR(a.over30),
+                    color: AppColors.inkPrimary,
                   ),
                 ),
                 const SizedBox(height: 12),
                 _kpiPair(
                   ReportKpiTile(
                     label: 'Unpaid over 90 days',
-                    value: compactINR(a.over90),
-                    subtitle: formatINR(a.over90),
-                    color: const Color(0xFFB45309),
+                    value: formatINR(a.over90),
+                    color: AppColors.inkPrimary,
                   ),
                   ReportKpiTile(
                     label: 'Share over 30 days',
                     value: '${share.toStringAsFixed(1)}%',
                     subtitle: 'of what customers owe',
-                    color: const Color(0xFF7C3AED),
+                    color: AppColors.inkPrimary,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -147,7 +144,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                             .map((b) => BarData(
                                   label: b,
                                   value: a.totals[b] ?? 0,
-                                  color: ageBucketColor(b),
+                                  color: AppColors.brandFill,
                                 ))
                             .toList(),
                       ),

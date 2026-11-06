@@ -8,9 +8,10 @@ import 'package:mobile_app/features/clients_suppliers/data/receivable_aging.dart
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/receivable_aging_provider.dart';
 import 'package:mobile_app/features/reports/utils/financial_calcs.dart';
 
-// The palette keys predate these buckets: the youngest takes the "current"
-// colour, the same as the web report.
-Color ageBucketColor(String b) => agingBucketColor(b == '0-30' ? 'CURRENT' : b);
+// Neutral on purpose, as on the web: bills have no due dates, so nothing here is
+// known to be late, and red or green would claim otherwise. Weight carries it,
+// and the oldest bucket is the heaviest.
+FontWeight ageBucketWeight(String b) => b == '120+' ? FontWeight.w800 : FontWeight.w600;
 
 /// Loads the aging data for a screen. A failure is said in words and offers a
 /// retry; a figure is drawn only from a load that fully succeeded.
@@ -35,9 +36,9 @@ class AgingLoader extends ConsumerWidget {
                 )
               : AppEmptyState(
                   icon: LucideIcons.alertTriangle,
-                  title: 'Could not load this report',
-                  message: '$e',
-                  actionLabel: 'Try again',
+                  title: 'Customer Aging could not load',
+                  message: '$e\nNothing here is a figure yet. Try again, or check Clients for balances.',
+                  actionLabel: 'Retry',
                   onAction: retry,
                 ),
           data: builder,
@@ -88,17 +89,17 @@ class AgingBucketPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = ageBucketColor(bucket);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: AppColors.canvas,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        border: Border.all(color: AppColors.outlineVariant),
       ),
       child: Text(
         amount == null ? '$bucket days' : '$bucket days ${compactINR(amount!)}',
-        style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: color),
+        style: AppText.label.copyWith(fontWeight: ageBucketWeight(bucket),
+          color: AppColors.inkPrimary),
       ),
     );
   }

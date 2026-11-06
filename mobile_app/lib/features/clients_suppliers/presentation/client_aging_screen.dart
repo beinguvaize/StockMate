@@ -99,7 +99,7 @@ class _Body extends StatelessWidget {
           label: '$b days',
           amount: a.totals[b] ?? 0,
           count: accounts(b),
-          color: ageBucketColor(b),
+          color: AppColors.inkPrimary,
           icon: LucideIcons.clock,
         ),
     ];

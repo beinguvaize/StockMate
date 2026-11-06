@@ -112,8 +112,10 @@ void main() {
       testWidgets('a server refusal shows its reason, never a zero', (t) async {
         await _pump(t, screen,
             const _FakeSource(salesError: PostgrestException(message: 'Access denied')));
-        expect(find.text('Could not load this report'), findsOneWidget);
-        expect(find.text('Access denied'), findsOneWidget);
+        expect(find.text('Customer Aging could not load'), findsOneWidget);
+        expect(find.textContaining('Access denied'), findsOneWidget);
+        expect(find.textContaining('Nothing here is a figure yet'), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
         expect(find.textContaining('₹'), findsNothing);
         expect(find.text('Nothing unpaid'), findsNothing);
       });
@@ -121,7 +123,7 @@ void main() {
       testWidgets('failing to load balances fails the report', (t) async {
         await _pump(t, screen, const _FakeSource(
             sales: [_sale], clientsError: PostgrestException(message: 'clients failed')));
-        expect(find.text('clients failed'), findsOneWidget);
+        expect(find.textContaining('clients failed'), findsOneWidget);
         expect(find.textContaining('₹'), findsNothing);
       });
 
