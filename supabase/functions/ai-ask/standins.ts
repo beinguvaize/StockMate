@@ -3,12 +3,22 @@
 
 const isIdKey = (k: string) => k === "id" || k.endsWith("_id");
 
+// A second line behind the SQL functions, which select none of these: if a
+// later change ever adds one, it is dropped here before anything is sent.
+const PRIVATE_KEY = /phone|mobile|contact|email|gstin|gst_no|pan|aadhaar|address|account_no|ifsc|upi_id|bank_name/i;
+const PERSON_KEY = /^(client|customer|supplier|staff|employee|vendor)_?name$/i;
+// And by value: a GSTIN, or a run of 10 or more digits that could be a phone.
+const GSTIN = /\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]\b/i;
+const PHONE = /(?:\+?\d[\s-]?){10,}/;
+
 function strip(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(strip);
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (!isIdKey(k)) out[k] = strip(v);
+      if (isIdKey(k) || PRIVATE_KEY.test(k) || PERSON_KEY.test(k)) continue;
+      if (typeof v === "string" && (GSTIN.test(v) || PHONE.test(v))) continue;
+      out[k] = strip(v);
     }
     return out;
   }
@@ -26,6 +36,14 @@ export function toModelFigures(figures: Record<string, unknown>) {
       const token = `[C${i + 1}]`;
       map[token] = String(realCustomers[i]?.name ?? "");
       return { ...c, name: token };
+    });
+  }
+  if (Array.isArray(view.suppliers)) {
+    const real = (figures.suppliers as any[]) || [];
+    view.suppliers = view.suppliers.map((x: any, i: number) => {
+      const token = `[S${i + 1}]`;
+      map[token] = String(real[i]?.name ?? "");
+      return { ...x, name: token };
     });
   }
   if (Array.isArray(view.accounts)) {
