@@ -1,0 +1,1986 @@
+{
+ "_about": "Cards built by supabase/functions/ai-ask/cards.ts from these figures, in both languages. The web suite (src/lib/askCards.shared.test.js) rebuilds every card and must get the same JSON, so the file cannot drift from the server. The phone's suite (mobile_app/test/ask_cards_test.dart) draws every card from it. Regenerate by rebuilding the cards, never by hand.",
+ "contract_version": 1,
+ "cases": [
+  {
+   "question_id": "sales_today",
+   "lang": "en",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-11-18",
+    "period_to": "2026-11-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "gross_sales": 184620,
+    "bill_count": 42,
+    "average_bill": 4395.71,
+    "returns_amount": 1200,
+    "by_method": [
+     {
+      "method": "CASH",
+      "amount": 102400
+     },
+     {
+      "method": "UPI",
+      "amount": 64220
+     },
+     {
+      "method": "UNKNOWN",
+      "amount": 18000
+     }
+    ],
+    "previous_gross_sales": 162400,
+    "change_pct": 13.7
+   },
+   "card": {
+    "title": "Sales today",
+    "headline": {
+     "label": "Sold today, 42 bills",
+     "value": 184620,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 184620,
+     "kind": "money",
+     "unit": null,
+     "caption": "Sold today, 42 bills",
+     "detail": "▲ 13.7% vs ₹1,62,400.00 last Wednesday"
+    },
+    "rows": [
+     {
+      "label": "Cash",
+      "value": 102400,
+      "kind": "money"
+     },
+     {
+      "label": "UPI",
+      "value": 64220,
+      "kind": "money"
+     },
+     {
+      "label": "Not recorded",
+      "value": 18000,
+      "kind": "money"
+     },
+     {
+      "label": "Total sold",
+      "value": 184620,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "Average bill",
+      "value": 4395.71,
+      "kind": "money"
+     },
+     {
+      "label": "Returns",
+      "value": 1200,
+      "kind": "money"
+     }
+    ],
+    "table": null,
+    "rows_after": [],
+    "note": null,
+    "footnote": null
+   }
+  },
+  {
+   "question_id": "sales_today",
+   "lang": "hi",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-11-18",
+    "period_to": "2026-11-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "gross_sales": 184620,
+    "bill_count": 42,
+    "average_bill": 4395.71,
+    "returns_amount": 1200,
+    "by_method": [
+     {
+      "method": "CASH",
+      "amount": 102400
+     },
+     {
+      "method": "UPI",
+      "amount": 64220
+     },
+     {
+      "method": "UNKNOWN",
+      "amount": 18000
+     }
+    ],
+    "previous_gross_sales": 162400,
+    "change_pct": 13.7
+   },
+   "card": {
+    "title": "आज की बिक्री",
+    "headline": {
+     "label": "आज की बिक्री, 42 बिल",
+     "value": 184620,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 184620,
+     "kind": "money",
+     "unit": null,
+     "caption": "आज की बिक्री, 42 बिल",
+     "detail": "▲ 13.7%, पिछले बुधवार ₹1,62,400.00 थी"
+    },
+    "rows": [
+     {
+      "label": "नकद",
+      "value": 102400,
+      "kind": "money"
+     },
+     {
+      "label": "UPI",
+      "value": 64220,
+      "kind": "money"
+     },
+     {
+      "label": "दर्ज नहीं",
+      "value": 18000,
+      "kind": "money"
+     },
+     {
+      "label": "कुल बिक्री",
+      "value": 184620,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "औसत बिल",
+      "value": 4395.71,
+      "kind": "money"
+     },
+     {
+      "label": "वापसी",
+      "value": 1200,
+      "kind": "money"
+     }
+    ],
+    "table": null,
+    "rows_after": [],
+    "note": null,
+    "footnote": null
+   }
+  },
+  {
+   "question_id": "profit_month",
+   "lang": "en",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-11-01",
+    "period_to": "2026-11-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "previous_from": "2026-10-14",
+    "previous_to": "2026-10-31",
+    "revenue_net": 2412800.5,
+    "cogs": 1954300,
+    "gross_profit": 458500.5,
+    "expenses": 212400,
+    "net_profit": 246100.5,
+    "returns_total": 8400,
+    "previous_net_profit": 263900,
+    "change_pct": -6.7
+   },
+   "card": {
+    "title": "Profit this month",
+    "headline": {
+     "label": "Net profit, 1 to 18 Nov",
+     "value": 246100.5,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 246100.5,
+     "kind": "money",
+     "unit": null,
+     "caption": "Net profit, 1 to 18 Nov",
+     "detail": "▼ 6.7% vs ₹2,63,900.00 for 14 to 31 Oct"
+    },
+    "rows": [
+     {
+      "label": "Sales after returns",
+      "value": 2412800.5,
+      "kind": "money"
+     },
+     {
+      "label": "Cost of goods",
+      "value": 1954300,
+      "kind": "money"
+     },
+     {
+      "label": "Gross profit",
+      "value": 458500.5,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "Expenses",
+      "value": 212400,
+      "kind": "money"
+     },
+     {
+      "label": "Net profit",
+      "value": 246100.5,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "Returns",
+      "value": 8400,
+      "kind": "money"
+     }
+    ],
+    "table": null,
+    "rows_after": [],
+    "note": null,
+    "footnote": null
+   }
+  },
+  {
+   "question_id": "profit_month",
+   "lang": "hi",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-11-01",
+    "period_to": "2026-11-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "previous_from": "2026-10-14",
+    "previous_to": "2026-10-31",
+    "revenue_net": 2412800.5,
+    "cogs": 1954300,
+    "gross_profit": 458500.5,
+    "expenses": 212400,
+    "net_profit": 246100.5,
+    "returns_total": 8400,
+    "previous_net_profit": 263900,
+    "change_pct": -6.7
+   },
+   "card": {
+    "title": "इस महीने का मुनाफ़ा",
+    "headline": {
+     "label": "शुद्ध मुनाफ़ा, 1 से 18 नवंबर",
+     "value": 246100.5,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 246100.5,
+     "kind": "money",
+     "unit": null,
+     "caption": "शुद्ध मुनाफ़ा, 1 से 18 नवंबर",
+     "detail": "▼ 6.7%, 14 से 31 अक्टूबर में ₹2,63,900.00 था"
+    },
+    "rows": [
+     {
+      "label": "वापसी के बाद बिक्री",
+      "value": 2412800.5,
+      "kind": "money"
+     },
+     {
+      "label": "माल की लागत",
+      "value": 1954300,
+      "kind": "money"
+     },
+     {
+      "label": "सकल मुनाफ़ा",
+      "value": 458500.5,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "खर्च",
+      "value": 212400,
+      "kind": "money"
+     },
+     {
+      "label": "शुद्ध मुनाफ़ा",
+      "value": 246100.5,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "वापसी",
+      "value": 8400,
+      "kind": "money"
+     }
+    ],
+    "table": null,
+    "rows_after": [],
+    "note": null,
+    "footnote": null
+   }
+  },
+  {
+   "question_id": "top_items",
+   "lang": "en",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-11-01",
+    "period_to": "2026-11-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "distinct_items_sold": 214,
+    "items": [
+     {
+      "product_name": "Basmati Rice 25kg",
+      "unit": "bag",
+      "qty_sold": 38,
+      "bill_count": 31,
+      "sales_value": 81700
+     },
+     {
+      "product_name": "Sunflower Oil 15L",
+      "unit": "tin",
+      "qty_sold": 22.5,
+      "bill_count": 19,
+      "sales_value": 47250
+     }
+    ]
+   },
+   "card": {
+    "title": "Top items this month",
+    "headline": {
+     "label": "Top item: Basmati Rice 25kg",
+     "value": 81700,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 81700,
+     "kind": "money",
+     "unit": null,
+     "caption": "Top item: Basmati Rice 25kg",
+     "detail": null
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "Item",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "Sold",
+       "kind": "text",
+       "align": "right"
+      },
+      {
+       "label": "Bills",
+       "kind": "count",
+       "align": "right"
+      },
+      {
+       "label": "Value",
+       "kind": "money",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "Basmati Rice 25kg",
+       "38 bag",
+       31,
+       81700
+      ],
+      [
+       "Sunflower Oil 15L",
+       "22.5 tin",
+       19,
+       47250
+      ]
+     ]
+    },
+    "rows_after": [],
+    "note": null,
+    "footnote": "Top 2 of 214 items sold this month. By sales value, not margin."
+   }
+  },
+  {
+   "question_id": "top_items",
+   "lang": "hi",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-11-01",
+    "period_to": "2026-11-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "distinct_items_sold": 214,
+    "items": [
+     {
+      "product_name": "Basmati Rice 25kg",
+      "unit": "bag",
+      "qty_sold": 38,
+      "bill_count": 31,
+      "sales_value": 81700
+     },
+     {
+      "product_name": "Sunflower Oil 15L",
+      "unit": "tin",
+      "qty_sold": 22.5,
+      "bill_count": 19,
+      "sales_value": 47250
+     }
+    ]
+   },
+   "card": {
+    "title": "इस महीने के टॉप सामान",
+    "headline": {
+     "label": "सबसे आगे: Basmati Rice 25kg",
+     "value": 81700,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 81700,
+     "kind": "money",
+     "unit": null,
+     "caption": "सबसे आगे: Basmati Rice 25kg",
+     "detail": null
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "आइटम",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "बिका",
+       "kind": "text",
+       "align": "right"
+      },
+      {
+       "label": "बिल",
+       "kind": "count",
+       "align": "right"
+      },
+      {
+       "label": "रकम",
+       "kind": "money",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "Basmati Rice 25kg",
+       "38 bag",
+       31,
+       81700
+      ],
+      [
+       "Sunflower Oil 15L",
+       "22.5 tin",
+       19,
+       47250
+      ]
+     ]
+    },
+    "rows_after": [],
+    "note": null,
+    "footnote": "इस महीने बिके 214 आइटम में से शीर्ष 2। बिक्री रकम के हिसाब से, मार्जिन के नहीं।"
+   }
+  },
+  {
+   "question_id": "low_stock",
+   "lang": "en",
+   "empty": false,
+   "figures": {
+    "as_of": "2026-11-18T08:42:00Z",
+    "items_low": 14,
+    "items_out": 3,
+    "reorder_value": 38400,
+    "items": [
+     {
+      "product_name": "Toor Dal 1kg",
+      "unit": "pkt",
+      "stock": 0,
+      "threshold": 20,
+      "shortfall": 20
+     },
+     {
+      "product_name": "Sugar 5kg",
+      "unit": "bag",
+      "stock": 4,
+      "threshold": 10,
+      "shortfall": 6
+     }
+    ]
+   },
+   "card": {
+    "title": "Reorder list",
+    "headline": {
+     "label": "Low on stock, 3 of them at zero",
+     "value": 14,
+     "kind": "count"
+    },
+    "hero": {
+     "value": 14,
+     "kind": "count",
+     "unit": "items",
+     "caption": "Low on stock, 3 of them at zero",
+     "detail": null
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "Item",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "Stock",
+       "kind": "text",
+       "align": "right"
+      },
+      {
+       "label": "Limit",
+       "kind": "qty",
+       "align": "right"
+      },
+      {
+       "label": "Short",
+       "kind": "qty",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "Toor Dal 1kg",
+       "0 pkt",
+       20,
+       20
+      ],
+      [
+       "Sugar 5kg",
+       "4 bag",
+       10,
+       6
+      ]
+     ]
+    },
+    "rows_after": [
+     {
+      "label": "Cost to refill all 14",
+      "value": 38400,
+      "kind": "money",
+      "tone": "total"
+     }
+    ],
+    "note": null,
+    "footnote": "Top 2 of 14 shown. The cost covers all 14."
+   }
+  },
+  {
+   "question_id": "low_stock",
+   "lang": "hi",
+   "empty": false,
+   "figures": {
+    "as_of": "2026-11-18T08:42:00Z",
+    "items_low": 14,
+    "items_out": 3,
+    "reorder_value": 38400,
+    "items": [
+     {
+      "product_name": "Toor Dal 1kg",
+      "unit": "pkt",
+      "stock": 0,
+      "threshold": 20,
+      "shortfall": 20
+     },
+     {
+      "product_name": "Sugar 5kg",
+      "unit": "bag",
+      "stock": 4,
+      "threshold": 10,
+      "shortfall": 6
+     }
+    ]
+   },
+   "card": {
+    "title": "दोबारा मँगाने की सूची",
+    "headline": {
+     "label": "स्टॉक कम, इनमें 3 खत्म",
+     "value": 14,
+     "kind": "count"
+    },
+    "hero": {
+     "value": 14,
+     "kind": "count",
+     "unit": "आइटम",
+     "caption": "स्टॉक कम, इनमें 3 खत्म",
+     "detail": null
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "आइटम",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "स्टॉक",
+       "kind": "text",
+       "align": "right"
+      },
+      {
+       "label": "सीमा",
+       "kind": "qty",
+       "align": "right"
+      },
+      {
+       "label": "कमी",
+       "kind": "qty",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "Toor Dal 1kg",
+       "0 pkt",
+       20,
+       20
+      ],
+      [
+       "Sugar 5kg",
+       "4 bag",
+       10,
+       6
+      ]
+     ]
+    },
+    "rows_after": [
+     {
+      "label": "सभी 14 भरने की लागत",
+      "value": 38400,
+      "kind": "money",
+      "tone": "total"
+     }
+    ],
+    "note": null,
+    "footnote": "14 में से 2 दिखाए गए। लागत सभी 14 की है।"
+   }
+  },
+  {
+   "question_id": "expiring_stock",
+   "lang": "en",
+   "empty": false,
+   "figures": {
+    "period_to": "2026-12-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "expiring_value": 12840,
+    "expiring_batches": 6,
+    "expired_value": 1150,
+    "items": [
+     {
+      "product_name": "Amul Butter 500g",
+      "unit": "pc",
+      "expiry_date": "2026-11-12",
+      "days_left": -6,
+      "qty_remaining": 5,
+      "value": 1150
+     },
+     {
+      "product_name": "Bread 400g",
+      "unit": "pc",
+      "expiry_date": "2026-11-21",
+      "days_left": 3,
+      "qty_remaining": 24,
+      "value": 840
+     }
+    ]
+   },
+   "card": {
+    "title": "Expiring in 30 days",
+    "headline": {
+     "label": "Expires by 18 Dec, 6 batches",
+     "value": 12840,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 12840,
+     "kind": "money",
+     "unit": null,
+     "caption": "Expires by 18 Dec, 6 batches",
+     "detail": null
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "Item",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "Expiry",
+       "kind": "text",
+       "align": "right"
+      },
+      {
+       "label": "Left",
+       "kind": "text",
+       "align": "right"
+      },
+      {
+       "label": "Value",
+       "kind": "money",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "Amul Butter 500g",
+       "12 Nov, expired",
+       "5 pc",
+       1150
+      ],
+      [
+       "Bread 400g",
+       "21 Nov",
+       "24 pc",
+       840
+      ]
+     ],
+     "tones": [
+      "neg",
+      null
+     ]
+    },
+    "rows_after": [],
+    "note": null,
+    "footnote": "₹1,150.00 of stock lost."
+   }
+  },
+  {
+   "question_id": "expiring_stock",
+   "lang": "hi",
+   "empty": false,
+   "figures": {
+    "period_to": "2026-12-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "expiring_value": 12840,
+    "expiring_batches": 6,
+    "expired_value": 1150,
+    "items": [
+     {
+      "product_name": "Amul Butter 500g",
+      "unit": "pc",
+      "expiry_date": "2026-11-12",
+      "days_left": -6,
+      "qty_remaining": 5,
+      "value": 1150
+     },
+     {
+      "product_name": "Bread 400g",
+      "unit": "pc",
+      "expiry_date": "2026-11-21",
+      "days_left": 3,
+      "qty_remaining": 24,
+      "value": 840
+     }
+    ]
+   },
+   "card": {
+    "title": "30 दिनों में एक्सपायर",
+    "headline": {
+     "label": "18 दिसंबर तक एक्सपायर, 6 बैच",
+     "value": 12840,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 12840,
+     "kind": "money",
+     "unit": null,
+     "caption": "18 दिसंबर तक एक्सपायर, 6 बैच",
+     "detail": null
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "आइटम",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "एक्सपायरी",
+       "kind": "text",
+       "align": "right"
+      },
+      {
+       "label": "बचा",
+       "kind": "text",
+       "align": "right"
+      },
+      {
+       "label": "रकम",
+       "kind": "money",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "Amul Butter 500g",
+       "12 नवंबर, एक्सपायर",
+       "5 pc",
+       1150
+      ],
+      [
+       "Bread 400g",
+       "21 नवंबर",
+       "24 pc",
+       840
+      ]
+     ],
+     "tones": [
+      "neg",
+      null
+     ]
+    },
+    "rows_after": [],
+    "note": null,
+    "footnote": "₹1,150.00 का स्टॉक बेकार हो गया।"
+   }
+  },
+  {
+   "question_id": "dead_stock",
+   "lang": "en",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-10-19",
+    "as_of": "2026-11-18T08:42:00Z",
+    "items_dead": 23,
+    "value_stuck": 64200,
+    "items": [
+     {
+      "product_name": "Glass Jar 2L",
+      "unit": "pc",
+      "stock": 40,
+      "value": 9600
+     }
+    ]
+   },
+   "card": {
+    "title": "Not sold for 30 days",
+    "headline": {
+     "label": "Stuck in 23 items, no sale since 19 Oct",
+     "value": 64200,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 64200,
+     "kind": "money",
+     "unit": null,
+     "caption": "Stuck in 23 items, no sale since 19 Oct",
+     "detail": null
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "Item",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "Stock",
+       "kind": "text",
+       "align": "right"
+      },
+      {
+       "label": "Value",
+       "kind": "money",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "Glass Jar 2L",
+       "40 pc",
+       9600
+      ]
+     ]
+    },
+    "rows_after": [],
+    "note": null,
+    "footnote": "Top 1 of 23 shown. The total covers all 23, at cost price."
+   }
+  },
+  {
+   "question_id": "dead_stock",
+   "lang": "hi",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-10-19",
+    "as_of": "2026-11-18T08:42:00Z",
+    "items_dead": 23,
+    "value_stuck": 64200,
+    "items": [
+     {
+      "product_name": "Glass Jar 2L",
+      "unit": "pc",
+      "stock": 40,
+      "value": 9600
+     }
+    ]
+   },
+   "card": {
+    "title": "30 दिनों से नहीं बिका",
+    "headline": {
+     "label": "23 आइटम में अटका, 19 अक्टूबर से बिक्री नहीं",
+     "value": 64200,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 64200,
+     "kind": "money",
+     "unit": null,
+     "caption": "23 आइटम में अटका, 19 अक्टूबर से बिक्री नहीं",
+     "detail": null
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "आइटम",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "स्टॉक",
+       "kind": "text",
+       "align": "right"
+      },
+      {
+       "label": "रकम",
+       "kind": "money",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "Glass Jar 2L",
+       "40 pc",
+       9600
+      ]
+     ]
+    },
+    "rows_after": [],
+    "note": null,
+    "footnote": "23 में से 1 दिखाए गए। कुल रकम सभी 23 की है, लागत पर।"
+   }
+  },
+  {
+   "question_id": "top_dues",
+   "lang": "en",
+   "empty": false,
+   "figures": {
+    "as_of": "2026-11-18T08:42:00Z",
+    "total_outstanding": 642850,
+    "customers_with_dues": 37,
+    "customers": [
+     {
+      "name": "Hotel Seaview",
+      "outstanding": 118400,
+      "last_payment_date": "2026-10-28"
+     },
+     {
+      "name": "Sagar Caterers",
+      "outstanding": 92600,
+      "last_payment_date": null
+     }
+    ]
+   },
+   "card": {
+    "title": "Who owes you",
+    "headline": {
+     "label": "Hotel Seaview owes the most",
+     "value": 118400,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 118400,
+     "kind": "money",
+     "unit": null,
+     "caption": "Hotel Seaview owes the most",
+     "detail": "₹6,42,850.00 unpaid by 37 customers"
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "Customer",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "Last paid",
+       "kind": "text",
+       "align": "right"
+      },
+      {
+       "label": "Unpaid",
+       "kind": "money",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "Hotel Seaview",
+       "28 Oct",
+       118400
+      ],
+      [
+       "Sagar Caterers",
+       "Never",
+       92600
+      ]
+     ]
+    },
+    "rows_after": [],
+    "note": null,
+    "footnote": "Top 2 of 37 shown. The total covers all 37."
+   }
+  },
+  {
+   "question_id": "top_dues",
+   "lang": "hi",
+   "empty": false,
+   "figures": {
+    "as_of": "2026-11-18T08:42:00Z",
+    "total_outstanding": 642850,
+    "customers_with_dues": 37,
+    "customers": [
+     {
+      "name": "Hotel Seaview",
+      "outstanding": 118400,
+      "last_payment_date": "2026-10-28"
+     },
+     {
+      "name": "Sagar Caterers",
+      "outstanding": 92600,
+      "last_payment_date": null
+     }
+    ]
+   },
+   "card": {
+    "title": "किस पर बकाया है",
+    "headline": {
+     "label": "सबसे ज़्यादा Hotel Seaview पर बाकी",
+     "value": 118400,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 118400,
+     "kind": "money",
+     "unit": null,
+     "caption": "सबसे ज़्यादा Hotel Seaview पर बाकी",
+     "detail": "37 ग्राहकों पर कुल ₹6,42,850.00 बाकी"
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "ग्राहक",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "आखिरी भुगतान",
+       "kind": "text",
+       "align": "right"
+      },
+      {
+       "label": "बाकी",
+       "kind": "money",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "Hotel Seaview",
+       "28 अक्टूबर",
+       118400
+      ],
+      [
+       "Sagar Caterers",
+       "कभी नहीं",
+       92600
+      ]
+     ]
+    },
+    "rows_after": [],
+    "note": null,
+    "footnote": "37 में से 2 दिखाए गए। कुल रकम सभी 37 की है।"
+   }
+  },
+  {
+   "question_id": "dues_age",
+   "lang": "en",
+   "empty": false,
+   "figures": {
+    "as_of": "2026-11-18T08:42:00Z",
+    "total_outstanding": 642850,
+    "oldest_days": 147,
+    "unmatched_amount": 0,
+    "buckets": [
+     {
+      "amount": 402100,
+      "bill_count": 61
+     },
+     {
+      "amount": 128300,
+      "bill_count": 18
+     },
+     {
+      "amount": 62450,
+      "bill_count": 9
+     },
+     {
+      "amount": 50000,
+      "bill_count": 4
+     }
+    ]
+   },
+   "card": {
+    "title": "How old your dues are",
+    "headline": {
+     "label": "Unpaid in total, oldest bill unpaid for 147 days",
+     "value": 642850,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 642850,
+     "kind": "money",
+     "unit": null,
+     "caption": "Unpaid in total, oldest bill unpaid for 147 days",
+     "detail": null
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "Unpaid for",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "Bills",
+       "kind": "count",
+       "align": "right"
+      },
+      {
+       "label": "Amount",
+       "kind": "money",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "0 to 30 days",
+       61,
+       402100
+      ],
+      [
+       "31 to 60 days",
+       18,
+       128300
+      ],
+      [
+       "61 to 90 days",
+       9,
+       62450
+      ],
+      [
+       "More than 90 days",
+       4,
+       50000
+      ]
+     ],
+     "bars": [
+      62.5,
+      20,
+      9.7,
+      7.8
+     ],
+     "tones": [
+      null,
+      null,
+      null,
+      "strong"
+     ]
+    },
+    "rows_after": [
+     {
+      "label": "Not matched to a bill",
+      "value": 0,
+      "kind": "money"
+     },
+     {
+      "label": "Total unpaid",
+      "value": 642850,
+      "kind": "money",
+      "tone": "total"
+     }
+    ],
+    "note": null,
+    "footnote": "Age is counted from the sale date."
+   }
+  },
+  {
+   "question_id": "dues_age",
+   "lang": "hi",
+   "empty": false,
+   "figures": {
+    "as_of": "2026-11-18T08:42:00Z",
+    "total_outstanding": 642850,
+    "oldest_days": 147,
+    "unmatched_amount": 0,
+    "buckets": [
+     {
+      "amount": 402100,
+      "bill_count": 61
+     },
+     {
+      "amount": 128300,
+      "bill_count": 18
+     },
+     {
+      "amount": 62450,
+      "bill_count": 9
+     },
+     {
+      "amount": 50000,
+      "bill_count": 4
+     }
+    ]
+   },
+   "card": {
+    "title": "बकाया कितना पुराना है",
+    "headline": {
+     "label": "कुल बकाया, सबसे पुराना बिल 147 दिन से बकाया",
+     "value": 642850,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 642850,
+     "kind": "money",
+     "unit": null,
+     "caption": "कुल बकाया, सबसे पुराना बिल 147 दिन से बकाया",
+     "detail": null
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "कितने दिन से बकाया",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "बिल",
+       "kind": "count",
+       "align": "right"
+      },
+      {
+       "label": "रकम",
+       "kind": "money",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "0 से 30 दिन",
+       61,
+       402100
+      ],
+      [
+       "31 से 60 दिन",
+       18,
+       128300
+      ],
+      [
+       "61 से 90 दिन",
+       9,
+       62450
+      ],
+      [
+       "90 दिन से ज़्यादा",
+       4,
+       50000
+      ]
+     ],
+     "bars": [
+      62.5,
+      20,
+      9.7,
+      7.8
+     ],
+     "tones": [
+      null,
+      null,
+      null,
+      "strong"
+     ]
+    },
+    "rows_after": [
+     {
+      "label": "किसी बिल से मेल नहीं",
+      "value": 0,
+      "kind": "money"
+     },
+     {
+      "label": "कुल बकाया",
+      "value": 642850,
+      "kind": "money",
+      "tone": "total"
+     }
+    ],
+    "note": null,
+    "footnote": "उम्र बिक्री की तारीख से गिनी गई है।"
+   }
+  },
+  {
+   "question_id": "collections_week",
+   "lang": "en",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-11-16",
+    "period_to": "2026-11-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "collected": 96400,
+    "receipt_count": 23,
+    "customers_paid": 17,
+    "by_method": [
+     {
+      "method": "UPI",
+      "amount": 61400
+     },
+     {
+      "method": "CASH",
+      "amount": 35000
+     }
+    ],
+    "previous_collected": 80000,
+    "previous_from": "2026-11-09",
+    "previous_to": "2026-11-11",
+    "change_pct": 20.5
+   },
+   "card": {
+    "title": "Collected this week",
+    "headline": {
+     "label": "Collected, 16 to 18 Nov",
+     "value": 96400,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 96400,
+     "kind": "money",
+     "unit": null,
+     "caption": "Collected, 16 to 18 Nov",
+     "detail": "▲ 20.5% vs ₹80,000.00, same days last week (9–11 Nov)"
+    },
+    "rows": [
+     {
+      "label": "UPI",
+      "value": 61400,
+      "kind": "money"
+     },
+     {
+      "label": "Cash",
+      "value": 35000,
+      "kind": "money"
+     },
+     {
+      "label": "Total collected",
+      "value": 96400,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "Receipts",
+      "value": 23,
+      "kind": "count"
+     },
+     {
+      "label": "Customers who paid",
+      "value": 17,
+      "kind": "count"
+     }
+    ],
+    "table": null,
+    "rows_after": [],
+    "note": null,
+    "footnote": "Day Book shows one day at a time."
+   }
+  },
+  {
+   "question_id": "collections_week",
+   "lang": "hi",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-11-16",
+    "period_to": "2026-11-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "collected": 96400,
+    "receipt_count": 23,
+    "customers_paid": 17,
+    "by_method": [
+     {
+      "method": "UPI",
+      "amount": 61400
+     },
+     {
+      "method": "CASH",
+      "amount": 35000
+     }
+    ],
+    "previous_collected": 80000,
+    "previous_from": "2026-11-09",
+    "previous_to": "2026-11-11",
+    "change_pct": 20.5
+   },
+   "card": {
+    "title": "इस हफ़्ते की वसूली",
+    "headline": {
+     "label": "वसूली, 16 से 18 नवंबर",
+     "value": 96400,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 96400,
+     "kind": "money",
+     "unit": null,
+     "caption": "वसूली, 16 से 18 नवंबर",
+     "detail": "▲ 20.5%, पिछले हफ़्ते के इन्हीं दिनों (9–11 नवंबर) में ₹80,000.00 थी"
+    },
+    "rows": [
+     {
+      "label": "UPI",
+      "value": 61400,
+      "kind": "money"
+     },
+     {
+      "label": "नकद",
+      "value": 35000,
+      "kind": "money"
+     },
+     {
+      "label": "कुल वसूली",
+      "value": 96400,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "रसीदें",
+      "value": 23,
+      "kind": "count"
+     },
+     {
+      "label": "भुगतान करने वाले ग्राहक",
+      "value": 17,
+      "kind": "count"
+     }
+    ],
+    "table": null,
+    "rows_after": [],
+    "note": null,
+    "footnote": "Day Book एक बार में एक दिन दिखाता है।"
+   }
+  },
+  {
+   "question_id": "cash_bank",
+   "lang": "en",
+   "empty": false,
+   "figures": {
+    "as_of": "2026-11-18T08:42:00Z",
+    "total_balance": 486240,
+    "today_in": 104200,
+    "today_out": 22500,
+    "accounts": [
+     {
+      "label": "Cash in hand",
+      "balance": 58240
+     },
+     {
+      "label": "Bank",
+      "balance": 428000
+     }
+    ]
+   },
+   "card": {
+    "title": "Cash and bank",
+    "headline": {
+     "label": "Cash and bank now",
+     "value": 486240,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 486240,
+     "kind": "money",
+     "unit": null,
+     "caption": "Cash and bank now",
+     "detail": null
+    },
+    "rows": [
+     {
+      "label": "Cash in hand",
+      "value": 58240,
+      "kind": "money"
+     },
+     {
+      "label": "Bank",
+      "value": 428000,
+      "kind": "money"
+     },
+     {
+      "label": "Total",
+      "value": 486240,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "In today",
+      "value": 104200,
+      "kind": "money"
+     },
+     {
+      "label": "Out today",
+      "value": 22500,
+      "kind": "money"
+     }
+    ],
+    "table": null,
+    "rows_after": [],
+    "note": null,
+    "footnote": "Transfers between your own accounts are left out of in and out."
+   }
+  },
+  {
+   "question_id": "cash_bank",
+   "lang": "hi",
+   "empty": false,
+   "figures": {
+    "as_of": "2026-11-18T08:42:00Z",
+    "total_balance": 486240,
+    "today_in": 104200,
+    "today_out": 22500,
+    "accounts": [
+     {
+      "label": "Cash in hand",
+      "balance": 58240
+     },
+     {
+      "label": "Bank",
+      "balance": 428000
+     }
+    ]
+   },
+   "card": {
+    "title": "नकद और बैंक",
+    "headline": {
+     "label": "अभी नकद और बैंक",
+     "value": 486240,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 486240,
+     "kind": "money",
+     "unit": null,
+     "caption": "अभी नकद और बैंक",
+     "detail": null
+    },
+    "rows": [
+     {
+      "label": "Cash in hand",
+      "value": 58240,
+      "kind": "money"
+     },
+     {
+      "label": "Bank",
+      "value": 428000,
+      "kind": "money"
+     },
+     {
+      "label": "कुल",
+      "value": 486240,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "आज आए",
+      "value": 104200,
+      "kind": "money"
+     },
+     {
+      "label": "आज गए",
+      "value": 22500,
+      "kind": "money"
+     }
+    ],
+    "table": null,
+    "rows_after": [],
+    "note": null,
+    "footnote": "आपके अपने खातों के बीच ट्रांसफ़र आए-गए में नहीं गिने गए।"
+   }
+  },
+  {
+   "question_id": "gst_collected",
+   "lang": "en",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-11-01",
+    "period_to": "2026-11-18",
+    "last_month_from": "2026-10-01",
+    "as_of": "2026-11-18T08:42:00Z",
+    "output_gst": 38420.4,
+    "taxable_sales": 2134466.6,
+    "last_month_output_gst": 61980
+   },
+   "card": {
+    "title": "GST collected this month",
+    "headline": {
+     "label": "GST on your sales, 1 to 18 Nov",
+     "value": 38420.4,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 38420.4,
+     "kind": "money",
+     "unit": null,
+     "caption": "GST on your sales, 1 to 18 Nov",
+     "detail": null
+    },
+    "rows": [
+     {
+      "label": "Sales in this period",
+      "value": 2134466.6,
+      "kind": "money"
+     },
+     {
+      "label": "GST on these sales",
+      "value": 38420.4,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "October, full month",
+      "value": 61980,
+      "kind": "money"
+     }
+    ],
+    "table": null,
+    "rows_after": [],
+    "note": "GST on your sales, from your books. This is before input credit and is not a filing figure.",
+    "footnote": null
+   }
+  },
+  {
+   "question_id": "gst_collected",
+   "lang": "hi",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-11-01",
+    "period_to": "2026-11-18",
+    "last_month_from": "2026-10-01",
+    "as_of": "2026-11-18T08:42:00Z",
+    "output_gst": 38420.4,
+    "taxable_sales": 2134466.6,
+    "last_month_output_gst": 61980
+   },
+   "card": {
+    "title": "इस महीने लिया गया GST",
+    "headline": {
+     "label": "आपकी बिक्री पर GST, 1 से 18 नवंबर",
+     "value": 38420.4,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 38420.4,
+     "kind": "money",
+     "unit": null,
+     "caption": "आपकी बिक्री पर GST, 1 से 18 नवंबर",
+     "detail": null
+    },
+    "rows": [
+     {
+      "label": "इस अवधि की बिक्री",
+      "value": 2134466.6,
+      "kind": "money"
+     },
+     {
+      "label": "इस बिक्री पर GST",
+      "value": 38420.4,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "अक्टूबर, पूरा महीना",
+      "value": 61980,
+      "kind": "money"
+     }
+    ],
+    "table": null,
+    "rows_after": [],
+    "note": "आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले का है और फ़ाइलिंग का आँकड़ा नहीं है।",
+    "footnote": null
+   }
+  },
+  {
+   "question_id": "gst_gaps",
+   "lang": "en",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-10-01",
+    "period_to": "2026-11-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "purchases_total": 317,
+    "purchases_no_bill_no": 256,
+    "purchases_no_bill_no_value": 841200,
+    "sale_lines_total": 5763,
+    "sale_lines_no_hsn": 2637,
+    "products_total": 246,
+    "products_no_hsn": 91,
+    "suppliers_used": 31,
+    "suppliers_used_no_gstin": 24
+   },
+   "card": {
+    "title": "Gaps in GST records",
+    "headline": {
+     "label": "Purchases with no bill number, 1 Oct to 18 Nov",
+     "value": 256,
+     "kind": "count"
+    },
+    "hero": {
+     "value": 256,
+     "kind": "count",
+     "unit": "of 317",
+     "caption": "Purchases with no bill number, 1 Oct to 18 Nov",
+     "detail": null
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "Record",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "Missing",
+       "kind": "count",
+       "align": "right"
+      },
+      {
+       "label": "Of",
+       "kind": "count",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "Purchases with no bill number",
+       256,
+       317
+      ],
+      [
+       "Sale lines with no HSN",
+       2637,
+       5763
+      ],
+      [
+       "Products with no HSN",
+       91,
+       246
+      ],
+      [
+       "Suppliers with no GSTIN",
+       24,
+       31
+      ]
+     ]
+    },
+    "rows_after": [
+     {
+      "label": "Value of purchases with no bill number",
+      "value": 841200,
+      "kind": "money",
+      "tone": "total"
+     }
+    ],
+    "note": null,
+    "footnote": null
+   }
+  },
+  {
+   "question_id": "gst_gaps",
+   "lang": "hi",
+   "empty": false,
+   "figures": {
+    "period_from": "2026-10-01",
+    "period_to": "2026-11-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "purchases_total": 317,
+    "purchases_no_bill_no": 256,
+    "purchases_no_bill_no_value": 841200,
+    "sale_lines_total": 5763,
+    "sale_lines_no_hsn": 2637,
+    "products_total": 246,
+    "products_no_hsn": 91,
+    "suppliers_used": 31,
+    "suppliers_used_no_gstin": 24
+   },
+   "card": {
+    "title": "GST रिकॉर्ड की कमियाँ",
+    "headline": {
+     "label": "बिना बिल नंबर की खरीद, 1 अक्टूबर से 18 नवंबर",
+     "value": 256,
+     "kind": "count"
+    },
+    "hero": {
+     "value": 256,
+     "kind": "count",
+     "unit": "317 में से",
+     "caption": "बिना बिल नंबर की खरीद, 1 अक्टूबर से 18 नवंबर",
+     "detail": null
+    },
+    "rows": [],
+    "table": {
+     "columns": [
+      {
+       "label": "रिकॉर्ड",
+       "kind": "text",
+       "align": "left"
+      },
+      {
+       "label": "कमी",
+       "kind": "count",
+       "align": "right"
+      },
+      {
+       "label": "कुल",
+       "kind": "count",
+       "align": "right"
+      }
+     ],
+     "rows": [
+      [
+       "बिना बिल नंबर की खरीद",
+       256,
+       317
+      ],
+      [
+       "बिना HSN की बिक्री लाइनें",
+       2637,
+       5763
+      ],
+      [
+       "बिना HSN के उत्पाद",
+       91,
+       246
+      ],
+      [
+       "बिना GSTIN के सप्लायर",
+       24,
+       31
+      ]
+     ]
+    },
+    "rows_after": [
+     {
+      "label": "बिना बिल नंबर की खरीद की रकम",
+      "value": 841200,
+      "kind": "money",
+      "tone": "total"
+     }
+    ],
+    "note": null,
+    "footnote": null
+   }
+  },
+  {
+   "question_id": "sales_today",
+   "lang": "en",
+   "empty": true,
+   "figures": {
+    "period_from": "2026-11-18",
+    "period_to": "2026-11-18",
+    "as_of": "2026-11-18T08:42:00Z",
+    "gross_sales": 184620,
+    "bill_count": 42,
+    "average_bill": 4395.71,
+    "returns_amount": 1200,
+    "by_method": [
+     {
+      "method": "CASH",
+      "amount": 102400
+     },
+     {
+      "method": "UPI",
+      "amount": 64220
+     },
+     {
+      "method": "UNKNOWN",
+      "amount": 18000
+     }
+    ],
+    "previous_gross_sales": 162400,
+    "change_pct": 13.7
+   },
+   "card": {
+    "title": "Sales today",
+    "headline": {
+     "label": "No sales recorded yet today.",
+     "value": 184620,
+     "kind": "money"
+    },
+    "hero": {
+     "value": 184620,
+     "kind": "money",
+     "unit": null,
+     "caption": "No sales recorded yet today.",
+     "detail": null
+    },
+    "rows": [
+     {
+      "label": "Cash",
+      "value": 102400,
+      "kind": "money"
+     },
+     {
+      "label": "UPI",
+      "value": 64220,
+      "kind": "money"
+     },
+     {
+      "label": "Not recorded",
+      "value": 18000,
+      "kind": "money"
+     },
+     {
+      "label": "Total sold",
+      "value": 184620,
+      "kind": "money",
+      "tone": "total"
+     },
+     {
+      "label": "Average bill",
+      "value": 4395.71,
+      "kind": "money"
+     },
+     {
+      "label": "Returns",
+      "value": 1200,
+      "kind": "money"
+     }
+    ],
+    "table": null,
+    "rows_after": [],
+    "note": null,
+    "footnote": null
+   }
+  }
+ ]
+}

@@ -129,6 +129,9 @@ flutter:
 
   assets:
     - assets/images/
+    # A copy of shared/ai_chat/strings.json for first run and offline; a test
+    # fails if the two differ.
+    - assets/ai_chat/strings.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

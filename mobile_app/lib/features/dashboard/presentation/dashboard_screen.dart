@@ -37,6 +37,8 @@ import 'package:mobile_app/features/sales/presentation/sale_type_sheet.dart';
 import 'package:mobile_app/features/sales/presentation/sales_screen.dart';
 import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
 import 'widgets/today_card.dart';
+import 'package:mobile_app/features/ai_chat/presentation/ask_screen.dart';
+import 'package:mobile_app/features/ai_chat/presentation/providers/ask_providers.dart' show askMaySee;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shell
@@ -726,6 +728,13 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                           setState(() => _revenueVisible = !_revenueVisible),
                       onTap: () => widget.onTabSwitch('sales'),
                     ),
+                    // Ask sits directly under the day's figures (mockup v2).
+                    // Owners only: it shows profit, cash and dues, and the
+                    // server refuses anyone else.
+                    if (askMaySee(ref.watch(tenantContextProvider).value?.roles ?? const [])) ...[
+                      const SizedBox(height: Gap.md),
+                      AskEntryRow(onTap: () => _push(const AskScreen())),
+                    ],
                     const SizedBox(height: Gap.md),
                     // The day's three next moves, and exactly ONE of them
                     // filled. Peers stay neutral, which is what makes the

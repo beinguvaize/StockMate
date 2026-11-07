@@ -1,0 +1,31 @@
+{
+ "_about": "How a client draws a value from an ai-ask card. Web: src/lib/askFormat.js. Mobile: mobile_app/lib/features/ai_chat/data/ask_format.dart. Both suites read this file. Digits stay Western in both languages.",
+ "formatValue": [
+  {"value": 1234567.5, "kind": "money", "lang": "en", "expect": "₹12,34,567.50"},
+  {"value": -4200, "kind": "money", "lang": "en", "expect": "-₹4,200.00"},
+  {"value": 0, "kind": "money", "lang": "hi", "expect": "₹0.00"},
+  {"value": 0.005, "kind": "money", "lang": "en", "expect": "₹0.01"},
+  {"value": 999.995, "kind": "money", "lang": "en", "expect": "₹1,000.00"},
+  {"value": "64220", "kind": "money", "lang": "en", "expect": "₹64,220.00"},
+  {"value": 1920, "kind": "count", "lang": "en", "expect": "1,920"},
+  {"value": 1234567, "kind": "count", "lang": "hi", "expect": "12,34,567"},
+  {"value": 22.5, "kind": "qty", "lang": "en", "expect": "22.5"},
+  {"value": 0.125, "kind": "qty", "lang": "en", "expect": "0.125"},
+  {"value": 12.5, "kind": "percent", "lang": "en", "expect": "12.5%"},
+  {"value": 147, "kind": "days", "lang": "en", "expect": "147"},
+  {"value": "2026-12-02", "kind": "date", "lang": "hi", "expect": "2 दिसंबर"},
+  {"value": "2026-11-18", "kind": "date", "lang": "en", "expect": "18 Nov"},
+  {"value": "Parle-G 500g", "kind": "text", "lang": "en", "expect": "Parle-G 500g"},
+  {"value": "x", "kind": "new_kind", "lang": "en", "expect": "x"},
+  {"value": null, "kind": "money", "lang": "en", "expect": "—"}
+ ],
+ "usageVars": [
+  {"usage": {"used": 1, "limit": 10, "resets_on": "2026-12-01"}, "lang": "en", "expect": {"month": "November", "reset": "1 Dec"}},
+  {"usage": {"used": 1, "limit": 10, "resets_on": "2027-01-01"}, "lang": "en", "expect": {"month": "December", "reset": "1 Jan"}},
+  {"usage": {"used": 63, "limit": 100, "resets_on": "2026-12-01"}, "lang": "hi", "expect": {"month": "नवंबर", "reset": "1 दिसंबर"}}
+ ],
+ "splitNumbers": [
+  {"text": "Up 13.7% to ₹1,84,620.00.", "numbers": ["13.7%", "₹1,84,620.00"]},
+  {"text": "Parle-G 500g sold 12 units.", "numbers": []}
+ ]
+}
