@@ -9,8 +9,8 @@ import { shopToday } from "./periods.ts";
 import { SYSTEM_PROMPT, userPrompt } from "./prompt.ts";
 import { ReadFailed, runQuestion } from "./runs.ts";
 import { figuresHash, restoreNames, toModelFigures } from "./standins.ts";
+import { type Provider, ProviderBusy } from "./providers.ts";
 
-export const MODEL = "claude-haiku-5-5";
 export const CONTRACT_VERSION = registry.contract_version;
 const LANGUAGE_NAME: Record<string, string> = { en: "English", hi: "Hindi" };
 const strings = allStrings as Record<string, any>;
@@ -24,9 +24,8 @@ export interface ModelReply {
 }
 
 export interface Deps {
-  apiKey: () => string | undefined;
+  ai: Provider;
   db: (authHeader: string) => any;
-  askModel: (apiKey: string, system: string, user: string) => Promise<ModelReply>;
   now: () => Date;
   cors: Record<string, string>;
 }
@@ -95,7 +94,7 @@ async function list(deps: Deps, db: any, ctx: any, lang: string) {
         screen_key: s.key, fallback_screen_key: s.fallback_key, mobile: s.mobile,
       };
     });
-  const state = !ctx.aiOn ? "off" : deps.apiKey() ? "on" : "not_configured";
+  const state = !ctx.aiOn ? "off" : deps.ai.configured ? "on" : "not_configured";
   const { data: usage, error } = await db.rpc("ai_usage_status");
   if (error) console.error("[ai-ask] usage status failed:", error.message);
   return json(deps, 200, { state, plan: ctx.plan, lang, languages: registry.languages, strings: strings[lang], questions, usage: usage ?? null });
@@ -155,8 +154,8 @@ async function ask(deps: Deps, db: any, ctx: any, q: any, lang: string, userId: 
     console.error("[ai-ask] cached reply failed the guard:", q.id, again.reason);
   }
 
-  const key = deps.apiKey();
-  if (!key) return cardOnly("ai_not_configured");
+  if (!deps.ai.configured) return cardOnly("ai_not_configured");
+  const MODEL = `${deps.ai.name}:${deps.ai.model}`;
 
   const claim = await db.rpc("ai_usage_claim", { p_question_id: q.id, p_lang: lang, p_model: MODEL });
   if (claim.error) {
@@ -174,8 +173,15 @@ async function ask(deps: Deps, db: any, ctx: any, q: any, lang: string, userId: 
 
   let reply: ModelReply;
   try {
-    reply = await deps.askModel(key, SYSTEM_PROMPT, userPrompt(q.label.en, LANGUAGE_NAME[lang], view));
+    reply = await deps.ai.ask(SYSTEM_PROMPT, userPrompt(q.label.en, LANGUAGE_NAME[lang], view));
   } catch (e) {
+    if (e instanceof ProviderBusy) {
+      // The provider's limit is shared by every shop on the key: closing the
+      // claim as provider_busy gives the shop its answer back.
+      console.error("[ai-ask] provider busy:", q.id, (e as Error).message);
+      await close("provider_busy");
+      return respond(null, "provider_busy");
+    }
     console.error("[ai-ask] model call failed:", q.id, (e as Error)?.message);
     await close("model_error");
     return respond(null, "model_error");

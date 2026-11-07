@@ -30,6 +30,7 @@
 .ask-root h2,.ask-root h3,.ask-root h4,.ask-root p{margin:0}
 .ask-root :focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:var(--r-sm)}
 .ask-root .fail{color:var(--neg);margin-top:12px}
+.ask-root .msg .fine{white-space:pre-line}
 .ask-root .ai.quiet{border-color:var(--border)}
 .ask-root:lang(hi) {letter-spacing:0}
 .ask-root:lang(hi) .prose,.ask-root:lang(hi) .prose{line-height:1.8}

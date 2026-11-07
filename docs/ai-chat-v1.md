@@ -282,7 +282,7 @@ Direction words come from data: the function gives `change_pct`, and the prompt 
 
 ### Stand-ins
 
-| Data | Sent to Anthropic? |
+| Data | Sent to the AI provider? |
 |---|---|
 | Customer, supplier, staff names | **No.** Stand-ins: `[C1]`, `[C2]`, in rank order |
 | Phone, email, address | **Never.** Not selected by any function |
@@ -348,10 +348,17 @@ There is no i18n in the web or Flutter app, so chat has its own picker:
 
 ### Privacy
 
-- The shop is responsible for its customers' data. bookledger and Anthropic process it on the shop's behalf.
-- What goes out is limited by §6: totals, counts, dates, product names and stand-ins.
-- Anthropic says API inputs and outputs are [not used for training by default](https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training) and are [deleted within 30 days](https://privacy.claude.com/en/articles/7996866-how-long-do-you-store-my-organization-s-data), with exceptions for Usage Policy enforcement and legal requirements. Confirm the current Commercial Terms before launch.
-- Processing is outside India. DPDP Section 16 restricts only countries the government notifies, and is expected to start around 13 May 2027 ([SCC Online](https://www.scconline.com/blog/post/2025/12/26/digital-personal-data-protection-rules-2025-key-highlights/), [KSK](https://ksandk.com/data-protection-and-data-privacy/cross-border-data-transfers-dpdp-act-india/)). Secondary sources differ by a day and **this was not checked against the Gazette**. This is not legal advice.
+- **Provider (owner decision, 2026-11-07): Google's Gemini API, free tier**, model `gemini-3.5-flash-lite` (env `GEMINI_MODEL`), key `GEMINI_CHAT_API_KEY` in its own Google project so chat does not share extract-bill's quota. Limits are per project and unpublished; the daily reset is midnight Pacific (13:30 IST). The Claude path stays behind `AI_PROVIDER=claude`. The model sections in §6 and the costs in §9 describe Claude and no longer apply while Gemini runs.
+- What goes out is limited by §6: totals, counts, dates, **product names** and stand-ins.
+- **The note shown before turning on**, word for word. It lives once, in `shared/ai_chat/strings.json` (`ui.on_fine`), so it can change to the paid wording if the owner pays. The Hindi needs native review.
+
+  > When you turn on AI answers, the figures for the question you tap are sent to Google's Gemini API, which writes the short explanation. These figures are totals, counts, dates and product names. We never send customer or supplier names, phone numbers, GSTINs or bank details.
+  >
+  > We use Google's free service. Google may use what we send to improve its products, and Google's human reviewers may read it after Google disconnects it from our account. Google does not state how long it keeps this data.
+  >
+  > Do not turn this on if you treat your sales, stock or dues figures as confidential. The numbers on the card come from your own books, not from the AI. You can turn AI answers off at any time in Settings.
+
+- Processing is outside India. DPDP Section 16 restricts only countries the government notifies. This was not checked against the Gazette, and this is not legal advice.
 - **AI is off for a shop until the owner turns it on.** The first open shows what is sent and a "Turn on" button. The owner can turn it off in Settings. Stored in `tenants.settings`.
 - Update the privacy policy and processor terms before launch.
 
@@ -459,7 +466,7 @@ Nobody may run write or repro SQL on real shops for this work. Use Demo Kirana S
 - Tests above pass, and any known expired-key CI failure is unchanged.
 - All 12 questions, on Demo Kirana Store, show figures that tie to the linked screen on web and mobile.
 - With no key set, every question still shows its real figures and link.
-- A logged request to Anthropic contains no customer name, phone, GSTIN or account number.
+- A logged request to the AI provider contains no customer name, phone, GSTIN or account number.
 
 ---
 

@@ -73,6 +73,8 @@ test('Ask stays off until the owner turns it on, and shows what is sent', async 
   const panel = page.getByTestId('ask-panel');
   await expect(panel).toContainText('Turn on Ask for your shop');
   await expect(panel).toContainText('Never sent');
+  await expect(panel).toContainText("sent to Google's Gemini API");
+  await expect(panel).toContainText('Do not turn this on if you treat your sales, stock or dues figures as confidential.');
   await expect(page.getByTestId('ask-list')).toHaveCount(0);
   expect(calls.ask).toHaveLength(0);
 
@@ -128,6 +130,7 @@ test('every failure keeps the figures and says what happened, in the same slot',
     ['model_error', 'could not be written just now'],
     ['ai_not_configured', 'Explanations are not set up yet'],
     ['rate_limited', 'Too many questions in one minute'],
+    ['provider_busy', 'did not use one of your explanations'],
   ];
   let reason = cases[0][0];
   await open(page, { answer: (b) => answerOf(b.lang, { text: null, reason }) });

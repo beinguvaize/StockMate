@@ -309,7 +309,8 @@ const modelSays = (text, stopReason = 'end_turn') => vi.fn(async () => ({ text, 
 
 async function call(db, { body = { action: 'ask', question_id: 'sales_today', lang: 'en' }, key = 'k', model = modelSays('You sold ₹234567.50 across 31 bills.'), token = 'good' } = {}) {
   const req = new Request('https://x/ai-ask', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
-  const res = await handle(req, { apiKey: () => key, db: () => db, askModel: model, now: () => new Date('2026-11-04T06:00:00Z'), cors: {} });
+  const ai = { name: 'fake', model: 'm', configured: Boolean(key), ask: model };
+  const res = await handle(req, { ai, db: () => db, now: () => new Date('2026-11-04T06:00:00Z'), cors: {} });
   return { status: res.status, json: await res.json(), model };
 }
 
@@ -386,8 +387,8 @@ describe('ai-ask flow', () => {
     const db = fakeDb();
     const { json } = await call(db, { body: { action: 'ask', question_id: 'top_dues', lang: 'en' }, model });
     expect(json.text).toBe('Ramesh Stores owes you ₹900.');
-    expect(model.mock.calls[0][2]).not.toContain('Ramesh');
-    expect(model.mock.calls[0][2]).not.toContain('CL-9');
+    expect(model.mock.calls[0][1]).not.toContain('Ramesh');
+    expect(model.mock.calls[0][1]).not.toContain('CL-9');
     expect(db.calls.saved[0].p_text).toBe('[C1] owes you ₹900.');
   });
 
