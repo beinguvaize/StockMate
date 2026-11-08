@@ -61,7 +61,9 @@ void main() {
         final screen = q['screen'] as Map<String, dynamic>;
         for (final key in [screen['key'], screen['fallback_key']].whereType<String>()) {
           final mobileKey = askMobileKey({'key': key, 'mobile': screen['mobile']});
-          if (screen['mobile'] == true) {
+          if (screen['mobile'] == true && askDroppedScreens.containsKey(key)) {
+            expect(mobileKey, isNull, reason: '$key is dropped on the phone: ${askDroppedScreens[key]}');
+          } else if (screen['mobile'] == true) {
             expect(mobileKey, key, reason: '${q['id']} → $key has no phone screen');
             for (final lang in ['en', 'hi']) {
               expect(askLinkLabel(mobileKey, strings[lang] as Map<String, dynamic>), isNotNull);

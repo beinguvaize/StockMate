@@ -8,7 +8,6 @@ import 'package:mobile_app/features/accounts/presentation/accounts_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/crm_screen.dart';
 import 'package:mobile_app/features/daybook/presentation/daybook_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/inventory_screen.dart';
-import 'package:mobile_app/features/reports/presentation/gstr3b_screen.dart';
 import 'package:mobile_app/features/reports/presentation/inventory_report_screen.dart';
 import 'package:mobile_app/features/reports/presentation/sales_summary_screen.dart';
 import 'package:mobile_app/features/sales/presentation/sales_screen.dart';
@@ -16,8 +15,24 @@ import 'package:mobile_app/features/sales/presentation/sales_screen.dart';
 /// Return to the dashboard, the app's first route, instead of pushing a copy.
 const askHomeKeys = {'dashboard', 'reports_expiry'};
 
-final Map<String, WidgetBuilder> askScreens = {
-  'reports_daily_sales': (_) => const SalesSummaryScreen(),
+typedef AskScreenBuilder = Widget Function(Map<String, dynamic>? params);
+
+/// The answer's period as a range of calendar days, or null when it has none.
+DateTimeRange? askPeriod(Map<String, dynamic>? params) {
+  DateTime? day(Object? v) {
+    final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch('${v ?? ''}');
+    return m == null ? null : DateTime(int.parse(m[1]!), int.parse(m[2]!), int.parse(m[3]!));
+  }
+  final from = day(params?['from']);
+  final to = day(params?['to']);
+  if (from == null || to == null || to.isBefore(from)) return null;
+  return DateTimeRange(start: from, end: to);
+}
+
+/// Screens a phone link can open. A dated screen opens on the answer's own
+/// period, so the tap never lands on a different number.
+final Map<String, AskScreenBuilder> askScreens = {
+  'reports_daily_sales': (p) => SalesSummaryScreen(initialRange: askPeriod(p)),
   'sales': (_) => const SalesScreen(),
   'reports_low_stock': (_) => const InventoryReportScreen(),
   'reports_inventory_dead': (_) => const InventoryReportScreen(),
@@ -25,7 +40,15 @@ final Map<String, WidgetBuilder> askScreens = {
   'clients': (_) => const CRMScreen(),
   'daybook': (_) => const DayBookScreen(),
   'accounts': (_) => const AccountsScreen(),
-  'reports_gstr3b': (_) => const Gstr3bScreen(),
+};
+
+/// Screens the phone has but deliberately does not link to, and why. The tap
+/// would land on a different number from the answer.
+const askDroppedScreens = {
+  // Gstr3bScreen adds up GST from invoice rows, and most sales never get one.
+  // The answer's GST is get_pl_ranged's: on Demo Kirana Store, 1 Jan to
+  // 7 Nov 2026, it is Rs 34,165.88 where the screen shows Rs 0.00.
+  'reports_gstr3b': 'reads invoices, not the books the answer comes from',
 };
 
 /// The key the phone can open for an answer, or null for no link.
@@ -44,11 +67,11 @@ String? askLinkLabel(String? key, Map<String, dynamic> strings) {
   return (askHomeKeys.contains(key) ? links['dashboard'] : links[key]) as String?;
 }
 
-void askOpen(BuildContext context, String key) {
+void askOpen(BuildContext context, String key, [Map<String, dynamic>? params]) {
   if (askHomeKeys.contains(key)) {
     Navigator.of(context).popUntil((r) => r.isFirst);
     return;
   }
   final b = askScreens[key];
-  if (b != null) Navigator.of(context).push(MaterialPageRoute(builder: b));
+  if (b != null) Navigator.of(context).push(MaterialPageRoute(builder: (_) => b(params)));
 }

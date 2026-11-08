@@ -13,17 +13,22 @@ import 'package:mobile_app/features/reports/utils/financial_calcs.dart';
 import 'package:mobile_app/core/theme/typography.dart';
 
 class SalesSummaryScreen extends ConsumerStatefulWidget {
-  const SalesSummaryScreen({super.key});
+  /// The period to open on, e.g. from an Ask answer, so the screen shows the
+  /// same days as the figure that linked here. Null keeps the default.
+  final DateTimeRange? initialRange;
+
+  const SalesSummaryScreen({super.key, this.initialRange});
 
   @override
   ConsumerState<SalesSummaryScreen> createState() => _SalesSummaryScreenState();
 }
 
 class _SalesSummaryScreenState extends ConsumerState<SalesSummaryScreen> {
-  DateTimeRange _range = DateTimeRange(
-    start: DateTime.now().subtract(const Duration(days: 30)),
-    end: DateTime.now(),
-  );
+  late DateTimeRange _range = widget.initialRange ??
+      DateTimeRange(
+        start: DateTime.now().subtract(const Duration(days: 30)),
+        end: DateTime.now(),
+      );
 
   @override
   Widget build(BuildContext context) {

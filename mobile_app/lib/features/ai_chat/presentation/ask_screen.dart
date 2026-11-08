@@ -444,7 +444,8 @@ class _AskScreenState extends ConsumerState<AskScreen> {
       );
 
   Widget _dock(Map<String, dynamic> strings) {
-    final key = askMobileKey(_current?.answer?['screen'] as Map<String, dynamic>?);
+    final screen = _current?.answer?['screen'] as Map<String, dynamic>?;
+    final key = askMobileKey(screen);
     final label = askLinkLabel(key, strings);
     if (key == null || label == null) return const SizedBox.shrink();
     return Container(
@@ -459,7 +460,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
         icon: LucideIcons.arrowRight,
         variant: AppButtonVariant.secondary,
         fullWidth: true,
-        onPressed: () => askOpen(context, key),
+        onPressed: () => askOpen(context, key, screen?['params'] as Map<String, dynamic>?),
       ),
     );
   }
