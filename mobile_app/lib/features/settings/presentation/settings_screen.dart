@@ -13,6 +13,7 @@ import 'package:mobile_app/features/settings/presentation/sync_diagnostics_scree
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/features/ai_chat/presentation/ask_setting_row.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -230,6 +231,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         activeTrackColor: AppColors.primaryContainer,
                       ),
                     ),
+                    // Ask: owners only, and only where the shop has it.
+                    const AskSettingRow(),
                     const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
                     _SettingRow(
                       icon: LucideIcons.refreshCw,
@@ -930,3 +933,4 @@ class _SettingRow extends StatelessWidget {
     );
   }
 }
+

@@ -45,7 +45,7 @@
    "never_3": "GSTIN, PAN, Aadhaar",
    "never_4": "Bank and UPI details",
    "never_5": "Your shop's name",
-   "on_fine": "The AI is Claude, from Anthropic, and it runs outside India. Anthropic does not use this data for training by default, and deletes it within 30 days unless its usage policy or the law requires longer. Only you see Ask. You can turn it off any time in Settings.",
+   "on_fine": "When you turn on AI answers, the figures for the question you tap are sent to Google's Gemini API, which writes the short explanation. These figures are totals, counts, dates and product names. We never send customer or supplier names, phone numbers, GSTINs or bank details.\nWe use Google's free service. Google may use what we send to improve its products, and Google's human reviewers may read it after Google disconnects it from our account. Google does not state how long it keeps this data.\nDo not turn this on if you treat your sales, stock or dues figures as confidential. The numbers on the card come from your own books, not from the AI. You can turn AI answers off at any time in Settings.",
    "turn_on": "Turn on",
    "not_now": "Not now",
    "turn_off": "Turn off",
@@ -63,7 +63,8 @@
    "reason_read_failed": "Couldn't read your figures, try again",
    "reason_not_signed_in": "Please sign in again",
    "reason_bad_request": "That request wasn't understood",
-   "reason_unknown_question": "That question isn't available"
+   "reason_unknown_question": "That question isn't available",
+   "reason_provider_busy": "The AI service is busy for everyone just now. The figures below are correct, and this did not use one of your explanations."
   },
   "card": {
    "sales": "Sales",
@@ -303,7 +304,7 @@
    "never_3": "GSTIN, PAN, आधार",
    "never_4": "बैंक और UPI की जानकारी",
    "never_5": "आपकी दुकान का नाम",
-   "on_fine": "यह AI Anthropic का Claude है और भारत के बाहर चलता है। Anthropic सामान्य तौर पर इस डेटा से अपने AI को ट्रेन नहीं करता, और इसे 30 दिनों में हटा देता है, जब तक कि उसकी उपयोग नीति या कानून के कारण ज़्यादा समय रखना ज़रूरी न हो। पूछें सुविधा सिर्फ़ आपको दिखती है। आप इसे कभी भी Settings में बंद कर सकते हैं।",
+   "on_fine": "[NEEDS NATIVE HINDI REVIEW] जब आप AI जवाब चालू करते हैं, तो आप जो सवाल चुनते हैं उसके आँकड़े Google के Gemini API को भेजे जाते हैं, जो छोटी व्याख्या लिखता है। ये आँकड़े कुल रकम, गिनती, तारीखें और उत्पादों के नाम होते हैं। हम ग्राहकों या सप्लायरों के नाम, फ़ोन नंबर, GSTIN या बैंक की जानकारी कभी नहीं भेजते।\nहम Google की मुफ़्त सेवा इस्तेमाल करते हैं। Google भेजी गई जानकारी का इस्तेमाल अपने उत्पाद बेहतर करने के लिए कर सकता है, और Google के समीक्षक उसे हमारे खाते से अलग करने के बाद पढ़ सकते हैं। Google यह नहीं बताता कि वह यह डेटा कितने समय तक रखता है।\nअगर आप अपनी बिक्री, स्टॉक या बकाया के आँकड़ों को गोपनीय मानते हैं, तो इसे चालू न करें। कार्ड पर दिखने वाले आँकड़े आपके अपने खातों से आते हैं, AI से नहीं। आप AI जवाब कभी भी Settings में बंद कर सकते हैं।",
    "turn_on": "चालू करें",
    "not_now": "अभी नहीं",
    "turn_off": "बंद करें",
@@ -321,7 +322,8 @@
    "reason_read_failed": "आपके आँकड़े नहीं पढ़ पाए, फिर कोशिश करें",
    "reason_not_signed_in": "कृपया फिर से साइन इन करें",
    "reason_bad_request": "अनुरोध समझ नहीं आया",
-   "reason_unknown_question": "यह सवाल उपलब्ध नहीं है"
+   "reason_unknown_question": "यह सवाल उपलब्ध नहीं है",
+   "reason_provider_busy": "अभी AI सेवा सभी के लिए व्यस्त है। नीचे के आँकड़े सही हैं, और इससे आपकी कोई व्याख्या खर्च नहीं हुई।"
   },
   "card": {
    "sales": "बिक्री",

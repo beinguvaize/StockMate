@@ -132,7 +132,7 @@ class AskAnswerView extends StatelessWidget {
       Text('${quota ? ui['quota_title'] : ui['figures_only']}', style: _t(12, w: FontWeight.w500, c: _ink3)),
       const SizedBox(height: 3),
       Text(note, key: const Key('ask-reason'), style: _t(13, c: _ink2, h: 1.55)),
-      if (quota || reason == 'model_error' || reason == 'rate_limited')
+      if (quota || const {'model_error', 'rate_limited', 'provider_busy'}.contains(reason))
         Padding(
           padding: const EdgeInsets.only(top: 8),
           child: AppButton(
@@ -387,3 +387,61 @@ class AskMessage extends StatelessWidget {
 TextStyle askBody([Color c = _ink2]) => _t(14, c: c, h: 1.6);
 TextStyle askSmall([Color c = _ink3]) => _t(12.5, c: c, h: 1.55);
 TextStyle askHeading() => _t(13, w: FontWeight.w700);
+
+/// The consent notice, word for word from the server's strings (ui.on_fine is
+/// the agreed privacy text). Used by the Ask screen and by Settings.
+class AskConsentView extends StatelessWidget {
+  final Map<String, dynamic> ui;
+  final bool busy;
+  final String? error;
+  final VoidCallback onTurnOn;
+  final VoidCallback onNotNow;
+  const AskConsentView({super.key, required this.ui, required this.busy, required this.error,
+      required this.onTurnOn, required this.onNotNow});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget list(String head, List<String> items) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.only(bottom: 6),
+              decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outline, width: 0.6))),
+              child: Text(head, style: askHeading()),
+            ),
+            for (final i in items)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: _border))),
+                child: Text(i, style: askBody()),
+              ),
+          ],
+        );
+    return AskMessage(title: '${ui['on_title']}', children: [
+      Text('${ui['on_body']}', style: askBody()),
+      const SizedBox(height: 18),
+      list('${ui['sent_title']}', ['${ui['sent_1']}', '${ui['sent_2']}']),
+      const SizedBox(height: 16),
+      list('${ui['never_title']}', [for (var i = 1; i <= 5; i++) '${ui['never_$i']}']),
+      const SizedBox(height: 14),
+      for (final para in '${ui['on_fine']}'.split('\n'))
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(para, key: const Key('ask-on-fine'), style: askSmall()),
+        ),
+      if (error != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(error!, style: askBody(AppColors.danger)),
+        ),
+      const SizedBox(height: 10),
+      Row(children: [
+        Expanded(child: AppButton(label: '${ui['turn_on']}', loading: busy, onPressed: busy ? null : onTurnOn)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: AppButton(label: '${ui['not_now']}', variant: AppButtonVariant.secondary, onPressed: onNotNow),
+        ),
+      ]),
+    ]);
+  }
+}

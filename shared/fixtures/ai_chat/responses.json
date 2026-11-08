@@ -1,26 +1,168 @@
 {
  "_about": "Response bodies as supabase/functions/ai-ask/handler.ts sends them, for clients to parse. Cards live in cards.json. A gateway 401 has no JSON body at all: clients must treat any 401 as not_signed_in.",
  "contract_version": 1,
- "list_on": {"contract_version": 1, "state": "on", "plan": "GROWTH", "lang": "en", "languages": ["en", "hi"],
-  "questions": [
-   {"id": "sales_today", "category": "sales", "label": "How much did I sell today?", "screen_key": "reports_daily_sales", "fallback_screen_key": "sales", "mobile": true},
-   {"id": "profit_month", "category": "sales", "label": "What is my profit this month?", "screen_key": "reports_financials", "fallback_screen_key": null, "mobile": false},
-   {"id": "low_stock", "category": "stock", "label": "What should I reorder?", "screen_key": "reports_low_stock", "fallback_screen_key": "inventory", "mobile": true},
-   {"id": "top_dues", "category": "dues", "label": "Who owes me the most?", "screen_key": "clients", "fallback_screen_key": null, "mobile": true},
-   {"id": "dues_age", "category": "dues", "label": "How old is my unpaid money?", "screen_key": "clients", "fallback_screen_key": null, "mobile": true},
-   {"id": "cash_bank", "category": "cash", "label": "How much cash and bank money do I have?", "screen_key": "dashboard", "fallback_screen_key": "dashboard", "mobile": true},
-   {"id": "gst_collected", "category": "gst", "label": "How much GST did I collect this month?", "screen_key": "reports_gstr3b", "fallback_screen_key": null, "mobile": true}
+ "list_on": {
+  "contract_version": 1,
+  "state": "on",
+  "plan": "GROWTH",
+  "lang": "en",
+  "languages": [
+   "en",
+   "hi"
   ],
-  "usage": {"used": 63, "limit": 100, "resets_on": "2026-12-01"}},
- "list_off": {"contract_version": 1, "state": "off", "plan": "FREE", "lang": "en", "languages": ["en", "hi"], "questions": [], "usage": null},
- "list_not_configured": {"contract_version": 1, "state": "not_configured", "plan": "PRO", "lang": "en", "languages": ["en", "hi"], "questions": [], "usage": {"used": 0, "limit": 500, "resets_on": "2026-12-01"}},
- "ask_reasons": ["no_data", "ai_off", "ai_not_configured", "quota_reached", "rate_limited", "model_error", "refused", "guard_rejected"],
+  "questions": [
+   {
+    "id": "sales_today",
+    "category": "sales",
+    "label": "How much did I sell today?",
+    "screen_key": "reports_daily_sales",
+    "fallback_screen_key": "sales",
+    "mobile": true
+   },
+   {
+    "id": "profit_month",
+    "category": "sales",
+    "label": "What is my profit this month?",
+    "screen_key": "reports_financials",
+    "fallback_screen_key": null,
+    "mobile": false
+   },
+   {
+    "id": "low_stock",
+    "category": "stock",
+    "label": "What should I reorder?",
+    "screen_key": "reports_low_stock",
+    "fallback_screen_key": "inventory",
+    "mobile": true
+   },
+   {
+    "id": "top_dues",
+    "category": "dues",
+    "label": "Who owes me the most?",
+    "screen_key": "clients",
+    "fallback_screen_key": null,
+    "mobile": true
+   },
+   {
+    "id": "dues_age",
+    "category": "dues",
+    "label": "How old is my unpaid money?",
+    "screen_key": "clients",
+    "fallback_screen_key": null,
+    "mobile": true
+   },
+   {
+    "id": "cash_bank",
+    "category": "cash",
+    "label": "How much cash and bank money do I have?",
+    "screen_key": "dashboard",
+    "fallback_screen_key": "dashboard",
+    "mobile": true
+   },
+   {
+    "id": "gst_collected",
+    "category": "gst",
+    "label": "How much GST did I collect this month?",
+    "screen_key": "reports_gstr3b",
+    "fallback_screen_key": null,
+    "mobile": true
+   }
+  ],
+  "usage": {
+   "used": 63,
+   "limit": 100,
+   "resets_on": "2026-12-01"
+  }
+ },
+ "list_off": {
+  "contract_version": 1,
+  "state": "off",
+  "plan": "FREE",
+  "lang": "en",
+  "languages": [
+   "en",
+   "hi"
+  ],
+  "questions": [],
+  "usage": null
+ },
+ "list_not_configured": {
+  "contract_version": 1,
+  "state": "not_configured",
+  "plan": "PRO",
+  "lang": "en",
+  "languages": [
+   "en",
+   "hi"
+  ],
+  "questions": [],
+  "usage": {
+   "used": 0,
+   "limit": 500,
+   "resets_on": "2026-12-01"
+  }
+ },
+ "ask_reasons": [
+  "no_data",
+  "ai_off",
+  "ai_not_configured",
+  "quota_reached",
+  "rate_limited",
+  "model_error",
+  "refused",
+  "provider_busy",
+  "guard_rejected"
+ ],
  "refusals": [
-  {"status": 403, "body": {"contract_version": 1, "error": "not_owner", "reason": "not_owner", "message": "Only the shop owner can use this"}},
-  {"status": 403, "body": {"contract_version": 1, "error": "suspended", "reason": "suspended", "message": "This shop is suspended"}},
-  {"status": 403, "body": {"contract_version": 1, "error": "module_locked", "reason": "module_locked", "message": "Your plan doesn't include this"}},
-  {"status": 400, "body": {"contract_version": 1, "error": "unknown_question", "reason": "unknown_question", "message": "That question isn't available"}},
-  {"status": 500, "body": {"contract_version": 1, "error": "read_failed", "reason": "read_failed", "message": "Couldn't read your figures, try again"}},
-  {"status": 401, "body": null, "raw": "{\"code\":\"UNAUTHORIZED_NO_AUTH_HEADER\",\"message\":\"Missing authorization header\"}"}
+  {
+   "status": 403,
+   "body": {
+    "contract_version": 1,
+    "error": "not_owner",
+    "reason": "not_owner",
+    "message": "Only the shop owner can use this"
+   }
+  },
+  {
+   "status": 403,
+   "body": {
+    "contract_version": 1,
+    "error": "suspended",
+    "reason": "suspended",
+    "message": "This shop is suspended"
+   }
+  },
+  {
+   "status": 403,
+   "body": {
+    "contract_version": 1,
+    "error": "module_locked",
+    "reason": "module_locked",
+    "message": "Your plan doesn't include this"
+   }
+  },
+  {
+   "status": 400,
+   "body": {
+    "contract_version": 1,
+    "error": "unknown_question",
+    "reason": "unknown_question",
+    "message": "That question isn't available"
+   }
+  },
+  {
+   "status": 500,
+   "body": {
+    "contract_version": 1,
+    "error": "read_failed",
+    "reason": "read_failed",
+    "message": "Couldn't read your figures, try again"
+   }
+  },
+  {
+   "status": 401,
+   "body": null,
+   "raw": "{\"code\":\"UNAUTHORIZED_NO_AUTH_HEADER\",\"message\":\"Missing authorization header\"}"
+  }
  ]
 }

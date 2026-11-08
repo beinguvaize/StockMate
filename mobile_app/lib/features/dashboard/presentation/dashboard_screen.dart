@@ -38,7 +38,7 @@ import 'package:mobile_app/features/sales/presentation/sales_screen.dart';
 import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
 import 'widgets/today_card.dart';
 import 'package:mobile_app/features/ai_chat/presentation/ask_screen.dart';
-import 'package:mobile_app/features/ai_chat/presentation/providers/ask_providers.dart' show askMaySee;
+import 'package:mobile_app/features/ai_chat/presentation/providers/ask_providers.dart' show askTenantProvider;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shell
@@ -729,9 +729,9 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       onTap: () => widget.onTabSwitch('sales'),
                     ),
                     // Ask sits directly under the day's figures (mockup v2).
-                    // Owners only: it shows profit, cash and dues, and the
-                    // server refuses anyone else.
-                    if (askMaySee(ref.watch(tenantContextProvider).value?.roles ?? const [])) ...[
+                    // Owners only, and only where the shop has Ask: the flag
+                    // provider returns hidden for staff and on any failed read.
+                    if (ref.watch(askTenantProvider).valueOrNull?.available == true) ...[
                       const SizedBox(height: Gap.md),
                       AskEntryRow(onTap: () => _push(const AskScreen())),
                     ],

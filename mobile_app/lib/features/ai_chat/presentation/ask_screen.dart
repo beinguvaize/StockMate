@@ -82,9 +82,8 @@ class _AskScreenState extends ConsumerState<AskScreen> {
     await ref.read(tenantContextProvider.future);
     final local = ref.read(askLocalProvider);
     final saved = await local.lang(_uid);
-    final device = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
     if (!mounted) return;
-    setState(() => _lang = saved ?? (device == 'hi' ? 'hi' : 'en'));
+    setState(() => _lang = saved ?? askDeviceLang());
     await _loadList();
   }
 
@@ -157,6 +156,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
   Future<void> _changeLang(String lang) async {
     if (lang == _lang) return;
     await ref.read(askLocalProvider).setLang(_uid, lang);
+    ref.invalidate(askSavedLangProvider(_uid));
     setState(() {
       _lang = lang;
       _current = null;
@@ -171,6 +171,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
     });
     try {
       await ref.read(askClientProvider).setEnabled(true);
+      ref.invalidate(askTenantProvider);
       await _loadList();
     } on AskError catch (e) {
       setState(() => _turnError = e.message ?? '$e');
@@ -403,52 +404,13 @@ class _AskScreenState extends ConsumerState<AskScreen> {
     );
   }
 
-  Widget _turnOnView(Map<String, dynamic> ui) {
-    Widget list(String head, List<String> items) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.only(bottom: 6),
-              decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outline, width: 0.6))),
-              child: Text(head, style: askHeading()),
-            ),
-            for (final i in items)
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 7),
-                decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant))),
-                child: Text(i, style: askBody()),
-              ),
-          ],
-        );
-    return AskMessage(title: '${ui['on_title']}', children: [
-      Text('${ui['on_body']}', style: askBody()),
-      const SizedBox(height: 18),
-      list('${ui['sent_title']}', ['${ui['sent_1']}', '${ui['sent_2']}']),
-      const SizedBox(height: 16),
-      list('${ui['never_title']}', [for (var i = 1; i <= 5; i++) '${ui['never_$i']}']),
-      const SizedBox(height: 14),
-      Text('${ui['on_fine']}', style: askSmall()),
-      if (_turnError != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 12),
-          child: Text(_turnError!, style: askBody(AppColors.danger)),
-        ),
-      const SizedBox(height: 18),
-      Row(children: [
-        Expanded(
-          child: AppButton(label: '${ui['turn_on']}', loading: _turning, onPressed: _turning ? null : _turnOn),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: AppButton(
-            label: '${ui['not_now']}',
-            variant: AppButtonVariant.secondary,
-            onPressed: () => Navigator.of(context).maybePop(),
-          ),
-        ),
-      ]),
-    ]);
-  }
+  Widget _turnOnView(Map<String, dynamic> ui) => AskConsentView(
+        ui: ui,
+        busy: _turning,
+        error: _turnError,
+        onTurnOn: _turnOn,
+        onNotNow: () => Navigator.of(context).maybePop(),
+      );
 
   Widget _dock(Map<String, dynamic> strings) {
     final key = askMobileKey(_current?.answer?['screen'] as Map<String, dynamic>?);
@@ -481,7 +443,9 @@ class AskEntryRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final strings = ref.watch(askBundledStringsProvider).valueOrNull;
     if (strings == null) return const SizedBox.shrink();
-    final lang = WidgetsBinding.instance.platformDispatcher.locale.languageCode == 'hi' ? 'hi' : 'en';
+    // The language the owner chose in Ask, else the phone's.
+    final uid = ref.watch(tenantContextProvider).valueOrNull?.userProfile.id ?? '';
+    final lang = ref.watch(askSavedLangProvider(uid)).valueOrNull ?? askDeviceLang();
     final ui = (strings[lang] as Map)['ui'] as Map;
     return Material(
       color: AppColors.surface,
@@ -510,6 +474,61 @@ class AskEntryRow extends ConsumerWidget {
             const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.inkTertiary),
           ]),
         ),
+      ),
+    );
+  }
+}
+
+/// The consent notice on its own, for Settings. Pops true once Ask is on.
+class AskConsentScreen extends ConsumerStatefulWidget {
+  const AskConsentScreen({super.key});
+
+  @override
+  ConsumerState<AskConsentScreen> createState() => _AskConsentScreenState();
+}
+
+class _AskConsentScreenState extends ConsumerState<AskConsentScreen> {
+  bool _busy = false;
+  String? _error;
+
+  Future<void> _turnOn() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ref.read(askClientProvider).setEnabled(true);
+      if (mounted) Navigator.of(context).pop(true);
+    } on AskError catch (e) {
+      if (mounted) setState(() => _error = e.message ?? '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bundled = ref.watch(askBundledStringsProvider).valueOrNull;
+    final uid = ref.watch(tenantContextProvider).valueOrNull?.userProfile.id ?? '';
+    final lang = ref.watch(askSavedLangProvider(uid)).valueOrNull ?? askDeviceLang();
+    if (bundled == null) {
+      return const Scaffold(backgroundColor: AppColors.surface, body: Center(child: CircularProgressIndicator()));
+    }
+    final ui = (bundled[lang] as Map<String, dynamic>)['ui'] as Map<String, dynamic>;
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        title: Text('${ui['title']}',
+            style: GoogleFonts.publicSans(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
+      ),
+      body: AskConsentView(
+        ui: ui,
+        busy: _busy,
+        error: _error,
+        onTurnOn: _turnOn,
+        onNotNow: () => Navigator.of(context).pop(false),
       ),
     );
   }
