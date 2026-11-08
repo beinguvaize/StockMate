@@ -281,4 +281,46 @@ void main() {
       await _settle(t);
     }
   });
+
+  testWidgets('a shop without Ask yet: the server says not_enabled, the phone says so', (t) async {
+    await _pump(t, _Client(onList: (l) => _list(l), listError: const AskError(AskErrorKind.reason, reason: 'not_enabled')));
+    expect(find.text(_ui('en', 'reason_not_enabled')), findsOneWidget);
+    expect(find.text('How much did I sell today?'), findsNothing);
+    expect(find.text('हिन्दी'), findsNothing);
+  });
+
+  testWidgets('a lost connection says "Connection lost."', (t) async {
+    await _pump(t, _Client(onList: (l) => _list(l), askError: const AskError(AskErrorKind.connection)));
+    await t.tap(find.text('How much did I sell today?'));
+    await _settle(t);
+    expect(_ui('en', 'error_connection'), 'Connection lost.');
+    expect(find.text('Connection lost. ${_ui('en', 'error_nothing')}'), findsOneWidget);
+  });
+
+  testWidgets('a failed read on the server says the server could not read the books', (t) async {
+    await _pump(t, _Client(onList: (l) => _list(l),
+        askError: const AskError(AskErrorKind.reason, reason: 'read_failed')));
+    await t.tap(find.text('How much did I sell today?'));
+    await _settle(t);
+    expect(_ui('en', 'error_read'), 'The server could not read your books.');
+    expect(find.text('The server could not read your books. ${_ui('en', 'error_nothing')}'), findsOneWidget);
+    expect(find.text(_ui('en', 'retry')), findsOneWidget);
+  });
+
+  testWidgets('switching language keeps the question, and asks again only on a tap', (t) async {
+    final c = _Client(onList: (l) => _list(l), onAsk: (id, l) => _answer(id, l, text: 'x'));
+    await _pump(t, c);
+    await t.tap(find.text('How much did I sell today?'));
+    await _settle(t);
+    expect(c.asked, ['sales_today']);
+    await t.tap(find.text('हिन्दी'));
+    await _settle(t);
+    expect(c.asked, ['sales_today'], reason: 'never automatic: asking uses an explanation');
+    expect(find.text('आज मैंने कितनी बिक्री की?'), findsOneWidget);
+    expect(find.text(_ui('hi', 'stale_note')), findsOneWidget);
+    await t.tap(find.text(_ui('hi', 'ask_again')));
+    await _settle(t);
+    expect(c.asked, ['sales_today', 'sales_today']);
+    expect(find.byKey(const Key('ask-hero')), findsOneWidget);
+  });
 }

@@ -24,9 +24,9 @@ import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
 
 const _categories = ['sales', 'stock', 'dues', 'cash', 'gst'];
 
-enum _ListState { loading, ready, staff, error }
+enum _ListState { loading, ready, staff, notEnabled, error }
 
-enum _Status { loading, done, error }
+enum _Status { loading, done, error, stale }
 
 class _Current {
   final Map<String, dynamic> question;
@@ -108,12 +108,23 @@ class _AskScreenState extends ConsumerState<AskScreen> {
         _list = data;
         _usage = data['usage'] as Map<String, dynamic>?;
         _listState = _ListState.ready;
+        final c = _current;
+        if (c != null) {
+          final fresh = _questions.where((q) => q['id'] == c.question['id']);
+          if (fresh.isNotEmpty) _current = _Current(fresh.first, c.status, answer: c.answer, error: c.error);
+        }
       });
       await local.setList(_uid, _tenant, lang, data);
     } on AskError catch (e) {
       if (!mounted || lang != _lang) return;
       if (e.reason == 'not_owner') {
         setState(() => _listState = _ListState.staff);
+        return;
+      }
+      if (e.reason == 'not_enabled') {
+        // The shop's rollout flag is off: hide the entry points too.
+        ref.invalidate(askTenantProvider);
+        setState(() => _listState = _ListState.notEnabled);
         return;
       }
       debugPrint('[ask] list failed: $e');
@@ -159,7 +170,10 @@ class _AskScreenState extends ConsumerState<AskScreen> {
     ref.invalidate(askSavedLangProvider(_uid));
     setState(() {
       _lang = lang;
-      _current = null;
+      // Keep the question, so one tap asks it again in the new language.
+      // Asking uses an explanation, so it is never automatic (as on the web).
+      final c = _current;
+      if (c != null) _current = _Current(c.question, _Status.stale);
     });
     await _loadList();
   }
@@ -232,7 +246,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.publicSans(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
           ),
-          if (_listState != _ListState.staff) _languageSwitch(),
+          if (_listState != _ListState.staff && _listState != _ListState.notEnabled) _languageSwitch(),
           const SizedBox(width: 12),
         ],
       ),
@@ -294,6 +308,17 @@ class _AskScreenState extends ConsumerState<AskScreen> {
         ),
       ]);
     }
+    if (_listState == _ListState.notEnabled) {
+      return AskMessage(title: '${ui['title']}', children: [
+        Text('${ui['reason_not_enabled']}', key: const Key('ask-not-enabled'), style: askBody()),
+        const SizedBox(height: 18),
+        AppButton(
+          label: '${ui['staff_back']}',
+          variant: AppButtonVariant.secondary,
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+      ]);
+    }
     if (online && _listState == _ListState.ready && _list?['state'] == 'off') return _turnOnView(ui);
     if (!online && questions.isEmpty) {
       return AskMessage(title: '${ui['offline_title']}', children: [Text('${ui['offline_body']}', style: askBody())]);
@@ -338,6 +363,12 @@ class _AskScreenState extends ConsumerState<AskScreen> {
     switch (c.status) {
       case _Status.loading:
         return SingleChildScrollView(child: AskLoading(questionLabel: label, strings: strings));
+      case _Status.stale:
+        return AskMessage(title: label, children: [
+          Text('${ui['stale_note']}', key: const Key('ask-stale'), style: askBody()),
+          const SizedBox(height: 18),
+          AppButton(label: '${ui['ask_again']}', variant: AppButtonVariant.secondary, onPressed: () => _ask(c.question)),
+        ]);
       case _Status.error:
         final e = c.error;
         if (e?.reason != null && e!.reason != 'read_failed' && ui['reason_${e.reason}'] != null) {

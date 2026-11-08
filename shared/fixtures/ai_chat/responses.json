@@ -136,6 +136,15 @@
    "status": 403,
    "body": {
     "contract_version": 1,
+    "error": "not_enabled",
+    "reason": "not_enabled",
+    "message": "Ask is not available for this shop yet."
+   }
+  },
+  {
+   "status": 403,
+   "body": {
+    "contract_version": 1,
     "error": "module_locked",
     "reason": "module_locked",
     "message": "Your plan doesn't include this"
