@@ -707,7 +707,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
 
   // ── AI bill scan: photo → extract-bill edge fn → prefill supplier + lines ──
   static const _consentStore = FlutterSecureStorage();
-  static const _consentKey = 'bill_scan_google_consent_v1';
+  // Per shop: a different shop signed in on the same phone is asked afresh.
+  String get _consentKey => 'bill_scan_google_consent_v1_${widget.tenantId}';
 
   /// The photo goes to Google's free Gemini service, whose terms let Google
   /// use it and let human reviewers read it. A bill shows the supplier's
@@ -729,12 +730,12 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
           'its products, and Google\'s human reviewers may read it. The photo '
           'shows what is printed on the bill, such as the supplier\'s name, '
           'GSTIN and address.\n\n'
-          'If you prefer not to share bills, cancel and enter the bill by hand.',
+          'If you prefer not to share bills, enter the bill by hand.',
           style: GoogleFonts.manrope(fontSize: 14, height: 1.4),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Continue')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Enter by hand')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Send to Google')),
         ],
       ),
     );
@@ -1293,6 +1294,12 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                               ),
                             ),
                           ),
+                          // A shared counter phone: whoever holds it is told
+                          // every time, not only the person who first agreed.
+                          const SizedBox(height: 6),
+                          Text('The photo is read by Google\'s free Gemini service.',
+                              textAlign: TextAlign.center,
+                              style: AppText.label.copyWith(color: AppColors.inkSecondary)),
                           const SizedBox(height: 18),
 
                           // ── HEADER CARD ──────────────────────────────
