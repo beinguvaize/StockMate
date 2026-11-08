@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException, FunctionException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -811,9 +811,14 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
         ));
       }
     } catch (e) {
+      // Log the real reason; show a sentence the person can act on.
+      debugPrint('[scanBill] failed: $e');
+      final signedOut = e is FunctionException && e.status == 401;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Scan failed: $e'),
+          content: Text(signedOut
+              ? 'Please sign in again, then scan the bill.'
+              : 'Couldn\'t read the bill. Try again, or enter it by hand.'),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
         ));
