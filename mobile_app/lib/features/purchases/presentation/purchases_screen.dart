@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException, FunctionException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -705,7 +706,48 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   }
 
   // ── AI bill scan: photo → extract-bill edge fn → prefill supplier + lines ──
+  static const _consentStore = FlutterSecureStorage();
+  // Per shop: a different shop signed in on the same phone is asked afresh.
+  String get _consentKey => 'bill_scan_google_consent_v1_${widget.tenantId}';
+
+  /// The photo goes to Google's free Gemini service, whose terms let Google
+  /// use it and let human reviewers read it. A bill shows the supplier's
+  /// name, GSTIN and address, so ask once before the first scan.
+  Future<bool> _billScanConsent() async {
+    try {
+      if (await _consentStore.read(key: _consentKey) == 'yes') return true;
+    } catch (_) {/* unreadable store: ask again */}
+    if (!mounted) return false;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Before you scan a bill',
+            style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
+        content: Text(
+          'The photo is sent to Google\'s Gemini service, which reads it and '
+          'fills in the bill for you.\n\n'
+          'We use Google\'s free service. Google may use the photo to improve '
+          'its products, and Google\'s human reviewers may read it. The photo '
+          'shows what is printed on the bill, such as the supplier\'s name, '
+          'GSTIN and address.\n\n'
+          'If you prefer not to share bills, enter the bill by hand.',
+          style: GoogleFonts.manrope(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Enter by hand')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Send to Google')),
+        ],
+      ),
+    );
+    if (ok != true) return false;
+    try {
+      await _consentStore.write(key: _consentKey, value: 'yes');
+    } catch (_) {/* not saved: the notice shows again next time */}
+    return true;
+  }
+
   Future<void> _scanBill() async {
+    if (!await _billScanConsent() || !mounted) return;
     final picker = ImagePicker();
     final XFile? shot = await showModalBottomSheet<XFile?>(
       context: context,
@@ -769,9 +811,14 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
         ));
       }
     } catch (e) {
+      // Log the real reason; show a sentence the person can act on.
+      debugPrint('[scanBill] failed: $e');
+      final signedOut = e is FunctionException && e.status == 401;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Scan failed: $e'),
+          content: Text(signedOut
+              ? 'Please sign in again, then scan the bill.'
+              : 'Couldn\'t read the bill. Try again, or enter it by hand.'),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
         ));
@@ -1252,6 +1299,12 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                               ),
                             ),
                           ),
+                          // A shared counter phone: whoever holds it is told
+                          // every time, not only the person who first agreed.
+                          const SizedBox(height: 6),
+                          Text('The photo is read by Google\'s free Gemini service.',
+                              textAlign: TextAlign.center,
+                              style: AppText.label.copyWith(color: AppColors.inkSecondary)),
                           const SizedBox(height: 18),
 
                           // ── HEADER CARD ──────────────────────────────
