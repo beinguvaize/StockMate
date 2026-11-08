@@ -204,7 +204,7 @@ const ChartPanel = ({ config, loading }) => {
 /* ════════════════════════════════════════════════════════════════════════════
    MAIN
    ════════════════════════════════════════════════════════════════════════════ */
-const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow = null }) => {
+const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow = null, initialTabId = null }) => {
   const { hasPermission } = useAuth();
   const { businessProfile, currentTenant } = useTenant();
   const [exportOpen, setExportOpen] = useState(false);
@@ -220,7 +220,8 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
     [tabs, hasPermission]
   );
 
-  const [activeId, setActiveId] = useState(allowedTabs[0]?.id);
+  const [activeId, setActiveId] = useState(
+    allowedTabs.some((t) => t.id === initialTabId) ? initialTabId : allowedTabs[0]?.id);
   const activeTab = useMemo(
     () => allowedTabs.find(t => t.id === activeId) || allowedTabs[0],
     [activeId, allowedTabs]

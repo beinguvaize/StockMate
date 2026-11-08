@@ -222,6 +222,18 @@ Edge Function ai-ask (verify_jwt = true)
 - **A global admin** gets answers for the tenant on their own `users` row only. v1 has no impersonation. Figures for another shop cannot be reached.
 - **Suspended tenants** (`status = 'SUSPENDED'`) are refused.
 
+### Rollout flag
+
+`tenants.settings.ai_chat_available` decides whether a shop may see Ask at all: the web rail entry, the Settings card, the phone entry and the server (`ai-ask` answers `not_enabled`, 403, when it is not `true`). It is off for every tenant by default, so merging shows owners nothing. It is separate from `tenants.settings.ai_enabled`, the owner's own on/off, and owners cannot set it: `tenants` takes no owner writes, and `ai_set_enabled` writes only `ai_enabled`.
+
+To turn it on for Demo Kirana Store only (the Lead, on prod, after the migrations are applied there):
+
+```sql
+UPDATE public.tenants
+   SET settings = COALESCE(settings, '{}'::jsonb) || '{"ai_chat_available": true}'::jsonb
+ WHERE id = '3d666d92-f5b4-44c3-a811-270557ad2fc6';
+```
+
 ### The `action: "list"` call
 
 `ai-ask` also accepts `{ action: "list" }`. It returns the questions this user may see, with labels, category and `screen_key`. Web and mobile both render this list, so it is never hand-copied between JS and Dart.

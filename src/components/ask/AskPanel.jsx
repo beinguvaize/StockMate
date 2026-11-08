@@ -235,7 +235,17 @@ export default function AskPanel({ onClose }) {
     }
   }, [lang, listKey, online]);
 
-  useEffect(() => { setList(store.get(listKey)); setCurrent(null); loadList(); }, [listKey, loadList]);
+  // A language switch keeps the question selected, so one tap asks it again in
+  // the new language. Asking costs an explanation, so it is never automatic.
+  useEffect(() => {
+    setList(store.get(listKey));
+    setCurrent((c) => (c ? { question: c.question, status: 'stale' } : null));
+    loadList();
+  }, [listKey, loadList]);
+  useEffect(() => {
+    const fresh = list?.questions?.find((q) => q.id === current?.question?.id);
+    if (fresh && fresh.label !== current.question.label) setCurrent((c) => ({ ...c, question: fresh }));
+  }, [list, current]);
 
   useEffect(() => {
     const k = (e) => { if (e.key === 'Escape' && !phone) onClose(); };
@@ -269,11 +279,15 @@ export default function AskPanel({ onClose }) {
   }, [current?.status]);
 
   const changeLang = (next) => { store.set(langKey, next); setLang(next); };
-  const go = () => { const p = screenPath(current?.answer?.screen?.key); if (p) { onClose(); navigate(p); } };
+  const go = () => {
+    const s = current?.answer?.screen;
+    const p = screenPath(s?.key, s?.params);
+    if (p) { onClose(); navigate(p); }
+  };
 
   const turnOn = async () => {
     setTurning(true); setTurnError(null);
-    try { await setAskEnabled(true); await loadList(); }
+    try { await setAskEnabled(true); window.dispatchEvent(new Event('ask:changed')); await loadList(); }
     catch (e) { console.error('[ask] turn on failed', e); setTurnError(e.message); }
     finally { setTurning(false); }
   };
@@ -318,6 +332,15 @@ export default function AskPanel({ onClose }) {
       );
     }
     if (current.status === 'loading') return <Loading question={current.question} strings={strings} />;
+    if (current.status === 'stale') {
+      return (
+        <div className="ans" data-testid="ask-stale">
+          <h3 className="ans-q">{current.question.label}</h3>
+          <p className="loadline">{ui.stale_note}</p>
+          <div className="acts"><button type="button" className="pill sec" onClick={() => ask(current.question)}>{ui.ask_again}</button></div>
+        </div>
+      );
+    }
     if (current.status === 'error') {
       const e = current.error;
       if (e.reason && e.reason !== 'read_failed' && ui[`reason_${e.reason}`]) {

@@ -977,7 +977,7 @@ const SupportPanel = () => (
 
 // ── Hub ──────────────────────────────────────────────────────────────────────
 const SettingsHub = () => {
-  const { currentTenantId } = useTenant();
+  const { currentTenantId, currentTenant } = useTenant();
   const { isOwner } = useAuth();
   const [active, setActive] = useState('account');
 
@@ -1016,7 +1016,7 @@ const SettingsHub = () => {
         {/* Panel */}
         <main className="flex-1 min-w-0">
           {active === 'account'  && <AccountPanel />}
-          {active === 'account' && isOwner && <div className="mt-6"><AskSettingsCard /></div>}
+          {active === 'account' && isOwner && currentTenant?.settings?.ai_chat_available === true && <div className="mt-6"><AskSettingsCard /></div>}
           {CLASSIC_SECTIONS[active] && (
             <Settings embedded section={CLASSIC_SECTIONS[active]} key={active} />
           )}

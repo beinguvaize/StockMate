@@ -29,7 +29,7 @@
    "error_title": "Could not read your figures",
    "error_connection": "Connection lost.",
    "error_slow": "Your books took too long to answer.",
-   "error_read": "Your books could not be read.",
+   "error_read": "The server could not read your books.",
    "error_nothing": "Nothing is shown rather than a wrong number.",
    "staff_title": "Ask is for the shop owner",
    "staff_body": "It shows profit, cash and dues, so staff accounts do not have it for now. Your owner can see these answers on their login.",
@@ -64,7 +64,10 @@
    "reason_not_signed_in": "Please sign in again",
    "reason_bad_request": "That request wasn't understood",
    "reason_unknown_question": "That question isn't available",
-   "reason_provider_busy": "The AI service is busy for everyone just now. The figures below are correct, and this did not use one of your explanations."
+   "reason_provider_busy": "The AI service is busy for everyone just now. The figures below are correct, and this did not use one of your explanations.",
+   "reason_not_enabled": "Ask is not available for this shop yet.",
+   "ask_again": "Ask again in English",
+   "stale_note": "Tap to see this answer in English."
   },
   "card": {
    "sales": "Sales",
@@ -288,7 +291,7 @@
    "error_title": "आपके आँकड़े नहीं पढ़े जा सके",
    "error_connection": "कनेक्शन टूट गया।",
    "error_slow": "आपके खातों से जवाब आने में बहुत देर लगी।",
-   "error_read": "आपके खाते नहीं पढ़े जा सके।",
+   "error_read": "सर्वर आपके खाते नहीं पढ़ सका।",
    "error_nothing": "गलत आँकड़ा दिखाने के बजाय कुछ नहीं दिखाया गया।",
    "staff_title": "पूछें सुविधा सिर्फ़ दुकान के मालिक के लिए है",
    "staff_body": "इसमें मुनाफ़ा, नकद और बकाया दिखता है, इसलिए अभी स्टाफ़ खातों में यह नहीं है। मालिक अपने लॉगिन पर ये जवाब देख सकते हैं।",
@@ -323,7 +326,10 @@
    "reason_not_signed_in": "कृपया फिर से साइन इन करें",
    "reason_bad_request": "अनुरोध समझ नहीं आया",
    "reason_unknown_question": "यह सवाल उपलब्ध नहीं है",
-   "reason_provider_busy": "अभी AI सेवा सभी के लिए व्यस्त है। नीचे के आँकड़े सही हैं, और इससे आपकी कोई व्याख्या खर्च नहीं हुई।"
+   "reason_provider_busy": "अभी AI सेवा सभी के लिए व्यस्त है। नीचे के आँकड़े सही हैं, और इससे आपकी कोई व्याख्या खर्च नहीं हुई।",
+   "reason_not_enabled": "यह सुविधा अभी इस दुकान के लिए उपलब्ध नहीं है।",
+   "ask_again": "हिन्दी में फिर पूछें",
+   "stale_note": "यह जवाब हिन्दी में देखने के लिए टैप करें।"
   },
   "card": {
    "sales": "बिक्री",
