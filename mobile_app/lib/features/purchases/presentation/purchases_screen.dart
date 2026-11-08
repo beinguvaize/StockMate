@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -705,7 +706,47 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   }
 
   // ── AI bill scan: photo → extract-bill edge fn → prefill supplier + lines ──
+  static const _consentStore = FlutterSecureStorage();
+  static const _consentKey = 'bill_scan_google_consent_v1';
+
+  /// The photo goes to Google's free Gemini service, whose terms let Google
+  /// use it and let human reviewers read it. A bill shows the supplier's
+  /// name, GSTIN and address, so ask once before the first scan.
+  Future<bool> _billScanConsent() async {
+    try {
+      if (await _consentStore.read(key: _consentKey) == 'yes') return true;
+    } catch (_) {/* unreadable store: ask again */}
+    if (!mounted) return false;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Before you scan a bill',
+            style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
+        content: Text(
+          'The photo is sent to Google\'s Gemini service, which reads it and '
+          'fills in the bill for you.\n\n'
+          'We use Google\'s free service. Google may use the photo to improve '
+          'its products, and Google\'s human reviewers may read it. The photo '
+          'shows what is printed on the bill, such as the supplier\'s name, '
+          'GSTIN and address.\n\n'
+          'If you prefer not to share bills, cancel and enter the bill by hand.',
+          style: GoogleFonts.manrope(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Continue')),
+        ],
+      ),
+    );
+    if (ok != true) return false;
+    try {
+      await _consentStore.write(key: _consentKey, value: 'yes');
+    } catch (_) {/* not saved: the notice shows again next time */}
+    return true;
+  }
+
   Future<void> _scanBill() async {
+    if (!await _billScanConsent() || !mounted) return;
     final picker = ImagePicker();
     final XFile? shot = await showModalBottomSheet<XFile?>(
       context: context,

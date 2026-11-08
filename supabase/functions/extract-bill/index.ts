@@ -1,6 +1,11 @@
-// extract-bill — vision OCR for Indian GST purchase bills. Deployed dev+prod (v4).
-// Retries transient Gemini 429/5xx and falls back across models — flash-latest
-// 503s under free-tier load. Secret: GEMINI_API_KEY. JWT verified.
+// extract-bill — vision OCR for Indian GST purchase bills.
+// Receives a bill image (base64), calls Gemini, returns structured JSON.
+// API key stays server-side (GEMINI_API_KEY secret). JWT verified by platform.
+// Retries transient 429/5xx once per model, then falls back to the next.
+//
+// Free tier: Google may use what is sent to improve its products and human
+// reviewers may read it. A bill photo shows the supplier's name, GSTIN and
+// address, so the phone asks the user before the first scan.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const cors = {
@@ -10,7 +15,14 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const MODELS = ["gemini-flash-latest", "gemini-2.0-flash", "gemini-2.5-flash"];
+// gemini-2.0-flash has left the free tier and gemini-2.5-flash is deprecated
+// (Google redirects it from 1 Dec 2026). The list can be changed without a
+// deploy: GEMINI_BILL_MODELS="model-a,model-b". 2.5-flash stays last as a
+// fallback while it still answers.
+const DEFAULT_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash"];
+const MODELS = (Deno.env.get("GEMINI_BILL_MODELS") ?? "")
+  .split(",").map((m) => m.trim()).filter(Boolean);
+if (MODELS.length === 0) MODELS.push(...DEFAULT_MODELS);
 
 const SCHEMA_PROMPT = `Extract this Indian GST purchase/tax invoice into STRICT JSON only (no markdown, no commentary).
 Schema:
@@ -35,6 +47,7 @@ Deno.serve(async (req: Request) => {
   try {
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) {
+      console.error("[extract-bill] GEMINI_API_KEY not set");
       return new Response(JSON.stringify({ error: "GEMINI_API_KEY not set" }), {
         status: 500, headers: { ...cors, "Content-Type": "application/json" },
       });
@@ -47,6 +60,7 @@ Deno.serve(async (req: Request) => {
         status: 400, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
+    console.log(`[extract-bill] req: mime=${mimeType} b64len=${imageB64.length}`);
 
     const gReq = JSON.stringify({
       contents: [{
@@ -83,7 +97,10 @@ Deno.serve(async (req: Request) => {
     }
 
     const gJson = await gRes.json();
-    const text = gJson?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+    // Newer models can return a thought part before the answer: take the
+    // first text part that is not one.
+    const parts: Array<{ text?: string; thought?: boolean }> = gJson?.candidates?.[0]?.content?.parts ?? [];
+    const text = parts.find((pt) => typeof pt.text === "string" && !pt.thought)?.text ?? "{}";
     let parsed: Record<string, unknown>;
     try { parsed = JSON.parse(text); }
     catch { parsed = { _raw: text, error: "parse_failed" }; }
@@ -101,12 +118,14 @@ Deno.serve(async (req: Request) => {
       taxable_ok: near(lineSum, taxable),
       total_ok: near(taxable + taxes, total),
     };
+    console.log(`[extract-bill] ok: items=${items.length} total=${total}`);
 
     return new Response(
       JSON.stringify({ data: parsed, reconcile }),
       { headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (e) {
+    console.error(`[extract-bill] crash: ${e}`);
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500, headers: { ...cors, "Content-Type": "application/json" },
     });
