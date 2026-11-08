@@ -92,7 +92,7 @@ const SECRETS = ['Ramesh Traders', 'Sita Stores', 'Arun Wholesale', '9876543210'
 
 function db(rpcs) {
   const rows = {
-    tenants: { status: 'ACTIVE', settings: { ai_enabled: true } },
+    tenants: { status: 'ACTIVE', settings: { ai_enabled: true, ai_chat_available: true } },
     business_profile: { tax_mode: 'EXCLUSIVE', timezone: 'Asia/Kolkata' },
     ai_answer_cache: null, product_batches: [],
   };

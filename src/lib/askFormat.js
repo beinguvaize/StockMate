@@ -45,13 +45,16 @@ export function usageVars(usage, strings) {
   };
 }
 
+// `dated` screens take the answer's period, so they open on the same dates and
+// show the same number. The others show the present (stock, dues, balances).
+const DATED = new Set(['reports_daily_sales', 'reports_financials', 'reports_product_sales', 'reports_gstr3b', 'reports_purchase_register']);
 const ROUTES = {
   reports_daily_sales: '/reports?tab=DAILY_SALES',
   reports_financials: '/reports?tab=FINANCIALS',
   reports_product_sales: '/reports?tab=PRODUCT_SALES',
   reports_low_stock: '/reports?tab=LOW_STOCK',
   reports_expiry: '/reports?tab=EXPIRY',
-  reports_inventory_dead: '/reports?tab=INVENTORY',
+  reports_inventory_dead: '/reports?tab=INVENTORY&sub=DEAD_STOCK',
   reports_gstr3b: '/reports?tab=GSTR3B',
   reports_purchase_register: '/reports?tab=PURCHASE_REGISTER',
   sales: '/sales',
@@ -63,7 +66,12 @@ const ROUTES = {
 };
 
 /** The route for a screen key, or null: an unknown key draws no link. */
-export const screenPath = (key) => ROUTES[key] ?? null;
+export function screenPath(key, params) {
+  const base = ROUTES[key];
+  if (!base) return null;
+  if (!DATED.has(key) || !params?.from || !params?.to) return base;
+  return `${base}&from=${encodeURIComponent(params.from)}&to=${encodeURIComponent(params.to)}`;
+}
 
 /** Splits text so money and percentages can be set in the number font. */
 export const splitNumbers = (text) =>

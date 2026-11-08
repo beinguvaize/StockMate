@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { setupMocks, seedAppCache, TENANT_SLUG, MOCK_STAFF_USER } from './helpers/supabaseMocks.js';
+import { setupMocks, seedAppCache, TENANT_SLUG, MOCK_STAFF_USER, MOCK_TENANT } from './helpers/supabaseMocks.js';
 import { buildCard } from '../supabase/functions/ai-ask/cards.ts';
 
 /**
@@ -37,9 +37,12 @@ const answerOf = (lang, { text = 'You sold ₹1,84,620.00 today across 23 bills.
   figures: FIGURES.sales_today, card: buildCard('sales_today', FIGURES.sales_today, strings[lang], empty), screen: SCREEN, usage: null,
 });
 
-async function open(page, { list = (b) => listOf(b.lang ?? 'en'), answer = (b) => answerOf(b.lang), width = 1440, height = 900 } = {}) {
+async function open(page, { list = (b) => listOf(b.lang ?? 'en'), answer = (b) => answerOf(b.lang), width = 1440, height = 900, beta = true, path: at = 'dashboard' } = {}) {
   await seedAppCache(page);
   await setupMocks(page);
+  // The rollout flag is per tenant; these tests switch it on for the mock shop.
+  await page.route('**/rest/v1/tenants*', (r) => r.fulfill({ status: 200, contentType: 'application/json',
+    body: JSON.stringify([{ ...MOCK_TENANT, settings: beta ? { ai_chat_available: true } : {} }]) }));
   const calls = { list: [], ask: [], enabled: [] };
   await page.route('**/functions/v1/ai-ask', (r) => {
     const body = r.request().postDataJSON();
@@ -52,7 +55,7 @@ async function open(page, { list = (b) => listOf(b.lang ?? 'en'), answer = (b) =
     return r.fulfill({ status: 200, contentType: 'application/json', body: 'true' });
   });
   await page.setViewportSize({ width, height });
-  await page.goto(`/${TENANT_SLUG}/dashboard`);
+  await page.goto(`/${TENANT_SLUG}/${at}`);
   return calls;
 }
 
@@ -204,6 +207,8 @@ test.describe('as staff', () => {
     await setupMocks(page, true);
     // setupMocks answers the users table with the owner whoever signs in.
     await page.route('**/rest/v1/users*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([MOCK_STAFF_USER]) }));
+    // Flag on, so only the owner check can be what hides the entry.
+    await page.route('**/rest/v1/tenants*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ ...MOCK_TENANT, settings: { ai_chat_available: true } }]) }));
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/${TENANT_SLUG}/dashboard`);
     await expect(page.getByRole('link', { name: /Dashboard/ }).first()).toBeVisible();
@@ -262,4 +267,98 @@ test('phone: Back returns to the list where the owner left it, and nothing scrol
   await panel.getByRole('button', { name: 'Back' }).click();
   await expect(question(page, 'sales_today')).toBeVisible();
   await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBe(at);
+});
+
+test('with the rollout flag off, owners see no entry and no Settings card', async ({ page }) => {
+  await open(page, { beta: false, path: 'settings' });
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByTestId('ask-entry')).toHaveCount(0);
+  await expect(page.getByTestId('ask-settings')).toHaveCount(0);
+});
+
+test('Settings: Turn on opens the consent screen; only that screen turns it on', async ({ page }) => {
+  let on = false;
+  const calls = await open(page, { path: 'settings', list: (b) => listOf(b.lang ?? 'en', on ? 'on' : 'off') });
+  await page.route('**/rest/v1/rpc/ai_set_enabled', (r) => {
+    const body = r.request().postDataJSON(); calls.enabled.push(body); on = body.p_enabled;
+    return r.fulfill({ status: 200, contentType: 'application/json', body: String(on) });
+  });
+  const card = page.getByTestId('ask-settings');
+  await expect(page.getByTestId('ask-settings-state')).toHaveText('Ask is off');
+  await card.getByRole('button', { name: 'Turn on' }).click();
+  await expect(page.getByTestId('ask-panel')).toContainText('Turn on Ask for your shop');
+  expect(calls.enabled).toHaveLength(0);                 // nothing turned on yet
+
+  await page.getByTestId('ask-panel').getByRole('button', { name: 'Turn on', exact: true }).click();
+  await expect(page.getByTestId('ask-list')).toBeVisible();
+  await expect(page.getByTestId('ask-settings-state')).toHaveText('Ask is on');
+  await page.keyboard.press('Escape');
+
+  await card.getByRole('button', { name: 'Turn off' }).click();   // off is direct
+  await expect(page.getByTestId('ask-settings-state')).toHaveText('Ask is off');
+  expect(calls.enabled).toEqual([{ p_enabled: true }, { p_enabled: false }]);
+});
+
+const LINKED = [
+  ['sales_today', 'reports_daily_sales', 'DAILY_SALES', '2026-11-07', '2026-11-07'],
+  ['profit_month', 'reports_financials', 'FINANCIALS', '2026-11-01', '2026-11-07'],
+  ['top_items', 'reports_product_sales', 'PRODUCT_SALES', '2026-11-01', '2026-11-07'],
+  ['gst_collected', 'reports_gstr3b', 'GSTR3B', '2026-11-01', '2026-11-07'],
+  ['gst_gaps', 'reports_purchase_register', 'PURCHASE_REGISTER', '2026-10-01', '2026-11-07'],
+];
+for (const [qid, key, tab, from, to] of LINKED) {
+  test(`${qid}: the link opens ${tab} on the answer's own dates`, async ({ page }) => {
+    await open(page, { answer: (b) => ({ ...answerOf(b.lang), screen: { key, fallback_key: null, mobile: true, params: { from, to } } }) });
+    await openPanel(page);
+    await question(page, qid).click();
+    await page.getByTestId('ask-answer').getByRole('button', { name: /^Open / }).click();
+    await expect(page).toHaveURL(new RegExp(`tab=${tab}&from=${from}&to=${to}`));
+    // The report shows the same period: in its date fields or its period line.
+    await expect.poll(() => page.evaluate(([f, t]) => {
+      const inputs = [...document.querySelectorAll('input[type="date"]')].map((i) => i.value);
+      const text = document.body.innerText;
+      return (inputs.includes(f) && inputs.includes(t)) || (text.includes(f) && text.includes(t));
+    }, [from, to])).toBe(true);
+  });
+}
+
+test('dead_stock: the link opens the Dead Stock Index itself', async ({ page }) => {
+  await open(page, { answer: (b) => ({ ...answerOf(b.lang), screen: { key: 'reports_inventory_dead', fallback_key: 'inventory', mobile: true, params: {} } }) });
+  await openPanel(page);
+  await question(page, 'dead_stock').click();
+  await page.getByTestId('ask-answer').getByRole('button', { name: /Open Dead Stock/ }).click();
+  await expect(page).toHaveURL(/tab=INVENTORY&sub=DEAD_STOCK/);
+  await expect(page.getByText('Unproductive Asset')).toBeVisible();
+});
+
+test('a language switch keeps the question, and one tap asks it again', async ({ page }) => {
+  const calls = await open(page);
+  await openPanel(page);
+  await question(page, 'sales_today').click();
+  await expect(page.getByTestId('ask-hero')).toBeVisible();
+  await page.getByRole('button', { name: 'हिन्दी' }).click();
+  await expect(page.getByTestId('ask-stale')).toContainText('आज मैंने कितनी बिक्री की?');
+  await expect(question(page, 'sales_today')).toHaveAttribute('aria-current', 'true');
+  expect(calls.ask).toHaveLength(1);                     // never re-asked on its own
+  await page.getByRole('button', { name: 'हिन्दी में फिर पूछें' }).click();
+  await expect(page.getByTestId('ask-hero')).toBeVisible();
+  expect(calls.ask.map((c) => c.lang)).toEqual(['en', 'hi']);
+});
+
+test('a lost connection and a server failure read differently', async ({ page }) => {
+  let mode = 'conn';
+  await open(page);
+  await page.route('**/functions/v1/ai-ask', async (r) => {
+    const body = r.request().postDataJSON();
+    if (body.action === 'list') return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(listOf('en')) });
+    if (mode === 'conn') return r.abort('internetdisconnected');
+    return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ contract_version: 1, reason: 'read_failed' }) });
+  });
+  await openPanel(page);
+  await question(page, 'sales_today').click();
+  await expect(page.getByTestId('ask-error')).toContainText('Connection lost.');
+  mode = 'server';
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByTestId('ask-error')).toContainText('The server could not read your books.');
+  await expect(page.getByTestId('ask-error')).not.toContainText('Connection lost.');
 });

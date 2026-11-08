@@ -58,6 +58,8 @@ async function loadContext(db: any) {
     tenantId, isOwner, plan, modules,
     status: t.data?.status ?? null,
     aiOn: t.data?.settings?.ai_enabled === true,
+    // Rollout flag, set per tenant by the team (not the owner). Off by default.
+    beta: t.data?.settings?.ai_chat_available === true,
     taxMode: bp.data?.tax_mode ?? null,
     tz: bp.data?.timezone || "Asia/Kolkata",
   };
@@ -231,6 +233,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     const ctx: any = await loadContext(db);
     if (!ctx.tenantId || !ctx.isOwner) return refuse(deps, 403, "not_owner", lang);
     if (String(ctx.status ?? "").toUpperCase() === "SUSPENDED") return refuse(deps, 403, "suspended", lang);
+    if (!ctx.beta) return refuse(deps, 403, "not_enabled", lang);
 
     if (body?.action === "list") return await list(deps, db, ctx, lang);
     if (body?.action !== "ask") return refuse(deps, 400, "bad_request", lang);

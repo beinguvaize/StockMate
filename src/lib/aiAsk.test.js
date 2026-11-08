@@ -263,7 +263,7 @@ describe('cards', () => {
 function fakeDb({
   owner = true, status = 'ACTIVE', aiOn = true, plan = 'PRO', tenant = 'T1',
   modules = ['sales', 'reports', 'inventory', 'clients', 'daybook', 'accounts'],
-  cache = null, claim = { ok: true, id: 'U1' }, salesError = null,
+  cache = null, claim = { ok: true, id: 'U1' }, salesError = null, beta = true,
 } = {}) {
   const calls = { rpc: [], usage: [], saved: [] };
   const handlers = {
@@ -281,7 +281,7 @@ function fakeDb({
     ai_save_answer: (a) => { calls.saved.push(a); return null; },
   };
   const rows = {
-    tenants: { status, settings: { ai_enabled: aiOn } },
+    tenants: { status, settings: { ai_enabled: aiOn, ai_chat_available: beta } },
     business_profile: { tax_mode: 'EXCLUSIVE', timezone: 'Asia/Kolkata' },
     ai_answer_cache: cache,
     product_batches: [],
@@ -397,6 +397,8 @@ describe('ai-ask flow', () => {
       [fakeDb({ owner: false }), {}, 403, 'not_owner'],
       [fakeDb({ tenant: null }), {}, 403, 'not_owner'],
       [fakeDb({ status: 'SUSPENDED' }), {}, 403, 'suspended'],
+      [fakeDb({ beta: false }), {}, 403, 'not_enabled'],
+      [fakeDb({ beta: false }), { body: { action: 'list' } }, 403, 'not_enabled'],
       [fakeDb({ modules: ['dashboard'] }), {}, 403, 'module_locked'],
       [fakeDb(), { body: { action: 'ask', question_id: 'sales_today', lang: 'fr' } }, 400, 'lang_unsupported'],
       [fakeDb(), { body: { action: 'ask', question_id: 'nope', lang: 'en' } }, 400, 'unknown_question'],

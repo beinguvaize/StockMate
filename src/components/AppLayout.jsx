@@ -199,7 +199,14 @@ const Navbar = () => {
 
  const roles = currentUser?.roles || (currentUser?.role ? [currentUser?.role] : ['STAFF']);
  const isOwner = roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN');
- const canAsk = isOwner;
+ // Rollout flag per tenant (settings.ai_chat_available), set by the team, off by
+ // default: merged code shows owners nothing until a shop is switched on.
+ const canAsk = isOwner && currentTenant?.settings?.ai_chat_available === true;
+ React.useEffect(() => {
+   const open = () => { if (canAsk) setAskOpen(true); };
+   window.addEventListener('ask:open', open);
+   return () => window.removeEventListener('ask:open', open);
+ }, [canAsk]);
  const isGlobalAdmin = roles.includes('GLOBAL_ADMIN');
  const basePath = tenantSlug ? `/${tenantSlug}` : '';
 

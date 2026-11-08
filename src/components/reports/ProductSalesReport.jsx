@@ -14,6 +14,7 @@ import ReportHeader from './ReportHeader';
 import { SectionHead } from './ReportBits'; // local KPI variant kept (truncate)
 import { presetRange, isCountableSale } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
+import { useLinkedRange } from '../../lib/linkedRange';
 
 const KPI = ({ label, value, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
   <div className="bg-card rounded-[10px] border border-border/60 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
@@ -29,8 +30,9 @@ const KPI = ({ label, value, icon: Icon, color = 'var(--color-accent-signature)'
 );
 
 const ProductSalesReport = () => {
-  const [preset, setPreset]       = useState('TODAY');
-  const [range,  setRange]        = useState(() => presetRange('TODAY'));
+  const linked = useLinkedRange();
+  const [preset, setPreset] = useState(linked ? 'CUSTOM' : 'TODAY');
+  const [range, setRange] = useState(() => (linked ? { start: linked.from, end: linked.to } : presetRange('TODAY')));
   const [customStart, setCustomStart] = useState('');
   const [customEnd,   setCustomEnd]   = useState('');
   const [showCustom,  setShowCustom]  = useState(false);
