@@ -7,6 +7,7 @@
 // reviewers may read it. A bill photo shows the supplier's name, GSTIN and
 // address, so the phone asks the user before the first scan.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -45,6 +46,18 @@ Rules: numbers must be numeric (no currency symbols/commas). If a value is missi
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
+    // The platform check passes the public anon key too, so anyone with the
+    // app's key could spend the shop's Gemini quota. Require a signed-in user.
+    const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+    const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const { data: who, error: whoErr } = token ? await anon.auth.getUser(token) : { data: null, error: null };
+    if (!who?.user) {
+      console.error(`[extract-bill] refused: not signed in${whoErr ? ` (${whoErr.message})` : ""}`);
+      return new Response(JSON.stringify({ error: "not_signed_in" }), {
+        status: 401, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) {
       console.error("[extract-bill] GEMINI_API_KEY not set");
@@ -74,6 +87,7 @@ Deno.serve(async (req: Request) => {
 
     // Try each model; retry transient 429/5xx once per model.
     let gRes: Response | null = null;
+    let usedModel = "";
     let lastErr = "";
     outer: for (const model of MODELS) {
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -81,7 +95,7 @@ Deno.serve(async (req: Request) => {
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
           { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey }, body: gReq },
         );
-        if (r.ok) { gRes = r; console.log(`[extract-bill] model=${model} attempt=${attempt} ok`); break outer; }
+        if (r.ok) { gRes = r; usedModel = model; console.log(`[extract-bill] model=${model} attempt=${attempt} ok`); break outer; }
         lastErr = `${model} -> ${r.status}: ${(await r.text()).slice(0, 200)}`;
         console.error(`[extract-bill] ${lastErr}`);
         // 4xx other than 429 won't heal — skip retries, try next model
@@ -121,7 +135,7 @@ Deno.serve(async (req: Request) => {
     console.log(`[extract-bill] ok: items=${items.length} total=${total}`);
 
     return new Response(
-      JSON.stringify({ data: parsed, reconcile }),
+      JSON.stringify({ data: parsed, reconcile, model: usedModel }),
       { headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (e) {
