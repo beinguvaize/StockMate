@@ -14,7 +14,6 @@ import 'package:mobile_app/features/ai_chat/presentation/providers/ask_providers
 import 'package:mobile_app/features/ai_chat/presentation/widgets/ask_answer.dart' show AskQuestionRow;
 import 'package:mobile_app/features/reports/data/report_params.dart';
 import 'package:mobile_app/features/reports/data/report_providers.dart';
-import 'package:mobile_app/features/reports/presentation/sales_summary_screen.dart';
 
 Map<String, dynamic> _json(String p) => jsonDecode(File(p).readAsStringSync()) as Map<String, dynamic>;
 
@@ -164,8 +163,8 @@ void main() {
     expect(find.text('₹1,84,620.00', findRichText: true), findsWidgets);
     expect(find.text(_ui('en', 'ai_label')), findsOneWidget);
     expect(find.text(_ui('en', 'from_books')), findsOneWidget);
-    expect(find.byKey(const Key('ask-go')), findsOneWidget);
-    expect(find.text('Open Daily Sales'), findsOneWidget);
+    // No link for this one: see askDroppedScreens.
+    expect(find.byKey(const Key('ask-go')), findsNothing);
   });
 
   testWidgets('a question with no phone screen shows no link', (t) async {
@@ -334,17 +333,19 @@ void main() {
     expect(find.byKey(const Key('ask-hero')), findsOneWidget);
   });
 
-  testWidgets('the link opens Sales Summary on the answer\'s own day', (t) async {
-    _salesReads.clear();
+  testWidgets('"sold today" has no phone link until the screen ties', (t) async {
     await _pump(t, _Client(onList: (l) => _list(l), onAsk: (id, l) => _answer(id, l, text: 'x')));
     await t.tap(find.text('How much did I sell today?'));
     await _settle(t);
-    await t.tap(find.byKey(const Key('ask-go')));
+    expect(find.byKey(const Key('ask-hero')), findsOneWidget);
+    expect(find.byKey(const Key('ask-go')), findsNothing);
+  });
+
+  testWidgets('a linked answer still opens its screen', (t) async {
+    await _pump(t, _Client(onList: (l) => _list(l), onAsk: (id, l) => _answer(id, l, text: 'x')));
+    await t.tap(find.text('Who owes me the most?'));
     await _settle(t);
-    await t.pump(const Duration(milliseconds: 400));
-    expect(find.byType(SalesSummaryScreen), findsOneWidget);
-    expect(_salesReads.last.fromIso, '2026-11-18');
-    expect(_salesReads.last.toIso, '2026-11-18');
+    expect(find.text('Open Customers'), findsOneWidget);
   });
 
   testWidgets('GST collected has no phone link: GSTR-3B would show another number', (t) async {

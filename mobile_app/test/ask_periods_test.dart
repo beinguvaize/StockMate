@@ -42,6 +42,7 @@ void main() {
         final mobileKey = askMobileKey({'key': key, 'mobile': s['mobile']});
         if (mobileKey == null) continue; // no phone link: nothing to land on
         final w = askScreens[mobileKey]!(params);
+        // Reached only if a dated screen is linked again.
         expect(w, isA<SalesSummaryScreen>(), reason: '${q['id']} links to $key without a period');
         final r = (w as SalesSummaryScreen).initialRange!;
         expect([r.start, r.end], [DateTime(2026, 11, 1), DateTime(2026, 11, 18)]);
@@ -56,8 +57,8 @@ void main() {
             askMobileKey({'key': (q['screen'] as Map)['key'], 'mobile': true}) == null)
           q['id'],
     ];
-    expect(dropped, ['gst_collected']);
-    expect(askDroppedScreens.keys, ['reports_gstr3b']);
+    expect(dropped, ['sales_today', 'gst_collected']);
+    expect(askDroppedScreens.keys.toSet(), {'reports_daily_sales', 'sales', 'reports_gstr3b'});
   });
 
   test('a missing or unreadable period opens the screen\'s own default', () {
@@ -97,5 +98,25 @@ void main() {
     expect(seen.last.toIso, ReportParams(tenantId: 't', from: now, to: now).toIso);
     expect(seen.last.fromIso,
         ReportParams(tenantId: 't', from: now.subtract(const Duration(days: 30)), to: now).fromIso);
+  });
+
+  testWidgets('why "sold today" has no phone link: a voided sale counts on the screen', (t) async {
+    // The answer (ai_sales_summary) counts the 1,000 sale only. The screen
+    // totals both, so a link would land on a different number.
+    await t.pumpWidget(ProviderScope(
+      overrides: [
+        tenantContextProvider.overrideWith((ref) async => _ctx),
+        reportSalesProvider.overrideWith((ref, p) async => const [
+          {'id': 'S1', 'date': '2026-11-18', 'totalAmount': 1000, 'totalCogs': 600, 'status': 'COMPLETED', 'items': []},
+          {'id': 'S2', 'date': '2026-11-18', 'totalAmount': 500, 'totalCogs': 300, 'status': 'VOIDED', 'items': []},
+        ]),
+      ],
+      child: MaterialApp(home: SalesSummaryScreen(initialRange: askPeriod({'from': '2026-11-18', 'to': '2026-11-18'}))),
+    ));
+    await t.pump();
+    await t.pump();
+    expect(find.text('₹1.5K'), findsOneWidget, reason: 'the screen counts the voided sale');
+    expect(askMobileKey({'key': 'reports_daily_sales', 'mobile': true}), isNull);
+    expect(askMobileKey({'key': 'sales', 'mobile': true}), isNull);
   });
 }

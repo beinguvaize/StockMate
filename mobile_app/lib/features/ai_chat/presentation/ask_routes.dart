@@ -45,6 +45,14 @@ final Map<String, AskScreenBuilder> askScreens = {
 /// Screens the phone has but deliberately does not link to, and why. The tap
 /// would land on a different number from the answer.
 const askDroppedScreens = {
+  // Sales Summary and the Sales tab total every live sale, voided, cancelled
+  // and refunded included; the answer counts only countable sales. Making
+  // their headline the server's figure needs a sales-total RPC open to every
+  // role (ai_sales_summary is owner-only and get_pl_ranged has no gross
+  // figure), so the "sold today" link goes until that exists. The screen
+  // already takes the answer's period (initialRange) for when it returns.
+  'reports_daily_sales': 'totals voided, cancelled and refunded sales, which the answer leaves out',
+  'sales': 'totals voided, cancelled and refunded sales, which the answer leaves out',
   // Gstr3bScreen adds up GST from invoice rows, and most sales never get one.
   // The answer's GST is get_pl_ranged's: on Demo Kirana Store, 1 Jan to
   // 7 Nov 2026, it is Rs 34,165.88 where the screen shows Rs 0.00.
@@ -55,7 +63,7 @@ const askDroppedScreens = {
 String? askMobileKey(Map<String, dynamic>? screen) {
   if (screen == null || screen['mobile'] != true) return null;
   final key = screen['key'] as String?;
-  if (key == null) return null;
+  if (key == null || askDroppedScreens.containsKey(key)) return null;
   if (askHomeKeys.contains(key) || askScreens.containsKey(key)) return key;
   return null;
 }
