@@ -389,3 +389,16 @@ test('gst_collected says what its sales row is, and why GSTR-3B can differ by pa
   await expect(ans).toContainText('it rounds GST on each line, your bills round it once per bill.');
   await expect(ans.getByRole('button', { name: /Open GSTR-3B/ })).toBeVisible();
 });
+
+test('cash_bank with a loan account says exactly why the Accounts screen reads differently', async ({ page }) => {
+  const f = { period_from: '2026-11-09', period_to: '2026-11-09', as_of: 'x', total_balance: 117846.08, cash_total: 215695.51,
+    bank_total: -97849.43, today_in: 0, today_out: 0, loan_total: -250000,
+    accounts: [{ account_id: 'A1', label: 'Cash', type: 'CASH', balance: 215695.51 }, { account_id: 'A2', label: 'SBI', type: 'BANK', balance: -97849.43 }] };
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('cash_bank', f, strings.en),
+    screen: { key: 'accounts', fallback_key: 'dashboard', mobile: true, params: {} } }) });
+  await openPanel(page);
+  await question(page, 'cash_bank').click();
+  await expect(page.getByTestId('ask-answer'))
+    .toContainText('The Accounts screen total also includes loan accounts (-₹2,50,000.00), so it reads -₹1,32,153.92.');
+  await expect(page.getByTestId('ask-hero')).toHaveText('₹1,17,846.08');
+});

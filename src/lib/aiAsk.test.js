@@ -71,6 +71,23 @@ describe('number guard: allowed', () => {
   });
 });
 
+describe('cash_bank and loan accounts', () => {
+  const f = (loan) => ({ total_balance: 117846.08, cash_total: 215695.51, bank_total: -97849.43, today_in: 0, today_out: 0,
+    accounts: [{ label: 'Cash', type: 'CASH', balance: 215695.51 }], loan_total: loan });
+  it('says the exact gap when a loan account has a balance, in both languages', () => {
+    expect(buildCard('cash_bank', f(-250000), strings.en).footnote)
+      .toContain('The Accounts screen total also includes loan accounts (-₹2,50,000.00), so it reads -₹1,32,153.92.');
+    expect(buildCard('cash_bank', f(-250000), strings.hi).footnote)
+      .toContain('Accounts स्क्रीन के कुल में लोन खाते (-₹2,50,000.00) भी जुड़े हैं, इसलिए वहाँ -₹1,32,153.92 दिखता है।');
+  });
+  it('says nothing when there is no loan balance', () => {
+    for (const loan of [0, undefined]) expect(buildCard('cash_bank', f(loan), strings.en).footnote).not.toContain('loan');
+  });
+  it('the guard allows the loan figures the card states', () => {
+    expect(checkReply('Your loan accounts stand at -₹2,50,000.00.', f(-250000), {}).ok).toBe(true);
+  });
+});
+
 describe('Hindi month names in AI prose', () => {
   const f = { period_from: '2026-11-01', period_to: '2026-11-18', previous_from: '2026-10-14', previous_to: '2026-10-31', net_profit: 1000 };
   const ok = (t) => checkReply(t, f, {}).ok;

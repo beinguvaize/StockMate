@@ -200,7 +200,8 @@
    "collections_week": "Day Book shows one day at a time.",
    "cash_bank": "Transfers between your own accounts are left out of in and out.",
    "gst_collected": "The GSTR-3B screen can differ by a few paise: it rounds GST on each line, your bills round it once per bill.",
-   "gst_gaps": "Purchase Register shows each purchase with its bill number and supplier GSTIN. Missing HSN codes are not on that screen."
+   "gst_gaps": "Purchase Register shows each purchase with its bill number and supplier GSTIN. Missing HSN codes are not on that screen.",
+   "cash_bank_loans": "The Accounts screen total also includes loan accounts ({loan}), so it reads {total}."
   },
   "links": {
    "reports_daily_sales": "Open Daily Sales",
@@ -470,7 +471,8 @@
    "collections_week": "Day Book एक बार में एक दिन दिखाता है।",
    "cash_bank": "आपके अपने खातों के बीच ट्रांसफ़र आए-गए में नहीं गिने गए।",
    "gst_collected": "GSTR-3B स्क्रीन कुछ पैसे अलग दिख सकती है: वह हर लाइन पर GST राउंड करती है, आपके बिल पूरे बिल पर एक बार।",
-   "gst_gaps": "Purchase Register में हर खरीद उसके बिल नंबर और सप्लायर के GSTIN के साथ दिखती है। HSN कोड की कमी उस स्क्रीन पर नहीं दिखती।"
+   "gst_gaps": "Purchase Register में हर खरीद उसके बिल नंबर और सप्लायर के GSTIN के साथ दिखती है। HSN कोड की कमी उस स्क्रीन पर नहीं दिखती।",
+   "cash_bank_loans": "Accounts स्क्रीन के कुल में लोन खाते ({loan}) भी जुड़े हैं, इसलिए वहाँ {total} दिखता है।"
   },
   "links": {
    "reports_daily_sales": "Daily Sales खोलें",
