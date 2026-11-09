@@ -134,6 +134,12 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
       rows = [...f.accounts.map((a: any) => ({ label: a.label, value: a.balance, kind: "money" as Kind })),
         row("total", f.total_balance, "money", "total"), row("in_today", f.today_in, "money"), row("out_today", f.today_out, "money")];
       footnote = foot();
+      // Never a silent mismatch with the linked screen: say the exact gap.
+      if (Math.abs(Number(f.loan_total ?? 0)) >= 0.005) {
+        const loans = fill(strings.footnotes.cash_bank_loans, {
+          loan: inr(Number(f.loan_total)), total: inr(Math.round((Number(f.total_balance) + Number(f.loan_total)) * 100) / 100) });
+        footnote = footnote ? `${footnote} ${loans}` : loans;
+      }
       break;
     case "gst_collected": {
       value = f.output_gst;
