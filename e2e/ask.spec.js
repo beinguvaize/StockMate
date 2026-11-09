@@ -29,7 +29,7 @@ const SCREEN = { key: 'reports_daily_sales', fallback_key: 'sales', mobile: true
 
 const listOf = (lang, state = 'on', usage = { used: 63, limit: 100, resets_on: '2026-12-01' }) => ({
   contract_version: 1, state, plan: 'PRO', lang, languages: registry.languages, strings: strings[lang], usage,
-  questions: registry.questions.map((q) => ({ id: q.id, category: q.category, label: q.label[lang], screen_key: q.screen.key, fallback_screen_key: q.screen.fallback_key, mobile: q.screen.mobile })),
+  questions: registry.questions.filter((q) => !q.hidden).map((q) => ({ id: q.id, category: q.category, label: q.label[lang], screen_key: q.screen.key, fallback_screen_key: q.screen.fallback_key, mobile: q.screen.mobile })),
 });
 
 const answerOf = (lang, { text = 'You sold ₹1,84,620.00 today across 23 bills.', reason = null, empty = false } = {}) => ({
@@ -95,7 +95,8 @@ test('questions sit under category headings, with the month usage line', async (
   await openPanel(page);
   const list = page.getByTestId('ask-list');
   for (const h of ['Sales', 'Stock', 'Dues', 'Cash', 'GST']) await expect(list.getByText(h, { exact: true })).toBeVisible();
-  await expect(list.getByRole('button')).toHaveCount(12);
+  await expect(list.getByRole('button')).toHaveCount(registry.questions.filter((q) => !q.hidden).length);
+  await expect(question(page, 'expiring_stock')).toHaveCount(0);
   await expect(page.getByTestId('ask-usage')).toHaveText('63 of 100 explanations used in November. Figures never count.');
 });
 
@@ -379,14 +380,16 @@ test('Settings: the Ask card sits in the same column as the cards above it', asy
 
 test('gst_collected says what its sales row is, and why GSTR-3B can differ by paise', async ({ page }) => {
   const f = { period_from: '2026-05-01', period_to: '2026-05-31', as_of: 'x', output_gst: 12381.21, taxable_sales: 147678.79,
-    last_month_output_gst: 0, last_month_from: '2026-04-01', last_month_to: '2026-04-30', tax_mode: 'EXCLUSIVE' };
+    last_month_output_gst: 0, last_month_from: '2026-04-01', last_month_to: '2026-04-30', tax_mode: 'EXCLUSIVE',
+    gstr3b_gst: 12381.5, bill_rounding: 6.79 };
   await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('gst_collected', f, strings.en),
     screen: { key: 'reports_gstr3b', fallback_key: null, mobile: true, params: { from: '2026-05-01', to: '2026-05-31' } } }) });
   await openPanel(page);
   await question(page, 'gst_collected').click();
   const ans = page.getByTestId('ask-answer');
   await expect(ans).toContainText('Sales after returns, before GST');
-  await expect(ans).toContainText('it rounds GST on each line, your bills round it once per bill.');
+  await expect(ans).toContainText('GSTR-3B shows ₹0.29 more GST: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill.');
+  await expect(ans).toContainText('₹6.79 of bill totals is rounding not recorded as round-off');
   await expect(ans.getByRole('button', { name: /Open GSTR-3B/ })).toBeVisible();
 });
 

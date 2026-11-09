@@ -86,6 +86,8 @@ const visibleLocked = (q: any, ctx: any) => !ctx.modules.includes(q.module);
 async function list(deps: Deps, db: any, ctx: any, lang: string) {
   const hasExpiry = await hasExpiryBatches(db, ctx.tenantId);
   const questions = registry.questions
+    // "hidden": not shown to any shop until it ties to its screen (spec §3).
+    .filter((q: any) => !q.hidden)
     .filter((q: any) => !visibleLocked(q, ctx))
     .filter((q: any) => !q.needs_expiry_batches || hasExpiry)
     .filter((q: any) => !q.needs_tax || String(ctx.taxMode ?? "").toUpperCase() !== "NONE")
@@ -238,7 +240,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     if (body?.action === "list") return await list(deps, db, ctx, lang);
     if (body?.action !== "ask") return refuse(deps, 400, "bad_request", lang);
 
-    const q: any = registry.questions.find((x: any) => x.id === body.question_id);
+    const q: any = registry.questions.find((x: any) => x.id === body.question_id && !x.hidden);
     if (!q) return refuse(deps, 400, "unknown_question", lang);
     if (visibleLocked(q, ctx)) return refuse(deps, 403, "module_locked", lang);
     return await ask(deps, db, ctx, q, lang, who.user.id);

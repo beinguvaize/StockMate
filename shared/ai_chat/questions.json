@@ -14,7 +14,7 @@
     { "id": "low_stock", "category": "stock", "module": "inventory", "roles": ["OWNER"],
       "label": { "en": "What should I reorder?", "hi": "मुझे क्या दोबारा मँगाना चाहिए?" },
       "screen": { "key": "reports_low_stock", "fallback_key": "inventory", "module": "reports", "mobile": true } },
-    { "id": "expiring_stock", "category": "stock", "module": "inventory", "roles": ["OWNER"], "needs_expiry_batches": true,
+    { "id": "expiring_stock", "category": "stock", "module": "inventory", "roles": ["OWNER"], "needs_expiry_batches": true, "hidden": true,
       "label": { "en": "What is expiring in the next 30 days?", "hi": "अगले 30 दिनों में क्या एक्सपायर हो रहा है?" },
       "screen": { "key": "reports_expiry", "fallback_key": "inventory", "module": "reports", "mobile": true } },
     { "id": "dead_stock", "category": "stock", "module": "inventory", "roles": ["OWNER"],

@@ -100,6 +100,8 @@ All dates use the shop's timezone from `business_profile.timezone` (`Asia/Kolkat
 - **Don't reuse:** `get_dashboard_kpis.low_stock_items`. It is hard-coded to `stock < 50`, ignores each product's threshold, and counts services and raw material.
 
 ### 5. `expiring_stock`
+
+> **Hidden for every shop (2026-11-09).** It could not be tied to the Expiry report: Demo Kirana Store has no batch with an expiry date. `"hidden": true` in `shared/ai_chat/questions.json` keeps it out of `list` for web and mobile, and `ai-ask` refuses it as `unknown_question`. **To un-hide:** on a shop with dated batches, check that `expired_value`, `expiring_value` and the batch counts equal the Expiry report for the same 30 days; then set `"hidden": false` (or remove the key) in `shared/ai_chat/questions.json`, copy it into `supabase/functions/ai-ask/`, and redeploy. No client change is needed.
 - **Source:** new `ai_expiring_stock(p_days int DEFAULT 30, p_limit int DEFAULT 20)`.
 - **Rule, same as `ExpiryReport.jsx` and `ExpiryAlertCard.jsx`:** live `product_batches` with `expiry_date` set, `qty_remaining > 0`, and `expiry_date <= today + p_days`. Value is `qty_remaining * unit_cost`.
 - **Figures returned:** `expired_batches`, `expired_value`, `expiring_batches`, `expiring_value`, `items[] {product_name, expiry_date, days_left, qty_remaining, value}`.

@@ -147,7 +147,15 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
       const [, m] = parts(f.last_month_from ?? f.period_from);
       rows = [row("sales_in_period", f.taxable_sales, "money"), row("gst_on_sales", f.output_gst, "money", "total"),
         { label: fill(L.full_month, { month: strings.months_long[m - 1] }), value: f.last_month_output_gst, kind: "money" }];
-      footnote = foot();
+      // Only gaps that exist, each with its size and cause. None under a paisa.
+      const lines: string[] = [];
+      const gstGap = Math.round((Number(f.gstr3b_gst ?? f.output_gst) - Number(f.output_gst)) * 100) / 100;
+      if (Math.abs(gstGap) >= 0.01) {
+        lines.push(fill(gstGap > 0 ? strings.footnotes.gst_screen_more : strings.footnotes.gst_screen_less, { gap: inr(Math.abs(gstGap)) }));
+      }
+      const rounding = Math.round(Number(f.bill_rounding ?? 0) * 100) / 100;
+      if (Math.abs(rounding) >= 0.01) lines.push(fill(strings.footnotes.gst_bill_rounding, { gap: inr(Math.abs(rounding)) }));
+      footnote = lines.length ? lines.join(" ") : null;
       break;
     }
     case "gst_gaps":
