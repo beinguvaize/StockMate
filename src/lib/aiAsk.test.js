@@ -71,6 +71,35 @@ describe('number guard: allowed', () => {
   });
 });
 
+describe('gst_collected gaps with the GSTR-3B screen', () => {
+  const f = (extra) => ({ period_from: '2026-05-01', period_to: '2026-05-31', output_gst: 12381.21, taxable_sales: 147678.79,
+    last_month_output_gst: 0, last_month_from: '2026-04-01', ...extra });
+  it('states the GST gap and the rounding gap, each with its size, when both exist', () => {
+    const card = buildCard('gst_collected', f({ gstr3b_gst: 12381.5, bill_rounding: 6.79 }), strings.en);
+    expect(card.footnote).toBe("GSTR-3B shows ₹0.29 more GST: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill. ₹6.79 of bill totals is rounding not recorded as round-off, so the sales row above is ₹6.79 more than GSTR-3B's taxable value.");
+  });
+  it('rupees, not paise, are stated as they are', () => {
+    expect(buildCard('gst_collected', f({ gstr3b_gst: 12384.21, bill_rounding: 0 }), strings.en).footnote)
+      .toBe('GSTR-3B shows ₹3.00 more GST: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill.');
+    expect(buildCard('gst_collected', f({ gstr3b_gst: 12380.21, bill_rounding: 0 }), strings.hi).footnote)
+      .toBe('GSTR-3B में GST ₹1.00 कम दिखता है: वह हर बिल पर हर टैक्स दर के लिए CGST और SGST अलग-अलग राउंड करता है; आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।');
+  });
+  it('only the rounding line when GST agrees', () => {
+    expect(buildCard('gst_collected', f({ gstr3b_gst: 12381.21, bill_rounding: 6.79 }), strings.en).footnote)
+      .toMatch(/^₹6\.79 of bill totals/);
+  });
+  it('no footnote when both gaps are under a paisa', () => {
+    expect(buildCard('gst_collected', f({ gstr3b_gst: 12381.214, bill_rounding: 0.004 }), strings.en).footnote).toBeNull();
+  });
+});
+
+describe('expiring_stock is hidden for every shop until it ties', () => {
+  it('is marked hidden in the registry', async () => {
+    const reg = JSON.parse(read('../../shared/ai_chat/questions.json'));
+    expect(reg.questions.find((q) => q.id === 'expiring_stock').hidden).toBe(true);
+  });
+});
+
 describe('cash_bank and loan accounts', () => {
   const f = (loan) => ({ total_balance: 117846.08, cash_total: 215695.51, bank_total: -97849.43, today_in: 0, today_out: 0,
     accounts: [{ label: 'Cash', type: 'CASH', balance: 215695.51 }], loan_total: loan });
@@ -419,6 +448,7 @@ describe('ai-ask flow', () => {
       [fakeDb({ modules: ['dashboard'] }), {}, 403, 'module_locked'],
       [fakeDb(), { body: { action: 'ask', question_id: 'sales_today', lang: 'fr' } }, 400, 'lang_unsupported'],
       [fakeDb(), { body: { action: 'ask', question_id: 'nope', lang: 'en' } }, 400, 'unknown_question'],
+      [fakeDb(), { body: { action: 'ask', question_id: 'expiring_stock', lang: 'en' } }, 400, 'unknown_question'],
       [fakeDb(), { token: 'bad' }, 401, 'not_signed_in'],
     ];
     for (const [db, opts, status, reason] of cases) {

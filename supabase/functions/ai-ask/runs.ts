@@ -101,11 +101,14 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
       const last = lastMonth(today);
       const cur = await pl(db, tenantId, from, today);
       const prev = await pl(db, tenantId, last.from, last.to);
+      // The two measured gaps with the GSTR-3B screen, for the card's footnote.
+      const check = await rpc(db, "ai_gst_screen_check", { p_from: from, p_to: today });
       return {
         figures: {
           period_from: from, period_to: today, as_of: asOf,
           output_gst: Number(cur.output_gst), taxable_sales: Number(cur.revenue_net),
           last_month_output_gst: Number(prev.output_gst), last_month_from: last.from, last_month_to: last.to, tax_mode: ctx.taxMode,
+          gstr3b_gst: Number(check.screen_gst), bill_rounding: Number(check.bill_rounding),
         },
         params: { from, to: today },
         empty: Number(cur.output_gst) === 0 && Number(cur.revenue_net) === 0 && Number(prev.output_gst) === 0,
