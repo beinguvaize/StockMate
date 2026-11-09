@@ -141,6 +141,7 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
       const [, m] = parts(f.last_month_from ?? f.period_from);
       rows = [row("sales_in_period", f.taxable_sales, "money"), row("gst_on_sales", f.output_gst, "money", "total"),
         { label: fill(L.full_month, { month: strings.months_long[m - 1] }), value: f.last_month_output_gst, kind: "money" }];
+      footnote = foot();
       break;
     }
     case "gst_gaps":
@@ -151,6 +152,7 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
         rows: [[L.purchases_no_bill, f.purchases_no_bill_no, f.purchases_total], [L.lines_no_hsn, f.sale_lines_no_hsn, f.sale_lines_total],
           [L.products_no_hsn, f.products_no_hsn, f.products_total], [L.suppliers_no_gstin, f.suppliers_used_no_gstin, f.suppliers_used]] };
       rowsAfter = [row("value_no_bill", f.purchases_no_bill_no_value, "money", "total")];
+      footnote = foot();
       break;
     default:
       throw new Error(`no card for ${id}`);

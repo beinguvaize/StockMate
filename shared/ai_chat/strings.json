@@ -45,7 +45,7 @@
    "never_3": "GSTIN, PAN, Aadhaar",
    "never_4": "Bank and UPI details",
    "never_5": "Your shop's name",
-   "on_fine": "When you turn on AI answers, the figures for the question you tap are sent to Google's Gemini API, which writes the short explanation. These figures are totals, counts, dates and product names. We never send customer or supplier names, phone numbers, GSTINs or bank details.\nWe use Google's free service. Google may use what we send to improve its products, and Google's human reviewers may read it after Google disconnects it from our account. Google does not state how long it keeps this data.\nDo not turn this on if you treat your sales, stock or dues figures as confidential. The numbers on the card come from your own books, not from the AI. You can turn AI answers off at any time in Settings.",
+   "on_fine": "When you turn on Ask, the figures for the question you tap are sent to Google's Gemini API, which writes the short explanation. These figures are totals, counts, dates and product names. We never send customer or supplier names, phone numbers, GSTINs or bank details.\nWe use Google's free service. Google may use what we send to improve its products, and Google's human reviewers may read it after Google separates it from our Google account, API key and project. Google does not state how long it keeps this data.\nDo not turn this on if you treat your sales, stock or dues figures as confidential. The numbers on the card come from your own books, not from the AI. You can turn Ask off at any time in Settings.",
    "turn_on": "Turn on",
    "not_now": "Not now",
    "turn_off": "Turn off",
@@ -67,7 +67,13 @@
    "reason_provider_busy": "The AI service is busy for everyone just now. The figures below are correct, and this did not use one of your explanations.",
    "reason_not_enabled": "Ask is not available for this shop yet.",
    "ask_again": "Ask again in English",
-   "stale_note": "Tap to see this answer in English."
+   "stale_note": "Tap to see this answer in English.",
+   "on_fine_paragraphs": [
+    "When you turn on Ask, the figures for the question you tap are sent to Google's Gemini API, which writes the short explanation. These figures are totals, counts, dates and product names. We never send customer or supplier names, phone numbers, GSTINs or bank details.",
+    "We use Google's free service. Google may use what we send to improve its products, and Google's human reviewers may read it after Google separates it from our Google account, API key and project. Google does not state how long it keeps this data.",
+    "Do not turn this on if you treat your sales, stock or dues figures as confidential. The numbers on the card come from your own books, not from the AI. You can turn Ask off at any time in Settings."
+   ],
+   "on_fine_review": ""
   },
   "card": {
    "sales": "Sales",
@@ -107,7 +113,7 @@
    "total": "Total",
    "in_today": "In today",
    "out_today": "Out today",
-   "sales_in_period": "Sales in this period",
+   "sales_in_period": "Sales after returns, before GST",
    "gst_on_sales": "GST on these sales",
    "full_month": "{month}, full month",
    "record": "Record",
@@ -188,11 +194,13 @@
    "top_items": "Top {shown} of {n} items sold this month. By sales value, not margin.",
    "low_stock": "Top {shown} of {n} shown. The cost covers all {n}.",
    "expiring_stock": "{value} of stock lost.",
-   "dead_stock": "Top {shown} of {n} shown. The total covers all {n}, at cost price.",
+   "dead_stock": "Top {shown} of {n} shown. The total covers all {n}, at cost price. Raw material and services are left out; the Dead Stock Index includes raw material.",
    "top_dues": "Top {shown} of {n} shown. The total covers all {n}.",
    "dues_age": "Age is counted from the sale date.",
    "collections_week": "Day Book shows one day at a time.",
-   "cash_bank": "Transfers between your own accounts are left out of in and out."
+   "cash_bank": "Transfers between your own accounts are left out of in and out.",
+   "gst_collected": "The GSTR-3B screen can differ by a few paise: it rounds GST on each line, your bills round it once per bill.",
+   "gst_gaps": "Purchase Register shows each purchase with its bill number and supplier GSTIN. Missing HSN codes are not on that screen."
   },
   "links": {
    "reports_daily_sales": "Open Daily Sales",
@@ -307,7 +315,7 @@
    "never_3": "GSTIN, PAN, आधार",
    "never_4": "बैंक और UPI की जानकारी",
    "never_5": "आपकी दुकान का नाम",
-   "on_fine": "[NEEDS NATIVE HINDI REVIEW] जब आप AI जवाब चालू करते हैं, तो आप जो सवाल चुनते हैं उसके आँकड़े Google के Gemini API को भेजे जाते हैं, जो छोटी व्याख्या लिखता है। ये आँकड़े कुल रकम, गिनती, तारीखें और उत्पादों के नाम होते हैं। हम ग्राहकों या सप्लायरों के नाम, फ़ोन नंबर, GSTIN या बैंक की जानकारी कभी नहीं भेजते।\nहम Google की मुफ़्त सेवा इस्तेमाल करते हैं। Google भेजी गई जानकारी का इस्तेमाल अपने उत्पाद बेहतर करने के लिए कर सकता है, और Google के समीक्षक उसे हमारे खाते से अलग करने के बाद पढ़ सकते हैं। Google यह नहीं बताता कि वह यह डेटा कितने समय तक रखता है।\nअगर आप अपनी बिक्री, स्टॉक या बकाया के आँकड़ों को गोपनीय मानते हैं, तो इसे चालू न करें। कार्ड पर दिखने वाले आँकड़े आपके अपने खातों से आते हैं, AI से नहीं। आप AI जवाब कभी भी Settings में बंद कर सकते हैं।",
+   "on_fine": "जब आप पूछें सुविधा चालू करते हैं, तो आप जो सवाल चुनते हैं उसके आँकड़े Google के Gemini API को भेजे जाते हैं, जो छोटी व्याख्या लिखता है। ये आँकड़े कुल रकम, गिनती, तारीखें और उत्पादों के नाम होते हैं। हम ग्राहकों या सप्लायरों के नाम, फ़ोन नंबर, GSTIN या बैंक की जानकारी कभी नहीं भेजते।\nहम Google की मुफ़्त सेवा इस्तेमाल करते हैं। Google भेजी गई जानकारी का इस्तेमाल अपने उत्पाद बेहतर करने के लिए कर सकता है, और Google इसे हमारे Google खाते, API key और प्रोजेक्ट से अलग करने के बाद Google के समीक्षक इसे पढ़ सकते हैं। Google यह नहीं बताता कि वह यह डेटा कितने समय तक रखता है।\nअगर आप अपनी बिक्री, स्टॉक या बकाया के आँकड़ों को गोपनीय मानते हैं, तो इसे चालू न करें। कार्ड पर दिखने वाले आँकड़े आपके अपने खातों से आते हैं, AI से नहीं। आप पूछें सुविधा कभी भी Settings में बंद कर सकते हैं।",
    "turn_on": "चालू करें",
    "not_now": "अभी नहीं",
    "turn_off": "बंद करें",
@@ -329,7 +337,13 @@
    "reason_provider_busy": "अभी AI सेवा सभी के लिए व्यस्त है। नीचे के आँकड़े सही हैं, और इससे आपकी कोई व्याख्या खर्च नहीं हुई।",
    "reason_not_enabled": "यह सुविधा अभी इस दुकान के लिए उपलब्ध नहीं है।",
    "ask_again": "हिन्दी में फिर पूछें",
-   "stale_note": "यह जवाब हिन्दी में देखने के लिए टैप करें।"
+   "stale_note": "यह जवाब हिन्दी में देखने के लिए टैप करें।",
+   "on_fine_paragraphs": [
+    "जब आप पूछें सुविधा चालू करते हैं, तो आप जो सवाल चुनते हैं उसके आँकड़े Google के Gemini API को भेजे जाते हैं, जो छोटी व्याख्या लिखता है। ये आँकड़े कुल रकम, गिनती, तारीखें और उत्पादों के नाम होते हैं। हम ग्राहकों या सप्लायरों के नाम, फ़ोन नंबर, GSTIN या बैंक की जानकारी कभी नहीं भेजते।",
+    "हम Google की मुफ़्त सेवा इस्तेमाल करते हैं। Google भेजी गई जानकारी का इस्तेमाल अपने उत्पाद बेहतर करने के लिए कर सकता है, और Google इसे हमारे Google खाते, API key और प्रोजेक्ट से अलग करने के बाद Google के समीक्षक इसे पढ़ सकते हैं। Google यह नहीं बताता कि वह यह डेटा कितने समय तक रखता है।",
+    "अगर आप अपनी बिक्री, स्टॉक या बकाया के आँकड़ों को गोपनीय मानते हैं, तो इसे चालू न करें। कार्ड पर दिखने वाले आँकड़े आपके अपने खातों से आते हैं, AI से नहीं। आप पूछें सुविधा कभी भी Settings में बंद कर सकते हैं।"
+   ],
+   "on_fine_review": "NEEDS NATIVE HINDI REVIEW"
   },
   "card": {
    "sales": "बिक्री",
@@ -369,7 +383,7 @@
    "total": "कुल",
    "in_today": "आज आए",
    "out_today": "आज गए",
-   "sales_in_period": "इस अवधि की बिक्री",
+   "sales_in_period": "वापसी के बाद बिक्री, GST से पहले",
    "gst_on_sales": "इस बिक्री पर GST",
    "full_month": "{month}, पूरा महीना",
    "record": "रिकॉर्ड",
@@ -450,11 +464,13 @@
    "top_items": "इस महीने बिके {n} आइटम में से शीर्ष {shown}। बिक्री रकम के हिसाब से, मार्जिन के नहीं।",
    "low_stock": "{n} में से {shown} दिखाए गए। लागत सभी {n} की है।",
    "expiring_stock": "{value} का स्टॉक बेकार हो गया।",
-   "dead_stock": "{n} में से {shown} दिखाए गए। कुल रकम सभी {n} की है, लागत पर।",
+   "dead_stock": "{n} में से {shown} दिखाए गए। कुल रकम सभी {n} की है, लागत पर। कच्चा माल और सेवाएँ नहीं गिनी गईं; Dead Stock Index में कच्चा माल शामिल है।",
    "top_dues": "{n} में से {shown} दिखाए गए। कुल रकम सभी {n} की है।",
    "dues_age": "उम्र बिक्री की तारीख से गिनी गई है।",
    "collections_week": "Day Book एक बार में एक दिन दिखाता है।",
-   "cash_bank": "आपके अपने खातों के बीच ट्रांसफ़र आए-गए में नहीं गिने गए।"
+   "cash_bank": "आपके अपने खातों के बीच ट्रांसफ़र आए-गए में नहीं गिने गए।",
+   "gst_collected": "GSTR-3B स्क्रीन कुछ पैसे अलग दिख सकती है: वह हर लाइन पर GST राउंड करती है, आपके बिल पूरे बिल पर एक बार।",
+   "gst_gaps": "Purchase Register में हर खरीद उसके बिल नंबर और सप्लायर के GSTIN के साथ दिखती है। HSN कोड की कमी उस स्क्रीन पर नहीं दिखती।"
   },
   "links": {
    "reports_daily_sales": "Daily Sales खोलें",
