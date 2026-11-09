@@ -905,7 +905,7 @@
     },
     "rows_after": [],
     "note": null,
-    "footnote": "Top 1 of 23 shown. The total covers all 23, at cost price."
+    "footnote": "Top 1 of 23 shown. The total covers all 23, at cost price. Raw material and services are left out; the Dead Stock Index includes raw material."
    }
   },
   {
@@ -969,7 +969,7 @@
     },
     "rows_after": [],
     "note": null,
-    "footnote": "23 में से 1 दिखाए गए। कुल रकम सभी 23 की है, लागत पर।"
+    "footnote": "23 में से 1 दिखाए गए। कुल रकम सभी 23 की है, लागत पर। कच्चा माल और सेवाएँ नहीं गिनी गईं; Dead Stock Index में कच्चा माल शामिल है।"
    }
   },
   {
@@ -1655,7 +1655,7 @@
     },
     "rows": [
      {
-      "label": "Sales in this period",
+      "label": "Sales after returns, before GST",
       "value": 2134466.6,
       "kind": "money"
      },
@@ -1674,7 +1674,7 @@
     "table": null,
     "rows_after": [],
     "note": "GST on your sales, from your books. This is before input credit and is not a filing figure.",
-    "footnote": null
+    "footnote": "The GSTR-3B screen can differ by a few paise: it rounds GST on each line, your bills round it once per bill."
    }
   },
   {
@@ -1706,7 +1706,7 @@
     },
     "rows": [
      {
-      "label": "इस अवधि की बिक्री",
+      "label": "वापसी के बाद बिक्री, GST से पहले",
       "value": 2134466.6,
       "kind": "money"
      },
@@ -1725,7 +1725,7 @@
     "table": null,
     "rows_after": [],
     "note": "आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले का है और फ़ाइलिंग का आँकड़ा नहीं है।",
-    "footnote": null
+    "footnote": "GSTR-3B स्क्रीन कुछ पैसे अलग दिख सकती है: वह हर लाइन पर GST राउंड करती है, आपके बिल पूरे बिल पर एक बार।"
    }
   },
   {
@@ -1811,7 +1811,7 @@
      }
     ],
     "note": null,
-    "footnote": null
+    "footnote": "Purchase Register shows each purchase with its bill number and supplier GSTIN. Missing HSN codes are not on that screen."
    }
   },
   {
@@ -1897,7 +1897,7 @@
      }
     ],
     "note": null,
-    "footnote": null
+    "footnote": "Purchase Register में हर खरीद उसके बिल नंबर और सप्लायर के GSTIN के साथ दिखती है। HSN कोड की कमी उस स्क्रीन पर नहीं दिखती।"
    }
   },
   {

@@ -57,8 +57,8 @@ void main() {
             askMobileKey({'key': (q['screen'] as Map)['key'], 'mobile': true}) == null)
           q['id'],
     ];
-    expect(dropped, ['sales_today', 'gst_collected']);
-    expect(askDroppedScreens.keys.toSet(), {'reports_daily_sales', 'sales', 'reports_gstr3b'});
+    expect(dropped, ['sales_today']);
+    expect(askDroppedScreens.keys.toSet(), {'reports_daily_sales', 'sales'});
   });
 
   test('a missing or unreadable period opens the screen\'s own default', () {

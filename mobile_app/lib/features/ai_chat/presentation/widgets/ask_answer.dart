@@ -424,7 +424,16 @@ class AskConsentView extends StatelessWidget {
       const SizedBox(height: 16),
       list('${ui['never_title']}', [for (var i = 1; i <= 5; i++) '${ui['never_$i']}']),
       const SizedBox(height: 14),
-      for (final para in '${ui['on_fine']}'.split('\n'))
+      // A review tag while a translation is not yet signed off (Hindi now).
+      if ('${ui['on_fine_review'] ?? ''}'.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text('${ui['on_fine_review']}', key: const Key('ask-on-fine-review'),
+              style: askSmall(AppColors.inkSecondary).copyWith(fontWeight: FontWeight.w700)),
+        ),
+      // Each paragraph of the agreed text as its own paragraph. on_fine is
+      // the single-string form kept for older builds.
+      for (final para in askConsentParagraphs(ui))
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(para, key: const Key('ask-on-fine'), style: askSmall()),
@@ -444,4 +453,12 @@ class AskConsentView extends StatelessWidget {
       ]),
     ]);
   }
+}
+
+/// The consent text's paragraphs: ui.on_fine_paragraphs, else on_fine split
+/// on line breaks, as the web does.
+List<String> askConsentParagraphs(Map<String, dynamic> ui) {
+  final p = ui['on_fine_paragraphs'];
+  if (p is List && p.isNotEmpty) return [for (final x in p) '$x'];
+  return '${ui['on_fine'] ?? ''}'.split('\n');
 }

@@ -53,10 +53,6 @@ const askDroppedScreens = {
   // already takes the answer's period (initialRange) for when it returns.
   'reports_daily_sales': 'totals voided, cancelled and refunded sales, which the answer leaves out',
   'sales': 'totals voided, cancelled and refunded sales, which the answer leaves out',
-  // Gstr3bScreen adds up GST from invoice rows, and most sales never get one.
-  // The answer's GST is get_pl_ranged's: on Demo Kirana Store, 1 Jan to
-  // 7 Nov 2026, it is Rs 34,165.88 where the screen shows Rs 0.00.
-  'reports_gstr3b': 'reads invoices, not the books the answer comes from',
 };
 
 /// The key the phone can open for an answer, or null for no link.

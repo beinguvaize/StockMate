@@ -348,7 +348,7 @@ void main() {
     expect(find.text('Open Customers'), findsOneWidget);
   });
 
-  testWidgets('GST collected has no phone link: GSTR-3B would show another number', (t) async {
+  testWidgets('GST collected has no phone link (the server marks it mobile: false)', (t) async {
     await _pump(t, _Client(onList: (l) => _list(l), onAsk: (id, l) => _answer(id, l, text: 'x')));
     final q = find.text('How much GST did I collect this month?');
     await t.scrollUntilVisible(q, 120, scrollable: find.byType(Scrollable).first);

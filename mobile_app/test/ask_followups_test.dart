@@ -10,6 +10,7 @@ import 'package:mobile_app/features/ai_chat/data/ask_local.dart';
 import 'package:mobile_app/features/ai_chat/presentation/ask_screen.dart';
 import 'package:mobile_app/features/ai_chat/presentation/ask_setting_row.dart';
 import 'package:mobile_app/features/ai_chat/presentation/providers/ask_providers.dart';
+import 'package:mobile_app/features/ai_chat/presentation/widgets/ask_answer.dart' show askConsentParagraphs;
 
 final _strings = jsonDecode(File('../shared/ai_chat/strings.json').readAsStringSync()) as Map<String, dynamic>;
 String _ui(String lang, String k) => '${((_strings[lang] as Map)['ui'] as Map)[k]}';
@@ -120,8 +121,10 @@ void main() {
       }
       expect(c.enabled, isEmpty, reason: 'nothing is switched before consent');
       expect(find.text(_ui('en', 'on_title')), findsOneWidget);
-      final shown = t.widgetList<Text>(find.byKey(const Key('ask-on-fine'))).map((w) => w.data).join('\n');
-      expect(shown, _ui('en', 'on_fine'));
+      final shown = t.widgetList<Text>(find.byKey(const Key('ask-on-fine'))).map((w) => w.data).toList();
+      expect(shown, ((_strings['en'] as Map)['ui'] as Map)['on_fine_paragraphs']);
+      expect(shown, hasLength(3));
+      expect(find.byKey(const Key('ask-on-fine-review')), findsNothing, reason: 'English has no review tag');
       await t.ensureVisible(find.text(_ui('en', 'turn_on')));
       await t.tap(find.text(_ui('en', 'turn_on')));
       for (var i = 0; i < 8; i++) {
@@ -162,5 +165,20 @@ void main() {
       await t.pump();
       expect(find.text('Could not turn Ask off: permission denied'), findsOneWidget);
     });
+  });
+
+  testWidgets('the Hindi notice carries its review tag until it is signed off', (t) async {
+    await pump(t, const AskSettingRow(), saved: 'hi', flags: {askFeatureFlagKey: true, 'ai_enabled': false});
+    await t.tap(find.byKey(const Key('ask-setting')));
+    for (var i = 0; i < 8; i++) {
+      await t.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.text(_ui('hi', 'on_fine_review')), findsOneWidget);
+    expect(t.widgetList<Text>(find.byKey(const Key('ask-on-fine'))).map((w) => w.data).toList(),
+        ((_strings['hi'] as Map)['ui'] as Map)['on_fine_paragraphs']);
+  });
+
+  test('older strings without on_fine_paragraphs fall back to on_fine', () {
+    expect(askConsentParagraphs({'on_fine': 'a\nb'}), ['a', 'b']);
   });
 }
