@@ -364,11 +364,11 @@ There is no i18n in the web or Flutter app, so chat has its own picker:
 - What goes out is limited by §6: totals, counts, dates, **product names** and stand-ins.
 - **The note shown before turning on**, word for word. It lives once, in `shared/ai_chat/strings.json` (`ui.on_fine`), so it can change to the paid wording if the owner pays. The Hindi needs native review.
 
-  > When you turn on AI answers, the figures for the question you tap are sent to Google's Gemini API, which writes the short explanation. These figures are totals, counts, dates and product names. We never send customer or supplier names, phone numbers, GSTINs or bank details.
+  > When you turn on Ask, the figures for the question you tap are sent to Google's Gemini API, which writes the short explanation. These figures are totals, counts, dates and product names. We never send customer or supplier names, phone numbers, GSTINs or bank details.
   >
-  > We use Google's free service. Google may use what we send to improve its products, and Google's human reviewers may read it after Google disconnects it from our account. Google does not state how long it keeps this data.
+  > We use Google's free service. Google may use what we send to improve its products, and Google's human reviewers may read it after Google separates it from our Google account, API key and project. Google does not state how long it keeps this data.
   >
-  > Do not turn this on if you treat your sales, stock or dues figures as confidential. The numbers on the card come from your own books, not from the AI. You can turn AI answers off at any time in Settings.
+  > Do not turn this on if you treat your sales, stock or dues figures as confidential. The numbers on the card come from your own books, not from the AI. You can turn Ask off at any time in Settings.
 
 - Processing is outside India. DPDP Section 16 restricts only countries the government notifies. This was not checked against the Gazette, and this is not legal advice.
 - **AI is off for a shop until the owner turns it on.** The first open shows what is sent and a "Turn on" button. The owner can turn it off in Settings. Stored in `tenants.settings`.
@@ -498,3 +498,6 @@ These are outside the chat build, but several affect it. They should be logged a
 | 8 | **Stock figures disagree on 20 products** | `products.stock` differs from `inventory_balances`. May relate to the open first-sale stock issue | 20 of 149 products with balance rows on prod |
 | 9 | **Edge Functions in repo and prod differ** | `create-subscription`, `razorpay-webhook`, `send-auth-otp` are in the repo but not on prod's list; `irn-worker` is on prod but not in the repo | `list_edge_functions`, `supabase/functions/` |
 | 10 | **Repo type and schema files are empty** | `supabase_types.ts` and `schema.sql` are 0 bytes, so column names must be read from prod | File sizes |
+| 11 | **Sale totals carry unrecorded rounding** | On Demo Kirana Store, May 2026: bill totals ₹1,60,060.00 = line taxable ₹1,47,672.00 + GST ₹12,381.21 + ₹6.79 that is neither, with `round_off` 0. `get_pl_ranged` counts the ₹6.79 as net revenue, so the `gst_collected` card's "Sales after returns, before GST" row is ₹6.79 above GSTR-3B's taxable value | Read-only, 2026-11-07 |
+| 12 | **GSTR-3B 3.1(a) re-derives GST per line in JS** | ₹12,381.50 on the screen against ₹12,381.21 on the bills for May 2026 on Demo. The card shows the bills' figure and a footnote. Fixing the screen changes a filing figure, so it waits for the owner | Read-only, 2026-11-07 |
+| 13 | **Accounts total includes LOAN accounts** | Ties on Demo only because its loan balance is 0. On a shop with a loan, `cash_bank` (LOAN excluded, like the dashboard) and `/accounts` will differ | `Accounts.jsx` totalBalance; spec §11 task 9 |

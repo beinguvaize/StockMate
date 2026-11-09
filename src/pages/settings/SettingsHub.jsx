@@ -1016,7 +1016,7 @@ const SettingsHub = () => {
         {/* Panel */}
         <main className="flex-1 min-w-0">
           {active === 'account'  && <AccountPanel />}
-          {active === 'account' && isOwner && currentTenant?.settings?.ai_chat_available === true && <div className="mt-6"><AskSettingsCard /></div>}
+          {active === 'account' && isOwner && currentTenant?.settings?.ai_chat_available === true && <div className="mt-6 max-w-2xl"><AskSettingsCard /></div>}
           {CLASSIC_SECTIONS[active] && (
             <Settings embedded section={CLASSIC_SECTIONS[active]} key={active} />
           )}

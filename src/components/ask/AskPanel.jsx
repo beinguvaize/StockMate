@@ -171,7 +171,10 @@ function TurnOn({ strings, onTurnOn, onClose, busy, error }) {
           <div><h4>{ui.sent_title}</h4><ul><li>{ui.sent_1}</li><li>{ui.sent_2}</li></ul></div>
           <div><h4>{ui.never_title}</h4><ul>{[1, 2, 3, 4, 5].map((i) => <li key={i}>{ui[`never_${i}`]}</li>)}</ul></div>
         </div>
-        <p className="fine">{ui.on_fine}</p>
+        <div className="fine" data-testid="ask-consent">
+          {ui.on_fine_review && <p className="review">{ui.on_fine_review}</p>}
+          {(ui.on_fine_paragraphs ?? String(ui.on_fine ?? '').split('\n')).map((para, i) => <p key={i}>{para}</p>)}
+        </div>
         {error && <p className="fail" role="alert">{error}</p>}
         <div className="acts">
           <button type="button" className="pill pri" disabled={busy} onClick={onTurnOn}>{ui.turn_on}</button>

@@ -34,7 +34,7 @@
       "screen": { "key": "accounts", "fallback_key": "dashboard", "module": "accounts", "mobile": true } },
     { "id": "gst_collected", "category": "gst", "module": "reports", "roles": ["OWNER"], "needs_tax": true,
       "label": { "en": "How much GST did I collect this month?", "hi": "इस महीने मेरी बिक्री पर कितना GST आया?" },
-      "screen": { "key": "reports_gstr3b", "fallback_key": null, "module": "reports", "mobile": true } },
+      "screen": { "key": "reports_gstr3b", "fallback_key": null, "module": "reports", "mobile": false } },
     { "id": "gst_gaps", "category": "gst", "module": "reports", "roles": ["OWNER"], "needs_tax": true,
       "label": { "en": "What is missing in my GST records?", "hi": "मेरे GST रिकॉर्ड में क्या कमी है?" },
       "screen": { "key": "reports_purchase_register", "fallback_key": null, "module": "reports", "mobile": false } }

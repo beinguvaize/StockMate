@@ -78,6 +78,10 @@ test('Ask stays off until the owner turns it on, and shows what is sent', async 
   await expect(panel).toContainText('Never sent');
   await expect(panel).toContainText("sent to Google's Gemini API");
   await expect(panel).toContainText('Do not turn this on if you treat your sales, stock or dues figures as confidential.');
+  // Three paragraphs, the product named Ask throughout.
+  await expect(page.getByTestId('ask-consent').locator('p')).toHaveCount(3);
+  await expect(page.getByTestId('ask-consent')).toContainText('after Google separates it from our Google account, API key and project');
+  await expect(page.getByTestId('ask-consent')).not.toContainText('AI answers');
   await expect(page.getByTestId('ask-list')).toHaveCount(0);
   expect(calls.ask).toHaveLength(0);
 
@@ -361,4 +365,27 @@ test('a lost connection and a server failure read differently', async ({ page })
   await page.getByRole('button', { name: 'Try again' }).click();
   await expect(page.getByTestId('ask-error')).toContainText('The server could not read your books.');
   await expect(page.getByTestId('ask-error')).not.toContainText('Connection lost.');
+});
+
+test('Settings: the Ask card sits in the same column as the cards above it', async ({ page }) => {
+  await open(page, { path: 'settings', list: (b) => listOf(b.lang ?? 'en', 'off') });
+  const card = page.getByTestId('ask-settings');
+  await expect(card).toBeVisible();
+  const above = page.locator('main section').first();
+  const [a, c] = [await above.boundingBox(), await card.boundingBox()];
+  expect(Math.abs(a.width - c.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(a.x - c.x)).toBeLessThanOrEqual(1);
+});
+
+test('gst_collected says what its sales row is, and why GSTR-3B can differ by paise', async ({ page }) => {
+  const f = { period_from: '2026-05-01', period_to: '2026-05-31', as_of: 'x', output_gst: 12381.21, taxable_sales: 147678.79,
+    last_month_output_gst: 0, last_month_from: '2026-04-01', last_month_to: '2026-04-30', tax_mode: 'EXCLUSIVE' };
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('gst_collected', f, strings.en),
+    screen: { key: 'reports_gstr3b', fallback_key: null, mobile: true, params: { from: '2026-05-01', to: '2026-05-31' } } }) });
+  await openPanel(page);
+  await question(page, 'gst_collected').click();
+  const ans = page.getByTestId('ask-answer');
+  await expect(ans).toContainText('Sales after returns, before GST');
+  await expect(ans).toContainText('it rounds GST on each line, your bills round it once per bill.');
+  await expect(ans.getByRole('button', { name: /Open GSTR-3B/ })).toBeVisible();
 });

@@ -105,6 +105,7 @@ const PurchaseRegisterReport = () => {
           </div>
         ),
       },
+      { key: 'bill_no', label: 'Bill no.', width: 120, render: v => (String(v ?? '').trim() || '—') },
       { key: '_gstin', label: 'GSTIN', width: 160, render: v => <span className="tabular-nums text-[11px]">{v}</span> },
       { key: '_taxable', label: 'Taxable', type: 'currency', align: 'right', sortable: true },
       { key: '_taxRate', label: 'Rate %', align: 'right', width: 70 },
