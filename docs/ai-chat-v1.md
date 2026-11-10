@@ -171,6 +171,19 @@ All dates use the shop's timezone from `business_profile.timezone` (`Asia/Kolkat
 - **Web link:** `/reports?tab=PURCHASE_REGISTER`. **Mobile:** `PurchasesReportScreen`.
 - **Don't reuse:** this function must return no GSTIN values, only counts. "No GSTIN" must be a missing value, not a format judgement, so no validation rule gets copied from JS into SQL.
 
+### Purchases & suppliers (added 2026-11-11, branch `ask-purchases`)
+
+Category `purchases`, shown after Stock. Functions in `20261111_ai_purchases_read_functions.sql`. Each copies its linked screen's rule, so the figures tie for the same dates.
+
+| `question_id` | Function | Rule copied from | Web link |
+|---|---|---|---|
+| `purchases_month` | `ai_purchases_summary(p_from, p_to)`, called for this month to today and the same days last month | Purchase Register: live purchases, `from <= date <= to` as text, Invoice Value = sum of `round2(total_amount)`, Bills = rows. No status filter, returns not netted | `/reports?tab=PURCHASE_REGISTER` with the answer's dates. Fallback `/purchases` |
+| `supplier_dues` | `ai_supplier_dues(p_limit)` | Suppliers screen (`SupplierWorkspace.jsx`): each purchase goes to the first live supplier by name matching its `supplier_id` or `supplier_name`; owed = `max(0, sum(total - paid))`. Not `suppliers.balance` | `/suppliers` |
+| `top_suppliers` | `ai_top_suppliers(p_from, p_to, p_limit)` | Purchase Register rows grouped by its Supplier column (`supplier_name`, else live supplier name, else `Direct`) | `/reports?tab=PURCHASE_REGISTER` with the answer's dates |
+| `cost_up` | `ai_cost_up(p_days, p_limit)` | Price history (`priceHistory.js`): unit cost = `round2(total_amount / quantity)` per base unit, in doubles; newest row (in the last 90 days) against the one before; deleted and CANCELLED left out | `/purchases`, with a footnote: price history opens from a bill line |
+
+Supplier names go to the model as `[S1]`... Every new Hindi string is listed in `hi.review_pending`. `mobile` is false for all four until the phone has the category and a screen that ties.
+
 ---
 
 ## 4. Rules for every new `ai_*` function

@@ -74,7 +74,8 @@
     "We use Google's free service. Google may use what we send to improve its products, and Google's human reviewers may read it after Google separates it from our Google account, API key and project. Google does not state how long it keeps this data.",
     "Do not turn this on if you treat your sales, stock or dues figures as confidential. The numbers on the card come from your own books, not from the AI. You can turn Ask off at any time in Settings."
    ],
-   "on_fine_review": ""
+   "on_fine_review": "",
+   "category_purchases": "Purchases & suppliers"
   },
   "card": {
    "sales": "Sales",
@@ -125,7 +126,16 @@
    "products_no_hsn": "Products with no HSN",
    "suppliers_no_gstin": "Suppliers with no GSTIN",
    "value_no_bill": "Value of purchases with no bill number",
-   "expired_suffix": "{date}, expired"
+   "expired_suffix": "{date}, expired",
+   "invoice_value": "Invoice value, with GST",
+   "suppliers": "Suppliers",
+   "supplier": "Supplier",
+   "owed": "You owe",
+   "total_owed": "Total you owe",
+   "paid_ahead": "Paid ahead, already taken off",
+   "was": "Was",
+   "now": "Now",
+   "rise": "Rise"
   },
   "hero": {
    "sales_today": {
@@ -172,6 +182,23 @@
    "gst_gaps": {
     "unit": "of {n}",
     "caption": "Purchases with no bill number, {from} to {to}"
+   },
+   "purchases_month": {
+    "caption": "Bought, {from} to {to}, {bills} bills",
+    "compare": "{change} vs {prev} for {pfrom} to {pto}",
+    "plain": "{prev} for {pfrom} to {pto}"
+   },
+   "supplier_dues": {
+    "caption": "{name} is owed the most",
+    "detail": "{total} owed to {n} suppliers"
+   },
+   "top_suppliers": {
+    "caption": "Top supplier: {name}",
+    "detail": "{total} from {n} suppliers in {bills} bills, {from} to {to}"
+   },
+   "cost_up": {
+    "unit": "items",
+    "caption": "Cost more on the latest purchase, of {n} compared since {from}"
    }
   },
   "titles": {
@@ -186,7 +213,11 @@
    "collections_week": "Collected this week",
    "cash_bank": "Cash and bank",
    "gst_collected": "GST collected this month",
-   "gst_gaps": "Gaps in GST records"
+   "gst_gaps": "Gaps in GST records",
+   "purchases_month": "Bought this month",
+   "supplier_dues": "What you owe suppliers",
+   "top_suppliers": "Top suppliers this month",
+   "cost_up": "Costs that went up"
   },
   "notes": {
    "gst_collected": "GST on your sales, from your books. This is before input credit and is not a filing figure."
@@ -206,7 +237,11 @@
    "gst_screen_less": "GSTR-3B shows {gap} less GST: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill.",
    "gst_bill_rounding": "{gap} of bill totals is rounding not recorded as round-off, so the sales row above is {gap} more than GSTR-3B's taxable value.",
    "gst_screen_unmatched": "GSTR-3B works GST out again from each bill's lines, and does not match this figure for this period.",
-   "cash_bank_loans_owed": "The Accounts screen total also includes loan accounts, which owe {loan}, so it reads {total}."
+   "cash_bank_loans_owed": "The Accounts screen total also includes loan accounts, which owe {loan}, so it reads {total}.",
+   "purchases_month": "Invoice value includes GST, as on the Purchase Register. Deleted purchases are left out; purchase returns are not taken off, as on that screen.",
+   "supplier_dues": "Top {shown} of {n} shown. The total covers all {n}. What you owe is each supplier's bills less what was paid on them, as on the Suppliers screen. Last paid is the latest supplier payment; a bill paid in full when bought is not a payment.",
+   "top_suppliers": "Top {shown} of {n} suppliers. Each supplier's figure adds up its bills under the Purchase Register's Supplier column, and the total equals the register's Invoice Value for these dates, with GST.",
+   "cost_up": "Top {shown} of {n} shown. Cost each is a purchase line's total divided by its quantity, in the item's base unit. Each item's latest purchase in the last 90 days is compared with the purchase before it. To check, open the item's price history from a bill line on Purchases."
   },
   "links": {
    "reports_daily_sales": "Open Daily Sales",
@@ -222,7 +257,9 @@
    "accounts": "Open Accounts",
    "dashboard": "Open Dashboard",
    "reports_gstr3b": "Open GSTR-3B",
-   "reports_purchase_register": "Open Purchase Register"
+   "reports_purchase_register": "Open Purchase Register",
+   "suppliers": "Open Suppliers",
+   "purchases": "Open Purchases"
   },
   "methods": {
    "CASH": "Cash",
@@ -235,7 +272,11 @@
   },
   "no_data": "Nothing to show for this yet.",
   "no_data_by_question": {
-   "sales_today": "No sales recorded yet today."
+   "sales_today": "No sales recorded yet today.",
+   "purchases_month": "No purchases recorded this month or on the same days last month.",
+   "supplier_dues": "You owe no supplier anything in your books.",
+   "top_suppliers": "No purchases recorded this month yet.",
+   "cost_up": "No item cost more on its latest purchase in the last 90 days."
   },
   "months_short": [
    "Jan",
@@ -351,7 +392,8 @@
     "हम Google की मुफ़्त सेवा इस्तेमाल करते हैं। Google भेजी गई जानकारी का इस्तेमाल अपने उत्पाद बेहतर करने के लिए कर सकता है, और Google इसे हमारे Google खाते, API key और प्रोजेक्ट से अलग करने के बाद Google के लोग (मानव समीक्षक) इसे पढ़ सकते हैं। Google यह नहीं बताता कि वह यह डेटा कितने समय तक रखता है।",
     "अगर आप अपनी बिक्री, स्टॉक या बकाया के आँकड़ों को गोपनीय मानते हैं, तो इसे चालू न करें। कार्ड पर दिखने वाले आँकड़े आपके अपने खातों से आते हैं, AI से नहीं। आप पूछें सुविधा कभी भी Settings में बंद कर सकते हैं।"
    ],
-   "on_fine_review": "NEEDS NATIVE HINDI REVIEW"
+   "on_fine_review": "NEEDS NATIVE HINDI REVIEW",
+   "category_purchases": "खरीद और सप्लायर"
   },
   "card": {
    "sales": "बिक्री",
@@ -402,7 +444,16 @@
    "products_no_hsn": "बिना HSN के उत्पाद",
    "suppliers_no_gstin": "बिना GSTIN के सप्लायर",
    "value_no_bill": "बिना बिल नंबर की खरीद की रकम",
-   "expired_suffix": "{date}, एक्सपायर"
+   "expired_suffix": "{date}, एक्सपायर",
+   "invoice_value": "बिल की रकम, GST सहित",
+   "suppliers": "सप्लायर",
+   "supplier": "सप्लायर",
+   "owed": "देना है",
+   "total_owed": "कुल देना है",
+   "paid_ahead": "पहले चुकाया, घटा दिया गया",
+   "was": "पहले",
+   "now": "अब",
+   "rise": "बढ़त"
   },
   "hero": {
    "sales_today": {
@@ -449,6 +500,23 @@
    "gst_gaps": {
     "unit": "{n} में से",
     "caption": "बिना बिल नंबर की खरीद, {from} से {to}"
+   },
+   "purchases_month": {
+    "caption": "खरीद, {from} से {to}, {bills} बिल",
+    "compare": "{change}, {pfrom} से {pto} में {prev} थी",
+    "plain": "{pfrom} से {pto} में {prev} थी"
+   },
+   "supplier_dues": {
+    "caption": "सबसे ज़्यादा {name} का देना है",
+    "detail": "{n} सप्लायरों का कुल {total} देना है"
+   },
+   "top_suppliers": {
+    "caption": "सबसे आगे: {name}",
+    "detail": "{from} से {to}, {n} सप्लायरों से {bills} बिलों में {total}"
+   },
+   "cost_up": {
+    "unit": "आइटम",
+    "caption": "सबसे नई खरीद पर महँगे, {from} से तुलना किए {n} में से"
    }
   },
   "titles": {
@@ -463,7 +531,11 @@
    "collections_week": "इस हफ़्ते की वसूली",
    "cash_bank": "नकद और बैंक",
    "gst_collected": "इस महीने लिया गया GST",
-   "gst_gaps": "GST रिकॉर्ड की कमियाँ"
+   "gst_gaps": "GST रिकॉर्ड की कमियाँ",
+   "purchases_month": "इस महीने की खरीद",
+   "supplier_dues": "सप्लायरों का देना",
+   "top_suppliers": "इस महीने के बड़े सप्लायर",
+   "cost_up": "बढ़ी हुई लागत"
   },
   "notes": {
    "gst_collected": "आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले का है और फ़ाइलिंग का आँकड़ा नहीं है।"
@@ -483,7 +555,11 @@
    "gst_screen_less": "GSTR-3B में GST {gap} कम दिखता है: वह हर बिल पर हर टैक्स दर के लिए CGST और SGST अलग-अलग राउंड करता है; आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।",
    "gst_bill_rounding": "बिलों के कुल में {gap} ऐसी राउंडिंग है जो राउंड-ऑफ़ में दर्ज नहीं हुई, इसलिए ऊपर की बिक्री GSTR-3B के कर योग्य मूल्य से {gap} ज़्यादा है।",
    "gst_screen_unmatched": "GSTR-3B हर बिल की लाइनों से GST दोबारा निकालता है, और इस अवधि में यह आँकड़ा उससे मेल नहीं खाता।",
-   "cash_bank_loans_owed": "Accounts स्क्रीन के कुल में लोन खाते भी जुड़े हैं, जिन पर {loan} बाकी है, इसलिए वहाँ {total} दिखता है।"
+   "cash_bank_loans_owed": "Accounts स्क्रीन के कुल में लोन खाते भी जुड़े हैं, जिन पर {loan} बाकी है, इसलिए वहाँ {total} दिखता है।",
+   "purchases_month": "बिल की रकम में GST शामिल है, जैसे Purchase Register में। हटाई गई खरीद नहीं गिनी गई; खरीद वापसी घटाई नहीं गई, जैसे उस स्क्रीन पर।",
+   "supplier_dues": "{n} में से {shown} दिखाए गए। कुल रकम सभी {n} की है। देना हर सप्लायर के बिलों में से उन पर चुकाई रकम घटाकर है, जैसे Suppliers स्क्रीन पर। आखिरी भुगतान सप्लायर को किया गया सबसे नया भुगतान है; खरीदते समय पूरा चुकाया बिल भुगतान नहीं गिना जाता।",
+   "top_suppliers": "{n} सप्लायरों में से शीर्ष {shown}। हर सप्लायर की रकम Purchase Register के Supplier कॉलम में उसके बिलों का जोड़ है, और कुल रकम इन तारीखों के register के Invoice Value के बराबर है, GST सहित।",
+   "cost_up": "{n} में से {shown} दिखाए गए। एक की लागत खरीद की लाइन की कुल रकम को उसकी मात्रा से भाग देकर है, आइटम की मूल इकाई में। हर आइटम की पिछले 90 दिनों की सबसे नई खरीद की तुलना उससे पहले वाली खरीद से की गई है। जाँचने के लिए Purchases में किसी बिल की लाइन से आइटम का price history खोलें।"
   },
   "links": {
    "reports_daily_sales": "Daily Sales खोलें",
@@ -499,7 +575,9 @@
    "accounts": "Accounts खोलें",
    "dashboard": "Dashboard खोलें",
    "reports_gstr3b": "GSTR-3B खोलें",
-   "reports_purchase_register": "Purchase Register खोलें"
+   "reports_purchase_register": "Purchase Register खोलें",
+   "suppliers": "Suppliers खोलें",
+   "purchases": "Purchases खोलें"
   },
   "methods": {
    "CASH": "नकद",
@@ -512,7 +590,11 @@
   },
   "no_data": "इसके लिए अभी दिखाने को कुछ नहीं है।",
   "no_data_by_question": {
-   "sales_today": "आज अभी तक कोई बिक्री दर्ज नहीं हुई।"
+   "sales_today": "आज अभी तक कोई बिक्री दर्ज नहीं हुई।",
+   "purchases_month": "इस महीने या पिछले महीने के इन्हीं दिनों में कोई खरीद दर्ज नहीं हुई।",
+   "supplier_dues": "आपकी बही में किसी सप्लायर का कुछ देना बाकी नहीं है।",
+   "top_suppliers": "इस महीने अभी तक कोई खरीद दर्ज नहीं हुई।",
+   "cost_up": "पिछले 90 दिनों में किसी आइटम की सबसे नई खरीद पहले से महँगी नहीं हुई।"
   },
   "months_short": [
    "जनवरी",
@@ -558,7 +640,40 @@
    "footnotes.gst_screen_less",
    "footnotes.gst_bill_rounding",
    "footnotes.cash_bank_loans",
-   "footnotes.cash_bank_loans_owed"
+   "footnotes.cash_bank_loans_owed",
+   "ui.category_purchases",
+   "card.invoice_value",
+   "card.suppliers",
+   "card.supplier",
+   "card.owed",
+   "card.total_owed",
+   "card.paid_ahead",
+   "card.was",
+   "card.now",
+   "card.rise",
+   "titles.purchases_month",
+   "titles.supplier_dues",
+   "titles.top_suppliers",
+   "titles.cost_up",
+   "footnotes.purchases_month",
+   "footnotes.supplier_dues",
+   "footnotes.top_suppliers",
+   "footnotes.cost_up",
+   "links.suppliers",
+   "links.purchases",
+   "no_data_by_question.purchases_month",
+   "no_data_by_question.supplier_dues",
+   "no_data_by_question.top_suppliers",
+   "no_data_by_question.cost_up",
+   "hero.purchases_month.caption",
+   "hero.purchases_month.compare",
+   "hero.purchases_month.plain",
+   "hero.supplier_dues.caption",
+   "hero.supplier_dues.detail",
+   "hero.top_suppliers.caption",
+   "hero.top_suppliers.detail",
+   "hero.cost_up.unit",
+   "hero.cost_up.caption"
   ]
  }
 }

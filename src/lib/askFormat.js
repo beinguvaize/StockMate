@@ -63,6 +63,8 @@ const ROUTES = {
   daybook: '/daybook',
   accounts: '/accounts',
   dashboard: '/dashboard',
+  suppliers: '/suppliers',
+  purchases: '/purchases',
 };
 
 /** The route for a screen key, or null: an unknown key draws no link. */

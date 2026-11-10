@@ -95,7 +95,7 @@ test('questions sit under category headings, with the month usage line', async (
   await open(page);
   await openPanel(page);
   const list = page.getByTestId('ask-list');
-  for (const h of ['Sales', 'Stock', 'Dues', 'Cash', 'GST']) await expect(list.getByText(h, { exact: true })).toBeVisible();
+  for (const h of ['Sales', 'Stock', 'Purchases & suppliers', 'Dues', 'Cash', 'GST']) await expect(list.getByText(h, { exact: true })).toBeVisible();
   await expect(list.getByRole('button')).toHaveCount(registry.questions.filter((q) => !q.hidden).length);
   await expect(question(page, 'expiring_stock')).toHaveCount(0);
   await expect(page.getByTestId('ask-usage')).toHaveText('63 of 100 explanations used in November. Figures never count.');
@@ -312,6 +312,7 @@ const LINKED = [
   ['top_items', 'reports_product_sales', 'PRODUCT_SALES', '2026-11-01', '2026-11-07'],
   ['gst_collected', 'reports_gstr3b', 'GSTR3B', '2026-11-01', '2026-11-07'],
   ['gst_gaps', 'reports_purchase_register', 'PURCHASE_REGISTER', '2026-10-01', '2026-11-07'],
+  ['purchases_month', 'reports_purchase_register', 'PURCHASE_REGISTER', '2026-11-01', '2026-11-07'],
 ];
 for (const [qid, key, tab, from, to] of LINKED) {
   test(`${qid}: the link opens ${tab} on the answer's own dates`, async ({ page }) => {
@@ -407,6 +408,28 @@ test('cash_bank with a loan account says exactly why the Accounts screen reads d
   await expect(page.getByTestId('ask-answer'))
     .toContainText('The Accounts screen total also includes loan accounts, which owe ₹2,50,000.00, so it reads -₹1,32,153.92.');
   await expect(page.getByTestId('ask-hero')).toHaveText('₹1,17,846.08');
+});
+
+test('purchases: the category sits after Stock, and cost_up draws was, now and the rise', async ({ page }) => {
+  const f = { period_from: '2026-08-13', period_to: '2026-11-11', as_of: 'x', items_up: 1, items_compared: 3,
+    items: [{ product_id: 'P1', product_name: 'Tie Salt', unit: 'PCS', old_cost: 1.01, new_cost: 1.5, pct_rise: 48.51, old_date: '2026-11-09', new_date: '2026-11-09' }] };
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('cost_up', f, strings.en),
+    screen: { key: 'purchases', fallback_key: null, mobile: false, params: { from: '2026-08-13', to: '2026-11-11' } } }) });
+  await openPanel(page);
+  const list = page.getByTestId('ask-list');
+  const y = async (t) => (await list.getByText(t, { exact: true }).boundingBox()).y;
+  expect(await y('Stock')).toBeLessThan(await y('Purchases & suppliers'));
+  expect(await y('Purchases & suppliers')).toBeLessThan(await y('Dues'));
+  await question(page, 'cost_up').click();
+  const ans = page.getByTestId('ask-answer');
+  await expect(ans).toContainText('Cost more on the latest purchase, of 3 compared since 13 Aug');
+  await expect(ans).toContainText('Tie Salt (PCS)');
+  await expect(ans).toContainText('₹1.01');
+  await expect(ans).toContainText('₹1.50');
+  await expect(ans).toContainText('48.5%');
+  await expect(ans).toContainText("in the item's base unit");
+  await ans.getByRole('button', { name: /Open Purchases/ }).click();
+  await expect(page).toHaveURL(/\/purchases$/);
 });
 
 test('while the answer is written, the panel says what it is doing', async ({ page }) => {
