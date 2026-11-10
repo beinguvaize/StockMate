@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import SyncStatusButton from './SyncStatusButton';
 import TrialBanner from './TrialBanner';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode, PanelLeft, CircleHelp} from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode, PanelLeft} from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { getDefaultAvatar } from '../lib/supabase';
 import NotificationStack from './NotificationStack';
@@ -281,10 +281,10 @@ const Navbar = () => {
  // Ask opens a panel over the page rather than a route, so the dashboard stays
  // visible behind it. Owners only: the server refuses anyone else anyway.
  const askEntry = (collapsed) => canAsk && (
-   <button type="button" onClick={() => setAskOpen(true)} title="Ask" data-testid="ask-entry"
+   <button type="button" onClick={() => setAskOpen(true)} title="Ask AI" data-testid="ask-entry"
      className={`group flex items-center ${collapsed ? 'justify-center w-10 h-10' : 'w-full gap-3 px-3 py-2'} rounded-pill text-[13.5px] text-ink-secondary font-medium hover:bg-black/[0.04] hover:text-ink-primary transition-all duration-150 active:scale-[0.98]`}>
-     <span className="shrink-0 opacity-70"><CircleHelp size={20} /></span>
-     {!collapsed && <span className="truncate">Ask</span>}
+     <span className="shrink-0 opacity-70"><Sparkles size={20} /></span>
+     {!collapsed && <span className="truncate">Ask AI</span>}
    </button>
  );
 
@@ -643,7 +643,7 @@ const Navbar = () => {
  {canAsk && (
    <button type="button" data-testid="ask-entry-mobile" onClick={() => { setIsMobileMenuOpen(false); setAskOpen(true); }}
      className="w-full flex items-center gap-3 px-4 py-3 rounded-pill text-sm font-semibold text-ink-secondary hover:bg-canvas mb-0.5">
-     <span className="opacity-[0.85]"><CircleHelp size={20} /></span>Ask
+     <span className="opacity-[0.85]"><Sparkles size={20} /></span>Ask AI
    </button>
  )}
  {allNavItems.filter(i => !i.hidden).map(item => {

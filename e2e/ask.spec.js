@@ -405,3 +405,27 @@ test('cash_bank with a loan account says exactly why the Accounts screen reads d
     .toContainText('The Accounts screen total also includes loan accounts, which owe ₹2,50,000.00, so it reads -₹1,32,153.92.');
   await expect(page.getByTestId('ask-hero')).toHaveText('₹1,17,846.08');
 });
+
+test('while the answer is written, the panel says what it is doing', async ({ page }) => {
+  let release;
+  const held = new Promise((res) => { release = res; });
+  await open(page, { list: (b) => listOf(b.lang ?? 'en', 'on') });
+  await page.route('**/functions/v1/ai-ask', async (r) => {
+    const body = r.request().postDataJSON();
+    if (body.action === 'list') return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(listOf('en', 'on')) });
+    await held;
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(answerOf('en')) });
+  });
+  await expect(page.getByTestId('ask-entry')).toHaveAttribute('title', 'Ask AI');
+  await openPanel(page);
+  await question(page, 'sales_today').click();
+  const loading = page.getByTestId('ask-loading');
+  await expect(loading.getByRole('status')).toHaveText(strings.en.ui.reading);
+  await expect(loading.locator('.orb')).toBeVisible();
+  if (process.env.ASK_SHOTS) await page.screenshot({ path: `${process.env.ASK_SHOTS}/ask-reading.png` });
+  await expect(loading.getByRole('status')).toHaveText(strings.en.ui.writing, { timeout: 3000 });
+  if (process.env.ASK_SHOTS) await loading.screenshot({ path: `${process.env.ASK_SHOTS}/ask-writing.png` });
+  release();
+  await expect(page.getByTestId('ask-hero')).toBeVisible();
+  await expect(loading).toHaveCount(0);
+});
