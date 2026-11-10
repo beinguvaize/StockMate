@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Sparkles, X } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useOffline } from '../../context/OfflineContext';
@@ -146,6 +146,24 @@ function Answer({ answer, question, usage, strings, phone, onRetry, onPlans, onG
   );
 }
 
+// A small robot that blinks and bobs inside a rainbow ring while AI works.
+function BotFace() {
+  return (
+    <svg className="bot" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="2.5" x2="12" y2="5.5" />
+      <circle className="bot-tip" cx="12" cy="2.2" r="1.3" fill="currentColor" stroke="none" />
+      <rect x="4" y="6" width="16" height="12.5" rx="4" />
+      <g className="bot-eyes" fill="currentColor" stroke="none">
+        <circle cx="9" cy="12" r="1.6" />
+        <circle cx="15" cy="12" r="1.6" />
+      </g>
+      <line x1="10" y1="15.6" x2="14" y2="15.6" />
+      <line x1="2.5" y1="11" x2="2.5" y2="14" />
+      <line x1="21.5" y1="11" x2="21.5" y2="14" />
+    </svg>
+  );
+}
+
 // The books are read and the answer written in one call, so the second line is
 // timed, not reported: it appears once the read has usually finished.
 function Loading({ question, strings, lang }) {
@@ -159,7 +177,7 @@ function Loading({ question, strings, lang }) {
     <div className="ans" aria-busy="true" data-testid="ask-loading">
       <h3 className="ans-q">{question.label}</h3>
       <div className="think" role="status">
-        <span className="orb" aria-hidden="true"><Sparkles size={14} strokeWidth={2} /></span>
+        <span className="orb" aria-hidden="true"><BotFace /></span>
         <span key={writing ? 'w' : 'r'} className="think-line">{writing ? writingLine : strings.ui.reading}</span>
       </div>
       <span className="sk" style={{ height: 36, width: '62%' }} />
