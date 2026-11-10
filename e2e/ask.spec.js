@@ -381,7 +381,7 @@ test('Settings: the Ask card sits in the same column as the cards above it', asy
 test('gst_collected says what its sales row is, and why GSTR-3B can differ by paise', async ({ page }) => {
   const f = { period_from: '2026-05-01', period_to: '2026-05-31', as_of: 'x', output_gst: 12381.21, taxable_sales: 147678.79,
     last_month_output_gst: 0, last_month_from: '2026-04-01', last_month_to: '2026-04-30', tax_mode: 'EXCLUSIVE',
-    gstr3b_gst: 12381.5, bill_rounding: 6.79 };
+    gstr3b_gst: 12381.5, bill_rounding: 6.79, gstr3b_books_gst: 12381.21, gstr3b_bill_count: 149 };
   await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('gst_collected', f, strings.en),
     screen: { key: 'reports_gstr3b', fallback_key: null, mobile: true, params: { from: '2026-05-01', to: '2026-05-31' } } }) });
   await openPanel(page);
@@ -402,6 +402,6 @@ test('cash_bank with a loan account says exactly why the Accounts screen reads d
   await openPanel(page);
   await question(page, 'cash_bank').click();
   await expect(page.getByTestId('ask-answer'))
-    .toContainText('The Accounts screen total also includes loan accounts (-₹2,50,000.00), so it reads -₹1,32,153.92.');
+    .toContainText('The Accounts screen total also includes loan accounts, which owe ₹2,50,000.00, so it reads -₹1,32,153.92.');
   await expect(page.getByTestId('ask-hero')).toHaveText('₹1,17,846.08');
 });
