@@ -13,7 +13,7 @@
     "judgement": "True when the label is a policy choice. Flip it deliberately, not to make a test pass.",
     "known_limit": "True when the reply is wrong but only a check beyond numbers could catch it.",
     "baseline_guard": "What checkReply returned at the commit in baseline.guard_commit. Filled by a script. A mismatch with expected is a tuning target.",
-    "ruling_changes": "cash_bank-06 was flipped to should_fail by Lead ruling. profit_month-13, collections_week-14 and top_dues-18 stopped being known limits when the guard gained the checks that catch them. baseline_guard still records commit 11ebd5c."
+    "ruling_changes": "cash_bank-06 was flipped to should_fail by Lead ruling. profit_month-13, collections_week-14 and top_dues-18 stopped being known limits when the guard gained the checks that catch them. baseline_guard still records commit 11ebd5c. The 19 purchases_month, supplier_dues, top_suppliers and cost_up cases were added on branch ask-purchases; their baseline_guard is the guard at that branch, not 11ebd5c."
   },
   "fixtures": {
     "sales_today": {
@@ -583,6 +583,135 @@
       "products_no_hsn": 197,
       "suppliers_used": 31,
       "suppliers_used_no_gstin": 24
+    },
+    "purchases_month": {
+      "period_from": "2026-11-01",
+      "period_to": "2026-11-10",
+      "as_of": "2026-11-10T10:30:00Z",
+      "total_value": 184250.5,
+      "bill_count": 42,
+      "supplier_count": 7,
+      "previous_value": 152300,
+      "previous_bill_count": 38,
+      "previous_from": "2026-10-01",
+      "previous_to": "2026-10-10",
+      "change_pct": 21
+    },
+    "supplier_dues": {
+      "period_from": "2026-11-10",
+      "period_to": "2026-11-10",
+      "as_of": "2026-11-10T10:30:00Z",
+      "total_owed": 96420,
+      "suppliers_owing": 5,
+      "suppliers_total": 12,
+      "advance_total": 2390,
+      "suppliers": [
+        {
+          "name": "[S1]",
+          "owed": 41800,
+          "last_payment_date": "2026-10-28"
+        },
+        {
+          "name": "[S2]",
+          "owed": 27650,
+          "last_payment_date": null
+        },
+        {
+          "name": "[S3]",
+          "owed": 15200,
+          "last_payment_date": "2026-11-02"
+        },
+        {
+          "name": "[S4]",
+          "owed": 8370,
+          "last_payment_date": "2026-09-14"
+        },
+        {
+          "name": "[S5]",
+          "owed": 3400,
+          "last_payment_date": null
+        }
+      ]
+    },
+    "top_suppliers": {
+      "period_from": "2026-11-01",
+      "period_to": "2026-11-10",
+      "as_of": "2026-11-10T10:30:00Z",
+      "total_value": 184250.5,
+      "bill_count": 42,
+      "supplier_count": 7,
+      "suppliers": [
+        {
+          "name": "[S1]",
+          "value": 72400,
+          "bill_count": 11
+        },
+        {
+          "name": "[S2]",
+          "value": 48150.5,
+          "bill_count": 9
+        },
+        {
+          "name": "[S3]",
+          "value": 30100,
+          "bill_count": 12
+        },
+        {
+          "name": "[S4]",
+          "value": 18600,
+          "bill_count": 5
+        },
+        {
+          "name": "[S5]",
+          "value": 15000,
+          "bill_count": 5
+        }
+      ]
+    },
+    "cost_up": {
+      "period_from": "2026-08-12",
+      "period_to": "2026-11-10",
+      "as_of": "2026-11-10T10:30:00Z",
+      "items_up": 4,
+      "items_compared": 31,
+      "items": [
+        {
+          "product_name": "Sunflower Oil 1L",
+          "unit": "PCS",
+          "old_cost": 132,
+          "new_cost": 148.5,
+          "pct_rise": 12.5,
+          "old_date": "2026-10-02",
+          "new_date": "2026-11-06"
+        },
+        {
+          "product_name": "Basmati Rice 25kg",
+          "unit": "BAG",
+          "old_cost": 1850,
+          "new_cost": 1990,
+          "pct_rise": 7.57,
+          "old_date": "2026-09-18",
+          "new_date": "2026-11-03"
+        },
+        {
+          "product_name": "Toor Dal",
+          "unit": "KG",
+          "old_cost": 118,
+          "new_cost": 124,
+          "pct_rise": 5.08,
+          "old_date": "2026-10-20",
+          "new_date": "2026-11-08"
+        },
+        {
+          "product_name": "Sugar",
+          "unit": "KG",
+          "old_cost": 41.2,
+          "new_cost": 42,
+          "pct_rise": 1.94,
+          "old_date": "2026-10-11",
+          "new_date": "2026-10-30"
+        }
+      ]
     }
   },
   "stand_ins": {
@@ -602,6 +731,20 @@
       "[A1]": "Test Cash",
       "[A2]": "Test Bank One",
       "[A3]": "Test Bank Two"
+    },
+    "supplier_dues": {
+      "[S1]": "Test Supplier 1",
+      "[S2]": "Test Supplier 2",
+      "[S3]": "Test Supplier 3",
+      "[S4]": "Test Supplier 4",
+      "[S5]": "Test Supplier 5"
+    },
+    "top_suppliers": {
+      "[S1]": "Test Supplier 1",
+      "[S2]": "Test Supplier 2",
+      "[S3]": "Test Supplier 3",
+      "[S4]": "Test Supplier 4",
+      "[S5]": "Test Supplier 5"
     }
   },
   "cases": [
@@ -3026,6 +3169,272 @@
       "known_limit": false,
       "source": "hand_written",
       "baseline_guard": "fail:spelled:सौ"
+    },
+    {
+      "id": "purchases_month-01",
+      "question_id": "purchases_month",
+      "lang": "en",
+      "fixture": "purchases_month",
+      "reply": "You bought ₹1,84,250.50 this month across 42 bills from 7 suppliers.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Every number is in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "purchases_month-02",
+      "question_id": "purchases_month",
+      "lang": "en",
+      "fixture": "purchases_month",
+      "reply": "That is 21% more than the same days last month, when purchases were ₹1.52 lakh.",
+      "expected": "should_pass",
+      "rule": "lakh",
+      "why": "change_pct and a lakh form of previous_value.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "purchases_month-03",
+      "question_id": "purchases_month",
+      "lang": "en",
+      "fixture": "purchases_month",
+      "reply": "Purchases fell 21% against last month.",
+      "expected": "should_fail",
+      "rule": "direction",
+      "why": "change_pct is positive.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:direction:21%"
+    },
+    {
+      "id": "purchases_month-04",
+      "question_id": "purchases_month",
+      "lang": "en",
+      "fixture": "purchases_month",
+      "reply": "You bought ₹31,950.50 more than last month.",
+      "expected": "should_fail",
+      "rule": "computed",
+      "why": "A difference the model worked out itself.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:31950.50"
+    },
+    {
+      "id": "purchases_month-05",
+      "question_id": "purchases_month",
+      "lang": "en",
+      "fixture": "purchases_month",
+      "reply": "From 1 to 10 November you bought ₹1.84 lakh.",
+      "expected": "should_pass",
+      "rule": "date",
+      "why": "Both ends of the period are in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "supplier_dues-01",
+      "question_id": "supplier_dues",
+      "lang": "en",
+      "fixture": "supplier_dues",
+      "reply": "You owe ₹96,420 to 5 suppliers. [S1] is owed the most, ₹41,800, last paid on 28 October.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Every number and date is in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "supplier_dues-02",
+      "question_id": "supplier_dues",
+      "lang": "en",
+      "fixture": "supplier_dues",
+      "reply": "[S2] is owed ₹27,650 and has never been paid.",
+      "expected": "should_pass",
+      "rule": "stand_in",
+      "why": "An issued stand-in with its own figure.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "supplier_dues-03",
+      "question_id": "supplier_dues",
+      "lang": "en",
+      "fixture": "supplier_dues",
+      "reply": "[S6] is owed ₹3,400.",
+      "expected": "should_fail",
+      "rule": "stand_in",
+      "why": "S6 was never issued.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:unknown_stand_in:[S6]"
+    },
+    {
+      "id": "supplier_dues-04",
+      "question_id": "supplier_dues",
+      "lang": "en",
+      "fixture": "supplier_dues",
+      "reply": "[S1] and [S2] together are owed ₹69,450.",
+      "expected": "should_fail",
+      "rule": "computed",
+      "why": "A sum the model worked out itself.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:69450"
+    },
+    {
+      "id": "supplier_dues-05",
+      "question_id": "supplier_dues",
+      "lang": "en",
+      "fixture": "supplier_dues",
+      "reply": "[S4] has been unpaid since 14 September, and ₹2,390 paid ahead is already taken off.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Date and advance are in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "top_suppliers-01",
+      "question_id": "top_suppliers",
+      "lang": "en",
+      "fixture": "top_suppliers",
+      "reply": "[S1] supplied the most this month, ₹72,400 in 11 bills, out of ₹1,84,250.50 from 7 suppliers.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Every number is in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "top_suppliers-02",
+      "question_id": "top_suppliers",
+      "lang": "en",
+      "fixture": "top_suppliers",
+      "reply": "Your top 5 suppliers account for most of your buying.",
+      "expected": "should_pass",
+      "rule": "rank",
+      "why": "A rank within the 5 listed rows.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "top_suppliers-03",
+      "question_id": "top_suppliers",
+      "lang": "en",
+      "fixture": "top_suppliers",
+      "reply": "Your top 7 suppliers are listed.",
+      "expected": "should_fail",
+      "rule": "rank",
+      "why": "Only 5 rows are in the list.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:rank:top 7"
+    },
+    {
+      "id": "top_suppliers-04",
+      "question_id": "top_suppliers",
+      "lang": "en",
+      "fixture": "top_suppliers",
+      "reply": "[S1] is 39% of your purchases.",
+      "expected": "should_fail",
+      "rule": "computed",
+      "why": "A share the model worked out itself.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:39%"
+    },
+    {
+      "id": "cost_up-01",
+      "question_id": "cost_up",
+      "lang": "en",
+      "fixture": "cost_up",
+      "reply": "4 of the 31 items you bought again cost more. Sunflower Oil 1L went from ₹132 to ₹148.50, up 12.5%.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Every number is in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "cost_up-02",
+      "question_id": "cost_up",
+      "lang": "en",
+      "fixture": "cost_up",
+      "reply": "Basmati Rice 25kg rose 7.57% to ₹1,990.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "The digits in the product name are text, the rest are figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "cost_up-03",
+      "question_id": "cost_up",
+      "lang": "en",
+      "fixture": "cost_up",
+      "reply": "Sunflower Oil 1L rose ₹16.50 a unit.",
+      "expected": "should_fail",
+      "rule": "computed",
+      "why": "A difference the model worked out itself.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:16.50"
+    },
+    {
+      "id": "cost_up-04",
+      "question_id": "cost_up",
+      "lang": "en",
+      "fixture": "cost_up",
+      "reply": "Toor Dal now costs ₹25 more.",
+      "expected": "should_fail",
+      "rule": "name_digits",
+      "why": "25 is only in a product name, never money.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:25"
+    },
+    {
+      "id": "cost_up-05",
+      "question_id": "cost_up",
+      "lang": "en",
+      "fixture": "cost_up",
+      "reply": "Sugar went up 2% since 11 October.",
+      "expected": "should_pass",
+      "rule": "rounding",
+      "why": "1.94 rounds to 2 and the date is in the figures.",
+      "judgement": true,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
     }
   ],
   "baseline": {
