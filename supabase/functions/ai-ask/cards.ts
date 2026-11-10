@@ -15,6 +15,22 @@ const fill = (t: string, vars: Record<string, unknown>) =>
   t.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
 const parts = (iso: string) => String(iso).slice(0, 10).split("-").map(Number);
 
+/**
+ * May the gst_collected card name the gaps with GSTR-3B and their cause? Only
+ * when they are what rounding can explain: the check read the same GST as the
+ * card, the GST gap is at most 2 paise a bill, and unrecorded rounding at most
+ * 50 paise a bill. Returns the checks that failed; empty means all hold.
+ */
+export function gstScreenChecks(f: Record<string, any>): string[] {
+  const failed: string[] = [];
+  const bills = Number(f.gstr3b_bill_count ?? 0);
+  const books = Number(f.gstr3b_books_gst);
+  if (!Number.isFinite(books) || Math.abs(books - Number(f.output_gst)) > 0.01) failed.push("books_gst_matches_card");
+  if (!(Math.abs(Number(f.gstr3b_gst) - books) <= 0.02 * bills + 1e-9)) failed.push("screen_gap_within_rounding");
+  if (!(Math.abs(Number(f.bill_rounding ?? 0)) <= 0.5 * bills + 1e-9)) failed.push("bill_rounding_within_limit");
+  return failed;
+}
+
 export function buildCard(id: string, f: Record<string, any>, strings: any, empty = false) {
   const L = strings.card as Record<string, string>;
   const H = strings.hero[id] ?? {};
@@ -136,8 +152,10 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
       footnote = foot();
       // Never a silent mismatch with the linked screen: say the exact gap.
       if (Math.abs(Number(f.loan_total ?? 0)) >= 0.005) {
-        const loans = fill(strings.footnotes.cash_bank_loans, {
-          loan: inr(Number(f.loan_total)), total: inr(Math.round((Number(f.total_balance) + Number(f.loan_total)) * 100) / 100) });
+        const loan = Number(f.loan_total);
+        // A negative loan balance is money owed: say it as that, not as "-₹".
+        const loans = fill(loan < 0 ? strings.footnotes.cash_bank_loans_owed : strings.footnotes.cash_bank_loans, {
+          loan: inr(Math.abs(loan)), total: inr(Math.round((Number(f.total_balance) + loan) * 100) / 100) });
         footnote = footnote ? `${footnote} ${loans}` : loans;
       }
       break;
@@ -148,7 +166,9 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
       rows = [row("sales_in_period", f.taxable_sales, "money"), row("gst_on_sales", f.output_gst, "money", "total"),
         { label: fill(L.full_month, { month: strings.months_long[m - 1] }), value: f.last_month_output_gst, kind: "money" }];
       // Only gaps that exist, each with its size and cause. None under a paisa.
+      // If the gaps are bigger than rounding can explain, one plain line instead.
       const lines: string[] = [];
+      if (gstScreenChecks(f).length) { footnote = strings.footnotes.gst_screen_unmatched; break; }
       const gstGap = Math.round((Number(f.gstr3b_gst ?? f.output_gst) - Number(f.output_gst)) * 100) / 100;
       if (Math.abs(gstGap) >= 0.01) {
         lines.push(fill(gstGap > 0 ? strings.footnotes.gst_screen_more : strings.footnotes.gst_screen_less, { gap: inr(Math.abs(gstGap)) }));

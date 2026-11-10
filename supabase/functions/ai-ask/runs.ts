@@ -1,5 +1,6 @@
 // Runs each question's reads with the caller's JWT. Dates are worked out here,
 // so a client can never choose them. A failed read throws: it is never a zero.
+import { gstScreenChecks } from "./cards.ts";
 import { addDays, changePct, lastMonth, mondayOf, monthStart, priorWindow, sameDaysLastWeek } from "./periods.ts";
 
 export class ReadFailed extends Error {}
@@ -103,13 +104,17 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
       const prev = await pl(db, tenantId, last.from, last.to);
       // The two measured gaps with the GSTR-3B screen, for the card's footnote.
       const check = await rpc(db, "ai_gst_screen_check", { p_from: from, p_to: today });
+      const figures = {
+        period_from: from, period_to: today, as_of: asOf,
+        output_gst: Number(cur.output_gst), taxable_sales: Number(cur.revenue_net),
+        last_month_output_gst: Number(prev.output_gst), last_month_from: last.from, last_month_to: last.to, tax_mode: ctx.taxMode,
+        gstr3b_gst: Number(check.screen_gst), bill_rounding: Number(check.bill_rounding),
+        gstr3b_books_gst: Number(check.books_gst), gstr3b_bill_count: Number(check.bill_count),
+      };
+      const failed = gstScreenChecks(figures);
+      if (failed.length) console.warn("[ai-ask] gst footnote checks failed:", failed.join(","));
       return {
-        figures: {
-          period_from: from, period_to: today, as_of: asOf,
-          output_gst: Number(cur.output_gst), taxable_sales: Number(cur.revenue_net),
-          last_month_output_gst: Number(prev.output_gst), last_month_from: last.from, last_month_to: last.to, tax_mode: ctx.taxMode,
-          gstr3b_gst: Number(check.screen_gst), bill_rounding: Number(check.bill_rounding),
-        },
+        figures,
         params: { from, to: today },
         empty: Number(cur.output_gst) === 0 && Number(cur.revenue_net) === 0 && Number(prev.output_gst) === 0,
       };

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { checkReply } from '../../supabase/functions/ai-ask/guard.ts';
 import { toModelFigures, restoreNames, figuresHash } from '../../supabase/functions/ai-ask/standins.ts';
 import { handle, CONTRACT_VERSION } from '../../supabase/functions/ai-ask/handler.ts';
-import { buildCard } from '../../supabase/functions/ai-ask/cards.ts';
+import { buildCard, gstScreenChecks } from '../../supabase/functions/ai-ask/cards.ts';
 import { SYSTEM_PROMPT } from '../../supabase/functions/ai-ask/prompt.ts';
 import { priorWindow, mondayOf, lastMonth, shopToday, changePct, sameDaysLastWeek } from '../../supabase/functions/ai-ask/periods.ts';
 import { runQuestion } from '../../supabase/functions/ai-ask/runs.ts';
@@ -73,14 +73,14 @@ describe('number guard: allowed', () => {
 
 describe('gst_collected gaps with the GSTR-3B screen', () => {
   const f = (extra) => ({ period_from: '2026-05-01', period_to: '2026-05-31', output_gst: 12381.21, taxable_sales: 147678.79,
-    last_month_output_gst: 0, last_month_from: '2026-04-01', ...extra });
+    last_month_output_gst: 0, last_month_from: '2026-04-01', gstr3b_books_gst: 12381.21, gstr3b_bill_count: 149, ...extra });
   it('states the GST gap and the rounding gap, each with its size, when both exist', () => {
     const card = buildCard('gst_collected', f({ gstr3b_gst: 12381.5, bill_rounding: 6.79 }), strings.en);
     expect(card.footnote).toBe("GSTR-3B shows ₹0.29 more GST: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill. ₹6.79 of bill totals is rounding not recorded as round-off, so the sales row above is ₹6.79 more than GSTR-3B's taxable value.");
   });
-  it('rupees, not paise, are stated as they are', () => {
-    expect(buildCard('gst_collected', f({ gstr3b_gst: 12384.21, bill_rounding: 0 }), strings.en).footnote)
-      .toBe('GSTR-3B shows ₹3.00 more GST: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill.');
+  it('a gap of rupees within the rounding limit is stated as it is', () => {
+    expect(buildCard('gst_collected', f({ gstr3b_gst: 12383.21, bill_rounding: 0 }), strings.en).footnote)
+      .toBe('GSTR-3B shows ₹2.00 more GST: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill.');
     expect(buildCard('gst_collected', f({ gstr3b_gst: 12380.21, bill_rounding: 0 }), strings.hi).footnote)
       .toBe('GSTR-3B में GST ₹1.00 कम दिखता है: वह हर बिल पर हर टैक्स दर के लिए CGST और SGST अलग-अलग राउंड करता है; आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।');
   });
@@ -88,6 +88,28 @@ describe('gst_collected gaps with the GSTR-3B screen', () => {
     expect(buildCard('gst_collected', f({ gstr3b_gst: 12381.21, bill_rounding: 6.79 }), strings.en).footnote)
       .toMatch(/^₹6\.79 of bill totals/);
   });
+  const PLAIN = "GSTR-3B works GST out again from each bill's lines, and does not match this figure for this period.";
+  it('check (a): the check read a different GST from the card, so one plain line', () => {
+    expect(gstScreenChecks(f({ gstr3b_gst: 12390.29, bill_rounding: 6.79, gstr3b_books_gst: 12390 }))).toEqual(['books_gst_matches_card']);
+    expect(buildCard('gst_collected', f({ gstr3b_gst: 12390.29, bill_rounding: 6.79, gstr3b_books_gst: 12390 }), strings.en).footnote).toBe(PLAIN);
+  });
+  it('check (b): a GST gap over 2 paise a bill is not rounding', () => {
+    // 149 bills allow ₹2.98; ₹3.00 does not pass.
+    expect(gstScreenChecks(f({ gstr3b_gst: 12384.19, bill_rounding: 0 }))).toEqual([]);
+    expect(gstScreenChecks(f({ gstr3b_gst: 12384.21, bill_rounding: 0 }))).toEqual(['screen_gap_within_rounding']);
+    expect(buildCard('gst_collected', f({ gstr3b_gst: 12384.21, bill_rounding: 0 }), strings.en).footnote).toBe(PLAIN);
+  });
+  it('check (c): unrecorded rounding over 50 paise a bill is not rounding', () => {
+    expect(gstScreenChecks(f({ gstr3b_gst: 12381.21, bill_rounding: 74.5 }))).toEqual([]);
+    expect(gstScreenChecks(f({ gstr3b_gst: 12381.21, bill_rounding: 74.51 }))).toEqual(['bill_rounding_within_limit']);
+    expect(buildCard('gst_collected', f({ gstr3b_gst: 12381.21, bill_rounding: 74.51 }), strings.hi).footnote)
+      .toBe('GSTR-3B हर बिल की लाइनों से GST दोबारा निकालता है, और इस अवधि में यह आँकड़ा उससे मेल नहीं खाता।');
+  });
+  it('dev: no GST in the books but 18% invented by the screen fails (b) and (c)', () => {
+    expect(gstScreenChecks(f({ output_gst: 0, gstr3b_books_gst: 0, gstr3b_gst: 3408.3, bill_rounding: 4925, gstr3b_bill_count: 18 })))
+      .toEqual(['screen_gap_within_rounding', 'bill_rounding_within_limit']);
+  });
+
   it('no footnote when both gaps are under a paisa', () => {
     expect(buildCard('gst_collected', f({ gstr3b_gst: 12381.214, bill_rounding: 0.004 }), strings.en).footnote).toBeNull();
   });
@@ -105,9 +127,12 @@ describe('cash_bank and loan accounts', () => {
     accounts: [{ label: 'Cash', type: 'CASH', balance: 215695.51 }], loan_total: loan });
   it('says the exact gap when a loan account has a balance, in both languages', () => {
     expect(buildCard('cash_bank', f(-250000), strings.en).footnote)
-      .toContain('The Accounts screen total also includes loan accounts (-₹2,50,000.00), so it reads -₹1,32,153.92.');
+      .toContain('The Accounts screen total also includes loan accounts, which owe ₹2,50,000.00, so it reads -₹1,32,153.92.');
     expect(buildCard('cash_bank', f(-250000), strings.hi).footnote)
-      .toContain('Accounts स्क्रीन के कुल में लोन खाते (-₹2,50,000.00) भी जुड़े हैं, इसलिए वहाँ -₹1,32,153.92 दिखता है।');
+      .toContain('Accounts स्क्रीन के कुल में लोन खाते भी जुड़े हैं, जिन पर ₹2,50,000.00 बाकी है, इसलिए वहाँ -₹1,32,153.92 दिखता है।');
+    // A positive loan balance keeps the plain line.
+    expect(buildCard('cash_bank', f(5000), strings.en).footnote)
+      .toContain('The Accounts screen total also includes loan accounts (₹5,000.00), so it reads ₹1,22,846.08.');
   });
   it('says nothing when there is no loan balance', () => {
     for (const loan of [0, undefined]) expect(buildCard('cash_bank', f(loan), strings.en).footnote).not.toContain('loan');
