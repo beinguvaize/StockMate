@@ -197,9 +197,10 @@ class _AskScreenState extends ConsumerState<AskScreen> {
   @override
   Widget build(BuildContext context) {
     final bundled = ref.watch(askBundledStringsProvider).valueOrNull;
+    final hidden = ref.watch(askHiddenQuestionsProvider);
     final lang = _lang;
     final online = _online;
-    if (lang == null || (bundled == null && _list == null)) {
+    if (lang == null || (bundled == null && _list == null) || hidden.isLoading) {
       return const Scaffold(backgroundColor: AppColors.surface, body: Center(child: CircularProgressIndicator()));
     }
     final strings = (_list?['strings'] ?? bundled![lang]) as Map<String, dynamic>;
@@ -292,8 +293,13 @@ class _AskScreenState extends ConsumerState<AskScreen> {
     );
   }
 
-  List<Map<String, dynamic>> get _questions =>
-      ((_list?['questions'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  List<Map<String, dynamic>> get _questions {
+    final hidden = ref.read(askHiddenQuestionsProvider).valueOrNull ?? const <String>{};
+    return ((_list?['questions'] as List?) ?? const [])
+        .cast<Map<String, dynamic>>()
+        .where((q) => !hidden.contains(q['id']))
+        .toList();
+  }
 
   Widget _body(Map<String, dynamic> strings, Map<String, dynamic> ui, bool online) {
     final questions = _questions;

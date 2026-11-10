@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_app/features/ai_chat/data/ask_client.dart';
 import 'package:mobile_app/features/ai_chat/data/ask_format.dart';
 import 'package:mobile_app/features/ai_chat/presentation/ask_routes.dart';
+import 'package:mobile_app/features/ai_chat/presentation/providers/ask_providers.dart' show askHiddenIds;
 import 'package:mobile_app/features/ai_chat/presentation/widgets/ask_answer.dart';
 
 Map<String, dynamic> _json(String path) => jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
@@ -23,6 +24,15 @@ void main() {
   test('the app bundles an exact copy of shared/ai_chat/strings.json', () {
     expect(File('assets/ai_chat/strings.json').readAsStringSync(),
         File('../shared/ai_chat/strings.json').readAsStringSync());
+  });
+
+  test('the app bundles an exact copy of shared/ai_chat/questions.json', () {
+    expect(File('assets/ai_chat/questions.json').readAsStringSync(),
+        File('../shared/ai_chat/questions.json').readAsStringSync());
+  });
+
+  test('hidden questions come from the registry', () {
+    expect(askHiddenIds(registry), {'expiring_stock'});
   });
 
   test('the phone speaks the contract version the server sends', () {
@@ -83,7 +93,7 @@ void main() {
 
   group('every fixture card draws', () {
     for (final c in (cards['cases'] as List).cast<Map<String, dynamic>>()) {
-      final name = '${c['question_id']} ${c['lang']}${c['empty'] == true ? ' empty' : ''}';
+      final name = '${c['question_id']} ${c['lang']}${c['empty'] == true ? ' empty' : ''}${c['note'] != null ? ' ${c['note']}' : ''}';
       for (final width in [360.0, 412.0]) {
         testWidgets('$name at ${width.toInt()}dp', (t) async {
           t.view.physicalSize = Size(width, 2400);
@@ -113,6 +123,10 @@ void main() {
           expect(find.textContaining(heroText, findRichText: true), findsWidgets);
           for (final r in [...(card['rows'] as List), ...(card['rows_after'] as List)].cast<Map<String, dynamic>>()) {
             expect(find.text('${r['label']}'), findsWidgets, reason: 'row ${r['label']}');
+          }
+          if (card['footnote'] != null) {
+            expect(find.textContaining('${card['footnote']}'.substring(0, 20), findRichText: true), findsOneWidget,
+                reason: 'footnote drawn');
           }
           final table = card['table'] as Map<String, dynamic>?;
           if (table != null) {

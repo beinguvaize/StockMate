@@ -132,6 +132,9 @@ flutter:
     # A copy of shared/ai_chat/strings.json for first run and offline; a test
     # fails if the two differ.
     - assets/ai_chat/strings.json
+    # Copy of shared/ai_chat/questions.json: which questions are hidden, so a
+    # list saved before a question was hidden never shows it. Test-checked.
+    - assets/ai_chat/questions.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -199,8 +199,11 @@
    "dues_age": "Age is counted from the sale date.",
    "collections_week": "Day Book shows one day at a time.",
    "cash_bank": "Transfers between your own accounts are left out of in and out.",
-   "gst_collected": "The GSTR-3B screen can differ by a few paise: it rounds GST on each line, your bills round it once per bill.",
-   "gst_gaps": "Purchase Register shows each purchase with its bill number and supplier GSTIN. Missing HSN codes are not on that screen."
+   "gst_gaps": "Purchase Register shows each purchase with its bill number and supplier GSTIN. Missing HSN codes are not on that screen.",
+   "cash_bank_loans": "The Accounts screen total also includes loan accounts ({loan}), so it reads {total}.",
+   "gst_screen_more": "GSTR-3B shows {gap} more GST: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill.",
+   "gst_screen_less": "GSTR-3B shows {gap} less GST: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill.",
+   "gst_bill_rounding": "{gap} of bill totals is rounding not recorded as round-off, so the sales row above is {gap} more than GSTR-3B's taxable value."
   },
   "links": {
    "reports_daily_sales": "Open Daily Sales",
@@ -315,7 +318,7 @@
    "never_3": "GSTIN, PAN, आधार",
    "never_4": "बैंक और UPI की जानकारी",
    "never_5": "आपकी दुकान का नाम",
-   "on_fine": "जब आप पूछें सुविधा चालू करते हैं, तो आप जो सवाल चुनते हैं उसके आँकड़े Google के Gemini API को भेजे जाते हैं, जो छोटी व्याख्या लिखता है। ये आँकड़े कुल रकम, गिनती, तारीखें और उत्पादों के नाम होते हैं। हम ग्राहकों या सप्लायरों के नाम, फ़ोन नंबर, GSTIN या बैंक की जानकारी कभी नहीं भेजते।\nहम Google की मुफ़्त सेवा इस्तेमाल करते हैं। Google भेजी गई जानकारी का इस्तेमाल अपने उत्पाद बेहतर करने के लिए कर सकता है, और Google इसे हमारे Google खाते, API key और प्रोजेक्ट से अलग करने के बाद Google के समीक्षक इसे पढ़ सकते हैं। Google यह नहीं बताता कि वह यह डेटा कितने समय तक रखता है।\nअगर आप अपनी बिक्री, स्टॉक या बकाया के आँकड़ों को गोपनीय मानते हैं, तो इसे चालू न करें। कार्ड पर दिखने वाले आँकड़े आपके अपने खातों से आते हैं, AI से नहीं। आप पूछें सुविधा कभी भी Settings में बंद कर सकते हैं।",
+   "on_fine": "जब आप पूछें सुविधा चालू करते हैं, तो आप जो सवाल चुनते हैं उसके आँकड़े Google के Gemini API को भेजे जाते हैं, जो छोटी व्याख्या लिखता है। ये आँकड़े कुल रकम, गिनती, तारीखें और उत्पादों के नाम होते हैं। हम ग्राहकों या सप्लायरों के नाम, फ़ोन नंबर, GSTIN या बैंक की जानकारी कभी नहीं भेजते।\nहम Google की मुफ़्त सेवा इस्तेमाल करते हैं। Google भेजी गई जानकारी का इस्तेमाल अपने उत्पाद बेहतर करने के लिए कर सकता है, और Google इसे हमारे Google खाते, API key और प्रोजेक्ट से अलग करने के बाद Google के लोग (मानव समीक्षक) इसे पढ़ सकते हैं। Google यह नहीं बताता कि वह यह डेटा कितने समय तक रखता है।\nअगर आप अपनी बिक्री, स्टॉक या बकाया के आँकड़ों को गोपनीय मानते हैं, तो इसे चालू न करें। कार्ड पर दिखने वाले आँकड़े आपके अपने खातों से आते हैं, AI से नहीं। आप पूछें सुविधा कभी भी Settings में बंद कर सकते हैं।",
    "turn_on": "चालू करें",
    "not_now": "अभी नहीं",
    "turn_off": "बंद करें",
@@ -340,7 +343,7 @@
    "stale_note": "यह जवाब हिन्दी में देखने के लिए टैप करें।",
    "on_fine_paragraphs": [
     "जब आप पूछें सुविधा चालू करते हैं, तो आप जो सवाल चुनते हैं उसके आँकड़े Google के Gemini API को भेजे जाते हैं, जो छोटी व्याख्या लिखता है। ये आँकड़े कुल रकम, गिनती, तारीखें और उत्पादों के नाम होते हैं। हम ग्राहकों या सप्लायरों के नाम, फ़ोन नंबर, GSTIN या बैंक की जानकारी कभी नहीं भेजते।",
-    "हम Google की मुफ़्त सेवा इस्तेमाल करते हैं। Google भेजी गई जानकारी का इस्तेमाल अपने उत्पाद बेहतर करने के लिए कर सकता है, और Google इसे हमारे Google खाते, API key और प्रोजेक्ट से अलग करने के बाद Google के समीक्षक इसे पढ़ सकते हैं। Google यह नहीं बताता कि वह यह डेटा कितने समय तक रखता है।",
+    "हम Google की मुफ़्त सेवा इस्तेमाल करते हैं। Google भेजी गई जानकारी का इस्तेमाल अपने उत्पाद बेहतर करने के लिए कर सकता है, और Google इसे हमारे Google खाते, API key और प्रोजेक्ट से अलग करने के बाद Google के लोग (मानव समीक्षक) इसे पढ़ सकते हैं। Google यह नहीं बताता कि वह यह डेटा कितने समय तक रखता है।",
     "अगर आप अपनी बिक्री, स्टॉक या बकाया के आँकड़ों को गोपनीय मानते हैं, तो इसे चालू न करें। कार्ड पर दिखने वाले आँकड़े आपके अपने खातों से आते हैं, AI से नहीं। आप पूछें सुविधा कभी भी Settings में बंद कर सकते हैं।"
    ],
    "on_fine_review": "NEEDS NATIVE HINDI REVIEW"
@@ -469,8 +472,11 @@
    "dues_age": "उम्र बिक्री की तारीख से गिनी गई है।",
    "collections_week": "Day Book एक बार में एक दिन दिखाता है।",
    "cash_bank": "आपके अपने खातों के बीच ट्रांसफ़र आए-गए में नहीं गिने गए।",
-   "gst_collected": "GSTR-3B स्क्रीन कुछ पैसे अलग दिख सकती है: वह हर लाइन पर GST राउंड करती है, आपके बिल पूरे बिल पर एक बार।",
-   "gst_gaps": "Purchase Register में हर खरीद उसके बिल नंबर और सप्लायर के GSTIN के साथ दिखती है। HSN कोड की कमी उस स्क्रीन पर नहीं दिखती।"
+   "gst_gaps": "Purchase Register में हर खरीद उसके बिल नंबर और सप्लायर के GSTIN के साथ दिखती है। HSN कोड की कमी उस स्क्रीन पर नहीं दिखती।",
+   "cash_bank_loans": "Accounts स्क्रीन के कुल में लोन खाते ({loan}) भी जुड़े हैं, इसलिए वहाँ {total} दिखता है।",
+   "gst_screen_more": "GSTR-3B में GST {gap} ज़्यादा दिखता है: वह हर बिल पर हर टैक्स दर के लिए CGST और SGST अलग-अलग राउंड करता है; आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।",
+   "gst_screen_less": "GSTR-3B में GST {gap} कम दिखता है: वह हर बिल पर हर टैक्स दर के लिए CGST और SGST अलग-अलग राउंड करता है; आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।",
+   "gst_bill_rounding": "बिलों के कुल में {gap} ऐसी राउंडिंग है जो राउंड-ऑफ़ में दर्ज नहीं हुई, इसलिए ऊपर की बिक्री GSTR-3B के कर योग्य मूल्य से {gap} ज़्यादा है।"
   },
   "links": {
    "reports_daily_sales": "Daily Sales खोलें",

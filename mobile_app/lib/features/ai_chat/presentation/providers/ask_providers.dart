@@ -17,6 +17,19 @@ final askLocalProvider = Provider<AskLocal>((ref) => const AskLocal());
 final askBundledStringsProvider = FutureProvider<Map<String, dynamic>>((ref) async =>
     jsonDecode(await rootBundle.loadString('assets/ai_chat/strings.json')) as Map<String, dynamic>);
 
+/// Question ids the server registry marks hidden (not shown to any shop until
+/// they tie to their screen). Applied to every list, the saved one included,
+/// so a list cached before a question was hidden never offers it.
+final askHiddenQuestionsProvider = FutureProvider<Set<String>>((ref) async {
+  final reg = jsonDecode(await rootBundle.loadString('assets/ai_chat/questions.json')) as Map<String, dynamic>;
+  return askHiddenIds(reg);
+});
+
+Set<String> askHiddenIds(Map<String, dynamic> registry) => {
+      for (final q in (registry['questions'] as List).cast<Map<String, dynamic>>())
+        if (q['hidden'] == true) q['id'] as String,
+    };
+
 /// Who may see the entry. The server decides (is_tenant_admin); this only
 /// keeps the row off staff dashboards.
 bool askMaySee(List<String> roles) => roles.contains('OWNER') || roles.contains('GLOBAL_ADMIN');

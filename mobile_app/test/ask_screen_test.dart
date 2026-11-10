@@ -119,6 +119,7 @@ Future<void> _pump(WidgetTester t, _Client client, {_Local? local, ConnectivityR
       askClientProvider.overrideWithValue(client),
       askLocalProvider.overrideWithValue(local ?? _Local(savedLang: 'en')),
       askBundledStringsProvider.overrideWith((ref) async => _strings),
+      askHiddenQuestionsProvider.overrideWith((ref) async => askHiddenIds(_registry)),
       reportSalesProvider.overrideWith((ref, p) async {
         _salesReads.add(p);
         return const <Map<String, dynamic>>[];
@@ -280,6 +281,7 @@ void main() {
     await _pump(t, c, local: _Local(savedLang: 'hi'), width: 360, height: 780);
     expect(t.takeException(), isNull);
     for (final q in (_registry['questions'] as List).cast<Map<String, dynamic>>()) {
+      if (q['hidden'] == true) continue;
       final label = (q['label'] as Map)['hi'] as String;
       await t.scrollUntilVisible(find.text(label), 80, scrollable: find.byType(Scrollable).first);
       await t.tap(find.text(label));
@@ -356,5 +358,20 @@ void main() {
     await _settle(t);
     expect(find.byKey(const Key('ask-hero')), findsOneWidget);
     expect(find.byKey(const Key('ask-go')), findsNothing);
+  });
+
+  testWidgets('a hidden question never shows, even from a list saved before it was hidden', (t) async {
+    // The old list still offers expiring_stock; the registry now hides it.
+    final local = _Local(savedLang: 'en')..lists['en'] = _list('en');
+    final c = _Client(onList: (l) => _list(l));
+    await _pump(t, c, local: local, conn: ConnectivityResult.none);
+    expect(c.lists, 0);
+    expect(find.text('What should I reorder?'), findsOneWidget);
+    expect(find.text('What is expiring in the next 30 days?'), findsNothing);
+  });
+
+  testWidgets('and not from a server list that still has it either', (t) async {
+    await _pump(t, _Client(onList: (l) => _list(l)));
+    expect(find.text('What is expiring in the next 30 days?'), findsNothing);
   });
 }
