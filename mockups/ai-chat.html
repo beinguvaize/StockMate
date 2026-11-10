@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask: bookledger mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Tokens from src/index.css (theme "white" and [data-theme="dark"]). */
+:root{
+  --canvas:#F6F5F3; --surface:#FFFFFF;
+  --ink-1:#111111; --ink-2:#444444; --ink-3:#68707C;
+  --accent:#D97706; --accent-hover:#B45309; --accent-text:#AB4F08; --on-accent:#1A1206;
+  --pos:#047857; --neg:#D01040;
+  --border:rgba(0,0,0,.08); --border-2:rgba(0,0,0,.14);
+  --hover:rgba(17,17,17,.03); --bar:#E4E1DB; --seg-on:#FFFFFF;
+  --focus:#AB4F08;
+  --shadow-panel:-1px 0 0 rgba(0,0,0,.08), -12px 0 32px rgba(16,24,40,.08);
+  --r-sm:4px; --r-md:6px; --r-xl:8px;
+  --ease:cubic-bezier(0.23,1,0.32,1); --drawer:cubic-bezier(0.32,0.72,0,1);
+  --sans:'Manrope','Noto Sans Devanagari',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --strip:38px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --canvas:#0F0F0F; --surface:#1A1A1A; --ink-1:#F5F5F0; --ink-2:#C4C4C4; --ink-3:#949494;
+  --accent:#F59E0B; --accent-hover:#D97706; --accent-text:#FBBF24; --on-accent:#1A1206;
+  --pos:#34D399; --neg:#FB7185; --border:rgba(255,255,255,.08); --border-2:rgba(255,255,255,.14);
+  --hover:rgba(255,255,255,.04); --bar:#333333; --seg-on:#3D3D3D; --focus:#FBBF24;
+  --shadow-panel:-1px 0 0 rgba(255,255,255,.08), -12px 0 32px rgba(0,0,0,.5); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --canvas:#0F0F0F; --surface:#1A1A1A; --ink-1:#F5F5F0; --ink-2:#C4C4C4; --ink-3:#949494;
+  --accent:#F59E0B; --accent-hover:#D97706; --accent-text:#FBBF24; --on-accent:#1A1206;
+  --pos:#34D399; --neg:#FB7185; --border:rgba(255,255,255,.08); --border-2:rgba(255,255,255,.14);
+  --hover:rgba(255,255,255,.04); --bar:#333333; --seg-on:#3D3D3D; --focus:#FBBF24;
+  --shadow-panel:-1px 0 0 rgba(255,255,255,.08), -12px 0 32px rgba(0,0,0,.5); color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--canvas);color:var(--ink-1);font:400 13px/1.5 var(--sans);letter-spacing:-0.01em;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;letter-spacing:inherit;background:none;border:0;cursor:pointer;text-align:left}
+ul{list-style:none}
+svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:var(--r-sm)}
+.m{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+
+/* Devanagari: no negative tracking (it breaks the headline bar), taller lines
+   for matras, and weights Noto actually has. */
+:lang(hi){letter-spacing:0}
+:lang(hi) .prose,:lang(hi).prose{line-height:1.8}
+:lang(hi) .m{letter-spacing:-0.02em}
+:lang(hi) .pill{font-weight:700}
+/* Devanagari reads smaller than Latin at the same size: lift the small labels. */
+:lang(hi) .ai .lb,:lang(hi) .fn,:lang(hi) .usage,:lang(hi) .hero .d,:lang(hi) .fig-h b,:lang(hi) table.t th{font-size:13px}
+:lang(hi) .qcat{font-size:13px}
+:lang(hi) .msg .fine{font-size:13.5px;line-height:1.7}
+:lang(hi) .msg p,:lang(hi) .msg li{line-height:1.7}
+
+/* ── Review strip: not product ───────────────────────────── */
+.strip{position:fixed;inset:0 0 auto 0;height:var(--strip);background:#26241F;color:#EDEAE3;display:flex;align-items:center;gap:12px;padding:0 12px;font-size:12px;z-index:90;overflow-x:auto;white-space:nowrap}
+.strip b{font-weight:700}
+.strip select,.strip button{font:500 12px var(--sans);color:#EDEAE3;background:#3A372F;border:0;border-radius:var(--r-sm);height:26px;padding:0 8px}
+.strip a{color:#F5C77E}
+body.nochrome{--strip:0px}
+body.nochrome .strip{display:none}
+
+/* ── App shell behind the panel ──────────────────────────── */
+.app{position:fixed;inset:var(--strip) 0 0 0;display:flex}
+.rail{width:248px;flex:none;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:14px 12px;gap:2px;overflow:auto}
+.rail .brand{font-weight:800;font-size:15px;letter-spacing:-0.03em;display:flex;gap:8px;align-items:center;padding:4px 8px 14px}
+.rail .brand i{width:14px;height:14px;border-radius:3px;background:var(--accent)}
+.rail .grp{font-size:12px;color:var(--ink-3);font-weight:500;padding:12px 8px 4px}
+.nav{display:flex;align-items:center;gap:10px;height:34px;padding:0 8px;border-radius:var(--r-md);color:var(--ink-2);font-weight:500;width:100%}
+.nav svg{color:var(--ink-3)}
+.nav:hover{background:var(--hover);color:var(--ink-1)}
+.nav[aria-current]{background:var(--canvas);color:var(--ink-1);font-weight:700;box-shadow:inset 2px 0 0 var(--accent)}
+.nav[aria-current] svg{color:var(--ink-1)}
+.main{flex:1;min-width:0;padding:24px 32px;overflow:auto}
+.main h1{font-size:20px;font-weight:700;letter-spacing:-0.025em}
+.main .sub{color:var(--ink-3)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;margin-top:16px}
+.kpis div{background:var(--surface);padding:12px 14px}
+.kpis span{display:block;font-size:12px;color:var(--ink-3);font-weight:500}
+.kpis b{font:600 17px var(--mono);letter-spacing:-0.02em}
+.lst{margin-top:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl)}
+.lst div{display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)}
+.lst div:last-child{border:0}
+
+/* ── Ask surface: one DOM for web and phone ───────────────── */
+.ask{display:flex;flex-direction:column;height:100%;background:var(--surface);color:var(--ink-1);overflow:hidden}
+.panel{position:absolute;top:0;right:0;bottom:0;width:800px;max-width:100%;box-shadow:var(--shadow-panel);animation:slide 260ms var(--drawer);z-index:20}
+.panel.narrow{width:600px}
+@keyframes slide{from{transform:translateX(24px);opacity:.4}to{transform:none;opacity:1}}
+
+.ask-h{flex:none;height:56px;display:flex;align-items:center;gap:8px;padding:0 12px 0 20px;border-bottom:1px solid var(--border)}
+.ask-h h2{font-size:17px;font-weight:700;letter-spacing:-0.02em;line-height:1.2}
+.ask-h .tag{color:var(--ink-3);font-size:12.5px;margin-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ask-h .sp{flex:1}
+.iconbtn{width:36px;height:36px;border-radius:9999px;display:grid;place-items:center;color:var(--ink-2);flex:none}
+.iconbtn:hover{background:var(--canvas);color:var(--ink-1)}
+.seg{display:inline-flex;padding:2px;height:32px;border-radius:9999px;background:var(--canvas);box-shadow:inset 0 0 0 1px var(--border);flex:none}
+.seg button{padding:0 10px;border-radius:9999px;color:var(--ink-2);font-weight:600;font-size:12.5px;line-height:28px}
+.seg button[aria-pressed="true"]{background:var(--seg-on);color:var(--ink-1);box-shadow:0 0 0 1px var(--border),0 1px 2px rgba(16,24,40,.05)}
+
+.ask-b{flex:1;min-height:0;display:flex}
+.pane-l{flex:none;width:292px;border-right:1px solid var(--border);overflow:auto;display:flex;flex-direction:column}
+.pane-r{flex:1;min-width:0;overflow:auto;display:flex;flex-direction:column}
+
+/* question list: a ledger of tappable lines, not chips */
+.qcat{font-size:12px;font-weight:600;color:var(--ink-3);padding:12px 20px 4px;position:sticky;top:0;background:var(--surface)}
+.qrow{display:flex;align-items:center;gap:8px;width:100%;min-height:42px;padding:7px 12px 7px 20px;font-weight:500;line-height:1.35;color:var(--ink-1);position:relative;transition:background-color 160ms var(--ease)}
+.qrow svg{color:var(--ink-3);margin-left:auto;width:14px;height:14px}
+.qrow:hover{background:var(--hover)}
+.qrow[aria-current="true"]{background:var(--canvas);font-weight:700}
+.qrow[aria-current="true"]::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--accent)}
+.qrow:active{transform:scale(.99)}
+.qrow:focus-visible{outline-offset:-2px}
+.qrow[disabled]{color:var(--ink-3);cursor:not-allowed}
+.qlist-pad{flex:1;padding-bottom:8px}
+.usage{flex:none;margin-top:auto;padding:10px 20px 12px;border-top:1px solid var(--border);font-size:12px;color:var(--ink-3);line-height:1.45;position:sticky;bottom:0;background:var(--surface)}
+.usage b{color:var(--ink-2);font:500 12px var(--mono);letter-spacing:-0.02em}
+
+/* answer */
+.ans{padding:20px 24px 24px;display:flex;flex-direction:column;gap:16px}
+.ans-q{font-size:13px;color:var(--ink-2);font-weight:500;outline:none}
+.hero{display:flex;flex-direction:column;gap:2px;margin-top:-10px}
+.hero .v{font:600 30px/1.2 var(--mono);letter-spacing:-0.03em;color:var(--ink-1)}
+.hero .v small{font:500 15px var(--sans);letter-spacing:-0.01em;color:var(--ink-2);margin-left:6px}
+.hero .c{color:var(--ink-2);font-weight:500}
+.hero .d{color:var(--ink-3);font-size:12.5px}
+.hero .d .m{font-size:12px;color:var(--ink-2);font-weight:500}
+
+.ai{padding-left:12px;border-left:2px solid var(--border-2)}
+.ai .lb{font-size:12px;color:var(--ink-3);font-weight:500;margin-bottom:3px}
+.ai .prose{font-size:14px;line-height:1.6;color:var(--ink-1)}
+.ai .prose .m{font-size:.93em;font-weight:500}
+.ai .note{font-size:13px;color:var(--ink-2);line-height:1.55}
+.ai .note b{color:var(--ink-1);font-weight:700}
+.ai .acts{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+
+.fig{display:flex;flex-direction:column}
+.fig-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:6px;border-bottom:1px solid var(--border-2)}
+.fig-h b{font-weight:700;font-size:13px}
+.fig-h span{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.fig-h span .m{font-size:11.5px}
+.kv{display:grid;gap:0}
+.kv .r{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:7px 0;border-bottom:1px solid var(--border)}
+.kv .r .l{color:var(--ink-2)}
+.kv .r .x{font:500 13px var(--mono);letter-spacing:-0.02em;white-space:nowrap}
+.kv .r.tot .l{font-weight:700;color:var(--ink-1)}
+.kv .r.tot .x{font-weight:600}
+.kv .r.neg .x,.kv .r.neg .l{color:var(--neg)}
+table.t{width:100%;border-collapse:collapse}
+table.t th{font-size:12px;font-weight:600;color:var(--ink-3);text-align:left;padding:7px 0 5px;border-bottom:1px solid var(--border);white-space:nowrap}
+table.t td{padding:7px 0;border-bottom:1px solid var(--border);vertical-align:baseline;line-height:1.35}
+table.t th + th,table.t td + td{padding-left:14px}
+table.t .n{text-align:right;font:500 13px var(--mono);letter-spacing:-0.02em;white-space:nowrap}
+table.t th.n{font:600 12px var(--sans);letter-spacing:inherit}
+table.t td.n.word{font-family:var(--sans);font-weight:500;color:var(--ink-3);letter-spacing:inherit}
+table.t tr.neg td.n.word{color:var(--neg)}
+table.t tr.neg td{color:var(--neg)}
+.bar{display:block;height:4px;border-radius:2px;background:var(--bar);margin-top:5px;position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--ink-3);border-radius:2px}
+tr.strong td{font-weight:600;color:var(--ink-1)}
+tr.strong .bar i{background:var(--ink-1)}
+.fn{font-size:12px;color:var(--ink-3);padding-top:7px;line-height:1.5}
+.fn.req{color:var(--ink-2)}
+
+.pill{height:40px;padding:0 18px;border-radius:9999px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:800;font-size:13px;white-space:nowrap;transition:background-color 120ms var(--ease),transform 120ms var(--ease)}
+.pill:active{transform:scale(.97)}
+.pill.sm{height:32px;padding:0 14px;font-size:12px}
+.pill.pri{background:var(--accent);color:var(--on-accent)}
+.pill.pri:hover{background:var(--accent-hover)}
+.pill.sec{box-shadow:inset 0 0 0 1px var(--border-2);color:var(--ink-1)}
+.pill.sec:hover{background:var(--canvas)}
+.golink{align-self:flex-start}
+
+/* intro in the right pane */
+.intro{padding:24px;color:var(--ink-2);max-width:420px;line-height:1.6}
+.intro h3{font-size:15px;font-weight:700;color:var(--ink-1);margin-bottom:6px;letter-spacing:-0.02em}
+.intro li{padding:8px 0;border-bottom:1px solid var(--border)}
+.intro li:last-child{border:0}
+
+/* loading: same bones as the answer, so nothing jumps */
+.sk{background:var(--canvas);border-radius:var(--r-sm);display:block;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.5}}
+.sk-rows span{height:13px;margin:10px 0}
+.loadline{font-size:13px;color:var(--ink-2);font-weight:500}
+
+/* one-message screens: off, staff, needs internet */
+.msg{padding:28px 28px 24px;max-width:560px;overflow:auto;flex:1;min-height:0}
+.msg h3{font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin-bottom:6px}
+.msg p{color:var(--ink-2);line-height:1.6}
+.msg .two{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;margin-top:18px}
+.msg .two h4{font-size:13px;font-weight:700;padding-bottom:6px;border-bottom:1px solid var(--border-2)}
+.msg .two li{padding:7px 0;border-bottom:1px solid var(--border);color:var(--ink-2);line-height:1.4}
+.pane-r .msg{padding:24px}
+.msg .fine{font-size:12.5px;color:var(--ink-3);margin-top:14px;line-height:1.55}
+.msg .acts{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+.banner{flex:none;padding:10px 20px;background:var(--canvas);border-bottom:1px solid var(--border);line-height:1.45;color:var(--ink-2)}
+.banner b{color:var(--ink-1);font-weight:700}
+
+/* ── Phone: full screen pushed route, touch sized ─────────── */
+.ask.phone .ask-h{padding:0 12px 0 4px;height:56px;gap:4px}
+.ask.phone .ask-h .tag{display:none}
+.ask.phone .ask-h .iconbtn{width:44px;height:44px}
+.ask.phone .seg{height:40px}
+.ask.phone .seg button{line-height:36px;padding:0 12px}
+.ask.phone .ask-b{display:block;overflow:auto}
+.ask.phone .pane-l{width:auto;border:0;overflow:visible;display:block}
+.ask.phone .pane-r{overflow:visible;display:block}
+.ask.phone .qcat{padding:14px 16px 4px;font-size:12.5px;background:var(--surface)}
+.ask.phone .qrow{min-height:50px;padding:10px 12px 10px 16px;font-size:14.5px;border-bottom:1px solid var(--border)}
+.ask.phone .usage{position:static;padding:14px 16px 20px;border:0}
+.ask.phone .ans{padding:16px 16px 20px}
+.ask.phone .hero .v{font-size:32px}
+.ask.phone .ai .prose{font-size:15px}
+.ask.phone .msg{padding:20px 16px;max-width:none}
+.ask.phone .msg .two{grid-template-columns:1fr;gap:16px}
+.ask.phone .banner{padding:10px 16px}
+.ask.phone .pill{height:48px;font-size:14px}
+.ask.phone .pill.sm{height:40px;font-size:13px}
+.ask.phone .msg .acts .pill{flex:1}
+.ask.phone table.t td{padding:9px 0}
+.ask.phone table.t th + th,.ask.phone table.t td + td{padding-left:10px}
+.ask.phone .kv .r{padding:10px 0}
+.ask.phone .intro{display:none}
+.dock{flex:none;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--surface)}
+.dock .pill{width:100%}
+.ask.phone .also{margin:4px -16px 0}
+.also .hd{font-size:12.5px;font-weight:600;color:var(--ink-3);padding:6px 16px 4px}
+
+/* phone entry (dashboard behind) */
+.pbar{height:56px;display:flex;align-items:center;gap:8px;padding:0 8px;background:var(--surface);border-bottom:1px solid var(--border);flex:none}
+.pbar b{font-weight:800;letter-spacing:-0.03em;font-size:15px}
+.pnav{display:flex;height:60px;border-top:1px solid var(--border);background:var(--surface);flex:none}
+.pnav span{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;color:var(--ink-3);font-weight:500}
+.pnav span.on{color:var(--ink-1);font-weight:700}
+.pbody{flex:1;overflow:auto;padding:16px;background:var(--canvas)}
+.pbody h1{font-size:18px;font-weight:700}
+.pbody .kpis{grid-template-columns:1fr 1fr}
+.askrow{display:flex;width:100%;align-items:center;gap:10px;margin-top:12px;padding:12px;min-height:56px;background:var(--surface);border-radius:var(--r-xl);box-shadow:inset 0 0 0 1px var(--border);font-weight:600}
+.askrow small{display:block;color:var(--ink-3);font-weight:400;font-size:12.5px}
+.askrow svg:last-child{margin-left:auto;color:var(--ink-3)}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,8px);background:var(--ink-1);color:var(--surface);padding:10px 14px;border-radius:var(--r-xl);font-weight:500;opacity:0;pointer-events:none;transition:opacity 200ms var(--ease),transform 200ms var(--ease);z-index:80;max-width:calc(100vw - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ── Board: every state side by side ──────────────────────── */
+body.board{overflow:auto}
+.bd{padding:calc(var(--strip) + 20px) 24px 40px;display:flex;flex-wrap:wrap;gap:28px 24px;align-items:flex-start}
+.bd > h1{width:100%;font-size:15px;font-weight:700;padding-top:8px;border-top:1px solid var(--border-2)}
+.frame .cap{font-size:12.5px;font-weight:600;padding-bottom:6px;color:var(--ink-2);max-width:390px}
+.frame .box{position:relative;overflow:hidden;border-radius:var(--r-xl);box-shadow:0 0 0 1px var(--border-2)}
+.frame.web .box{width:800px;height:760px}
+.frame.phone .box{width:390px;height:844px}
+
+@media (max-width:640px){
+  .app{display:block}
+  .strip{gap:8px}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-ask" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.2a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.6-2.8 2.6"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-go" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="9" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="12" width="8" height="9" rx="1.5"/><rect x="3" y="16" width="8" height="5" rx="1.5"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/><path d="M2 3h3l2.6 12.4a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.5L21 8H6"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M16 4a4 4 0 0 1 0 8M18 15c2.500.6 4 2.500 4 6"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+  <symbol id="i-truck" viewBox="0 0 24 24"><path d="M2 6h12v11H2zM14 10h4l4 4v3h-8z"/><circle cx="7" cy="18" r="1.8"/><circle cx="18" cy="18" r="1.8"/></symbol>
+</svg>
+<div id="root"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+/* ── Copy and data. Mock shop: Kollam Pack House, Wed 18 Nov 2026, 4:12 pm. ── */
+const L = (en, hi) => ({en, hi});
+const STR = {
+  ask:L('Ask','पूछें'),
+  tag:L('Answers come from your books. AI only explains them.','जवाब आपके खातों से आते हैं। AI सिर्फ़ उन्हें समझाता है।'),
+  fromBooks:L('From your books','आपके खातों से'),
+  asOf:L('18 Nov, 4:12 pm','18 Nov, 4:12 pm'),
+  aiLabel:L('Written by AI from the figures below','नीचे के आँकड़ों से AI ने लिखा'),
+  figuresOnly:L('Figures only','सिर्फ़ आँकड़े'),
+  reading:L('Reading your books','आपके खाते पढ़े जा रहे हैं'),
+  also:L('Also ask','यह भी पूछें'),
+  usage:L('<b>63</b> of 100 explanations used in November. Figures never count.','नवंबर में 100 में से <b>63</b> व्याख्याएँ इस्तेमाल हुईं। आँकड़ों की गिनती नहीं होती।'),
+  quotaUse:L('All 100 explanations used in November. Figures keep working. Explanations return on 1 Dec.','नवंबर की सभी 100 व्याख्याएँ इस्तेमाल हो चुकीं। आँकड़े चलते रहेंगे। व्याख्याएँ 1 Dec को फिर मिलेंगी।'),
+  introH:L('Tap a question','कोई सवाल चुनें'),
+  intro:[L('Each answer shows your real figures, read fresh from your books.','हर जवाब में आपके असली आँकड़े होते हैं, जो अभी आपके खातों से पढ़े जाते हैं।'),
+         L('AI adds 2 to 4 sentences about those figures. It cannot change them.','AI उन आँकड़ों पर 2 से 4 वाक्य लिखता है। वह उन्हें बदल नहीं सकता।'),
+         L('Every answer links to the screen where you can check the same numbers.','हर जवाब से आप उस स्क्रीन पर जा सकते हैं जहाँ यही आँकड़े मिलते हैं।')],
+  // reasons: same slot as the AI text, figures untouched
+  guard:L('The explanation was left out because a number in it did not match your books. The figures below are correct.','व्याख्या हटा दी गई क्योंकि उसका एक आँकड़ा आपके खातों से मेल नहीं खाया। नीचे के आँकड़े सही हैं।'),
+  model:L('The explanation could not be written just now. The figures below are correct.','अभी व्याख्या नहीं लिखी जा सकी। नीचे के आँकड़े सही हैं।'),
+  notcfg:L('Explanations are not set up yet. The figures below are correct.','व्याख्याएँ अभी चालू नहीं हुई हैं। नीचे के आँकड़े सही हैं।'),
+  rate:L('Too many questions in one minute. Wait a moment for the explanation. The figures below are correct.','एक मिनट में बहुत सवाल हो गए। व्याख्या के लिए थोड़ा रुकें। नीचे के आँकड़े सही हैं।'),
+  quota:L('You have used all 100 explanations for November. They return on 1 Dec. Your figures keep working.','आपने नवंबर की सभी 100 व्याख्याएँ इस्तेमाल कर लीं। वे 1 Dec को फिर मिलेंगी। आपके आँकड़े चलते रहेंगे।'),
+  quotaH:L('Explanations used up','व्याख्याएँ खत्म'),
+  retry:L('Try again','फिर कोशिश करें'),
+  plans:L('See plans','प्लान देखें'),
+  offH:L('Needs internet','इंटरनेट चाहिए'),
+  off:L('Answers are read live from your books, so they cannot be worked out on this device. Questions will work again when you are back online.','जवाब सीधे आपके खातों से पढ़े जाते हैं, इसलिए इस डिवाइस पर नहीं निकाले जा सकते। इंटरनेट आते ही सवाल फिर चलेंगे।'),
+  errH:L('Could not read your figures','आपके आँकड़े नहीं पढ़े जा सके'),
+  errWhy:{conn:L('Connection lost.','कनेक्शन टूट गया।'),slow:L('Your books took too long to answer.','आपके खातों से जवाब आने में बहुत देर लगी।')},
+  err:L('Nothing is shown rather than a wrong number.','गलत आँकड़ा दिखाने के बजाय कुछ नहीं दिखाया गया।'),
+  nodata:L('No sales recorded yet today.','आज अभी तक कोई बिक्री दर्ज नहीं हुई।'),
+  staffH:L('Ask is for the shop owner','पूछें सुविधा सिर्फ़ दुकान के मालिक के लिए है'),
+  staff:L('It shows profit, cash and dues, so staff accounts do not have it for now. Your owner can see these answers on their login.','इसमें मुनाफ़ा, नकद और बकाया दिखता है, इसलिए अभी स्टाफ़ खातों में यह नहीं है। मालिक अपने लॉगिन पर ये जवाब देख सकते हैं।'),
+  staffBack:L('Back to dashboard','डैशबोर्ड पर लौटें'),
+  onH:L('Turn on Ask for your shop','अपनी दुकान के लिए पूछें सुविधा चालू करें'),
+  on:L('Tap a question and see your real figures, with a short explanation written by AI.','सवाल चुनें और अपने असली आँकड़े देखें, साथ में AI की लिखी छोटी व्याख्या।'),
+  sentH:L('Sent to the AI','AI को भेजा जाता है'),
+  neverH:L('Never sent','कभी नहीं भेजा जाता'),
+  sent:[L('Totals, counts and dates','कुल रकम, गिनती और तारीखें'),L('Product names and units','उत्पादों के नाम और यूनिट')],
+  never:[L('Customer, supplier and staff names. The AI sees a code like C1.','ग्राहक, सप्लायर और स्टाफ़ के नाम। AI को C1 जैसा कोड दिखता है।'),L('Phone numbers, addresses, email','फ़ोन नंबर, पते, ईमेल'),L('GSTIN, PAN, Aadhaar','GSTIN, PAN, आधार'),L('Bank and UPI details','बैंक और UPI की जानकारी'),L("Your shop's name",'आपकी दुकान का नाम')],
+  fine:L('The AI is Claude, from Anthropic, and it runs outside India. Anthropic does not use this data for training by default, and deletes it within 30 days unless its usage policy or the law requires longer. Only you see Ask. You can turn it off any time in Settings.','यह AI Anthropic का Claude है और भारत के बाहर चलता है। Anthropic सामान्य तौर पर इस डेटा से अपने AI को ट्रेन नहीं करता, और इसे 30 दिनों में हटा देता है, जब तक कि उसकी उपयोग नीति या कानून के कारण ज़्यादा समय रखना ज़रूरी न हो। पूछें सुविधा सिर्फ़ आपको दिखती है। आप इसे कभी भी Settings में बंद कर सकते हैं।'),
+  turnOn:L('Turn on','चालू करें'),
+  notNow:L('Not now','अभी नहीं'),
+  entryT:L('Ask about your shop','अपनी दुकान के बारे में पूछें'),
+  entryS:L('Sales, stock, dues, cash, GST','बिक्री, स्टॉक, बकाया, नकद, GST'),
+};
+const CATS = [['sales',L('Sales','बिक्री')],['stock',L('Stock','स्टॉक')],['dues',L('Dues','बकाया')],['cash',L('Cash','नकद और बैंक')],['gst',L('GST','GST')]];
+
+// column helpers
+const H = {item:L('Item','आइटम'), value:L('Value','रकम')};
+const Q = [
+{id:'sales_today',cat:'sales',label:L('How much did I sell today?','आज मैंने कितनी बिक्री की?'),
+ hero:{v:'₹1,84,620.00',c:L('Sold today, 23 bills','आज की बिक्री, 23 बिल'),d:L('▲ 13.7% vs ₹1,62,400.00 last Wednesday','▲ 13.7%, पिछले बुधवार ₹1,62,400.00 थी')},
+ text:L('You sold ₹1,84,620.00 today across 23 bills, which is 13.7% more than last Wednesday. Credit is the largest part at ₹78,600.00. Returns today are ₹1,850.00.',
+        'आज आपने 23 बिलों में ₹1,84,620.00 की बिक्री की, जो पिछले बुधवार से 13.7% ज़्यादा है। सबसे बड़ा हिस्सा उधार का है, ₹78,600.00। आज की वापसी ₹1,850.00 है।'),
+ kv:[[L('Credit','उधार'),'₹78,600.00'],[L('UPI','UPI'),'₹58,720.00'],[L('Cash','नकद'),'₹42,300.00'],[L('Card','कार्ड'),'₹5,000.00'],[L('Total sold','कुल बिक्री'),'₹1,84,620.00','tot'],[L('Average bill','औसत बिल'),'₹8,026.96'],[L('Returns','वापसी'),'₹1,850.00']],
+ link:L('Open Daily Sales','Daily Sales खोलें')},
+{id:'profit_month',cat:'sales',label:L('What is my profit this month?','इस महीने मेरा मुनाफ़ा कितना है?'),
+ hero:{v:'₹2,30,560.00',c:L('Net profit, 1 to 18 Nov','शुद्ध मुनाफ़ा, 1 से 18 Nov'),d:L('▼ 12.0% vs ₹2,61,980.00 for 14 to 31 Oct','▼ 12.0%, 14 से 31 Oct में ₹2,61,980.00 था')},
+ text:L('Your net profit so far this month is ₹2,30,560.00, which is 12.0% lower than 14 to 31 Oct. Sales after returns are ₹18,46,300.00 and expenses are ₹1,12,900.00.',
+        'इस महीने अब तक आपका शुद्ध मुनाफ़ा ₹2,30,560.00 है, जो 14 से 31 Oct से 12.0% कम है। वापसी के बाद बिक्री ₹18,46,300.00 है और खर्च ₹1,12,900.00 है।'),
+ kv:[[L('Sales after returns','वापसी के बाद बिक्री'),'₹18,46,300.00'],[L('Cost of goods','माल की लागत'),'₹15,02,840.00'],[L('Gross profit','सकल मुनाफ़ा'),'₹3,43,460.00','tot'],[L('Expenses','खर्च'),'₹1,12,900.00'],[L('Net profit','शुद्ध मुनाफ़ा'),'₹2,30,560.00','tot'],[L('Returns','वापसी'),'₹14,250.00']],
+ link:L('Open Financials','Financials खोलें')},
+{id:'top_items',cat:'sales',label:L('Which items are selling the most this month?','इस महीने कौन से आइटम सबसे ज़्यादा बिक रहे हैं?'),
+ hero:{v:'₹2,07,360.00',c:L('Top item: Frootty plate 12"','सबसे आगे: Frootty plate 12"')},
+ text:L('Frootty plate 12" is your top seller this month at ₹2,07,360.00 from 38 bills. Paper cup 150ml follows at ₹1,91,520.00. You have sold 86 different items so far.',
+        'इस महीने Frootty plate 12" सबसे आगे है, 38 बिलों में ₹2,07,360.00। उसके बाद Paper cup 150ml है, ₹1,91,520.00। अब तक 86 अलग-अलग आइटम बिके हैं।'),
+ table:{cols:[H.item,L('Sold','बिका'),L('Bills','बिल'),H.value],num:[1,2,3],rows:[['Frootty plate 12"','1,920 PKT','38','₹2,07,360.00'],['Paper cup 150ml','4,800 PKT','44','₹1,91,520.00'],['Aluminium container 750ml','340 BOX','29','₹1,43,140.00'],['SILVER PLATE 12','1,400 PKT','31','₹1,26,000.00'],['10*13 Cover PKT','620 KG','26','₹88,040.00']]},
+ fn:L('Top 5 of 86 items sold this month. By sales value, not margin.','इस महीने बिके 86 आइटम में से शीर्ष 5। बिक्री रकम के हिसाब से, मार्जिन के नहीं।'),
+ link:L('Open Product Sales','Product Sales खोलें')},
+{id:'low_stock',cat:'stock',label:L('What should I reorder?','मुझे क्या दोबारा मँगाना चाहिए?'),
+ hero:{v:'14',u:L('items','आइटम'),c:L('Low on stock, 3 of them at zero','स्टॉक कम, इनमें 3 खत्म')},
+ text:L('3 items are out of stock and 14 are low in all. Filling them back up to their limits costs ₹86,400.00 at your cost price. Paper cup 250ml, Biryani box 1000ml and Cling film 300mm are at 0.',
+        'कुल 14 आइटम कम हैं और 3 पूरी तरह खत्म हैं। इन्हें सीमा तक भरने में आपकी लागत पर ₹86,400.00 लगेंगे। Paper cup 250ml, Biryani box 1000ml और Cling film 300mm का स्टॉक 0 है।'),
+ table:{cols:[H.item,L('Stock','स्टॉक'),L('Limit','सीमा'),L('Short','कमी')],num:[1,2,3],rows:[['Paper cup 250ml','0 PKT','100','100'],['Biryani box 1000ml','0 BOX','20','20'],['Cling film 300mm','0 ROLL','15','15'],['Frootty plate 12"','40 PKT','150','110'],['10*13 Cover PKT','12 KG','50','38']]},
+ kv2:[[L('Cost to refill all 14','सभी 14 भरने की लागत'),'₹86,400.00','tot']],
+ fn:L('Top 5 of 14 shown. The cost covers all 14.','14 में से 5 दिखाए गए। लागत सभी 14 की है।'),
+ link:L('Open Low Stock','Low Stock खोलें')},
+{id:'expiring_stock',cat:'stock',label:L('What is expiring in the next 30 days?','अगले 30 दिनों में क्या एक्सपायर हो रहा है?'),
+ hero:{v:'₹31,850.00',c:L('Expires by 18 Dec, 3 batches','18 Dec तक एक्सपायर, 3 बैच')},
+ text:L('1 batch worth ₹4,320.00 has already expired. 3 more batches worth ₹31,850.00 expire by 18 Dec. The first is Compostable bag 16×20 on 2 Dec.',
+        '1 बैच, ₹4,320.00 का, पहले ही एक्सपायर हो चुका है। 3 और बैच, ₹31,850.00 के, 18 Dec तक एक्सपायर होंगे। सबसे पहले Compostable bag 16×20, 2 Dec को।'),
+ table:{cols:[H.item,L('Expiry','एक्सपायरी'),L('Left','बचा'),H.value],num:[1,2,3],negRows:[0],rows:[['Compostable bag 13×16',L('12 Nov, expired','12 Nov, एक्सपायर'),'24 KG','₹4,320.00'],['Compostable bag 16×20','2 Dec','60 KG','₹12,600.00'],['Bio-lined cup 200ml','9 Dec','300 PKT','₹13,500.00'],['Compostable bag 10×12','16 Dec','25 KG','₹5,750.00']]},
+ fn:L('₹4,320.00 of stock lost.','₹4,320.00 का स्टॉक बेकार हो गया।'),
+ link:L('Open Expiry report','Expiry report खोलें')},
+{id:'dead_stock',cat:'stock',label:L('Which stock has not sold for 30 days?','कौन सा स्टॉक 30 दिनों से नहीं बिका?'),
+ hero:{v:'₹1,38,900.00',c:L('Stuck in 21 items, no sale since 19 Oct','21 आइटम में अटका, 19 Oct से बिक्री नहीं')},
+ text:L('21 items have not sold since 19 Oct, with ₹1,38,900.00 of stock sitting in them. The biggest is Areca plate 10" round at ₹38,640.00.',
+        '21 आइटम 19 Oct से नहीं बिके, और उनमें ₹1,38,900.00 का स्टॉक पड़ा है। सबसे बड़ा Areca plate 10" round है, ₹38,640.00।'),
+ table:{cols:[H.item,L('Stock','स्टॉक'),H.value],num:[1,2],rows:[['Areca plate 10" round','420 PKT','₹38,640.00'],['Wooden spoon 140mm','900 PKT','₹28,350.00'],['Butter paper 24×36','180 KG','₹21,240.00'],['Paper straw 6mm','350 PKT','₹15,400.00'],['Tissue napkin 30×30','480 PKT','₹11,760.00']]},
+ fn:L('Top 5 of 21 shown. The total covers all 21, at cost price.','21 में से 5 दिखाए गए। कुल रकम सभी 21 की है, लागत पर।'),
+ link:L('Open Dead Stock','Dead Stock खोलें')},
+{id:'top_dues',cat:'dues',label:L('Who owes me the most?','मेरा सबसे ज़्यादा पैसा किस पर बाकी है?'),
+ hero:{v:'₹1,12,400.00',c:L('Hotel Arya Bhavan owes the most','सबसे ज़्यादा Hotel Arya Bhavan पर बाकी'),d:L('₹6,42,850.00 unpaid by 37 customers','37 ग्राहकों पर कुल ₹6,42,850.00 बाकी')},
+ text:L('37 customers owe you ₹6,42,850.00 in total. Hotel Arya Bhavan owes the most at ₹1,12,400.00 and last paid on 2 Oct. Ammachi\'s Kitchen has not made a payment yet.',
+        '37 ग्राहकों पर कुल ₹6,42,850.00 बाकी है। सबसे ज़्यादा Hotel Arya Bhavan पर है, ₹1,12,400.00, और उनका आखिरी भुगतान 2 Oct को था। Ammachi\'s Kitchen ने अभी तक कोई भुगतान नहीं किया।'),
+ table:{cols:[L('Customer','ग्राहक'),L('Last paid','आखिरी भुगतान'),L('Unpaid','बाकी')],num:[1,2],rows:[['Hotel Arya Bhavan','2 Oct','₹1,12,400.00'],['Sagar Caterers','11 Nov','₹86,250.00'],['Kollam Bakery Supplies','27 Sep','₹64,800.00'],['Hotel Seaview','8 Nov','₹51,300.00'],["Ammachi's Kitchen",L('Never','कभी नहीं'),'₹43,900.00']]},
+ fn:L('Top 5 of 37 shown. The total covers all 37.','37 में से 5 दिखाए गए। कुल रकम सभी 37 की है।'),
+ link:L('Open Customers','Customers खोलें')},
+{id:'dues_age',cat:'dues',label:L('How old is my unpaid money?','मेरा बकाया पैसा कितना पुराना है?'),
+ hero:{v:'₹6,42,850.00',c:L('Unpaid in total, oldest bill unpaid for 147 days','कुल बकाया, सबसे पुराना बिल 147 दिन से बकाया')},
+ text:L('₹6,42,850.00 is unpaid in total. ₹3,18,400.00 has been unpaid for 30 days or less. ₹59,408.00 has been unpaid for more than 90 days, and one bill has been unpaid for 147 days.',
+        'कुल ₹6,42,850.00 बकाया है। ₹3,18,400.00, 30 दिन या उससे कम समय से बकाया है। ₹59,408.00, 90 दिन से ज़्यादा समय से बकाया है, और एक बिल 147 दिन से बकाया है।'),
+ bars:{cols:[L('Unpaid for','कितने दिन से बकाया'),L('Bills','बिल'),L('Amount','रकम')],rows:[[L('0 to 30 days','0 से 30 दिन'),'61','₹3,18,400.00',49.5],[L('31 to 60 days','31 से 60 दिन'),'28','₹1,76,250.00',27.4],[L('61 to 90 days','61 से 90 दिन'),'12','₹88,700.00',13.8],[L('More than 90 days','90 दिन से ज़्यादा'),'7','₹59,408.00',9.2,'strong']]},
+ kv2:[[L('Not matched to a bill','किसी बिल से मेल नहीं'),'₹92.00'],[L('Total unpaid','कुल बकाया'),'₹6,42,850.00','tot']],
+ fn:L('Age is counted from the sale date.','उम्र बिक्री की तारीख से गिनी गई है।'),
+ link:L('Open Customers','Customers खोलें')},
+{id:'collections_week',cat:'dues',label:L('How much did I collect this week?','इस हफ़्ते मैंने कितनी वसूली की?'),
+ hero:{v:'₹1,42,300.00',c:L('Collected, 16 to 18 Nov','वसूली, 16 से 18 Nov'),d:L('▲ 20.1% vs ₹1,18,500.00 for the same days last week, 9 to 11 Nov','▲ 20.1%, पिछले हफ़्ते के इन्हीं दिनों, 9 से 11 Nov, में ₹1,18,500.00 थी')},
+ text:L('You collected ₹1,42,300.00 so far this week from 14 customers, which is 20.1% more than the same days last week. UPI brought in the most at ₹88,300.00.',
+        'इस हफ़्ते अब तक आपने 14 ग्राहकों से ₹1,42,300.00 वसूले, जो पिछले हफ़्ते के इन्हीं दिनों से 20.1% ज़्यादा है। सबसे ज़्यादा UPI से आया, ₹88,300.00।'),
+ kv:[[L('UPI','UPI'),'₹88,300.00'],[L('Cash','नकद'),'₹34,000.00'],[L('Bank','बैंक'),'₹20,000.00'],[L('Total collected','कुल वसूली'),'₹1,42,300.00','tot'],[L('Receipts','रसीदें'),'19'],[L('Customers who paid','भुगतान करने वाले ग्राहक'),'14']],
+ fn:L('Day Book shows one day at a time.','Day Book एक बार में एक दिन दिखाता है।'),
+ link:L('Open Day Book','Day Book खोलें')},
+{id:'cash_bank',cat:'cash',label:L('How much cash and bank money do I have?','मेरे पास कितना नकद और बैंक में पैसा है?'),
+ hero:{v:'₹4,86,240.00',c:L('Cash and bank now','अभी नकद और बैंक')},
+ text:L('You have ₹4,86,240.00 in all: ₹1,12,640.00 in cash and ₹3,73,600.00 in bank. Today ₹96,020.00 came in and ₹58,400.00 went out.',
+        'आपके पास कुल ₹4,86,240.00 हैं: ₹1,12,640.00 नकद और ₹3,73,600.00 बैंक में। आज ₹96,020.00 आए और ₹58,400.00 गए।'),
+ kv:[[L('Counter cash','काउंटर नकद'),'₹1,12,640.00'],['Federal Bank current','₹3,01,400.00'],['SBI savings','₹72,200.00'],[L('Total','कुल'),'₹4,86,240.00','tot'],[L('In today','आज आए'),'₹96,020.00'],[L('Out today','आज गए'),'₹58,400.00']],
+ fn:L('Transfers between your own accounts are left out of in and out.','आपके अपने खातों के बीच ट्रांसफ़र आए-गए में नहीं गिने गए।'),
+ link:L('Open Accounts','Accounts खोलें')},
+{id:'gst_collected',cat:'gst',label:L('How much GST did I collect this month?','इस महीने मेरी बिक्री पर कितना GST आया?'),
+ hero:{v:'₹2,81,640.00',c:L('GST on your sales, 1 to 18 Nov','आपकी बिक्री पर GST, 1 से 18 Nov')},
+ text:L('You collected ₹2,81,640.00 of GST on sales of ₹18,46,300.00 so far this month. The whole of October was ₹4,12,300.00. This is from your books and is not a filing figure.',
+        'इस महीने अब तक ₹18,46,300.00 की बिक्री पर ₹2,81,640.00 GST आया। पूरे October में यह ₹4,12,300.00 था। यह आपके खातों से है, फ़ाइलिंग का आँकड़ा नहीं है।'),
+ kv:[[L('Sales in this period','इस अवधि की बिक्री'),'₹18,46,300.00'],[L('GST on these sales','इस बिक्री पर GST'),'₹2,81,640.00','tot'],[L('October, full month','October, पूरा महीना'),'₹4,12,300.00']],
+ req:L('GST on your sales, from your books. This is before input credit and is not a filing figure.','आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले का है और फ़ाइलिंग का आँकड़ा नहीं है।'),
+ link:L('Open GSTR-3B','GSTR-3B खोलें')},
+{id:'gst_gaps',cat:'gst',label:L('What is missing in my GST records?','मेरे GST रिकॉर्ड में क्या कमी है?'),
+ hero:{v:'41',u:L('of 96','96 में से'),c:L('Purchases with no bill number, 1 Oct to 18 Nov','बिना बिल नंबर की खरीद, 1 Oct से 18 Nov')},
+ text:L('41 of your 96 purchases have no bill number, worth ₹4,18,300.00. 318 of 2,140 sale lines have no HSN code. 7 of the 18 suppliers you used have no GSTIN.',
+        'आपकी 96 में से 41 खरीद में बिल नंबर नहीं है, जिनकी रकम ₹4,18,300.00 है। 2,140 में से 318 बिक्री लाइनों में HSN कोड नहीं है। 18 में से 7 सप्लायरों का GSTIN नहीं है।'),
+ table:{cols:[L('Record','रिकॉर्ड'),L('Missing','कमी'),L('Of','कुल')],num:[1,2],rows:[[L('Purchases with no bill number','बिना बिल नंबर की खरीद'),'41','96'],[L('Sale lines with no HSN','बिना HSN की बिक्री लाइनें'),'318','2,140'],[L('Products with no HSN','बिना HSN के उत्पाद'),'52','246'],[L('Suppliers with no GSTIN','बिना GSTIN के सप्लायर'),'7','18']]},
+ kv2:[[L('Value of purchases with no bill number','बिना बिल नंबर की खरीद की रकम'),'₹4,18,300.00','tot']],
+ link:L('Open Purchase Register','Purchase Register खोलें')},
+];
+const byId = id => Q.find(q=>q.id===id);
+
+/* ── State ─────────────────────────────────────────────────────────────── */
+const qs = new URLSearchParams(location.search);
+const S = {state:qs.get('state')||'off', q:qs.get('q')||'sales_today', lang:qs.get('lang')||'en', open:qs.get('state')!=='entry', reason:qs.get('reason')||'guard'};
+const STATES = [['entry','Entry point (closed)'],['off','Off: turn on'],['list','Question list'],['loading','Answer loading'],['answer','Answer'],['figures','Figures only (AI text dropped)'],['quota','Quota reached'],['nodata','No data yet'],['offline','Needs internet, list cached'],['offline-nolist','Needs internet, no list'],['error','Figures failed to load'],['staff','Non-owner']];
+const isPhoneNow = () => qs.get('device')==='phone' || (qs.get('device')!=='web' && matchMedia('(max-width:640px)').matches);
+
+const icon = (id,c='') => `<svg class="i ${c}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const HI_M = {Sep:'सितंबर',Oct:'अक्टूबर',October:'अक्टूबर',Nov:'नवंबर',Dec:'दिसंबर'};
+const T = (o,lang) => { const s = typeof o==='string' ? o : o[lang]; return lang==='hi' ? s.replace(/\b(Sep|October|Oct|Nov|Dec)\b/g, m=>HI_M[m]) : s; };
+const nums = s => esc(s).replace(/₹[\d,]+(?:\.\d+)?|\d+(?:\.\d+)?%/g, m=>`<span class="m">${m}</span>`);
+const hi = lang => lang==='hi' ? ' lang="hi"' : '';
+
+/* ── Pieces ────────────────────────────────────────────────────────────── */
+function header(c){
+  const {phone,lang,state} = c;
+  const lead = phone
+    ? `<button class="iconbtn" data-a="${state==='list'||state==='off'||state==='staff'||state==='offline'||state==='offline-nolist'?'close':'back'}" aria-label="Back">${icon('back')}</button>`
+    : '';
+  const seg = state==='staff' ? '' : `<div class="seg" role="group" aria-label="Language"><button data-lang="en" aria-pressed="${lang==='en'}" lang="en">English</button><button data-lang="hi" aria-pressed="${lang==='hi'}" lang="hi">हिन्दी</button></div>`;
+  return `<header class="ask-h">${lead}<h2${hi(lang)}>${T(STR.ask,lang)}</h2><span class="tag"${hi(lang)}>${T(STR.tag,lang)}</span><span class="sp"></span>${seg}${phone?'':`<button class="iconbtn" data-a="close" aria-label="Close">${icon('x')}</button>`}</header>`;
+}
+
+function qlist(c, {disabled}={}){
+  const {lang,q,phone,state} = c;
+  const cur = ['loading','answer','figures','quota','nodata','error'].includes(state) ? q : null;
+  const rows = CATS.map(([id,lab]) => `<div class="qcat">${T(lab,lang)}</div>` + Q.filter(x=>x.cat===id).map(x=>
+    `<button class="qrow" data-q="${x.id}" ${disabled?'disabled':''} aria-current="${cur===x.id}">${esc(T(x.label,lang))}${phone?icon('right'):''}</button>`).join('')).join('');
+  const usage = T(state==='quota' ? STR.quotaUse : STR.usage, lang);
+  return `<div class="qlist-pad">${rows}</div>${disabled?'':`<div class="usage">${usage}</div>`}`;
+}
+
+function figures(q,lang){
+  let h = `<div class="fig-h"><b>${T(STR.fromBooks,lang)}</b><span class="m">${T(STR.asOf,lang)}</span></div>`;
+  const kv = arr => `<div class="kv">${arr.map(([l,v,k])=>`<div class="r ${k||''}"><span class="l">${esc(T(l,lang))}</span><span class="x">${v}</span></div>`).join('')}</div>`;
+  if (q.kv) h += kv(q.kv);
+  if (q.table){
+    const t=q.table, num=i=>t.num.includes(i);
+    h += `<table class="t"><thead><tr>${t.cols.map((x,i)=>`<th class="${num(i)?'n':''}">${T(x,lang)}</th>`).join('')}</tr></thead><tbody>${t.rows.map((r,ri)=>`<tr class="${(t.negRows||[]).includes(ri)?'neg':''}">${r.map((x,i)=>`<td class="${num(i)?'n':''}${typeof x==='object'&&num(i)?' word':''}">${esc(T(x,lang))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+  if (q.bars){
+    const b=q.bars;
+    h += `<table class="t"><thead><tr><th>${T(b.cols[0],lang)}</th><th class="n">${T(b.cols[1],lang)}</th><th class="n">${T(b.cols[2],lang)}</th></tr></thead><tbody>${b.rows.map(r=>`<tr class="${r[4]||''}"><td>${T(r[0],lang)}<span class="bar"><i style="width:${r[3]}%"></i></span></td><td class="n">${r[1]}</td><td class="n">${r[2]}</td></tr>`).join('')}</tbody></table>`;
+  }
+  if (q.kv2) h += kv(q.kv2);
+  if (q.req) h += `<p class="fn req">${T(q.req,lang)}</p>`;
+  if (q.fn) h += `<p class="fn">${nums(T(q.fn,lang))}</p>`;
+  return `<section class="fig">${h}</section>`;
+}
+
+function hero(q,lang){
+  return `<div class="hero"><span class="v">${q.hero.v}${q.hero.u?`<small>${T(q.hero.u,lang)}</small>`:''}</span><span class="c">${esc(T(q.hero.c,lang))}</span>${q.hero.d?`<span class="d">${nums(T(q.hero.d,lang))}</span>`:''}</div>`;
+}
+
+function also(q,lang){
+  const rest = Q.filter(x=>x.cat===q.cat && x.id!==q.id).slice(0,2);
+  const list = rest.length ? rest : Q.filter(x=>x.cat==='dues').slice(0,2);
+  return `<div class="also"><div class="hd">${T(STR.also,lang)}</div>${list.map(x=>`<button class="qrow" data-q="${x.id}">${esc(T(x.label,lang))}${icon('right')}</button>`).join('')}</div>`;
+}
+
+function answer(c, slot){
+  const {phone,lang,q} = c, x = byId(q);
+  return `<div class="ans" aria-live="polite">
+    <h3 class="ans-q" tabindex="-1" id="ansQ">${esc(T(x.label,lang))}</h3>
+    ${hero(x,lang)}
+    ${slot}
+    ${figures(x,lang)}
+    ${phone?also(x,lang):`<button class="pill sec golink" data-a="go">${esc(T(x.link,lang))}${icon('go')}</button>`}
+  </div>`;
+}
+const dock = (c) => c.phone ? `<div class="dock"><button class="pill sec" data-a="go">${esc(T(byId(c.q).link,c.lang))}${icon('go')}</button></div>` : '';
+
+function right(c){
+  const {state,lang,q,reason,phone} = c, x = byId(q);
+  if (state==='list') return `<div class="intro"><h3>${T(STR.introH,lang)}</h3><ul>${STR.intro.map(i=>`<li>${T(i,lang)}</li>`).join('')}</ul></div>`;
+  if (state==='loading') return `<div class="ans" aria-busy="true"><h3 class="ans-q">${esc(T(x.label,lang))}</h3>
+     <p class="loadline">${T(STR.reading,lang)}</p>
+     <span class="sk" style="height:36px;width:62%"></span>
+     <div class="ai" style="border-color:var(--border)"><div class="sk-rows"><span class="sk" style="width:100%"></span><span class="sk" style="width:92%"></span><span class="sk" style="width:54%"></span></div></div>
+     <div class="sk-rows">${[100,100,100,100,100].map(()=>`<span class="sk" style="width:100%"></span>`).join('')}</div></div>`;
+  if (state==='answer') return answer(c, `<div class="ai"><p class="lb">${T(STR.aiLabel,lang)}</p><p class="prose">${nums(T(x.text,lang))}</p></div>`);
+  if (state==='figures'){
+    const r = {guard:STR.guard,model:STR.model,notcfg:STR.notcfg,rate:STR.rate}[reason]||STR.guard;
+    const retry = reason==='model'||reason==='rate' ? `<div class="acts"><button class="pill sec sm" data-a="retry">${T(STR.retry,lang)}</button></div>` : '';
+    return answer(c, `<div class="ai"><p class="lb">${T(STR.figuresOnly,lang)}</p><p class="note">${T(r,lang)}</p>${retry}</div>`);
+  }
+  if (state==='quota') return answer(c, `<div class="ai"><p class="lb">${T(STR.quotaH,lang)}</p><p class="note">${T(STR.quota,lang)}</p><div class="acts"><button class="pill sec sm" data-a="plans">${T(STR.plans,lang)}</button></div></div>`);
+  if (state==='nodata') return `<div class="ans"><h3 class="ans-q" tabindex="-1">${esc(T(x.label,lang))}</h3><div class="hero"><span class="v">₹0.00</span><span class="c">${T(STR.nodata,lang)}</span></div>
+     ${figures({kv:[[L('Sold today','आज की बिक्री'),'₹0.00'],[L('Bills','बिल'),'0'],[L('Last Wednesday','पिछला बुधवार'),'₹1,62,400.00']]},lang)}
+     ${phone?'':`<button class="pill sec golink" data-a="go">${esc(T(x.link,lang))}${icon('go')}</button>`}</div>`;
+  if (state==='error') return `<div class="msg"><h3>${T(STR.errH,lang)}</h3><p>${T(STR.errWhy[reason]||STR.errWhy.conn,lang)} ${T(STR.err,lang)}</p><div class="acts"><button class="pill sec" data-a="retry">${T(STR.retry,lang)}</button></div></div>`;
+  if (state==='offline') return `<div class="msg"><h3>${T(STR.offH,lang)}</h3><p>${T(STR.off,lang)}</p></div>`;
+  return '';
+}
+
+function body(c){
+  const {phone,state,lang} = c;
+  if (state==='off') return `<div class="ask-b"><div class="msg"${hi(lang)}><h3>${T(STR.onH,lang)}</h3><p>${T(STR.on,lang)}</p>
+    <div class="two"><div><h4>${T(STR.sentH,lang)}</h4><ul>${STR.sent.map(i=>`<li>${T(i,lang)}</li>`).join('')}</ul></div><div><h4>${T(STR.neverH,lang)}</h4><ul>${STR.never.map(i=>`<li>${T(i,lang)}</li>`).join('')}</ul></div></div>
+    <p class="fine">${T(STR.fine,lang)}</p>
+    <div class="acts"><button class="pill pri" data-a="turnon">${T(STR.turnOn,lang)}</button><button class="pill sec" data-a="close">${T(STR.notNow,lang)}</button></div></div></div>`;
+  if (state==='staff') return `<div class="ask-b"><div class="msg"${hi(lang)}><h3>${T(STR.staffH,lang)}</h3><p>${T(STR.staff,lang)}</p><div class="acts"><button class="pill sec" data-a="close">${T(STR.staffBack,lang)}</button></div></div></div>`;
+  if (state==='offline-nolist') return `<div class="ask-b"><div class="msg"${hi(lang)}><h3>${T(STR.offH,lang)}</h3><p>${T(STR.off,lang)}</p></div></div>`;
+  if (phone){
+    if (state==='list') return `<div class="ask-b"${hi(lang)}><div class="pane-l">${qlist(c)}</div></div>`;
+    if (state==='offline') return `<div class="banner"${hi(lang)}><b>${T(STR.offH,lang)}.</b> ${T(STR.off,lang)}</div><div class="ask-b"${hi(lang)}><div class="pane-l">${qlist(c,{disabled:true})}</div></div>`;
+    const showDock = ['answer','figures','quota','nodata'].includes(state);
+    return `<div class="ask-b"${hi(lang)}><div class="pane-r">${right(c)}</div></div>${showDock?dock(c):''}`;
+  }
+  return `<div class="ask-b"${hi(lang)}><div class="pane-l">${qlist(c,{disabled:state==='offline'})}</div><div class="pane-r">${right(c)}</div></div>`;
+}
+
+const surface = (c, cls='') => `<section class="ask ${c.phone?'phone':'web'} ${cls}" role="dialog" aria-label="Ask"${hi(c.lang)}>${header(c)}${body(c)}</section>`;
+
+/* ── Shells ────────────────────────────────────────────────────────────── */
+function webShell(staff, panel){
+  const n = (ic,l,cur,a='') => `<button class="nav" ${cur?'aria-current="page"':''} ${a}>${icon(ic)}${l}</button>`;
+  return `<div class="app"><aside class="rail" aria-label="Main">
+    <div class="brand"><i></i>bookledger</div>
+    ${n('home','Dashboard',!S.open)}${n('cart','Sales')}${n('box','Inventory')}${n('users','Customers')}
+    <div class="grp">Insights</div>${n('chart','Reports')}${staff?'':n('ask','Ask',S.open,'data-a="openask"')}
+    </aside>
+    <main class="main"><h1>Dashboard</h1><p class="sub">Wed, 18 Nov 2026</p>
+      <div class="kpis"><div><span>Sales today</span><b>₹1,84,620.00</b></div><div><span>Cash and bank</span><b>₹4,86,240.00</b></div><div><span>Unpaid by customers</span><b>₹6,42,850.00</b></div><div><span>Low stock</span><b>14</b></div></div>
+      <div class="lst"><div><span>Hotel Seaview, bill 2214</span><b class="m">₹18,420.00</b></div><div><span>Sagar Caterers, bill 2213</span><b class="m">₹42,600.00</b></div><div><span>Counter sale, bill 2212</span><b class="m">₹6,180.00</b></div><div><span>Kollam Bakery Supplies, bill 2211</span><b class="m">₹12,900.00</b></div></div>
+    </main>${panel?`<div class="panel${['off','staff','offline-nolist'].includes(S.state)?' narrow':''}">${panel}</div>`:''}</div>`;
+}
+function phoneEntry(c){
+  return `<section class="ask phone" style="background:var(--canvas)">
+    <div class="pbar"><button class="iconbtn" aria-label="Menu">${icon('menu')}</button><b>bookledger</b><span style="flex:1"></span></div>
+    <div class="pbody"><h1>Dashboard</h1>
+      <div class="kpis"><div><span>Sales today</span><b>₹1,84,620.00</b></div><div><span>Cash and bank</span><b>₹4,86,240.00</b></div><div><span>Unpaid</span><b>₹6,42,850.00</b></div><div><span>Low stock</span><b>14</b></div></div>
+      <button class="askrow" data-a="openask"${hi(c.lang)}>${icon('ask')}<span>${T(STR.entryT,c.lang)}<small>${T(STR.entryS,c.lang)}</small></span>${icon('right')}</button>
+    </div>
+    <nav class="pnav"><span class="on">${icon('home')}Dashboard</span><span>${icon('cart')}Sales</span><span>${icon('box')}Inventory</span><span>${icon('truck')}My Route</span><span>${icon('dots')}More</span></nav>
+  </section>`;
+}
+
+/* ── Live render and board ─────────────────────────────────────────────── */
+const root = document.getElementById('root');
+function strip(){
+  return `<div class="strip"><b>Mockup review, not product</b>
+    <label>State <select id="rvState">${STATES.map(([k,l])=>`<option value="${k}" ${S.state===k?'selected':''}>${l}</option>`).join('')}</select></label>
+    <button id="rvTheme">Theme</button><a href="?view=board">All states</a></div>`;
+}
+function renderLive(){
+  const phone = isPhoneNow();
+  const c = {phone, state:S.state, lang:S.lang, q:S.q, reason:S.reason};
+  let html;
+  if (phone) html = `<div style="position:fixed;inset:var(--strip) 0 0 0">${(S.state==='entry'||!S.open) ? phoneEntry(c) : surface(c)}</div>`;
+  else html = webShell(S.state==='staff', (S.state==='entry'||!S.open) ? null : surface(c));
+  root.innerHTML = strip() + html;
+  document.getElementById('rvState').onchange = e => { S.state=e.target.value; S.open=S.state!=='entry'; renderLive(); };
+  document.getElementById('rvTheme').onclick = () => { const r=document.documentElement; const dark = r.dataset.theme ? r.dataset.theme==='dark' : matchMedia('(prefers-color-scheme: dark)').matches; r.dataset.theme = dark?'light':'dark'; };
+  const a = document.getElementById('ansQ'); if (a && S.justAnswered){ a.focus({preventScroll:true}); S.justAnswered=false; }
+}
+function renderBoard(){
+  document.body.classList.add('board');
+  const frame = (dev,cap,c) => `<div class="frame ${dev}"><p class="cap">${cap}</p><div class="box">${c.entry?phoneEntry(c):surface(c)}</div></div>`;
+  const web = c => frame('web', c.cap, {...c, phone:false});
+  const ph = c => frame('phone', c.cap, {...c, phone:true});
+  const A = (state,cap,lang='en',q='sales_today',reason='guard') => ({state,cap,lang,q,reason});
+  root.innerHTML = strip() + `<div class="bd">
+   <h1>Web panel (shown at 800 by 760; the live page has the 1440 shell behind it)</h1>
+   ${[A('off','Off: owner turns it on'),A('list','Question list'),A('loading','Loading'),A('answer','Answer, English'),A('answer','Answer, Hindi','hi','dues_age'),A('figures','Figures only: number guard dropped the text','en','top_dues'),A('figures','Figures only: Hindi, model error','hi','cash_bank','model'),A('quota','Quota reached','en','low_stock'),A('nodata','No data yet'),A('offline','Needs internet: list cached, disabled'),A('error','Figures failed: real cause, nothing shown, no zeros'),A('staff','Non-owner, by direct link. The entry is hidden for staff')].map(web).join('')}
+   <h1>Phone at 390 by 844 (Flutter screen pushed from the dashboard)</h1>
+   ${[{entry:true,state:'entry',cap:'Entry on the dashboard',lang:'en'},A('off','Off: turn on'),A('off','Off, Hindi','hi'),A('list','Question list'),A('list','Question list, Hindi','hi'),A('loading','Loading'),A('answer','Answer, English','en','top_dues'),A('answer','Answer, Hindi','hi','sales_today'),A('figures','Figures only','en','dues_age'),A('quota','Quota reached','hi','cash_bank'),A('offline','Needs internet: list cached'),A('offline-nolist','Needs internet: nothing cached','hi'),A('staff','Non-owner')].map(ph).join('')}
+  </div>`;
+}
+
+/* ── Events ────────────────────────────────────────────────────────────── */
+let lt, tt;
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2400); }
+function ask(id){
+  if (S.state==='list'){ const sc=document.querySelector('.ask.phone .ask-b'); S.listTop = sc ? sc.scrollTop : 0; }
+  S.q=id; S.state='loading'; S.open=true; renderLive();
+  clearTimeout(lt); lt=setTimeout(()=>{ S.state='answer'; S.justAnswered=true; renderLive(); }, 1100);
+}
+document.addEventListener('click', e => {
+  if (qs.get('view')==='board') return;
+  const q = e.target.closest('[data-q]'); if (q && !q.disabled){ ask(q.dataset.q); return; }
+  const l = e.target.closest('[data-lang]'); if (l){ S.lang=l.dataset.lang; renderLive(); return; }
+  const a = e.target.closest('[data-a]'); if (!a) return;
+  const v = a.dataset.a;
+  if (v==='openask'){ S.open=true; if (S.state==='entry') S.state='off'; renderLive(); }
+  if (v==='close'){ S.open=false; renderLive(); }
+  if (v==='back'){ S.state='list'; renderLive(); const sc=document.querySelector('.ask.phone .ask-b'); if (sc) sc.scrollTop = S.listTop||0; }
+  if (v==='turnon'){ S.state='list'; renderLive(); }
+  if (v==='retry'){ ask(S.q); }
+  if (v==='go') toast(`Opens ${T(byId(S.q).link,'en').replace('Open ','')} with the same dates`);
+  if (v==='plans') toast('Opens plans in Settings');
+});
+document.addEventListener('keydown', e => { if (e.key==='Escape' && S.open && !isPhoneNow()){ S.open=false; renderLive(); } });
+
+if (qs.get('theme')) document.documentElement.dataset.theme = qs.get('theme');
+if (qs.get('chrome')==='0') document.body.classList.add('nochrome');
+if (qs.get('view')==='board') renderBoard(); else { renderLive(); addEventListener('resize', renderLive); }
+})();
+</script>
+</body>
+</html>

@@ -9,13 +9,16 @@ import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import SyncStatusButton from './SyncStatusButton';
 import TrialBanner from './TrialBanner';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode, PanelLeft} from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode, PanelLeft, CircleHelp} from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { getDefaultAvatar } from '../lib/supabase';
 import NotificationStack from './NotificationStack';
 import GlobalLoading from './GlobalLoading';
 import AvatarPicker from './AvatarPicker';
 import SyncStatus from './SyncStatus';
+
+// Lazy: the panel, its Hindi font and its strings load only when it is opened.
+const AskPanel = React.lazy(() => import('./ask/AskPanel'));
 
 // Brand logo — dark wordmark on light themes, white logo on the dark theme.
 const isDarkTheme = () => typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
@@ -190,11 +193,20 @@ const Navbar = () => {
  const [peek, setPeek] = React.useState(false);
  const narrow = railCollapsed && !peek;
  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+ const [askOpen, setAskOpen] = React.useState(false);
  const dropdownRef = React.useRef(null);
  const moreMenuRef = React.useRef(null);
 
  const roles = currentUser?.roles || (currentUser?.role ? [currentUser?.role] : ['STAFF']);
  const isOwner = roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN');
+ // Rollout flag per tenant (settings.ai_chat_available), set by the team, off by
+ // default: merged code shows owners nothing until a shop is switched on.
+ const canAsk = isOwner && currentTenant?.settings?.ai_chat_available === true;
+ React.useEffect(() => {
+   const open = () => { if (canAsk) setAskOpen(true); };
+   window.addEventListener('ask:open', open);
+   return () => window.removeEventListener('ask:open', open);
+ }, [canAsk]);
  const isGlobalAdmin = roles.includes('GLOBAL_ADMIN');
  const basePath = tenantSlug ? `/${tenantSlug}` : '';
 
@@ -266,6 +278,16 @@ const Navbar = () => {
  //
  // `collapsed` drops the label and centres the glyph; the title attribute
  // becomes the only name the item has, so it is set in both states.
+ // Ask opens a panel over the page rather than a route, so the dashboard stays
+ // visible behind it. Owners only: the server refuses anyone else anyway.
+ const askEntry = (collapsed) => canAsk && (
+   <button type="button" onClick={() => setAskOpen(true)} title="Ask" data-testid="ask-entry"
+     className={`group flex items-center ${collapsed ? 'justify-center w-10 h-10' : 'w-full gap-3 px-3 py-2'} rounded-pill text-[13.5px] text-ink-secondary font-medium hover:bg-black/[0.04] hover:text-ink-primary transition-all duration-150 active:scale-[0.98]`}>
+     <span className="shrink-0 opacity-70"><CircleHelp size={20} /></span>
+     {!collapsed && <span className="truncate">Ask</span>}
+   </button>
+ );
+
  const renderSideItem = (item, { collapsed = false, onClick = null } = {}) => {
    const body = (isActive) => (
      <>
@@ -353,6 +375,7 @@ const Navbar = () => {
          : <div className="mt-4 mb-1 px-3 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Books</div>
      )}
      {moreNavItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
+     {askEntry(narrow)}
    </nav>
 
    {/* Who you are signed in as. It used to sit at the far right of a header
@@ -574,6 +597,11 @@ const Navbar = () => {
  </header>
 
  {/* Mobile Navigation Drawer */}
+ {askOpen && (
+   <React.Suspense fallback={null}>
+     <AskPanel onClose={() => setAskOpen(false)} />
+   </React.Suspense>
+ )}
  {isMobileMenuOpen && (
  <div className="fixed inset-0 z-[200] md:hidden">
  {/* Backdrop */}
@@ -612,6 +640,12 @@ const Navbar = () => {
  {/* Nav Items */}
  <nav className="flex-1 overflow-y-auto py-3 px-3">
  <p className="text-[9px] font-semibold text-ink-secondary opacity-[0.85] px-3 mb-2">Navigation</p>
+ {canAsk && (
+   <button type="button" data-testid="ask-entry-mobile" onClick={() => { setIsMobileMenuOpen(false); setAskOpen(true); }}
+     className="w-full flex items-center gap-3 px-4 py-3 rounded-pill text-sm font-semibold text-ink-secondary hover:bg-canvas mb-0.5">
+     <span className="opacity-[0.85]"><CircleHelp size={20} /></span>Ask
+   </button>
+ )}
  {allNavItems.filter(i => !i.hidden).map(item => {
    if (item.locked) {
      return (

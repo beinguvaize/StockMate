@@ -1,0 +1,173 @@
+/* Ask (AI chat). From mockups/ai-chat.html v2, approved by the Director. Every
+   rule is scoped under .ask-root so nothing here reaches the rest of the app. */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
+
+.ask-root{
+  --canvas:var(--color-canvas); --surface:var(--color-surface);
+  --ink-1:var(--color-ink-primary); --ink-2:var(--color-ink-secondary); --ink-3:var(--color-ink-tertiary);
+  --accent:var(--color-accent-signature); --accent-hover:var(--color-accent-signature-hover);
+  --accent-text:var(--color-accent-text); --on-accent:#1A1206;
+  --pos:var(--color-pos); --neg:var(--color-neg);
+  --border:var(--border-color);
+  --border-2:color-mix(in srgb, var(--color-ink-primary) 14%, transparent);
+  --hover:color-mix(in srgb, var(--color-ink-primary) 4%, transparent);
+  --bar:color-mix(in srgb, var(--color-ink-primary) 12%, transparent);
+  --seg-on:color-mix(in srgb, var(--color-ink-primary) 6%, var(--color-surface));
+  --focus:var(--color-accent-text);
+  --shadow-panel:-1px 0 0 var(--border-color), -12px 0 32px rgba(16,24,40,.08);
+  --r-sm:4px; --r-md:6px; --r-xl:8px;
+  --ease:cubic-bezier(0.23,1,0.32,1); --drawer:cubic-bezier(0.32,0.72,0,1);
+  --sans:'Manrope','Noto Sans Devanagari',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  font:400 13px/1.5 var(--sans);letter-spacing:-0.01em;font-variant-numeric:tabular-nums;
+  position:fixed;z-index:101;text-align:left;
+}
+.ask-root.web{top:0;right:0;bottom:0}
+.ask-root.phone{inset:0}
+.ask-root *{box-sizing:border-box}
+.ask-root button{font:inherit;color:inherit;letter-spacing:inherit;background:none;border:0;cursor:pointer;text-align:left}
+.ask-root ul{list-style:none;margin:0;padding:0}
+.ask-root h2,.ask-root h3,.ask-root h4,.ask-root p{margin:0}
+.ask-root :focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:var(--r-sm)}
+.ask-root .fail{color:var(--neg);margin-top:12px}
+.ask-root .msg .fine p + p{margin-top:8px}
+.ask-root .msg .fine .review{font-weight:700;color:var(--ink-2)}
+.ask-root .ai.quiet{border-color:var(--border)}
+.ask-root:lang(hi) {letter-spacing:0}
+.ask-root:lang(hi) .prose,.ask-root:lang(hi) .prose{line-height:1.8}
+.ask-root:lang(hi) .m{letter-spacing:-0.02em}
+.ask-root:lang(hi) .pill{font-weight:700}
+.ask-root:lang(hi) .ai .lb,.ask-root:lang(hi) .fn,.ask-root:lang(hi) .usage,.ask-root:lang(hi) .hero .d,.ask-root:lang(hi) .fig-h b,.ask-root:lang(hi) table.t th{font-size:13px}
+.ask-root:lang(hi) .qcat{font-size:13px}
+.ask-root:lang(hi) .msg .fine{font-size:13.5px;line-height:1.7}
+.ask-root:lang(hi) .msg p,.ask-root:lang(hi) .msg li{line-height:1.7}
+.ask-root.ask{display:flex;flex-direction:column;height:100%;background:var(--surface);color:var(--ink-1);overflow:hidden}
+.ask-root.panel{top:0;right:0;bottom:0;width:800px;max-width:100%;box-shadow:var(--shadow-panel);animation:slide 260ms var(--drawer)}
+.ask-root.panel.narrow{width:600px}
+@keyframes slide{from{transform:translateX(24px);opacity:.4}to{transform:none;opacity:1}}
+.ask-root .ask-h{flex:none;height:56px;display:flex;align-items:center;gap:8px;padding:0 12px 0 20px;border-bottom:1px solid var(--border)}
+.ask-root .ask-h h2{font-size:17px;font-weight:700;letter-spacing:-0.02em;line-height:1.2}
+.ask-root .ask-h .tag{color:var(--ink-3);font-size:12.5px;margin-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ask-root .ask-h .sp{flex:1}
+.ask-root .iconbtn{width:36px;height:36px;border-radius:9999px;display:grid;place-items:center;color:var(--ink-2);flex:none}
+.ask-root .iconbtn:hover{background:var(--canvas);color:var(--ink-1)}
+.ask-root .seg{display:inline-flex;padding:2px;height:32px;border-radius:9999px;background:var(--canvas);box-shadow:inset 0 0 0 1px var(--border);flex:none}
+.ask-root .seg button{padding:0 10px;border-radius:9999px;color:var(--ink-2);font-weight:600;font-size:12.5px;line-height:28px}
+.ask-root .seg button[aria-pressed="true"]{background:var(--seg-on);color:var(--ink-1);box-shadow:0 0 0 1px var(--border),0 1px 2px rgba(16,24,40,.05)}
+.ask-root .ask-b{flex:1;min-height:0;display:flex}
+.ask-root .pane-l{flex:none;width:292px;border-right:1px solid var(--border);overflow:auto;display:flex;flex-direction:column}
+.ask-root .pane-r{flex:1;min-width:0;overflow:auto;display:flex;flex-direction:column}
+.ask-root .qcat{font-size:12px;font-weight:600;color:var(--ink-3);padding:12px 20px 4px;position:sticky;top:0;background:var(--surface)}
+.ask-root .qrow{display:flex;align-items:center;gap:8px;width:100%;min-height:42px;padding:7px 12px 7px 20px;font-weight:500;line-height:1.35;color:var(--ink-1);position:relative;transition:background-color 160ms var(--ease)}
+.ask-root .qrow svg{color:var(--ink-3);margin-left:auto;width:14px;height:14px}
+.ask-root .qrow:hover{background:var(--hover)}
+.ask-root .qrow[aria-current="true"]{background:var(--canvas);font-weight:700}
+.ask-root .qrow[aria-current="true"]::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--accent)}
+.ask-root .qrow:active{transform:scale(.99)}
+.ask-root .qrow:focus-visible{outline-offset:-2px}
+.ask-root .qrow[disabled]{color:var(--ink-3);cursor:not-allowed}
+.ask-root .qlist-pad{flex:1;padding-bottom:8px}
+.ask-root .usage{flex:none;margin-top:auto;padding:10px 20px 12px;border-top:1px solid var(--border);font-size:12px;color:var(--ink-3);line-height:1.45;position:sticky;bottom:0;background:var(--surface)}
+.ask-root .usage b{color:var(--ink-2);font:500 12px var(--mono);letter-spacing:-0.02em}
+.ask-root .ans{padding:20px 24px 24px;display:flex;flex-direction:column;gap:16px}
+.ask-root .ans-q{font-size:13px;color:var(--ink-2);font-weight:500;outline:none}
+.ask-root .hero{display:flex;flex-direction:column;gap:2px;margin-top:-10px}
+.ask-root .hero .v{font:600 30px/1.2 var(--mono);letter-spacing:-0.03em;color:var(--ink-1)}
+.ask-root .hero .v small{font:500 15px var(--sans);letter-spacing:-0.01em;color:var(--ink-2);margin-left:6px}
+.ask-root .hero .c{color:var(--ink-2);font-weight:500}
+.ask-root .hero .d{color:var(--ink-3);font-size:12.5px}
+.ask-root .hero .d .m{font-size:12px;color:var(--ink-2);font-weight:500}
+.ask-root .ai{padding-left:12px;border-left:2px solid var(--border-2)}
+.ask-root .ai .lb{font-size:12px;color:var(--ink-3);font-weight:500;margin-bottom:3px}
+.ask-root .ai .prose{font-size:14px;line-height:1.6;color:var(--ink-1)}
+.ask-root .ai .prose .m{font-size:.93em;font-weight:500}
+.ask-root .ai .note{font-size:13px;color:var(--ink-2);line-height:1.55}
+.ask-root .ai .note b{color:var(--ink-1);font-weight:700}
+.ask-root .ai .acts{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+.ask-root .fig{display:flex;flex-direction:column}
+.ask-root .fig-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:6px;border-bottom:1px solid var(--border-2)}
+.ask-root .fig-h b{font-weight:700;font-size:13px}
+.ask-root .fig-h span{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.ask-root .fig-h span .m{font-size:11.5px}
+.ask-root .kv{display:grid;gap:0}
+.ask-root .kv .r{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:7px 0;border-bottom:1px solid var(--border)}
+.ask-root .kv .r .l{color:var(--ink-2)}
+.ask-root .kv .r .x{font:500 13px var(--mono);letter-spacing:-0.02em;white-space:nowrap}
+.ask-root .kv .r.tot .l{font-weight:700;color:var(--ink-1)}
+.ask-root .kv .r.tot .x{font-weight:600}
+.ask-root .kv .r.neg .x,.ask-root .kv .r.neg .l{color:var(--neg)}
+.ask-root table.t{width:100%;border-collapse:collapse}
+.ask-root table.t th{font-size:12px;font-weight:600;color:var(--ink-3);text-align:left;padding:7px 0 5px;border-bottom:1px solid var(--border);white-space:nowrap}
+.ask-root table.t td{padding:7px 0;border-bottom:1px solid var(--border);vertical-align:baseline;line-height:1.35}
+.ask-root table.t th + th,.ask-root table.t td + td{padding-left:14px}
+.ask-root table.t .n{text-align:right;font:500 13px var(--mono);letter-spacing:-0.02em;white-space:nowrap}
+.ask-root table.t th.n{font:600 12px var(--sans);letter-spacing:inherit}
+.ask-root table.t td.n.word{font-family:var(--sans);font-weight:500;color:var(--ink-3);letter-spacing:inherit}
+.ask-root table.t tr.neg td.n.word{color:var(--neg)}
+.ask-root table.t tr.neg td{color:var(--neg)}
+.ask-root .bar{display:block;height:4px;border-radius:2px;background:var(--bar);margin-top:5px;position:relative;overflow:hidden}
+.ask-root .bar i{position:absolute;inset:0 auto 0 0;background:var(--ink-3);border-radius:2px}
+.ask-root tr.strong td{font-weight:600;color:var(--ink-1)}
+.ask-root tr.strong .bar i{background:var(--ink-1)}
+.ask-root .fn{font-size:12px;color:var(--ink-3);padding-top:7px;line-height:1.5}
+.ask-root .fn.req{color:var(--ink-2)}
+.ask-root .pill{height:40px;padding:0 18px;border-radius:9999px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:800;font-size:13px;white-space:nowrap;transition:background-color 120ms var(--ease),transform 120ms var(--ease)}
+.ask-root .pill:active{transform:scale(.97)}
+.ask-root .pill.sm{height:32px;padding:0 14px;font-size:12px}
+.ask-root .pill.pri{background:var(--accent);color:var(--on-accent)}
+.ask-root .pill.pri:hover{background:var(--accent-hover)}
+.ask-root .pill.sec{box-shadow:inset 0 0 0 1px var(--border-2);color:var(--ink-1)}
+.ask-root .pill.sec:hover{background:var(--canvas)}
+.ask-root .golink{align-self:flex-start}
+.ask-root .intro{padding:24px;color:var(--ink-2);max-width:420px;line-height:1.6}
+.ask-root .intro h3{font-size:15px;font-weight:700;color:var(--ink-1);margin-bottom:6px;letter-spacing:-0.02em}
+.ask-root .intro li{padding:8px 0;border-bottom:1px solid var(--border)}
+.ask-root .intro li:last-child{border:0}
+.ask-root .sk{background:var(--canvas);border-radius:var(--r-sm);display:block;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.5}}
+.ask-root .sk-rows span{height:13px;margin:10px 0}
+.ask-root .loadline{font-size:13px;color:var(--ink-2);font-weight:500}
+.ask-root .msg{padding:28px 28px 24px;max-width:560px;overflow:auto;flex:1;min-height:0}
+.ask-root .msg h3{font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin-bottom:6px}
+.ask-root .msg p{color:var(--ink-2);line-height:1.6}
+.ask-root .msg .two{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;margin-top:18px}
+.ask-root .msg .two h4{font-size:13px;font-weight:700;padding-bottom:6px;border-bottom:1px solid var(--border-2)}
+.ask-root .msg .two li{padding:7px 0;border-bottom:1px solid var(--border);color:var(--ink-2);line-height:1.4}
+.ask-root .pane-r .msg{padding:24px}
+.ask-root .msg .fine{font-size:12.5px;color:var(--ink-3);margin-top:14px;line-height:1.55}
+.ask-root .msg .acts{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+.ask-root .banner{flex:none;padding:10px 20px;background:var(--canvas);border-bottom:1px solid var(--border);line-height:1.45;color:var(--ink-2)}
+.ask-root .banner b{color:var(--ink-1);font-weight:700}
+.ask-root.phone .ask-h{padding:0 12px 0 4px;height:56px;gap:4px}
+.ask-root.phone .ask-h .tag{display:none}
+.ask-root.phone .ask-h .iconbtn{width:44px;height:44px}
+.ask-root.phone .seg{height:40px}
+.ask-root.phone .seg button{line-height:36px;padding:0 12px}
+.ask-root.phone .ask-b{display:block;overflow:auto}
+.ask-root.phone .pane-l{width:auto;border:0;overflow:visible;display:block}
+.ask-root.phone .pane-r{overflow:visible;display:block}
+.ask-root.phone .qcat{padding:14px 16px 4px;font-size:12.5px;background:var(--surface)}
+.ask-root.phone .qrow{min-height:50px;padding:10px 12px 10px 16px;font-size:14.5px;border-bottom:1px solid var(--border)}
+.ask-root.phone .usage{position:static;padding:14px 16px 20px;border:0}
+.ask-root.phone .ans{padding:16px 16px 20px}
+.ask-root.phone .hero .v{font-size:32px}
+.ask-root.phone .ai .prose{font-size:15px}
+.ask-root.phone .msg{padding:20px 16px;max-width:none}
+.ask-root.phone .msg .two{grid-template-columns:1fr;gap:16px}
+.ask-root.phone .banner{padding:10px 16px}
+.ask-root.phone .pill{height:48px;font-size:14px}
+.ask-root.phone .pill.sm{height:40px;font-size:13px}
+.ask-root.phone .msg .acts .pill{flex:1}
+.ask-root.phone table.t td{padding:9px 0}
+.ask-root.phone table.t th + th,.ask-root.phone table.t td + td{padding-left:10px}
+.ask-root.phone .kv .r{padding:10px 0}
+.ask-root.phone .intro{display:none}
+.ask-root .dock{flex:none;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--surface)}
+.ask-root .dock .pill{width:100%}
+.ask-root.phone .also{margin:4px -16px 0}
+.ask-root .also .hd{font-size:12.5px;font-weight:600;color:var(--ink-3);padding:6px 16px 4px}
+.ask-root .dock{flex:none;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--surface)}
+.ask-root .dock .pill{width:100%}
+@media (prefers-reduced-motion: reduce){
+  .ask-root *,.ask-root *::before,.ask-root *::after,.ask-root{animation:none !important;transition:none !important}
+}

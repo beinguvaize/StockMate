@@ -18,6 +18,7 @@ import POSReceipt from '../../components/invoice/POSReceipt';
 import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
 import { INVOICE_LAYOUT_META, RECEIPT_META, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, ACCENT_SWATCHES } from '../../components/invoice/invoiceLayouts';
 import { linkPhone, confirmPhoneLink, formatPhone, toE164 } from '../../lib/phoneAuth';
+import AskSettingsCard from '../../components/ask/AskSettingsCard';
 
 // Sample documents for the print previews — exact production components.
 const SAMPLE_SALE = {
@@ -976,7 +977,7 @@ const SupportPanel = () => (
 
 // ── Hub ──────────────────────────────────────────────────────────────────────
 const SettingsHub = () => {
-  const { currentTenantId } = useTenant();
+  const { currentTenantId, currentTenant } = useTenant();
   const { isOwner } = useAuth();
   const [active, setActive] = useState('account');
 
@@ -1015,6 +1016,7 @@ const SettingsHub = () => {
         {/* Panel */}
         <main className="flex-1 min-w-0">
           {active === 'account'  && <AccountPanel />}
+          {active === 'account' && isOwner && currentTenant?.settings?.ai_chat_available === true && <div className="mt-6 max-w-2xl"><AskSettingsCard /></div>}
           {CLASSIC_SECTIONS[active] && (
             <Settings embedded section={CLASSIC_SECTIONS[active]} key={active} />
           )}

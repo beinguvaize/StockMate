@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { isRaw, isStocked } from '../../lib/productTypes';
 import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
@@ -11,6 +12,9 @@ import {
 } from 'lucide-react';
 
 const InventoryReport = () => {
+  // ?sub=DEAD_STOCK opens the Dead Stock Index directly (Ask links here).
+  const [params] = useSearchParams();
+  const sub = params.get('sub');
   // Financial year to date by default. These queries were previously
   // unfiltered and read the whole table on every load.
   const win = useDateWindow('YEAR');
@@ -255,7 +259,7 @@ const InventoryReport = () => {
           </p>
         </div>
       )}
-      <PremiumReportView dateWindow={win} title="Inventory Report" tabs={[valuationTab, deadStockTab]} />
+      <PremiumReportView dateWindow={win} title="Inventory Report" tabs={[valuationTab, deadStockTab]} initialTabId={sub} />
     </div>
   );
 };
