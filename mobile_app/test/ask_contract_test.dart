@@ -146,4 +146,74 @@ void main() {
       }
     }
   });
+
+  group('footnotes the server chose, drawn as sent', () {
+    Map<String, dynamic> card(String id, String lang, [String? note]) =>
+        (cards['cases'] as List).cast<Map<String, dynamic>>().firstWhere((c) =>
+            c['question_id'] == id && c['lang'] == lang && c['note'] == note && c['empty'] != true)['card']
+            as Map<String, dynamic>;
+
+    Future<void> draw(WidgetTester t, Map<String, dynamic> c, String lang) async {
+      t.view.physicalSize = const Size(360, 2400);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: AskAnswerView(
+              answer: {'card': c, 'text': null, 'reason': 'ai_off', 'as_of': '2026-11-18T08:42:00Z'},
+              questionLabel: 'Q',
+              strings: strings[lang] as Map<String, dynamic>,
+              usage: null,
+              also: const [],
+              onRetry: () {},
+              onPlans: () {},
+              onAsk: (_) {},
+            ),
+          ),
+        ),
+      ));
+      expect(t.takeException(), isNull);
+    }
+
+    String foot(String lang, String key) => '${(strings[lang] as Map)['footnotes'][key]}';
+
+    for (final lang in ['en', 'hi']) {
+      testWidgets('GST beyond rounding: one plain line, no gap figures ($lang)', (t) async {
+        final c = card('gst_collected', lang);
+        expect(c['footnote'], foot(lang, 'gst_screen_unmatched'));
+        await draw(t, c, lang);
+        expect(find.text(foot(lang, 'gst_screen_unmatched'), findRichText: true), findsOneWidget);
+      });
+
+      testWidgets('a loan account that owes money is worded as owed, not "-₹" ($lang)', (t) async {
+        final c = card('cash_bank', lang);
+        final f = '${c['footnote']}';
+        expect(f, contains('₹1,50,000.00'));
+        expect(f, isNot(contains('-₹')));
+        await draw(t, c, lang);
+        expect(find.textContaining('₹1,50,000.00', findRichText: true), findsWidgets);
+      });
+    }
+
+    testWidgets('GST within rounding names the gap', (t) async {
+      final c = card('gst_collected', 'en', 'gst_within_rounding');
+      expect('${c['footnote']}', startsWith('GSTR-3B shows ₹1.20 more GST'));
+      await draw(t, c, 'en');
+      expect(find.textContaining('₹1.20', findRichText: true), findsWidgets);
+    });
+
+    testWidgets('GST that ties draws no footnote at all', (t) async {
+      final c = card('gst_collected', 'en', 'gst_tied');
+      expect(c['footnote'], isNull);
+      await draw(t, c, 'en');
+      expect(find.textContaining('GSTR-3B'), findsNothing);
+    });
+
+    test('review_pending is metadata: the phone reads no such key', () {
+      for (final f in Directory('lib/features/ai_chat').listSync(recursive: true).whereType<File>()) {
+        expect(f.readAsStringSync().contains('review_pending'), isFalse, reason: f.path);
+      }
+    });
+  });
 }
