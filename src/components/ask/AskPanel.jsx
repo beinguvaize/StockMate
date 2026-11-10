@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Sparkles, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useOffline } from '../../context/OfflineContext';
 import { callAsk, setAskEnabled } from '../../lib/askClient';
 import { dayMonth, fill, formatValue, screenPath, splitNumbers, usageVars } from '../../lib/askFormat';
 import bundled from '../../../shared/ai_chat/strings.json';
+import { ASK_HINDI } from '../../lib/askLanguages';
 import './ask.css';
 
 const CATEGORIES = ['sales', 'stock', 'dues', 'cash', 'gst'];
@@ -145,11 +146,22 @@ function Answer({ answer, question, usage, strings, phone, onRetry, onPlans, onG
   );
 }
 
-function Loading({ question, strings }) {
+// The books are read and the answer written in one call, so the second line is
+// timed, not reported: it appears once the read has usually finished.
+function Loading({ question, strings, lang }) {
+  const [writing, setWriting] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setWriting(true), 1200);
+    return () => clearTimeout(t);
+  }, []);
+  const writingLine = strings.ui.writing ?? bundled[lang]?.ui.writing ?? bundled.en.ui.writing;
   return (
     <div className="ans" aria-busy="true" data-testid="ask-loading">
       <h3 className="ans-q">{question.label}</h3>
-      <p className="loadline">{strings.ui.reading}</p>
+      <div className="think" role="status">
+        <span className="orb" aria-hidden="true"><Sparkles size={14} strokeWidth={2} /></span>
+        <span key={writing ? 'w' : 'r'} className="think-line">{writing ? writingLine : strings.ui.reading}</span>
+      </div>
       <span className="sk" style={{ height: 36, width: '62%' }} />
       <div className="ai quiet"><div className="sk-rows">{[100, 92, 54].map((w) => <span key={w} className="sk" style={{ width: `${w}%` }} />)}</div></div>
       <div className="sk-rows">{[1, 2, 3, 4, 5].map((i) => <span key={i} className="sk" style={{ width: '100%' }} />)}</div>
@@ -201,8 +213,8 @@ export default function AskPanel({ onClose }) {
 
   const uid = currentUser?.id;
   const langKey = `ask.lang.${uid}`;
-  const [lang, setLang] = useState(() => store.get(langKey)
-    || (String(navigator.language).toLowerCase().startsWith('hi') ? 'hi' : 'en'));
+  const [lang, setLang] = useState(() => (!ASK_HINDI ? 'en' : store.get(langKey)
+    || (String(navigator.language).toLowerCase().startsWith('hi') ? 'hi' : 'en')));
   const listKey = `ask.list.${uid}.${currentTenantId}.${lang}`;
 
   const [list, setList] = useState(() => store.get(listKey));
@@ -334,7 +346,7 @@ export default function AskPanel({ onClose }) {
         </div>
       );
     }
-    if (current.status === 'loading') return <Loading question={current.question} strings={strings} />;
+    if (current.status === 'loading') return <Loading question={current.question} strings={strings} lang={lang} />;
     if (current.status === 'stale') {
       return (
         <div className="ans" data-testid="ask-stale">
@@ -416,7 +428,7 @@ export default function AskPanel({ onClose }) {
         <h2>{ui.title}</h2>
         <span className="tag">{ui.tagline}</span>
         <span className="sp" />
-        {!staff && (
+        {!staff && ASK_HINDI && (
           <div className="seg" role="group" aria-label="Language">
             <button type="button" lang="en" aria-pressed={lang === 'en'} onClick={() => changeLang('en')}>English</button>
             <button type="button" lang="hi" aria-pressed={lang === 'hi'} onClick={() => changeLang('hi')}>हिन्दी</button>

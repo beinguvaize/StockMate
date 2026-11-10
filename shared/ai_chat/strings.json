@@ -1,12 +1,13 @@
 {
  "en": {
   "ui": {
-   "title": "Ask",
+   "title": "Ask AI",
    "tagline": "Answers come from your books. AI only explains them.",
    "from_books": "From your books",
    "ai_label": "Written by AI from the figures below",
    "figures_only": "Figures only",
    "reading": "Reading your books",
+   "writing": "Writing your answer",
    "also_ask": "Also ask",
    "usage_line": "{used} of {limit} explanations used in {month}. Figures never count.",
    "usage_full": "All {limit} explanations used in {month}. Figures keep working. Explanations return on {reset}.",
@@ -277,12 +278,13 @@
  },
  "hi": {
   "ui": {
-   "title": "पूछें",
+   "title": "AI से पूछें",
    "tagline": "जवाब आपके खातों से आते हैं। AI सिर्फ़ उन्हें समझाता है।",
    "from_books": "आपके खातों से",
    "ai_label": "नीचे के आँकड़ों से AI ने लिखा",
    "figures_only": "सिर्फ़ आँकड़े",
    "reading": "आपके खाते पढ़े जा रहे हैं",
+   "writing": "आपका जवाब लिखा जा रहा है",
    "also_ask": "यह भी पूछें",
    "usage_line": "{month} में {limit} में से {used} व्याख्याएँ इस्तेमाल हुईं। आँकड़ों की गिनती नहीं होती।",
    "usage_full": "{month} की सभी {limit} व्याख्याएँ इस्तेमाल हो चुकीं। आँकड़े चलते रहेंगे। व्याख्याएँ {reset} को फिर मिलेंगी।",
