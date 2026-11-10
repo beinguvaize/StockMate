@@ -7,6 +7,7 @@ import { useOffline } from '../../context/OfflineContext';
 import { callAsk, setAskEnabled } from '../../lib/askClient';
 import { dayMonth, fill, formatValue, screenPath, splitNumbers, usageVars } from '../../lib/askFormat';
 import bundled from '../../../shared/ai_chat/strings.json';
+import { ASK_HINDI } from '../../lib/askLanguages';
 import './ask.css';
 
 const CATEGORIES = ['sales', 'stock', 'dues', 'cash', 'gst'];
@@ -212,8 +213,8 @@ export default function AskPanel({ onClose }) {
 
   const uid = currentUser?.id;
   const langKey = `ask.lang.${uid}`;
-  const [lang, setLang] = useState(() => store.get(langKey)
-    || (String(navigator.language).toLowerCase().startsWith('hi') ? 'hi' : 'en'));
+  const [lang, setLang] = useState(() => (!ASK_HINDI ? 'en' : store.get(langKey)
+    || (String(navigator.language).toLowerCase().startsWith('hi') ? 'hi' : 'en')));
   const listKey = `ask.list.${uid}.${currentTenantId}.${lang}`;
 
   const [list, setList] = useState(() => store.get(listKey));
@@ -427,7 +428,7 @@ export default function AskPanel({ onClose }) {
         <h2>{ui.title}</h2>
         <span className="tag">{ui.tagline}</span>
         <span className="sp" />
-        {!staff && (
+        {!staff && ASK_HINDI && (
           <div className="seg" role="group" aria-label="Language">
             <button type="button" lang="en" aria-pressed={lang === 'en'} onClick={() => changeLang('en')}>English</button>
             <button type="button" lang="hi" aria-pressed={lang === 'hi'} onClick={() => changeLang('hi')}>हिन्दी</button>

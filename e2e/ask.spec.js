@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { setupMocks, seedAppCache, TENANT_SLUG, MOCK_STAFF_USER, MOCK_TENANT } from './helpers/supabaseMocks.js';
 import { buildCard } from '../supabase/functions/ai-ask/cards.ts';
+import { ASK_HINDI } from '../src/lib/askLanguages.js';
 
 /**
  * Ask, the panel over mockups/ai-chat.html v2. ai-ask is mocked from the same
@@ -191,6 +192,7 @@ test('a failed read shows no number at all, and can be tried again', async ({ pa
 });
 
 test('Hindi: labels, sentences and months in Hindi, digits stay Western', async ({ page }) => {
+  test.skip(!ASK_HINDI, 'Hindi is paused until its strings are reviewed');
   const calls = await open(page);
   await openPanel(page);
   await page.getByRole('button', { name: 'हिन्दी' }).click();
@@ -337,6 +339,7 @@ test('dead_stock: the link opens the Dead Stock Index itself', async ({ page }) 
 });
 
 test('a language switch keeps the question, and one tap asks it again', async ({ page }) => {
+  test.skip(!ASK_HINDI, 'Hindi is paused until its strings are reviewed');
   const calls = await open(page);
   await openPanel(page);
   await question(page, 'sales_today').click();
@@ -428,4 +431,14 @@ test('while the answer is written, the panel says what it is doing', async ({ pa
   release();
   await expect(page.getByTestId('ask-hero')).toBeVisible();
   await expect(loading).toHaveCount(0);
+});
+
+test('while Hindi is paused, the panel is English-only even for an owner who picked Hindi', async ({ page }) => {
+  test.skip(ASK_HINDI, 'Hindi is on');
+  await page.addInitScript(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('ask.lang.')) localStorage.setItem(k, 'hi'); });
+  const calls = await open(page);
+  await openPanel(page);
+  await expect(page.getByTestId('ask-panel')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('group', { name: 'Language' })).toHaveCount(0);
+  expect(calls.list.every((c) => c.lang === 'en')).toBe(true);
 });
