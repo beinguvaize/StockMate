@@ -41,12 +41,13 @@ END $$;
 DO $t$
 DECLARE
   k_fns text[] := ARRAY['ai_sales_summary','ai_top_items','ai_low_stock','ai_expiring_stock','ai_dead_stock',
-                        'ai_top_dues','ai_dues_ageing','ai_collections','ai_cash_bank','ai_gst_data_gaps'];
+                        'ai_top_dues','ai_dues_ageing','ai_collections','ai_cash_bank','ai_gst_data_gaps',
+                        'ai_purchases_summary','ai_top_suppliers','ai_supplier_dues','ai_cost_up'];
   r record;
   n int;
 BEGIN
   SELECT count(*) INTO n FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname = ANY(k_fns);
-  IF n <> 10 THEN RAISE EXCEPTION 'SHAPE: expected 10 read functions with one signature each, found %', n; END IF;
+  IF n <> 14 THEN RAISE EXCEPTION 'SHAPE: expected 14 read functions with one signature each, found %', n; END IF;
 
   FOR r IN SELECT p.oid, p.proname, p.provolatile, p.prosecdef, p.prosrc,
                   pg_get_function_identity_arguments(p.oid) AS args
@@ -121,6 +122,13 @@ BEGIN
     VALUES ('AITEST-AC-' || r.tag, r.t, 'AITEST account ' || r.tag, 'CASH', r.amt);
     INSERT INTO purchases (id, tenant_id, date, total_amount, quantity, bill_no, supplier_id)
     VALUES ('AITEST-PU-' || r.tag, r.t, v_day::text, r.amt, 1, NULL, NULL);
+    -- A supplier owed one unpaid bill, whose item cost more than on the bill before.
+    INSERT INTO suppliers (id, tenant_id, name) VALUES ('AITEST-SU-' || r.tag, r.t, 'AITEST supplier ' || r.tag);
+    INSERT INTO purchases (id, tenant_id, date, created_at, total_amount, paid_amount, quantity, supplier_id, supplier_name, status, payment_type, linked_product_id)
+    VALUES ('AITEST-PU3-' || r.tag, r.t, (v_day - 1)::text, now() - interval '1 day', r.amt, r.amt, 4, 'AITEST-SU-' || r.tag,
+            'AITEST supplier ' || r.tag, 'RECEIVED', 'CASH', 'AITEST-P-' || r.tag),
+           ('AITEST-PU2-' || r.tag, r.t, v_day::text, now(), r.amt + 1, 0, 1, 'AITEST-SU-' || r.tag,
+            'AITEST supplier ' || r.tag, 'RECEIVED', 'CREDIT', 'AITEST-P-' || r.tag);
   END LOOP;
   SET LOCAL session_replication_role = origin;
 END $t$;
@@ -138,7 +146,11 @@ BEGIN
     'age',   public.ai_dues_ageing(),
     'coll',  public.ai_collections(p_day, p_day),
     'cash',  public.ai_cash_bank(),
-    'gaps',  public.ai_gst_data_gaps(p_day, p_day));
+    'gaps',  public.ai_gst_data_gaps(p_day, p_day),
+    'pur',   public.ai_purchases_summary(p_day, p_day),
+    'tsup',  public.ai_top_suppliers(p_day, p_day, 100),
+    'sdue',  public.ai_supplier_dues(100),
+    'cost',  public.ai_cost_up(90, 100));
 END $$;
 
 DO $t$
@@ -154,16 +166,21 @@ BEGIN
   v := pg_temp.all_reads(v_day);
   PERFORM pg_temp.back();
   s := v::text;
-  FOREACH k IN ARRAY ARRAY['AITEST item A', 'AITEST client A', 'AITEST account A', 'AITEST stuck A'] LOOP
+  FOREACH k IN ARRAY ARRAY['AITEST item A', 'AITEST client A', 'AITEST account A', 'AITEST stuck A', 'AITEST supplier A'] LOOP
     IF position(k IN s) = 0 THEN RAISE EXCEPTION 'ISOLATION: % missing from owner A''s figures', k; END IF;
   END LOOP;
-  IF s ~ 'AITEST (item|client|account|stuck) B' OR s ~ '2222222' THEN
+  IF s ~ 'AITEST (item|client|account|stuck|supplier) B' OR s ~ '2222222' THEN
     RAISE EXCEPTION 'ISOLATION: owner A can see shop B: %', left(s, 400);
   END IF;
   IF (v #>> '{sales,gross_sales}')::numeric < 1111111.11 THEN RAISE EXCEPTION 'ISOLATION: sentinel sale not counted'; END IF;
   IF (v #>> '{coll,collected}')::numeric < 1111111.11 THEN RAISE EXCEPTION 'ISOLATION: sentinel receipt not counted'; END IF;
   IF (v #>> '{cash,total_balance}')::numeric < 1111111.11 THEN RAISE EXCEPTION 'ISOLATION: sentinel account not counted'; END IF;
   IF (v #>> '{gaps,purchases_no_bill_no}')::int < 1 THEN RAISE EXCEPTION 'ISOLATION: sentinel purchase not counted'; END IF;
+  IF (v #>> '{pur,total_value}')::numeric < 1111111.11 * 2 + 1 THEN RAISE EXCEPTION 'ISOLATION: sentinel purchases not in the month total'; END IF;
+  IF (v #>> '{sdue,total_owed}')::numeric < 1111112.11 THEN RAISE EXCEPTION 'ISOLATION: sentinel supplier bill not owed'; END IF;
+  IF NOT (v -> 'cost' -> 'items') @> '[{"product_name": "AITEST item A", "new_cost": 1111112.11}]'::jsonb THEN
+    RAISE EXCEPTION 'ISOLATION: sentinel cost rise missing: %', v -> 'cost';
+  END IF;
   -- Totals cover every row even when the list is capped.
   PERFORM pg_temp.act_as(v_ua);
   IF (public.ai_low_stock(1) ->> 'items_low')::int <> (v #>> '{low,items_low}')::int
@@ -177,7 +194,7 @@ BEGIN
   PERFORM pg_temp.act_as(v_ub);
   s := pg_temp.all_reads(v_day)::text;
   PERFORM pg_temp.back();
-  IF s ~ 'AITEST (item|client|account|stuck) A' OR s ~ '1111111' THEN
+  IF s ~ 'AITEST (item|client|account|stuck|supplier) A' OR s ~ '1111111' THEN
     RAISE EXCEPTION 'ISOLATION: owner B can see shop A';
   END IF;
 
@@ -193,12 +210,14 @@ BEGIN
   END IF;
   PERFORM pg_temp.back();
   s := v_expect::text;
-  IF s ~ 'AITEST (item|client|account|stuck) B' OR s ~ '2222222' THEN
+  IF s ~ 'AITEST (item|client|account|stuck|supplier) B' OR s ~ '2222222' THEN
     RAISE EXCEPTION 'ADMIN: a global admin''s figures include another shop';
   END IF;
   IF (v_expect #>> '{sales,gross_sales}') <> (v #>> '{sales,gross_sales}')
      OR (v_expect #>> '{dues,total_outstanding}') <> (v #>> '{dues,total_outstanding}')
-     OR (v_expect #>> '{cash,total_balance}') <> (v #>> '{cash,total_balance}') THEN
+     OR (v_expect #>> '{cash,total_balance}') <> (v #>> '{cash,total_balance}')
+     OR (v_expect #>> '{pur,total_value}') <> (v #>> '{pur,total_value}')
+     OR (v_expect #>> '{sdue,total_owed}') <> (v #>> '{sdue,total_owed}') THEN
     RAISE EXCEPTION 'ADMIN: figures differ from the owner''s own';
   END IF;
   UPDATE users SET roles = array_remove(roles, 'GLOBAL_ADMIN') WHERE id = v_ua;
@@ -211,6 +230,8 @@ BEGIN
     format('ai_sales_summary(%L, %L)', v_day, v_day), format('ai_top_items(%L, %L)', v_day, v_day), 'ai_low_stock()',
     'ai_expiring_stock()', 'ai_dead_stock()', 'ai_top_dues()', 'ai_dues_ageing()',
     format('ai_collections(%L, %L)', v_day, v_day), 'ai_cash_bank()', format('ai_gst_data_gaps(%L, %L)', v_day, v_day),
+    format('ai_purchases_summary(%L, %L)', v_day, v_day), format('ai_top_suppliers(%L, %L)', v_day, v_day),
+    'ai_supplier_dues()', 'ai_cost_up()',
     'ai_set_enabled(true)', $q$ai_usage_claim('sales_today', 'en', 'm')$q$
   ] LOOP
     BEGIN
@@ -280,7 +301,8 @@ BEGIN
   UPDATE accounts SET deleted_at = now() WHERE id = 'AITEST-AC-A';
   UPDATE products SET deleted_at = now() WHERE id IN ('AITEST-P-A', 'AITEST-Q-A');
   UPDATE product_batches SET deleted_at = now() WHERE product_id = 'AITEST-P-A';
-  UPDATE purchases SET deleted_at = now() WHERE id = 'AITEST-PU-A';
+  UPDATE purchases SET deleted_at = now() WHERE id IN ('AITEST-PU-A', 'AITEST-PU2-A', 'AITEST-PU3-A');
+  UPDATE suppliers SET deleted_at = now() WHERE id = 'AITEST-SU-A';
   PERFORM pg_temp.act_as(v_ua);
   v := pg_temp.all_reads(v_day);
   PERFORM pg_temp.back();
