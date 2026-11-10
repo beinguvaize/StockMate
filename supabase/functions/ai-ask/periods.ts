@@ -30,3 +30,13 @@ export const sameDaysLastWeek = (from: string, to: string) => ({ from: addDays(f
 /** Percent change, one decimal. null when there is no positive base to compare with. */
 export const changePct = (current: number, prior: number) =>
   prior > 0 ? Math.round(((current - prior) / prior) * 1000) / 10 : null;
+
+/**
+ * The same days of last month: 1-10 Nov compares with 1-10 Oct. When last
+ * month is shorter (31 Mar against February) it stops at last month's end.
+ */
+export const sameDaysLastMonth = (today: string) => {
+  const last = lastMonth(today);
+  const day = Math.min(Number(today.slice(8, 10)), Number(last.to.slice(8, 10)));
+  return { from: last.from, to: `${last.from.slice(0, 8)}${String(day).padStart(2, "0")}` };
+};

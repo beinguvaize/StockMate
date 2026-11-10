@@ -1,7 +1,7 @@
 // Runs each question's reads with the caller's JWT. Dates are worked out here,
 // so a client can never choose them. A failed read throws: it is never a zero.
 import { gstScreenChecks } from "./cards.ts";
-import { addDays, changePct, lastMonth, mondayOf, monthStart, priorWindow, sameDaysLastWeek } from "./periods.ts";
+import { addDays, changePct, lastMonth, mondayOf, monthStart, priorWindow, sameDaysLastMonth, sameDaysLastWeek } from "./periods.ts";
 
 export class ReadFailed extends Error {}
 
@@ -127,6 +127,37 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
         params: { from, to: today },
         empty: f.purchases_total === 0 && f.sale_lines_total === 0 && f.products_total === 0,
       };
+    }
+    case "purchases_month": {
+      // Ties to the Purchase Register's Invoice Value and Bills for the same dates.
+      const from = monthStart(today);
+      const p = sameDaysLastMonth(today);
+      const cur = await rpc(db, "ai_purchases_summary", { p_from: from, p_to: today });
+      const prev = await rpc(db, "ai_purchases_summary", { p_from: p.from, p_to: p.to });
+      const value = Number(cur.total_value);
+      const prior = Number(prev.total_value);
+      return {
+        figures: {
+          ...cur, total_value: value,
+          previous_value: prior, previous_bill_count: prev.bill_count, previous_from: p.from, previous_to: p.to,
+          change_pct: changePct(value, prior),
+        },
+        params: { from, to: today },
+        empty: cur.bill_count === 0 && prev.bill_count === 0,
+      };
+    }
+    case "supplier_dues": {
+      const f = await rpc(db, "ai_supplier_dues", { p_limit: 10 });
+      return { figures: f, params: { from: today, to: today }, empty: f.suppliers_owing === 0 };
+    }
+    case "top_suppliers": {
+      const from = monthStart(today);
+      const f = await rpc(db, "ai_top_suppliers", { p_from: from, p_to: today, p_limit: 10 });
+      return { figures: f, params: { from, to: today }, empty: f.bill_count === 0 };
+    }
+    case "cost_up": {
+      const f = await rpc(db, "ai_cost_up", { p_days: 90, p_limit: 10 });
+      return { figures: f, params: { from: f.period_from, to: today }, empty: f.items_up === 0 };
     }
     default:
       throw new ReadFailed(`no reads for ${id}`);

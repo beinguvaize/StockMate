@@ -38,5 +38,9 @@ describe('askFormat', () => {
       }
     }
     expect(screenPath('not_a_screen')).toBeNull();
+    expect(screenPath('suppliers')).toBe('/suppliers');
+    expect(screenPath('purchases', { from: '2026-08-13', to: '2026-11-11' })).toBe('/purchases');
+    expect(screenPath('reports_purchase_register', { from: '2026-11-01', to: '2026-11-10' }))
+      .toBe('/reports?tab=PURCHASE_REGISTER&from=2026-11-01&to=2026-11-10');
   });
 });

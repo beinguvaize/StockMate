@@ -10,7 +10,7 @@ import bundled from '../../../shared/ai_chat/strings.json';
 import { ASK_HINDI } from '../../lib/askLanguages';
 import './ask.css';
 
-const CATEGORIES = ['sales', 'stock', 'dues', 'cash', 'gst'];
+const CATEGORIES = ['sales', 'stock', 'purchases', 'dues', 'cash', 'gst'];
 const RETRY_REASONS = new Set(['model_error', 'rate_limited', 'provider_busy']);
 const PHONE = '(max-width: 640px)';
 

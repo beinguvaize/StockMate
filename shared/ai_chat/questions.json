@@ -37,6 +37,18 @@
       "screen": { "key": "reports_gstr3b", "fallback_key": null, "module": "reports", "mobile": false } },
     { "id": "gst_gaps", "category": "gst", "module": "reports", "roles": ["OWNER"], "needs_tax": true,
       "label": { "en": "What is missing in my GST records?", "hi": "मेरे GST रिकॉर्ड में क्या कमी है?" },
-      "screen": { "key": "reports_purchase_register", "fallback_key": null, "module": "reports", "mobile": false } }
+      "screen": { "key": "reports_purchase_register", "fallback_key": null, "module": "reports", "mobile": false } },
+    { "id": "purchases_month", "category": "purchases", "module": "purchases", "roles": ["OWNER"],
+      "label": { "en": "How much did I buy this month?", "hi": "इस महीने मैंने कितनी खरीद की?" },
+      "screen": { "key": "reports_purchase_register", "fallback_key": "purchases", "module": "reports", "mobile": false } },
+    { "id": "supplier_dues", "category": "purchases", "module": "suppliers", "roles": ["OWNER"],
+      "label": { "en": "Which suppliers do I owe the most?", "hi": "मुझे किन सप्लायरों का सबसे ज़्यादा देना है?" },
+      "screen": { "key": "suppliers", "fallback_key": null, "module": "suppliers", "mobile": false } },
+    { "id": "top_suppliers", "category": "purchases", "module": "purchases", "roles": ["OWNER"],
+      "label": { "en": "Which suppliers did I buy from most this month?", "hi": "इस महीने मैंने किन सप्लायरों से सबसे ज़्यादा खरीदा?" },
+      "screen": { "key": "reports_purchase_register", "fallback_key": "purchases", "module": "reports", "mobile": false } },
+    { "id": "cost_up", "category": "purchases", "module": "purchases", "roles": ["OWNER"],
+      "label": { "en": "Which items cost more on my latest purchase?", "hi": "पिछली खरीद पर कौन से आइटम महँगे हुए?" },
+      "screen": { "key": "purchases", "fallback_key": null, "module": "purchases", "mobile": false } }
   ]
 }

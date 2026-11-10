@@ -5,7 +5,7 @@ import { toModelFigures, restoreNames, figuresHash } from '../../supabase/functi
 import { handle, CONTRACT_VERSION } from '../../supabase/functions/ai-ask/handler.ts';
 import { buildCard, gstScreenChecks } from '../../supabase/functions/ai-ask/cards.ts';
 import { SYSTEM_PROMPT } from '../../supabase/functions/ai-ask/prompt.ts';
-import { priorWindow, mondayOf, lastMonth, shopToday, changePct, sameDaysLastWeek } from '../../supabase/functions/ai-ask/periods.ts';
+import { priorWindow, mondayOf, lastMonth, shopToday, changePct, sameDaysLastWeek, sameDaysLastMonth } from '../../supabase/functions/ai-ask/periods.ts';
 import { runQuestion } from '../../supabase/functions/ai-ask/runs.ts';
 import strings from '../../shared/ai_chat/strings.json';
 
@@ -27,9 +27,9 @@ describe('the shared registry', () => {
   });
   it('every question has a label in every language, and every string set has the same keys', () => {
     const reg = JSON.parse(read('../../shared/ai_chat/questions.json'));
-    expect(reg.questions).toHaveLength(12);
+    expect(reg.questions).toHaveLength(16);
     for (const q of reg.questions) for (const l of reg.languages) expect(q.label[l]).toBeTruthy();
-    for (const k of ['ui', 'card', 'titles', 'notes', 'footnotes', 'links', 'methods']) {
+    for (const k of ['ui', 'card', 'hero', 'titles', 'notes', 'footnotes', 'links', 'methods', 'no_data_by_question']) {
       expect(Object.keys(strings.hi[k]).sort()).toEqual(Object.keys(strings.en[k]).sort());
     }
   });
@@ -511,5 +511,160 @@ describe('ai-ask flow', () => {
     expect(q.profit_month).toBeUndefined();
     expect(q.sales_today.screen_key).toBe('sales');    // the fallback, since /reports is locked
     expect(q.cash_bank.screen_key).toBe('dashboard');
+  });
+});
+
+// ── Purchases & suppliers ───────────────────────────────────────────────────
+// Figures below are what the new SQL returned: Demo Kirana Store (prod, read
+// only, 1-19 Jun 2026 against 1-19 May) and rolled-back seed rows on dev.
+// Each was checked against the screen's own JS over the same rows.
+const BOUGHT = {
+  period_from: '2026-06-01', period_to: '2026-06-19', as_of: 'x', total_value: 88048, bill_count: 13, supplier_count: 4,
+  previous_value: 48175, previous_bill_count: 10, previous_from: '2026-05-01', previous_to: '2026-05-19', change_pct: 82.8,
+};
+const OWED = {
+  period_from: '2026-11-11', period_to: '2026-11-11', as_of: 'x', total_owed: 44363, suppliers_owing: 4, suppliers_total: 4, advance_total: 200,
+  suppliers: [
+    { supplier_id: 'S-DEMO-001', name: 'Kerala Paper Mills', owed: 18000, last_payment_date: null },
+    { supplier_id: 'S-DEMO-002', name: 'Cochin Disposables Co.', owed: 15750, last_payment_date: null },
+    { supplier_id: 'TIE-S-A', name: 'Alpha Traders', owed: 10150, last_payment_date: '2026-11-03' },
+    { supplier_id: 'TIE-S-B', name: 'Beta Agency', owed: 463, last_payment_date: null },
+  ],
+};
+const TOP_SUP = {
+  period_from: '2026-06-01', period_to: '2026-06-19', as_of: 'x', total_value: 88048, bill_count: 13, supplier_count: 4,
+  suppliers: [{ name: 'Metro Wholesale Distributors', value: 68174, bill_count: 6 }, { name: 'Dairy Fresh Distributors', value: 16962, bill_count: 5 },
+    { name: 'Beverage Hub', value: 1456, bill_count: 1 }, { name: 'Cleanwell Household Co', value: 1456, bill_count: 1 }],
+};
+const COST = {
+  period_from: '2026-08-13', period_to: '2026-11-11', as_of: 'x', items_up: 3, items_compared: 3,
+  items: [
+    { product_id: 'TIE-P-4', product_name: 'Tie Salt', unit: 'PCS', old_cost: 1.01, new_cost: 1.5, pct_rise: 48.51, old_date: '2026-11-09', new_date: '2026-11-09' },
+    { product_id: 'TIE-P-2', product_name: 'Tie Oil 1L', unit: 'PCS', old_cost: 50, new_cost: 60, pct_rise: 20, old_date: '2026-11-04', new_date: '2026-11-05' },
+    { product_id: 'TIE-P-1', product_name: 'Tie Rice 25kg', unit: 'BAG', old_cost: 33.33, new_cost: 33.67, pct_rise: 1.02, old_date: '2026-10-02', new_date: '2026-11-03' },
+  ],
+};
+
+describe('purchases & suppliers', () => {
+  const reg = JSON.parse(read('../../shared/ai_chat/questions.json'));
+  const IDS = ['purchases_month', 'supplier_dues', 'top_suppliers', 'cost_up'];
+
+  it('are one category, after stock, with every string a card needs', () => {
+    expect(reg.questions.filter((q) => q.category === 'purchases').map((q) => q.id)).toEqual(IDS);
+    expect(read('../components/ask/AskPanel.jsx')).toContain("const CATEGORIES = ['sales', 'stock', 'purchases', 'dues', 'cash', 'gst'];");
+    for (const lang of ['en', 'hi']) {
+      expect(strings[lang].ui.category_purchases).toBeTruthy();
+      for (const id of IDS) {
+        expect(strings[lang].titles[id]).toBeTruthy();
+        expect(strings[lang].hero[id]).toBeTruthy();
+        expect(strings[lang].footnotes[id]).toBeTruthy();
+        expect(strings[lang].no_data_by_question[id]).toBeTruthy();
+      }
+    }
+    expect(strings.en.ui.category_purchases).toBe('Purchases & suppliers');
+  });
+
+  it('every new Hindi string waits for review', () => {
+    const pending = new Set(strings.hi.review_pending);
+    for (const k of ['ui.category_purchases', 'card.invoice_value', 'footnotes.cost_up', 'hero.supplier_dues.caption', 'no_data_by_question.top_suppliers']) {
+      expect(pending.has(k)).toBe(true);
+    }
+  });
+
+  it('purchases_month: the register total, its bills, and the same days last month', () => {
+    const card = buildCard('purchases_month', BOUGHT, strings.en);
+    expect(card.title).toBe('Bought this month');
+    expect(card.hero).toMatchObject({ value: 88048, kind: 'money', caption: 'Bought, 1 to 19 Jun, 13 bills', detail: '▲ 82.8% vs ₹48,175.00 for 1 to 19 May' });
+    expect(card.rows).toEqual([
+      { label: 'Invoice value, with GST', value: 88048, kind: 'money', tone: 'total' },
+      { label: 'Bills', value: 13, kind: 'count' }, { label: 'Suppliers', value: 4, kind: 'count' }]);
+    expect(card.footnote).toContain('Invoice value includes GST, as on the Purchase Register');
+    expect(buildCard('purchases_month', { ...BOUGHT, change_pct: null }, strings.en).hero.detail).toBe('₹48,175.00 for 1 to 19 May');
+  });
+
+  it('supplier_dues: owed per supplier, last paid, and the advance the screen nets', () => {
+    const card = buildCard('supplier_dues', OWED, strings.en);
+    expect(card.hero).toMatchObject({ value: 18000, caption: 'Kerala Paper Mills is owed the most', detail: '₹44,363.00 owed to 4 suppliers' });
+    expect(card.table.rows[2]).toEqual(['Alpha Traders', '3 Nov', 10150]);
+    expect(card.table.rows[0][1]).toBe('Never');
+    expect(card.rows_after).toEqual([
+      { label: 'Total you owe', value: 44363, kind: 'money', tone: 'total' },
+      { label: 'Paid ahead, already taken off', value: 200, kind: 'money' }]);
+    expect(card.footnote).toMatch(/^Top 4 of 4 shown\. .*as on the Suppliers screen/);
+    expect(buildCard('supplier_dues', { ...OWED, advance_total: 0 }, strings.en).rows_after).toHaveLength(1);
+  });
+
+  it('top_suppliers: by value, with the register total', () => {
+    const card = buildCard('top_suppliers', TOP_SUP, strings.en);
+    expect(card.hero).toMatchObject({ value: 68174, caption: 'Top supplier: Metro Wholesale Distributors',
+      detail: '₹88,048.00 from 4 suppliers in 13 bills, 1 to 19 Jun' });
+    expect(card.table.rows[0]).toEqual(['Metro Wholesale Distributors', 6, 68174]);
+    expect(card.rows_after[0]).toMatchObject({ value: 88048, tone: 'total' });
+    expect(card.footnote).toContain("the total equals the register's Invoice Value");
+  });
+
+  it('cost_up: was, now and the rise, per base unit, with the footnote saying what is compared', () => {
+    const card = buildCard('cost_up', COST, strings.en);
+    expect(card.hero).toMatchObject({ value: 3, kind: 'count', unit: 'items', caption: 'Cost more on the latest purchase, of 3 compared since 13 Aug' });
+    expect(card.table.columns.map((c) => c.kind)).toEqual(['text', 'money', 'money', 'percent']);
+    expect(card.table.rows[0]).toEqual(['Tie Salt (PCS)', 1.01, 1.5, 48.51]);
+    expect(card.footnote).toContain("in the item's base unit");
+    expect(card.footnote).toContain('price history');
+  });
+
+  it('nothing to say reads plainly, with no AI slot', () => {
+    for (const id of IDS) {
+      const f = { purchases_month: BOUGHT, supplier_dues: OWED, top_suppliers: TOP_SUP, cost_up: COST }[id];
+      const card = buildCard(id, f, strings.en, true);
+      expect(card.hero.caption).toBe(strings.en.no_data_by_question[id]);
+      expect(card.footnote).toBeNull();
+    }
+  });
+
+  it('supplier names go to the model as [S1].., ids never', () => {
+    const { view, map } = toModelFigures(OWED);
+    const sent = JSON.stringify(view);
+    for (const secret of ['Kerala Paper', 'Alpha', 'S-DEMO-001', 'TIE-S-A']) expect(sent).not.toContain(secret);
+    expect(view.suppliers.map((x) => x.name)).toEqual(['[S1]', '[S2]', '[S3]', '[S4]']);
+    expect(map['[S3]']).toBe('Alpha Traders');
+    expect(toModelFigures(TOP_SUP).view.suppliers[0]).toEqual({ name: '[S1]', value: 68174, bill_count: 6 });
+    expect(JSON.stringify(toModelFigures(COST).view)).not.toContain('TIE-P-');
+  });
+
+  it('the guard holds on the new figures', () => {
+    const ok = (text, f) => { const { view, map } = toModelFigures(f); return checkReply(text, view, map).ok; };
+    expect(ok('You bought ₹88,048 in 13 bills from 4 suppliers, 82.8% more than the same days last month.', BOUGHT)).toBe(true);
+    expect(ok('You bought ₹88,048, 82.8% less than last month.', BOUGHT)).toBe(false);
+    expect(ok('You bought ₹88,050 this month.', BOUGHT)).toBe(false);
+    expect(ok('You owe ₹44,363 to 4 suppliers; [S1] is owed ₹18,000.', OWED)).toBe(true);
+    expect(ok('[S5] is owed ₹463.', OWED)).toBe(false);
+    expect(ok('[S1] supplied ₹68,174 of your ₹88,048.', TOP_SUP)).toBe(true);
+    expect(ok('Tie Salt now costs ₹1.50 against ₹1.01, a 48.51% rise.', COST)).toBe(true);
+    expect(ok('Tie Salt rose 49.5%.', COST)).toBe(false);
+    expect(ok('Tie Rice 25kg now costs ₹34.', COST)).toBe(true);    // 33.67 to a whole rupee
+    expect(ok('Tie Rice 25kg now costs ₹35.', COST)).toBe(false);
+  });
+
+  it('runs: this month to today against the same days last month', async () => {
+    const calls = [];
+    const db = { rpc: async (name, args) => { calls.push([name, args]); return { data: { total_value: calls.length === 1 ? 120 : 100, bill_count: 1, supplier_count: 1 }, error: null }; } };
+    const r = await runQuestion('purchases_month', db, { tenantId: 'T', today: '2026-11-10', taxMode: null });
+    expect(calls).toEqual([['ai_purchases_summary', { p_from: '2026-11-01', p_to: '2026-11-10' }], ['ai_purchases_summary', { p_from: '2026-10-01', p_to: '2026-10-10' }]]);
+    expect(r.figures).toMatchObject({ previous_value: 100, change_pct: 20, previous_from: '2026-10-01', previous_to: '2026-10-10' });
+    expect(r.params).toEqual({ from: '2026-11-01', to: '2026-11-10' });
+    expect(sameDaysLastMonth('2026-03-31')).toEqual({ from: '2026-02-01', to: '2026-02-28' });
+    expect(sameDaysLastMonth('2027-01-15')).toEqual({ from: '2026-12-01', to: '2026-12-15' });
+  });
+
+  it('runs: the other three read once, and a failed read throws', async () => {
+    const seen = [];
+    const db = (data) => ({ rpc: async (name, args) => { seen.push([name, args]); return { data, error: null }; } });
+    expect((await runQuestion('supplier_dues', db(OWED), { tenantId: 'T', today: '2026-11-11' })).empty).toBe(false);
+    expect((await runQuestion('top_suppliers', db(TOP_SUP), { tenantId: 'T', today: '2026-11-11' })).params).toEqual({ from: '2026-11-01', to: '2026-11-11' });
+    expect((await runQuestion('cost_up', db({ ...COST, items_up: 0, items: [] }), { tenantId: 'T', today: '2026-11-11' })).empty).toBe(true);
+    expect(seen.map((x) => x[0])).toEqual(['ai_supplier_dues', 'ai_top_suppliers', 'ai_cost_up']);
+    expect(seen[2][1]).toEqual({ p_days: 90, p_limit: 10 });
+    const bad = { rpc: async () => ({ data: null, error: { message: 'boom' } }) };
+    await expect(runQuestion('supplier_dues', bad, { tenantId: 'T', today: '2026-11-11' })).rejects.toThrow('ai_supplier_dues: boom');
   });
 });

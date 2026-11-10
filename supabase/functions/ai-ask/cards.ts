@@ -188,6 +188,46 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
       rowsAfter = [row("value_no_bill", f.purchases_no_bill_no_value, "money", "total")];
       footnote = foot();
       break;
+    case "purchases_month":
+      value = f.total_value;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to), bills: count(f.bill_count) });
+      detail = compare({ prev: inr(f.previous_value), pfrom: lead(f.previous_from, f.previous_to), pto: day(f.previous_to) });
+      rows = [row("invoice_value", f.total_value, "money", "total"), row("bills", f.bill_count, "count"),
+        row("suppliers", f.supplier_count, "count")];
+      footnote = foot();
+      break;
+    case "supplier_dues": {
+      const top = f.suppliers[0];
+      value = top?.owed ?? 0;
+      caption = top ? fill(H.caption, { name: top.name }) : "";
+      detail = fill(H.detail, { total: inr(f.total_owed), n: count(f.suppliers_owing) });
+      table = { columns: [col("supplier", "text", false), col("last_paid", "text"), col("owed", "money")],
+        rows: f.suppliers.map((x: any) => [x.name, x.last_payment_date ? day(x.last_payment_date) : L.never, x.owed]) };
+      rowsAfter = [row("total_owed", f.total_owed, "money", "total")];
+      // The Suppliers screen nets money paid ahead against open bills; say how much.
+      if (Number(f.advance_total) >= 0.005) rowsAfter.push(row("paid_ahead", f.advance_total, "money"));
+      footnote = foot({ shown: count(f.suppliers.length), n: count(f.suppliers_owing) });
+      break;
+    }
+    case "top_suppliers": {
+      const top = f.suppliers[0];
+      value = top?.value ?? 0;
+      caption = top ? fill(H.caption, { name: top.name }) : "";
+      detail = fill(H.detail, { total: inr(f.total_value), n: count(f.supplier_count), bills: count(f.bill_count),
+        from: lead(f.period_from, f.period_to), to: day(f.period_to) });
+      table = { columns: [col("supplier", "text", false), col("bills", "count"), col("value", "money")],
+        rows: f.suppliers.map((x: any) => [x.name, x.bill_count, x.value]) };
+      rowsAfter = [row("invoice_value", f.total_value, "money", "total")];
+      footnote = foot({ shown: count(f.suppliers.length), n: count(f.supplier_count) });
+      break;
+    }
+    case "cost_up":
+      value = f.items_up; kind = "count"; unit = H.unit;
+      caption = fill(H.caption, { n: count(f.items_compared), from: day(f.period_from) });
+      table = { columns: [col("item", "text", false), col("was", "money"), col("now", "money"), col("rise", "percent")],
+        rows: f.items.map((i: any) => [i.unit ? `${i.product_name} (${i.unit})` : i.product_name, i.old_cost, i.new_cost, i.pct_rise]) };
+      footnote = foot({ shown: count(f.items.length), n: count(f.items_up) });
+      break;
     default:
       throw new Error(`no card for ${id}`);
   }
