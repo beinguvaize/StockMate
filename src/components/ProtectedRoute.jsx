@@ -5,6 +5,7 @@ import { useTenant } from '../context/TenantContext';
 import { ShieldAlert, Lock, Sparkles, Blocks } from 'lucide-react';
 import { getRequiredPlan, PLANS } from '../lib/tenancy';
 import { MODULE_META, VERTICAL_META } from '../lib/verticals';
+import { RBAC_MODULE_MAP } from '../lib/rbac';
 
 export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOwner = false }) {
   const { session, currentUser, hasPermission, isOwner, loading: authLoading } = useAuth();
@@ -119,6 +120,21 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOw
 
  const moduleKey = moduleMap[path];
 
+ // The RBAC module is NOT always the plan module.
+ //
+ // moduleMap above answers "which plan sells this page", and those keys are
+ // per-page: `labels` is its own ENTERPRISE line item. The role matrix speaks a
+ // smaller vocabulary -- the job someone does, not the page -- so it has no
+ // 'labels', no 'estimates', no 'kds'. Asking it about a page name it does not
+ // know means only OWNER and GLOBAL_ADMIN get through, which is how an
+ // INVENTORY-role user ended up seeing Labels in the nav (AppLayout gates that
+ // link on 'inventory') and then hitting Security Restricted.
+ //
+ // RBAC_MODULE_MAP carries the nav's key for the paths where the two differ.
+ // It lives beside the matrix in src/lib/rbac.js and rbac.test.js pins the two
+ // together, because a copy here is what drifted in the first place.
+ const rbacKey = RBAC_MODULE_MAP[path] || moduleKey;
+
  // Vertical-based module gating.
  //
  // AppLayout already hides these nav items when the tenant's vertical has them
@@ -216,7 +232,7 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOw
  }
 
  // RBAC permission guard
- if (moduleKey && !hasPermission(moduleKey, 'view')) {
+ if (rbacKey && !hasPermission(rbacKey, 'view')) {
  return (
  <div className="flex flex-col items-center justify-center min-h-[80vh] p-5 animate-in fade-in zoom-in duration-500">
  <div className="glass-panel max-w-[500px] w-full text-center p-6 border-red-500/10">
