@@ -14,6 +14,8 @@
 --                quota stops at the plan's limit; both tables are outside
 --                shop backups and have no trigger.
 --   7. READ-ONLY every read function runs inside a read-only transaction.
+--  11. GST       ai_gst_input, ai_gst_by_rate and ai_gst_home_state: shape,
+--                isolation, admin, staff and soft deletes.
 --
 -- Needs two tenants with an owner, and picks them itself. Everything it writes
 -- is fixture data in this transaction, and ends in ROLLBACK. On failure it
@@ -42,22 +44,12 @@ DO $t$
 DECLARE
   k_fns text[] := ARRAY['ai_sales_summary','ai_top_items','ai_low_stock','ai_expiring_stock','ai_dead_stock',
                         'ai_top_dues','ai_dues_ageing','ai_collections','ai_cash_bank','ai_gst_data_gaps',
-                        'ai_purchases_summary','ai_top_suppliers','ai_supplier_dues','ai_cost_up',
-                        'ai_gst_input','ai_gst_by_rate'];
+                        'ai_purchases_summary','ai_top_suppliers','ai_supplier_dues','ai_cost_up'];
   r record;
   n int;
 BEGIN
   SELECT count(*) INTO n FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname = ANY(k_fns);
-  IF n <> 16 THEN RAISE EXCEPTION 'SHAPE: expected 16 read functions with one signature each, found %', n; END IF;
-  -- ai_gst_home_state reads the shop's GSTIN and returns only its 2-digit state code,
-  -- so it is checked here rather than by the private-column rule below.
-  FOR r IN SELECT p.oid, p.provolatile, p.prosecdef, p.prosrc FROM pg_proc p
-            WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'ai_gst_home_state' LOOP
-    IF r.provolatile <> 's' OR r.prosecdef OR r.prosrc !~ 'ai_owner_tenant\(\)' OR r.prosrc !~ 'left\(' THEN
-      RAISE EXCEPTION 'SHAPE: ai_gst_home_state is not a STABLE, INVOKER, owner-only read of 2 characters';
-    END IF;
-    IF has_function_privilege('anon', r.oid, 'EXECUTE') THEN RAISE EXCEPTION 'SHAPE: anon can execute ai_gst_home_state'; END IF;
-  END LOOP;
+  IF n <> 14 THEN RAISE EXCEPTION 'SHAPE: expected 14 read functions with one signature each, found %', n; END IF;
 
   FOR r IN SELECT p.oid, p.proname, p.provolatile, p.prosecdef, p.prosrc,
                   pg_get_function_identity_arguments(p.oid) AS args
@@ -115,9 +107,8 @@ BEGIN
   -- ledgers. Amounts are unique to each shop, so a leak shows up exactly.
   SET LOCAL session_replication_role = replica;
   FOR r IN SELECT * FROM (VALUES (v_a, 'A', 1111111.11::numeric), (v_b, 'B', 2222222.22::numeric)) x(t, tag, amt) LOOP
-    -- The bill's own line carries no taxRate: ai_gst_by_rate shows it as "rate not set".
-    INSERT INTO sales (id, tenant_id, "totalAmount", "paidAmount", date, status, "paymentStatus", "paymentMethod", items)
-    VALUES ('AITEST-S-' || r.tag, r.t, r.amt, 0, v_day::text, 'COMPLETED', 'UNPAID', 'CREDIT', '[{"qty": 1}]'::jsonb);
+    INSERT INTO sales (id, tenant_id, "totalAmount", "paidAmount", date, status, "paymentStatus", "paymentMethod")
+    VALUES ('AITEST-S-' || r.tag, r.t, r.amt, 0, v_day::text, 'COMPLETED', 'UNPAID', 'CREDIT');
     INSERT INTO sale_items (tenant_id, sale_id, line_no, product_id, product_name, quantity, rate, hsn_code)
     VALUES (r.t, 'AITEST-S-' || r.tag, 1, 'AITEST-P-' || r.tag, 'AITEST item ' || r.tag, 1, r.amt, NULL);
     INSERT INTO products (id, tenant_id, name, unit, stock, "costPrice", "lowStockThreshold", product_type, "sellingPrice")
@@ -161,9 +152,7 @@ BEGIN
     'pur',   public.ai_purchases_summary(p_day, p_day),
     'tsup',  public.ai_top_suppliers(p_day, p_day, 100),
     'sdue',  public.ai_supplier_dues(100),
-    'cost',  public.ai_cost_up(90, 100),
-    'gin',   public.ai_gst_input(p_day, p_day),
-    'rate',  public.ai_gst_by_rate(p_day, p_day));
+    'cost',  public.ai_cost_up(90, 100));
 END $$;
 
 DO $t$
@@ -194,10 +183,6 @@ BEGIN
   IF NOT (v -> 'cost' -> 'items') @> '[{"product_name": "AITEST item A", "new_cost": 1111112.11}]'::jsonb THEN
     RAISE EXCEPTION 'ISOLATION: sentinel cost rise missing: %', v -> 'cost';
   END IF;
-  IF (v #>> '{gin,bill_count}')::int < 2 OR (v #>> '{gin,invoice_value}')::numeric < 1111111.11 * 2 + 1 THEN
-    RAISE EXCEPTION 'ISOLATION: sentinel purchases not in GST on purchases: %', v -> 'gin';
-  END IF;
-  IF (v #>> '{rate,not_set_lines}')::int < 1 THEN RAISE EXCEPTION 'ISOLATION: sentinel line with no rate not shown as rate not set'; END IF;
   -- Totals cover every row even when the list is capped.
   PERFORM pg_temp.act_as(v_ua);
   IF (public.ai_low_stock(1) ->> 'items_low')::int <> (v #>> '{low,items_low}')::int
@@ -249,7 +234,6 @@ BEGIN
     format('ai_collections(%L, %L)', v_day, v_day), 'ai_cash_bank()', format('ai_gst_data_gaps(%L, %L)', v_day, v_day),
     format('ai_purchases_summary(%L, %L)', v_day, v_day), format('ai_top_suppliers(%L, %L)', v_day, v_day),
     'ai_supplier_dues()', 'ai_cost_up()',
-    format('ai_gst_input(%L, %L)', v_day, v_day), format('ai_gst_by_rate(%L, %L)', v_day, v_day), 'ai_gst_home_state()',
     'ai_set_enabled(true)', $q$ai_usage_claim('sales_today', 'en', 'm')$q$
   ] LOOP
     BEGIN
@@ -401,6 +385,116 @@ BEGIN
     IF SQLERRM <> 'SS_UNDO' THEN RAISE; END IF;
   END;
   INSERT INTO _ai_results (check_name) VALUES ('sales_stock_second_set');
+END $t$;
+
+-- ── 11. GST on purchases and sales by rate: shape, isolation, staff, deleted ─
+-- Same pattern as 10: runs while the shared fixtures are live, adds its own
+-- rows, and a closing sentinel exception undoes them.
+CREATE OR REPLACE FUNCTION pg_temp.gst_reads(p_day date) RETURNS jsonb LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN jsonb_build_object(
+    'gin',  public.ai_gst_input(p_day, p_day),
+    'rate', public.ai_gst_by_rate(p_day, p_day));
+END $$;
+
+DO $t$
+DECLARE
+  k_fns text[] := ARRAY['ai_gst_input','ai_gst_by_rate'];
+  v_ua text := current_setting('ai_test.ua'); v_ub text := current_setting('ai_test.ub');
+  v_a uuid := current_setting('ai_test.a')::uuid; v_b uuid := current_setting('ai_test.b')::uuid;
+  v_day date := current_setting('ai_test.day')::date;
+  r record; n int; v jsonb; s text; k text;
+BEGIN
+  BEGIN
+    SELECT count(*) INTO n FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname = ANY(k_fns);
+    IF n <> 2 THEN RAISE EXCEPTION 'GST SHAPE: expected 2 functions with one signature each, found %', n; END IF;
+    FOR r IN SELECT p.oid, p.proname, p.provolatile, p.prosecdef, p.prosrc, pg_get_function_identity_arguments(p.oid) AS args
+               FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname = ANY(k_fns) LOOP
+      IF r.provolatile <> 's' OR r.prosecdef THEN RAISE EXCEPTION 'GST SHAPE: % is not STABLE INVOKER', r.proname; END IF;
+      IF r.args ~* 'tenant' THEN RAISE EXCEPTION 'GST SHAPE: % takes a tenant argument', r.proname; END IF;
+      IF r.prosrc ~* '\m(insert\s+into|update\s+public|delete\s+from|truncate)\M' THEN RAISE EXCEPTION 'GST SHAPE: % contains DML', r.proname; END IF;
+      IF r.prosrc !~ 'ai_owner_tenant\(\)' THEN RAISE EXCEPTION 'GST SHAPE: % does not resolve the owner', r.proname; END IF;
+      -- gstin is read (validity and state only, never returned); the shop's own GSTIN is not.
+      IF r.prosrc ~* '\m(phone|contact|gst_no|pan_number|aadhaar|account_no|ifsc|upi_id|billing_address|shipping_address)\M' THEN
+        RAISE EXCEPTION 'GST SHAPE: % names a private column', r.proname;
+      END IF;
+      IF has_function_privilege('anon', r.oid, 'EXECUTE') OR NOT has_function_privilege('authenticated', r.oid, 'EXECUTE') THEN
+        RAISE EXCEPTION 'GST SHAPE: wrong grants on %', r.proname;
+      END IF;
+    END LOOP;
+    -- ai_gst_home_state reads the shop's GSTIN and returns only its first 2 characters.
+    SELECT p.oid, p.provolatile, p.prosecdef, p.prosrc INTO r FROM pg_proc p
+     WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'ai_gst_home_state';
+    IF r.oid IS NULL OR r.provolatile <> 's' OR r.prosecdef OR r.prosrc !~ 'ai_owner_tenant\(\)' OR r.prosrc !~ 'left\('
+       OR has_function_privilege('anon', r.oid, 'EXECUTE') THEN
+      RAISE EXCEPTION 'GST SHAPE: ai_gst_home_state is not a STABLE, INVOKER, owner-only read of 2 characters';
+    END IF;
+
+    -- Per shop: a sale whose bill line has no taxRate, and a bill from a
+    -- supplier in another state (IGST on the register).
+    SET LOCAL session_replication_role = replica;
+    FOR r IN SELECT * FROM (VALUES (v_a, 'A', 1111111.11::numeric), (v_b, 'B', 2222222.22::numeric)) x(t, tag, amt) LOOP
+      INSERT INTO sales (id, tenant_id, "totalAmount", "paidAmount", date, status, "paymentStatus", "paymentMethod", items)
+      VALUES ('AITEST-SG-' || r.tag, r.t, r.amt, 0, v_day::text, 'COMPLETED', 'UNPAID', 'CREDIT', '[{"qty": 1}]'::jsonb);
+      INSERT INTO sale_items (tenant_id, sale_id, line_no, product_id, product_name, quantity, rate)
+      VALUES (r.t, 'AITEST-SG-' || r.tag, 1, 'AITEST-P-' || r.tag, 'AITEST item ' || r.tag, 1, r.amt);
+      INSERT INTO suppliers (id, tenant_id, name, gstin) VALUES ('AITEST-SG-' || r.tag, r.t, 'AITEST gst supplier ' || r.tag, '29ABCDE1234F1Z5');
+      INSERT INTO purchases (id, tenant_id, date, total_amount, quantity, bill_no, supplier_id)
+      VALUES ('AITEST-PG-' || r.tag, r.t, v_day::text, r.amt, 1, 'B-1', 'AITEST-SG-' || r.tag);
+    END LOOP;
+    SET LOCAL session_replication_role = origin;
+
+    PERFORM pg_temp.act_as(v_ua);
+    v := pg_temp.gst_reads(v_day);
+    PERFORM pg_temp.back();
+    s := v::text;
+    IF s ~ '2222222' THEN RAISE EXCEPTION 'GST ISOLATION: owner A sees shop B: %', left(s, 400); END IF;
+    IF (v #>> '{gin,invoice_value}')::numeric < 1111111.11 * 3 + 1 THEN RAISE EXCEPTION 'GST ISOLATION: sentinel purchases not counted: %', v -> 'gin'; END IF;
+    IF (v #>> '{gin,igst}')::numeric < 169491 THEN RAISE EXCEPTION 'GST ISOLATION: other-state bill not shown as IGST: %', v -> 'gin'; END IF;
+    IF (v #>> '{gin,in_doubt_bills}')::int < 2 THEN RAISE EXCEPTION 'GST ISOLATION: sentinel bills with no GSTIN not in doubt'; END IF;
+    IF (v #>> '{rate,not_set_lines}')::int < 1 OR (v #>> '{rate,not_set_taxable}')::numeric < 1111111.11 THEN
+      RAISE EXCEPTION 'GST ISOLATION: a line with no rate set is not its own row: %', v -> 'rate';
+    END IF;
+
+    PERFORM pg_temp.act_as(v_ub);
+    s := pg_temp.gst_reads(v_day)::text;
+    PERFORM pg_temp.back();
+    IF s ~ '1111111' THEN RAISE EXCEPTION 'GST ISOLATION: owner B sees shop A'; END IF;
+
+    UPDATE users SET roles = array_append(roles, 'GLOBAL_ADMIN') WHERE id = v_ua;
+    PERFORM pg_temp.act_as(v_ua);
+    s := pg_temp.gst_reads(v_day)::text;
+    PERFORM pg_temp.back();
+    IF s ~ '2222222' THEN RAISE EXCEPTION 'GST ADMIN: a global admin sees another shop'; END IF;
+    UPDATE users SET roles = ARRAY['STAFF'] WHERE id = v_ua;
+    PERFORM pg_temp.act_as(v_ua);
+    FOREACH k IN ARRAY ARRAY[format('ai_gst_input(%L, %L)', v_day, v_day), format('ai_gst_by_rate(%L, %L)', v_day, v_day), 'ai_gst_home_state()'] LOOP
+      BEGIN
+        EXECUTE 'SELECT public.' || k;
+        PERFORM pg_temp.back();
+        RAISE EXCEPTION 'GST STAFF: % was not refused', k;
+      EXCEPTION WHEN insufficient_privilege THEN NULL;
+      END;
+      PERFORM pg_temp.act_as(v_ua);
+    END LOOP;
+    PERFORM pg_temp.back();
+    UPDATE users SET roles = ARRAY['OWNER'] WHERE id = v_ua;
+
+    -- Soft-deleted rows are not read.
+    SET LOCAL session_replication_role = replica;
+    UPDATE sales SET deleted_at = now() WHERE tenant_id = v_a AND id LIKE 'AITEST-S%';
+    UPDATE purchases SET deleted_at = now() WHERE tenant_id = v_a AND id LIKE 'AITEST-P%';
+    SET LOCAL session_replication_role = origin;
+    PERFORM pg_temp.act_as(v_ua);
+    s := pg_temp.gst_reads(v_day)::text;
+    PERFORM pg_temp.back();
+    IF s ~ '111111[12]' THEN RAISE EXCEPTION 'GST DELETED: a soft-deleted row was read: %', left(s, 400); END IF;
+
+    RAISE EXCEPTION 'GST_UNDO';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'GST_UNDO' THEN RAISE; END IF;
+  END;
+  INSERT INTO _ai_results (check_name) VALUES ('gst_input_and_rates');
 END $t$;
 
 -- ── 5. soft-deleted and voided rows ────────────────────────────────────────
@@ -744,6 +838,12 @@ DECLARE v_day date := current_setting('ai_test.day')::date;
 BEGIN
   PERFORM pg_temp.act_as(current_setting('ai_test.ua'));
   PERFORM public.ai_dues_over_60(), public.ai_credit_sales(v_day, v_day), public.ai_cash_today(), public.ai_payment_mix(v_day, v_day);
+  PERFORM pg_temp.back();
+END $t$;
+DO $t$
+BEGIN
+  PERFORM pg_temp.act_as(current_setting('ai_test.ub'));
+  PERFORM pg_temp.gst_reads(current_setting('ai_test.day')::date), public.ai_gst_home_state();
   PERFORM pg_temp.back();
 END $t$;
 

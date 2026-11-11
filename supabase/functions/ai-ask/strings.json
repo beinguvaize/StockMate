@@ -182,7 +182,29 @@
    "total_at_cost": "Total at cost",
    "raw_part": "Of which raw material",
    "products": "Products",
-   "days_left": "Days left"
+   "days_left": "Days left",
+   "gst_purchase_value": "Purchase bills, with GST",
+   "gst_purchase_taxable": "Before GST, at 18%",
+   "cgst": "CGST",
+   "sgst": "SGST",
+   "igst": "IGST",
+   "gst_on_purchases": "GST on purchases",
+   "gst_no_gstin": "No valid supplier GSTIN, {n} bills",
+   "gst_no_bill_no": "No bill number, {n} bills",
+   "gst_in_doubt": "Credit in doubt, either reason, {n} bills",
+   "gst_sales_side": "GST on your sales",
+   "gst_purchase_side": "GST on purchases, at 18%",
+   "gst_rough_difference": "Rough difference",
+   "gst_rate": "GST rate",
+   "gst_lines": "Lines",
+   "gst_before": "Before GST",
+   "gst_amount": "GST",
+   "gst_rate_not_set": "Rate not set",
+   "gst_rate_pct": "{rate}%",
+   "gst_sales_total": "GST on these sales",
+   "gst_returns": "Less GST on returns",
+   "gst_after_returns": "GST after returns",
+   "gst_no_lines": "Bills with no line detail, {n}"
   },
   "hero": {
    "sales_today": {
@@ -304,6 +326,17 @@
    "fast_movers_low": {
     "unit": "items",
     "caption": "Running low among your top {top} sellers since {from}"
+   },
+   "gst_itc_month": {
+    "caption": "GST on purchases, {from} to {to}, {bills} bills"
+   },
+   "gst_net_month": {
+    "caption": "Rough GST on sales less GST on purchases, {from} to {to}",
+    "caption_more_input": "GST on purchases is more than on sales by this, {from} to {to}"
+   },
+   "gst_by_rate": {
+    "caption": "GST on your sales by rate, {from} to {to}",
+    "not_set": "{n} lines worth {value} have no GST rate set"
    }
   },
   "titles": {
@@ -336,14 +369,20 @@
    "returns_month": "Returns this month",
    "stock_value": "What your stock is worth",
    "out_of_stock": "Out of stock",
-   "fast_movers_low": "Best sellers running low"
+   "fast_movers_low": "Best sellers running low",
+   "gst_itc_month": "GST on purchases this month",
+   "gst_net_month": "Rough GST this month",
+   "gst_by_rate": "Sales by GST rate"
   },
   "notes": {
    "gst_collected": "GST on your sales, from your books. This is before input credit and is not a filing figure.",
    "expenses_month": "Amounts as paid, GST included. The total is the expenses line of your profit; owner drawings are kept out of it.",
    "top_expenses": "Amounts as paid, GST included. Owner drawings are left out, as on your profit.",
    "expenses_vs_last": "Amounts as paid, GST included. Owner drawings are left out, as on your profit.",
-   "fast_movers_low": "Best sellers are your top {top} items by units sold since {from}. One is running low when its stock is at or below its low-stock limit, or it has {cover} days or fewer left. Days left is stock divided by units sold over {days} days, as Days Cover on Fast / Slow Movers."
+   "fast_movers_low": "Best sellers are your top {top} items by units sold since {from}. One is running low when its stock is at or below its low-stock limit, or it has {cover} days or fewer left. Days left is stock divided by units sold over {days} days, as Days Cover on Fast / Slow Movers.",
+   "gst_itc_month": "Your purchases do not store GST. This card and the Purchase Register take it as 18% of each bill total. From your books, not a filing figure.",
+   "gst_net_month": "A rough estimate from your books, not what to file or pay. GST on purchases is taken as 18% of each bill total, as the Purchase Register does.",
+   "gst_by_rate": "From the GST rate stored on each bill line. A line with no rate set is shown on its own and is never counted at 18%. Not a filing figure."
   },
   "footnotes": {
    "top_items": "Top {shown} of {n} items sold this month. By sales value, not margin.",
@@ -398,7 +437,17 @@
    "out_of_stock": "Raw material and services are left out, as on Low Stock.",
    "out_of_stock_negative": "Low Stock's Items Out of Stock counts only items at exactly 0, so it reads {zero}; {neg} more are below 0.",
    "list_capped": "Top {shown} of {n} shown.",
-   "fast_movers_low": "Fast / Slow Movers shows Units Sold, Stock and Days Cover for each of these."
+   "fast_movers_low": "Fast / Slow Movers shows Units Sold, Stock and Days Cover for each of these.",
+   "gst_itc_month": "Purchase Register shows the same {gst} as Tax (ITC candidate) for these dates. It does not mark which bills are in doubt.",
+   "gst_net_itc_left": "GSTR-3B counts input credit of {itc}: it leaves out bills from suppliers with no valid GSTIN ({left} here) and rounds CGST and SGST once for the month.",
+   "gst_net_itc_round": "GSTR-3B counts input credit of {itc}: it rounds CGST and SGST once for the month; here each bill is rounded.",
+   "gst_net_screen_more": "GSTR-3B shows {gap} more GST on sales: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill.",
+   "gst_net_screen_less": "GSTR-3B shows {gap} less GST on sales: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill.",
+   "gst_net_floor": "GSTR-3B also sets each tax head against its own credit and never shows one below zero.",
+   "gst_by_rate": "Before GST adds up the bill lines; bill totals can differ by bill discounts and round-off.",
+   "gst_by_rate_not_set": "GSTR-3B counts a line with no rate set as 18%, so it shows GST on these lines that your bills never charged.",
+   "gst_by_rate_more": "The rates add up to {gap} more than the total: your bills round GST once per bill.",
+   "gst_by_rate_less": "The rates add up to {gap} less than the total: your bills round GST once per bill."
   },
   "links": {
    "reports_daily_sales": "Open Daily Sales",
@@ -690,7 +739,29 @@
    "total_at_cost": "लागत पर कुल",
    "raw_part": "इसमें कच्चा माल",
    "products": "प्रोडक्ट",
-   "days_left": "बचे दिन"
+   "days_left": "बचे दिन",
+   "gst_purchase_value": "खरीद के बिल, GST सहित",
+   "gst_purchase_taxable": "GST से पहले, 18% पर",
+   "cgst": "CGST",
+   "sgst": "SGST",
+   "igst": "IGST",
+   "gst_on_purchases": "खरीद पर GST",
+   "gst_no_gstin": "सप्लायर का सही GSTIN नहीं, {n} बिल",
+   "gst_no_bill_no": "बिल नंबर नहीं, {n} बिल",
+   "gst_in_doubt": "क्रेडिट पर शक, किसी भी कारण से, {n} बिल",
+   "gst_sales_side": "आपकी बिक्री पर GST",
+   "gst_purchase_side": "खरीद पर GST, 18% पर",
+   "gst_rough_difference": "मोटा अंतर",
+   "gst_rate": "GST दर",
+   "gst_lines": "लाइनें",
+   "gst_before": "GST से पहले",
+   "gst_amount": "GST",
+   "gst_rate_not_set": "दर तय नहीं",
+   "gst_rate_pct": "{rate}%",
+   "gst_sales_total": "इन बिक्री पर GST",
+   "gst_returns": "वापसी पर GST घटाया",
+   "gst_after_returns": "वापसी के बाद GST",
+   "gst_no_lines": "बिना लाइन ब्योरे वाले बिल, {n}"
   },
   "hero": {
    "sales_today": {
@@ -812,6 +883,17 @@
    "fast_movers_low": {
     "unit": "आइटम",
     "caption": "{from} से आपके टॉप {top} बिकने वाले आइटम में से कम बचे"
+   },
+   "gst_itc_month": {
+    "caption": "खरीद पर GST, {from} से {to}, {bills} बिल"
+   },
+   "gst_net_month": {
+    "caption": "बिक्री पर GST में से खरीद पर GST घटाकर, मोटा अंदाज़ा, {from} से {to}",
+    "caption_more_input": "खरीद पर GST बिक्री से इतना ज़्यादा है, {from} से {to}"
+   },
+   "gst_by_rate": {
+    "caption": "दर के हिसाब से आपकी बिक्री पर GST, {from} से {to}",
+    "not_set": "{value} की {n} लाइनों पर GST दर तय नहीं है"
    }
   },
   "titles": {
@@ -844,14 +926,20 @@
    "returns_month": "इस महीने की वापसी",
    "stock_value": "आपके स्टॉक की कीमत",
    "out_of_stock": "स्टॉक ख़त्म",
-   "fast_movers_low": "ज़्यादा बिकने वाले आइटम जो कम बचे हैं"
+   "fast_movers_low": "ज़्यादा बिकने वाले आइटम जो कम बचे हैं",
+   "gst_itc_month": "इस महीने खरीद पर GST",
+   "gst_net_month": "इस महीने का मोटा GST",
+   "gst_by_rate": "GST दर के हिसाब से बिक्री"
   },
   "notes": {
    "gst_collected": "आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले का है और फ़ाइलिंग का आँकड़ा नहीं है।",
    "expenses_month": "रकम जैसी चुकाई गई, GST सहित। कुल रकम आपके मुनाफ़े की खर्च वाली लाइन है; मालिक की निकासी इसमें नहीं गिनी गई।",
    "top_expenses": "रकम जैसी चुकाई गई, GST सहित। मालिक की निकासी नहीं गिनी गई, जैसे मुनाफ़े में।",
    "expenses_vs_last": "रकम जैसी चुकाई गई, GST सहित। मालिक की निकासी नहीं गिनी गई, जैसे मुनाफ़े में।",
-   "fast_movers_low": "{from} से बिकी इकाइयों के हिसाब से आपके टॉप {top} आइटम ज़्यादा बिकने वाले हैं। कोई आइटम कम बचा तब माना जाता है जब उसका स्टॉक कम-स्टॉक सीमा पर या उससे नीचे हो, या उसके {cover} दिन या उससे कम बचे हों। बचे दिन = स्टॉक ÷ {days} दिनों में बिकी इकाइयाँ, जैसा Fast / Slow Movers पर Days Cover में है।"
+   "fast_movers_low": "{from} से बिकी इकाइयों के हिसाब से आपके टॉप {top} आइटम ज़्यादा बिकने वाले हैं। कोई आइटम कम बचा तब माना जाता है जब उसका स्टॉक कम-स्टॉक सीमा पर या उससे नीचे हो, या उसके {cover} दिन या उससे कम बचे हों। बचे दिन = स्टॉक ÷ {days} दिनों में बिकी इकाइयाँ, जैसा Fast / Slow Movers पर Days Cover में है।",
+   "gst_itc_month": "आपकी खरीद में GST दर्ज नहीं होता। यह कार्ड और Purchase Register हर बिल के कुल का 18% GST मानते हैं। आपके खातों से, फ़ाइलिंग का आँकड़ा नहीं।",
+   "gst_net_month": "आपके खातों से एक मोटा अंदाज़ा, यह नहीं कि क्या फ़ाइल करना या भरना है। खरीद पर GST हर बिल के कुल का 18% माना गया है, जैसे Purchase Register मानता है।",
+   "gst_by_rate": "हर बिल लाइन पर दर्ज GST दर से। जिस लाइन की दर तय नहीं है वह अलग दिखती है और कभी 18% पर नहीं गिनी जाती। फ़ाइलिंग का आँकड़ा नहीं।"
   },
   "footnotes": {
    "top_items": "इस महीने बिके {n} आइटम में से शीर्ष {shown}। बिक्री रकम के हिसाब से, मार्जिन के नहीं।",
@@ -906,7 +994,17 @@
    "out_of_stock": "कच्चा माल और सेवाएँ शामिल नहीं हैं, जैसे Low Stock पर।",
    "out_of_stock_negative": "Low Stock का Items Out of Stock सिर्फ़ ठीक 0 वाले आइटम गिनता है, इसलिए वहाँ {zero} दिखता है; {neg} और आइटम 0 से नीचे हैं।",
    "list_capped": "{n} में से टॉप {shown} दिखाए गए।",
-   "fast_movers_low": "Fast / Slow Movers पर इनमें से हर एक के Units Sold, Stock और Days Cover दिखते हैं।"
+   "fast_movers_low": "Fast / Slow Movers पर इनमें से हर एक के Units Sold, Stock और Days Cover दिखते हैं।",
+   "gst_itc_month": "Purchase Register इन तारीख़ों के लिए Tax (ITC candidate) में यही {gst} दिखाता है। वह यह नहीं बताता कि किन बिलों पर शक है।",
+   "gst_net_itc_left": "GSTR-3B {itc} का इनपुट क्रेडिट गिनता है: वह बिना सही GSTIN वाले सप्लायरों के बिल छोड़ देता है (यहाँ {left}) और CGST व SGST को महीने में एक बार राउंड करता है।",
+   "gst_net_itc_round": "GSTR-3B {itc} का इनपुट क्रेडिट गिनता है: वह CGST और SGST को महीने में एक बार राउंड करता है; यहाँ हर बिल राउंड होता है।",
+   "gst_net_screen_more": "GSTR-3B में बिक्री पर GST {gap} ज़्यादा दिखता है: वह हर बिल पर हर टैक्स दर के लिए CGST और SGST अलग-अलग राउंड करता है; आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।",
+   "gst_net_screen_less": "GSTR-3B में बिक्री पर GST {gap} कम दिखता है: वह हर बिल पर हर टैक्स दर के लिए CGST और SGST अलग-अलग राउंड करता है; आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।",
+   "gst_net_floor": "GSTR-3B हर टैक्स मद को उसके अपने क्रेडिट से घटाता है और किसी को शून्य से नीचे नहीं दिखाता।",
+   "gst_by_rate": "GST से पहले की रकम बिल लाइनों का जोड़ है; बिल के कुल में बिल छूट और राउंड-ऑफ़ से फ़र्क हो सकता है।",
+   "gst_by_rate_not_set": "GSTR-3B बिना दर वाली लाइन को 18% पर गिनता है, इसलिए वह इन लाइनों पर ऐसा GST दिखाता है जो आपके बिलों ने कभी नहीं लिया।",
+   "gst_by_rate_more": "दरों का जोड़ कुल से {gap} ज़्यादा है: आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।",
+   "gst_by_rate_less": "दरों का जोड़ कुल से {gap} कम है: आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।"
   },
   "links": {
    "reports_daily_sales": "Daily Sales खोलें",
@@ -1213,7 +1311,50 @@
    "no_data_by_question.returns_month",
    "no_data_by_question.stock_value",
    "no_data_by_question.out_of_stock",
-   "no_data_by_question.fast_movers_low"
+   "no_data_by_question.fast_movers_low",
+   "card.gst_purchase_value",
+   "card.gst_purchase_taxable",
+   "card.cgst",
+   "card.sgst",
+   "card.igst",
+   "card.gst_on_purchases",
+   "card.gst_no_gstin",
+   "card.gst_no_bill_no",
+   "card.gst_in_doubt",
+   "card.gst_sales_side",
+   "card.gst_purchase_side",
+   "card.gst_rough_difference",
+   "card.gst_rate",
+   "card.gst_lines",
+   "card.gst_before",
+   "card.gst_amount",
+   "card.gst_rate_not_set",
+   "card.gst_rate_pct",
+   "card.gst_sales_total",
+   "card.gst_returns",
+   "card.gst_after_returns",
+   "card.gst_no_lines",
+   "hero.gst_itc_month.caption",
+   "hero.gst_net_month.caption",
+   "hero.gst_net_month.caption_more_input",
+   "hero.gst_by_rate.caption",
+   "hero.gst_by_rate.not_set",
+   "titles.gst_itc_month",
+   "titles.gst_net_month",
+   "titles.gst_by_rate",
+   "notes.gst_itc_month",
+   "notes.gst_net_month",
+   "notes.gst_by_rate",
+   "footnotes.gst_itc_month",
+   "footnotes.gst_net_itc_left",
+   "footnotes.gst_net_itc_round",
+   "footnotes.gst_net_screen_more",
+   "footnotes.gst_net_screen_less",
+   "footnotes.gst_net_floor",
+   "footnotes.gst_by_rate",
+   "footnotes.gst_by_rate_not_set",
+   "footnotes.gst_by_rate_more",
+   "footnotes.gst_by_rate_less"
   ]
  }
 }

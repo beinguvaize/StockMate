@@ -312,6 +312,7 @@ const LINKED = [
   ['top_items', 'reports_product_sales', 'PRODUCT_SALES', '2026-11-01', '2026-11-07'],
   ['gst_collected', 'reports_gstr3b', 'GSTR3B', '2026-11-01', '2026-11-07'],
   ['gst_gaps', 'reports_purchase_register', 'PURCHASE_REGISTER', '2026-10-01', '2026-11-07'],
+  ['gst_itc_month', 'reports_purchase_register', 'PURCHASE_REGISTER', '2026-11-01', '2026-11-07'],
   ['purchases_month', 'reports_purchase_register', 'PURCHASE_REGISTER', '2026-11-01', '2026-11-07'],
   ['sales_week', 'reports_daily_sales', 'DAILY_SALES', '2026-11-09', '2026-11-11'],
   ['best_customers', 'reports_sales_by_party', 'SALES_BY_PARTY', '2026-11-01', '2026-11-07'],
@@ -549,4 +550,19 @@ test('dues_overdue: the link opens Customer Aging', async ({ page }) => {
   await question(page, 'dues_overdue').click();
   await page.getByTestId('ask-answer').getByRole('button', { name: /Open Customer Aging/ }).click();
   await expect(page).toHaveURL(/tab=AR_AGING/);
+});
+
+test('gst_by_rate shows a rate that was never set as its own row, with no screen link', async ({ page }) => {
+  const f = { period_from: '2026-05-01', period_to: '2026-05-31', as_of: 'x', tax_mode: 'NONE', bill_count: 76, line_count: 206,
+    sales_gst: 0, rows_gst: 0, not_set_lines: 206, not_set_bills: 76, not_set_taxable: 110009, no_lines_bills: 0, no_lines_value: 0,
+    rates: [{ rate: null, rate_not_set: true, lines: 206, bills: 76, taxable: 110009, gst: 0 }], output_gst: 0, returns_gst: 0 };
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('gst_by_rate', f, strings.en),
+    screen: { key: null, fallback_key: null, mobile: false, params: { from: '2026-05-01', to: '2026-05-31' } } }) });
+  await openPanel(page);
+  await question(page, 'gst_by_rate').click();
+  const ans = page.getByTestId('ask-answer');
+  await expect(ans).toContainText('Rate not set');
+  await expect(ans).toContainText('206 lines worth ₹1,10,009.00 have no GST rate set');
+  await expect(ans).toContainText('GSTR-3B counts a line with no rate set as 18%');
+  await expect(ans.getByRole('button', { name: /^Open / })).toHaveCount(0);
 });
