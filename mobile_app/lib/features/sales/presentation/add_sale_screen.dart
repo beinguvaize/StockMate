@@ -2910,7 +2910,13 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
     _collectCtrl = TextEditingController(
       text: widget.outstanding > 0 ? widget.outstanding.toStringAsFixed(2) : '',
     );
-    if (widget.paymentMethod != 'CREDIT') _collectMethod = widget.paymentMethod;
+    // Start from the sale's method only when it is a way money can arrive.
+    // A credit sale reaches here as 'CREDIT_SALE' (the picker's sentinel), not
+    // 'CREDIT', and that leaked into client_payments as a payment method: the
+    // money went to a bank account and the Day Book never listed it.
+    if (const {'CASH', 'UPI', 'BANK'}.contains(widget.paymentMethod)) {
+      _collectMethod = widget.paymentMethod;
+    }
   }
 
   @override
