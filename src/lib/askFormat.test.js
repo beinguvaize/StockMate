@@ -42,5 +42,9 @@ describe('askFormat', () => {
     expect(screenPath('purchases', { from: '2026-08-13', to: '2026-11-11' })).toBe('/purchases');
     expect(screenPath('reports_purchase_register', { from: '2026-11-01', to: '2026-11-10' }))
       .toBe('/reports?tab=PURCHASE_REGISTER&from=2026-11-01&to=2026-11-10');
+    expect(screenPath('reports_sales_by_party', { from: '2026-11-01', to: '2026-11-11' }))
+      .toBe('/reports?tab=SALES_BY_PARTY&from=2026-11-01&to=2026-11-11');
+    // Fast / Slow Movers has its own fixed window, so it takes no dates.
+    expect(screenPath('reports_product_movement', { from: '2026-10-12', to: '2026-11-11' })).toBe('/reports?tab=PRODUCT_MOVEMENT');
   });
 });

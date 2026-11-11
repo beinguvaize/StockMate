@@ -184,6 +184,22 @@ Category `purchases`, shown after Stock. Functions in `20261111_ai_purchases_rea
 
 Supplier names go to the model as `[S1]`... Every new Hindi string is listed in `hi.review_pending`. `mobile` is false for all four until the phone has the category and a screen that ties.
 
+### Sales and stock, second set (added 2026-11-11, branch `ask-sales-stock`)
+
+Seven more questions in the existing `sales` and `stock` categories, after the ones already there. Functions in `20261113_ai_sales_stock_read_functions.sql`; `sales_vs_last_month` reuses `ai_sales_summary`.
+
+| `question_id` | Function | Rule copied from | Web link |
+|---|---|---|---|
+| `sales_vs_last_month` | `ai_sales_summary`, this month to today and the same dates last month (`sameDaysLastMonth`) | Daily Sales: countable sales, `date` between, gross = sum of `totalAmount` | `/reports?tab=DAILY_SALES` with the answer's dates. Footnote: the screen shows day totals, not a period total |
+| `sales_week` | `ai_sales_by_day(p_from, p_to)`, Monday to today; last week's same days by `ai_sales_summary` | Daily Sales Day Total per day | `/reports?tab=DAILY_SALES` with the answer's dates |
+| `best_customers` | `ai_best_customers(p_from, p_to, p_limit)` | Sales by Party: grouped by `customerInfo.id`; no id = walk-in, counted apart. Total sales = its Total Sales KPI. Footnote when walk-in bills carry a typed name (the screen lists those by name) | `/reports?tab=SALES_BY_PARTY` with the answer's dates (the report now reads `?from=&to=`) |
+| `returns_month` | `ai_sales_returns(p_from, p_to, p_limit)` | Total = `get_pl_ranged.returns_total` (same rows and sum). Items from `sales_return_items` | `/sales`. Footnote: Sales › Returns has no dates and shows every return; the card states its count and Total Returned |
+| `stock_value` | `ai_stock_value(p_limit)` | Inventory screen Stock Value: every live product, `stock × costPrice`, raw material included | `/inventory`. Footnote: the open cost batches' value, the gap, and its two exact causes (cost price off the batch average; stock and batch quantities differ) |
+| `out_of_stock` | `ai_out_of_stock(p_limit)` | Low Stock: summed `inventory_balances`, else `products.stock`; RAW and SERVICE left out; out = at or below 0 | `/reports?tab=LOW_STOCK`. Footnote when negatives exist: the report's Items Out of Stock counts exactly 0 |
+| `fast_movers_low` | `ai_fast_movers_low(p_days, p_top, p_cover_days, p_limit)` | Fast / Slow Movers: units sold since today − 30, rate = units / 30, days left = stock / rate (rounded as `Math.round`). Running low = Low Stock limit, or 7 days or fewer left. The rule is the card's note | `/reports?tab=PRODUCT_MOVEMENT` |
+
+Customer names go to the model as `[C1]`... No function selects phone, GSTIN or an address. Every new Hindi string is listed in `hi.review_pending`. `mobile` is false for all seven until the phone has a screen that ties.
+
 ---
 
 ## 4. Rules for every new `ai_*` function
