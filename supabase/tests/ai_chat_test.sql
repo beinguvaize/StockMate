@@ -258,6 +258,131 @@ BEGIN
   PERFORM pg_temp.back();
 END $t$;
 
+-- ── sales and stock, second set: shape, isolation, staff, deleted ─────────
+-- Self-contained: its own rows go in, and a closing sentinel exception undoes
+-- every one of them, so the checks after it see the shared fixtures only.
+CREATE OR REPLACE FUNCTION pg_temp.ss_reads(p_day date) RETURNS jsonb LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN jsonb_build_object(
+    'day',  public.ai_sales_by_day(p_day, p_day),
+    'cust', public.ai_best_customers(p_day, p_day, 100),
+    'ret',  public.ai_sales_returns(p_day, p_day, 100),
+    'val',  public.ai_stock_value(100),
+    'out',  public.ai_out_of_stock(100),
+    'fast', public.ai_fast_movers_low(30, 100, 7, 100));
+END $$;
+
+DO $t$
+DECLARE
+  k_fns text[] := ARRAY['ai_sales_by_day','ai_best_customers','ai_sales_returns','ai_stock_value','ai_out_of_stock','ai_fast_movers_low'];
+  v_ua text := current_setting('ai_test.ua'); v_ub text := current_setting('ai_test.ub');
+  v_a uuid := current_setting('ai_test.a')::uuid; v_b uuid := current_setting('ai_test.b')::uuid;
+  v_day date := current_setting('ai_test.day')::date;
+  r record; n int; v jsonb; s text; k text;
+BEGIN
+  BEGIN
+    SELECT count(*) INTO n FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname = ANY(k_fns);
+    IF n <> 6 THEN RAISE EXCEPTION 'SS SHAPE: expected 6 functions with one signature each, found %', n; END IF;
+    FOR r IN SELECT p.oid, p.proname, p.provolatile, p.prosecdef, p.prosrc, pg_get_function_identity_arguments(p.oid) AS args
+               FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname = ANY(k_fns) LOOP
+      IF r.provolatile <> 's' OR r.prosecdef THEN RAISE EXCEPTION 'SS SHAPE: % is not STABLE INVOKER', r.proname; END IF;
+      IF r.args ~* 'tenant' THEN RAISE EXCEPTION 'SS SHAPE: % takes a tenant argument', r.proname; END IF;
+      IF r.prosrc ~* '\m(insert\s+into|update\s+public|delete\s+from|truncate)\M' THEN RAISE EXCEPTION 'SS SHAPE: % contains DML', r.proname; END IF;
+      IF r.prosrc !~ 'ai_owner_tenant\(\)' THEN RAISE EXCEPTION 'SS SHAPE: % does not resolve the owner', r.proname; END IF;
+      IF r.prosrc ~* '\m(phone|contact|gstin|gst_no|pan_number|aadhaar|account_no|ifsc|upi_id|billing_address|shipping_address)\M' THEN
+        RAISE EXCEPTION 'SS SHAPE: % names a private column', r.proname;
+      END IF;
+      IF has_function_privilege('anon', r.oid, 'EXECUTE') OR NOT has_function_privilege('authenticated', r.oid, 'EXECUTE') THEN
+        RAISE EXCEPTION 'SS SHAPE: wrong grants on %', r.proname;
+      END IF;
+    END LOOP;
+
+    -- Per shop: a sale to the shop's client, a return of the sentinel item,
+    -- and a product at zero. The shared sentinel sale is walk-in.
+    SET LOCAL session_replication_role = replica;
+    FOR r IN SELECT * FROM (VALUES (v_a, 'A', 1111111.11::numeric), (v_b, 'B', 2222222.22::numeric)) x(t, tag, amt) LOOP
+      INSERT INTO sales (id, tenant_id, "totalAmount", "paidAmount", date, status, "paymentStatus", "paymentMethod", "customerInfo")
+      VALUES ('AITEST-S2-' || r.tag, r.t, r.amt + 1, 0, v_day::text, 'COMPLETED', 'UNPAID', 'CREDIT',
+              jsonb_build_object('id', 'AITEST-C-' || r.tag, 'name', 'AITEST client ' || r.tag));
+      INSERT INTO sales_returns (id, tenant_id, sale_id, total_amount, date)
+      VALUES ('AITEST-R-' || r.tag, r.t, 'AITEST-S-' || r.tag, r.amt + 2, v_day);
+      INSERT INTO sales_return_items (tenant_id, return_id, line_no, product_id, product_name, quantity, rate)
+      VALUES (r.t, 'AITEST-R-' || r.tag, 1, 'AITEST-P-' || r.tag, 'AITEST item ' || r.tag, 1, r.amt + 2);
+      INSERT INTO products (id, tenant_id, name, unit, stock, "costPrice", product_type, "sellingPrice")
+      VALUES ('AITEST-O-' || r.tag, r.t, 'AITEST out ' || r.tag, 'PCS', 0, 1, 'STANDARD', 1);
+    END LOOP;
+    SET LOCAL session_replication_role = origin;
+
+    PERFORM pg_temp.act_as(v_ua);
+    v := pg_temp.ss_reads(v_day);
+    PERFORM pg_temp.back();
+    s := v::text;
+    FOREACH k IN ARRAY ARRAY['AITEST item A', 'AITEST client A', 'AITEST out A'] LOOP
+      IF position(k IN s) = 0 THEN RAISE EXCEPTION 'SS ISOLATION: % missing from owner A''s figures', k; END IF;
+    END LOOP;
+    IF s ~ 'AITEST (item|client|out|stuck) B' OR s ~ '2222222' THEN RAISE EXCEPTION 'SS ISOLATION: owner A sees shop B: %', left(s, 400); END IF;
+    IF (v #>> '{day,gross_sales}')::numeric < 2222223.22 THEN RAISE EXCEPTION 'SS ISOLATION: sentinel sales not in the day'; END IF;
+    IF (v #>> '{cust,walk_in_sales}')::numeric < 1111111.11 THEN RAISE EXCEPTION 'SS ISOLATION: walk-in sentinel not counted'; END IF;
+    IF NOT (v -> 'cust' -> 'customers') @> '[{"name": "AITEST client A", "sales_value": 1111112.11}]'::jsonb THEN
+      RAISE EXCEPTION 'SS ISOLATION: customer sentinel missing';
+    END IF;
+    IF (v #>> '{ret,returns_total}')::numeric < 1111113.11 THEN RAISE EXCEPTION 'SS ISOLATION: return sentinel not counted'; END IF;
+    IF (v #>> '{val,stock_value}')::numeric < 1111111.11 * 8 THEN RAISE EXCEPTION 'SS ISOLATION: sentinel stock not valued'; END IF;
+    IF NOT (v -> 'fast' -> 'items') @> '[{"product_name": "AITEST item A", "reason": "limit"}]'::jsonb THEN
+      RAISE EXCEPTION 'SS ISOLATION: sentinel best seller not flagged: %', v -> 'fast';
+    END IF;
+    -- Totals cover every row even when the list is capped.
+    PERFORM pg_temp.act_as(v_ua);
+    IF (public.ai_out_of_stock(1) ->> 'items_out') <> (v #>> '{out,items_out}') OR jsonb_array_length(public.ai_out_of_stock(1) -> 'items') <> 1
+       OR (public.ai_stock_value(1) ->> 'stock_value') <> (v #>> '{val,stock_value}') THEN
+      RAISE EXCEPTION 'SS ISOLATION: a capped list changed its total, or was not capped';
+    END IF;
+    PERFORM pg_temp.back();
+
+    PERFORM pg_temp.act_as(v_ub);
+    s := pg_temp.ss_reads(v_day)::text;
+    PERFORM pg_temp.back();
+    IF s ~ 'AITEST (item|client|out|stuck) A' OR s ~ '1111111' THEN RAISE EXCEPTION 'SS ISOLATION: owner B sees shop A'; END IF;
+
+    -- A global admin gets their own shop only.
+    UPDATE users SET roles = array_append(roles, 'GLOBAL_ADMIN') WHERE id = v_ua;
+    PERFORM pg_temp.act_as(v_ua);
+    s := pg_temp.ss_reads(v_day)::text;
+    PERFORM pg_temp.back();
+    IF s ~ 'AITEST (item|client|out|stuck) B' OR s ~ '2222222' THEN RAISE EXCEPTION 'SS ADMIN: a global admin sees another shop'; END IF;
+    UPDATE users SET roles = ARRAY['STAFF'] WHERE id = v_ua;
+    PERFORM pg_temp.act_as(v_ua);
+    FOREACH k IN ARRAY ARRAY[format('ai_sales_by_day(%L, %L)', v_day, v_day), format('ai_best_customers(%L, %L)', v_day, v_day),
+      format('ai_sales_returns(%L, %L)', v_day, v_day), 'ai_stock_value()', 'ai_out_of_stock()', 'ai_fast_movers_low()'] LOOP
+      BEGIN
+        EXECUTE 'SELECT public.' || k;
+        PERFORM pg_temp.back();
+        RAISE EXCEPTION 'SS STAFF: % was not refused', k;
+      EXCEPTION WHEN insufficient_privilege THEN NULL;
+      END;
+      PERFORM pg_temp.act_as(v_ua);
+    END LOOP;
+    PERFORM pg_temp.back();
+    UPDATE users SET roles = ARRAY['OWNER'] WHERE id = v_ua;
+
+    -- Soft-deleted rows are not read.
+    SET LOCAL session_replication_role = replica;
+    UPDATE sales SET deleted_at = now() WHERE id IN ('AITEST-S-A', 'AITEST-S2-A');
+    UPDATE sales_returns SET deleted_at = now() WHERE id = 'AITEST-R-A';
+    UPDATE products SET deleted_at = now() WHERE id IN ('AITEST-P-A', 'AITEST-Q-A', 'AITEST-O-A');
+    SET LOCAL session_replication_role = origin;
+    PERFORM pg_temp.act_as(v_ua);
+    s := pg_temp.ss_reads(v_day)::text;
+    PERFORM pg_temp.back();
+    IF s ~ 'AITEST' OR s ~ '111111[123]' THEN RAISE EXCEPTION 'SS DELETED: a soft-deleted row was read: %', left(s, 400); END IF;
+
+    RAISE EXCEPTION 'SS_UNDO';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'SS_UNDO' THEN RAISE; END IF;
+  END;
+  INSERT INTO _ai_results (check_name) VALUES ('sales_stock_second_set');
+END $t$;
+
 -- ── 5. soft-deleted and voided rows ────────────────────────────────────────
 DO $t$
 DECLARE

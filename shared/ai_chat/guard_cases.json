@@ -712,6 +712,201 @@
           "new_date": "2026-10-30"
         }
       ]
+    },
+    "sales_vs_last_month": {
+      "period_from": "2026-11-01",
+      "period_to": "2026-11-11",
+      "as_of": "2026-11-11T10:30:00Z",
+      "gross_sales": 103617.5,
+      "bill_count": 106,
+      "average_bill": 977.52,
+      "previous_gross_sales": 128728.8,
+      "previous_bill_count": 112,
+      "previous_average_bill": 1149.36,
+      "previous_from": "2026-10-01",
+      "previous_to": "2026-10-11",
+      "change_pct": -19.5
+    },
+    "sales_week": {
+      "period_from": "2026-11-09",
+      "period_to": "2026-11-11",
+      "as_of": "2026-11-11T10:30:00Z",
+      "gross_sales": 29060.5,
+      "bill_count": 34,
+      "average_bill": 854.72,
+      "days": [
+        {
+          "date": "2026-11-09",
+          "gross_sales": 23067.5,
+          "bill_count": 30
+        },
+        {
+          "date": "2026-11-10",
+          "gross_sales": 5993,
+          "bill_count": 4
+        },
+        {
+          "date": "2026-11-11",
+          "gross_sales": 0,
+          "bill_count": 0
+        }
+      ],
+      "previous_gross_sales": 22726,
+      "previous_bill_count": 31,
+      "previous_from": "2026-11-02",
+      "previous_to": "2026-11-04",
+      "change_pct": 27.9
+    },
+    "best_customers": {
+      "period_from": "2026-11-01",
+      "period_to": "2026-11-11",
+      "as_of": "2026-11-11T10:30:00Z",
+      "total_sales": 103617.5,
+      "bill_count": 106,
+      "customers_count": 19,
+      "customer_sales": 50413,
+      "walk_in_sales": 53204.5,
+      "walk_in_bills": 83,
+      "walk_in_named_sales": 0,
+      "walk_in_named_bills": 0,
+      "customers": [
+        {
+          "name": "[C1]",
+          "sales_value": 15756,
+          "bill_count": 1
+        },
+        {
+          "name": "[C2]",
+          "sales_value": 5805,
+          "bill_count": 1
+        },
+        {
+          "name": "[C3]",
+          "sales_value": 4575,
+          "bill_count": 2
+        }
+      ]
+    },
+    "returns_month": {
+      "period_from": "2026-09-01",
+      "period_to": "2026-09-18",
+      "as_of": "2026-11-11T10:30:00Z",
+      "returns_total": 894,
+      "return_count": 2,
+      "all_returns_total": 14608,
+      "all_return_count": 5,
+      "distinct_items_returned": 2,
+      "items": [
+        {
+          "product_name": "Paper Cup 150 Ml",
+          "unit": "PCS",
+          "qty_returned": 20,
+          "value": 600,
+          "return_count": 1
+        },
+        {
+          "product_name": "Tissue small",
+          "unit": "PCS",
+          "qty_returned": 49,
+          "value": 294,
+          "return_count": 1
+        }
+      ]
+    },
+    "stock_value": {
+      "period_from": "2026-11-11",
+      "period_to": "2026-11-11",
+      "as_of": "2026-11-11T10:30:00Z",
+      "stock_value": 577499.05,
+      "products_total": 70,
+      "items_in_stock": 66,
+      "raw_value": 168358.2,
+      "batch_value": 580322.03,
+      "cost_gap": 2822.98,
+      "items_cost_off": 25,
+      "unbatched_value": 0,
+      "items_unbatched": 0,
+      "items": [
+        {
+          "product_name": "210ml side wall",
+          "unit": "PCS",
+          "stock": 800,
+          "cost_price": 102.38,
+          "value": 81904
+        },
+        {
+          "product_name": "16*20Kg Cover",
+          "unit": "KG",
+          "stock": 364,
+          "cost_price": 92,
+          "value": 33488
+        },
+        {
+          "product_name": "210 ML CUP SIDE PLANKS",
+          "unit": "PCS",
+          "stock": 300,
+          "cost_price": 102,
+          "value": 30600
+        }
+      ]
+    },
+    "out_of_stock": {
+      "period_from": "2026-11-11",
+      "period_to": "2026-11-11",
+      "as_of": "2026-11-11T10:30:00Z",
+      "items_out": 3,
+      "items_zero": 2,
+      "items_negative": 1,
+      "items_stocked": 64,
+      "items": [
+        {
+          "product_name": "Mayil sheet 18*18",
+          "unit": "PCS",
+          "stock": -4
+        },
+        {
+          "product_name": "10*14 KERALA",
+          "unit": "KG",
+          "stock": 0
+        },
+        {
+          "product_name": "13*16 KERALA",
+          "unit": "PCS",
+          "stock": 0
+        }
+      ]
+    },
+    "fast_movers_low": {
+      "period_from": "2026-10-12",
+      "period_to": "2026-11-11",
+      "as_of": "2026-11-11T10:30:00Z",
+      "window_days": 30,
+      "top_n": 15,
+      "cover_days": 7,
+      "top_count": 15,
+      "items_low": 2,
+      "items": [
+        {
+          "product_name": "Frootty plate 12\"",
+          "unit": "PCS",
+          "rank": 4,
+          "units_sold": 407,
+          "stock": 43,
+          "threshold": 10,
+          "days_left": 3,
+          "reason": "days"
+        },
+        {
+          "product_name": "13*16Kg Cover",
+          "unit": "KG",
+          "rank": 3,
+          "units_sold": 513,
+          "stock": 109,
+          "threshold": 10,
+          "days_left": 6,
+          "reason": "days"
+        }
+      ]
     }
   },
   "stand_ins": {
@@ -745,6 +940,11 @@
       "[S3]": "Test Supplier 3",
       "[S4]": "Test Supplier 4",
       "[S5]": "Test Supplier 5"
+    },
+    "best_customers": {
+      "[C1]": "Test Customer 1",
+      "[C2]": "Test Customer 2",
+      "[C3]": "Test Customer 3"
     }
   },
   "cases": [
@@ -3435,6 +3635,398 @@
       "known_limit": false,
       "source": "hand_written",
       "baseline_guard": "pass"
+    },
+    {
+      "id": "sales_vs_last_month-01",
+      "question_id": "sales_vs_last_month",
+      "lang": "en",
+      "fixture": "sales_vs_last_month",
+      "reply": "You sold ₹1,03,617.50 this month across 106 bills, 19.5% less than the same days last month, when sales were ₹1,28,728.80.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Every number is in the figures and the direction agrees.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "sales_vs_last_month-02",
+      "question_id": "sales_vs_last_month",
+      "lang": "en",
+      "fixture": "sales_vs_last_month",
+      "reply": "Sales are up 19.5% on last month.",
+      "expected": "should_fail",
+      "rule": "direction",
+      "why": "change_pct is negative.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:direction:19.5%"
+    },
+    {
+      "id": "sales_vs_last_month-03",
+      "question_id": "sales_vs_last_month",
+      "lang": "en",
+      "fixture": "sales_vs_last_month",
+      "reply": "Your average bill fell from ₹1,149 to ₹978.",
+      "expected": "should_pass",
+      "rule": "rounding",
+      "why": "Both averages to a whole rupee.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "sales_vs_last_month-04",
+      "question_id": "sales_vs_last_month",
+      "lang": "en",
+      "fixture": "sales_vs_last_month",
+      "reply": "You are ₹25,111.30 behind last month.",
+      "expected": "should_fail",
+      "rule": "arithmetic",
+      "why": "A difference the model worked out.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:25111.30"
+    },
+    {
+      "id": "sales_vs_last_month-05",
+      "question_id": "sales_vs_last_month",
+      "lang": "hi",
+      "fixture": "sales_vs_last_month",
+      "reply": "इस महीने 1 से 11 नवंबर तक ₹1.04 लाख की बिक्री हुई, जो पिछले महीने के इन्हीं दिनों से 19.5% कम है।",
+      "expected": "should_pass",
+      "rule": "lakh",
+      "why": "Lakh at 2 decimals, a date range in the figures, direction agrees.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "sales_week-01",
+      "question_id": "sales_week",
+      "lang": "en",
+      "fixture": "sales_week",
+      "reply": "You sold ₹29,060.50 this week in 34 bills, 27.9% more than the same days last week.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "All in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "sales_week-02",
+      "question_id": "sales_week",
+      "lang": "en",
+      "fixture": "sales_week",
+      "reply": "Monday 9 November was the big day at ₹23,067.50 from 30 bills.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "A day row and its date.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "sales_week-03",
+      "question_id": "sales_week",
+      "lang": "en",
+      "fixture": "sales_week",
+      "reply": "Tuesday brought ₹5,993 and Wednesday 12 November nothing yet.",
+      "expected": "should_fail",
+      "rule": "date",
+      "why": "12 Nov is not in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:date:12"
+    },
+    {
+      "id": "sales_week-04",
+      "question_id": "sales_week",
+      "lang": "en",
+      "fixture": "sales_week",
+      "reply": "Sales are on track for ₹60,000 this week.",
+      "expected": "should_fail",
+      "rule": "prediction",
+      "why": "A projection, not a figure.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:60000"
+    },
+    {
+      "id": "best_customers-01",
+      "question_id": "best_customers",
+      "lang": "en",
+      "fixture": "best_customers",
+      "reply": "[C1] bought the most this month at ₹15,756, then [C2] at ₹5,805.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Stand-ins and values from the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "best_customers-02",
+      "question_id": "best_customers",
+      "lang": "en",
+      "fixture": "best_customers",
+      "reply": "Walk-in sales were ₹53,204.50 over 83 bills, more than the ₹50,413 from your 19 customers with an account.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Walk-in and customer totals are both figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "best_customers-03",
+      "question_id": "best_customers",
+      "lang": "en",
+      "fixture": "best_customers",
+      "reply": "[C4] also bought ₹4,575.",
+      "expected": "should_fail",
+      "rule": "stand_in",
+      "why": "Only three stand-ins were issued.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:unknown_stand_in:[C4]"
+    },
+    {
+      "id": "best_customers-04",
+      "question_id": "best_customers",
+      "lang": "en",
+      "fixture": "best_customers",
+      "reply": "Your top 3 customers gave ₹26,136.",
+      "expected": "should_fail",
+      "rule": "arithmetic",
+      "why": "The rank is fine; the sum was worked out.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:26136"
+    },
+    {
+      "id": "returns_month-01",
+      "question_id": "returns_month",
+      "lang": "en",
+      "fixture": "returns_month",
+      "reply": "Returns came to ₹894 across 2 returns this month, led by Paper Cup 150 Ml at ₹600.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "All in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "returns_month-02",
+      "question_id": "returns_month",
+      "lang": "en",
+      "fixture": "returns_month",
+      "reply": "All time you have had 5 returns worth ₹14,608.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "The all-dates figures are in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "returns_month-03",
+      "question_id": "returns_month",
+      "lang": "en",
+      "fixture": "returns_month",
+      "reply": "That is about 1% of your sales.",
+      "expected": "should_fail",
+      "rule": "ratio",
+      "why": "No percentage is in the figures, but return_count 1 makes \"1%\" pass: a number check cannot tell a count from a percentage here.",
+      "judgement": false,
+      "known_limit": true,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "stock_value-01",
+      "question_id": "stock_value",
+      "lang": "en",
+      "fixture": "stock_value",
+      "reply": "Your stock is worth ₹5,77,499.05 at cost across 66 items in stock, ₹1,68,358.20 of it raw material.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "All in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "stock_value-02",
+      "question_id": "stock_value",
+      "lang": "en",
+      "fixture": "stock_value",
+      "reply": "Your stock is worth ₹5.77 lakh; 210ml side wall alone holds ₹81,904.",
+      "expected": "should_pass",
+      "rule": "lakh",
+      "why": "Lakh form and a row value.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "stock_value-03",
+      "question_id": "stock_value",
+      "lang": "en",
+      "fixture": "stock_value",
+      "reply": "Your batches value it at ₹5,80,322.03, ₹2,822.98 more, because 25 items carry an old cost price.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "The gap and its count are figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "stock_value-04",
+      "question_id": "stock_value",
+      "lang": "en",
+      "fixture": "stock_value",
+      "reply": "If you sold it all you would make ₹7 lakh.",
+      "expected": "should_fail",
+      "rule": "prediction",
+      "why": "Not a figure.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:7"
+    },
+    {
+      "id": "out_of_stock-01",
+      "question_id": "out_of_stock",
+      "lang": "en",
+      "fixture": "out_of_stock",
+      "reply": "3 of your 64 stocked items are at zero or below, and Mayil sheet 18*18 shows -4.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Counts and a stock figure; the size in the name is text.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "out_of_stock-02",
+      "question_id": "out_of_stock",
+      "lang": "en",
+      "fixture": "out_of_stock",
+      "reply": "5 items are out of stock.",
+      "expected": "should_fail",
+      "rule": "exact",
+      "why": "5 is not in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:5"
+    },
+    {
+      "id": "out_of_stock-03",
+      "question_id": "out_of_stock",
+      "lang": "en",
+      "fixture": "out_of_stock",
+      "reply": "Two items sit at exactly zero and one is below it.",
+      "expected": "should_fail",
+      "rule": "spelled",
+      "why": "Spelled-out counts are rejected.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:spelled:two"
+    },
+    {
+      "id": "fast_movers_low-01",
+      "question_id": "fast_movers_low",
+      "lang": "en",
+      "fixture": "fast_movers_low",
+      "reply": "2 of your best sellers are running low: Frootty plate 12\" has 3 days left and 13*16Kg Cover 6 days.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "All in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "fast_movers_low-02",
+      "question_id": "fast_movers_low",
+      "lang": "en",
+      "fixture": "fast_movers_low",
+      "reply": "Frootty plate 12\" sold 407 in the last 30 days and has 43 left.",
+      "expected": "should_pass",
+      "rule": "period_span",
+      "why": "30 days is the window and the period span.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "fast_movers_low-03",
+      "question_id": "fast_movers_low",
+      "lang": "en",
+      "fixture": "fast_movers_low",
+      "reply": "Frootty plate 12\" will run out on 14 November.",
+      "expected": "should_fail",
+      "rule": "date",
+      "why": "A date the model worked out.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:date:14"
+    },
+    {
+      "id": "fast_movers_low-04",
+      "question_id": "fast_movers_low",
+      "lang": "en",
+      "fixture": "fast_movers_low",
+      "reply": "Reorder 500 units of 13*16Kg Cover.",
+      "expected": "should_fail",
+      "rule": "invented",
+      "why": "500 is not in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:500"
+    },
+    {
+      "id": "fast_movers_low-05",
+      "question_id": "fast_movers_low",
+      "lang": "en",
+      "fixture": "fast_movers_low",
+      "reply": "2 of your top 15 sellers are running low.",
+      "expected": "should_fail",
+      "rule": "rank_phrase",
+      "why": "A rank may not exceed the longest list, here 2 rows, so \"top 15\" is refused although top_n is 15. The refusal costs only the explanation: the card itself says top 15.",
+      "judgement": true,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:rank:top"
     }
   ],
   "baseline": {

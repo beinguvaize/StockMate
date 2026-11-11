@@ -159,6 +159,61 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
       const f = await rpc(db, "ai_cost_up", { p_days: 90, p_limit: 10 });
       return { figures: f, params: { from: f.period_from, to: today }, empty: f.items_up === 0 };
     }
+    // ── sales and stock, second set (branch ask-sales-stock) ──────────────
+    case "sales_vs_last_month": {
+      // Month to date against the same dates last month, both by ai_sales_summary.
+      const from = monthStart(today);
+      const p = sameDaysLastMonth(today);
+      const cur = await rpc(db, "ai_sales_summary", { p_from: from, p_to: today });
+      const prev = await rpc(db, "ai_sales_summary", { p_from: p.from, p_to: p.to });
+      return {
+        figures: {
+          period_from: from, period_to: today, as_of: cur.as_of,
+          gross_sales: cur.gross_sales, bill_count: cur.bill_count, average_bill: cur.average_bill,
+          previous_gross_sales: prev.gross_sales, previous_bill_count: prev.bill_count, previous_average_bill: prev.average_bill,
+          previous_from: p.from, previous_to: p.to, change_pct: changePct(cur.gross_sales, prev.gross_sales),
+        },
+        params: { from, to: today },
+        empty: cur.bill_count === 0 && prev.bill_count === 0,
+      };
+    }
+    case "sales_week": {
+      const from = mondayOf(today);
+      const p = sameDaysLastWeek(from, today);
+      const cur = await rpc(db, "ai_sales_by_day", { p_from: from, p_to: today });
+      const prev = await rpc(db, "ai_sales_summary", { p_from: p.from, p_to: p.to });
+      return {
+        figures: {
+          ...cur, previous_gross_sales: prev.gross_sales, previous_bill_count: prev.bill_count,
+          previous_from: p.from, previous_to: p.to, change_pct: changePct(cur.gross_sales, prev.gross_sales),
+        },
+        params: { from, to: today },
+        empty: cur.bill_count === 0 && prev.bill_count === 0,
+      };
+    }
+    case "best_customers": {
+      const from = monthStart(today);
+      const f = await rpc(db, "ai_best_customers", { p_from: from, p_to: today, p_limit: 10 });
+      return { figures: f, params: { from, to: today }, empty: f.bill_count === 0 };
+    }
+    case "returns_month": {
+      const from = monthStart(today);
+      const f = await rpc(db, "ai_sales_returns", { p_from: from, p_to: today, p_limit: 5 });
+      return { figures: f, params: { from, to: today }, empty: f.return_count === 0 };
+    }
+    case "stock_value": {
+      const f = await rpc(db, "ai_stock_value", { p_limit: 10 });
+      return { figures: f, params: { from: today, to: today }, empty: f.products_total === 0 };
+    }
+    case "out_of_stock": {
+      const f = await rpc(db, "ai_out_of_stock", { p_limit: 20 });
+      return { figures: f, params: { from: today, to: today }, empty: f.items_out === 0 };
+    }
+    case "fast_movers_low": {
+      const f = await rpc(db, "ai_fast_movers_low", { p_days: 30, p_top: 15, p_cover_days: 7, p_limit: 15 });
+      return { figures: f, params: { from: f.period_from, to: today }, empty: f.top_count === 0 };
+    }
+    // ── end of the second sales and stock set ──────────────────────────────
     default:
       throw new ReadFailed(`no reads for ${id}`);
   }

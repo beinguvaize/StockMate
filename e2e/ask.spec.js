@@ -313,6 +313,8 @@ const LINKED = [
   ['gst_collected', 'reports_gstr3b', 'GSTR3B', '2026-11-01', '2026-11-07'],
   ['gst_gaps', 'reports_purchase_register', 'PURCHASE_REGISTER', '2026-10-01', '2026-11-07'],
   ['purchases_month', 'reports_purchase_register', 'PURCHASE_REGISTER', '2026-11-01', '2026-11-07'],
+  ['sales_week', 'reports_daily_sales', 'DAILY_SALES', '2026-11-09', '2026-11-11'],
+  ['best_customers', 'reports_sales_by_party', 'SALES_BY_PARTY', '2026-11-01', '2026-11-07'],
 ];
 for (const [qid, key, tab, from, to] of LINKED) {
   test(`${qid}: the link opens ${tab} on the answer's own dates`, async ({ page }) => {
@@ -337,6 +339,22 @@ test('dead_stock: the link opens the Dead Stock Index itself', async ({ page }) 
   await page.getByTestId('ask-answer').getByRole('button', { name: /Open Dead Stock/ }).click();
   await expect(page).toHaveURL(/tab=INVENTORY&sub=DEAD_STOCK/);
   await expect(page.getByText('Unproductive Asset')).toBeVisible();
+});
+
+test('fast_movers_low: the rule is on the card, and the link opens Fast / Slow Movers', async ({ page }) => {
+  const f = { period_from: '2026-10-12', period_to: '2026-11-11', as_of: 'x', window_days: 30, top_n: 15, cover_days: 7, top_count: 15, items_low: 1,
+    items: [{ product_name: 'Frootty plate 12"', unit: 'PCS', rank: 4, units_sold: 407, stock: 43, threshold: 10, days_left: 3, reason: 'days' }] };
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('fast_movers_low', f, strings.en),
+    screen: { key: 'reports_product_movement', fallback_key: 'inventory', mobile: false, params: { from: '2026-10-12', to: '2026-11-11' } } }) });
+  await openPanel(page);
+  await question(page, 'fast_movers_low').click();
+  const ans = page.getByTestId('ask-answer');
+  await expect(ans).toContainText('Running low among your top 15 sellers since 12 Oct');
+  await expect(ans).toContainText('or it has 7 days or fewer left');
+  await expect(ans).toContainText('3 days');
+  await ans.getByRole('button', { name: /Open Fast \/ Slow Movers/ }).click();
+  await expect(page).toHaveURL(/tab=PRODUCT_MOVEMENT$/);
+  await expect(page.getByText('Fast Moving Products')).toBeVisible();
 });
 
 test('a language switch keeps the question, and one tap asks it again', async ({ page }) => {

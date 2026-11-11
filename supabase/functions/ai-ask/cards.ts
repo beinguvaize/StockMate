@@ -61,6 +61,7 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
   let rowsAfter: Row[] = [];
   let table: any = null;
   let footnote: string | null = null;
+  let note: string | null = strings.notes[id] ?? null;
 
   switch (id) {
     case "sales_today": {
@@ -228,6 +229,126 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
         rows: f.items.map((i: any) => [i.unit ? `${i.product_name} (${i.unit})` : i.product_name, i.old_cost, i.new_cost, i.pct_rise]) };
       footnote = foot({ shown: count(f.items.length), n: count(f.items_up) });
       break;
+    // ── sales and stock, second set (branch ask-sales-stock) ──────────────
+    case "sales_vs_last_month": {
+      value = f.gross_sales;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to), bills: count(f.bill_count) });
+      detail = compare({ prev: inr(f.previous_gross_sales), pfrom: lead(f.previous_from, f.previous_to), pto: day(f.previous_to) });
+      const now = span(f.period_from, f.period_to);
+      const then = span(f.previous_from, f.previous_to);
+      rows = [
+        { label: fill(L.sales_for, { range: now }), value: f.gross_sales, kind: "money", tone: "total" },
+        { label: fill(L.bills_for, { range: now }), value: f.bill_count, kind: "count" },
+        { label: fill(L.average_for, { range: now }), value: f.average_bill, kind: "money" },
+      ];
+      rowsAfter = [
+        { label: fill(L.sales_for, { range: then }), value: f.previous_gross_sales, kind: "money" },
+        { label: fill(L.bills_for, { range: then }), value: f.previous_bill_count, kind: "count" },
+        { label: fill(L.average_for, { range: then }), value: f.previous_average_bill, kind: "money" },
+      ];
+      footnote = foot({ range: now, prange: then });
+      break;
+    }
+    case "sales_week": {
+      value = f.gross_sales;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to), bills: count(f.bill_count) });
+      detail = compare({ prev: inr(f.previous_gross_sales), range: span(f.previous_from, f.previous_to) });
+      const weekday = (iso: string) => { const [y, m, d] = parts(iso); return strings.weekdays[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]; };
+      table = { columns: [col("day", "text", false), col("bills", "count"), col("sales", "money")],
+        rows: f.days.map((d: any) => [`${weekday(d.date)} ${day(d.date)}`, d.bill_count, d.gross_sales]) };
+      rowsAfter = [row("total_sold", f.gross_sales, "money", "total")];
+      footnote = foot();
+      break;
+    }
+    case "best_customers": {
+      const top = f.customers[0];
+      value = top?.sales_value ?? 0;
+      caption = top ? fill(H.caption, { name: top.name }) : H.none;
+      detail = fill(H.detail, { from: lead(f.period_from, f.period_to), to: day(f.period_to) });
+      table = { columns: [col("customer", "text", false), col("bills", "count"), col("value", "money")],
+        rows: f.customers.map((c: any) => [c.name, c.bill_count, c.sales_value]) };
+      rowsAfter = [
+        { label: fill(L.customers_n, { n: count(f.customers_count) }), value: f.customer_sales, kind: "money" },
+        { label: fill(L.walk_in_n, { n: count(f.walk_in_bills) }), value: f.walk_in_sales, kind: "money" },
+        row("total_sales", f.total_sales, "money", "total"),
+      ];
+      const lines = [foot({ shown: count(f.customers.length), n: count(f.customers_count) })];
+      // Sales by Party files a walk-in bill with a typed name under that name.
+      if (Number(f.walk_in_named_bills) > 0) {
+        lines.push(fill(strings.footnotes.best_customers_named, { n: count(f.walk_in_named_bills),
+          value: inr(f.walk_in_named_sales), screen: inr(Math.round((Number(f.walk_in_sales) - Number(f.walk_in_named_sales)) * 100) / 100) }));
+      }
+      footnote = lines.filter(Boolean).join(" ") || null;
+      break;
+    }
+    case "returns_month": {
+      value = f.returns_total;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to), n: count(f.return_count) });
+      table = { columns: [col("item", "text", false), col("qty", "text"), col("value", "money")],
+        rows: f.items.map((i: any) => [i.product_name, qty(i.qty_returned, i.unit), i.value]) };
+      rowsAfter = [row("total_returned", f.returns_total, "money", "total")];
+      // The Returns list has no dates: say what it shows, exactly.
+      const all = Number(f.all_return_count) === Number(f.return_count) && Math.abs(Number(f.all_returns_total) - Number(f.returns_total)) < 0.005;
+      const lines = [fill(all ? strings.footnotes.returns_month_all : strings.footnotes.returns_month,
+        { n: count(f.all_return_count), total: inr(f.all_returns_total) })];
+      if (f.items.length < Number(f.distinct_items_returned)) {
+        lines.push(fill(strings.footnotes.returns_month_items, { shown: count(f.items.length), n: count(f.distinct_items_returned) }));
+      }
+      footnote = lines.join(" ");
+      break;
+    }
+    case "stock_value": {
+      value = f.stock_value;
+      caption = fill(H.caption, { n: count(f.items_in_stock) });
+      table = { columns: [col("item", "text", false), col("stock", "text"), col("cost", "money"), col("value", "money")],
+        rows: f.items.map((i: any) => [i.product_name, qty(i.stock, i.unit), i.cost_price, i.value]) };
+      rowsAfter = [row("total_at_cost", f.stock_value, "money", "total")];
+      if (Math.abs(Number(f.raw_value ?? 0)) >= 0.005) rowsAfter.push(row("raw_part", f.raw_value, "money"));
+      rowsAfter.push(row("products", f.products_total, "count"));
+      const lines = [foot({ shown: count(f.items.length) })];
+      // The open cost batches, against the screen's stock x cost price: the gap
+      // and each of its two causes, only when there is one.
+      const gap = Math.round((Number(f.batch_value) - Number(f.stock_value)) * 100) / 100;
+      if (Math.abs(gap) >= 0.01) {
+        lines.push(fill(gap > 0 ? strings.footnotes.stock_batches_more : strings.footnotes.stock_batches_less,
+          { batch: inr(f.batch_value), gap: inr(Math.abs(gap)) }));
+        if (Math.abs(Number(f.cost_gap)) >= 0.01) {
+          lines.push(fill(strings.footnotes.stock_cost_off, { n: count(f.items_cost_off), gap: inr(Math.abs(Number(f.cost_gap))) }));
+        }
+        if (Math.abs(Number(f.unbatched_value)) >= 0.01) {
+          lines.push(fill(strings.footnotes.stock_unbatched, { n: count(f.items_unbatched), gap: inr(Math.abs(Number(f.unbatched_value))) }));
+        }
+      }
+      footnote = lines.join(" ");
+      break;
+    }
+    case "out_of_stock": {
+      value = f.items_out; kind = "count"; unit = H.unit;
+      caption = fill(H.caption, { n: count(f.items_stocked) });
+      table = { columns: [col("item", "text", false), col("stock", "text")],
+        rows: f.items.map((i: any) => [i.product_name, qty(i.stock, i.unit)]),
+        tones: f.items.map((i: any) => (Number(i.stock) < 0 ? "neg" : null)) };
+      const lines = [foot()];
+      if (f.items.length < Number(f.items_out)) lines.push(fill(strings.footnotes.list_capped, { shown: count(f.items.length), n: count(f.items_out) }));
+      // Low Stock's "Items Out of Stock" counts exactly zero.
+      if (Number(f.items_negative) > 0) {
+        lines.push(fill(strings.footnotes.out_of_stock_negative, { zero: count(f.items_zero), neg: count(f.items_negative) }));
+      }
+      footnote = lines.join(" ");
+      break;
+    }
+    case "fast_movers_low": {
+      value = f.items_low; kind = "count"; unit = H.unit;
+      caption = fill(H.caption, { top: count(f.top_count), from: day(f.period_from) });
+      table = { columns: [col("item", "text", false), col("sold", "text"), col("stock", "text"), col("days_left", "text")],
+        rows: f.items.map((i: any) => [i.product_name, qty(i.units_sold, i.unit), qty(i.stock, i.unit), fill(L.days_n, { n: count(i.days_left) })]) };
+      // The rule, in plain words, on every card.
+      note = fill(strings.notes.fast_movers_low, { top: count(f.top_n), from: day(f.period_from), days: count(f.window_days), cover: count(f.cover_days) });
+      footnote = f.items.length < Number(f.items_low)
+        ? fill(strings.footnotes.list_capped, { shown: count(f.items.length), n: count(f.items_low) }) : foot();
+      break;
+    }
+    // ── end of the second sales and stock set ──────────────────────────────
     default:
       throw new Error(`no card for ${id}`);
   }
@@ -238,6 +359,6 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
     title: strings.titles[id], headline,
     hero: { value, kind, unit, caption, detail },
     rows, table, rows_after: rowsAfter,
-    note: strings.notes[id] ?? null, footnote,
+    note, footnote,
   };
 }

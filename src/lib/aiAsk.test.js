@@ -27,7 +27,7 @@ describe('the shared registry', () => {
   });
   it('every question has a label in every language, and every string set has the same keys', () => {
     const reg = JSON.parse(read('../../shared/ai_chat/questions.json'));
-    expect(reg.questions).toHaveLength(16);
+    expect(reg.questions).toHaveLength(23);
     for (const q of reg.questions) for (const l of reg.languages) expect(q.label[l]).toBeTruthy();
     for (const k of ['ui', 'card', 'hero', 'titles', 'notes', 'footnotes', 'links', 'methods', 'no_data_by_question']) {
       expect(Object.keys(strings.hi[k]).sort()).toEqual(Object.keys(strings.en[k]).sort());
@@ -666,5 +666,199 @@ describe('purchases & suppliers', () => {
     expect(seen[2][1]).toEqual({ p_days: 90, p_limit: 10 });
     const bad = { rpc: async () => ({ data: null, error: { message: 'boom' } }) };
     await expect(runQuestion('supplier_dues', bad, { tenantId: 'T', today: '2026-11-11' })).rejects.toThrow('ai_supplier_dues: boom');
+  });
+});
+
+// ── Sales and stock, second set ─────────────────────────────────────────────
+// Figures are what the new SQL's queries returned, run read-only on prod
+// against FUTURE DISPO for 1-11 Nov 2026 (customer names replaced), and checked
+// against each linked screen's own rule over the same rows.
+const VS_MONTH = {
+  period_from: '2026-11-01', period_to: '2026-11-11', as_of: 'x', gross_sales: 103617.5, bill_count: 106, average_bill: 977.52,
+  previous_gross_sales: 128728.8, previous_bill_count: 112, previous_average_bill: 1149.36,
+  previous_from: '2026-10-01', previous_to: '2026-10-11', change_pct: -19.5,
+};
+const WEEK = {
+  period_from: '2026-11-09', period_to: '2026-11-11', as_of: 'x', gross_sales: 29060.5, bill_count: 34, average_bill: 854.72,
+  days: [{ date: '2026-11-09', gross_sales: 23067.5, bill_count: 30 }, { date: '2026-11-10', gross_sales: 5993, bill_count: 4 },
+    { date: '2026-11-11', gross_sales: 0, bill_count: 0 }],
+  previous_gross_sales: 22726, previous_bill_count: 31, previous_from: '2026-11-02', previous_to: '2026-11-04', change_pct: 27.9,
+};
+const CUSTOMERS = {
+  period_from: '2026-11-01', period_to: '2026-11-11', as_of: 'x', total_sales: 103617.5, bill_count: 106, customers_count: 19,
+  customer_sales: 50413, walk_in_sales: 53204.5, walk_in_bills: 83, walk_in_named_sales: 0, walk_in_named_bills: 0,
+  customers: [{ name: 'Asha Stores', sales_value: 15756, bill_count: 1 }, { name: 'Ravi Hotel', sales_value: 5805, bill_count: 1 },
+    { name: 'Meena Bakery', sales_value: 4575, bill_count: 2 }],
+};
+const RETURNS = {
+  period_from: '2026-09-01', period_to: '2026-09-30', as_of: 'x', returns_total: 894, return_count: 2,
+  all_returns_total: 14608, all_return_count: 5, distinct_items_returned: 2,
+  items: [{ product_name: 'Paper Cup 150 Ml', unit: 'PCS', qty_returned: 20, value: 600, return_count: 1 },
+    { product_name: 'Tissue small', unit: 'PCS', qty_returned: 49, value: 294, return_count: 1 }],
+};
+const STOCK = {
+  period_from: '2026-11-11', period_to: '2026-11-11', as_of: 'x', stock_value: 577499.05, products_total: 70, items_in_stock: 66,
+  raw_value: 168358.2, batch_value: 580322.03, cost_gap: 2822.98, items_cost_off: 25, unbatched_value: 0, items_unbatched: 0,
+  items: [{ product_id: 'P1', product_name: '210ml side wall', unit: 'PCS', stock: 800, cost_price: 102.38, value: 81904 }],
+};
+const OUT = {
+  period_from: '2026-11-11', period_to: '2026-11-11', as_of: 'x', items_out: 3, items_zero: 3, items_negative: 0, items_stocked: 64,
+  items: [{ product_name: '10*14 KERALA', unit: 'KG', stock: 0 }, { product_name: '13*16 KERALA', unit: 'PCS', stock: 0 },
+    { product_name: '16*20 KERALA KG', unit: 'KG', stock: 0 }],
+};
+const FAST = {
+  period_from: '2026-10-12', period_to: '2026-11-11', as_of: 'x', window_days: 30, top_n: 15, cover_days: 7, top_count: 15, items_low: 2,
+  items: [{ product_name: 'Frootty plate 12"', unit: 'PCS', rank: 4, units_sold: 407, stock: 43, threshold: 10, days_left: 3, reason: 'days' },
+    { product_name: '13*16Kg Cover', unit: 'KG', rank: 3, units_sold: 513, stock: 109, threshold: 10, days_left: 6, reason: 'days' }],
+};
+
+describe('sales and stock, second set', () => {
+  const reg = JSON.parse(read('../../shared/ai_chat/questions.json'));
+  const SALES_IDS = ['sales_vs_last_month', 'sales_week', 'best_customers', 'returns_month'];
+  const STOCK_IDS = ['stock_value', 'out_of_stock', 'fast_movers_low'];
+  const FIG = { sales_vs_last_month: VS_MONTH, sales_week: WEEK, best_customers: CUSTOMERS, returns_month: RETURNS,
+    stock_value: STOCK, out_of_stock: OUT, fast_movers_low: FAST };
+
+  it('join the existing sales and stock categories, after the questions already there', () => {
+    expect(reg.questions.filter((q) => q.category === 'sales').map((q) => q.id)).toEqual(['sales_today', 'profit_month', 'top_items', ...SALES_IDS]);
+    expect(reg.questions.filter((q) => q.category === 'stock').map((q) => q.id)).toEqual(['low_stock', 'expiring_stock', 'dead_stock', ...STOCK_IDS]);
+    for (const lang of ['en', 'hi']) {
+      for (const id of [...SALES_IDS, ...STOCK_IDS]) {
+        expect(strings[lang].titles[id]).toBeTruthy();
+        expect(strings[lang].hero[id]).toBeTruthy();
+        expect(strings[lang].no_data_by_question[id]).toBeTruthy();
+      }
+    }
+    const pending = new Set(strings.hi.review_pending);
+    for (const k of ['titles.stock_value', 'notes.fast_movers_low', 'footnotes.stock_cost_off', 'hero.best_customers.caption', 'card.days_n']) {
+      expect(pending.has(k)).toBe(true);
+    }
+  });
+
+  it('sales_vs_last_month: month to date against the same dates last month', () => {
+    const card = buildCard('sales_vs_last_month', VS_MONTH, strings.en);
+    expect(card.hero).toMatchObject({ value: 103617.5, caption: 'Sold 1 to 11 Nov, 106 bills', detail: '▼ 19.5% vs ₹1,28,728.80 for 1 to 11 Oct' });
+    expect(card.rows).toEqual([
+      { label: 'Sales, 1–11 Nov', value: 103617.5, kind: 'money', tone: 'total' },
+      { label: 'Bills, 1–11 Nov', value: 106, kind: 'count' }, { label: 'Average bill, 1–11 Nov', value: 977.52, kind: 'money' }]);
+    expect(card.rows_after.map((r) => r.value)).toEqual([128728.8, 112, 1149.36]);
+    expect(card.footnote).toBe('Daily Sales shows a total for each day from 1–11 Nov, not one figure for the period. Last month is compared on 1–11 Oct.');
+  });
+
+  it('sales_week: day by day, with the total and the same days last week', () => {
+    const card = buildCard('sales_week', WEEK, strings.en);
+    expect(card.hero).toMatchObject({ value: 29060.5, caption: 'Sold 9 to 11 Nov, 34 bills', detail: '▲ 27.9% vs ₹22,726.00, same days last week (2–4 Nov)' });
+    expect(card.table.rows).toEqual([['Monday 9 Nov', 30, 23067.5], ['Tuesday 10 Nov', 4, 5993], ['Wednesday 11 Nov', 0, 0]]);
+    expect(card.rows_after).toEqual([{ label: 'Total sold', value: 29060.5, kind: 'money', tone: 'total' }]);
+  });
+
+  it('best_customers: top customers, walk-in apart, and the Sales by Party total', () => {
+    const card = buildCard('best_customers', CUSTOMERS, strings.en);
+    expect(card.hero).toMatchObject({ value: 15756, caption: 'Top customer: Asha Stores', detail: 'Sales by customer, 1 to 11 Nov' });
+    expect(card.table.rows[2]).toEqual(['Meena Bakery', 2, 4575]);
+    expect(card.rows_after).toEqual([
+      { label: '19 customers with an account', value: 50413, kind: 'money' },
+      { label: 'Walk-in, 83 bills', value: 53204.5, kind: 'money' },
+      { label: 'Total sales', value: 103617.5, kind: 'money', tone: 'total' }]);
+    expect(card.footnote).toBe('Top 3 of 19 customers shown. Total sales matches Sales by Party, which lists walk-in sales as one row.');
+    // A walk-in bill with a typed name is its own row on the screen: say so, with the screen's Walk-in figure.
+    expect(buildCard('best_customers', { ...CUSTOMERS, walk_in_named_bills: 2, walk_in_named_sales: 230 }, strings.en).footnote)
+      .toContain('2 walk-in bills (₹230.00) carry a typed name, so Sales by Party lists them under that name and its Walk-in row reads ₹52,974.50.');
+  });
+
+  it('best_customers: names go to the model as [C1].., never phone or GSTIN', () => {
+    const { view, map } = toModelFigures({ ...CUSTOMERS, customers: [{ ...CUSTOMERS.customers[0], phone: '9876543210', gstin: '32ABCDE1234F1Z5' }] });
+    const sent = JSON.stringify(view);
+    for (const secret of ['Asha', '9876543210', '32ABCDE']) expect(sent).not.toContain(secret);
+    expect(view.customers[0]).toEqual({ name: '[C1]', sales_value: 15756, bill_count: 1 });
+    expect(map['[C1]']).toBe('Asha Stores');
+    expect(read('../../supabase/migrations/20261113_ai_sales_stock_read_functions.sql')).not.toMatch(/'phone'|gstin'|address'/);
+  });
+
+  it('returns_month: total, count, top items, and what the Returns list shows', () => {
+    const card = buildCard('returns_month', RETURNS, strings.en);
+    expect(card.hero).toMatchObject({ value: 894, caption: 'Returned 1 to 30 Sep, 2 returns' });
+    expect(card.table.rows).toEqual([['Paper Cup 150 Ml', '20 PCS', 600], ['Tissue small', '49 PCS', 294]]);
+    expect(card.footnote).toBe('Sales › Returns lists every return on every date: 5 returns, Total Returned ₹14,608.00.');
+    expect(buildCard('returns_month', { ...RETURNS, all_returns_total: 894, all_return_count: 2 }, strings.en).footnote)
+      .toBe('Sales › Returns shows the same ₹894.00: all 2 returns fall in this period.');
+  });
+
+  it('stock_value: the Inventory figure, and the exact gap with the open batches', () => {
+    const card = buildCard('stock_value', STOCK, strings.en);
+    expect(card.hero).toMatchObject({ value: 577499.05, caption: 'Stock at cost now, 66 items in stock' });
+    expect(card.table.rows[0]).toEqual(['210ml side wall', '800 PCS', 102.38, 81904]);
+    expect(card.rows_after).toEqual([
+      { label: 'Total at cost', value: 577499.05, kind: 'money', tone: 'total' },
+      { label: 'Of which raw material', value: 168358.2, kind: 'money' }, { label: 'Products', value: 70, kind: 'count' }]);
+    expect(card.footnote).toBe('Top 1 items by value. Stock × cost price, as the Inventory screen counts its Stock Value, which it rounds to the rupee. '
+      + 'Your open cost batches value this stock at ₹5,80,322.03, ₹2,822.98 more. '
+      + 'On 25 items the cost price is not the average of their open batches: ₹2,822.98 of the gap.');
+    const even = buildCard('stock_value', { ...STOCK, batch_value: 577499.05, cost_gap: 0, items_cost_off: 0 }, strings.en);
+    expect(even.footnote).not.toContain('batches');
+    const both = buildCard('stock_value', { ...STOCK, batch_value: 570000, cost_gap: 500, unbatched_value: 7999.05, items_unbatched: 2 }, strings.en);
+    expect(both.footnote).toContain('₹7,499.05 less');
+    expect(both.footnote).toContain('On 2 items the stock and the open batches hold different quantities: ₹7,999.05 of the gap.');
+  });
+
+  it('out_of_stock: zero or below, and the Low Stock count stated when negatives exist', () => {
+    const card = buildCard('out_of_stock', OUT, strings.en);
+    expect(card.hero).toMatchObject({ value: 3, kind: 'count', unit: 'items', caption: 'At zero or below now, of 64 stocked items' });
+    expect(card.footnote).toBe('Raw material and services are left out, as on Low Stock.');
+    const neg = buildCard('out_of_stock', { ...OUT, items_zero: 2, items_negative: 1, items: [{ product_name: 'A', unit: 'PCS', stock: -4 }, ...OUT.items.slice(1)] }, strings.en);
+    expect(neg.footnote).toContain("Low Stock's Items Out of Stock counts only items at exactly 0, so it reads 2; 1 more are below 0.");
+    expect(neg.table.tones).toEqual(['neg', null, null]);
+  });
+
+  it('fast_movers_low: the rule is on the card, with days left as the screen rounds it', () => {
+    const card = buildCard('fast_movers_low', FAST, strings.en);
+    expect(card.hero).toMatchObject({ value: 2, kind: 'count', caption: 'Running low among your top 15 sellers since 12 Oct' });
+    expect(card.table.rows[0]).toEqual(['Frootty plate 12"', '407 PCS', '43 PCS', '3 days']);
+    expect(card.note).toBe('Best sellers are your top 15 items by units sold since 12 Oct. One is running low when its stock is at or below its low-stock limit, '
+      + 'or it has 7 days or fewer left. Days left is stock divided by units sold over 30 days, as Days Cover on Fast / Slow Movers.');
+    expect(card.footnote).toBe('Fast / Slow Movers shows Units Sold, Stock and Days Cover for each of these.');
+  });
+
+  it('nothing to say reads plainly, with no footnote', () => {
+    for (const [id, f] of Object.entries(FIG)) {
+      const card = buildCard(id, f, strings.en, true);
+      expect(card.hero.caption).toBe(strings.en.no_data_by_question[id]);
+      expect(card.footnote).toBeNull();
+    }
+  });
+
+  it('runs: dates are worked out server-side, and each reads its own function', async () => {
+    const seen = [];
+    const db = (data) => ({ rpc: async (name, args) => { seen.push([name, args]); return { data, error: null }; } });
+    const ctx = { tenantId: 'T', today: '2026-11-11', taxMode: null };
+    const vs = await runQuestion('sales_vs_last_month', db({ gross_sales: 120, bill_count: 2, average_bill: 60 }), ctx);
+    expect(seen.slice(0, 2)).toEqual([['ai_sales_summary', { p_from: '2026-11-01', p_to: '2026-11-11' }], ['ai_sales_summary', { p_from: '2026-10-01', p_to: '2026-10-11' }]]);
+    expect(vs.figures).toMatchObject({ previous_from: '2026-10-01', previous_to: '2026-10-11', change_pct: 0 });
+    await runQuestion('sales_week', db({ gross_sales: 1, bill_count: 1, days: [] }), ctx);
+    expect(seen.slice(2, 4)).toEqual([['ai_sales_by_day', { p_from: '2026-11-09', p_to: '2026-11-11' }], ['ai_sales_summary', { p_from: '2026-11-02', p_to: '2026-11-04' }]]);
+    await runQuestion('best_customers', db(CUSTOMERS), ctx);
+    await runQuestion('returns_month', db(RETURNS), ctx);
+    expect((await runQuestion('stock_value', db(STOCK), ctx)).empty).toBe(false);
+    expect((await runQuestion('out_of_stock', db({ ...OUT, items_out: 0, items: [] }), ctx)).empty).toBe(true);
+    expect((await runQuestion('fast_movers_low', db(FAST), ctx)).params).toEqual({ from: '2026-10-12', to: '2026-11-11' });
+    expect(seen.slice(4)).toEqual([
+      ['ai_best_customers', { p_from: '2026-11-01', p_to: '2026-11-11', p_limit: 10 }],
+      ['ai_sales_returns', { p_from: '2026-11-01', p_to: '2026-11-11', p_limit: 5 }],
+      ['ai_stock_value', { p_limit: 10 }], ['ai_out_of_stock', { p_limit: 20 }],
+      ['ai_fast_movers_low', { p_days: 30, p_top: 15, p_cover_days: 7, p_limit: 15 }]]);
+    const bad = { rpc: async () => ({ data: null, error: { message: 'boom' } }) };
+    await expect(runQuestion('stock_value', bad, ctx)).rejects.toThrow('ai_stock_value: boom');
+  });
+
+  it('the guard holds on the new figures', () => {
+    const ok = (text, f) => { const { view, map } = toModelFigures(f); return checkReply(text, view, map).ok; };
+    expect(ok('You sold ₹1,03,617.50 this month, 19.5% less than the same days last month.', VS_MONTH)).toBe(true);
+    expect(ok('Sales are 19.5% higher than last month.', VS_MONTH)).toBe(false);
+    expect(ok('[C1] bought ₹15,756 this month.', CUSTOMERS)).toBe(true);
+    expect(ok('[C4] bought ₹15,756 this month.', CUSTOMERS)).toBe(false);
+    expect(ok('Your stock is worth ₹5.77 lakh at cost.', STOCK)).toBe(true);
+    expect(ok('Your stock is worth ₹6 lakh at cost.', STOCK)).toBe(false);
+    expect(ok('Frootty plate 12" has 3 days left.', FAST)).toBe(true);
+    expect(ok('Frootty plate 12" has 5 days left.', FAST)).toBe(false);
   });
 });
