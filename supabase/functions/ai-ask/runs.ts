@@ -159,7 +159,101 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
       const f = await rpc(db, "ai_cost_up", { p_days: 90, p_limit: 10 });
       return { figures: f, params: { from: f.period_from, to: today }, empty: f.items_up === 0 };
     }
+    // ── expenses ──────────────────────────────────────────────────────────
+    // All three read ai_expense_summary: the rows get_pl_ranged counts as
+    // expenses, so `total` is the expenses line of profit_month for the same
+    // dates. Owner drawings (exclude_from_pl) come back apart, never in total.
+    case "expenses_month": {
+      const from = monthStart(today);
+      const p = sameDaysLastMonth(today);
+      const cur = await expenseSummary(db, from, today, 1);
+      const prev = await expenseSummary(db, p.from, p.to, 1);
+      const total = Number(cur.total);
+      const prior = Number(prev.total);
+      return {
+        figures: {
+          period_from: from, period_to: today, as_of: asOf,
+          total, entry_count: Number(cur.entry_count),
+          categories: cur.categories.slice(0, EXPENSE_CATEGORIES_SHOWN), category_count: Number(cur.category_count),
+          drawings_total: Number(cur.drawings_total), drawings_count: Number(cur.drawings_count),
+          previous_total: prior, previous_entry_count: Number(prev.entry_count),
+          previous_from: p.from, previous_to: p.to, change_pct: changePct(total, prior),
+        },
+        params: { from, to: today },
+        empty: Number(cur.entry_count) === 0 && Number(prev.entry_count) === 0 && Number(cur.drawings_count) === 0,
+      };
+    }
+    case "top_expenses": {
+      const from = monthStart(today);
+      const cur = await expenseSummary(db, from, today, 10);
+      return {
+        figures: {
+          period_from: from, period_to: today, as_of: asOf,
+          total: Number(cur.total), entry_count: Number(cur.entry_count),
+          entries: cur.entries.map((e: any) => ({ ...e, amount: Number(e.amount) })),
+          drawings_total: Number(cur.drawings_total), drawings_count: Number(cur.drawings_count),
+        },
+        params: { from, to: today },
+        empty: Number(cur.entry_count) === 0,
+      };
+    }
+    case "expenses_vs_last": {
+      const from = monthStart(today);
+      const p = sameDaysLastMonth(today);
+      const cur = await expenseSummary(db, from, today, 1);
+      const prev = await expenseSummary(db, p.from, p.to, 1);
+      const total = Number(cur.total);
+      const prior = Number(prev.total);
+      // The function lists up to 50 categories. A comparison over a cut list
+      // would invent zeros, so a cut list is a failed read, never a guess.
+      for (const x of [cur, prev]) {
+        if (Number(x.category_count) > x.categories.length) throw new ReadFailed("ai_expense_summary: category list cut");
+      }
+      const rows = compareCategories(cur.categories, prev.categories);
+      return {
+        figures: {
+          period_from: from, period_to: today, as_of: asOf,
+          total, entry_count: Number(cur.entry_count),
+          previous_total: prior, previous_entry_count: Number(prev.entry_count),
+          previous_from: p.from, previous_to: p.to,
+          change: round2(total - prior), change_pct: changePct(total, prior),
+          categories: rows.slice(0, EXPENSE_CATEGORIES_SHOWN), category_count: rows.length,
+          categories_up: rows.filter((r) => r.change > 0).length,
+          categories_down: rows.filter((r) => r.change < 0).length,
+        },
+        params: { from, to: today },
+        empty: Number(cur.entry_count) === 0 && Number(prev.entry_count) === 0,
+      };
+    }
     default:
       throw new ReadFailed(`no reads for ${id}`);
   }
+}
+
+// ── expenses helpers ───────────────────────────────────────────────────────
+export const EXPENSE_CATEGORIES_SHOWN = 10;
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+async function expenseSummary(db: any, from: string, to: string, limit: number) {
+  const f = await rpc(db, "ai_expense_summary", { p_from: from, p_to: to, p_limit: limit });
+  if (!f || !Array.isArray(f.categories) || !Array.isArray(f.entries)) throw new ReadFailed("ai_expense_summary: no figures");
+  return f;
+}
+
+/**
+ * Every category in either period, with this period, last period and the
+ * change, ranked by the biggest increase first. A category with no entries in
+ * one period has 0 there; change_pct is null without a positive base.
+ */
+export function compareCategories(cur: any[], prev: any[]) {
+  const by = new Map<string, { category: string; amount: number; previous_amount: number }>();
+  for (const c of cur) by.set(c.category, { category: c.category, amount: Number(c.amount), previous_amount: 0 });
+  for (const c of prev) {
+    const row = by.get(c.category) ?? { category: c.category, amount: 0, previous_amount: 0 };
+    row.previous_amount = Number(c.amount);
+    by.set(c.category, row);
+  }
+  return [...by.values()]
+    .map((r) => ({ ...r, change: round2(r.amount - r.previous_amount), change_pct: changePct(r.amount, r.previous_amount) }))
+    .sort((a, b) => b.change - a.change || b.amount - a.amount || a.category.localeCompare(b.category));
 }

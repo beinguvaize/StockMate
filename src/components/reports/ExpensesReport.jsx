@@ -2,12 +2,15 @@ import React, { useMemo } from 'react';
 import useReportData from './useReportData';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
+import { useLinkedRange } from '../../lib/linkedRange';
 import { DollarSign, Tag, Info, Calendar, Activity, Truck } from 'lucide-react';
 
 const ExpensesReport = () => {
   // Financial year to date by default. These queries were previously
   // unfiltered and read the whole table on every load.
-  const win = useDateWindow('YEAR');
+  // An Ask answer links here with ?from&to: open on those dates and say so.
+  const linked = useLinkedRange();
+  const win = useDateWindow('YEAR', linked);
   const { data: rawData, loading } = useReportData({
     table: 'expenses',
     select: '*',
@@ -70,7 +73,7 @@ const ExpensesReport = () => {
     ]
   };
 
-  return <PremiumReportView dateWindow={win} title="Expenses Report" tabs={[expenseTab]} />;
+  return <PremiumReportView dateWindow={win} title="Expenses Report" subtitle={linked ? win.subtitle : undefined} tabs={[expenseTab]} />;
 };
 
 export default ExpensesReport;

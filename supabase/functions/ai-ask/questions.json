@@ -49,6 +49,15 @@
       "screen": { "key": "reports_purchase_register", "fallback_key": "purchases", "module": "reports", "mobile": false } },
     { "id": "cost_up", "category": "purchases", "module": "purchases", "roles": ["OWNER"],
       "label": { "en": "Which items cost more on my latest purchase?", "hi": "पिछली खरीद पर कौन से आइटम महँगे हुए?" },
-      "screen": { "key": "purchases", "fallback_key": null, "module": "purchases", "mobile": false } }
+      "screen": { "key": "purchases", "fallback_key": null, "module": "purchases", "mobile": false } },
+    { "id": "expenses_month", "category": "expenses", "module": "expenses", "roles": ["OWNER"],
+      "label": { "en": "What did I spend this month?", "hi": "इस महीने मैंने कितना खर्च किया?" },
+      "screen": { "key": "reports_expenses", "fallback_key": null, "module": "reports", "mobile": false } },
+    { "id": "top_expenses", "category": "expenses", "module": "expenses", "roles": ["OWNER"],
+      "label": { "en": "What were my biggest expenses this month?", "hi": "इस महीने मेरे सबसे बड़े खर्च कौन से थे?" },
+      "screen": { "key": "reports_expenses", "fallback_key": null, "module": "reports", "mobile": false } },
+    { "id": "expenses_vs_last", "category": "expenses", "module": "expenses", "roles": ["OWNER"],
+      "label": { "en": "Did I spend more than last month?", "hi": "क्या मैंने पिछले महीने से ज़्यादा खर्च किया?" },
+      "screen": { "key": "reports_expenses", "fallback_key": null, "module": "reports", "mobile": false } }
   ]
 }

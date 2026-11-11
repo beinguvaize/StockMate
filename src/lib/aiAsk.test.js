@@ -27,7 +27,7 @@ describe('the shared registry', () => {
   });
   it('every question has a label in every language, and every string set has the same keys', () => {
     const reg = JSON.parse(read('../../shared/ai_chat/questions.json'));
-    expect(reg.questions).toHaveLength(16);
+    expect(reg.questions).toHaveLength(19);
     for (const q of reg.questions) for (const l of reg.languages) expect(q.label[l]).toBeTruthy();
     for (const k of ['ui', 'card', 'hero', 'titles', 'notes', 'footnotes', 'links', 'methods', 'no_data_by_question']) {
       expect(Object.keys(strings.hi[k]).sort()).toEqual(Object.keys(strings.en[k]).sort());
@@ -551,7 +551,7 @@ describe('purchases & suppliers', () => {
 
   it('are one category, after stock, with every string a card needs', () => {
     expect(reg.questions.filter((q) => q.category === 'purchases').map((q) => q.id)).toEqual(IDS);
-    expect(read('../components/ask/AskPanel.jsx')).toContain("const CATEGORIES = ['sales', 'stock', 'purchases', 'dues', 'cash', 'gst'];");
+    expect(read('../components/ask/AskPanel.jsx')).toContain("const CATEGORIES = ['sales', 'stock', 'purchases', 'expenses', 'dues', 'cash', 'gst'];");
     for (const lang of ['en', 'hi']) {
       expect(strings[lang].ui.category_purchases).toBeTruthy();
       for (const id of IDS) {

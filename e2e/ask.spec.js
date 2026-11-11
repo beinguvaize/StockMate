@@ -465,3 +465,27 @@ test('while Hindi is paused, the panel is English-only even for an owner who pic
   await expect(page.getByRole('group', { name: 'Language' })).toHaveCount(0);
   expect(calls.list.every((c) => c.lang === 'en')).toBe(true);
 });
+
+// ── Expenses ───────────────────────────────────────────────────────────────
+test('Expenses: the category shows, and its card renders from buildCard with the report link', async ({ page }) => {
+  const f = { period_from: '2026-11-01', period_to: '2026-11-10', as_of: 'x', total: 15190, entry_count: 28,
+    categories: [{ category: 'Salary', amount: 7200, entry_count: 8 }, { category: 'Food', amount: 4990, entry_count: 12 },
+      { category: 'Petrol', amount: 3000, entry_count: 8 }],
+    category_count: 3, drawings_total: 0, drawings_count: 0,
+    previous_total: 29762, previous_entry_count: 42, previous_from: '2026-10-01', previous_to: '2026-10-10', change_pct: -49 };
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('expenses_month', f, strings.en),
+    screen: { key: 'reports_expenses', fallback_key: null, mobile: false, params: { from: '2026-11-01', to: '2026-11-10' } } }) });
+  await openPanel(page);
+  const list = page.getByTestId('ask-list');
+  await expect(list.getByText('Expenses', { exact: true })).toBeVisible();
+  for (const id of ['expenses_month', 'top_expenses', 'expenses_vs_last']) await expect(question(page, id)).toBeVisible();
+  await question(page, 'expenses_month').click();
+  const ans = page.getByTestId('ask-answer');
+  await expect(page.getByTestId('ask-hero')).toHaveText('₹15,190.00');
+  await expect(ans).toContainText('Spent, 1 to 10 Nov, 28 entries');
+  await expect(ans).toContainText('▼ 49.0% vs ₹29,762.00 for 1 to 10 Oct');
+  await expect(ans).toContainText('Total spent');
+  await ans.getByRole('button', { name: /Open Expenses report/ }).click();
+  await expect(page).toHaveURL(/tab=EXPENSES&from=2026-11-01&to=2026-11-10/);
+  await expect(page.getByText('2026-11-01 → 2026-11-10')).toBeVisible();
+});

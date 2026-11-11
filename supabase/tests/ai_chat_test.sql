@@ -395,6 +395,103 @@ BEGIN
   INSERT INTO _ai_results (check_name) VALUES ('storage');
 END $t$;
 
+-- ── 8. expenses (ai_expense_summary) ───────────────────────────────────────
+-- Self-contained: its own shape check and sentinels. Ties `total` to
+-- get_pl_ranged's expenses line, keeps drawings and deleted rows out, caps the
+-- list but not the total, and never returns a payroll entry's note.
+DO $t$
+DECLARE
+  v_ua text := current_setting('ai_test.ua'); v_ub text := current_setting('ai_test.ub');
+  v_a uuid := current_setting('ai_test.a')::uuid;
+  v_day date := current_setting('ai_test.day')::date;
+  v_has_payroll boolean;
+  r record; v jsonb; v0 jsonb; v_pl numeric; s text;
+BEGIN
+  SELECT p.oid, p.provolatile, p.prosecdef, p.prosrc, pg_get_function_identity_arguments(p.oid) AS args INTO r
+    FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'ai_expense_summary';
+  IF (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname = 'ai_expense_summary') <> 1 THEN
+    RAISE EXCEPTION 'EXPENSES: ai_expense_summary must have exactly one signature';
+  END IF;
+  IF r.provolatile <> 's' OR r.prosecdef OR r.args ~* 'tenant' OR r.prosrc !~ 'ai_owner_tenant\(\)'
+     OR r.prosrc ~* '\m(insert\s+into|update\s+public|delete\s+from|truncate)\M' THEN
+    RAISE EXCEPTION 'EXPENSES: ai_expense_summary breaks the read-function rules';
+  END IF;
+  IF has_function_privilege('anon', r.oid, 'EXECUTE') OR NOT has_function_privilege('authenticated', r.oid, 'EXECUTE') THEN
+    RAISE EXCEPTION 'EXPENSES: wrong grants on ai_expense_summary';
+  END IF;
+
+  PERFORM pg_temp.act_as(v_ua);
+  v0 := public.ai_expense_summary(v_day, v_day, 100);
+  PERFORM pg_temp.back();
+
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO expenses (id, tenant_id, category, amount, note, date, exclude_from_pl) VALUES
+    ('AITEST-E-A1', v_a, 'AITEST cat A', 3333333.33, 'AITEST note A', v_day::text, false),
+    ('AITEST-E-A2', v_a, 'AITEST cat A', 1.11, 'AITEST small A', v_day::text, false),
+    ('AITEST-E-A3', v_a, 'AITEST drawings A', 7777777.77, 'AITEST drawing A', v_day::text, true),
+    ('AITEST-E-A4', v_a, 'AITEST cat A', 5555555.55, 'AITEST deleted A', v_day::text, false),
+    ('AITEST-E-B1', current_setting('ai_test.b')::uuid, 'AITEST cat B', 4444444.44, 'AITEST note B', v_day::text, false);
+  UPDATE expenses SET deleted_at = now() WHERE id = 'AITEST-E-A4';
+  v_has_payroll := EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'payroll_id');
+  IF v_has_payroll THEN
+    INSERT INTO expenses (id, tenant_id, category, amount, note, date, payroll_id)
+    VALUES ('AITEST-E-A5', v_a, 'AITEST salary A', 2.22, 'Salary AITEST staff name A', v_day::text, 'AITEST-PR-A');
+  END IF;
+  SET LOCAL session_replication_role = origin;
+
+  PERFORM pg_temp.act_as(v_ua);
+  v := public.ai_expense_summary(v_day, v_day, 100);
+  SELECT expenses INTO v_pl FROM public.get_pl_ranged(v_a, v_day, v_day);
+  PERFORM pg_temp.back();
+  s := v::text;
+  IF (v ->> 'total')::numeric <> v_pl THEN
+    RAISE EXCEPTION 'EXPENSES: total % does not tie to get_pl_ranged expenses %', v ->> 'total', v_pl;
+  END IF;
+  v_pl := 3333334.44 + (CASE WHEN v_has_payroll THEN 2.22 ELSE 0 END);
+  IF (v ->> 'total')::numeric - (v0 ->> 'total')::numeric <> v_pl THEN
+    RAISE EXCEPTION 'EXPENSES: sentinels not counted exactly (% -> %)', v0 ->> 'total', v ->> 'total';
+  END IF;
+  IF (v ->> 'drawings_total')::numeric - (v0 ->> 'drawings_total')::numeric <> 7777777.77 THEN
+    RAISE EXCEPTION 'EXPENSES: drawings not returned apart';
+  END IF;
+  IF s ~ 'AITEST deleted A' OR s ~ '5555555' THEN RAISE EXCEPTION 'EXPENSES: a deleted expense was read'; END IF;
+  IF s ~ 'AITEST drawing A' THEN RAISE EXCEPTION 'EXPENSES: a drawing is in the list'; END IF;
+  IF s ~ 'AITEST (cat|note) B' OR s ~ '4444444' THEN RAISE EXCEPTION 'EXPENSES: owner A can see shop B'; END IF;
+  IF s ~ 'AITEST staff name' THEN RAISE EXCEPTION 'EXPENSES: a payroll entry''s note was returned'; END IF;
+  IF v_has_payroll AND NOT (v -> 'entries') @> '[{"category": "AITEST salary A", "from_payroll": true}]' THEN
+    RAISE EXCEPTION 'EXPENSES: the payroll entry is not marked';
+  END IF;
+  IF v -> 'entries' -> 0 ->> 'description' <> 'AITEST note A' THEN RAISE EXCEPTION 'EXPENSES: the biggest entry is not first'; END IF;
+
+  -- A capped list keeps every total.
+  PERFORM pg_temp.act_as(v_ua);
+  v0 := public.ai_expense_summary(v_day, v_day, 1);
+  PERFORM pg_temp.back();
+  IF jsonb_array_length(v0 -> 'entries') <> 1 OR v0 ->> 'total' <> v ->> 'total' OR v0 ->> 'entry_count' <> v ->> 'entry_count' THEN
+    RAISE EXCEPTION 'EXPENSES: a capped list changed a total, or was not capped';
+  END IF;
+
+  -- The other shop sees none of A's.
+  PERFORM pg_temp.act_as(v_ub);
+  s := public.ai_expense_summary(v_day, v_day, 100)::text;
+  PERFORM pg_temp.back();
+  IF s ~ 'AITEST (cat|note|drawing) A' OR s ~ '3333333' THEN RAISE EXCEPTION 'EXPENSES: owner B can see shop A'; END IF;
+
+  -- Staff are refused.
+  UPDATE users SET roles = ARRAY['STAFF'] WHERE id = v_ua;
+  PERFORM pg_temp.act_as(v_ua);
+  BEGIN
+    PERFORM public.ai_expense_summary(v_day, v_day, 10);
+    PERFORM pg_temp.back();
+    RAISE EXCEPTION 'STAFF_NOT_REFUSED ai_expense_summary';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  PERFORM pg_temp.back();
+  UPDATE users SET roles = ARRAY['OWNER'] WHERE id = v_ua;
+  INSERT INTO _ai_results (check_name) VALUES ('expenses');
+END $t$;
+
 -- ── 7. read-only ───────────────────────────────────────────────────────────
 -- A function that wrote would fail here. Last, because it cannot be undone
 -- inside the transaction.
@@ -403,6 +500,12 @@ DO $t$
 BEGIN
   PERFORM pg_temp.act_as(current_setting('ai_test.ub'));
   PERFORM pg_temp.all_reads(current_setting('ai_test.day')::date);
+  PERFORM pg_temp.back();
+END $t$;
+DO $t$
+BEGIN
+  PERFORM pg_temp.act_as(current_setting('ai_test.ub'));
+  PERFORM public.ai_expense_summary(current_setting('ai_test.day')::date, current_setting('ai_test.day')::date, 10);
   PERFORM pg_temp.back();
 END $t$;
 

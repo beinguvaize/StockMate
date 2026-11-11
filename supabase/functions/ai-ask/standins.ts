@@ -53,7 +53,40 @@ export function toModelFigures(figures: Record<string, unknown>) {
       return { ...a, label: token, type: a.type === "CASH" ? "CASH" : "BANK" };
     });
   }
+  expenseStandIns(view, figures, map);
   return { view, map };
+}
+
+/**
+ * Expenses: a category is the owner's own free text and can be a person's
+ * name (a shop files "Ravi" or "umma cash" as a category), and an entry's
+ * description can name the payee. So every category goes as [E1], [E2]... the
+ * same token wherever the same category appears, and descriptions never go at
+ * all. The SQL already drops the description of a payroll-linked entry, which
+ * names the staff member paid.
+ */
+function expenseStandIns(view: Record<string, any>, figures: Record<string, any>, map: Record<string, string>) {
+  const token = new Map<string, string>();
+  const swap = (name: unknown) => {
+    const real = String(name ?? "");
+    if (!token.has(real)) {
+      const t = `[E${token.size + 1}]`;
+      token.set(real, t);
+      map[t] = real;
+    }
+    return token.get(real)!;
+  };
+  // Names come from the real figures, by position, as for customers: strip()
+  // may already have dropped a value that looked like a phone number.
+  // Categories first, so the biggest category is [E1] on every question.
+  if (Array.isArray(view.categories)) {
+    const real = (figures.categories as any[]) || [];
+    view.categories = view.categories.map((c: any, i: number) => ({ ...c, category: swap(real[i]?.category) }));
+  }
+  if (Array.isArray(view.entries)) {
+    const real = (figures.entries as any[]) || [];
+    view.entries = view.entries.map(({ description: _drop, ...e }: any, i: number) => ({ ...e, category: swap(real[i]?.category) }));
+  }
 }
 
 /** Swap real names back in, longest token first so [C1] never clips [C10]. */

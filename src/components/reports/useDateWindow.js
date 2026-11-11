@@ -14,9 +14,11 @@ import { presetRange } from './reportUtils';
  *   useReportData({ table: 'sales', dateColumn: 'date', filters: w.filters });
  *   <ReportHeader {...w.headerProps} title="…" />
  */
-export default function useDateWindow(initialPreset = 'YEAR') {
-  const [preset, setPreset] = useState(initialPreset);
-  const [range, setRange] = useState(() => presetRange(initialPreset));
+export default function useDateWindow(initialPreset = 'YEAR', linked = null) {
+  // A link that names its period (useLinkedRange) wins over the preset, so an
+  // Ask answer opens the report on its own dates.
+  const [preset, setPreset] = useState(linked ? 'CUSTOM' : initialPreset);
+  const [range, setRange] = useState(() => (linked ? { start: linked.from, end: linked.to } : presetRange(initialPreset)));
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [showCustom, setShowCustom] = useState(false);

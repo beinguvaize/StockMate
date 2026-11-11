@@ -228,6 +228,47 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
         rows: f.items.map((i: any) => [i.unit ? `${i.product_name} (${i.unit})` : i.product_name, i.old_cost, i.new_cost, i.pct_rise]) };
       footnote = foot({ shown: count(f.items.length), n: count(f.items_up) });
       break;
+    // ── expenses ──────────────────────────────────────────────────────────
+    case "expenses_month": {
+      value = f.total;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to), n: count(f.entry_count) });
+      detail = compare({ prev: inr(f.previous_total), pfrom: lead(f.previous_from, f.previous_to), pto: day(f.previous_to) });
+      table = { columns: [col("category", "text", false), col("entries", "count"), col("amount", "money")],
+        rows: f.categories.map((c: any) => [c.category, c.entry_count, c.amount]) };
+      rowsAfter = [row("total_spent", f.total, "money", "total")];
+      // Kept out of the total, as on the profit card, but never out of sight.
+      if (Number(f.drawings_count) > 0) rowsAfter.push(row("drawings_kept_out", f.drawings_total, "money"));
+      if (Number(f.category_count) > f.categories.length) footnote = foot({ shown: count(f.categories.length), n: count(f.category_count) });
+      break;
+    }
+    case "top_expenses": {
+      const top = f.entries[0];
+      value = top?.amount ?? 0;
+      caption = top ? fill(H.caption, { category: top.category, date: day(top.date) }) : "";
+      detail = fill(H.detail, { total: inr(f.total), n: count(f.entry_count) });
+      table = { columns: [col("date", "text", false), col("category", "text", false), col("details", "text", false), col("amount", "money")],
+        rows: f.entries.map((e: any) => [day(e.date), e.category, e.from_payroll ? L.staff_pay : (e.description ?? ""), e.amount]) };
+      if (Number(f.entry_count) > f.entries.length) footnote = foot({ shown: count(f.entries.length), n: count(f.entry_count) });
+      break;
+    }
+    case "expenses_vs_last": {
+      value = f.total;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to) });
+      const range = span(f.previous_from, f.previous_to);
+      detail = compare({ prev: inr(f.previous_total), range });
+      const signed = (n: number) => `${n > 0 ? "+" : ""}${inr(n)}`;
+      table = { columns: [col("category", "text", false), col("this_period", "money"), col("same_days_last", "money"), col("change", "text")],
+        rows: f.categories.map((c: any) => [c.category, c.amount, c.previous_amount, signed(Number(c.change))]) };
+      rowsAfter = [row("total_spent", f.total, "money", "total"),
+        { label: fill(L.same_days_last_total, { range }), value: f.previous_total, kind: "money" }];
+      // The link opens this month's dates: say where last month's figures are.
+      const lines = [fill(strings.footnotes.expenses_vs_last, { pfrom: lead(f.previous_from, f.previous_to), pto: day(f.previous_to) })];
+      if (Number(f.category_count) > f.categories.length) {
+        lines.push(fill(strings.footnotes.expenses_vs_last_cut, { shown: count(f.categories.length), n: count(f.category_count) }));
+      }
+      footnote = lines.join(" ");
+      break;
+    }
     default:
       throw new Error(`no card for ${id}`);
   }
