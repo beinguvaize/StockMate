@@ -4,6 +4,9 @@ import { Plus, Trash2, CheckCircle2, Barcode, AlertCircle, Search, X, TrendingUp
 import { todayISOInAppTZ } from '../../../lib/utils';
 import QuickCreateProductModal from './QuickCreateProductModal';
 import { lineUnitCost, priceChanges, priceKeepingMargin } from '../lib/priceChange';
+import { priceCheck } from '../lib/priceCheck';
+import PriceCheckDialog from './PriceCheckDialog';
+import { useFocusAfterDialog } from '../lib/useFocusAfterDialog';
 
 const inr = (n) => `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -212,7 +215,7 @@ const emptyLine = () => ({
   barcodeStatus:     null, // null | 'found' | 'not_found'
 });
 
-const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loading, onCreateProduct }) => {
+const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [], onSave, loading, onCreateProduct }) => {
   const [header, setHeader] = useState({
     supplier_id:  '',
     location_id:  '',   // target warehouse
@@ -341,10 +344,32 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
   const validLines = () =>
     lines.filter(l => l.linked_product_id && parseFloat(l.quantity) > 0 && parseFloat(l.total_amount) > 0);
 
+  // ── Price check ──────────────────────────────────────────────────────────────
+  // Lines far from what the item last cost: asked about once, before anything
+  // else, because a wrong product looks exactly like a price change.
+  const [priceFlags, setPriceFlags] = useState(null);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const valid = validLines();
     if (!valid.length) return;
+    const flagged = priceCheck(valid.map(l => ({ ...l, key: l._key })), purchases, products);
+    if (flagged.length) { setPriceFlags(flagged); return; }
+    proceed(valid);
+  };
+
+  const focusAmount = useFocusAfterDialog((key) => rowsRef.current?.querySelector(`[data-line-total="${key}"]`));
+  const backToLine = () => {
+    focusAmount(priceFlags?.[0]?.key);
+    setPriceFlags(null);
+  };
+
+  const confirmPrices = () => {
+    setPriceFlags(null);
+    proceed(validLines());
+  };
+
+  const proceed = (valid) => {
     const changes = priceChanges(valid, products);
     if (changes.length) { setReview(changes); return; }
     save(valid, []);
@@ -628,7 +653,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
 
                   {/* Total */}
                   <input required type="number" min="0" step="0.01" placeholder="0.00" className={inp}
-                    aria-label="Line total"
+                    aria-label="Line total" data-line-total={line._key}
                     title="Type this or the price each — the other is worked out for you"
                     value={line.total_amount}
                     onChange={e => updateLine(line._key, { total_amount: e.target.value })} />
@@ -675,6 +700,10 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
           }
         </button>
       </form>
+
+      {priceFlags && (
+        <PriceCheckDialog flagged={priceFlags} onChange={backToLine} onConfirm={confirmPrices} saving={loading} />
+      )}
 
       {/* Quick-create product modal */}
       {quickCreate && (

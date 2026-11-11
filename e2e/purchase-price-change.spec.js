@@ -37,6 +37,15 @@ async function openForm(page) {
   return calls;
 }
 
+// Widget A was last bought at Rs 92 a unit (PUR-1 in the fixtures), so every
+// price these tests type is more than 20 % off it and the price check asks
+// first. That check has its own spec (purchase-price-check.spec.js); here it
+// is answered "yes" so the cost review behind it can be tested.
+async function save(page) {
+  await page.getByRole('button', { name: /Save 1 Item/ }).click();
+  await page.getByRole('button', { name: 'Yes, these prices are right' }).click();
+}
+
 async function buy(page, qty, total) {
   const product = page.getByLabel('Product', { exact: true }).first();
   await product.click();
@@ -51,7 +60,7 @@ test('a dearer purchase stops for review, and only the selling price is written'
   await buy(page, 10, 400);                        // Rs 40 against Rs 30
   await expect(page.getByTestId('line-cost-change')).toContainText('▲ 33.3%');
 
-  await page.getByRole('button', { name: /Save 1 Item/ }).click();
+  await save(page);
   const review = page.getByTestId('price-change-review');
   await expect(review).toBeVisible();
   expect(calls.purchases, 'nothing saved before the review').toBe(0);
@@ -75,7 +84,7 @@ test('a dearer purchase stops for review, and only the selling price is written'
 test('a cheaper purchase is shown too, and leaving the price keeps it', async ({ page }) => {
   const calls = await openForm(page);
   await buy(page, 10, 250);                        // Rs 25 against Rs 30
-  await page.getByRole('button', { name: /Save 1 Item/ }).click();
+  await save(page);
 
   const row = page.getByTestId('price-change-row');
   await expect(row).toHaveAttribute('data-direction', 'DOWN');
@@ -90,7 +99,7 @@ test('an unchanged price saves without the extra step', async ({ page }) => {
   const calls = await openForm(page);
   await buy(page, 10, 300);                        // Rs 30, same as now
   await expect(page.getByTestId('line-cost-change')).toHaveCount(0);
-  await page.getByRole('button', { name: /Save 1 Item/ }).click();
+  await save(page);
   await expect.poll(() => calls.purchases).toBe(1);
   await expect(page.getByTestId('price-change-review')).toHaveCount(0);
 });
@@ -98,7 +107,7 @@ test('an unchanged price saves without the extra step', async ({ page }) => {
 test('Back returns to the bill with every line as it was', async ({ page }) => {
   await openForm(page);
   await buy(page, 10, 400);
-  await page.getByRole('button', { name: /Save 1 Item/ }).click();
+  await save(page);
   await page.getByRole('button', { name: /Back to bill/ }).click();
   await expect(page.getByLabel('Line total', { exact: true }).first()).toHaveValue('400');
   await expect(page.getByLabel('Quantity', { exact: true }).first()).toHaveValue('10');
@@ -121,7 +130,7 @@ test('an expiry date stamps the batch the server made, never a second batch', as
   });
   await buy(page, 10, 300);                                   // no cost change: saves directly
   await page.getByLabel('Expiry date (optional)').first().fill('2027-03-31');
-  await page.getByRole('button', { name: /Save 1 Item/ }).click();
+  await save(page);
   await expect.poll(() => calls.purchases).toBe(1);
   await expect.poll(() => batch.patches.length).toBe(1);
   expect(batch.posts).toBe(0);

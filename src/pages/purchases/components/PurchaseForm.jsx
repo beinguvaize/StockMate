@@ -1,10 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { PackagePlus, CheckCircle2, ShoppingBag, AlertTriangle } from 'lucide-react';
 import Button from '../../../shared/Button';
 import { UNITS } from '../../../lib/constants';
 import { formatCurrency, todayISOInAppTZ } from '../../../lib/utils';
+import { priceCheck } from '../lib/priceCheck';
+import PriceCheckDialog from './PriceCheckDialog';
+import { useFocusAfterDialog } from '../lib/useFocusAfterDialog';
 
-const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => {
+const PurchaseForm = ({ products, suppliers, purchases = [], onSave, loading, initialData }) => {
   const [formData, setFormData] = useState({
     linked_product_id: initialData?.linked_product_id ?? '',
     supplier_id:       initialData?.supplier_id        ?? '',
@@ -69,8 +72,26 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
     ? unitCost / convFactor
     : unitCost;
 
+  // Far from what the item last cost? Asked once; never blocks the save.
+  const [priceFlags, setPriceFlags] = useState(null);
+  const totalRef = useRef(null);
+  const focusAmount = useFocusAfterDialog(() => totalRef.current);
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    const flagged = priceCheck([{
+      key: 'single',
+      linked_product_id: formData.linked_product_id,
+      quantity: formData.quantity,
+      total_amount: formData.total_amount,
+      buyUnit: purchaseUnit === 'SECONDARY' ? 'ALT' : 'BASE',
+    }], purchases, products);
+    if (flagged.length) { setPriceFlags(flagged); return; }
+    save();
+  };
+
+  const save = () => {
+    setPriceFlags(null);
     let q = parseFloat(formData.quantity);
     const t = parseFloat(formData.total_amount);
     // Convert quantity to the product's base unit when buying in the alternate unit.
@@ -176,8 +197,10 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
         <div>
           <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Total Amount</label>
           <input
+            ref={totalRef}
             required
             type="number"
+            aria-label="Total amount"
             className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="0.00"
             min="0"
@@ -233,6 +256,11 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
       >
         {loading ? 'Saving...' : initialData ? 'Update Purchase' : 'Save Purchase'}
       </Button>
+
+      {priceFlags && (
+        <PriceCheckDialog flagged={priceFlags} saving={loading} onConfirm={save}
+          onChange={() => { focusAmount('single'); setPriceFlags(null); }} />
+      )}
     </form>
   );
 };

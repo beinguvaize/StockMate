@@ -1,5 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { formatCurrency } from '../../../lib/utils';
+import { priceCheck } from '../lib/priceCheck';
+import PriceCheckDialog from './PriceCheckDialog';
+import { useFocusAfterDialog } from '../lib/useFocusAfterDialog';
 
 /**
  * Edit a whole bill: the header once, every line beneath it.
@@ -25,7 +28,7 @@ import { formatCurrency } from '../../../lib/utils';
 const PAY_TYPES = ['CASH', 'CREDIT', 'BANK', 'UPI'];
 
 const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {}, payments = [],
-                       onSave, onCancel, saving }) => {
+                       purchases = [], onSave, onCancel, saving }) => {
   const [date, setDate]         = useState(bill.date || '');
   const [supplierId, setSupId]  = useState(bill.supplier_id || '');
   const [payType, setPayType]   = useState((bill.payment_type || 'CASH').toUpperCase());
@@ -90,9 +93,34 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
       || !l.linked_product_id)
     || !date || !supplierId || payTooMuch;
 
+  // Lines whose price is far from the item's last purchase. Only lines this
+  // edit touched -- a new line, or a changed product, quantity or amount --
+  // so changing the date does not re-ask about prices nobody altered. An
+  // edited line is compared with the purchase before it, never with itself.
+  const [priceFlags, setPriceFlags] = useState(null);
+  const formRef = useRef(null);
+  const focusAmount = useFocusAfterDialog((key) => formRef.current?.querySelector(`[data-line-total="${key}"]`));
+
+  const touchedLines = () => {
+    const before = new Map((bill.lines || []).map(l => [l.id, l]));
+    return lines.filter(l => {
+      const was = l.id && before.get(l.id);
+      return !was || was.linked_product_id !== l.linked_product_id
+        || Math.abs((Number(was.quantity) || 0) - (parseFloat(l.quantity) || 0)) > 1e-9
+        || Math.abs((Number(was.total_amount) || 0) - (parseFloat(l.total_amount) || 0)) > 0.005;
+    }).map(l => ({ ...l, key: keyOf(l) }));
+  };
+
   const submit = (e) => {
     e.preventDefault();
     if (invalid || saving) return;
+    const flagged = priceCheck(touchedLines(), purchases, products);
+    if (flagged.length) { setPriceFlags(flagged); return; }
+    save();
+  };
+
+  const save = () => {
+    setPriceFlags(null);
     onSave({
       billId: bill.bill_id || bill.id,
       supplierId, paymentType: payType, date, billNo,
@@ -119,7 +147,7 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
   const field = 'w-full bg-canvas border border-black/10 rounded-lg px-2.5 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20';
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
+    <form ref={formRef} onSubmit={submit} className="flex flex-col gap-4">
 
       {/* Header — applies to every line, which is the whole point */}
       <div className="grid grid-cols-2 gap-3">
@@ -186,6 +214,7 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
               onChange={e => setLine(keyOf(l), 'quantity', e.target.value)}
               className={`${field} !py-1.5 text-right tabular-nums`} />
             <input type="number" step="0.01" min="0" value={l.total_amount}
+              aria-label="Amount" data-line-total={keyOf(l)}
               onChange={e => setLine(keyOf(l), 'total_amount', e.target.value)}
               className={`${field} !py-1.5 text-right tabular-nums`} />
             {l.id ? <span /> : (
@@ -275,6 +304,11 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
           {saving ? 'Saving…' : `Save bill · ${lines.length} line${lines.length === 1 ? '' : 's'}`}
         </button>
       </div>
+
+      {priceFlags && (
+        <PriceCheckDialog flagged={priceFlags} saving={saving} onConfirm={save}
+          onChange={() => { focusAmount(priceFlags[0]?.key); setPriceFlags(null); }} />
+      )}
     </form>
   );
 };

@@ -570,6 +570,7 @@ const PurchasesPage = () => {
             products={products}
             productNameById={productNameById}
             payments={supplierPayments}
+            purchases={purchases}
             saving={billSaving}
             onCancel={() => setEditBillTarget(null)}
             onSave={async (payload) => {
@@ -700,6 +701,7 @@ const PurchasesPage = () => {
           products={products}
           suppliers={suppliers}
           warehouses={warehouses}
+          purchases={purchases}
           onSave={handleSaveMultiPurchase}
           loading={addLoading}
           onCreateProduct={handleCreateProduct}
@@ -713,6 +715,7 @@ const PurchasesPage = () => {
           <PurchaseForm
             products={products}
             suppliers={suppliers}
+            purchases={purchases}
             onSave={handleDuplicateSave}
             loading={addLoading}
             initialData={{ ...dupTarget, date: new Date().toISOString().slice(0, 10) }}
