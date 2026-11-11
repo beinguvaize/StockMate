@@ -712,6 +712,142 @@
           "new_date": "2026-10-30"
         }
       ]
+    },
+    "expenses_month": {
+      "period_from": "2026-06-01",
+      "period_to": "2026-06-25",
+      "as_of": "2026-06-25T10:00:00Z",
+      "total": 35441,
+      "entry_count": 11,
+      "categories": [
+        {
+          "category": "[E1]",
+          "amount": 12000,
+          "entry_count": 1
+        },
+        {
+          "category": "[E2]",
+          "amount": 9415,
+          "entry_count": 2
+        },
+        {
+          "category": "[E3]",
+          "amount": 8000,
+          "entry_count": 1
+        },
+        {
+          "category": "[E4]",
+          "amount": 2955,
+          "entry_count": 1
+        },
+        {
+          "category": "[E5]",
+          "amount": 2360,
+          "entry_count": 4
+        },
+        {
+          "category": "[E6]",
+          "amount": 711,
+          "entry_count": 2
+        }
+      ],
+      "category_count": 6,
+      "drawings_total": 5000,
+      "drawings_count": 1,
+      "previous_total": 31367,
+      "previous_entry_count": 10,
+      "previous_from": "2026-05-01",
+      "previous_to": "2026-05-25",
+      "change_pct": 13
+    },
+    "top_expenses": {
+      "period_from": "2026-06-01",
+      "period_to": "2026-06-25",
+      "as_of": "2026-06-25T10:00:00Z",
+      "total": 35441,
+      "entry_count": 11,
+      "entries": [
+        {
+          "date": "2026-06-03",
+          "category": "[E1]",
+          "amount": 12000,
+          "from_payroll": true
+        },
+        {
+          "date": "2026-06-03",
+          "category": "[E2]",
+          "amount": 8000,
+          "from_payroll": false
+        },
+        {
+          "date": "2026-06-24",
+          "category": "[E3]",
+          "amount": 4767,
+          "from_payroll": false
+        }
+      ],
+      "drawings_total": 0,
+      "drawings_count": 0
+    },
+    "expenses_vs_last": {
+      "period_from": "2026-06-01",
+      "period_to": "2026-06-25",
+      "as_of": "2026-06-25T10:00:00Z",
+      "total": 35441,
+      "entry_count": 11,
+      "previous_total": 31367,
+      "previous_entry_count": 10,
+      "previous_from": "2026-05-01",
+      "previous_to": "2026-05-25",
+      "change": 4074,
+      "change_pct": 13,
+      "categories": [
+        {
+          "category": "[E1]",
+          "amount": 9415,
+          "previous_amount": 4884,
+          "change": 4531,
+          "change_pct": 92.8
+        },
+        {
+          "category": "[E2]",
+          "amount": 2360,
+          "previous_amount": 2035,
+          "change": 325,
+          "change_pct": 16
+        },
+        {
+          "category": "[E3]",
+          "amount": 12000,
+          "previous_amount": 12000,
+          "change": 0,
+          "change_pct": 0
+        },
+        {
+          "category": "[E4]",
+          "amount": 8000,
+          "previous_amount": 8000,
+          "change": 0,
+          "change_pct": 0
+        },
+        {
+          "category": "[E5]",
+          "amount": 2955,
+          "previous_amount": 3236,
+          "change": -281,
+          "change_pct": -8.7
+        },
+        {
+          "category": "[E6]",
+          "amount": 711,
+          "previous_amount": 1212,
+          "change": -501,
+          "change_pct": -41.3
+        }
+      ],
+      "category_count": 6,
+      "categories_up": 2,
+      "categories_down": 2
     }
   },
   "stand_ins": {
@@ -745,6 +881,27 @@
       "[S3]": "Test Supplier 3",
       "[S4]": "Test Supplier 4",
       "[S5]": "Test Supplier 5"
+    },
+    "expenses_month": {
+      "[E1]": "Test Category 1",
+      "[E2]": "Test Category 2",
+      "[E3]": "Test Category 3",
+      "[E4]": "Test Category 4",
+      "[E5]": "Test Category 5",
+      "[E6]": "Test Category 6"
+    },
+    "top_expenses": {
+      "[E1]": "Test Category 1",
+      "[E2]": "Test Category 2",
+      "[E3]": "Test Category 3"
+    },
+    "expenses_vs_last": {
+      "[E1]": "Test Category 1",
+      "[E2]": "Test Category 2",
+      "[E3]": "Test Category 3",
+      "[E4]": "Test Category 4",
+      "[E5]": "Test Category 5",
+      "[E6]": "Test Category 6"
     }
   },
   "cases": [
@@ -3435,6 +3592,230 @@
       "known_limit": false,
       "source": "hand_written",
       "baseline_guard": "pass"
+    },
+    {
+      "id": "expenses_month-01",
+      "question_id": "expenses_month",
+      "lang": "en",
+      "fixture": "expenses_month",
+      "reply": "You spent ₹35,441 across 11 entries from 1 to 25 June. That is 13% more than the same days in May, when you spent ₹31,367.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Every number and date is in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "expenses_month-02",
+      "question_id": "expenses_month",
+      "lang": "en",
+      "fixture": "expenses_month",
+      "reply": "[E1] was your biggest category at ₹12,000, and ₹5,000 of owner drawings were kept out of the total.",
+      "expected": "should_pass",
+      "rule": "stand_in",
+      "why": "Issued stand-in and figures as given.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "expenses_month-03",
+      "question_id": "expenses_month",
+      "lang": "en",
+      "fixture": "expenses_month",
+      "reply": "[E1] and [E3] together made up ₹20,000 of your spending.",
+      "expected": "should_fail",
+      "rule": "invented_number",
+      "why": "A sum the model worked out itself.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "expenses_month-04",
+      "question_id": "expenses_month",
+      "lang": "en",
+      "fixture": "expenses_month",
+      "reply": "You spent 13% less than the same days last month.",
+      "expected": "should_fail",
+      "rule": "direction",
+      "why": "change_pct is positive.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "expenses_month-05",
+      "question_id": "expenses_month",
+      "lang": "hi",
+      "fixture": "expenses_month",
+      "reply": "आपने 1 से 25 जून तक 11 एंट्री में ₹35,441 खर्च किए, जो मई के इन्हीं दिनों से 13% ज़्यादा है।",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Hindi, with Western digits and figures as given.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "expenses_month-06",
+      "question_id": "expenses_month",
+      "lang": "en",
+      "fixture": "expenses_month",
+      "reply": "Including drawings you spent ₹40,441.",
+      "expected": "should_fail",
+      "rule": "invented_number",
+      "why": "Total plus drawings is not in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "top_expenses-01",
+      "question_id": "top_expenses",
+      "lang": "en",
+      "fixture": "top_expenses",
+      "reply": "Your biggest expense was [E1] at ₹12,000 on 3 June, out of ₹35,441 spent over 11 entries.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Figures and date as given.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "top_expenses-02",
+      "question_id": "top_expenses",
+      "lang": "en",
+      "fixture": "top_expenses",
+      "reply": "Your top 3 expenses were [E1], [E2] and [E3].",
+      "expected": "should_pass",
+      "rule": "rank",
+      "why": "The list has 3 rows.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "top_expenses-03",
+      "question_id": "top_expenses",
+      "lang": "en",
+      "fixture": "top_expenses",
+      "reply": "Your top 5 expenses came to ₹30,000.",
+      "expected": "should_fail",
+      "rule": "rank",
+      "why": "Only 3 rows, and an invented sum.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "top_expenses-04",
+      "question_id": "top_expenses",
+      "lang": "en",
+      "fixture": "top_expenses",
+      "reply": "[E4] cost ₹8,000.",
+      "expected": "should_fail",
+      "rule": "unknown_stand_in",
+      "why": "[E4] was never issued.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "top_expenses-05",
+      "question_id": "top_expenses",
+      "lang": "en",
+      "fixture": "top_expenses",
+      "reply": "[E1] was about a third of your spending.",
+      "expected": "should_fail",
+      "rule": "ratio_word",
+      "why": "Own calculation.",
+      "judgement": true,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "expenses_vs_last-01",
+      "question_id": "expenses_vs_last",
+      "lang": "en",
+      "fixture": "expenses_vs_last",
+      "reply": "Yes, you spent ₹4,074 more than the same days last month, up 13%. [E1] rose the most, by ₹4,531.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Every number is in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "expenses_vs_last-02",
+      "question_id": "expenses_vs_last",
+      "lang": "en",
+      "fixture": "expenses_vs_last",
+      "reply": "[E6] fell by ₹501 and [E5] by ₹281.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Changes by absolute value.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "expenses_vs_last-03",
+      "question_id": "expenses_vs_last",
+      "lang": "en",
+      "fixture": "expenses_vs_last",
+      "reply": "Your spending fell 13% on last month.",
+      "expected": "should_fail",
+      "rule": "direction",
+      "why": "change_pct is positive.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "expenses_vs_last-04",
+      "question_id": "expenses_vs_last",
+      "lang": "en",
+      "fixture": "expenses_vs_last",
+      "reply": "[E1] nearly doubled.",
+      "expected": "should_fail",
+      "rule": "ratio_word",
+      "why": "A ratio word the figures do not state.",
+      "judgement": true,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
+    },
+    {
+      "id": "expenses_vs_last-05",
+      "question_id": "expenses_vs_last",
+      "lang": "hi",
+      "fixture": "expenses_vs_last",
+      "reply": "हाँ, आपने पिछले महीने के इन्हीं दिनों से ₹4,074 ज़्यादा खर्च किए। [E1] सबसे ज़्यादा ₹4,531 बढ़ा।",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Hindi, figures as given.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": null
     }
   ],
   "baseline": {

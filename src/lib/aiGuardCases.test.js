@@ -8,7 +8,7 @@ describe('guard cases (shared/ai_chat/guard_cases.json)', () => {
   const gated = data.cases.filter((c) => !c.known_limit);
 
   it('still has every case', () => {
-    expect(data.cases).toHaveLength(192);
+    expect(data.cases).toHaveLength(208);
     expect(gated.length).toBeGreaterThan(160);
   });
 
