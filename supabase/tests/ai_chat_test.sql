@@ -492,6 +492,92 @@ BEGIN
   INSERT INTO _ai_results (check_name) VALUES ('expenses');
 END $t$;
 
+-- ── 9. dues and cash (ask-dues-cash) ───────────────────────────────────────
+-- Its own shape check, fixtures and reads, so it rebases cleanly past the
+-- other question batches. Shop A gets an unpaid bill from 75 days ago and two
+-- ledger rows today (a cash sale receipt and a manual entry); the sentinels
+-- above add today's unpaid credit sale and a cash client payment.
+DO $t$
+DECLARE
+  k_fns text[] := ARRAY['ai_dues_over_60','ai_credit_sales','ai_cash_today','ai_payment_mix'];
+  r record; n int;
+  v_ua text := current_setting('ai_test.ua'); v_ub text := current_setting('ai_test.ub');
+  v_day date := current_setting('ai_test.day')::date;
+  v jsonb; s text; k text;
+BEGIN
+  SELECT count(*) INTO n FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname = ANY(k_fns);
+  IF n <> 4 THEN RAISE EXCEPTION 'DUES_CASH SHAPE: expected 4 functions with one signature each, found %', n; END IF;
+  FOR r IN SELECT p.oid, p.proname, p.provolatile, p.prosecdef, p.prosrc, pg_get_function_identity_arguments(p.oid) AS args
+             FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname = ANY(k_fns) LOOP
+    IF r.provolatile <> 's' OR r.prosecdef OR r.args ~* 'tenant' THEN RAISE EXCEPTION 'DUES_CASH SHAPE: % is not STABLE INVOKER without a tenant argument', r.proname; END IF;
+    IF r.prosrc ~* '\m(insert\s+into|update\s+public|delete\s+from|truncate)\M' THEN RAISE EXCEPTION 'DUES_CASH SHAPE: % contains DML', r.proname; END IF;
+    IF r.prosrc !~ 'ai_owner_tenant\(\)' THEN RAISE EXCEPTION 'DUES_CASH SHAPE: % does not resolve the owner', r.proname; END IF;
+    IF r.prosrc ~* '\m(phone|contact|gstin|gst_no|pan_number|aadhaar|account_no|ifsc|upi_id|billing_address)\M' THEN
+      RAISE EXCEPTION 'DUES_CASH SHAPE: % names a private column', r.proname;
+    END IF;
+    IF has_function_privilege('anon', r.oid, 'EXECUTE') OR NOT has_function_privilege('authenticated', r.oid, 'EXECUTE') THEN
+      RAISE EXCEPTION 'DUES_CASH SHAPE: wrong grants on %', r.proname;
+    END IF;
+  END LOOP;
+
+  SET LOCAL session_replication_role = replica;
+  FOR r IN SELECT * FROM (VALUES (current_setting('ai_test.a')::uuid, 'A', 1111111.11::numeric, 1000.01::numeric),
+                                 (current_setting('ai_test.b')::uuid, 'B', 2222222.22::numeric, 2000.02::numeric)) x(t, tag, amt, rcpt) LOOP
+    INSERT INTO sales (id, tenant_id, "shopId", "totalAmount", "paidAmount", date, status, "paymentStatus", "paymentMethod")
+    VALUES ('AITEST-OLD-' || r.tag, r.t, 'AITEST-C-' || r.tag, r.amt, 0, (v_day - 75)::text, 'COMPLETED', 'UNPAID', 'CREDIT');
+    INSERT INTO account_transactions (id, tenant_id, account_id, date, direction, amount, mode, ref_type)
+    VALUES ('AITEST-AT-' || r.tag, r.t, 'AITEST-AC-' || r.tag, v_day, 'IN', r.rcpt, 'CASH', 'SALE'),
+           ('AITEST-AT2-' || r.tag, r.t, 'AITEST-AC-' || r.tag, v_day, 'OUT', 7, NULL, 'MANUAL'),
+           ('AITEST-AT3-' || r.tag, r.t, 'AITEST-AC-' || r.tag, v_day, 'OUT', r.amt, 'CASH', 'TRANSFER');
+  END LOOP;
+  SET LOCAL session_replication_role = origin;
+
+  PERFORM pg_temp.act_as(v_ua);
+  v := jsonb_build_object('over', public.ai_dues_over_60(100), 'credit', public.ai_credit_sales(v_day, v_day),
+                          'cash', public.ai_cash_today(), 'mix', public.ai_payment_mix(v_day, v_day));
+  PERFORM pg_temp.back();
+  s := v::text;
+  IF s ~ '2222222|2000\.02' OR s ~ 'AITEST (client|account) B' THEN RAISE EXCEPTION 'DUES_CASH ISOLATION: owner A sees shop B: %', left(s, 400); END IF;
+  IF position('AITEST client A' IN s) = 0 OR position('AITEST account A' IN s) = 0 THEN RAISE EXCEPTION 'DUES_CASH: sentinel names missing'; END IF;
+  IF (v #>> '{over,total_over}')::numeric < 1111111.11 OR (v #>> '{over,oldest_days}')::int < 75 THEN RAISE EXCEPTION 'DUES_CASH: old unpaid bill not over 60 days'; END IF;
+  IF (v #>> '{over,total_over}')::numeric <> (v #>> '{over,aged_61_90}')::numeric + (v #>> '{over,aged_91_120}')::numeric + (v #>> '{over,aged_over_120}')::numeric THEN
+    RAISE EXCEPTION 'DUES_CASH: buckets do not add up to the total';
+  END IF;
+  IF (v #>> '{credit,credit_billed}')::numeric < 1111111.11 OR (v #>> '{credit,credit_open}')::numeric < 1111111.11 THEN RAISE EXCEPTION 'DUES_CASH: sentinel credit sale not counted'; END IF;
+  IF (v #>> '{cash,money_in}')::numeric < 1000.01 OR (v #>> '{cash,money_out}')::numeric < 7 THEN RAISE EXCEPTION 'DUES_CASH: ledger rows not counted'; END IF;
+  IF (v #>> '{cash,money_out}')::numeric >= 1111111.11 THEN RAISE EXCEPTION 'DUES_CASH: a transfer was counted'; END IF;
+  IF NOT (v -> 'cash' -> 'unlisted') @> '[{"type": "MANUAL", "direction": "OUT"}]' THEN RAISE EXCEPTION 'DUES_CASH: manual entry not named as unlisted'; END IF;
+  IF (v #>> '{cash,daybook_in}')::numeric < 1111111.11 + 1000.01 THEN RAISE EXCEPTION 'DUES_CASH: Day Book total misses the sale receipt or the collection'; END IF;
+  IF NOT (v -> 'mix' -> 'by_method') @> '[{"method": "CREDIT"}]' THEN RAISE EXCEPTION 'DUES_CASH: payment mix misses credit'; END IF;
+  INSERT INTO _ai_results (check_name) VALUES ('dues_cash_isolation');
+
+  -- Global admin: the explicit tenant filter keeps it to the admin's own shop.
+  UPDATE users SET roles = array_append(roles, 'GLOBAL_ADMIN') WHERE id = v_ua;
+  PERFORM pg_temp.act_as(v_ua);
+  s := jsonb_build_object('over', public.ai_dues_over_60(100), 'credit', public.ai_credit_sales(v_day, v_day),
+                          'cash', public.ai_cash_today(), 'mix', public.ai_payment_mix(v_day, v_day))::text;
+  PERFORM pg_temp.back();
+  UPDATE users SET roles = array_remove(roles, 'GLOBAL_ADMIN') WHERE id = v_ua;
+  IF s ~ '2222222|2000\.02' THEN RAISE EXCEPTION 'DUES_CASH ADMIN: a global admin''s figures include another shop'; END IF;
+
+  -- Staff are refused by every one.
+  UPDATE users SET roles = ARRAY['STAFF'] WHERE id = v_ua;
+  PERFORM pg_temp.act_as(v_ua);
+  FOREACH k IN ARRAY ARRAY['ai_dues_over_60()', format('ai_credit_sales(%L, %L)', v_day, v_day), 'ai_cash_today()',
+                           format('ai_payment_mix(%L, %L)', v_day, v_day)] LOOP
+    BEGIN
+      EXECUTE 'SELECT public.' || k;
+      PERFORM pg_temp.back();
+      RAISE EXCEPTION 'STAFF_NOT_REFUSED %', k;
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
+    PERFORM pg_temp.act_as(v_ua);
+  END LOOP;
+  PERFORM pg_temp.back();
+  UPDATE users SET roles = ARRAY['OWNER'] WHERE id = v_ua;
+  INSERT INTO _ai_results (check_name) VALUES ('dues_cash_staff_refused');
+END $t$;
+
 -- ── 7. read-only ───────────────────────────────────────────────────────────
 -- A function that wrote would fail here. Last, because it cannot be undone
 -- inside the transaction.
@@ -506,6 +592,13 @@ DO $t$
 BEGIN
   PERFORM pg_temp.act_as(current_setting('ai_test.ub'));
   PERFORM public.ai_expense_summary(current_setting('ai_test.day')::date, current_setting('ai_test.day')::date, 10);
+  PERFORM pg_temp.back();
+END $t$;
+DO $t$
+DECLARE v_day date := current_setting('ai_test.day')::date;
+BEGIN
+  PERFORM pg_temp.act_as(current_setting('ai_test.ua'));
+  PERFORM public.ai_dues_over_60(), public.ai_credit_sales(v_day, v_day), public.ai_cash_today(), public.ai_payment_mix(v_day, v_day);
   PERFORM pg_temp.back();
 END $t$;
 
