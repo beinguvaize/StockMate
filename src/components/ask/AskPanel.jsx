@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useOffline } from '../../context/OfflineContext';
@@ -327,6 +327,10 @@ export default function AskPanel({ onClose }) {
 
   const questions = list?.questions ?? [];
   const state = list?.state;
+  // null = follow the current question; '' = the owner closed every group.
+  const [openCat, setOpenCat] = useState(null);
+  const firstCat = CATEGORIES.find((c) => questions.some((q) => q.category === c)) ?? null;
+  useEffect(() => { if (current?.question?.category) setOpenCat(current.question.category); }, [current?.question?.category]);
   const showOff = online && listState === 'ready' && state === 'off';
   const staff = listState === 'staff';
   const offlineNoList = !online && !questions.length;
@@ -336,19 +340,29 @@ export default function AskPanel({ onClose }) {
   const quotaFull = usage && usage.used >= usage.limit;
   const usageLine = usage ? fill(quotaFull ? ui.usage_full : ui.usage_line, usageVars(usage, strings)) : null;
 
+  // One category open at a time: with 30-odd questions a flat list is a long
+  // scroll. The open one follows the question on screen, so an answer is never
+  // shown under a closed heading.
+  const curCat = current?.question?.category ?? null;
   const qRows = () => CATEGORIES.map((cat) => {
     const rows = questions.filter((q) => q.category === cat);
     if (!rows.length) return null;
+    const open = (openCat ?? curCat ?? firstCat) === cat;
     return (
-      <React.Fragment key={cat}>
-        <div className="qcat">{ui[`category_${cat}`]}</div>
-        {rows.map((q) => (
+      <div key={cat} className={`qgroup${open ? ' open' : ''}`}>
+        <button type="button" className="qcat" aria-expanded={open} data-cat={cat}
+          onClick={() => setOpenCat(open ? '' : cat)}>
+          <span>{ui[`category_${cat}`]}</span>
+          <span className="qcount">{rows.length}</span>
+          <ChevronDown size={14} className="qchev" aria-hidden="true" />
+        </button>
+        {open && rows.map((q) => (
           <button key={q.id} type="button" className="qrow" disabled={!online} data-q={q.id}
             aria-current={current?.question?.id === q.id ? 'true' : 'false'} onClick={() => ask(q)}>
             {q.label}{phone && <ChevronRight size={14} />}
           </button>
         ))}
-      </React.Fragment>
+      </div>
     );
   });
 
