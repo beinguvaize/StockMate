@@ -135,7 +135,29 @@
    "paid_ahead": "Paid ahead, already taken off",
    "was": "Was",
    "now": "Now",
-   "rise": "Rise"
+   "rise": "Rise",
+   "gst_purchase_value": "Purchase bills, with GST",
+   "gst_purchase_taxable": "Before GST, at 18%",
+   "cgst": "CGST",
+   "sgst": "SGST",
+   "igst": "IGST",
+   "gst_on_purchases": "GST on purchases",
+   "gst_no_gstin": "No valid supplier GSTIN, {n} bills",
+   "gst_no_bill_no": "No bill number, {n} bills",
+   "gst_in_doubt": "Credit in doubt, either reason, {n} bills",
+   "gst_sales_side": "GST on your sales",
+   "gst_purchase_side": "GST on purchases, at 18%",
+   "gst_rough_difference": "Rough difference",
+   "gst_rate": "GST rate",
+   "gst_lines": "Lines",
+   "gst_before": "Before GST",
+   "gst_amount": "GST",
+   "gst_rate_not_set": "Rate not set",
+   "gst_rate_pct": "{rate}%",
+   "gst_sales_total": "GST on these sales",
+   "gst_returns": "Less GST on returns",
+   "gst_after_returns": "GST after returns",
+   "gst_no_lines": "Bills with no line detail, {n}"
   },
   "hero": {
    "sales_today": {
@@ -199,6 +221,17 @@
    "cost_up": {
     "unit": "items",
     "caption": "Cost more on the latest purchase, of {n} compared since {from}"
+   },
+   "gst_itc_month": {
+    "caption": "GST on purchases, {from} to {to}, {bills} bills"
+   },
+   "gst_net_month": {
+    "caption": "Rough GST on sales less GST on purchases, {from} to {to}",
+    "caption_more_input": "GST on purchases is more than on sales by this, {from} to {to}"
+   },
+   "gst_by_rate": {
+    "caption": "GST on your sales by rate, {from} to {to}",
+    "not_set": "{n} lines worth {value} have no GST rate set"
    }
   },
   "titles": {
@@ -217,10 +250,16 @@
    "purchases_month": "Bought this month",
    "supplier_dues": "What you owe suppliers",
    "top_suppliers": "Top suppliers this month",
-   "cost_up": "Costs that went up"
+   "cost_up": "Costs that went up",
+   "gst_itc_month": "GST on purchases this month",
+   "gst_net_month": "Rough GST this month",
+   "gst_by_rate": "Sales by GST rate"
   },
   "notes": {
-   "gst_collected": "GST on your sales, from your books. This is before input credit and is not a filing figure."
+   "gst_collected": "GST on your sales, from your books. This is before input credit and is not a filing figure.",
+   "gst_itc_month": "Your purchases do not store GST. This card and the Purchase Register take it as 18% of each bill total. From your books, not a filing figure.",
+   "gst_net_month": "A rough estimate from your books, not what to file or pay. GST on purchases is taken as 18% of each bill total, as the Purchase Register does.",
+   "gst_by_rate": "From the GST rate stored on each bill line. A line with no rate set is shown on its own and is never counted at 18%. Not a filing figure."
   },
   "footnotes": {
    "top_items": "Top {shown} of {n} items sold this month. By sales value, not margin.",
@@ -241,7 +280,15 @@
    "purchases_month": "Invoice value includes GST, as on the Purchase Register. Deleted purchases are left out; purchase returns are not taken off, as on that screen.",
    "supplier_dues": "Top {shown} of {n} shown. The total covers all {n}. What you owe is each supplier's bills less what was paid on them, as on the Suppliers screen. Last paid is the latest supplier payment; a bill paid in full when bought is not a payment.",
    "top_suppliers": "Top {shown} of {n} suppliers. Each supplier's figure adds up its bills under the Purchase Register's Supplier column, and the total equals the register's Invoice Value for these dates, with GST.",
-   "cost_up": "Top {shown} of {n} shown. Cost each is a purchase line's total divided by its quantity, in the item's base unit. Each item's latest purchase in the last 90 days is compared with the purchase before it. To check, open the item's price history from a bill line on Purchases."
+   "cost_up": "Top {shown} of {n} shown. Cost each is a purchase line's total divided by its quantity, in the item's base unit. Each item's latest purchase in the last 90 days is compared with the purchase before it. To check, open the item's price history from a bill line on Purchases.",
+   "gst_itc_month": "Purchase Register shows the same {gst} as Tax (ITC candidate) for these dates. It does not mark which bills are in doubt.",
+   "gst_net_itc_left": "GSTR-3B counts input credit of {itc}: it leaves out bills from suppliers with no valid GSTIN ({left} here) and rounds CGST and SGST once for the month.",
+   "gst_net_itc_round": "GSTR-3B counts input credit of {itc}: it rounds CGST and SGST once for the month; here each bill is rounded.",
+   "gst_net_floor": "GSTR-3B also sets each tax head against its own credit and never shows one below zero.",
+   "gst_by_rate": "Before GST adds up the bill lines; bill totals can differ by bill discounts and round-off.",
+   "gst_by_rate_not_set": "GSTR-3B counts a line with no rate set as 18%, so it shows GST on these lines that your bills never charged.",
+   "gst_by_rate_more": "The rates add up to {gap} more than the total: your bills round GST once per bill.",
+   "gst_by_rate_less": "The rates add up to {gap} less than the total: your bills round GST once per bill."
   },
   "links": {
    "reports_daily_sales": "Open Daily Sales",
@@ -453,7 +500,29 @@
    "paid_ahead": "पहले चुकाया, घटा दिया गया",
    "was": "पहले",
    "now": "अब",
-   "rise": "बढ़त"
+   "rise": "बढ़त",
+   "gst_purchase_value": "खरीद के बिल, GST सहित",
+   "gst_purchase_taxable": "GST से पहले, 18% पर",
+   "cgst": "CGST",
+   "sgst": "SGST",
+   "igst": "IGST",
+   "gst_on_purchases": "खरीद पर GST",
+   "gst_no_gstin": "सप्लायर का सही GSTIN नहीं, {n} बिल",
+   "gst_no_bill_no": "बिल नंबर नहीं, {n} बिल",
+   "gst_in_doubt": "क्रेडिट पर शक, किसी भी कारण से, {n} बिल",
+   "gst_sales_side": "आपकी बिक्री पर GST",
+   "gst_purchase_side": "खरीद पर GST, 18% पर",
+   "gst_rough_difference": "मोटा अंतर",
+   "gst_rate": "GST दर",
+   "gst_lines": "लाइनें",
+   "gst_before": "GST से पहले",
+   "gst_amount": "GST",
+   "gst_rate_not_set": "दर तय नहीं",
+   "gst_rate_pct": "{rate}%",
+   "gst_sales_total": "इन बिक्री पर GST",
+   "gst_returns": "वापसी पर GST घटाया",
+   "gst_after_returns": "वापसी के बाद GST",
+   "gst_no_lines": "बिना लाइन ब्योरे वाले बिल, {n}"
   },
   "hero": {
    "sales_today": {
@@ -517,6 +586,17 @@
    "cost_up": {
     "unit": "आइटम",
     "caption": "सबसे नई खरीद पर महँगे, {from} से तुलना किए {n} में से"
+   },
+   "gst_itc_month": {
+    "caption": "खरीद पर GST, {from} से {to}, {bills} बिल"
+   },
+   "gst_net_month": {
+    "caption": "बिक्री पर GST में से खरीद पर GST घटाकर, मोटा अंदाज़ा, {from} से {to}",
+    "caption_more_input": "खरीद पर GST बिक्री से इतना ज़्यादा है, {from} से {to}"
+   },
+   "gst_by_rate": {
+    "caption": "दर के हिसाब से आपकी बिक्री पर GST, {from} से {to}",
+    "not_set": "{value} की {n} लाइनों पर GST दर तय नहीं है"
    }
   },
   "titles": {
@@ -535,10 +615,16 @@
    "purchases_month": "इस महीने की खरीद",
    "supplier_dues": "सप्लायरों का देना",
    "top_suppliers": "इस महीने के बड़े सप्लायर",
-   "cost_up": "बढ़ी हुई लागत"
+   "cost_up": "बढ़ी हुई लागत",
+   "gst_itc_month": "इस महीने खरीद पर GST",
+   "gst_net_month": "इस महीने का मोटा GST",
+   "gst_by_rate": "GST दर के हिसाब से बिक्री"
   },
   "notes": {
-   "gst_collected": "आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले का है और फ़ाइलिंग का आँकड़ा नहीं है।"
+   "gst_collected": "आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले का है और फ़ाइलिंग का आँकड़ा नहीं है।",
+   "gst_itc_month": "आपकी खरीद में GST दर्ज नहीं होता। यह कार्ड और Purchase Register हर बिल के कुल का 18% GST मानते हैं। आपके खातों से, फ़ाइलिंग का आँकड़ा नहीं।",
+   "gst_net_month": "आपके खातों से एक मोटा अंदाज़ा, यह नहीं कि क्या फ़ाइल करना या भरना है। खरीद पर GST हर बिल के कुल का 18% माना गया है, जैसे Purchase Register मानता है।",
+   "gst_by_rate": "हर बिल लाइन पर दर्ज GST दर से। जिस लाइन की दर तय नहीं है वह अलग दिखती है और कभी 18% पर नहीं गिनी जाती। फ़ाइलिंग का आँकड़ा नहीं।"
   },
   "footnotes": {
    "top_items": "इस महीने बिके {n} आइटम में से शीर्ष {shown}। बिक्री रकम के हिसाब से, मार्जिन के नहीं।",
@@ -559,7 +645,15 @@
    "purchases_month": "बिल की रकम में GST शामिल है, जैसे Purchase Register में। हटाई गई खरीद नहीं गिनी गई; खरीद वापसी घटाई नहीं गई, जैसे उस स्क्रीन पर।",
    "supplier_dues": "{n} में से {shown} दिखाए गए। कुल रकम सभी {n} की है। देना हर सप्लायर के बिलों में से उन पर चुकाई रकम घटाकर है, जैसे Suppliers स्क्रीन पर। आखिरी भुगतान सप्लायर को किया गया सबसे नया भुगतान है; खरीदते समय पूरा चुकाया बिल भुगतान नहीं गिना जाता।",
    "top_suppliers": "{n} सप्लायरों में से शीर्ष {shown}। हर सप्लायर की रकम Purchase Register के Supplier कॉलम में उसके बिलों का जोड़ है, और कुल रकम इन तारीखों के register के Invoice Value के बराबर है, GST सहित।",
-   "cost_up": "{n} में से {shown} दिखाए गए। एक की लागत खरीद की लाइन की कुल रकम को उसकी मात्रा से भाग देकर है, आइटम की मूल इकाई में। हर आइटम की पिछले 90 दिनों की सबसे नई खरीद की तुलना उससे पहले वाली खरीद से की गई है। जाँचने के लिए Purchases में किसी बिल की लाइन से आइटम का price history खोलें।"
+   "cost_up": "{n} में से {shown} दिखाए गए। एक की लागत खरीद की लाइन की कुल रकम को उसकी मात्रा से भाग देकर है, आइटम की मूल इकाई में। हर आइटम की पिछले 90 दिनों की सबसे नई खरीद की तुलना उससे पहले वाली खरीद से की गई है। जाँचने के लिए Purchases में किसी बिल की लाइन से आइटम का price history खोलें।",
+   "gst_itc_month": "Purchase Register इन तारीख़ों के लिए Tax (ITC candidate) में यही {gst} दिखाता है। वह यह नहीं बताता कि किन बिलों पर शक है।",
+   "gst_net_itc_left": "GSTR-3B {itc} का इनपुट क्रेडिट गिनता है: वह बिना सही GSTIN वाले सप्लायरों के बिल छोड़ देता है (यहाँ {left}) और CGST व SGST को महीने में एक बार राउंड करता है।",
+   "gst_net_itc_round": "GSTR-3B {itc} का इनपुट क्रेडिट गिनता है: वह CGST और SGST को महीने में एक बार राउंड करता है; यहाँ हर बिल राउंड होता है।",
+   "gst_net_floor": "GSTR-3B हर टैक्स मद को उसके अपने क्रेडिट से घटाता है और किसी को शून्य से नीचे नहीं दिखाता।",
+   "gst_by_rate": "GST से पहले की रकम बिल लाइनों का जोड़ है; बिल के कुल में बिल छूट और राउंड-ऑफ़ से फ़र्क हो सकता है।",
+   "gst_by_rate_not_set": "GSTR-3B बिना दर वाली लाइन को 18% पर गिनता है, इसलिए वह इन लाइनों पर ऐसा GST दिखाता है जो आपके बिलों ने कभी नहीं लिया।",
+   "gst_by_rate_more": "दरों का जोड़ कुल से {gap} ज़्यादा है: आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।",
+   "gst_by_rate_less": "दरों का जोड़ कुल से {gap} कम है: आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।"
   },
   "links": {
    "reports_daily_sales": "Daily Sales खोलें",
@@ -673,7 +767,48 @@
    "hero.top_suppliers.caption",
    "hero.top_suppliers.detail",
    "hero.cost_up.unit",
-   "hero.cost_up.caption"
+   "hero.cost_up.caption",
+   "card.gst_purchase_value",
+   "card.gst_purchase_taxable",
+   "card.cgst",
+   "card.sgst",
+   "card.igst",
+   "card.gst_on_purchases",
+   "card.gst_no_gstin",
+   "card.gst_no_bill_no",
+   "card.gst_in_doubt",
+   "card.gst_sales_side",
+   "card.gst_purchase_side",
+   "card.gst_rough_difference",
+   "card.gst_rate",
+   "card.gst_lines",
+   "card.gst_before",
+   "card.gst_amount",
+   "card.gst_rate_not_set",
+   "card.gst_rate_pct",
+   "card.gst_sales_total",
+   "card.gst_returns",
+   "card.gst_after_returns",
+   "card.gst_no_lines",
+   "hero.gst_itc_month.caption",
+   "hero.gst_net_month.caption",
+   "hero.gst_net_month.caption_more_input",
+   "hero.gst_by_rate.caption",
+   "hero.gst_by_rate.not_set",
+   "titles.gst_itc_month",
+   "titles.gst_net_month",
+   "titles.gst_by_rate",
+   "notes.gst_itc_month",
+   "notes.gst_net_month",
+   "notes.gst_by_rate",
+   "footnotes.gst_itc_month",
+   "footnotes.gst_net_itc_left",
+   "footnotes.gst_net_itc_round",
+   "footnotes.gst_net_floor",
+   "footnotes.gst_by_rate",
+   "footnotes.gst_by_rate_not_set",
+   "footnotes.gst_by_rate_more",
+   "footnotes.gst_by_rate_less"
   ]
  }
 }

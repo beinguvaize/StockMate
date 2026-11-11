@@ -228,6 +228,70 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
         rows: f.items.map((i: any) => [i.unit ? `${i.product_name} (${i.unit})` : i.product_name, i.old_cost, i.new_cost, i.pct_rise]) };
       footnote = foot({ shown: count(f.items.length), n: count(f.items_up) });
       break;
+    // ── GST: purchases, rough net, sales by rate ───────────────────────────
+    case "gst_itc_month": {
+      // Ties to the Purchase Register's "Tax (ITC candidate)" for the same dates.
+      value = f.input_gst;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to), bills: count(f.bill_count) });
+      rows = [row("gst_purchase_value", f.invoice_value, "money"), row("gst_purchase_taxable", f.taxable_value, "money"),
+        row("cgst", f.cgst, "money"), row("sgst", f.sgst, "money"),
+        ...(Math.abs(Number(f.igst)) >= 0.005 ? [row("igst", f.igst, "money")] : []),
+        row("gst_on_purchases", f.input_gst, "money", "total")];
+      const doubt = (key: string, n: unknown, v: unknown, tone?: "total"): Row =>
+        ({ label: fill(L[key], { n: count(Number(n)) }), value: v, kind: "money", ...(tone ? { tone } : {}) });
+      rowsAfter = [doubt("gst_no_gstin", f.no_gstin_bills, f.no_gstin_gst), doubt("gst_no_bill_no", f.no_bill_no_bills, f.no_bill_no_gst),
+        doubt("gst_in_doubt", f.in_doubt_bills, f.in_doubt_gst, "total")];
+      footnote = foot({ gst: inr(Number(f.input_gst)) });
+      break;
+    }
+    case "gst_net_month": {
+      const net = Number(f.net_estimate);
+      value = Math.abs(net);
+      caption = fill(net < 0 ? H.caption_more_input : H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to) });
+      rows = [row("gst_sales_side", f.output_gst, "money"), row("gst_purchase_side", f.input_gst, "money"),
+        row("gst_rough_difference", f.net_estimate, "money", "total")];
+      // Why GSTR-3B can read differently: the sales side under gst_collected's
+      // guarded rule, the purchase side by its exact figure, then the floor.
+      const N = strings.footnotes;
+      const lines: string[] = [];
+      if (gstScreenChecks(f).length) lines.push(N.gst_screen_unmatched);
+      else {
+        const gap = Math.round((Number(f.gstr3b_gst ?? f.output_gst) - Number(f.output_gst)) * 100) / 100;
+        if (Math.abs(gap) >= 0.01) lines.push(fill(gap > 0 ? N.gst_screen_more : N.gst_screen_less, { gap: inr(Math.abs(gap)) }));
+      }
+      const itcGap = Math.round((Number(f.gstr3b_itc ?? f.input_gst) - Number(f.input_gst)) * 100) / 100;
+      if (Math.abs(itcGap) >= 0.01) {
+        const left = Number(f.no_gstin_gst ?? 0);
+        lines.push(fill(left >= 0.005 ? N.gst_net_itc_left : N.gst_net_itc_round, { itc: inr(Number(f.gstr3b_itc)), left: inr(left) }));
+      }
+      lines.push(N.gst_net_floor);
+      footnote = lines.join(" ");
+      break;
+    }
+    case "gst_by_rate": {
+      value = f.sales_gst;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to) });
+      if (Number(f.not_set_lines) > 0) detail = fill(H.not_set, { n: count(f.not_set_lines), value: inr(Number(f.not_set_taxable)) });
+      const rates = f.rates as any[];
+      table = { columns: [col("gst_rate", "text", false), col("gst_lines", "count"), col("gst_before", "money"), col("gst_amount", "money")],
+        rows: rates.map((r: any) => [r.rate_not_set ? L.gst_rate_not_set : fill(L.gst_rate_pct, { rate: Number(r.rate) }), r.lines, r.taxable, r.gst]),
+        // The row with no rate set is the one to look at: ink, not red.
+        tones: rates.map((r: any) => (r.rate_not_set ? "strong" : null)) };
+      if (Number(f.no_lines_bills) > 0) {
+        rowsAfter.push({ label: fill(L.gst_no_lines, { n: count(f.no_lines_bills) }), value: f.no_lines_value, kind: "money" });
+      }
+      rowsAfter.push(row("gst_sales_total", f.sales_gst, "money", "total"));
+      if (Math.abs(Number(f.returns_gst ?? 0)) >= 0.005) {
+        rowsAfter.push(row("gst_returns", f.returns_gst, "money"), row("gst_after_returns", f.output_gst, "money", "total"));
+      }
+      const N = strings.footnotes;
+      const lines = [N.gst_by_rate];
+      if (Number(f.not_set_lines) > 0) lines.push(N.gst_by_rate_not_set);
+      const gap = Math.round((Number(f.rows_gst) - Number(f.sales_gst)) * 100) / 100;
+      if (Math.abs(gap) >= 0.01) lines.push(fill(gap > 0 ? N.gst_by_rate_more : N.gst_by_rate_less, { gap: inr(Math.abs(gap)) }));
+      footnote = lines.join(" ");
+      break;
+    }
     default:
       throw new Error(`no card for ${id}`);
   }

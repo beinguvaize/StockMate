@@ -27,7 +27,7 @@ describe('the shared registry', () => {
   });
   it('every question has a label in every language, and every string set has the same keys', () => {
     const reg = JSON.parse(read('../../shared/ai_chat/questions.json'));
-    expect(reg.questions).toHaveLength(16);
+    expect(reg.questions).toHaveLength(19);
     for (const q of reg.questions) for (const l of reg.languages) expect(q.label[l]).toBeTruthy();
     for (const k of ['ui', 'card', 'hero', 'titles', 'notes', 'footnotes', 'links', 'methods', 'no_data_by_question']) {
       expect(Object.keys(strings.hi[k]).sort()).toEqual(Object.keys(strings.en[k]).sort());
@@ -666,5 +666,178 @@ describe('purchases & suppliers', () => {
     expect(seen[2][1]).toEqual({ p_days: 90, p_limit: 10 });
     const bad = { rpc: async () => ({ data: null, error: { message: 'boom' } }) };
     await expect(runQuestion('supplier_dues', bad, { tenantId: 'T', today: '2026-11-11' })).rejects.toThrow('ai_supplier_dues: boom');
+  });
+});
+
+// ── GST: purchases, rough net, sales by rate ─────────────────────────────────
+// Figures below are what the new read functions returned, read-only, on prod
+// (Demo Kirana Store, FUTURE DISPO) and on dev, for the dates shown.
+
+// PurchaseRegisterReport.jsx's row and total maths, copied as it is, so the
+// tie-out is proved against the screen's own arithmetic.
+const registerTotals = (rows, home) => {
+  const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+  const rs = rows.map((p) => {
+    const gross = Number(p.total_amount || 0);
+    const taxRate = Number(p.tax_rate ?? p.taxRate ?? 18);
+    const taxable = gross / (1 + taxRate / 100);
+    const tax = gross - taxable;
+    const inter = p.gstin ? String(p.gstin).slice(0, 2) !== String(home || '').slice(0, 2) : false;
+    return { taxable: r2(taxable), cgst: inter ? 0 : r2(tax / 2), sgst: inter ? 0 : r2(tax / 2), igst: inter ? r2(tax) : 0, gross: r2(gross) };
+  });
+  const t = rs.reduce((a, x) => ({ taxable: a.taxable + x.taxable, cgst: a.cgst + x.cgst, sgst: a.sgst + x.sgst, igst: a.igst + x.igst, gross: a.gross + x.gross }),
+    { taxable: 0, cgst: 0, sgst: 0, igst: 0, gross: 0 });
+  return { bills: rs.length, gross: r2(t.gross), taxable: r2(t.taxable), itc: r2(t.cgst + t.sgst + t.igst) };
+};
+
+const ITC_FD_NOV = {   // FUTURE DISPO, 1-10 Nov 2026: ai_gst_input
+  period_from: '2026-11-01', period_to: '2026-11-10', as_of: 'x', assumed_rate: 18, bill_count: 10,
+  invoice_value: 49500, taxable_value: 41949.15, cgst: 3775.42, sgst: 3775.42, igst: 0, input_gst: 7550.84,
+  no_gstin_bills: 10, no_gstin_gst: 7550.84, no_bill_no_bills: 10, no_bill_no_gst: 7550.84,
+  in_doubt_bills: 10, in_doubt_gst: 7550.84, gstr3b_itc: 0,
+};
+const ITC_DEMO_JUN = {  // Demo Kirana Store, June 2026
+  period_from: '2026-06-01', period_to: '2026-06-30', as_of: 'x', assumed_rate: 18, bill_count: 13,
+  invoice_value: 88048, taxable_value: 74616.95, cgst: 6715.52, sgst: 6715.52, igst: 0, input_gst: 13431.04,
+  no_gstin_bills: 0, no_gstin_gst: 0, no_bill_no_bills: 2, no_bill_no_gst: 506.14, in_doubt_bills: 2, in_doubt_gst: 506.14, gstr3b_itc: 13431.06,
+};
+const NET_DEMO_MAY = {  // Demo, May 2026: get_pl_ranged, ai_gst_input, ai_gst_screen_check
+  period_from: '2026-05-01', period_to: '2026-05-31', as_of: 'x', tax_mode: 'EXCLUSIVE',
+  output_gst: 12381.21, input_gst: 8455.28, net_estimate: 3925.93, assumed_rate: 18, purchase_bill_count: 13,
+  no_gstin_gst: 0, gstr3b_itc: 8455.28, gstr3b_gst: 12381.5, bill_rounding: 6.79, gstr3b_books_gst: 12381.21, gstr3b_bill_count: 149,
+};
+const RATE_DEMO_MAY = {  // Demo, May 2026: ai_gst_by_rate
+  period_from: '2026-05-01', period_to: '2026-05-31', as_of: 'x', tax_mode: 'EXCLUSIVE', bill_count: 149, line_count: 377,
+  sales_gst: 12381.21, rows_gst: 12381.21, not_set_lines: 0, not_set_bills: 0, not_set_taxable: 0, no_lines_bills: 0, no_lines_value: 0,
+  rates: [
+    { rate: 0, rate_not_set: false, lines: 29, bills: 25, taxable: 6551, gst: 0 },
+    { rate: 5, rate_not_set: false, lines: 137, bills: 93, taxable: 99453, gst: 4972.65 },
+    { rate: 12, rate_not_set: false, lines: 33, bills: 28, taxable: 5088, gst: 610.56 },
+    { rate: 18, rate_not_set: false, lines: 159, bills: 102, taxable: 34444, gst: 6199.92 },
+    { rate: 28, rate_not_set: false, lines: 19, bills: 19, taxable: 2136, gst: 598.08 }],
+  output_gst: 12381.21, returns_gst: 0,
+};
+const RATE_FD_MAY = {  // FUTURE DISPO, May 2026: every line saved with no rate
+  period_from: '2026-05-01', period_to: '2026-05-31', as_of: 'x', tax_mode: 'NONE', bill_count: 76, line_count: 206,
+  sales_gst: 0, rows_gst: 0, not_set_lines: 206, not_set_bills: 76, not_set_taxable: 110009, no_lines_bills: 0, no_lines_value: 0,
+  rates: [{ rate: null, rate_not_set: true, lines: 206, bills: 76, taxable: 110009, gst: 0 }], output_gst: 0, returns_gst: 0,
+};
+
+describe('gst_itc_month ties to the Purchase Register', () => {
+  it('equals the register maths for the same purchases', () => {
+    const fdNov = [13800, 8280, 5550, 5700, 2820, 1000, 1710, 1710, 3480, 5450].map((t) => ({ total_amount: t }));
+    expect(registerTotals(fdNov, '32')).toEqual({ bills: 10, gross: 49500, taxable: 41949.15, itc: 7550.84 });
+    const f = ITC_FD_NOV;
+    expect([f.bill_count, f.invoice_value, f.taxable_value, f.input_gst]).toEqual([10, 49500, 41949.15, 7550.84]);
+    // Another state's GSTIN goes to IGST, as on the screen.
+    expect(registerTotals([{ total_amount: 1180, gstin: '29ABCDE1234F1Z5' }], '32').itc).toBe(180);
+  });
+
+  it('shows the split, the bills in doubt, and says the 18% is assumed', () => {
+    const card = buildCard('gst_itc_month', ITC_DEMO_JUN, strings.en);
+    expect(card.hero).toMatchObject({ value: 13431.04, kind: 'money', caption: 'GST on purchases, 1 to 30 Jun, 13 bills' });
+    expect(card.rows.map((r) => r.label)).toEqual(['Purchase bills, with GST', 'Before GST, at 18%', 'CGST', 'SGST', 'GST on purchases']);
+    expect(card.rows_after.map((r) => [r.label, r.value])).toEqual([
+      ['No valid supplier GSTIN, 0 bills', 0], ['No bill number, 2 bills', 506.14], ['Credit in doubt, either reason, 2 bills', 506.14]]);
+    expect(card.note).toContain('take it as 18% of each bill total');
+    expect(card.footnote).toBe('Purchase Register shows the same ₹13,431.04 as Tax (ITC candidate) for these dates. It does not mark which bills are in doubt.');
+  });
+
+  it('an IGST row appears only when there is IGST', () => {
+    expect(buildCard('gst_itc_month', { ...ITC_DEMO_JUN, igst: 90 }, strings.en).rows.map((r) => r.label)).toContain('IGST');
+  });
+});
+
+describe('gst_net_month is an estimate, and says why GSTR-3B can differ', () => {
+  it('Demo May: the sales gap is rounding, the purchase side agrees', () => {
+    const card = buildCard('gst_net_month', NET_DEMO_MAY, strings.en);
+    expect(card.hero).toMatchObject({ value: 3925.93, caption: 'Rough GST on sales less GST on purchases, 1 to 31 May' });
+    expect(card.rows.map((r) => r.value)).toEqual([12381.21, 8455.28, 3925.93]);
+    expect(card.note).toContain('not what to file or pay');
+    expect(card.footnote).toBe('GSTR-3B shows ₹0.29 more GST: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill. '
+      + 'GSTR-3B also sets each tax head against its own credit and never shows one below zero.');
+  });
+
+  it('names the input credit GSTR-3B counts, with its cause', () => {
+    const round = buildCard('gst_net_month', { ...NET_DEMO_MAY, input_gst: 13431.04, gstr3b_itc: 13431.06, net_estimate: -1049.83 }, strings.en);
+    expect(round.footnote).toContain('GSTR-3B counts input credit of ₹13,431.06: it rounds CGST and SGST once for the month; here each bill is rounded.');
+    const left = buildCard('gst_net_month', { ...NET_DEMO_MAY, input_gst: 7550.84, gstr3b_itc: 0, no_gstin_gst: 7550.84 }, strings.en);
+    expect(left.footnote).toContain('GSTR-3B counts input credit of ₹0.00: it leaves out bills from suppliers with no valid GSTIN (₹7,550.84 here)');
+  });
+
+  it('more GST on purchases than on sales reads as that, never as a minus', () => {
+    const card = buildCard('gst_net_month', { ...NET_DEMO_MAY, net_estimate: -1049.83 }, strings.en);
+    expect(card.hero).toMatchObject({ value: 1049.83, caption: 'GST on purchases is more than on sales by this, 1 to 31 May' });
+  });
+
+  it('a sales gap bigger than rounding gets the one plain line', () => {
+    const card = buildCard('gst_net_month', { ...NET_DEMO_MAY, gstr3b_gst: 32182.83 }, strings.en);
+    expect(card.footnote.startsWith(strings.en.footnotes.gst_screen_unmatched)).toBe(true);
+  });
+
+  it('works out the estimate on the server from the two book figures', async () => {
+    const seen = [];
+    const data = {
+      get_pl_ranged: [{ output_gst: 12381.21, revenue_net: 1 }],
+      ai_gst_input: { input_gst: 8455.28, bill_count: 13, assumed_rate: 18, no_gstin_gst: 0, gstr3b_itc: 8455.28 },
+      ai_gst_screen_check: { screen_gst: 12381.5, bill_rounding: 6.79, books_gst: 12381.21, bill_count: 149 },
+    };
+    const db = { rpc: async (name, args) => { seen.push([name, args]); return { data: data[name], error: null }; } };
+    const r = await runQuestion('gst_net_month', db, { tenantId: 'T', today: '2026-11-11', taxMode: 'EXCLUSIVE' });
+    expect(r.figures).toMatchObject({ output_gst: 12381.21, input_gst: 8455.28, net_estimate: 3925.93, gstr3b_bill_count: 149 });
+    expect(seen.map((s) => s[0])).toEqual(['get_pl_ranged', 'ai_gst_input', 'ai_gst_screen_check']);
+    expect(seen[1][1]).toEqual({ p_from: '2026-11-01', p_to: '2026-11-11' });
+    expect(r.params).toEqual({ from: '2026-11-01', to: '2026-11-11' });
+  });
+});
+
+describe('gst_by_rate', () => {
+  it('Demo May: the rates add up to the GST collected figure', () => {
+    const card = buildCard('gst_by_rate', RATE_DEMO_MAY, strings.en);
+    expect(card.hero).toMatchObject({ value: 12381.21, caption: 'GST on your sales by rate, 1 to 31 May', detail: null });
+    expect(card.table.rows.map((r) => r[0])).toEqual(['0%', '5%', '12%', '18%', '28%']);
+    expect(RATE_DEMO_MAY.rates.reduce((s, r) => s + r.gst, 0)).toBeCloseTo(12381.21, 6);
+    expect(card.rows_after.map((r) => [r.label, r.value])).toEqual([['GST on these sales', 12381.21]]);
+    expect(card.footnote).toBe(strings.en.footnotes.gst_by_rate);
+  });
+
+  it('FUTURE DISPO May: a rate that was never set is its own row, never 18%', () => {
+    const card = buildCard('gst_by_rate', RATE_FD_MAY, strings.en);
+    expect(card.table.rows).toEqual([['Rate not set', 206, 110009, 0]]);
+    expect(card.table.tones).toEqual(['strong']);
+    expect(card.hero.detail).toBe('206 lines worth ₹1,10,009.00 have no GST rate set');
+    expect(card.footnote).toContain('GSTR-3B counts a line with no rate set as 18%');
+  });
+
+  it('returns and per-bill rounding are each shown with their size', () => {
+    const card = buildCard('gst_by_rate', { ...RATE_DEMO_MAY, rows_gst: 12381.23, output_gst: 12000, returns_gst: 381.21 }, strings.en);
+    expect(card.rows_after.map((r) => [r.label, r.value])).toEqual([
+      ['GST on these sales', 12381.21], ['Less GST on returns', 381.21], ['GST after returns', 12000]]);
+    expect(card.footnote).toContain('The rates add up to ₹0.02 more than the total');
+  });
+
+  it('reads GST after returns from get_pl_ranged, as gst_collected does', async () => {
+    const db = { rpc: async (name) => ({ data: name === 'get_pl_ranged' ? [{ output_gst: 12000 }] : { ...RATE_DEMO_MAY, output_gst: undefined, returns_gst: undefined }, error: null }) };
+    const r = await runQuestion('gst_by_rate', db, { tenantId: 'T', today: '2026-11-11', taxMode: 'EXCLUSIVE' });
+    expect(r.figures).toMatchObject({ sales_gst: 12381.21, output_gst: 12000, returns_gst: 381.21 });
+  });
+
+  it('every new card has its strings in both languages', () => {
+    for (const [id, f] of [['gst_itc_month', ITC_DEMO_JUN], ['gst_net_month', NET_DEMO_MAY], ['gst_by_rate', RATE_FD_MAY]]) {
+      for (const lang of ['en', 'hi']) {
+        const c = buildCard(id, f, strings[lang]);
+        expect(c.title).toBeTruthy();
+        expect(c.hero.caption).toBeTruthy();
+        expect(c.note).toBeTruthy();
+        expect(JSON.stringify(c)).not.toMatch(/undefined|\{\w+\}/);
+      }
+    }
+  });
+
+  it('the guard allows the assumed rate and stored rates, and nothing invented', () => {
+    expect(checkReply('GST on your purchases is ₹7,550.84, taken as 18% of each bill total.', ITC_FD_NOV, {}).ok).toBe(true);
+    expect(checkReply('GST on purchases is ₹7,550.84 at 28%.', ITC_FD_NOV, {}).ok).toBe(false);
+    expect(checkReply('206 lines worth ₹1,10,009 have no rate set.', RATE_FD_MAY, {}).ok).toBe(true);
+    expect(checkReply('At 18% they would carry ₹19,801.62 of GST.', RATE_FD_MAY, {}).ok).toBe(false);
   });
 });

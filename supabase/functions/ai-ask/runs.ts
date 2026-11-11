@@ -159,6 +159,47 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
       const f = await rpc(db, "ai_cost_up", { p_days: 90, p_limit: 10 });
       return { figures: f, params: { from: f.period_from, to: today }, empty: f.items_up === 0 };
     }
+    // ── GST: purchases, rough net, sales by rate ───────────────────────────
+    case "gst_itc_month": {
+      // Ties to the Purchase Register's Tax (ITC candidate) for the same dates.
+      const from = monthStart(today);
+      const f = await rpc(db, "ai_gst_input", { p_from: from, p_to: today });
+      return { figures: f, params: { from, to: today }, empty: Number(f.bill_count) === 0 };
+    }
+    case "gst_net_month": {
+      // Sales side as gst_collected reads it; purchase side as gst_itc_month.
+      const from = monthStart(today);
+      const cur = await pl(db, tenantId, from, today);
+      const inp = await rpc(db, "ai_gst_input", { p_from: from, p_to: today });
+      const check = await rpc(db, "ai_gst_screen_check", { p_from: from, p_to: today });
+      const output = Number(cur.output_gst);
+      const input = Number(inp.input_gst);
+      const figures = {
+        period_from: from, period_to: today, as_of: asOf, tax_mode: ctx.taxMode,
+        output_gst: output, input_gst: input, net_estimate: Math.round((output - input) * 100) / 100,
+        assumed_rate: Number(inp.assumed_rate), purchase_bill_count: Number(inp.bill_count),
+        no_gstin_gst: Number(inp.no_gstin_gst), gstr3b_itc: Number(inp.gstr3b_itc),
+        gstr3b_gst: Number(check.screen_gst), bill_rounding: Number(check.bill_rounding),
+        gstr3b_books_gst: Number(check.books_gst), gstr3b_bill_count: Number(check.bill_count),
+      };
+      return {
+        figures,
+        params: { from, to: today },
+        empty: output === 0 && input === 0 && Number(check.bill_count) === 0 && Number(inp.bill_count) === 0,
+      };
+    }
+    case "gst_by_rate": {
+      const from = monthStart(today);
+      const f = await rpc(db, "ai_gst_by_rate", { p_from: from, p_to: today });
+      // gst_collected's figure is this, less GST on returns: show both.
+      const cur = await pl(db, tenantId, from, today);
+      const output = Number(cur.output_gst);
+      return {
+        figures: { ...f, output_gst: output, returns_gst: Math.round((Number(f.sales_gst) - output) * 100) / 100 },
+        params: { from, to: today },
+        empty: Number(f.bill_count) === 0,
+      };
+    }
     default:
       throw new ReadFailed(`no reads for ${id}`);
   }
