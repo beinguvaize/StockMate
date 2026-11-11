@@ -65,6 +65,15 @@ const openPanel = async (page) => {
   await expect(page.getByTestId('ask-panel')).toBeVisible();
 };
 const question = (page, id) => page.locator(`[data-q="${id}"]`);
+// Questions sit under one open category at a time; open the right one first.
+const openCat = async (page, cat) => {
+  const head = page.locator(`[data-cat="${cat}"]`).first();
+  if ((await head.getAttribute('aria-expanded')) !== 'true') await head.click();
+};
+const pick = async (page, id) => {
+  await openCat(page, registry.questions.find((q) => q.id === id).category);
+  await question(page, id).click();
+};
 
 test('Ask stays off until the owner turns it on, and shows what is sent', async ({ page }) => {
   let on = false;
@@ -104,7 +113,7 @@ test('questions sit under category headings, with the month usage line', async (
 test('an answer leads with the true number, then the AI text, then the figures and the link', async ({ page }) => {
   const calls = await open(page);
   await openPanel(page);
-  await question(page, 'sales_today').click();
+  await pick(page, 'sales_today');
   const ans = page.getByTestId('ask-answer');
   await expect(page.getByTestId('ask-hero')).toHaveText('₹1,84,620.00');
   await expect(ans).toContainText('Sold today, 23 bills');
@@ -126,7 +135,7 @@ test('an answer leads with the true number, then the AI text, then the figures a
 test('the link opens the matching report', async ({ page }) => {
   await open(page);
   await openPanel(page);
-  await question(page, 'sales_today').click();
+  await pick(page, 'sales_today');
   await page.getByRole('button', { name: /Open Daily Sales/ }).click();
   await expect(page).toHaveURL(/reports\?tab=DAILY_SALES/);
   await expect(page.getByTestId('ask-panel')).toHaveCount(0);
@@ -146,8 +155,8 @@ test('every failure keeps the figures and says what happened, in the same slot',
   await openPanel(page);
   for (const [r, words] of cases) {
     reason = r;
-    await question(page, 'cash_bank').click();
-    await question(page, 'sales_today').click();
+    await pick(page, 'cash_bank');
+    await pick(page, 'sales_today');
     const slot = page.getByTestId('ask-reason');
     await expect(slot).toHaveAttribute('data-reason', r);
     await expect(slot).toContainText(words);
@@ -163,7 +172,7 @@ test('a used-up quota keeps the figures and says when it returns', async ({ page
   });
   await openPanel(page);
   await expect(page.getByTestId('ask-usage')).toContainText('All 100 explanations used in November');
-  await question(page, 'sales_today').click();
+  await pick(page, 'sales_today');
   await expect(page.getByTestId('ask-reason')).toContainText('They return on 1 Dec');
   await expect(page.getByTestId('ask-hero')).toHaveText('₹1,84,620.00');
   await expect(page.getByRole('button', { name: 'See plans' })).toBeVisible();
@@ -172,7 +181,7 @@ test('a used-up quota keeps the figures and says when it returns', async ({ page
 test('no data shows the fixed line, with no AI slot', async ({ page }) => {
   await open(page, { answer: (b) => answerOf(b.lang, { text: strings.en.no_data, reason: 'no_data', empty: true }) });
   await openPanel(page);
-  await question(page, 'sales_today').click();
+  await pick(page, 'sales_today');
   await expect(page.getByTestId('ask-answer')).toContainText('No sales recorded yet today.');
   await expect(page.getByTestId('ask-ai-text')).toHaveCount(0);
   await expect(page.getByTestId('ask-reason')).toHaveCount(0);
@@ -182,7 +191,7 @@ test('a failed read shows no number at all, and can be tried again', async ({ pa
   let fail = true;
   const calls = await open(page, { answer: (b) => (fail ? { __status: 500, contract_version: 1, reason: 'read_failed' } : answerOf(b.lang)) });
   await openPanel(page);
-  await question(page, 'sales_today').click();
+  await pick(page, 'sales_today');
   await expect(page.getByTestId('ask-error')).toContainText('Nothing is shown rather than a wrong number.');
   await expect(page.getByTestId('ask-panel')).not.toContainText('₹');
   fail = false;
@@ -200,7 +209,7 @@ test('Hindi: labels, sentences and months in Hindi, digits stay Western', async 
   await expect(panel).toHaveAttribute('lang', 'hi');
   await expect(question(page, 'sales_today')).toHaveText('आज मैंने कितनी बिक्री की?');
   await expect(page.getByTestId('ask-usage')).toHaveText('नवंबर में 100 में से 63 व्याख्याएँ इस्तेमाल हुईं। आँकड़ों की गिनती नहीं होती।');
-  await question(page, 'sales_today').click();
+  await pick(page, 'sales_today');
   await expect(panel).toContainText('आज की बिक्री, 23 बिल');
   await expect(panel).toContainText('नवंबर');
   expect(calls.ask[0].lang).toBe('hi');
@@ -256,6 +265,7 @@ test('phone: Back returns to the list where the owner left it, and nothing scrol
   await page.getByTestId('ask-entry-mobile').click();
   const panel = page.getByTestId('ask-panel');
   await expect(panel).toBeVisible();
+  await openCat(page, 'gst');
   await expect(question(page, 'gst_gaps')).toBeAttached();
 
   const scroller = panel.locator('.ask-b');
@@ -265,7 +275,7 @@ test('phone: Back returns to the list where the owner left it, and nothing scrol
 
   await question(page, 'sales_today').scrollIntoViewIfNeeded();
   const at = await scroller.evaluate((el) => el.scrollTop);
-  await question(page, 'sales_today').click();
+  await pick(page, 'sales_today');
   await expect(page.getByTestId('ask-hero')).toHaveText('₹1,84,620.00');
   await expect(panel.locator('.dock').getByRole('button', { name: /Open Daily Sales/ })).toBeVisible();
   await expect(panel).toContainText('Also ask');
@@ -336,7 +346,7 @@ for (const [qid, key, tab, from, to] of LINKED) {
 test('dead_stock: the link opens the Dead Stock Index itself', async ({ page }) => {
   await open(page, { answer: (b) => ({ ...answerOf(b.lang), screen: { key: 'reports_inventory_dead', fallback_key: 'inventory', mobile: true, params: {} } }) });
   await openPanel(page);
-  await question(page, 'dead_stock').click();
+  await pick(page, 'dead_stock');
   await page.getByTestId('ask-answer').getByRole('button', { name: /Open Dead Stock/ }).click();
   await expect(page).toHaveURL(/tab=INVENTORY&sub=DEAD_STOCK/);
   await expect(page.getByText('Unproductive Asset')).toBeVisible();
@@ -348,7 +358,7 @@ test('fast_movers_low: the rule is on the card, and the link opens Fast / Slow M
   await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('fast_movers_low', f, strings.en),
     screen: { key: 'reports_product_movement', fallback_key: 'inventory', mobile: false, params: { from: '2026-10-12', to: '2026-11-11' } } }) });
   await openPanel(page);
-  await question(page, 'fast_movers_low').click();
+  await pick(page, 'fast_movers_low');
   const ans = page.getByTestId('ask-answer');
   await expect(ans).toContainText('Running low among your top 15 sellers since 12 Oct');
   await expect(ans).toContainText('or it has 7 days or fewer left');
@@ -362,7 +372,7 @@ test('a language switch keeps the question, and one tap asks it again', async ({
   test.skip(!ASK_HINDI, 'Hindi is paused until its strings are reviewed');
   const calls = await open(page);
   await openPanel(page);
-  await question(page, 'sales_today').click();
+  await pick(page, 'sales_today');
   await expect(page.getByTestId('ask-hero')).toBeVisible();
   await page.getByRole('button', { name: 'हिन्दी' }).click();
   await expect(page.getByTestId('ask-stale')).toContainText('आज मैंने कितनी बिक्री की?');
@@ -383,7 +393,7 @@ test('a lost connection and a server failure read differently', async ({ page })
     return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ contract_version: 1, reason: 'read_failed' }) });
   });
   await openPanel(page);
-  await question(page, 'sales_today').click();
+  await pick(page, 'sales_today');
   await expect(page.getByTestId('ask-error')).toContainText('Connection lost.');
   mode = 'server';
   await page.getByRole('button', { name: 'Try again' }).click();
@@ -408,7 +418,7 @@ test('gst_collected says what its sales row is, and why GSTR-3B can differ by pa
   await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('gst_collected', f, strings.en),
     screen: { key: 'reports_gstr3b', fallback_key: null, mobile: true, params: { from: '2026-05-01', to: '2026-05-31' } } }) });
   await openPanel(page);
-  await question(page, 'gst_collected').click();
+  await pick(page, 'gst_collected');
   const ans = page.getByTestId('ask-answer');
   await expect(ans).toContainText('Sales after returns, before GST');
   await expect(ans).toContainText('GSTR-3B shows ₹0.29 more GST: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill.');
@@ -423,7 +433,7 @@ test('cash_bank with a loan account says exactly why the Accounts screen reads d
   await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('cash_bank', f, strings.en),
     screen: { key: 'accounts', fallback_key: 'dashboard', mobile: true, params: {} } }) });
   await openPanel(page);
-  await question(page, 'cash_bank').click();
+  await pick(page, 'cash_bank');
   await expect(page.getByTestId('ask-answer'))
     .toContainText('The Accounts screen total also includes loan accounts, which owe ₹2,50,000.00, so it reads -₹1,32,153.92.');
   await expect(page.getByTestId('ask-hero')).toHaveText('₹1,17,846.08');
@@ -439,7 +449,7 @@ test('purchases: the category sits after Stock, and cost_up draws was, now and t
   const y = async (t) => (await list.getByText(t, { exact: true }).boundingBox()).y;
   expect(await y('Stock')).toBeLessThan(await y('Purchases & suppliers'));
   expect(await y('Purchases & suppliers')).toBeLessThan(await y('Dues'));
-  await question(page, 'cost_up').click();
+  await pick(page, 'cost_up');
   const ans = page.getByTestId('ask-answer');
   await expect(ans).toContainText('Cost more on the latest purchase, of 3 compared since 13 Aug');
   await expect(ans).toContainText('Tie Salt (PCS)');
@@ -463,7 +473,7 @@ test('while the answer is written, the panel says what it is doing', async ({ pa
   });
   await expect(page.getByTestId('ask-entry')).toHaveAttribute('title', 'Ask AI');
   await openPanel(page);
-  await question(page, 'sales_today').click();
+  await pick(page, 'sales_today');
   const loading = page.getByTestId('ask-loading');
   await expect(loading.getByRole('status')).toHaveText(strings.en.ui.reading);
   await expect(loading.locator('.orb')).toBeVisible();
@@ -497,8 +507,9 @@ test('Expenses: the category shows, and its card renders from buildCard with the
   await openPanel(page);
   const list = page.getByTestId('ask-list');
   await expect(list.getByText('Expenses', { exact: true })).toBeVisible();
+  await openCat(page, 'expenses');
   for (const id of ['expenses_month', 'top_expenses', 'expenses_vs_last']) await expect(question(page, id)).toBeVisible();
-  await question(page, 'expenses_month').click();
+  await pick(page, 'expenses_month');
   const ans = page.getByTestId('ask-answer');
   await expect(page.getByTestId('ask-hero')).toHaveText('₹15,190.00');
   await expect(ans).toContainText('Spent, 1 to 10 Nov, 28 entries');
@@ -524,7 +535,7 @@ test('cash_today names what the Day Book leaves out, and links to it', async ({ 
     screen: { key: 'daybook', fallback_key: null, mobile: true, params: { from: '2026-11-11', to: '2026-11-11' } } }) });
   await openPanel(page);
   await expect(page.getByTestId('ask-list').getByText('Cash', { exact: true })).toBeVisible();
-  await question(page, 'cash_today').click();
+  await pick(page, 'cash_today');
   const ans = page.getByTestId('ask-answer');
   await expect(page.getByTestId('ask-hero')).toHaveText('-₹9,376.00');
   await expect(ans).toContainText('The Day Book shows ₹17,395.00 in and ₹36,335.00 out today.');
@@ -547,7 +558,7 @@ for (const [qid, from, to] of [['credit_sales_month', '2026-11-01', '2026-11-11'
 test('dues_overdue: the link opens Customer Aging', async ({ page }) => {
   await open(page, { answer: (b) => ({ ...answerOf(b.lang), screen: { key: 'reports_customer_aging', fallback_key: 'clients', mobile: false, params: {} } }) });
   await openPanel(page);
-  await question(page, 'dues_overdue').click();
+  await pick(page, 'dues_overdue');
   await page.getByTestId('ask-answer').getByRole('button', { name: /Open Customer Aging/ }).click();
   await expect(page).toHaveURL(/tab=AR_AGING/);
 });
@@ -559,10 +570,29 @@ test('gst_by_rate shows a rate that was never set as its own row, with no screen
   await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('gst_by_rate', f, strings.en),
     screen: { key: null, fallback_key: null, mobile: false, params: { from: '2026-05-01', to: '2026-05-31' } } }) });
   await openPanel(page);
-  await question(page, 'gst_by_rate').click();
+  await pick(page, 'gst_by_rate');
   const ans = page.getByTestId('ask-answer');
   await expect(ans).toContainText('Rate not set');
   await expect(ans).toContainText('206 lines worth ₹1,10,009.00 have no GST rate set');
   await expect(ans).toContainText('GSTR-3B counts a line with no rate set as 18%');
   await expect(ans.getByRole('button', { name: /^Open / })).toHaveCount(0);
+});
+
+test('categories open one at a time, and the open one follows the question asked', async ({ page }) => {
+  await open(page);
+  await openPanel(page);
+  const opened = page.locator('[data-cat][aria-expanded="true"]');
+  await expect(opened).toHaveCount(1);
+  await expect(page.locator('[data-cat="sales"]')).toHaveAttribute('aria-expanded', 'true');
+  await expect(question(page, 'gst_gaps')).toHaveCount(0);
+  await openCat(page, 'gst');
+  await expect(opened).toHaveCount(1);
+  await expect(page.locator('[data-cat="gst"]')).toHaveAttribute('aria-expanded', 'true');
+  await expect(question(page, 'sales_today')).toHaveCount(0);
+  await page.locator('[data-cat="gst"]').click();
+  await expect(opened).toHaveCount(0);
+  if (process.env.ASK_SHOTS) {
+    await openCat(page, 'stock');
+    await page.getByTestId('ask-panel').screenshot({ path: `${process.env.ASK_SHOTS}/ask-categories.png` });
+  }
 });
