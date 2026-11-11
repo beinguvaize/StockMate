@@ -138,10 +138,12 @@ BEGIN
       FROM items WHERE net > 0 AND COALESCE(employee_id, '') <> ''
   ), other AS (
     -- Paid in the month to someone the Attendance tab does not list: no longer
-    -- active, deleted, or an item with no employee id.
+    -- active, or deleted. Items with no employee id are left out, as paid_total
+    -- and paidByEmployeeInMonth leave them out.
     SELECT COALESCE(SUM(i.net), 0) AS paid, COUNT(DISTINCT i.employee_id) AS people
       FROM items i
-     WHERE i.net > 0 AND NOT EXISTS (SELECT 1 FROM staff s WHERE s.id = i.employee_id)
+     WHERE i.net > 0 AND COALESCE(i.employee_id, '') <> ''
+       AND NOT EXISTS (SELECT 1 FROM staff s WHERE s.id = i.employee_id)
   ), xp AS (
     -- The salary expenses the runs posted: what the Expenses report and the
     -- P&L show for this pay. Dated at the period's end, as processPayroll does.

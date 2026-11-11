@@ -64,7 +64,11 @@ const Payroll = () => {
   // A second link while this screen is open moves it too.
   useEffect(() => {
     if (linkedTab) setActiveTab(linkedTab);
-    if (linked) setPayRunMonth(linked.from.slice(0, 7));
+    // Moving the month reloads attendance and drops unsaved marks, so ask
+    // first, as the screen's own month arrows do.
+    if (linked && linked.from.slice(0, 7) !== payRunMonth && confirmLeaveMonth()) {
+      setPayRunMonth(linked.from.slice(0, 7));
+    }
   }, [linkedTab, linked?.from]); // eslint-disable-line react-hooks/exhaustive-deps
   const [payRunItems, setPayRunItems] = useState([]);
   // MONTHLY | WEEKLY | CUSTOM. CUSTOM exists because neither of the other two
