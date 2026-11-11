@@ -168,7 +168,21 @@
    "dir_in": "in",
    "dir_out": "out",
    "paid_by": "Paid by",
-   "share": "Share"
+   "share": "Share",
+   "sales_for": "Sales, {range}",
+   "bills_for": "Bills, {range}",
+   "average_for": "Average bill, {range}",
+   "day": "Day",
+   "customers_n": "{n} customers with an account",
+   "walk_in_n": "Walk-in, {n} bills",
+   "total_sales": "Total sales",
+   "qty": "Qty",
+   "total_returned": "Total returned",
+   "cost": "Cost",
+   "total_at_cost": "Total at cost",
+   "raw_part": "Of which raw material",
+   "products": "Products",
+   "days_left": "Days left"
   },
   "hero": {
    "sales_today": {
@@ -261,6 +275,35 @@
    },
    "payment_mix_month": {
     "caption": "Sales, {from} to {to}, {bills} bills"
+   },
+   "sales_vs_last_month": {
+    "caption": "Sold {from} to {to}, {bills} bills",
+    "compare": "{change} vs {prev} for {pfrom} to {pto}",
+    "plain": "{prev} for {pfrom} to {pto}"
+   },
+   "sales_week": {
+    "caption": "Sold {from} to {to}, {bills} bills",
+    "compare": "{change} vs {prev}, same days last week ({range})",
+    "plain": "{prev}, same days last week ({range})"
+   },
+   "best_customers": {
+    "caption": "Top customer: {name}",
+    "none": "No sales to a customer with an account",
+    "detail": "Sales by customer, {from} to {to}"
+   },
+   "returns_month": {
+    "caption": "Returned {from} to {to}, {n} returns"
+   },
+   "stock_value": {
+    "caption": "Stock at cost now, {n} items in stock"
+   },
+   "out_of_stock": {
+    "unit": "items",
+    "caption": "At zero or below now, of {n} stocked items"
+   },
+   "fast_movers_low": {
+    "unit": "items",
+    "caption": "Running low among your top {top} sellers since {from}"
    }
   },
   "titles": {
@@ -286,13 +329,21 @@
    "dues_overdue": "Unpaid for over 60 days",
    "credit_sales_month": "Sold on credit this month",
    "cash_today": "Money in and out today",
-   "payment_mix_month": "How customers paid this month"
+   "payment_mix_month": "How customers paid this month",
+   "sales_vs_last_month": "This month against last month",
+   "sales_week": "Sales this week",
+   "best_customers": "Top customers this month",
+   "returns_month": "Returns this month",
+   "stock_value": "What your stock is worth",
+   "out_of_stock": "Out of stock",
+   "fast_movers_low": "Best sellers running low"
   },
   "notes": {
    "gst_collected": "GST on your sales, from your books. This is before input credit and is not a filing figure.",
    "expenses_month": "Amounts as paid, GST included. The total is the expenses line of your profit; owner drawings are kept out of it.",
    "top_expenses": "Amounts as paid, GST included. Owner drawings are left out, as on your profit.",
-   "expenses_vs_last": "Amounts as paid, GST included. Owner drawings are left out, as on your profit."
+   "expenses_vs_last": "Amounts as paid, GST included. Owner drawings are left out, as on your profit.",
+   "fast_movers_low": "Best sellers are your top {top} items by units sold since {from}. One is running low when its stock is at or below its low-stock limit, or it has {cover} days or fewer left. Days left is stock divided by units sold over {days} days, as Days Cover on Fast / Slow Movers."
   },
   "footnotes": {
    "top_items": "Top {shown} of {n} items sold this month. By sales value, not margin.",
@@ -331,7 +382,23 @@
    "cash_today_residual_more": "Another {amount} {direction} here is not in the Day Book: the ledger and the bills, payments and expenses the Day Book reads disagree by that much.",
    "cash_today_residual_less": "The Day Book shows another {amount} {direction} that is not in the ledger: the bills, payments and expenses it reads and the ledger disagree by that much.",
    "payment_mix_month": "By the payment method on each bill, as billed in the Business Report's Billed vs Collected for these dates. Credit is billed, not money received.",
-   "payment_mix_unrecorded": "The Business Report counts the {amount} with no payment method recorded as Cash."
+   "payment_mix_unrecorded": "The Business Report counts the {amount} with no payment method recorded as Cash.",
+   "sales_vs_last_month": "Daily Sales shows a total for each day from {range}, not one figure for the period. Last month is compared on {prange}.",
+   "sales_week": "Each day matches its Day Total on Daily Sales.",
+   "best_customers": "Top {shown} of {n} customers shown. Total sales matches Sales by Party, which lists walk-in sales as one row.",
+   "best_customers_named": "{n} walk-in bills ({value}) carry a typed name, so Sales by Party lists them under that name and its Walk-in row reads {screen}.",
+   "returns_month": "Sales › Returns lists every return on every date: {n} returns, Total Returned {total}.",
+   "returns_month_all": "Sales › Returns shows the same {total}: all {n} returns fall in this period.",
+   "returns_month_items": "Top {shown} of {n} items returned.",
+   "stock_value": "Top {shown} items by value. Stock × cost price, as the Inventory screen counts its Stock Value, which it rounds to the rupee.",
+   "stock_batches_more": "Your open cost batches value this stock at {batch}, {gap} more.",
+   "stock_batches_less": "Your open cost batches value this stock at {batch}, {gap} less.",
+   "stock_cost_off": "On {n} items the cost price is not the average of their open batches: {gap} of the gap.",
+   "stock_unbatched": "On {n} items the stock and the open batches hold different quantities: {gap} of the gap.",
+   "out_of_stock": "Raw material and services are left out, as on Low Stock.",
+   "out_of_stock_negative": "Low Stock's Items Out of Stock counts only items at exactly 0, so it reads {zero}; {neg} more are below 0.",
+   "list_capped": "Top {shown} of {n} shown.",
+   "fast_movers_low": "Fast / Slow Movers shows Units Sold, Stock and Days Cover for each of these."
   },
   "links": {
    "reports_daily_sales": "Open Daily Sales",
@@ -352,7 +419,9 @@
    "purchases": "Open Purchases",
    "reports_expenses": "Open Expenses report",
    "reports_customer_aging": "Open Customer Aging",
-   "reports_business": "Open Business Report"
+   "reports_business": "Open Business Report",
+   "reports_sales_by_party": "Open Sales by Party",
+   "reports_product_movement": "Open Fast / Slow Movers"
   },
   "methods": {
    "CASH": "Cash",
@@ -378,7 +447,14 @@
    "dues_overdue": "No bill has been unpaid for over 60 days.",
    "credit_sales_month": "No credit sales this month, and no other bill from this month is unpaid.",
    "cash_today": "No money came in or went out today.",
-   "payment_mix_month": "No sales recorded this month yet."
+   "payment_mix_month": "No sales recorded this month yet.",
+   "sales_vs_last_month": "No sales this month or on the same days last month.",
+   "sales_week": "No sales this week or on the same days last week.",
+   "best_customers": "No sales recorded yet this month.",
+   "returns_month": "No sales returns this month.",
+   "stock_value": "No products in your books yet.",
+   "out_of_stock": "Nothing is at zero or below right now.",
+   "fast_movers_low": "No sales in the last 30 days, so there are no best sellers yet."
   },
   "months_short": [
    "Jan",
@@ -600,7 +676,21 @@
    "dir_in": "आया",
    "dir_out": "गया",
    "paid_by": "भुगतान का तरीका",
-   "share": "हिस्सा"
+   "share": "हिस्सा",
+   "sales_for": "बिक्री, {range}",
+   "bills_for": "बिल, {range}",
+   "average_for": "औसत बिल, {range}",
+   "day": "दिन",
+   "customers_n": "खाते वाले {n} ग्राहक",
+   "walk_in_n": "वॉक-इन, {n} बिल",
+   "total_sales": "कुल बिक्री",
+   "qty": "मात्रा",
+   "total_returned": "कुल वापसी",
+   "cost": "लागत",
+   "total_at_cost": "लागत पर कुल",
+   "raw_part": "इसमें कच्चा माल",
+   "products": "प्रोडक्ट",
+   "days_left": "बचे दिन"
   },
   "hero": {
    "sales_today": {
@@ -693,6 +783,35 @@
    },
    "payment_mix_month": {
     "caption": "बिक्री, {from} से {to}, {bills} बिल"
+   },
+   "sales_vs_last_month": {
+    "caption": "{from} से {to} की बिक्री, {bills} बिल",
+    "compare": "{change}, {pfrom} से {pto} में {prev} थी",
+    "plain": "{pfrom} से {pto} में {prev} थी"
+   },
+   "sales_week": {
+    "caption": "{from} से {to} की बिक्री, {bills} बिल",
+    "compare": "{change}, पिछले हफ़्ते के इन्हीं दिनों ({range}) में {prev} थी",
+    "plain": "पिछले हफ़्ते के इन्हीं दिनों ({range}) में {prev} थी"
+   },
+   "best_customers": {
+    "caption": "सबसे बड़े ग्राहक: {name}",
+    "none": "खाते वाले किसी ग्राहक को बिक्री नहीं हुई",
+    "detail": "ग्राहक के हिसाब से बिक्री, {from} से {to}"
+   },
+   "returns_month": {
+    "caption": "{from} से {to} की वापसी, {n} बार"
+   },
+   "stock_value": {
+    "caption": "अभी लागत पर स्टॉक, {n} आइटम स्टॉक में"
+   },
+   "out_of_stock": {
+    "unit": "आइटम",
+    "caption": "अभी शून्य या उससे कम, {n} स्टॉक वाले आइटम में से"
+   },
+   "fast_movers_low": {
+    "unit": "आइटम",
+    "caption": "{from} से आपके टॉप {top} बिकने वाले आइटम में से कम बचे"
    }
   },
   "titles": {
@@ -718,13 +837,21 @@
    "dues_overdue": "60 दिन से ज़्यादा से बाकी",
    "credit_sales_month": "इस महीने उधार बिक्री",
    "cash_today": "आज आया और गया पैसा",
-   "payment_mix_month": "इस महीने ग्राहकों ने कैसे भुगतान किया"
+   "payment_mix_month": "इस महीने ग्राहकों ने कैसे भुगतान किया",
+   "sales_vs_last_month": "यह महीना बनाम पिछला महीना",
+   "sales_week": "इस हफ़्ते की बिक्री",
+   "best_customers": "इस महीने के बड़े ग्राहक",
+   "returns_month": "इस महीने की वापसी",
+   "stock_value": "आपके स्टॉक की कीमत",
+   "out_of_stock": "स्टॉक ख़त्म",
+   "fast_movers_low": "ज़्यादा बिकने वाले आइटम जो कम बचे हैं"
   },
   "notes": {
    "gst_collected": "आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले का है और फ़ाइलिंग का आँकड़ा नहीं है।",
    "expenses_month": "रकम जैसी चुकाई गई, GST सहित। कुल रकम आपके मुनाफ़े की खर्च वाली लाइन है; मालिक की निकासी इसमें नहीं गिनी गई।",
    "top_expenses": "रकम जैसी चुकाई गई, GST सहित। मालिक की निकासी नहीं गिनी गई, जैसे मुनाफ़े में।",
-   "expenses_vs_last": "रकम जैसी चुकाई गई, GST सहित। मालिक की निकासी नहीं गिनी गई, जैसे मुनाफ़े में।"
+   "expenses_vs_last": "रकम जैसी चुकाई गई, GST सहित। मालिक की निकासी नहीं गिनी गई, जैसे मुनाफ़े में।",
+   "fast_movers_low": "{from} से बिकी इकाइयों के हिसाब से आपके टॉप {top} आइटम ज़्यादा बिकने वाले हैं। कोई आइटम कम बचा तब माना जाता है जब उसका स्टॉक कम-स्टॉक सीमा पर या उससे नीचे हो, या उसके {cover} दिन या उससे कम बचे हों। बचे दिन = स्टॉक ÷ {days} दिनों में बिकी इकाइयाँ, जैसा Fast / Slow Movers पर Days Cover में है।"
   },
   "footnotes": {
    "top_items": "इस महीने बिके {n} आइटम में से शीर्ष {shown}। बिक्री रकम के हिसाब से, मार्जिन के नहीं।",
@@ -763,7 +890,23 @@
    "cash_today_residual_more": "यहाँ {amount} और {direction} है जो Day Book में नहीं है: लेजर और Day Book के बिल, भुगतान और खर्च इतने से अलग हैं।",
    "cash_today_residual_less": "Day Book {amount} और {direction} दिखाती है जो लेजर में नहीं है: उसके बिल, भुगतान और खर्च और लेजर इतने से अलग हैं।",
    "payment_mix_month": "हर बिल पर लिखे भुगतान के तरीके से, जैसे इन तारीखों के लिए Business Report के Billed vs Collected में बिल किया गया। उधार बिल हुआ है, पैसा मिला नहीं।",
-   "payment_mix_unrecorded": "Business Report बिना भुगतान तरीके वाले {amount} को नकद गिनती है।"
+   "payment_mix_unrecorded": "Business Report बिना भुगतान तरीके वाले {amount} को नकद गिनती है।",
+   "sales_vs_last_month": "Daily Sales पर {range} के हर दिन का कुल दिखता है, पूरी अवधि का एक आँकड़ा नहीं। पिछले महीने से तुलना {prange} की है।",
+   "sales_week": "हर दिन का आँकड़ा Daily Sales के Day Total से मेल खाता है।",
+   "best_customers": "{n} में से टॉप {shown} ग्राहक दिखाए गए। कुल बिक्री Sales by Party से मेल खाती है, जहाँ वॉक-इन बिक्री एक लाइन में है।",
+   "best_customers_named": "{n} वॉक-इन बिलों ({value}) पर नाम लिखा है, इसलिए Sales by Party उन्हें उसी नाम से दिखाता है और उसकी Walk-in लाइन में {screen} है।",
+   "returns_month": "Sales › Returns पर हर तारीख की सारी वापसी दिखती है: {n} वापसी, Total Returned {total}।",
+   "returns_month_all": "Sales › Returns पर भी यही {total} दिखता है: सारी {n} वापसी इसी अवधि की हैं।",
+   "returns_month_items": "{n} में से टॉप {shown} लौटाए गए आइटम।",
+   "stock_value": "कीमत के हिसाब से टॉप {shown} आइटम। स्टॉक × लागत मूल्य, जैसे Inventory स्क्रीन अपनी Stock Value गिनती है, जिसे वह रुपये तक राउंड करती है।",
+   "stock_batches_more": "आपके खुले लागत बैच इस स्टॉक की कीमत {batch} बताते हैं, {gap} ज़्यादा।",
+   "stock_batches_less": "आपके खुले लागत बैच इस स्टॉक की कीमत {batch} बताते हैं, {gap} कम।",
+   "stock_cost_off": "{n} आइटम पर लागत मूल्य उनके खुले बैचों का औसत नहीं है: अंतर में से {gap}।",
+   "stock_unbatched": "{n} आइटम पर स्टॉक और खुले बैचों की मात्रा अलग है: अंतर में से {gap}।",
+   "out_of_stock": "कच्चा माल और सेवाएँ शामिल नहीं हैं, जैसे Low Stock पर।",
+   "out_of_stock_negative": "Low Stock का Items Out of Stock सिर्फ़ ठीक 0 वाले आइटम गिनता है, इसलिए वहाँ {zero} दिखता है; {neg} और आइटम 0 से नीचे हैं।",
+   "list_capped": "{n} में से टॉप {shown} दिखाए गए।",
+   "fast_movers_low": "Fast / Slow Movers पर इनमें से हर एक के Units Sold, Stock और Days Cover दिखते हैं।"
   },
   "links": {
    "reports_daily_sales": "Daily Sales खोलें",
@@ -784,7 +927,9 @@
    "purchases": "Purchases खोलें",
    "reports_expenses": "Expenses report खोलें",
    "reports_customer_aging": "Customer Aging खोलें",
-   "reports_business": "Business Report खोलें"
+   "reports_business": "Business Report खोलें",
+   "reports_sales_by_party": "Sales by Party खोलें",
+   "reports_product_movement": "Fast / Slow Movers खोलें"
   },
   "methods": {
    "CASH": "नकद",
@@ -810,7 +955,14 @@
    "dues_overdue": "कोई बिल 60 दिन से ज़्यादा से बाकी नहीं है।",
    "credit_sales_month": "इस महीने कोई उधार बिक्री नहीं, और इस महीने का कोई और बिल बाकी नहीं।",
    "cash_today": "आज न कोई पैसा आया, न गया।",
-   "payment_mix_month": "इस महीने अभी कोई बिक्री दर्ज नहीं।"
+   "payment_mix_month": "इस महीने अभी कोई बिक्री दर्ज नहीं।",
+   "sales_vs_last_month": "इस महीने और पिछले महीने के इन्हीं दिनों में कोई बिक्री नहीं।",
+   "sales_week": "इस हफ़्ते और पिछले हफ़्ते के इन्हीं दिनों में कोई बिक्री नहीं।",
+   "best_customers": "इस महीने अभी कोई बिक्री दर्ज नहीं।",
+   "returns_month": "इस महीने कोई बिक्री वापसी नहीं।",
+   "stock_value": "आपके खातों में अभी कोई प्रोडक्ट नहीं।",
+   "out_of_stock": "अभी कुछ भी शून्य या उससे नीचे नहीं है।",
+   "fast_movers_low": "पिछले 30 दिनों में कोई बिक्री नहीं, इसलिए अभी कोई ज़्यादा बिकने वाला आइटम नहीं।"
   },
   "months_short": [
    "जनवरी",
@@ -999,7 +1151,69 @@
    "ref_types.MANUAL",
    "ref_types.DAY_CLOSE_VARIANCE",
    "ref_types.PURCHASE_EDIT",
-   "ref_types.OTHER"
+   "ref_types.OTHER",
+   "card.sales_for",
+   "card.bills_for",
+   "card.average_for",
+   "card.day",
+   "card.customers_n",
+   "card.walk_in_n",
+   "card.total_sales",
+   "card.qty",
+   "card.total_returned",
+   "card.cost",
+   "card.total_at_cost",
+   "card.raw_part",
+   "card.products",
+   "card.days_left",
+   "hero.sales_vs_last_month.caption",
+   "hero.sales_vs_last_month.compare",
+   "hero.sales_vs_last_month.plain",
+   "hero.sales_week.caption",
+   "hero.sales_week.compare",
+   "hero.sales_week.plain",
+   "hero.best_customers.caption",
+   "hero.best_customers.none",
+   "hero.best_customers.detail",
+   "hero.returns_month.caption",
+   "hero.stock_value.caption",
+   "hero.out_of_stock.unit",
+   "hero.out_of_stock.caption",
+   "hero.fast_movers_low.unit",
+   "hero.fast_movers_low.caption",
+   "titles.sales_vs_last_month",
+   "titles.sales_week",
+   "titles.best_customers",
+   "titles.returns_month",
+   "titles.stock_value",
+   "titles.out_of_stock",
+   "titles.fast_movers_low",
+   "notes.fast_movers_low",
+   "footnotes.sales_vs_last_month",
+   "footnotes.sales_week",
+   "footnotes.best_customers",
+   "footnotes.best_customers_named",
+   "footnotes.returns_month",
+   "footnotes.returns_month_all",
+   "footnotes.returns_month_items",
+   "footnotes.stock_value",
+   "footnotes.stock_batches_more",
+   "footnotes.stock_batches_less",
+   "footnotes.stock_cost_off",
+   "footnotes.stock_unbatched",
+   "footnotes.out_of_stock",
+   "footnotes.out_of_stock_negative",
+   "footnotes.list_capped",
+   "footnotes.fast_movers_low",
+   "links.reports_sales_by_party",
+   "links.reports_product_movement",
+   "no_data_by_question.sales_vs_last_month",
+   "no_data_by_question.sales_week",
+   "no_data_by_question.best_customers",
+   "no_data_by_question.returns_month",
+   "no_data_by_question.stock_value",
+   "no_data_by_question.out_of_stock",
+   "no_data_by_question.fast_movers_low"
   ]
  }
 }

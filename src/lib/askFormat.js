@@ -50,6 +50,7 @@ export function usageVars(usage, strings) {
 const DATED = new Set(['reports_daily_sales', 'reports_financials', 'reports_product_sales', 'reports_gstr3b', 'reports_purchase_register']);
 DATED.add('reports_expenses');
 DATED.add('reports_business');
+DATED.add('reports_sales_by_party');
 const ROUTES = {
   reports_daily_sales: '/reports?tab=DAILY_SALES',
   reports_financials: '/reports?tab=FINANCIALS',
@@ -71,6 +72,8 @@ const ROUTES = {
   reports_expenses: '/reports?tab=EXPENSES',
   reports_customer_aging: '/reports?tab=AR_AGING',
   reports_business: '/reports?tab=BUSINESS',
+  reports_sales_by_party: '/reports?tab=SALES_BY_PARTY',
+  reports_product_movement: '/reports?tab=PRODUCT_MOVEMENT',
 };
 
 /** The route for a screen key, or null: an unknown key draws no link. */
