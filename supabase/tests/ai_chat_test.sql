@@ -42,12 +42,22 @@ DO $t$
 DECLARE
   k_fns text[] := ARRAY['ai_sales_summary','ai_top_items','ai_low_stock','ai_expiring_stock','ai_dead_stock',
                         'ai_top_dues','ai_dues_ageing','ai_collections','ai_cash_bank','ai_gst_data_gaps',
-                        'ai_purchases_summary','ai_top_suppliers','ai_supplier_dues','ai_cost_up'];
+                        'ai_purchases_summary','ai_top_suppliers','ai_supplier_dues','ai_cost_up',
+                        'ai_gst_input','ai_gst_by_rate'];
   r record;
   n int;
 BEGIN
   SELECT count(*) INTO n FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname = ANY(k_fns);
-  IF n <> 14 THEN RAISE EXCEPTION 'SHAPE: expected 14 read functions with one signature each, found %', n; END IF;
+  IF n <> 16 THEN RAISE EXCEPTION 'SHAPE: expected 16 read functions with one signature each, found %', n; END IF;
+  -- ai_gst_home_state reads the shop's GSTIN and returns only its 2-digit state code,
+  -- so it is checked here rather than by the private-column rule below.
+  FOR r IN SELECT p.oid, p.provolatile, p.prosecdef, p.prosrc FROM pg_proc p
+            WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'ai_gst_home_state' LOOP
+    IF r.provolatile <> 's' OR r.prosecdef OR r.prosrc !~ 'ai_owner_tenant\(\)' OR r.prosrc !~ 'left\(' THEN
+      RAISE EXCEPTION 'SHAPE: ai_gst_home_state is not a STABLE, INVOKER, owner-only read of 2 characters';
+    END IF;
+    IF has_function_privilege('anon', r.oid, 'EXECUTE') THEN RAISE EXCEPTION 'SHAPE: anon can execute ai_gst_home_state'; END IF;
+  END LOOP;
 
   FOR r IN SELECT p.oid, p.proname, p.provolatile, p.prosecdef, p.prosrc,
                   pg_get_function_identity_arguments(p.oid) AS args
@@ -105,8 +115,9 @@ BEGIN
   -- ledgers. Amounts are unique to each shop, so a leak shows up exactly.
   SET LOCAL session_replication_role = replica;
   FOR r IN SELECT * FROM (VALUES (v_a, 'A', 1111111.11::numeric), (v_b, 'B', 2222222.22::numeric)) x(t, tag, amt) LOOP
-    INSERT INTO sales (id, tenant_id, "totalAmount", "paidAmount", date, status, "paymentStatus", "paymentMethod")
-    VALUES ('AITEST-S-' || r.tag, r.t, r.amt, 0, v_day::text, 'COMPLETED', 'UNPAID', 'CREDIT');
+    -- The bill's own line carries no taxRate: ai_gst_by_rate shows it as "rate not set".
+    INSERT INTO sales (id, tenant_id, "totalAmount", "paidAmount", date, status, "paymentStatus", "paymentMethod", items)
+    VALUES ('AITEST-S-' || r.tag, r.t, r.amt, 0, v_day::text, 'COMPLETED', 'UNPAID', 'CREDIT', '[{"qty": 1}]'::jsonb);
     INSERT INTO sale_items (tenant_id, sale_id, line_no, product_id, product_name, quantity, rate, hsn_code)
     VALUES (r.t, 'AITEST-S-' || r.tag, 1, 'AITEST-P-' || r.tag, 'AITEST item ' || r.tag, 1, r.amt, NULL);
     INSERT INTO products (id, tenant_id, name, unit, stock, "costPrice", "lowStockThreshold", product_type, "sellingPrice")
@@ -150,7 +161,9 @@ BEGIN
     'pur',   public.ai_purchases_summary(p_day, p_day),
     'tsup',  public.ai_top_suppliers(p_day, p_day, 100),
     'sdue',  public.ai_supplier_dues(100),
-    'cost',  public.ai_cost_up(90, 100));
+    'cost',  public.ai_cost_up(90, 100),
+    'gin',   public.ai_gst_input(p_day, p_day),
+    'rate',  public.ai_gst_by_rate(p_day, p_day));
 END $$;
 
 DO $t$
@@ -181,6 +194,10 @@ BEGIN
   IF NOT (v -> 'cost' -> 'items') @> '[{"product_name": "AITEST item A", "new_cost": 1111112.11}]'::jsonb THEN
     RAISE EXCEPTION 'ISOLATION: sentinel cost rise missing: %', v -> 'cost';
   END IF;
+  IF (v #>> '{gin,bill_count}')::int < 2 OR (v #>> '{gin,invoice_value}')::numeric < 1111111.11 * 2 + 1 THEN
+    RAISE EXCEPTION 'ISOLATION: sentinel purchases not in GST on purchases: %', v -> 'gin';
+  END IF;
+  IF (v #>> '{rate,not_set_lines}')::int < 1 THEN RAISE EXCEPTION 'ISOLATION: sentinel line with no rate not shown as rate not set'; END IF;
   -- Totals cover every row even when the list is capped.
   PERFORM pg_temp.act_as(v_ua);
   IF (public.ai_low_stock(1) ->> 'items_low')::int <> (v #>> '{low,items_low}')::int
@@ -232,6 +249,7 @@ BEGIN
     format('ai_collections(%L, %L)', v_day, v_day), 'ai_cash_bank()', format('ai_gst_data_gaps(%L, %L)', v_day, v_day),
     format('ai_purchases_summary(%L, %L)', v_day, v_day), format('ai_top_suppliers(%L, %L)', v_day, v_day),
     'ai_supplier_dues()', 'ai_cost_up()',
+    format('ai_gst_input(%L, %L)', v_day, v_day), format('ai_gst_by_rate(%L, %L)', v_day, v_day), 'ai_gst_home_state()',
     'ai_set_enabled(true)', $q$ai_usage_claim('sales_today', 'en', 'm')$q$
   ] LOOP
     BEGIN
