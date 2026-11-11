@@ -269,6 +269,77 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
       footnote = lines.join(" ");
       break;
     }
+    // ── dues and cash (ask-dues-cash) ────────────────────────────────────────
+    case "dues_overdue":
+      value = f.total_over;
+      caption = fill(H.caption, { n: count(f.customers_over), bills: count(f.bills_over) });
+      detail = fill(H.detail, { days: count(f.oldest_days) });
+      table = { columns: [col("customer", "text", false), col("oldest", "text"), col("over_60", "money")],
+        rows: f.customers.map((c: any) => [c.name, fill(L.days_n, { n: count(c.oldest_days) }), c.amount_over]) };
+      // The Customer Aging report's own columns, so each one can be checked there.
+      rowsAfter = [row("bucket_61_90", f.aged_61_90, "money"), row("bucket_91_120", f.aged_91_120, "money"),
+        row("bucket_120", f.aged_over_120, "money"), row("total_over_60", f.total_over, "money", "total"),
+        row("all_unpaid", f.total_unpaid, "money")];
+      footnote = foot({ shown: count(f.customers.length), n: count(f.customers_over) });
+      break;
+    case "credit_sales_month": {
+      value = f.credit_billed;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to), bills: count(f.credit_bills) });
+      detail = fill(H.detail, { share: `${Number(f.credit_share_pct ?? 0).toFixed(1)}%`, total: inr(f.sales_total) });
+      rows = [row("sold_on_credit", f.credit_billed, "money"), row("collected_so_far", f.credit_collected, "money"),
+        row("still_unpaid", f.credit_open, "money", "total"), row("other_unpaid", f.other_open, "money")];
+      // The Business Report calls a bill collected from its payment status; say any gap.
+      const gap = Math.round((Number(f.screen_credit_collected ?? f.credit_collected) - Number(f.credit_collected)) * 100) / 100;
+      footnote = Math.abs(gap) >= 0.01
+        ? `${fill(gap > 0 ? strings.footnotes.credit_sales_screen_more : strings.footnotes.credit_sales_screen_less,
+          { screen: inr(f.screen_credit_collected), gap: inr(Math.abs(gap)) })} ${strings.footnotes.credit_sales_aging}`
+        : `${foot()} ${strings.footnotes.credit_sales_aging}`;
+      break;
+    }
+    case "cash_today": {
+      value = f.net;
+      caption = fill(H.caption, { date: day(f.period_from) });
+      detail = fill(H.detail, { in: inr(f.money_in), out: inr(f.money_out) });
+      const kind_ = (t: string) => strings.ref_types[t] ?? strings.ref_types.OTHER;
+      rows = [...f.in_by_type.map((x: any) => ({ label: kind_(x.type), value: x.amount, kind: "money" as Kind })),
+        row("money_in", f.money_in, "money", "total"),
+        ...f.out_by_type.map((x: any) => ({ label: kind_(x.type), value: x.amount, kind: "money" as Kind })),
+        row("money_out", f.money_out, "money", "total"), row("net_today", f.net, "money", "total")];
+      table = f.accounts.length
+        ? { columns: [col("account", "text", false), col("in", "money"), col("out", "money")],
+          rows: f.accounts.map((a: any) => [a.label, a.money_in, a.money_out]) }
+        : null;
+      // Never a silent mismatch with the Day Book: its totals, then each cause with its size.
+      const lines = [foot()];
+      const gapIn = Math.abs(Number(f.money_in) - Number(f.daybook_in)) >= 0.005;
+      const gapOut = Math.abs(Number(f.money_out) - Number(f.daybook_out)) >= 0.005;
+      if (gapIn || gapOut) {
+        const F = strings.footnotes;
+        lines.push(fill(F.cash_today_daybook, { in: inr(f.daybook_in), out: inr(f.daybook_out) }));
+        const dir = (d: string) => (d === "IN" ? L.dir_in : L.dir_out);
+        const items = (f.unlisted ?? []).map((u: any) => fill(["SALE", "PAYMENT", "PURCHASE"].includes(u.type) ? F.cash_today_item : F.cash_today_item_plain,
+          { type: kind_(u.type), method: method(u.mode), amount: inr(u.amount), direction: dir(u.direction) }));
+        if (items.length) lines.push(fill(F.cash_today_unlisted, { items: items.join("; ") }));
+        for (const [r, d] of [[Number(f.residual_in ?? 0), "IN"], [Number(f.residual_out ?? 0), "OUT"]] as [number, string][]) {
+          if (Math.abs(r) >= 0.005) lines.push(fill(r > 0 ? F.cash_today_residual_more : F.cash_today_residual_less, { amount: inr(Math.abs(r)), direction: dir(d) }));
+        }
+      }
+      footnote = lines.filter(Boolean).join(" ") || null;
+      break;
+    }
+    case "payment_mix_month": {
+      value = f.gross_sales;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to), bills: count(f.bill_count) });
+      table = { columns: [col("paid_by", "text", false), col("bills", "count"), col("amount", "money"), col("share", "percent")],
+        rows: f.by_method.map((m: any) => [method(m.method), m.bill_count, m.amount, m.share_pct]),
+        bars: f.by_method.map((m: any) => Number(m.share_pct)) };
+      rowsAfter = [row("total_sold", f.gross_sales, "money", "total")];
+      const unrecorded = Number(f.unrecorded_amount ?? 0);
+      footnote = unrecorded >= 0.005
+        ? `${foot()} ${fill(strings.footnotes.payment_mix_unrecorded, { amount: inr(unrecorded) })}`
+        : foot();
+      break;
+    }
     default:
       throw new Error(`no card for ${id}`);
   }

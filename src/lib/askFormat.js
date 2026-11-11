@@ -49,6 +49,7 @@ export function usageVars(usage, strings) {
 // show the same number. The others show the present (stock, dues, balances).
 const DATED = new Set(['reports_daily_sales', 'reports_financials', 'reports_product_sales', 'reports_gstr3b', 'reports_purchase_register']);
 DATED.add('reports_expenses');
+DATED.add('reports_business');
 const ROUTES = {
   reports_daily_sales: '/reports?tab=DAILY_SALES',
   reports_financials: '/reports?tab=FINANCIALS',
@@ -68,6 +69,8 @@ const ROUTES = {
   purchases: '/purchases',
   // Expenses report: opens on the answer's dates (useDateWindow takes the link).
   reports_expenses: '/reports?tab=EXPENSES',
+  reports_customer_aging: '/reports?tab=AR_AGING',
+  reports_business: '/reports?tab=BUSINESS',
 };
 
 /** The route for a screen key, or null: an unknown key draws no link. */

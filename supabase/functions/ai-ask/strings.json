@@ -147,7 +147,28 @@
    "this_period": "This month",
    "same_days_last": "Last month",
    "change": "Change",
-   "same_days_last_total": "Same days last month ({range})"
+   "same_days_last_total": "Same days last month ({range})",
+   "oldest": "Oldest",
+   "days_n": "{n} days",
+   "over_60": "Over 60 days",
+   "bucket_91_120": "91 to 120 days",
+   "bucket_120": "More than 120 days",
+   "total_over_60": "Unpaid over 60 days",
+   "all_unpaid": "All unpaid, any age",
+   "sold_on_credit": "Sold on credit",
+   "collected_so_far": "Collected so far",
+   "still_unpaid": "Still unpaid",
+   "other_unpaid": "Unpaid on other bills this month",
+   "money_in": "Money in",
+   "money_out": "Money out",
+   "net_today": "Net today",
+   "account": "Account",
+   "in": "In",
+   "out": "Out",
+   "dir_in": "in",
+   "dir_out": "out",
+   "paid_by": "Paid by",
+   "share": "Share"
   },
   "hero": {
    "sales_today": {
@@ -225,6 +246,21 @@
     "caption": "Spent, {from} to {to}",
     "compare": "{change} vs {prev}, same days last month ({range})",
     "plain": "{prev}, same days last month ({range})"
+   },
+   "dues_overdue": {
+    "caption": "Unpaid for over 60 days, {n} customers, {bills} bills",
+    "detail": "Oldest bill unpaid for {days} days"
+   },
+   "credit_sales_month": {
+    "caption": "Sold on credit, {from} to {to}, {bills} bills",
+    "detail": "{share} of your sales of {total}"
+   },
+   "cash_today": {
+    "caption": "Money in less money out, {date}",
+    "detail": "{in} in, {out} out"
+   },
+   "payment_mix_month": {
+    "caption": "Sales, {from} to {to}, {bills} bills"
    }
   },
   "titles": {
@@ -246,7 +282,11 @@
    "cost_up": "Costs that went up",
    "expenses_month": "Spent this month",
    "top_expenses": "Biggest expenses this month",
-   "expenses_vs_last": "Spending vs last month"
+   "expenses_vs_last": "Spending vs last month",
+   "dues_overdue": "Unpaid for over 60 days",
+   "credit_sales_month": "Sold on credit this month",
+   "cash_today": "Money in and out today",
+   "payment_mix_month": "How customers paid this month"
   },
   "notes": {
    "gst_collected": "GST on your sales, from your books. This is before input credit and is not a filing figure.",
@@ -277,7 +317,21 @@
    "expenses_month": "Top {shown} of {n} categories shown. The total covers all {n}.",
    "top_expenses": "Top {shown} of {n} entries shown. The total covers all {n}.",
    "expenses_vs_last": "The report opens on this month's dates. Set it to {pfrom} to {pto} to check last month.",
-   "expenses_vs_last_cut": "{shown} of {n} categories shown, biggest increase first. The totals cover all {n}."
+   "expenses_vs_last_cut": "{shown} of {n} categories shown, biggest increase first. The totals cover all {n}.",
+   "dues_overdue": "Top {shown} of {n} customers shown. The total covers all {n}. These are the Customer Aging report's 61-90, 91-120 and 120+ day columns; that report lists customers by everything they owe. Age is counted from the sale date.",
+   "credit_sales_month": "Sold on credit and collected match the Business Report's Credit bar for these dates.",
+   "credit_sales_screen_more": "The Business Report's Credit bar shows {screen} collected, {gap} more: it counts a bill as collected from its payment status, not from the amount paid on it.",
+   "credit_sales_screen_less": "The Business Report's Credit bar shows {screen} collected, {gap} less: it counts a bill as collected from its payment status, not from the amount paid on it.",
+   "credit_sales_aging": "Still unpaid is what the Customer Aging report counts for these bills.",
+   "cash_today": "From your accounts' ledger. Transfers between your own accounts are left out.",
+   "cash_today_daybook": "The Day Book shows {in} in and {out} out today.",
+   "cash_today_item": "{type} by {method}, {amount} {direction}",
+   "cash_today_item_plain": "{type}, {amount} {direction}",
+   "cash_today_unlisted": "It does not list these ledger entries: {items}.",
+   "cash_today_residual_more": "Another {amount} {direction} here is not in the Day Book: the ledger and the bills, payments and expenses the Day Book reads disagree by that much.",
+   "cash_today_residual_less": "The Day Book shows another {amount} {direction} that is not in the ledger: the bills, payments and expenses it reads and the ledger disagree by that much.",
+   "payment_mix_month": "By the payment method on each bill, as billed in the Business Report's Billed vs Collected for these dates. Credit is billed, not money received.",
+   "payment_mix_unrecorded": "The Business Report counts the {amount} with no payment method recorded as Cash."
   },
   "links": {
    "reports_daily_sales": "Open Daily Sales",
@@ -296,7 +350,9 @@
    "reports_purchase_register": "Open Purchase Register",
    "suppliers": "Open Suppliers",
    "purchases": "Open Purchases",
-   "reports_expenses": "Open Expenses report"
+   "reports_expenses": "Open Expenses report",
+   "reports_customer_aging": "Open Customer Aging",
+   "reports_business": "Open Business Report"
   },
   "methods": {
    "CASH": "Cash",
@@ -305,7 +361,9 @@
    "CARD": "Card",
    "CREDIT": "Credit",
    "CHEQUE": "Cheque",
-   "UNKNOWN": "Not recorded"
+   "UNKNOWN": "Not recorded",
+   "CREDIT_SALE": "Credit sale",
+   "ADJUSTMENT": "Adjustment"
   },
   "no_data": "Nothing to show for this yet.",
   "no_data_by_question": {
@@ -316,7 +374,11 @@
    "cost_up": "No item cost more on its latest purchase in the last 90 days.",
    "expenses_month": "No expenses recorded this month or the same days last month.",
    "top_expenses": "No expenses recorded yet this month.",
-   "expenses_vs_last": "No expenses recorded this month or the same days last month."
+   "expenses_vs_last": "No expenses recorded this month or the same days last month.",
+   "dues_overdue": "No bill has been unpaid for over 60 days.",
+   "credit_sales_month": "No credit sales this month, and no other bill from this month is unpaid.",
+   "cash_today": "No money came in or went out today.",
+   "payment_mix_month": "No sales recorded this month yet."
   },
   "months_short": [
    "Jan",
@@ -355,6 +417,18 @@
    "Friday",
    "Saturday"
   ],
+  "ref_types": {
+   "SALE": "Sales",
+   "PAYMENT": "Customer payments",
+   "EXPENSE": "Expenses",
+   "PURCHASE": "Purchases",
+   "SUPPLIER_PAYMENT": "Supplier payments",
+   "LOAN_EMI": "Loan EMIs",
+   "MANUAL": "Manual entries",
+   "DAY_CLOSE_VARIANCE": "Day-close adjustments",
+   "PURCHASE_EDIT": "Purchase edits",
+   "OTHER": "Other entries"
+  },
   "review_pending": []
  },
  "hi": {
@@ -505,7 +579,28 @@
    "this_period": "इस महीने",
    "same_days_last": "पिछले महीने",
    "change": "बदलाव",
-   "same_days_last_total": "पिछले महीने के इन्हीं दिनों ({range})"
+   "same_days_last_total": "पिछले महीने के इन्हीं दिनों ({range})",
+   "oldest": "सबसे पुराना",
+   "days_n": "{n} दिन",
+   "over_60": "60 दिन से ज़्यादा",
+   "bucket_91_120": "91 से 120 दिन",
+   "bucket_120": "120 दिन से ज़्यादा",
+   "total_over_60": "60 दिन से ज़्यादा से बाकी",
+   "all_unpaid": "कुल बाकी, हर उम्र",
+   "sold_on_credit": "उधार पर बेचा",
+   "collected_so_far": "अब तक वसूला",
+   "still_unpaid": "अभी बाकी",
+   "other_unpaid": "इस महीने के बाकी बिलों पर बकाया",
+   "money_in": "आया पैसा",
+   "money_out": "गया पैसा",
+   "net_today": "आज का शुद्ध",
+   "account": "खाता",
+   "in": "आया",
+   "out": "गया",
+   "dir_in": "आया",
+   "dir_out": "गया",
+   "paid_by": "भुगतान का तरीका",
+   "share": "हिस्सा"
   },
   "hero": {
    "sales_today": {
@@ -583,6 +678,21 @@
     "caption": "खर्च, {from} से {to}",
     "compare": "{change}, पिछले महीने के इन्हीं दिनों ({range}) में {prev} था",
     "plain": "पिछले महीने के इन्हीं दिनों ({range}) में {prev} था"
+   },
+   "dues_overdue": {
+    "caption": "60 दिन से ज़्यादा से बाकी, {n} ग्राहक, {bills} बिल",
+    "detail": "सबसे पुराना बिल {days} दिन से बाकी"
+   },
+   "credit_sales_month": {
+    "caption": "उधार पर बेचा, {from} से {to}, {bills} बिल",
+    "detail": "आपकी {total} की बिक्री का {share}"
+   },
+   "cash_today": {
+    "caption": "आया पैसा घटा गया पैसा, {date}",
+    "detail": "{in} आया, {out} गया"
+   },
+   "payment_mix_month": {
+    "caption": "बिक्री, {from} से {to}, {bills} बिल"
    }
   },
   "titles": {
@@ -604,7 +714,11 @@
    "cost_up": "बढ़ी हुई लागत",
    "expenses_month": "इस महीने का खर्च",
    "top_expenses": "इस महीने के सबसे बड़े खर्च",
-   "expenses_vs_last": "खर्च, पिछले महीने से तुलना"
+   "expenses_vs_last": "खर्च, पिछले महीने से तुलना",
+   "dues_overdue": "60 दिन से ज़्यादा से बाकी",
+   "credit_sales_month": "इस महीने उधार बिक्री",
+   "cash_today": "आज आया और गया पैसा",
+   "payment_mix_month": "इस महीने ग्राहकों ने कैसे भुगतान किया"
   },
   "notes": {
    "gst_collected": "आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले का है और फ़ाइलिंग का आँकड़ा नहीं है।",
@@ -635,7 +749,21 @@
    "expenses_month": "{n} में से {shown} श्रेणियाँ दिखाई गईं। कुल रकम सभी {n} की है।",
    "top_expenses": "{n} में से {shown} एंट्री दिखाई गईं। कुल रकम सभी {n} की है।",
    "expenses_vs_last": "रिपोर्ट इस महीने की तारीखों पर खुलती है। पिछला महीना देखने के लिए उसे {pfrom} से {pto} पर करें।",
-   "expenses_vs_last_cut": "{n} में से {shown} श्रेणियाँ दिखाई गईं, सबसे ज़्यादा बढ़ोतरी पहले। कुल रकम सभी {n} की है।"
+   "expenses_vs_last_cut": "{n} में से {shown} श्रेणियाँ दिखाई गईं, सबसे ज़्यादा बढ़ोतरी पहले। कुल रकम सभी {n} की है।",
+   "dues_overdue": "{n} में से टॉप {shown} ग्राहक दिखाए गए। कुल में सभी {n} शामिल हैं। ये Customer Aging रिपोर्ट के 61-90, 91-120 और 120+ दिन वाले कॉलम हैं; वह रिपोर्ट ग्राहकों को उनके पूरे बकाया से क्रम में दिखाती है। उम्र बिक्री की तारीख से गिनी जाती है।",
+   "credit_sales_month": "उधार पर बेचा और वसूला इन तारीखों के लिए Business Report के Credit बार से मेल खाते हैं।",
+   "credit_sales_screen_more": "Business Report का Credit बार {screen} वसूला दिखाता है, {gap} ज़्यादा: वह बिल को उसके भुगतान स्टेटस से वसूला मानता है, उस पर दी गई रकम से नहीं।",
+   "credit_sales_screen_less": "Business Report का Credit बार {screen} वसूला दिखाता है, {gap} कम: वह बिल को उसके भुगतान स्टेटस से वसूला मानता है, उस पर दी गई रकम से नहीं।",
+   "credit_sales_aging": "अभी बाकी वही है जो Customer Aging रिपोर्ट इन बिलों के लिए गिनती है।",
+   "cash_today": "आपके खातों की लेजर से। आपके अपने खातों के बीच ट्रांसफ़र शामिल नहीं हैं।",
+   "cash_today_daybook": "Day Book आज {in} आया और {out} गया दिखाती है।",
+   "cash_today_item": "{type}, {method} से, {amount} {direction}",
+   "cash_today_item_plain": "{type}, {amount} {direction}",
+   "cash_today_unlisted": "वह ये लेजर एंट्री नहीं दिखाती: {items}।",
+   "cash_today_residual_more": "यहाँ {amount} और {direction} है जो Day Book में नहीं है: लेजर और Day Book के बिल, भुगतान और खर्च इतने से अलग हैं।",
+   "cash_today_residual_less": "Day Book {amount} और {direction} दिखाती है जो लेजर में नहीं है: उसके बिल, भुगतान और खर्च और लेजर इतने से अलग हैं।",
+   "payment_mix_month": "हर बिल पर लिखे भुगतान के तरीके से, जैसे इन तारीखों के लिए Business Report के Billed vs Collected में बिल किया गया। उधार बिल हुआ है, पैसा मिला नहीं।",
+   "payment_mix_unrecorded": "Business Report बिना भुगतान तरीके वाले {amount} को नकद गिनती है।"
   },
   "links": {
    "reports_daily_sales": "Daily Sales खोलें",
@@ -654,7 +782,9 @@
    "reports_purchase_register": "Purchase Register खोलें",
    "suppliers": "Suppliers खोलें",
    "purchases": "Purchases खोलें",
-   "reports_expenses": "Expenses report खोलें"
+   "reports_expenses": "Expenses report खोलें",
+   "reports_customer_aging": "Customer Aging खोलें",
+   "reports_business": "Business Report खोलें"
   },
   "methods": {
    "CASH": "नकद",
@@ -663,7 +793,9 @@
    "CARD": "कार्ड",
    "CREDIT": "उधार",
    "CHEQUE": "चेक",
-   "UNKNOWN": "दर्ज नहीं"
+   "UNKNOWN": "दर्ज नहीं",
+   "CREDIT_SALE": "उधार बिक्री",
+   "ADJUSTMENT": "समायोजन"
   },
   "no_data": "इसके लिए अभी दिखाने को कुछ नहीं है।",
   "no_data_by_question": {
@@ -674,7 +806,11 @@
    "cost_up": "पिछले 90 दिनों में किसी आइटम की सबसे नई खरीद पहले से महँगी नहीं हुई।",
    "expenses_month": "इस महीने या पिछले महीने के इन्हीं दिनों में कोई खर्च दर्ज नहीं हुआ।",
    "top_expenses": "इस महीने अभी तक कोई खर्च दर्ज नहीं हुआ।",
-   "expenses_vs_last": "इस महीने या पिछले महीने के इन्हीं दिनों में कोई खर्च दर्ज नहीं हुआ।"
+   "expenses_vs_last": "इस महीने या पिछले महीने के इन्हीं दिनों में कोई खर्च दर्ज नहीं हुआ।",
+   "dues_overdue": "कोई बिल 60 दिन से ज़्यादा से बाकी नहीं है।",
+   "credit_sales_month": "इस महीने कोई उधार बिक्री नहीं, और इस महीने का कोई और बिल बाकी नहीं।",
+   "cash_today": "आज न कोई पैसा आया, न गया।",
+   "payment_mix_month": "इस महीने अभी कोई बिक्री दर्ज नहीं।"
   },
   "months_short": [
    "जनवरी",
@@ -713,6 +849,18 @@
    "शुक्रवार",
    "शनिवार"
   ],
+  "ref_types": {
+   "SALE": "बिक्री",
+   "PAYMENT": "ग्राहकों के भुगतान",
+   "EXPENSE": "खर्च",
+   "PURCHASE": "खरीद",
+   "SUPPLIER_PAYMENT": "सप्लायर भुगतान",
+   "LOAN_EMI": "लोन EMI",
+   "MANUAL": "मैन्युअल एंट्री",
+   "DAY_CLOSE_VARIANCE": "दिन बंद करने का अंतर",
+   "PURCHASE_EDIT": "खरीद में बदलाव",
+   "OTHER": "अन्य एंट्री"
+  },
   "review_pending": [
    "ui.on_fine_paragraphs",
    "footnotes.gst_screen_unmatched",
@@ -787,7 +935,71 @@
    "links.reports_expenses",
    "no_data_by_question.expenses_month",
    "no_data_by_question.top_expenses",
-   "no_data_by_question.expenses_vs_last"
+   "no_data_by_question.expenses_vs_last",
+   "card.oldest",
+   "card.days_n",
+   "card.over_60",
+   "card.bucket_91_120",
+   "card.bucket_120",
+   "card.total_over_60",
+   "card.all_unpaid",
+   "card.sold_on_credit",
+   "card.collected_so_far",
+   "card.still_unpaid",
+   "card.other_unpaid",
+   "card.money_in",
+   "card.money_out",
+   "card.net_today",
+   "card.account",
+   "card.in",
+   "card.out",
+   "card.dir_in",
+   "card.dir_out",
+   "card.paid_by",
+   "card.share",
+   "hero.dues_overdue.caption",
+   "hero.dues_overdue.detail",
+   "hero.credit_sales_month.caption",
+   "hero.credit_sales_month.detail",
+   "hero.cash_today.caption",
+   "hero.cash_today.detail",
+   "hero.payment_mix_month.caption",
+   "titles.dues_overdue",
+   "titles.credit_sales_month",
+   "titles.cash_today",
+   "titles.payment_mix_month",
+   "footnotes.dues_overdue",
+   "footnotes.credit_sales_month",
+   "footnotes.credit_sales_screen_more",
+   "footnotes.credit_sales_screen_less",
+   "footnotes.credit_sales_aging",
+   "footnotes.cash_today",
+   "footnotes.cash_today_daybook",
+   "footnotes.cash_today_item",
+   "footnotes.cash_today_item_plain",
+   "footnotes.cash_today_unlisted",
+   "footnotes.cash_today_residual_more",
+   "footnotes.cash_today_residual_less",
+   "footnotes.payment_mix_month",
+   "footnotes.payment_mix_unrecorded",
+   "links.reports_customer_aging",
+   "links.reports_business",
+   "methods.CREDIT_SALE",
+   "methods.ADJUSTMENT",
+   "no_data_by_question.dues_overdue",
+   "no_data_by_question.credit_sales_month",
+   "no_data_by_question.cash_today",
+   "no_data_by_question.payment_mix_month",
+   "ref_types.SALE",
+   "ref_types.PAYMENT",
+   "ref_types.EXPENSE",
+   "ref_types.PURCHASE",
+   "ref_types.SUPPLIER_PAYMENT",
+   "ref_types.LOAN_EMI",
+   "ref_types.MANUAL",
+   "ref_types.DAY_CLOSE_VARIANCE",
+   "ref_types.PURCHASE_EDIT",
+   "ref_types.OTHER"
   ]
  }
 }
