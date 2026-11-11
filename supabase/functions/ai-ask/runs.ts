@@ -159,6 +159,34 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
       const f = await rpc(db, "ai_cost_up", { p_days: 90, p_limit: 10 });
       return { figures: f, params: { from: f.period_from, to: today }, empty: f.items_up === 0 };
     }
+    // ── dues and cash (ask-dues-cash) ──────────────────────────────────────
+    case "dues_overdue": {
+      // Ties to the Customer Aging report's 61-90, 91-120 and 120+ columns.
+      const f = await rpc(db, "ai_dues_over_60", { p_limit: 10 });
+      // The edges of the card's age rows, so "more than 120 days" may be said.
+      return { figures: { ...f, age_bounds: [60, 90, 120] }, params: { from: today, to: today }, empty: f.bills_over === 0 };
+    }
+    case "credit_sales_month": {
+      // Ties to the Business Report's CREDIT bar for the same dates.
+      const from = monthStart(today);
+      const f = await rpc(db, "ai_credit_sales", { p_from: from, p_to: today });
+      return { figures: f, params: { from, to: today }, empty: f.credit_bills === 0 && Number(f.other_open) === 0 };
+    }
+    case "cash_today": {
+      // Ties to the Day Book for today, or says the exact gap and why.
+      const f = await rpc(db, "ai_cash_today");
+      return {
+        figures: f,
+        params: { from: today, to: today },
+        empty: Number(f.money_in) === 0 && Number(f.money_out) === 0 && Number(f.daybook_in) === 0 && Number(f.daybook_out) === 0,
+      };
+    }
+    case "payment_mix_month": {
+      // Ties to the Business Report's Billed vs Collected, billed per method.
+      const from = monthStart(today);
+      const f = await rpc(db, "ai_payment_mix", { p_from: from, p_to: today });
+      return { figures: f, params: { from, to: today }, empty: f.bill_count === 0 };
+    }
     default:
       throw new ReadFailed(`no reads for ${id}`);
   }

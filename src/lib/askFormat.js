@@ -47,7 +47,8 @@ export function usageVars(usage, strings) {
 
 // `dated` screens take the answer's period, so they open on the same dates and
 // show the same number. The others show the present (stock, dues, balances).
-const DATED = new Set(['reports_daily_sales', 'reports_financials', 'reports_product_sales', 'reports_gstr3b', 'reports_purchase_register']);
+const DATED = new Set(['reports_daily_sales', 'reports_financials', 'reports_product_sales', 'reports_gstr3b', 'reports_purchase_register',
+  'reports_business']);
 const ROUTES = {
   reports_daily_sales: '/reports?tab=DAILY_SALES',
   reports_financials: '/reports?tab=FINANCIALS',
@@ -65,6 +66,8 @@ const ROUTES = {
   dashboard: '/dashboard',
   suppliers: '/suppliers',
   purchases: '/purchases',
+  reports_customer_aging: '/reports?tab=AR_AGING',
+  reports_business: '/reports?tab=BUSINESS',
 };
 
 /** The route for a screen key, or null: an unknown key draws no link. */

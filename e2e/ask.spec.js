@@ -465,3 +465,46 @@ test('while Hindi is paused, the panel is English-only even for an owner who pic
   await expect(page.getByRole('group', { name: 'Language' })).toHaveCount(0);
   expect(calls.list.every((c) => c.lang === 'en')).toBe(true);
 });
+
+// ── Dues and cash (ask-dues-cash) ───────────────────────────────────────────
+const CASH_TODAY = {
+  period_from: '2026-11-11', period_to: '2026-11-11', as_of: 'x', money_in: 26959, money_out: 36335, net: -9376,
+  in_by_type: [{ type: 'SALE', amount: 16265 }, { type: 'PAYMENT', amount: 10694 }],
+  out_by_type: [{ type: 'PURCHASE', amount: 33455 }, { type: 'EXPENSE', amount: 2880 }],
+  accounts: [{ account_id: 'A1', label: 'Cash', type: 'CASH', money_in: 17395, money_out: 36335 }],
+  daybook_in: 17395, daybook_out: 36335,
+  unlisted: [{ type: 'PAYMENT', mode: 'CREDIT_SALE', direction: 'IN', amount: 9564 }], residual_in: 0, residual_out: 0,
+};
+
+test('cash_today names what the Day Book leaves out, and links to it', async ({ page }) => {
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: CASH_TODAY, card: buildCard('cash_today', CASH_TODAY, strings.en),
+    screen: { key: 'daybook', fallback_key: null, mobile: true, params: { from: '2026-11-11', to: '2026-11-11' } } }) });
+  await openPanel(page);
+  await expect(page.getByTestId('ask-list').getByText('Cash', { exact: true })).toBeVisible();
+  await question(page, 'cash_today').click();
+  const ans = page.getByTestId('ask-answer');
+  await expect(page.getByTestId('ask-hero')).toHaveText('-₹9,376.00');
+  await expect(ans).toContainText('The Day Book shows ₹17,395.00 in and ₹36,335.00 out today.');
+  await expect(ans).toContainText('Customer payments by Credit sale, ₹9,564.00 in.');
+  await ans.getByRole('button', { name: /Open Day Book/ }).click();
+  await expect(page).toHaveURL(/\/daybook/);
+});
+
+for (const [qid, from, to] of [['credit_sales_month', '2026-11-01', '2026-11-11'], ['payment_mix_month', '2026-11-01', '2026-11-11']]) {
+  test(`${qid}: the link opens the Business Report on the answer's own dates`, async ({ page }) => {
+    await open(page, { answer: (b) => ({ ...answerOf(b.lang), screen: { key: 'reports_business', fallback_key: 'sales', mobile: false, params: { from, to } } }) });
+    await openPanel(page);
+    await question(page, qid).click();
+    await page.getByTestId('ask-answer').getByRole('button', { name: /Open Business Report/ }).click();
+    await expect(page).toHaveURL(new RegExp(`tab=BUSINESS&from=${from}&to=${to}`));
+    await expect(page.getByText(`${from} → ${to}`)).toBeVisible();
+  });
+}
+
+test('dues_overdue: the link opens Customer Aging', async ({ page }) => {
+  await open(page, { answer: (b) => ({ ...answerOf(b.lang), screen: { key: 'reports_customer_aging', fallback_key: 'clients', mobile: false, params: {} } }) });
+  await openPanel(page);
+  await question(page, 'dues_overdue').click();
+  await page.getByTestId('ask-answer').getByRole('button', { name: /Open Customer Aging/ }).click();
+  await expect(page).toHaveURL(/tab=AR_AGING/);
+});

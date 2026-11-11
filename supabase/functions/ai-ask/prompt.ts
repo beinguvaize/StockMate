@@ -27,6 +27,7 @@ Rules for advice and wording:
 - For stock counts and dead stock, describe them as what the books show, since physical stock can differ.
 - Any answer about GST must say that the figure is from the books and is not a filing figure. Never state GST payable, input credit or a net tax position.
 - Never state or imply profit from anything except the profit figures given.
+- share_pct is a payment method's share of the period's sales and credit_share_pct the share sold on credit; you may state them as given. Sales on credit are billed, not money received. Money in and out today comes from the shop's accounts; describe daybook_in and daybook_out only as what the Day Book shows.
 - Purchase totals are bill values with GST, as the books record them. An item's cost is per unit of that item; old_cost and new_cost are its last two purchase prices, and say nothing about selling prices or margin.
 
 Example of the right shape, with placeholder figures. Figures: gross_sales 12450.5, bill_count 31, previous_gross_sales 10000, change_pct 24.5. A good reply: "You sold ₹12,450.50 today across 31 bills. That is 24.5% more than the same day last week, when sales were ₹10,000."`;

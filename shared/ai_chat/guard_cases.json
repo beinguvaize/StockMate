@@ -13,7 +13,7 @@
     "judgement": "True when the label is a policy choice. Flip it deliberately, not to make a test pass.",
     "known_limit": "True when the reply is wrong but only a check beyond numbers could catch it.",
     "baseline_guard": "What checkReply returned at the commit in baseline.guard_commit. Filled by a script. A mismatch with expected is a tuning target.",
-    "ruling_changes": "cash_bank-06 was flipped to should_fail by Lead ruling. profit_month-13, collections_week-14 and top_dues-18 stopped being known limits when the guard gained the checks that catch them. baseline_guard still records commit 11ebd5c. The 19 purchases_month, supplier_dues, top_suppliers and cost_up cases were added on branch ask-purchases; their baseline_guard is the guard at that branch, not 11ebd5c."
+    "ruling_changes": "cash_bank-06 was flipped to should_fail by Lead ruling. profit_month-13, collections_week-14 and top_dues-18 stopped being known limits when the guard gained the checks that catch them. baseline_guard still records commit 11ebd5c. The 19 purchases_month, supplier_dues, top_suppliers and cost_up cases were added on branch ask-purchases; their baseline_guard is the guard at that branch, not 11ebd5c. The 20 dues_overdue, credit_sales_month, cash_today and payment_mix_month cases were added on branch ask-dues-cash; their baseline_guard is the guard at that branch."
   },
   "fixtures": {
     "sales_today": {
@@ -712,6 +712,142 @@
           "new_date": "2026-10-30"
         }
       ]
+    },
+    "dues_overdue": {
+      "period_from": "2026-11-11",
+      "period_to": "2026-11-11",
+      "as_of": "2026-11-11T10:30:00Z",
+      "days": 60,
+      "total_over": 18450.5,
+      "bills_over": 9,
+      "customers_over": 3,
+      "oldest_days": 142,
+      "aged_61_90": 9200,
+      "aged_91_120": 6050.5,
+      "aged_over_120": 3200,
+      "total_unpaid": 64280,
+      "customers": [
+        {
+          "name": "[C1]",
+          "bills_over": 4,
+          "amount_over": 11300,
+          "oldest_days": 142
+        },
+        {
+          "name": "[C2]",
+          "bills_over": 3,
+          "amount_over": 5650.5,
+          "oldest_days": 97
+        },
+        {
+          "name": "[C3]",
+          "bills_over": 2,
+          "amount_over": 1500,
+          "oldest_days": 68
+        }
+      ],
+      "age_bounds": [
+        60,
+        90,
+        120
+      ]
+    },
+    "credit_sales_month": {
+      "period_from": "2026-11-01",
+      "period_to": "2026-11-11",
+      "as_of": "2026-11-11T10:30:00Z",
+      "credit_billed": 42600,
+      "credit_bills": 14,
+      "credit_collected": 12350,
+      "credit_open": 30250,
+      "credit_open_bills": 11,
+      "other_open": 2140,
+      "other_open_bills": 3,
+      "sales_total": 186400,
+      "credit_share_pct": 22.9,
+      "screen_credit_collected": 12350
+    },
+    "cash_today": {
+      "period_from": "2026-11-11",
+      "period_to": "2026-11-11",
+      "as_of": "2026-11-11T10:30:00Z",
+      "money_in": 38640,
+      "money_out": 16220,
+      "net": 22420,
+      "in_by_type": [
+        {
+          "type": "SALE",
+          "amount": 31240
+        },
+        {
+          "type": "PAYMENT",
+          "amount": 7400
+        }
+      ],
+      "out_by_type": [
+        {
+          "type": "PURCHASE",
+          "amount": 12800
+        },
+        {
+          "type": "EXPENSE",
+          "amount": 3420
+        }
+      ],
+      "accounts": [
+        {
+          "label": "[A1]",
+          "type": "CASH",
+          "money_in": 29640,
+          "money_out": 16220
+        },
+        {
+          "label": "[A2]",
+          "type": "BANK",
+          "money_in": 9000,
+          "money_out": 0
+        }
+      ],
+      "daybook_in": 35640,
+      "daybook_out": 16220,
+      "unlisted": [
+        {
+          "type": "PAYMENT",
+          "mode": "CREDIT_SALE",
+          "direction": "IN",
+          "amount": 3000
+        }
+      ],
+      "residual_in": 0,
+      "residual_out": 0
+    },
+    "payment_mix_month": {
+      "period_from": "2026-11-01",
+      "period_to": "2026-11-11",
+      "as_of": "2026-11-11T10:30:00Z",
+      "gross_sales": 186400,
+      "bill_count": 212,
+      "by_method": [
+        {
+          "method": "CASH",
+          "amount": 88200,
+          "bill_count": 120,
+          "share_pct": 47.3
+        },
+        {
+          "method": "UPI",
+          "amount": 55600,
+          "bill_count": 70,
+          "share_pct": 29.8
+        },
+        {
+          "method": "CREDIT",
+          "amount": 42600,
+          "bill_count": 22,
+          "share_pct": 22.9
+        }
+      ],
+      "unrecorded_amount": 0
     }
   },
   "stand_ins": {
@@ -745,6 +881,15 @@
       "[S3]": "Test Supplier 3",
       "[S4]": "Test Supplier 4",
       "[S5]": "Test Supplier 5"
+    },
+    "dues_overdue": {
+      "[C1]": "Test Customer 1",
+      "[C2]": "Test Customer 2",
+      "[C3]": "Test Customer 3"
+    },
+    "cash_today": {
+      "[A1]": "Test Cash",
+      "[A2]": "Test Bank"
     }
   },
   "cases": [
@@ -3435,6 +3580,286 @@
       "known_limit": false,
       "source": "hand_written",
       "baseline_guard": "pass"
+    },
+    {
+      "id": "dues_overdue-01",
+      "question_id": "dues_overdue",
+      "lang": "en",
+      "fixture": "dues_overdue",
+      "reply": "₹18,450.50 has been unpaid for over 60 days across 9 bills from 3 customers. [C1] owes the most of it, ₹11,300, with a bill unpaid for 142 days.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Every number is in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "dues_overdue-02",
+      "question_id": "dues_overdue",
+      "lang": "en",
+      "fixture": "dues_overdue",
+      "reply": "[C2] owes ₹5,650.50 and [C3] ₹1,500 from bills unpaid for over 60 days.",
+      "expected": "should_pass",
+      "rule": "stand_in",
+      "why": "Issued stand-ins with their own figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "dues_overdue-03",
+      "question_id": "dues_overdue",
+      "lang": "en",
+      "fixture": "dues_overdue",
+      "reply": "₹18,451 is unpaid for over 60 days, ₹3,200 of it for more than 120 days.",
+      "expected": "should_pass",
+      "rule": "rounding",
+      "why": "Whole-rupee rounding, and a bucket edge in age_bounds.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "dues_overdue-04",
+      "question_id": "dues_overdue",
+      "lang": "en",
+      "fixture": "dues_overdue",
+      "reply": "[C1] and [C2] together owe ₹16,950.50 from old bills.",
+      "expected": "should_fail",
+      "rule": "arithmetic",
+      "why": "A sum the model worked out.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail"
+    },
+    {
+      "id": "dues_overdue-05",
+      "question_id": "dues_overdue",
+      "lang": "en",
+      "fixture": "dues_overdue",
+      "reply": "[C4] has the oldest bill.",
+      "expected": "should_fail",
+      "rule": "stand_in",
+      "why": "A stand-in that was never issued.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail"
+    },
+    {
+      "id": "dues_overdue-06",
+      "question_id": "dues_overdue",
+      "lang": "en",
+      "fixture": "dues_overdue",
+      "reply": "₹18,450.50 is overdue by more than 60 days.",
+      "expected": "should_fail",
+      "rule": "banned_word",
+      "why": "No due dates exist, so nothing is overdue.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail"
+    },
+    {
+      "id": "dues_overdue-07",
+      "question_id": "dues_overdue",
+      "lang": "hi",
+      "fixture": "dues_overdue",
+      "reply": "60 दिन से ज़्यादा से ₹18,450.50 बाकी है, सबसे ज़्यादा [C1] पर ₹11,300।",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Hindi with Western digits and a stand-in.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "credit_sales_month-01",
+      "question_id": "credit_sales_month",
+      "lang": "en",
+      "fixture": "credit_sales_month",
+      "reply": "You sold ₹42,600 on credit across 14 bills from 1 to 11 November, 22.9% of your sales. ₹30,250 of it is still unpaid.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Every number and date is in the figures, and the share is given.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "credit_sales_month-02",
+      "question_id": "credit_sales_month",
+      "lang": "en",
+      "fixture": "credit_sales_month",
+      "reply": "₹12,350 has been collected so far and ₹2,140 is also unpaid on other bills this month.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Both figures are in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "credit_sales_month-03",
+      "question_id": "credit_sales_month",
+      "lang": "en",
+      "fixture": "credit_sales_month",
+      "reply": "About 71% of your credit sales are still unpaid.",
+      "expected": "should_fail",
+      "rule": "percent",
+      "why": "A share the model worked out itself.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail"
+    },
+    {
+      "id": "credit_sales_month-04",
+      "question_id": "credit_sales_month",
+      "lang": "en",
+      "fixture": "credit_sales_month",
+      "reply": "₹32,390 is unpaid on this month's bills.",
+      "expected": "should_fail",
+      "rule": "arithmetic",
+      "why": "credit_open plus other_open, added by the model.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail"
+    },
+    {
+      "id": "cash_today-01",
+      "question_id": "cash_today",
+      "lang": "en",
+      "fixture": "cash_today",
+      "reply": "₹38,640 came in today and ₹16,220 went out, so you are ₹22,420 up. Most came from sales, ₹31,240.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Every number is in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "cash_today-02",
+      "question_id": "cash_today",
+      "lang": "en",
+      "fixture": "cash_today",
+      "reply": "[A1] took in ₹29,640 and [A2] ₹9,000. The Day Book shows ₹35,640 in.",
+      "expected": "should_pass",
+      "rule": "stand_in",
+      "why": "Account stand-ins and the Day Book figure.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "cash_today-03",
+      "question_id": "cash_today",
+      "lang": "en",
+      "fixture": "cash_today",
+      "reply": "The Day Book shows ₹3,000 less than your accounts.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "The unlisted amount is in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "cash_today-04",
+      "question_id": "cash_today",
+      "lang": "en",
+      "fixture": "cash_today",
+      "reply": "You paid ₹12,800 to suppliers and ₹3,420 in expenses, ₹16,220 in all, leaving ₹22,000.",
+      "expected": "should_fail",
+      "rule": "number",
+      "why": "22,000 is not in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail"
+    },
+    {
+      "id": "cash_today-05",
+      "question_id": "cash_today",
+      "lang": "hi",
+      "fixture": "cash_today",
+      "reply": "आज ₹38,640 आया और ₹16,220 गया।",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Hindi with Western digits.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "payment_mix_month-01",
+      "question_id": "payment_mix_month",
+      "lang": "en",
+      "fixture": "payment_mix_month",
+      "reply": "Customers paid ₹88,200 in cash, 47.3% of ₹1,86,400 in sales. UPI was ₹55,600, 29.8%, and credit ₹42,600, 22.9%.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Shares from share_pct and amounts in Indian grouping.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "payment_mix_month-02",
+      "question_id": "payment_mix_month",
+      "lang": "en",
+      "fixture": "payment_mix_month",
+      "reply": "Cash and UPI together made up 77.1% of sales.",
+      "expected": "should_fail",
+      "rule": "percent",
+      "why": "A share the model added up itself.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail"
+    },
+    {
+      "id": "payment_mix_month-03",
+      "question_id": "payment_mix_month",
+      "lang": "en",
+      "fixture": "payment_mix_month",
+      "reply": "Sales were ₹1.86 lakh across 212 bills.",
+      "expected": "should_pass",
+      "rule": "lakh",
+      "why": "Lakh at 2 decimals.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "payment_mix_month-04",
+      "question_id": "payment_mix_month",
+      "lang": "en",
+      "fixture": "payment_mix_month",
+      "reply": "Cash was 48% of sales.",
+      "expected": "should_fail",
+      "rule": "rounding",
+      "why": "47.3 rounded to a whole percent does not match a figure.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail"
     }
   ],
   "baseline": {

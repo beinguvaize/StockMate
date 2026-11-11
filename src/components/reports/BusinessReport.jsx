@@ -34,6 +34,7 @@ import PLTieOut from './PLTieOut';
 import { SectionHead, StatStrip } from './ReportBits';
 import { isCountableSale, presetRange, priorRange, pctChange } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
+import { useLinkedRange } from '../../lib/linkedRange';
 
 /* ─── Date preset helpers ─────────────────────────────────────────────────── */
 /* ─── Mini sparkline ──────────────────────────────────────────────────────── */
@@ -104,8 +105,10 @@ const ChartTip = ({ active, payload, label }) => {
    MAIN COMPONENT
    ════════════════════════════════════════════════════════════════════════════ */
 const BusinessReport = () => {
-  const [preset, setPreset]   = useState('TODAY');
-  const [range,  setRange]    = useState(() => presetRange('TODAY'));
+  // Ask's answers link here with their own dates, so the report opens on them.
+  const linked = useLinkedRange();
+  const [preset, setPreset]   = useState(linked ? 'CUSTOM' : 'TODAY');
+  const [range,  setRange]    = useState(() => (linked ? { start: linked.from, end: linked.to } : presetRange('TODAY')));
   const [customStart, setCustomStart] = useState('');
   const [customEnd,   setCustomEnd]   = useState('');
   const [showCustom,  setShowCustom]  = useState(false);
