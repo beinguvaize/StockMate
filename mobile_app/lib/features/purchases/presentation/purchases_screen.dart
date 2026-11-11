@@ -17,7 +17,9 @@ import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_p
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/theme/typography.dart';
-import 'package:mobile_app/main.dart' show syncServiceProvider;
+import 'package:mobile_app/core/utils/price_check.dart';
+import 'package:mobile_app/core/widgets/price_check_dialog.dart';
+import 'package:mobile_app/main.dart' show syncServiceProvider, databaseProvider;
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 
@@ -657,11 +659,14 @@ class _PurchaseLine {
   final qtyCtrl       = TextEditingController();
   final unitPriceCtrl = TextEditingController();
   final totalCtrl     = TextEditingController();
+  // "Change it" on the price check puts the cursor back here.
+  final totalFocus    = FocusNode();
 
   void dispose() {
     qtyCtrl.dispose();
     unitPriceCtrl.dispose();
     totalCtrl.dispose();
+    totalFocus.dispose();
   }
 
   double get qtyVal   => double.tryParse(qtyCtrl.text) ?? 0;
@@ -1108,11 +1113,82 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
     if (picked != null) setState(() => _date = picked);
   }
 
+  // ── Price check: lines far from what the item last cost ─────────────────────
+  // A line against the wrong product looks like a normal line, so a price more
+  // than PriceCheck.pricePct away from the last purchase is asked about once
+  // before saving. Same rule and wording as the web form. It never blocks.
+
+  /// The purchase rows for these products, newest wins in PriceCheck. Online
+  /// first, like the rest of this sheet; offline, the phone's cached copy
+  /// (which carries no status, so a cancelled purchase can count there).
+  Future<List<Map<String, dynamic>>> _purchaseHistory(Set<String> productIds) async {
+    try {
+      final rows = await supabase
+          .from('purchases')
+          .select('id, linked_product_id, quantity, total_amount, date, created_at, status')
+          .eq('tenant_id', widget.tenantId)
+          .isFilter('deleted_at', null)
+          .inFilter('linked_product_id', productIds.toList())
+          .timeout(const Duration(seconds: 6));
+      return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (e) {
+      debugPrint('[purchases] price history online read failed, using local: $e');
+    }
+    try {
+      final db = ref.read(databaseProvider);
+      final local = await db.select(db.purchases).get();
+      return [
+        for (final p in local)
+          if (p.tenantId == widget.tenantId && productIds.contains(p.productId))
+            {
+              'id': p.id,
+              'linked_product_id': p.productId,
+              'quantity': p.quantity,
+              'total_amount': p.totalAmount,
+              'date': p.date,
+              'created_at': p.createdAt?.toIso8601String(),
+            },
+      ];
+    } catch (e) {
+      debugPrint('[purchases] price history local read failed: $e');
+      return const [];
+    }
+  }
+
+  /// True to go on saving; false when the user chose "Change it".
+  Future<bool> _pricesConfirmed(List<_PurchaseLine> lines) async {
+    final ids = {for (final l in lines) if (l.productId != null) l.productId!};
+    if (ids.isEmpty) return true;
+    final history = await _purchaseHistory(ids);
+    final flagged = PriceCheck.check([
+      for (var i = 0; i < lines.length; i++)
+        PriceCheckLine(
+          index: i,
+          productId: lines[i].productId,
+          name: _products.firstWhere((p) => p['id'] == lines[i].productId,
+                  orElse: () => const {'name': 'This item'})['name']?.toString() ?? 'This item',
+          quantity: lines[i].qtyVal,
+          total: lines[i].totalVal,
+        ),
+    ], history);
+    if (flagged.isEmpty || !mounted) return true;
+
+    final ok = await showPriceCheckDialog(context, flagged);
+    if (ok) return true;
+    if (mounted) lines[flagged.first.index].totalFocus.requestFocus();
+    return false;
+  }
+
   Future<void> _save() async {
     final validLines = _lines.where((l) => l.isValid).toList();
-    if (_supplierId == null || validLines.isEmpty) return;
+    if (_supplierId == null || validLines.isEmpty || _saving) return;
 
     setState(() => _saving = true);
+    if (!await _pricesConfirmed(validLines)) {
+      if (mounted) setState(() => _saving = false);
+      return;
+    }
+    if (!mounted) return;
     try {
       final currentUserId = supabase.auth.currentUser?.id;
       final dateStr = '${_date.year}-${_date.month.toString().padLeft(2,'0')}-${_date.day.toString().padLeft(2,'0')}';
@@ -1821,6 +1897,7 @@ class _LineItemCard extends StatelessWidget {
                 child: _MiniField(
                   label: 'TOTAL',
                   ctrl: line.totalCtrl,
+                  focusNode: line.totalFocus,
                   icon: LucideIcons.indianRupee,
                   onChanged: onTotalChange,
                 ),
@@ -1890,11 +1967,13 @@ class _MiniField extends StatelessWidget {
   final TextEditingController ctrl;
   final IconData icon;
   final ValueChanged<String>? onChanged;
+  final FocusNode? focusNode;
   const _MiniField({
     required this.label,
     required this.ctrl,
     required this.icon,
     this.onChanged,
+    this.focusNode,
   });
 
   @override
@@ -1916,6 +1995,7 @@ class _MiniField extends StatelessWidget {
           ),
           child: TextField(
             controller: ctrl,
+            focusNode: focusNode,
             onChanged: onChanged,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             style: AppText.label.copyWith(color: AppColors.inkPrimary),
