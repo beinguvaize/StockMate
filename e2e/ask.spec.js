@@ -596,3 +596,38 @@ test('categories open one at a time, and the open one follows the question asked
     await page.getByTestId('ask-panel').screenshot({ path: `${process.env.ASK_SHOTS}/ask-categories.png` });
   }
 });
+
+// ── Staff (ask-staff) ───────────────────────────────────────────────────────
+test('Staff: the category shows, its card renders with stand-in names swapped back, and the link opens Payroll attendance on that month', async ({ page }) => {
+  const f = {
+    period_from: '2026-10-01', period_to: '2026-10-31', as_of: 'x',
+    daily_staff: 2, daily_earned: 25200, daily_paid: 25200, daily_due: 0, due_total: 0, staff_due: 0, overpaid: 0, staff_overpaid: 0,
+    monthly_staff: 0, monthly_salaries: 0, monthly_paid: 0, monthly_unpaid_staff: 0,
+    paid_total: 25200, run_count: 14, paid_people: 2, other_paid: 0, other_people: 0, staff_count: 2,
+    staff: [
+      { employee_id: 'E1', name: 'Test Staff One', pay_type: 'DAILY', days: 14, earned: 12600, salary: null, paid: 12600, due: 0 },
+      { employee_id: 'E2', name: 'Test Staff Two', pay_type: 'DAILY', days: 14, earned: 12600, salary: null, paid: 12600, due: 0 },
+    ],
+    due_staff: [],
+  };
+  await open(page, { answer: () => ({ ...answerOf('en', { text: 'You paid Test Staff One and Test Staff Two ₹25,200 in all.' }), figures: f,
+    card: buildCard('payroll_month', f, strings.en),
+    screen: { key: 'payroll_attendance', fallback_key: null, mobile: false, params: { from: '2026-10-01', to: '2026-10-31' } } }) });
+  await openPanel(page);
+  const list = page.getByTestId('ask-list');
+  await expect(list.getByText('Staff', { exact: true })).toBeVisible();
+  await openCat(page, 'staff');
+  for (const id of ['payroll_month', 'salary_due', 'attendance_today', 'attendance_month']) await expect(question(page, id)).toBeVisible();
+  // Staff sits after Expenses and before Dues.
+  const cats = await list.locator('[data-cat]').evaluateAll((els) => els.map((e) => e.dataset.cat));
+  expect(cats.indexOf('staff')).toBe(cats.indexOf('expenses') + 1);
+  expect(cats.indexOf('dues')).toBe(cats.indexOf('staff') + 1);
+  await question(page, 'payroll_month').click();
+  const ans = page.getByTestId('ask-answer');
+  await expect(page.getByTestId('ask-hero')).toHaveText('₹25,200.00');
+  await expect(ans).toContainText('Paid to staff, 1 to 31 Oct, 14 pay runs');
+  await expect(ans).toContainText('Test Staff One');
+  await ans.getByRole('button', { name: /Open Payroll attendance/ }).click();
+  await expect(page).toHaveURL(/\/payroll\?tab=ATTENDANCE&from=2026-10-01&to=2026-10-31/);
+  await expect(page.getByText('October 2026', { exact: true })).toBeVisible();
+});

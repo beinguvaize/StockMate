@@ -100,6 +100,18 @@
       "screen": { "key": "reports_expenses", "fallback_key": null, "module": "reports", "mobile": false } },
     { "id": "expenses_vs_last", "category": "expenses", "module": "expenses", "roles": ["OWNER"],
       "label": { "en": "Did I spend more than last month?", "hi": "क्या मैंने पिछले महीने से ज़्यादा खर्च किया?" },
-      "screen": { "key": "reports_expenses", "fallback_key": null, "module": "reports", "mobile": false } }
+      "screen": { "key": "reports_expenses", "fallback_key": null, "module": "reports", "mobile": false } },
+    { "id": "payroll_month", "category": "staff", "module": "payroll", "roles": ["OWNER"],
+      "label": { "en": "How much is my staff pay this month?", "hi": "इस महीने मेरे स्टाफ़ का वेतन कितना है?" },
+      "screen": { "key": "payroll_attendance", "fallback_key": null, "module": "payroll", "mobile": false } },
+    { "id": "salary_due", "category": "staff", "module": "payroll", "roles": ["OWNER"],
+      "label": { "en": "Whose pay is still unpaid?", "hi": "किसका वेतन अभी बाकी है?" },
+      "screen": { "key": "payroll_attendance", "fallback_key": null, "module": "payroll", "mobile": false } },
+    { "id": "attendance_today", "category": "staff", "module": "payroll", "roles": ["OWNER"],
+      "label": { "en": "Who is absent today?", "hi": "आज कौन ग़ैरहाज़िर है?" },
+      "screen": { "key": "payroll_attendance", "fallback_key": null, "module": "payroll", "mobile": false } },
+    { "id": "attendance_month", "category": "staff", "module": "payroll", "roles": ["OWNER"],
+      "label": { "en": "Who missed the most days this month?", "hi": "इस महीने कौन सबसे ज़्यादा दिन ग़ैरहाज़िर रहा?" },
+      "screen": { "key": "payroll_attendance", "fallback_key": null, "module": "payroll", "mobile": false } }
   ]
 }

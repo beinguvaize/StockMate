@@ -76,7 +76,8 @@
    ],
    "on_fine_review": "",
    "category_purchases": "Purchases & suppliers",
-   "category_expenses": "Expenses"
+   "category_expenses": "Expenses",
+   "category_staff": "Staff"
   },
   "card": {
    "sales": "Sales",
@@ -204,7 +205,31 @@
    "gst_sales_total": "GST on these sales",
    "gst_returns": "Less GST on returns",
    "gst_after_returns": "GST after returns",
-   "gst_no_lines": "Bills with no line detail, {n}"
+   "gst_no_lines": "Bills with no line detail, {n}",
+   "staff": "Staff",
+   "staff_days": "Days",
+   "staff_earned": "Earned",
+   "staff_earned_or_salary": "Earned or salary",
+   "staff_paid": "Paid",
+   "staff_due": "Still due",
+   "staff_monthly": "Monthly",
+   "staff_daily_earned": "Daily-wage staff earned",
+   "staff_daily_paid": "Paid to them",
+   "staff_still_to_pay": "Still to pay",
+   "staff_monthly_salaries": "Monthly salaries, {n} staff",
+   "staff_monthly_paid": "Paid to monthly staff",
+   "staff_other_paid": "Paid to {n} staff no longer listed",
+   "staff_paid_total": "Paid this month, all pay runs",
+   "staff_total_due": "Total still due",
+   "att_today": "Today's mark",
+   "att_present": "Present",
+   "att_overtime": "Overtime",
+   "att_half_day": "Half day",
+   "att_absent": "Absent",
+   "att_not_marked": "Not marked",
+   "att_other": "Other mark",
+   "att_absent_days": "Absent days",
+   "att_half_days": "Half days"
   },
   "hero": {
    "sales_today": {
@@ -337,6 +362,24 @@
    "gst_by_rate": {
     "caption": "GST on your sales by rate, {from} to {to}",
     "not_set": "{n} lines worth {value} have no GST rate set"
+   },
+   "payroll_month": {
+    "caption": "Paid to staff, {from} to {to}, {runs} pay runs",
+    "detail": "{due} still to pay daily-wage staff"
+   },
+   "salary_due": {
+    "caption": "Still due to {n} daily-wage staff, {from} to {to}",
+    "none": "No daily-wage pay is due for {from} to {to}"
+   },
+   "attendance_today": {
+    "unit": "absent",
+    "caption": "{date}, of {n} daily-wage staff"
+   },
+   "attendance_month": {
+    "unit": "days missed",
+    "caption": "{absent} absent and {half} half days, {from} to {to}",
+    "detail": "{n} of {of} daily-wage staff missed a day",
+    "none": "No one of {of} daily-wage staff was marked absent"
    }
   },
   "titles": {
@@ -372,7 +415,11 @@
    "fast_movers_low": "Best sellers running low",
    "gst_itc_month": "GST on purchases this month",
    "gst_net_month": "Rough GST this month",
-   "gst_by_rate": "Sales by GST rate"
+   "gst_by_rate": "Sales by GST rate",
+   "payroll_month": "Staff pay this month",
+   "salary_due": "Staff pay still due",
+   "attendance_today": "Attendance today",
+   "attendance_month": "Days missed this month"
   },
   "notes": {
    "gst_collected": "GST on your sales, from your books. This is before input credit and is not a filing figure.",
@@ -382,7 +429,11 @@
    "fast_movers_low": "Best sellers are your top {top} items by units sold since {from}. One is running low when its stock is at or below its low-stock limit, or it has {cover} days or fewer left. Days left is stock divided by units sold over {days} days, as Days Cover on Fast / Slow Movers.",
    "gst_itc_month": "Your purchases do not store GST. This card and the Purchase Register take it as 18% of each bill total. From your books, not a filing figure.",
    "gst_net_month": "A rough estimate from your books, not what to file or pay. GST on purchases is taken as 18% of each bill total, as the Purchase Register does.",
-   "gst_by_rate": "From the GST rate stored on each bill line. A line with no rate set is shown on its own and is never counted at 18%. Not a filing figure."
+   "gst_by_rate": "From the GST rate stored on each bill line. A line with no rate set is shown on its own and is never counted at 18%. Not a filing figure.",
+   "payroll_month": "As the Payroll screen's Attendance tab counts it: daily wages from the days marked, and every pay run whose dates end this month.",
+   "salary_due": "Each amount is the Attendance tab's Still due: wages for the days marked, less what was paid in this month's pay runs.",
+   "attendance_today": "Attendance is marked for daily-wage staff on the Payroll screen's Attendance tab.",
+   "attendance_month": "A half day counts as half a missed day. Days is the Attendance tab's Days column."
   },
   "footnotes": {
    "top_items": "Top {shown} of {n} items sold this month. By sales value, not margin.",
@@ -447,7 +498,15 @@
    "gst_by_rate": "Before GST adds up the bill lines; bill totals can differ by bill discounts and round-off.",
    "gst_by_rate_not_set": "GSTR-3B counts a line with no rate set as 18%, so it shows GST on these lines that your bills never charged.",
    "gst_by_rate_more": "The rates add up to {gap} more than the total: your bills round GST once per bill.",
-   "gst_by_rate_less": "The rates add up to {gap} less than the total: your bills round GST once per bill."
+   "gst_by_rate_less": "The rates add up to {gap} less than the total: your bills round GST once per bill.",
+   "payroll_month_outside": "The Attendance tab's footer counts daily-wage staff only: {daily} of the {total} paid.",
+   "payroll_month_monthly": "{amount} went to monthly-salary staff, listed apart on the tab.",
+   "payroll_month_other": "{amount} went to {n} staff no longer active, whom the tab does not list.",
+   "staff_overpaid": "{n} staff were paid {amount} more than they earned this month; the footer takes that off Still to pay.",
+   "salary_due_footer": "The Attendance tab's footer reads {screen}: it takes off {amount} paid beyond earned to {n} staff.",
+   "salary_due_monthly": "{n} monthly-salary staff are not counted: the Payroll screen shows no amount due for them. {unpaid} of them have no pay run this month yet.",
+   "attendance_off_grid": "{n} marks today are for staff the Attendance tab does not list (monthly-salary, inactive or removed) and are not counted.",
+   "attendance_off_grid_month": "{n} marks this month are for staff the Attendance tab does not list (monthly-salary, inactive or removed) and are not counted."
   },
   "links": {
    "reports_daily_sales": "Open Daily Sales",
@@ -470,7 +529,8 @@
    "reports_customer_aging": "Open Customer Aging",
    "reports_business": "Open Business Report",
    "reports_sales_by_party": "Open Sales by Party",
-   "reports_product_movement": "Open Fast / Slow Movers"
+   "reports_product_movement": "Open Fast / Slow Movers",
+   "payroll_attendance": "Open Payroll attendance"
   },
   "methods": {
    "CASH": "Cash",
@@ -503,7 +563,11 @@
    "returns_month": "No sales returns this month.",
    "stock_value": "No products in your books yet.",
    "out_of_stock": "Nothing is at zero or below right now.",
-   "fast_movers_low": "No sales in the last 30 days, so there are no best sellers yet."
+   "fast_movers_low": "No sales in the last 30 days, so there are no best sellers yet.",
+   "payroll_month": "No active staff and no pay runs this month.",
+   "salary_due": "No active staff on the Payroll screen.",
+   "attendance_today": "No daily-wage staff to mark attendance for.",
+   "attendance_month": "No attendance marked for daily-wage staff this month."
   },
   "months_short": [
    "Jan",
@@ -633,7 +697,8 @@
    ],
    "on_fine_review": "NEEDS NATIVE HINDI REVIEW",
    "category_purchases": "खरीद और सप्लायर",
-   "category_expenses": "खर्च"
+   "category_expenses": "खर्च",
+   "category_staff": "स्टाफ़"
   },
   "card": {
    "sales": "बिक्री",
@@ -761,7 +826,31 @@
    "gst_sales_total": "इन बिक्री पर GST",
    "gst_returns": "वापसी पर GST घटाया",
    "gst_after_returns": "वापसी के बाद GST",
-   "gst_no_lines": "बिना लाइन ब्योरे वाले बिल, {n}"
+   "gst_no_lines": "बिना लाइन ब्योरे वाले बिल, {n}",
+   "staff": "स्टाफ़",
+   "staff_days": "दिन",
+   "staff_earned": "कमाया",
+   "staff_earned_or_salary": "कमाया या वेतन",
+   "staff_paid": "दिया",
+   "staff_due": "बाकी",
+   "staff_monthly": "मासिक",
+   "staff_daily_earned": "दिहाड़ी स्टाफ़ ने कमाया",
+   "staff_daily_paid": "उन्हें दिया",
+   "staff_still_to_pay": "अभी देना बाकी",
+   "staff_monthly_salaries": "मासिक वेतन, {n} स्टाफ़",
+   "staff_monthly_paid": "मासिक स्टाफ़ को दिया",
+   "staff_other_paid": "सूची से हटे {n} स्टाफ़ को दिया",
+   "staff_paid_total": "इस महीने दिया, सभी पे रन",
+   "staff_total_due": "कुल बाकी",
+   "att_today": "आज की हाज़िरी",
+   "att_present": "हाज़िर",
+   "att_overtime": "ओवरटाइम",
+   "att_half_day": "आधा दिन",
+   "att_absent": "ग़ैरहाज़िर",
+   "att_not_marked": "दर्ज नहीं",
+   "att_other": "अन्य",
+   "att_absent_days": "ग़ैरहाज़िर दिन",
+   "att_half_days": "आधे दिन"
   },
   "hero": {
    "sales_today": {
@@ -894,6 +983,24 @@
    "gst_by_rate": {
     "caption": "दर के हिसाब से आपकी बिक्री पर GST, {from} से {to}",
     "not_set": "{value} की {n} लाइनों पर GST दर तय नहीं है"
+   },
+   "payroll_month": {
+    "caption": "स्टाफ़ को दिया, {from} से {to}, {runs} पे रन",
+    "detail": "दिहाड़ी स्टाफ़ को {due} अभी देना बाकी"
+   },
+   "salary_due": {
+    "caption": "{n} दिहाड़ी स्टाफ़ का बाकी, {from} से {to}",
+    "none": "{from} से {to} का कोई दिहाड़ी वेतन बाकी नहीं"
+   },
+   "attendance_today": {
+    "unit": "ग़ैरहाज़िर",
+    "caption": "{date}, {n} दिहाड़ी स्टाफ़ में से"
+   },
+   "attendance_month": {
+    "unit": "दिन छूटे",
+    "caption": "{absent} ग़ैरहाज़िर और {half} आधे दिन, {from} से {to}",
+    "detail": "{of} में से {n} दिहाड़ी स्टाफ़ का कोई दिन छूटा",
+    "none": "{of} दिहाड़ी स्टाफ़ में से कोई ग़ैरहाज़िर दर्ज नहीं"
    }
   },
   "titles": {
@@ -929,7 +1036,11 @@
    "fast_movers_low": "ज़्यादा बिकने वाले आइटम जो कम बचे हैं",
    "gst_itc_month": "इस महीने खरीद पर GST",
    "gst_net_month": "इस महीने का मोटा GST",
-   "gst_by_rate": "GST दर के हिसाब से बिक्री"
+   "gst_by_rate": "GST दर के हिसाब से बिक्री",
+   "payroll_month": "इस महीने स्टाफ़ का वेतन",
+   "salary_due": "स्टाफ़ का बाकी वेतन",
+   "attendance_today": "आज की हाज़िरी",
+   "attendance_month": "इस महीने छूटे दिन"
   },
   "notes": {
    "gst_collected": "आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले का है और फ़ाइलिंग का आँकड़ा नहीं है।",
@@ -939,7 +1050,11 @@
    "fast_movers_low": "{from} से बिकी इकाइयों के हिसाब से आपके टॉप {top} आइटम ज़्यादा बिकने वाले हैं। कोई आइटम कम बचा तब माना जाता है जब उसका स्टॉक कम-स्टॉक सीमा पर या उससे नीचे हो, या उसके {cover} दिन या उससे कम बचे हों। बचे दिन = स्टॉक ÷ {days} दिनों में बिकी इकाइयाँ, जैसा Fast / Slow Movers पर Days Cover में है।",
    "gst_itc_month": "आपकी खरीद में GST दर्ज नहीं होता। यह कार्ड और Purchase Register हर बिल के कुल का 18% GST मानते हैं। आपके खातों से, फ़ाइलिंग का आँकड़ा नहीं।",
    "gst_net_month": "आपके खातों से एक मोटा अंदाज़ा, यह नहीं कि क्या फ़ाइल करना या भरना है। खरीद पर GST हर बिल के कुल का 18% माना गया है, जैसे Purchase Register मानता है।",
-   "gst_by_rate": "हर बिल लाइन पर दर्ज GST दर से। जिस लाइन की दर तय नहीं है वह अलग दिखती है और कभी 18% पर नहीं गिनी जाती। फ़ाइलिंग का आँकड़ा नहीं।"
+   "gst_by_rate": "हर बिल लाइन पर दर्ज GST दर से। जिस लाइन की दर तय नहीं है वह अलग दिखती है और कभी 18% पर नहीं गिनी जाती। फ़ाइलिंग का आँकड़ा नहीं।",
+   "payroll_month": "जैसा Payroll स्क्रीन का Attendance टैब गिनता है: दर्ज दिनों से दिहाड़ी, और वे सभी पे रन जिनकी तारीख़ें इस महीने ख़त्म होती हैं।",
+   "salary_due": "हर रक़म Attendance टैब का Still due है: दर्ज दिनों की दिहाड़ी, इस महीने के पे रन में दिए पैसे घटाकर।",
+   "attendance_today": "हाज़िरी Payroll स्क्रीन के Attendance टैब पर दिहाड़ी स्टाफ़ के लिए दर्ज होती है।",
+   "attendance_month": "आधा दिन आधा छूटा दिन गिना जाता है। दिन, Attendance टैब का Days कॉलम है।"
   },
   "footnotes": {
    "top_items": "इस महीने बिके {n} आइटम में से शीर्ष {shown}। बिक्री रकम के हिसाब से, मार्जिन के नहीं।",
@@ -1004,7 +1119,15 @@
    "gst_by_rate": "GST से पहले की रकम बिल लाइनों का जोड़ है; बिल के कुल में बिल छूट और राउंड-ऑफ़ से फ़र्क हो सकता है।",
    "gst_by_rate_not_set": "GSTR-3B बिना दर वाली लाइन को 18% पर गिनता है, इसलिए वह इन लाइनों पर ऐसा GST दिखाता है जो आपके बिलों ने कभी नहीं लिया।",
    "gst_by_rate_more": "दरों का जोड़ कुल से {gap} ज़्यादा है: आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।",
-   "gst_by_rate_less": "दरों का जोड़ कुल से {gap} कम है: आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।"
+   "gst_by_rate_less": "दरों का जोड़ कुल से {gap} कम है: आपके बिल GST को पूरे बिल पर एक बार राउंड करते हैं।",
+   "payroll_month_outside": "Attendance टैब का फ़ुटर सिर्फ़ दिहाड़ी स्टाफ़ गिनता है: दिए गए {total} में से {daily}।",
+   "payroll_month_monthly": "{amount} मासिक वेतन वाले स्टाफ़ को गया, जो टैब पर अलग दिखते हैं।",
+   "payroll_month_other": "{amount} उन {n} स्टाफ़ को गया जो अब सक्रिय नहीं हैं और टैब पर नहीं दिखते।",
+   "staff_overpaid": "{n} स्टाफ़ को इस महीने कमाई से {amount} ज़्यादा दिया गया; फ़ुटर इसे बाकी में से घटाता है।",
+   "salary_due_footer": "Attendance टैब का फ़ुटर {screen} दिखाता है: वह {n} स्टाफ़ को कमाई से ज़्यादा दिए {amount} घटा देता है।",
+   "salary_due_monthly": "{n} मासिक वेतन वाले स्टाफ़ नहीं गिने गए: Payroll स्क्रीन उनका कोई बाकी नहीं दिखाती। उनमें से {unpaid} का इस महीने अभी कोई पे रन नहीं हुआ।",
+   "attendance_off_grid": "आज के {n} निशान उन स्टाफ़ के हैं जो Attendance टैब पर नहीं दिखते (मासिक, निष्क्रिय या हटाए गए), इसलिए नहीं गिने गए।",
+   "attendance_off_grid_month": "इस महीने के {n} निशान उन स्टाफ़ के हैं जो Attendance टैब पर नहीं दिखते (मासिक, निष्क्रिय या हटाए गए), इसलिए नहीं गिने गए।"
   },
   "links": {
    "reports_daily_sales": "Daily Sales खोलें",
@@ -1027,7 +1150,8 @@
    "reports_customer_aging": "Customer Aging खोलें",
    "reports_business": "Business Report खोलें",
    "reports_sales_by_party": "Sales by Party खोलें",
-   "reports_product_movement": "Fast / Slow Movers खोलें"
+   "reports_product_movement": "Fast / Slow Movers खोलें",
+   "payroll_attendance": "Payroll हाज़िरी खोलें"
   },
   "methods": {
    "CASH": "नकद",
@@ -1060,7 +1184,11 @@
    "returns_month": "इस महीने कोई बिक्री वापसी नहीं।",
    "stock_value": "आपके खातों में अभी कोई प्रोडक्ट नहीं।",
    "out_of_stock": "अभी कुछ भी शून्य या उससे नीचे नहीं है।",
-   "fast_movers_low": "पिछले 30 दिनों में कोई बिक्री नहीं, इसलिए अभी कोई ज़्यादा बिकने वाला आइटम नहीं।"
+   "fast_movers_low": "पिछले 30 दिनों में कोई बिक्री नहीं, इसलिए अभी कोई ज़्यादा बिकने वाला आइटम नहीं।",
+   "payroll_month": "इस महीने न कोई सक्रिय स्टाफ़ है, न कोई पे रन।",
+   "salary_due": "Payroll स्क्रीन पर कोई सक्रिय स्टाफ़ नहीं है।",
+   "attendance_today": "हाज़िरी के लिए कोई दिहाड़ी स्टाफ़ नहीं है।",
+   "attendance_month": "इस महीने दिहाड़ी स्टाफ़ की कोई हाज़िरी दर्ज नहीं हुई।"
   },
   "months_short": [
    "जनवरी",
@@ -1354,7 +1482,63 @@
    "footnotes.gst_by_rate",
    "footnotes.gst_by_rate_not_set",
    "footnotes.gst_by_rate_more",
-   "footnotes.gst_by_rate_less"
+   "footnotes.gst_by_rate_less",
+   "ui.category_staff",
+   "card.staff",
+   "card.staff_days",
+   "card.staff_earned",
+   "card.staff_earned_or_salary",
+   "card.staff_paid",
+   "card.staff_due",
+   "card.staff_monthly",
+   "card.staff_daily_earned",
+   "card.staff_daily_paid",
+   "card.staff_still_to_pay",
+   "card.staff_monthly_salaries",
+   "card.staff_monthly_paid",
+   "card.staff_other_paid",
+   "card.staff_paid_total",
+   "card.staff_total_due",
+   "card.att_today",
+   "card.att_present",
+   "card.att_overtime",
+   "card.att_half_day",
+   "card.att_absent",
+   "card.att_not_marked",
+   "card.att_other",
+   "card.att_absent_days",
+   "card.att_half_days",
+   "hero.payroll_month.caption",
+   "hero.payroll_month.detail",
+   "hero.salary_due.caption",
+   "hero.salary_due.none",
+   "hero.attendance_today.unit",
+   "hero.attendance_today.caption",
+   "hero.attendance_month.unit",
+   "hero.attendance_month.caption",
+   "hero.attendance_month.detail",
+   "hero.attendance_month.none",
+   "titles.payroll_month",
+   "titles.salary_due",
+   "titles.attendance_today",
+   "titles.attendance_month",
+   "notes.payroll_month",
+   "notes.salary_due",
+   "notes.attendance_today",
+   "notes.attendance_month",
+   "footnotes.payroll_month_outside",
+   "footnotes.payroll_month_monthly",
+   "footnotes.payroll_month_other",
+   "footnotes.staff_overpaid",
+   "footnotes.salary_due_footer",
+   "footnotes.salary_due_monthly",
+   "footnotes.attendance_off_grid",
+   "footnotes.attendance_off_grid_month",
+   "links.payroll_attendance",
+   "no_data_by_question.payroll_month",
+   "no_data_by_question.salary_due",
+   "no_data_by_question.attendance_today",
+   "no_data_by_question.attendance_month"
   ]
  }
 }

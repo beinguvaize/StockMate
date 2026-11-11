@@ -31,6 +31,21 @@ export function gstScreenChecks(f: Record<string, any>): string[] {
   return failed;
 }
 
+/**
+ * One row per staff member, as the Attendance tab lists them: a daily-wage row
+ * has its Days, wage earned, paid and still due; a monthly row its fixed salary
+ * and what was paid, with no days and nothing due (the tab shows none).
+ */
+function staffTable(staff: any[], L: Record<string, string>, col: (k: string, kind: Kind, right?: boolean) => any) {
+  if (!staff?.length) return null;
+  return {
+    columns: [col("staff", "text", false), col("staff_days", "text"), col("staff_earned_or_salary", "money"), col("staff_paid", "money"), col("staff_due", "money")],
+    rows: staff.map((s: any) => s.pay_type === "MONTHLY"
+      ? [s.name, L.staff_monthly, s.salary, s.paid, null]
+      : [s.name, count(Number(s.days)), s.earned, s.paid, s.due]),
+  };
+}
+
 export function buildCard(id: string, f: Record<string, any>, strings: any, empty = false) {
   const L = strings.card as Record<string, string>;
   const H = strings.hero[id] ?? {};
@@ -523,6 +538,95 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
       const gap = Math.round((Number(f.rows_gst) - Number(f.sales_gst)) * 100) / 100;
       if (Math.abs(gap) >= 0.01) lines.push(fill(gap > 0 ? N.gst_by_rate_more : N.gst_by_rate_less, { gap: inr(Math.abs(gap)) }));
       footnote = lines.join(" ");
+      break;
+    }
+    // ── staff (ask-staff) ──────────────────────────────────────────────────
+    // Every figure is the Payroll screen's Attendance tab for the same month.
+    case "payroll_month": {
+      const N = strings.footnotes;
+      value = f.paid_total;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to), runs: count(f.run_count) });
+      if (Number(f.daily_staff) > 0) detail = fill(H.detail, { due: inr(Number(f.daily_due)) });
+      if (Number(f.daily_staff) > 0) {
+        rows = [row("staff_daily_earned", f.daily_earned, "money"), row("staff_daily_paid", f.daily_paid, "money"),
+          row("staff_still_to_pay", f.daily_due, "money", "total")];
+      }
+      if (Number(f.monthly_staff) > 0) {
+        rows.push({ label: fill(L.staff_monthly_salaries, { n: count(f.monthly_staff) }), value: f.monthly_salaries, kind: "money" },
+          row("staff_monthly_paid", f.monthly_paid, "money"));
+      }
+      if (Number(f.other_paid) > 0) rows.push({ label: fill(L.staff_other_paid, { n: count(f.other_people) }), value: f.other_paid, kind: "money" });
+      table = staffTable(f.staff, L, col);
+      rowsAfter = [row("staff_paid_total", f.paid_total, "money", "total")];
+      // The tab's footer is daily-wage staff only: name what else is in the total.
+      const lines: string[] = [];
+      const outside = Math.round((Number(f.paid_total) - Number(f.daily_paid)) * 100) / 100;
+      if (Math.abs(outside) >= 0.01) {
+        lines.push(fill(N.payroll_month_outside, { daily: inr(Number(f.daily_paid)), total: inr(Number(f.paid_total)) }));
+        if (Number(f.monthly_paid) > 0) lines.push(fill(N.payroll_month_monthly, { amount: inr(Number(f.monthly_paid)) }));
+        if (Number(f.other_paid) > 0) lines.push(fill(N.payroll_month_other, { amount: inr(Number(f.other_paid)), n: count(f.other_people) }));
+      }
+      if (Number(f.overpaid) > 0) lines.push(fill(N.staff_overpaid, { amount: inr(Number(f.overpaid)), n: count(f.staff_overpaid) }));
+      if (f.staff.length < Number(f.staff_count)) lines.push(fill(N.list_capped, { shown: count(f.staff.length), n: count(f.staff_count) }));
+      footnote = lines.join(" ") || null;
+      break;
+    }
+    case "salary_due": {
+      const N = strings.footnotes;
+      value = f.due_total;
+      caption = Number(f.staff_due) > 0
+        ? fill(H.caption, { n: count(f.staff_due), from: lead(f.period_from, f.period_to), to: day(f.period_to) })
+        : fill(H.none, { from: lead(f.period_from, f.period_to), to: day(f.period_to) });
+      table = f.due_staff.length
+        ? { columns: [col("staff", "text", false), col("staff_days", "count"), col("staff_earned", "money"), col("staff_paid", "money"), col("staff_due", "money")],
+          rows: f.due_staff.map((s: any) => [s.name, s.days, s.earned, s.paid, s.due]) }
+        : null;
+      rowsAfter = [row("staff_total_due", f.due_total, "money", "total")];
+      const lines: string[] = [];
+      // The rows are the tab's "Still due" column; its footer nets off overpaid staff.
+      if (Number(f.overpaid) > 0) {
+        lines.push(fill(N.salary_due_footer, { screen: inr(Number(f.daily_due)), amount: inr(Number(f.overpaid)), n: count(f.staff_overpaid) }));
+      }
+      if (Number(f.monthly_staff) > 0) {
+        lines.push(fill(N.salary_due_monthly, { n: count(f.monthly_staff), unpaid: count(f.monthly_unpaid_staff) }));
+      }
+      if (f.due_staff.length < Number(f.staff_due)) lines.push(fill(N.list_capped, { shown: count(f.due_staff.length), n: count(f.staff_due) }));
+      footnote = lines.join(" ") || null;
+      break;
+    }
+    case "attendance_today": {
+      const N = strings.footnotes;
+      value = f.absent; kind = "count"; unit = H.unit;
+      caption = fill(H.caption, { date: day(f.period_from), n: count(f.staff_count) });
+      rows = [row("att_present", f.present, "count")];
+      if (Number(f.overtime) > 0) rows.push(row("att_overtime", f.overtime, "count"));
+      rows.push(row("att_half_day", f.half_day, "count"), row("att_absent", f.absent, "count"), row("att_not_marked", f.not_marked, "count"));
+      if (Number(f.other_mark) > 0) rows.push(row("att_other", f.other_mark, "count"));
+      const status = (s: string) => L[`att_${String(s).toLowerCase()}`] ?? L.att_other;
+      table = f.staff.length
+        ? { columns: [col("staff", "text", false), col("att_today", "text")],
+          rows: f.staff.map((s: any) => [s.name, status(s.status)]),
+          tones: f.staff.map((s: any) => (s.status === "ABSENT" ? "strong" : null)) }
+        : null;
+      const lines: string[] = [];
+      if (Number(f.marks_off_grid) > 0) lines.push(fill(N.attendance_off_grid, { n: count(f.marks_off_grid) }));
+      if (f.staff.length < Number(f.away_count)) lines.push(fill(N.list_capped, { shown: count(f.staff.length), n: count(f.away_count) }));
+      footnote = lines.join(" ") || null;
+      break;
+    }
+    case "attendance_month": {
+      const N = strings.footnotes;
+      value = f.missed_days; kind = "days"; unit = H.unit;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to), absent: count(f.absent_days), half: count(f.half_days) });
+      detail = Number(f.staff_missed) > 0 ? fill(H.detail, { n: count(f.staff_missed), of: count(f.staff_count) }) : fill(H.none, { of: count(f.staff_count) });
+      table = f.staff.length
+        ? { columns: [col("staff", "text", false), col("att_absent_days", "count"), col("att_half_days", "count"), col("staff_days", "count")],
+          rows: f.staff.map((s: any) => [s.name, s.absent, s.half_days, s.days]) }
+        : null;
+      const lines: string[] = [];
+      if (Number(f.marks_off_grid) > 0) lines.push(fill(N.attendance_off_grid_month, { n: count(f.marks_off_grid) }));
+      if (f.staff.length < Number(f.staff_missed)) lines.push(fill(N.list_capped, { shown: count(f.staff.length), n: count(f.staff_missed) }));
+      footnote = lines.join(" ") || null;
       break;
     }
     default:

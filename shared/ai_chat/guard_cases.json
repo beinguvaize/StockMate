@@ -13,7 +13,7 @@
     "judgement": "True when the label is a policy choice. Flip it deliberately, not to make a test pass.",
     "known_limit": "True when the reply is wrong but only a check beyond numbers could catch it.",
     "baseline_guard": "What checkReply returned at the commit in baseline.guard_commit. Filled by a script. A mismatch with expected is a tuning target.",
-    "ruling_changes": "cash_bank-06 was flipped to should_fail by Lead ruling. profit_month-13, collections_week-14 and top_dues-18 stopped being known limits when the guard gained the checks that catch them. baseline_guard still records commit 11ebd5c. The 19 purchases_month, supplier_dues, top_suppliers and cost_up cases were added on branch ask-purchases; their baseline_guard is the guard at that branch, not 11ebd5c. The 20 dues_overdue, credit_sales_month, cash_today and payment_mix_month cases were added on branch ask-dues-cash; their baseline_guard is the guard at that branch."
+    "ruling_changes": "cash_bank-06 was flipped to should_fail by Lead ruling. profit_month-13, collections_week-14 and top_dues-18 stopped being known limits when the guard gained the checks that catch them. baseline_guard still records commit 11ebd5c. The 19 purchases_month, supplier_dues, top_suppliers and cost_up cases were added on branch ask-purchases; their baseline_guard is the guard at that branch, not 11ebd5c. The 20 dues_overdue, credit_sales_month, cash_today and payment_mix_month cases were added on branch ask-dues-cash; their baseline_guard is the guard at that branch. The 24 payroll_month, salary_due, attendance_today and attendance_month cases were added on branch ask-staff; their baseline_guard is the guard at that branch, which reads \"half day\" and \"आधा दिन\" as an attendance mark, not an amount."
   },
   "fixtures": {
     "sales_today": {
@@ -1267,6 +1267,141 @@
       ],
       "output_gst": 11783.13,
       "returns_gst": 0
+    },
+    "payroll_month": {
+      "period_from": "2026-11-01",
+      "period_to": "2026-11-30",
+      "as_of": "2026-11-11T10:30:00Z",
+      "daily_staff": 3,
+      "daily_earned": 9150,
+      "daily_paid": 8100,
+      "daily_due": 1050,
+      "due_total": 1950,
+      "staff_due": 2,
+      "overpaid": 900,
+      "staff_overpaid": 1,
+      "monthly_staff": 1,
+      "monthly_salaries": 12000,
+      "monthly_paid": 6000,
+      "monthly_unpaid_staff": 0,
+      "paid_total": 14600,
+      "run_count": 5,
+      "paid_people": 4,
+      "other_paid": 500,
+      "other_people": 1,
+      "staff_count": 4,
+      "staff": [
+        {
+          "name": "[P1]",
+          "pay_type": "DAILY",
+          "days": 6.5,
+          "earned": 5850,
+          "salary": null,
+          "paid": 4500,
+          "due": 1350
+        },
+        {
+          "name": "[P2]",
+          "pay_type": "DAILY",
+          "days": 3,
+          "earned": 2700,
+          "salary": null,
+          "paid": 2100,
+          "due": 600
+        },
+        {
+          "name": "[P3]",
+          "pay_type": "DAILY",
+          "days": 1,
+          "earned": 600,
+          "salary": null,
+          "paid": 1500,
+          "due": 0
+        },
+        {
+          "name": "[P4]",
+          "pay_type": "MONTHLY",
+          "days": 0,
+          "earned": null,
+          "salary": 12000,
+          "paid": 6000,
+          "due": null
+        }
+      ],
+      "due_staff": [
+        {
+          "name": "[P1]",
+          "days": 6.5,
+          "earned": 5850,
+          "paid": 4500,
+          "due": 1350
+        },
+        {
+          "name": "[P2]",
+          "days": 3,
+          "earned": 2700,
+          "paid": 2100,
+          "due": 600
+        }
+      ]
+    },
+    "attendance_today": {
+      "period_from": "2026-11-11",
+      "period_to": "2026-11-11",
+      "as_of": "2026-11-11T10:30:00Z",
+      "staff_count": 4,
+      "present": 1,
+      "overtime": 0,
+      "half_day": 1,
+      "absent": 1,
+      "not_marked": 1,
+      "other_mark": 0,
+      "marks_off_grid": 0,
+      "away_count": 3,
+      "staff": [
+        {
+          "name": "[P1]",
+          "status": "ABSENT"
+        },
+        {
+          "name": "[P2]",
+          "status": "HALF_DAY"
+        },
+        {
+          "name": "[P3]",
+          "status": "NOT_MARKED"
+        }
+      ]
+    },
+    "attendance_month": {
+      "period_from": "2026-10-01",
+      "period_to": "2026-10-31",
+      "as_of": "2026-10-20T10:30:00Z",
+      "staff_count": 4,
+      "marked_days": 31,
+      "absent_days": 3,
+      "half_days": 1,
+      "missed_days": 3.5,
+      "staff_missed": 2,
+      "marks_off_grid": 0,
+      "staff": [
+        {
+          "name": "[P1]",
+          "absent": 2,
+          "half_days": 1,
+          "missed_days": 2.5,
+          "days": 12.5,
+          "marked": 15
+        },
+        {
+          "name": "[P2]",
+          "absent": 1,
+          "half_days": 0,
+          "missed_days": 1,
+          "days": 14,
+          "marked": 15
+        }
+      ]
     }
   },
   "stand_ins": {
@@ -1335,6 +1470,21 @@
       "[C1]": "Test Customer 1",
       "[C2]": "Test Customer 2",
       "[C3]": "Test Customer 3"
+    },
+    "payroll_month": {
+      "[P1]": "Test Staff 1",
+      "[P2]": "Test Staff 2",
+      "[P3]": "Test Staff 3",
+      "[P4]": "Test Staff 4"
+    },
+    "attendance_today": {
+      "[P1]": "Test Staff 1",
+      "[P2]": "Test Staff 2",
+      "[P3]": "Test Staff 3"
+    },
+    "attendance_month": {
+      "[P1]": "Test Staff 1",
+      "[P2]": "Test Staff 2"
     }
   },
   "cases": [
@@ -5089,6 +5239,342 @@
       "known_limit": false,
       "source": "hand_written",
       "baseline_guard": "fail:number:28%"
+    },
+    {
+      "id": "payroll_month-01",
+      "question_id": "payroll_month",
+      "lang": "en",
+      "fixture": "payroll_month",
+      "reply": "You paid your staff ₹14,600 this month across 5 pay runs. ₹1,050 is still to pay your daily-wage staff.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Given.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "payroll_month-02",
+      "question_id": "payroll_month",
+      "lang": "en",
+      "fixture": "payroll_month",
+      "reply": "Your daily-wage staff earned ₹9,150 and you have paid them ₹8,100.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Given.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "payroll_month-03",
+      "question_id": "payroll_month",
+      "lang": "en",
+      "fixture": "payroll_month",
+      "reply": "Your staff cost you ₹21,150 this month.",
+      "expected": "should_fail",
+      "rule": "number",
+      "why": "A sum the model worked out: earned plus fixed salaries.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:21150"
+    },
+    {
+      "id": "payroll_month-04",
+      "question_id": "payroll_month",
+      "lang": "en",
+      "fixture": "payroll_month",
+      "reply": "[P4] has been paid ₹6,000 of a ₹12,000 salary.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Given, with a stand-in.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "payroll_month-05",
+      "question_id": "payroll_month",
+      "lang": "en",
+      "fixture": "payroll_month",
+      "reply": "[P4] is still owed ₹6,000 of salary.",
+      "expected": "should_fail",
+      "rule": "meaning",
+      "why": "Wrong in meaning: the card shows nothing due for monthly staff. 6000 is a figure, so a number check cannot see it.",
+      "judgement": true,
+      "known_limit": true,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "payroll_month-06",
+      "question_id": "payroll_month",
+      "lang": "en",
+      "fixture": "payroll_month",
+      "reply": "You paid ₹14.6 thousand, about half of it to [P4].",
+      "expected": "should_fail",
+      "rule": "spelled",
+      "why": "A share the figures do not hold.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:spelled:half"
+    },
+    {
+      "id": "payroll_month-07",
+      "question_id": "payroll_month",
+      "lang": "hi",
+      "fixture": "payroll_month",
+      "reply": "इस महीने आपने स्टाफ़ को 5 पे रन में ₹14,600 दिए। दिहाड़ी स्टाफ़ को ₹1,050 देना बाकी है।",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Given, in Hindi.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "payroll_month-08",
+      "question_id": "payroll_month",
+      "lang": "en",
+      "fixture": "payroll_month",
+      "reply": "[P1]'s pay is overdue by ₹1,350.",
+      "expected": "should_fail",
+      "rule": "banned",
+      "why": "Nothing in these books has a due date.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:banned:overdue"
+    },
+    {
+      "id": "salary_due-01",
+      "question_id": "salary_due",
+      "lang": "en",
+      "fixture": "payroll_month",
+      "reply": "[P1] is owed ₹1,350 and [P2] ₹600, ₹1,950 in all.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Given.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "salary_due-02",
+      "question_id": "salary_due",
+      "lang": "en",
+      "fixture": "payroll_month",
+      "reply": "[P1] is owed the most, ₹1,350, for 6.5 days worked.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Given, a half day in the days figure.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "salary_due-03",
+      "question_id": "salary_due",
+      "lang": "en",
+      "fixture": "payroll_month",
+      "reply": "[P1] and [P2] are owed ₹1,960.",
+      "expected": "should_fail",
+      "rule": "number",
+      "why": "A total the figures do not hold.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:1960"
+    },
+    {
+      "id": "salary_due-04",
+      "question_id": "salary_due",
+      "lang": "en",
+      "fixture": "payroll_month",
+      "reply": "[P5] is still waiting for ₹600.",
+      "expected": "should_fail",
+      "rule": "stand_in",
+      "why": "A stand-in that was never issued.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:unknown_stand_in:[P5]"
+    },
+    {
+      "id": "salary_due-05",
+      "question_id": "salary_due",
+      "lang": "hi",
+      "fixture": "payroll_month",
+      "reply": "[P1] का ₹1,350 और [P2] का ₹600 बाकी है।",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Given, in Hindi.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "attendance_today-01",
+      "question_id": "attendance_today",
+      "lang": "en",
+      "fixture": "attendance_today",
+      "reply": "[P1] is absent today and [P2] is on a half day. [P3] has not been marked yet.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "A half day is a mark, not an amount.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "attendance_today-02",
+      "question_id": "attendance_today",
+      "lang": "en",
+      "fixture": "attendance_today",
+      "reply": "1 of your 4 daily-wage staff is absent on 11 Nov.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Given.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "attendance_today-03",
+      "question_id": "attendance_today",
+      "lang": "en",
+      "fixture": "attendance_today",
+      "reply": "Half your staff are away today.",
+      "expected": "should_fail",
+      "rule": "spelled",
+      "why": "A share the figures do not hold.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:spelled:half"
+    },
+    {
+      "id": "attendance_today-04",
+      "question_id": "attendance_today",
+      "lang": "en",
+      "fixture": "attendance_today",
+      "reply": "2 people are absent today.",
+      "expected": "should_fail",
+      "rule": "number",
+      "why": "2 is not in the figures: 1 is absent.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:2"
+    },
+    {
+      "id": "attendance_today-05",
+      "question_id": "attendance_today",
+      "lang": "hi",
+      "fixture": "attendance_today",
+      "reply": "आज [P1] ग़ैरहाज़िर है और [P2] का आधा दिन है।",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Given, in Hindi; आधा दिन is a mark.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "attendance_today-06",
+      "question_id": "attendance_today",
+      "lang": "en",
+      "fixture": "attendance_today",
+      "reply": "On 12 Nov [P1] was absent.",
+      "expected": "should_fail",
+      "rule": "date",
+      "why": "A date not in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:date:12 Nov"
+    },
+    {
+      "id": "attendance_month-01",
+      "question_id": "attendance_month",
+      "lang": "en",
+      "fixture": "attendance_month",
+      "reply": "[P1] missed the most, 2.5 days: 2 absent days and 1 half day.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Given.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "attendance_month-02",
+      "question_id": "attendance_month",
+      "lang": "en",
+      "fixture": "attendance_month",
+      "reply": "Your staff missed 3.5 days from 1 to 31 Oct.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "Given.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "attendance_month-03",
+      "question_id": "attendance_month",
+      "lang": "en",
+      "fixture": "attendance_month",
+      "reply": "[P1] worked 12.5 days and [P2] 14 days.",
+      "expected": "should_pass",
+      "rule": "exact",
+      "why": "The Days column, given.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "attendance_month-04",
+      "question_id": "attendance_month",
+      "lang": "en",
+      "fixture": "attendance_month",
+      "reply": "[P1] missed twice as many days as [P2].",
+      "expected": "should_fail",
+      "rule": "spelled",
+      "why": "A ratio the model worked out.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:spelled:twice"
+    },
+    {
+      "id": "attendance_month-05",
+      "question_id": "attendance_month",
+      "lang": "en",
+      "fixture": "attendance_month",
+      "reply": "Your staff worked 26.5 days in all.",
+      "expected": "should_fail",
+      "rule": "number",
+      "why": "A sum the model worked out.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:number:26.5"
     }
   ],
   "baseline": {

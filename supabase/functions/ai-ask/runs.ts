@@ -1,7 +1,7 @@
 // Runs each question's reads with the caller's JWT. Dates are worked out here,
 // so a client can never choose them. A failed read throws: it is never a zero.
 import { gstScreenChecks } from "./cards.ts";
-import { addDays, changePct, lastMonth, mondayOf, monthStart, priorWindow, sameDaysLastMonth, sameDaysLastWeek } from "./periods.ts";
+import { addDays, changePct, lastMonth, mondayOf, monthEnd, monthStart, priorWindow, sameDaysLastMonth, sameDaysLastWeek } from "./periods.ts";
 
 export class ReadFailed extends Error {}
 
@@ -349,9 +349,55 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
         empty: Number(f.bill_count) === 0,
       };
     }
+    // ── staff (ask-staff) ────────────────────────────────────────────────
+    // All four tie to the Payroll screen's Attendance tab for the whole
+    // calendar month, the window that tab shows. The link opens that month.
+    case "payroll_month":
+    case "salary_due": {
+      const from = monthStart(today);
+      const to = monthEnd(today);
+      const f = await staffPay(db, from, to);
+      return {
+        figures: f,
+        params: { from, to },
+        empty: Number(f.staff_count) === 0 && Number(f.run_count) === 0,
+      };
+    }
+    case "attendance_today": {
+      const f = await rpc(db, "ai_staff_attendance_day", { p_day: today, p_limit: 30 });
+      if (!f || !Array.isArray(f.staff)) throw new ReadFailed("ai_staff_attendance_day: no figures");
+      return { figures: f, params: { from: monthStart(today), to: monthEnd(today) }, empty: Number(f.staff_count) === 0 };
+    }
+    case "attendance_month": {
+      const from = monthStart(today);
+      const to = monthEnd(today);
+      const f = await rpc(db, "ai_staff_attendance_month", { p_from: from, p_to: to, p_limit: 20 });
+      if (!f || !Array.isArray(f.staff)) throw new ReadFailed("ai_staff_attendance_month: no figures");
+      return {
+        figures: { ...f, staff: f.staff.filter((s: any) => Number(s.missed_days) > 0) },
+        params: { from, to },
+        empty: Number(f.staff_count) === 0 || Number(f.marked_days) === 0,
+      };
+    }
     default:
       throw new ReadFailed(`no reads for ${id}`);
   }
+}
+
+// ── staff helpers ──────────────────────────────────────────────────────────
+/**
+ * ai_staff_pay, less the salary-expense cross-check: that figure belongs to the
+ * Expenses report, not the Payroll screen the card links to, so it never
+ * reaches the card or the model. A gap between the two is logged, not shown.
+ */
+async function staffPay(db: any, from: string, to: string) {
+  const f = await rpc(db, "ai_staff_pay", { p_from: from, p_to: to, p_limit: 20 });
+  if (!f || !Array.isArray(f.staff) || !Array.isArray(f.due_staff)) throw new ReadFailed("ai_staff_pay: no figures");
+  const { salary_expenses, salary_expense_count: _n, ...rest } = f;
+  if (Math.abs(Number(salary_expenses) - Number(f.paid_total)) >= 0.01) {
+    console.warn("[ai-ask] pay runs and salary expenses differ:", Number(f.paid_total), Number(salary_expenses));
+  }
+  return rest;
 }
 
 // ── expenses helpers ───────────────────────────────────────────────────────
