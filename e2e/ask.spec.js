@@ -105,7 +105,11 @@ test('questions sit under category headings, with the month usage line', async (
   await openPanel(page);
   const list = page.getByTestId('ask-list');
   for (const h of ['Sales', 'Stock', 'Purchases & suppliers', 'Dues', 'Cash', 'GST']) await expect(list.getByText(h, { exact: true })).toBeVisible();
-  await expect(list.getByRole('button')).toHaveCount(registry.questions.filter((q) => !q.hidden).length);
+  // One category open at a time: every heading is a button, and only the open
+  // category's questions are in the list.
+  const shown = registry.questions.filter((q) => !q.hidden);
+  await expect(list.locator('[data-cat]')).toHaveCount(new Set(shown.map((q) => q.category)).size);
+  await expect(list.locator('[data-q]')).toHaveCount(shown.filter((q) => q.category === 'sales').length);
   await expect(question(page, 'expiring_stock')).toHaveCount(0);
   await expect(page.getByTestId('ask-usage')).toHaveText('63 of 100 explanations used in November. Figures never count.');
 });
@@ -265,13 +269,13 @@ test('phone: Back returns to the list where the owner left it, and nothing scrol
   await page.getByTestId('ask-entry-mobile').click();
   const panel = page.getByTestId('ask-panel');
   await expect(panel).toBeVisible();
-  await openCat(page, 'gst');
-  await expect(question(page, 'gst_gaps')).toBeAttached();
+  await openCat(page, 'sales');
+  await expect(question(page, 'sales_today')).toBeAttached();
 
   const scroller = panel.locator('.ask-b');
-  await scroller.evaluate((el) => { el.scrollTop = 500; });
+  await scroller.evaluate((el) => { el.scrollTop = 200; });
   const before = await scroller.evaluate((el) => el.scrollTop);
-  expect(before).toBeGreaterThan(100);
+  expect(before).toBeGreaterThan(50);
 
   await question(page, 'sales_today').scrollIntoViewIfNeeded();
   const at = await scroller.evaluate((el) => el.scrollTop);
@@ -331,7 +335,7 @@ for (const [qid, key, tab, from, to] of LINKED) {
   test(`${qid}: the link opens ${tab} on the answer's own dates`, async ({ page }) => {
     await open(page, { answer: (b) => ({ ...answerOf(b.lang), screen: { key, fallback_key: null, mobile: true, params: { from, to } } }) });
     await openPanel(page);
-    await question(page, qid).click();
+    await pick(page, qid);
     await page.getByTestId('ask-answer').getByRole('button', { name: /^Open / }).click();
     await expect(page).toHaveURL(new RegExp(`tab=${tab}&from=${from}&to=${to}`));
     // The report shows the same period: in its date fields or its period line.
@@ -548,7 +552,7 @@ for (const [qid, from, to] of [['credit_sales_month', '2026-11-01', '2026-11-11'
   test(`${qid}: the link opens the Business Report on the answer's own dates`, async ({ page }) => {
     await open(page, { answer: (b) => ({ ...answerOf(b.lang), screen: { key: 'reports_business', fallback_key: 'sales', mobile: false, params: { from, to } } }) });
     await openPanel(page);
-    await question(page, qid).click();
+    await pick(page, qid);
     await page.getByTestId('ask-answer').getByRole('button', { name: /Open Business Report/ }).click();
     await expect(page).toHaveURL(new RegExp(`tab=BUSINESS&from=${from}&to=${to}`));
     await expect(page.getByText(`${from} → ${to}`)).toBeVisible();
@@ -595,4 +599,39 @@ test('categories open one at a time, and the open one follows the question asked
     await openCat(page, 'stock');
     await page.getByTestId('ask-panel').screenshot({ path: `${process.env.ASK_SHOTS}/ask-categories.png` });
   }
+});
+
+// ── Staff (ask-staff) ───────────────────────────────────────────────────────
+test('Staff: the category shows, its card renders with stand-in names swapped back, and the link opens Payroll attendance on that month', async ({ page }) => {
+  const f = {
+    period_from: '2026-10-01', period_to: '2026-10-31', as_of: 'x',
+    daily_staff: 2, daily_earned: 25200, daily_paid: 25200, daily_due: 0, due_total: 0, staff_due: 0, overpaid: 0, staff_overpaid: 0,
+    monthly_staff: 0, monthly_salaries: 0, monthly_paid: 0, monthly_unpaid_staff: 0,
+    paid_total: 25200, run_count: 14, paid_people: 2, other_paid: 0, other_people: 0, staff_count: 2,
+    staff: [
+      { employee_id: 'E1', name: 'Test Staff One', pay_type: 'DAILY', days: 14, earned: 12600, salary: null, paid: 12600, due: 0 },
+      { employee_id: 'E2', name: 'Test Staff Two', pay_type: 'DAILY', days: 14, earned: 12600, salary: null, paid: 12600, due: 0 },
+    ],
+    due_staff: [],
+  };
+  await open(page, { answer: () => ({ ...answerOf('en', { text: 'You paid Test Staff One and Test Staff Two ₹25,200 in all.' }), figures: f,
+    card: buildCard('payroll_month', f, strings.en),
+    screen: { key: 'payroll_attendance', fallback_key: null, mobile: false, params: { from: '2026-10-01', to: '2026-10-31' } } }) });
+  await openPanel(page);
+  const list = page.getByTestId('ask-list');
+  await expect(list.getByText('Staff', { exact: true })).toBeVisible();
+  await openCat(page, 'staff');
+  for (const id of ['payroll_month', 'salary_due', 'attendance_today', 'attendance_month']) await expect(question(page, id)).toBeVisible();
+  // Staff sits after Expenses and before Dues.
+  const cats = await list.locator('[data-cat]').evaluateAll((els) => els.map((e) => e.dataset.cat));
+  expect(cats.indexOf('staff')).toBe(cats.indexOf('expenses') + 1);
+  expect(cats.indexOf('dues')).toBe(cats.indexOf('staff') + 1);
+  await question(page, 'payroll_month').click();
+  const ans = page.getByTestId('ask-answer');
+  await expect(page.getByTestId('ask-hero')).toHaveText('₹25,200.00');
+  await expect(ans).toContainText('Paid to staff, 1 to 31 Oct, 14 pay runs');
+  await expect(ans).toContainText('Test Staff One');
+  await ans.getByRole('button', { name: /Open Payroll attendance/ }).click();
+  await expect(page).toHaveURL(/\/payroll\?tab=ATTENDANCE&from=2026-10-01&to=2026-10-31/);
+  await expect(page.getByText('October 2026', { exact: true })).toBeVisible();
 });

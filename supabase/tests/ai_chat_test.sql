@@ -14,6 +14,8 @@
 --                quota stops at the plan's limit; both tables are outside
 --                shop backups and have no trigger.
 --   7. READ-ONLY every read function runs inside a read-only transaction.
+--  12. STAFF     ai_staff_pay, ai_staff_attendance_day and _month: shape, no
+--                HR fields, the Attendance tab's rules, isolation, staff refused.
 --  11. GST       ai_gst_input, ai_gst_by_rate and ai_gst_home_state: shape,
 --                isolation, admin, staff and soft deletes.
 --
@@ -817,6 +819,184 @@ BEGIN
   INSERT INTO _ai_results (check_name) VALUES ('dues_cash_staff_refused');
 END $t$;
 
+-- ── 12. staff (ask-staff): payroll and attendance ──────────────────────────
+-- Its own shape check, fixtures and reads. Shop A gets daily-wage, monthly,
+-- deleted and inactive staff with attendance and pay runs; shop B a sentinel.
+-- Every figure is checked as a change from a first read, so real rows in the
+-- shop do not matter. payroll.period/items, attendance.custom_rate and
+-- expenses.payroll_id are written only where the column exists (dev lags).
+DO $t$
+DECLARE
+  k_fns text[] := ARRAY['ai_staff_pay','ai_staff_attendance_day','ai_staff_attendance_month'];
+  r record; n int;
+  v_ua text := current_setting('ai_test.ua'); v_ub text := current_setting('ai_test.ub');
+  v_a uuid := current_setting('ai_test.a')::uuid; v_b uuid := current_setting('ai_test.b')::uuid;
+  v_day date := current_setting('ai_test.day')::date;
+  v_from date := date_trunc('month', current_setting('ai_test.day')::date)::date;
+  v_to date := (date_trunc('month', current_setting('ai_test.day')::date) + interval '1 month' - interval '1 day')::date;
+  v_d2 date; v_runs boolean; v_rate boolean; v_xp boolean; v_wage numeric;
+  p0 jsonb; p jsonb; d0 jsonb; d jsonb; m0 jsonb; m jsonb; s text; a1 jsonb; a2 jsonb;
+BEGIN
+  SELECT count(*) INTO n FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname = ANY(k_fns);
+  IF n <> 3 THEN RAISE EXCEPTION 'STAFF SHAPE: expected 3 functions with one signature each, found %', n; END IF;
+  FOR r IN SELECT p.oid, p.proname, p.provolatile, p.prosecdef, p.prosrc, pg_get_function_identity_arguments(p.oid) AS args
+             FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname = ANY(k_fns) LOOP
+    IF r.provolatile <> 's' OR r.prosecdef OR r.args ~* 'tenant' THEN RAISE EXCEPTION 'STAFF SHAPE: % is not STABLE INVOKER without a tenant argument', r.proname; END IF;
+    IF r.prosrc ~* '\m(insert\s+into|update\s+public|delete\s+from|truncate)\M' THEN RAISE EXCEPTION 'STAFF SHAPE: % contains DML', r.proname; END IF;
+    IF r.prosrc !~ 'ai_owner_tenant\(\)' THEN RAISE EXCEPTION 'STAFF SHAPE: % does not resolve the owner', r.proname; END IF;
+    -- No HR or statutory field is ever named, let alone selected.
+    IF r.prosrc ~* '\m(phone|email|address|bank_account|ifsc|upi|pan|aadhaar|uan|pf_account|esi_no|dob|emergency_contact|blood_group|gender|notes|user_id|employee_code)\M'
+       OR r.prosrc ~* '\me\.\*|to_jsonb\(e\)|row_to_json\(e\)' THEN
+      RAISE EXCEPTION 'STAFF SHAPE: % names a private employee column', r.proname;
+    END IF;
+    IF has_function_privilege('anon', r.oid, 'EXECUTE') OR NOT has_function_privilege('authenticated', r.oid, 'EXECUTE') THEN
+      RAISE EXCEPTION 'STAFF SHAPE: wrong grants on %', r.proname;
+    END IF;
+  END LOOP;
+  IF has_function_privilege('anon', 'public.ai_payroll_period_end(text)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.ai_jsonb_num(text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'STAFF SHAPE: anon can execute a staff helper';
+  END IF;
+  IF public.ai_payroll_period_end('2026-02') <> '2026-02-28' OR public.ai_payroll_period_end('2026-08-21/2026-08-17') <> '2026-08-21'
+     OR public.ai_payroll_period_end('junk') IS NOT NULL OR public.ai_jsonb_num('12.5') <> 12.5 OR public.ai_jsonb_num('x') <> 0 THEN
+    RAISE EXCEPTION 'STAFF SHAPE: a period or number is read wrongly';
+  END IF;
+
+  v_d2 := CASE WHEN v_day = v_from THEN v_from + 1 ELSE v_from END;
+  v_runs := (SELECT count(*) = 2 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'payroll' AND column_name IN ('period', 'items'));
+  v_rate := EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'attendance' AND column_name = 'custom_rate');
+  v_xp := EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'payroll_id');
+
+  PERFORM pg_temp.act_as(v_ua);
+  p0 := public.ai_staff_pay(v_from, v_to, 100);
+  d0 := public.ai_staff_attendance_day(v_day, 100);
+  m0 := public.ai_staff_attendance_month(v_from, v_to, 100);
+  PERFORM pg_temp.back();
+
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO employees (id, tenant_id, name, status, pay_type, daily_rate, salary, phone, email, bank_account) VALUES
+    ('AITEST-EMP-A1', v_a, 'AITEST Worker A1', 'ACTIVE', 'DAILY', 500, 0, '9876500001', 'a1@aitest.invalid', 'AITESTBANK0001'),
+    ('AITEST-EMP-A2', v_a, 'AITEST Worker A2', 'ACTIVE', 'hourly', 300, 0, '9876500002', NULL, NULL),
+    ('AITEST-EMP-A3', v_a, 'AITEST Monthly A3', 'ACTIVE', 'MONTHLY', 0, 12000, NULL, NULL, NULL),
+    ('AITEST-EMP-A4', v_a, 'AITEST Deleted A4', 'ACTIVE', 'DAILY', 700, 0, NULL, NULL, NULL),
+    ('AITEST-EMP-A5', v_a, 'AITEST Inactive A5', 'INACTIVE', 'DAILY', 800, 0, NULL, NULL, NULL),
+    ('AITEST-EMP-B1', v_b, 'AITEST Worker B1', 'ACTIVE', 'DAILY', 999, 0, NULL, NULL, NULL);
+  UPDATE employees SET deleted_at = now() WHERE id = 'AITEST-EMP-A4';
+  INSERT INTO attendance (tenant_id, employee_id, day, status) VALUES
+    (v_a, 'AITEST-EMP-A1', v_day, 'PRESENT'), (v_a, 'AITEST-EMP-A1', v_d2, 'HALF_DAY'),
+    (v_a, 'AITEST-EMP-A2', v_day, 'ABSENT'), (v_a, 'AITEST-EMP-A2', v_d2, 'PRESENT'),
+    (v_a, 'AITEST-EMP-A4', v_day, 'PRESENT'), (v_b, 'AITEST-EMP-B1', v_day, 'ABSENT');
+  UPDATE attendance SET deleted_at = now() WHERE employee_id = 'AITEST-EMP-A2' AND day = v_d2;
+  IF v_rate THEN
+    EXECUTE 'UPDATE attendance SET custom_rate = 600 WHERE employee_id = $1 AND day = $2' USING 'AITEST-EMP-A1', v_d2;
+  END IF;
+  IF v_runs THEN
+    EXECUTE 'INSERT INTO payroll (id, tenant_id, period, items, deleted_at) VALUES
+      ($1, $2, $3, $4::jsonb, NULL), ($5, $2, $3, $6::jsonb, now()), ($7, $2, $8, $9::jsonb, NULL)'
+      USING 'AITEST-PR-A1', v_a, v_from::text || '/' || v_to::text,
+            '[{"employeeId":"AITEST-EMP-A1","netPay":200},{"employeeId":"AITEST-EMP-A3","netPay":5000},{"employeeId":"AITEST-EMP-A4","netPay":100},{"employeeId":"AITEST-EMP-A2","netPay":0}]',
+            'AITEST-PR-A2', '[{"employeeId":"AITEST-EMP-A1","netPay":9999}]',
+            'AITEST-PR-A3', to_char(v_to + 1, 'YYYY-MM'), '[{"employeeId":"AITEST-EMP-A1","netPay":7777}]';
+    EXECUTE 'INSERT INTO payroll (id, tenant_id, period, items) VALUES ($1, $2, $3, $4::jsonb)'
+      USING 'AITEST-PR-B1', v_b, v_from::text || '/' || v_to::text, '[{"employeeId":"AITEST-EMP-B1","netPay":4444.44}]';
+  END IF;
+  IF v_xp THEN
+    INSERT INTO expenses (id, tenant_id, category, amount, note, date, payroll_id)
+    VALUES ('AITEST-E-PR1', v_a, 'Salary', 5300, 'Payroll AITEST', v_to::text, 'AITEST-PR-A1');
+  END IF;
+  SET LOCAL session_replication_role = origin;
+
+  PERFORM pg_temp.act_as(v_ua);
+  p := public.ai_staff_pay(v_from, v_to, 100);
+  d := public.ai_staff_attendance_day(v_day, 100);
+  m := public.ai_staff_attendance_month(v_from, v_to, 100);
+  PERFORM pg_temp.back();
+  s := p::text || d::text || m::text;
+
+  -- Privacy: no HR field and nothing of B, of a deleted or of an inactive employee.
+  IF s ~ '98765000' OR s ~ 'aitest\.invalid' OR s ~ 'AITESTBANK' THEN RAISE EXCEPTION 'STAFF: a phone, email or bank account was returned'; END IF;
+  IF s ~ 'AITEST (Worker B1|Deleted A4|Inactive A5)' OR s ~ '4444\.44' THEN RAISE EXCEPTION 'STAFF: a deleted, inactive or other shop''s employee was returned'; END IF;
+
+  -- Pay, as the Attendance tab reckons it.
+  SELECT x INTO a1 FROM jsonb_array_elements(p -> 'staff') x WHERE x ->> 'name' = 'AITEST Worker A1';
+  SELECT x INTO a2 FROM jsonb_array_elements(p -> 'staff') x WHERE x ->> 'name' = 'AITEST Worker A2';
+  -- 1 day at 500, and half a day at its own 600 (or 500 where there is no custom_rate).
+  v_wage := 750 + (CASE WHEN v_rate THEN 50 ELSE 0 END);
+  IF (a1 ->> 'days')::numeric <> 1.5 OR (a1 ->> 'earned')::numeric <> v_wage THEN
+    RAISE EXCEPTION 'STAFF: A1 days or wage wrong: %', a1;
+  END IF;
+  IF (a2 ->> 'days')::numeric <> 0 OR (a2 ->> 'earned')::numeric <> 0 THEN RAISE EXCEPTION 'STAFF: a deleted or absent day was paid: %', a2; END IF;
+  IF (p ->> 'daily_staff')::int - (p0 ->> 'daily_staff')::int <> 2 OR (p ->> 'monthly_staff')::int - (p0 ->> 'monthly_staff')::int <> 1
+     OR (p ->> 'monthly_salaries')::numeric - (p0 ->> 'monthly_salaries')::numeric <> 12000 THEN
+    RAISE EXCEPTION 'STAFF: staff counted wrongly (% -> %)', p0, p;
+  END IF;
+  IF v_runs THEN
+    IF (a1 ->> 'paid')::numeric <> 200 OR (a1 ->> 'due')::numeric <> (a1 ->> 'earned')::numeric - 200 THEN
+      RAISE EXCEPTION 'STAFF: A1 paid or due wrong (deleted or next month''s run counted?): %', a1;
+    END IF;
+    IF (p ->> 'paid_total')::numeric - (p0 ->> 'paid_total')::numeric <> 5300
+       OR (p ->> 'monthly_paid')::numeric - (p0 ->> 'monthly_paid')::numeric <> 5000
+       OR (p ->> 'other_paid')::numeric - (p0 ->> 'other_paid')::numeric <> 100 THEN
+      RAISE EXCEPTION 'STAFF: pay runs not counted exactly (% -> %)', p0, p;
+    END IF;
+    IF (p ->> 'daily_due')::numeric <> GREATEST((p ->> 'daily_earned')::numeric - (p ->> 'daily_paid')::numeric, 0) THEN
+      RAISE EXCEPTION 'STAFF: the footer figure is not the Attendance tab''s';
+    END IF;
+  END IF;
+  IF v_xp AND (p ->> 'salary_expenses')::numeric - (p0 ->> 'salary_expenses')::numeric <> 5300 THEN
+    RAISE EXCEPTION 'STAFF: salary expenses not read';
+  END IF;
+
+  -- Today, and the month.
+  IF (d ->> 'present')::int - (d0 ->> 'present')::int <> 1 OR (d ->> 'absent')::int - (d0 ->> 'absent')::int <> 1
+     OR (d ->> 'marks_off_grid')::int - (d0 ->> 'marks_off_grid')::int <> 1 THEN
+    RAISE EXCEPTION 'STAFF: today''s marks counted wrongly (% -> %)', d0, d;
+  END IF;
+  IF NOT (d -> 'staff') @> '[{"name": "AITEST Worker A2", "status": "ABSENT"}]' OR (d -> 'staff') @> '[{"name": "AITEST Worker A1"}]' THEN
+    RAISE EXCEPTION 'STAFF: today''s list is wrong';
+  END IF;
+  IF (m ->> 'absent_days')::int - (m0 ->> 'absent_days')::int <> 1 OR (m ->> 'half_days')::int - (m0 ->> 'half_days')::int <> 1
+     OR (m ->> 'missed_days')::numeric - (m0 ->> 'missed_days')::numeric <> 1.5 THEN
+    RAISE EXCEPTION 'STAFF: the month''s missed days are wrong (% -> %)', m0, m;
+  END IF;
+  IF NOT (m -> 'staff') @> '[{"name": "AITEST Worker A1", "half_days": 1, "days": 1.5, "missed_days": 0.5}]' THEN
+    RAISE EXCEPTION 'STAFF: A1''s month row is wrong';
+  END IF;
+
+  -- A capped list keeps every total.
+  PERFORM pg_temp.act_as(v_ua);
+  p0 := public.ai_staff_pay(v_from, v_to, 1);
+  m0 := public.ai_staff_attendance_month(v_from, v_to, 1);
+  PERFORM pg_temp.back();
+  IF jsonb_array_length(p0 -> 'staff') <> 1 OR p0 ->> 'daily_earned' <> p ->> 'daily_earned' OR p0 ->> 'paid_total' <> p ->> 'paid_total'
+     OR jsonb_array_length(m0 -> 'staff') <> 1 OR m0 ->> 'missed_days' <> m ->> 'missed_days' THEN
+    RAISE EXCEPTION 'STAFF: a capped list changed a total, or was not capped';
+  END IF;
+
+  -- The other shop sees none of A's.
+  PERFORM pg_temp.act_as(v_ub);
+  s := public.ai_staff_pay(v_from, v_to, 100)::text || public.ai_staff_attendance_day(v_day, 100)::text
+    || public.ai_staff_attendance_month(v_from, v_to, 100)::text;
+  PERFORM pg_temp.back();
+  IF s ~ 'AITEST (Worker|Monthly) A' THEN RAISE EXCEPTION 'STAFF: owner B can see shop A'; END IF;
+
+  -- Staff are refused: nobody but the owner sees colleagues' pay.
+  UPDATE users SET roles = ARRAY['STAFF'] WHERE id = v_ua;
+  FOREACH s IN ARRAY ARRAY['SELECT public.ai_staff_pay($1, $2, 10)', 'SELECT public.ai_staff_attendance_day($1, 10)',
+                           'SELECT public.ai_staff_attendance_month($1, $2, 10)'] LOOP
+    PERFORM pg_temp.act_as(v_ua);
+    BEGIN
+      EXECUTE s USING v_from, v_to;
+      PERFORM pg_temp.back();
+      RAISE EXCEPTION 'STAFF_NOT_REFUSED %', s;
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
+  END LOOP;
+  PERFORM pg_temp.back();
+  UPDATE users SET roles = ARRAY['OWNER'] WHERE id = v_ua;
+  INSERT INTO _ai_results (check_name) VALUES ('staff');
+END $t$;
+
 -- ── 7. read-only ───────────────────────────────────────────────────────────
 -- A function that wrote would fail here. Last, because it cannot be undone
 -- inside the transaction.
@@ -844,6 +1024,14 @@ DO $t$
 BEGIN
   PERFORM pg_temp.act_as(current_setting('ai_test.ub'));
   PERFORM pg_temp.gst_reads(current_setting('ai_test.day')::date), public.ai_gst_home_state();
+  PERFORM pg_temp.back();
+END $t$;
+
+DO $t$
+DECLARE v_day date := current_setting('ai_test.day')::date;
+BEGIN
+  PERFORM pg_temp.act_as(current_setting('ai_test.ua'));
+  PERFORM public.ai_staff_pay(v_day, v_day, 10), public.ai_staff_attendance_day(v_day, 10), public.ai_staff_attendance_month(v_day, v_day, 10);
   PERFORM pg_temp.back();
 END $t$;
 

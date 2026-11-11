@@ -18,6 +18,8 @@ import { statutoryDeductions, PT_STATES } from '../lib/statutory';
 import { needsOverlapConfirmation } from '../lib/payrollPeriods';
 import { iso } from '../lib/reportPeriods';
 import { classifyWriteFailure } from '../lib/writeOutcome';
+import { useSearchParams } from 'react-router-dom';
+import { useLinkedRange } from '../lib/linkedRange';
 
 // HOURLY is gone. It never computed by the hour -- openPayRun paid hourly staff
 // by the DAY off daily_rate, and hoursWorked was the constant 160 everywhere --
@@ -47,13 +49,27 @@ const Payroll = () => {
 
   const isViewOnly = () => false;
 
-  const [activeTab, setActiveTab] = useState('EMPLOYEES');
+  // An Ask answer links here as ?tab=ATTENDANCE&from=..&to=.., so the grid
+  // opens on the answer's own month and shows the same figures.
+  const [searchParams] = useSearchParams();
+  const linked = useLinkedRange();
+  const linkedTab = ['EMPLOYEES', 'ATTENDANCE', 'HISTORY'].includes(searchParams.get('tab')) ? searchParams.get('tab') : null;
+  const [activeTab, setActiveTab] = useState(linkedTab || 'EMPLOYEES');
   const [showForm, setShowForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [showPayRunModal, setShowPayRunModal] = useState(false);
-  const [payRunMonth, setPayRunMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [payRunMonth, setPayRunMonth] = useState(() => linked?.from.slice(0, 7) ?? new Date().toISOString().slice(0, 7)); // YYYY-MM
+  // A second link while this screen is open moves it too.
+  useEffect(() => {
+    if (linkedTab) setActiveTab(linkedTab);
+    // Moving the month reloads attendance and drops unsaved marks, so ask
+    // first, as the screen's own month arrows do.
+    if (linked && linked.from.slice(0, 7) !== payRunMonth && confirmLeaveMonth()) {
+      setPayRunMonth(linked.from.slice(0, 7));
+    }
+  }, [linkedTab, linked?.from]); // eslint-disable-line react-hooks/exhaustive-deps
   const [payRunItems, setPayRunItems] = useState([]);
   // MONTHLY | WEEKLY | CUSTOM. CUSTOM exists because neither of the other two
   // matches how wages are actually paid here: 28 salary payouts so far, at gaps

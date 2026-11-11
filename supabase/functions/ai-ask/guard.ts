@@ -53,6 +53,9 @@ const MONTH_YEAR_RE = new RegExp(`(?<![\\p{L}\\p{M}])(${MONTH_ALT})\\s+(\\d{4})(
 // Names and phrases that hold a digit or a number word but state no quantity.
 const FORM_NAME_RE = /(?<![\p{L}\p{M}\d])GSTR[-\s]?(?:1|2A|2B|3B|9C|9)(?![\p{L}\d])/giu;
 const NOT_A_QUANTITY_RE = /\bdouble[-\s]check(?:s|ed|ing)?\b|\b(?:this|the|whole|last|next|that|each|every|same)\s+quarter\b/gi;
+// An attendance mark, not an amount: "on a half day", "आधा दिन". Only the
+// word next to day; "half the staff" still trips the spelled-amount check.
+const HALF_DAY_RE = /(?<![\p{L}\p{M}])(?:half[-\s]days?|आधा\s+दिन|आधे\s+दिन(?:ों)?)(?![\p{L}\p{M}])/giu;
 
 // A rank inside a list is not a figure, but it cannot be longer than the list.
 const WORD_RANK: Record<string, number> = {};
@@ -179,7 +182,7 @@ export function checkReply(text: string, figures: unknown, standIns: Record<stri
   // Any digit outside 0-9. Checked after the shop's own text is removed.
   if (/(?![0-9])\p{Nd}/u.test(t)) return { ok: false, reason: "non_western_digits" };
 
-  t = t.replace(FORM_NAME_RE, " ").replace(NOT_A_QUANTITY_RE, " ");
+  t = t.replace(FORM_NAME_RE, " ").replace(NOT_A_QUANTITY_RE, " ").replace(HALF_DAY_RE, " ");
 
   // Dates: only a date in the figures may be stated.
   const dateFail: string[] = [];

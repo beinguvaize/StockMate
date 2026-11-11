@@ -1,12 +1,17 @@
-// What goes to Anthropic (docs/ai-chat-v1.md §6). Customer names and account
-// names become stand-ins, ids never leave, and the map lives for one request.
+// What goes to Anthropic (docs/ai-chat-v1.md §6). Customer, supplier, account,
+// expense-category and staff names become stand-ins, ids never leave, and the
+// map lives for one request.
 
 const isIdKey = (k: string) => k === "id" || k.endsWith("_id");
 
 // A second line behind the SQL functions, which select none of these: if a
 // later change ever adds one, it is dropped here before anything is sent.
-const PRIVATE_KEY = /phone|mobile|contact|email|gstin|gst_no|pan|aadhaar|address|account_no|ifsc|upi_id|bank_name/i;
-const PERSON_KEY = /^(client|customer|supplier|staff|employee|vendor)_?name$/i;
+const PRIVATE_KEY = /phone|mobile|contact|email|gstin|gst_no|pan|aadhaar|aadhar|address|account_no|ifsc|upi_id|bank_name/i;
+// Staff records also hold HR and statutory fields. None is selected by the
+// staff functions; these are dropped by name if one ever is. Anchored where a
+// bare substring would hit an ordinary key ("uan" is inside "quantity").
+const HR_KEY = /bank_account|bank_ac|(^|_)(dob|uan|esi|pf)(_|$)|esi_no|pf_account|birth|emergency|blood_group|gender|employee_code|staff_code|statutory/i;
+const PERSON_KEY = /^(client|customer|supplier|staff|employee|vendor|worker|payee)_?name$/i;
 // And by value: a GSTIN, or a run of 10 or more digits that could be a phone.
 const GSTIN = /\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]\b/i;
 const PHONE = /(?:\+?\d[\s-]?){10,}/;
@@ -16,7 +21,7 @@ function strip(value: unknown): unknown {
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (isIdKey(k) || PRIVATE_KEY.test(k) || PERSON_KEY.test(k)) continue;
+      if (isIdKey(k) || PRIVATE_KEY.test(k) || HR_KEY.test(k) || PERSON_KEY.test(k)) continue;
       if (typeof v === "string" && (GSTIN.test(v) || PHONE.test(v))) continue;
       out[k] = strip(v);
     }
@@ -54,7 +59,33 @@ export function toModelFigures(figures: Record<string, unknown>) {
     });
   }
   expenseStandIns(view, figures, map);
+  staffStandIns(view, figures, map);
   return { view, map };
+}
+
+/**
+ * Staff: every name goes as [P1], [P2]... and one person keeps one token on a
+ * card, whichever list they are in (salary_due sends `due_staff`, the others
+ * `staff`). The token is keyed by the employee's id from the real figures, by
+ * position, so two staff with the same name stay two people and the id itself
+ * never leaves (strip() drops every *_id key). Pay figures go alongside.
+ */
+function staffStandIns(view: Record<string, any>, figures: Record<string, any>, map: Record<string, string>) {
+  const token = new Map<string, string>();
+  const swap = (person: any) => {
+    const key = String(person?.employee_id ?? `name:${person?.name ?? ""}`);
+    if (!token.has(key)) {
+      const t = `[P${token.size + 1}]`;
+      token.set(key, t);
+      map[t] = String(person?.name ?? "");
+    }
+    return token.get(key)!;
+  };
+  for (const list of ["staff", "due_staff"]) {
+    if (!Array.isArray(view[list])) continue;
+    const real = (figures[list] as any[]) || [];
+    view[list] = view[list].map((x: any, i: number) => ({ ...x, name: swap(real[i]) }));
+  }
 }
 
 /**

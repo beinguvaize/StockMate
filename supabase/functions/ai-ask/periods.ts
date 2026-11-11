@@ -13,6 +13,11 @@ export const shopToday = (now: Date, tz: string) =>
 
 export const addDays = (iso: string, n: number) => toIso(ms(iso) + n * DAY);
 export const monthStart = (iso: string) => `${iso.slice(0, 7)}-01`;
+/** The last day of the date's month. */
+export const monthEnd = (iso: string) => {
+  const [y, m] = iso.split("-").map(Number);
+  return toIso(Date.UTC(y, m, 0));
+};
 export const mondayOf = (iso: string) => addDays(iso, -((new Date(ms(iso)).getUTCDay() + 6) % 7));
 export const lastMonth = (iso: string) => {
   const to = addDays(monthStart(iso), -1);
