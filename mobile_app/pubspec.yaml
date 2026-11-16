@@ -50,6 +50,9 @@ dependencies:
   path: ^1.8.3
   path_provider: ^2.1.1
   connectivity_plus: ^5.0.2
+  # Last good tenant context + business profile, so the till opens with no
+  # internet. Already in the lockfile via supabase_flutter.
+  shared_preferences: ^2.5.5
 
   # UI & Design System
   google_fonts: ^6.2.1
