@@ -10,6 +10,7 @@ import { SYSTEM_PROMPT, userPrompt } from "./prompt.ts";
 import { ReadFailed, runQuestion } from "./runs.ts";
 import { figuresHash, restoreNames, toModelFigures } from "./standins.ts";
 import { type Provider, ProviderBusy } from "./providers.ts";
+import { CHAT_CONSENT_VERSION, chatTurn } from "./chat.ts";
 
 export const CONTRACT_VERSION = registry.contract_version;
 const LANGUAGE_NAME: Record<string, string> = { en: "English", hi: "Hindi" };
@@ -60,6 +61,8 @@ async function loadContext(db: any) {
     aiOn: t.data?.settings?.ai_enabled === true,
     // Rollout flag, set per tenant by the team (not the owner). Off by default.
     beta: t.data?.settings?.ai_chat_available === true,
+    // The chat notice version this owner accepted (ai_set_chat_consent); 0 = none.
+    chatConsent: Number(t.data?.settings?.ai_chat_consent_version ?? 0) || 0,
     taxMode: bp.data?.tax_mode ?? null,
     tz: bp.data?.timezone || "Asia/Kolkata",
   };
@@ -95,14 +98,19 @@ async function hasExpiryBatches(db: any, tenantId: string) {
 
 const visibleLocked = (q: any, ctx: any) => !ctx.modules.includes(q.module);
 
-async function list(deps: Deps, db: any, ctx: any, lang: string) {
+/** The questions this shop's list shows. The chat may read these and no others. */
+async function visibleQuestions(db: any, ctx: any) {
   const hasExpiry = await hasExpiryBatches(db, ctx.tenantId);
-  const questions = registry.questions
+  return registry.questions
     // "hidden": not shown to any shop until it ties to its screen (spec §3).
     .filter((q: any) => !q.hidden)
     .filter((q: any) => !visibleLocked(q, ctx))
     .filter((q: any) => !q.needs_expiry_batches || hasExpiry)
-    .filter((q: any) => !q.needs_tax || String(ctx.taxMode ?? "").toUpperCase() !== "NONE")
+    .filter((q: any) => !q.needs_tax || String(ctx.taxMode ?? "").toUpperCase() !== "NONE");
+}
+
+async function list(deps: Deps, db: any, ctx: any, lang: string) {
+  const questions = (await visibleQuestions(db, ctx))
     .map((q: any) => {
       const s = resolveScreen(q, ctx.modules);
       return {
@@ -113,7 +121,9 @@ async function list(deps: Deps, db: any, ctx: any, lang: string) {
   const state = !ctx.aiOn ? "off" : deps.ai.configured ? "on" : "not_configured";
   const { data: usage, error } = await db.rpc("ai_usage_status");
   if (error) console.error("[ai-ask] usage status failed:", error.message);
-  return json(deps, 200, { state, plan: ctx.plan, lang, languages: registry.languages, strings: strings[lang], questions, usage: usage ?? null });
+  // Added for the chat box; clients without it never read this.
+  const chat = { consent_version: CHAT_CONSENT_VERSION, consent_needed: !(ctx.chatConsent >= CHAT_CONSENT_VERSION) };
+  return json(deps, 200, { state, plan: ctx.plan, lang, languages: registry.languages, strings: strings[lang], questions, usage: usage ?? null, chat });
 }
 
 async function logUsage(db: any, row: {
@@ -250,6 +260,15 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     if (!ctx.beta) return refuse(deps, 403, "not_enabled", lang);
 
     if (body?.action === "list") return await list(deps, db, ctx, lang);
+    if (body?.action === "chat") {
+      return await chatTurn(deps, db, ctx, lang, body, {
+        json: (status, b) => json(deps, status, b),
+        refuse: (status, reason) => refuse(deps, status, reason, lang),
+        logUsage: (row) => logUsage(db, row),
+        resolveScreen: (q) => resolveScreen(q, ctx.modules),
+        visible: () => visibleQuestions(db, ctx),
+      });
+    }
     if (body?.action !== "ask") return refuse(deps, 400, "bad_request", lang);
 
     const q: any = registry.questions.find((x: any) => x.id === body.question_id && !x.hidden);

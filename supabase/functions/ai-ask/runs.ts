@@ -1,7 +1,7 @@
 // Runs each question's reads with the caller's JWT. Dates are worked out here,
 // so a client can never choose them. A failed read throws: it is never a zero.
 import { gstScreenChecks } from "./cards.ts";
-import { addDays, changePct, lastMonth, mondayOf, monthEnd, monthStart, priorWindow, sameDaysLastMonth, sameDaysLastWeek } from "./periods.ts";
+import { addDays, changePct, lastMonth, mondayOf, monthEnd, monthStart, priorWindow, sameDaysLastMonth, sameDaysLastWeek, sameDaysMonthBefore } from "./periods.ts";
 
 export class ReadFailed extends Error {}
 
@@ -24,7 +24,22 @@ export interface Run {
   empty: boolean;
 }
 
-export async function runQuestion(id: string, db: any, ctx: { tenantId: string; today: string; taxMode: string | null }): Promise<Run> {
+export interface RunCtx {
+  tenantId: string;
+  today: string;
+  taxMode: string | null;
+  /**
+   * Chat only: dates the server has already validated (chat.ts validPeriod),
+   * for the questions listed in chat.ts RANGED. Set questions never pass it.
+   */
+  period?: { from: string; to: string } | null;
+}
+
+/** The question's usual dates, or the chat's validated period in their place. */
+const range = (ctx: RunCtx, from: string, to: string) =>
+  ctx.period ? { from: ctx.period.from, to: ctx.period.to, custom: true } : { from, to, custom: false };
+
+export async function runQuestion(id: string, db: any, ctx: RunCtx): Promise<Run> {
   const { tenantId, today } = ctx;
   const asOf = new Date().toISOString();
   switch (id) {
@@ -39,20 +54,20 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
       };
     }
     case "profit_month": {
-      const from = monthStart(today);
-      const p = priorWindow(from, today);
-      const cur = await pl(db, tenantId, from, today);
+      const { from, to } = range(ctx, monthStart(today), today);
+      const p = priorWindow(from, to);
+      const cur = await pl(db, tenantId, from, to);
       const prev = await pl(db, tenantId, p.from, p.to);
       const prior = Number(prev.net_profit);
       const net = Number(cur.net_profit);
       return {
         figures: {
-          period_from: from, period_to: today, as_of: asOf,
+          period_from: from, period_to: to, as_of: asOf,
           revenue_net: Number(cur.revenue_net), cogs: Number(cur.cogs), gross_profit: Number(cur.gross_profit),
           expenses: Number(cur.expenses), net_profit: net, returns_total: Number(cur.returns_total),
           previous_net_profit: prior, previous_from: p.from, previous_to: p.to, change_pct: changePct(net, prior),
         },
-        params: { from, to: today },
+        params: { from, to },
         empty: Number(cur.revenue_net) === 0 && Number(cur.expenses) === 0 && Number(cur.cogs) === 0,
       };
     }
@@ -83,13 +98,13 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
       return { figures: f, params: { from: today, to: today }, empty: !owed && Number(f.total_outstanding) === 0 };
     }
     case "collections_week": {
-      const from = mondayOf(today);
-      const p = sameDaysLastWeek(from, today);
-      const cur = await rpc(db, "ai_collections", { p_from: from, p_to: today });
+      const { from, to } = range(ctx, mondayOf(today), today);
+      const p = sameDaysLastWeek(from, to);
+      const cur = await rpc(db, "ai_collections", { p_from: from, p_to: to });
       const prev = await rpc(db, "ai_collections", { p_from: p.from, p_to: p.to });
       return {
         figures: { ...cur, previous_collected: prev.collected, previous_from: p.from, previous_to: p.to, change_pct: changePct(cur.collected, prev.collected) },
-        params: { from, to: today },
+        params: { from, to },
         empty: cur.receipt_count === 0 && prev.receipt_count === 0,
       };
     }
@@ -130,9 +145,10 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
     }
     case "purchases_month": {
       // Ties to the Purchase Register's Invoice Value and Bills for the same dates.
-      const from = monthStart(today);
-      const p = sameDaysLastMonth(today);
-      const cur = await rpc(db, "ai_purchases_summary", { p_from: from, p_to: today });
+      const r = range(ctx, monthStart(today), today);
+      const { from, to } = r;
+      const p = r.custom ? priorWindow(from, to) : sameDaysLastMonth(today);
+      const cur = await rpc(db, "ai_purchases_summary", { p_from: from, p_to: to });
       const prev = await rpc(db, "ai_purchases_summary", { p_from: p.from, p_to: p.to });
       const value = Number(cur.total_value);
       const prior = Number(prev.total_value);
@@ -142,7 +158,7 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
           previous_value: prior, previous_bill_count: prev.bill_count, previous_from: p.from, previous_to: p.to,
           change_pct: changePct(value, prior),
         },
-        params: { from, to: today },
+        params: { from, to },
         empty: cur.bill_count === 0 && prev.bill_count === 0,
       };
     }
@@ -151,9 +167,9 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
       return { figures: f, params: { from: today, to: today }, empty: f.suppliers_owing === 0 };
     }
     case "top_suppliers": {
-      const from = monthStart(today);
-      const f = await rpc(db, "ai_top_suppliers", { p_from: from, p_to: today, p_limit: 10 });
-      return { figures: f, params: { from, to: today }, empty: f.bill_count === 0 };
+      const { from, to } = range(ctx, monthStart(today), today);
+      const f = await rpc(db, "ai_top_suppliers", { p_from: from, p_to: to, p_limit: 10 });
+      return { figures: f, params: { from, to }, empty: f.bill_count === 0 };
     }
     case "cost_up": {
       const f = await rpc(db, "ai_cost_up", { p_days: 90, p_limit: 10 });
@@ -164,36 +180,37 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
     // expenses, so `total` is the expenses line of profit_month for the same
     // dates. Owner drawings (exclude_from_pl) come back apart, never in total.
     case "expenses_month": {
-      const from = monthStart(today);
-      const p = sameDaysLastMonth(today);
-      const cur = await expenseSummary(db, from, today, 1);
+      const r = range(ctx, monthStart(today), today);
+      const { from, to } = r;
+      const p = r.custom ? priorWindow(from, to) : sameDaysLastMonth(today);
+      const cur = await expenseSummary(db, from, to, 1);
       const prev = await expenseSummary(db, p.from, p.to, 1);
       const total = Number(cur.total);
       const prior = Number(prev.total);
       return {
         figures: {
-          period_from: from, period_to: today, as_of: asOf,
+          period_from: from, period_to: to, as_of: asOf,
           total, entry_count: Number(cur.entry_count),
           categories: cur.categories.slice(0, EXPENSE_CATEGORIES_SHOWN), category_count: Number(cur.category_count),
           drawings_total: Number(cur.drawings_total), drawings_count: Number(cur.drawings_count),
           previous_total: prior, previous_entry_count: Number(prev.entry_count),
           previous_from: p.from, previous_to: p.to, change_pct: changePct(total, prior),
         },
-        params: { from, to: today },
+        params: { from, to },
         empty: Number(cur.entry_count) === 0 && Number(prev.entry_count) === 0 && Number(cur.drawings_count) === 0,
       };
     }
     case "top_expenses": {
-      const from = monthStart(today);
-      const cur = await expenseSummary(db, from, today, 10);
+      const { from, to } = range(ctx, monthStart(today), today);
+      const cur = await expenseSummary(db, from, to, 10);
       return {
         figures: {
-          period_from: from, period_to: today, as_of: asOf,
+          period_from: from, period_to: to, as_of: asOf,
           total: Number(cur.total), entry_count: Number(cur.entry_count),
           entries: cur.entries.map((e: any) => ({ ...e, amount: Number(e.amount) })),
           drawings_total: Number(cur.drawings_total), drawings_count: Number(cur.drawings_count),
         },
-        params: { from, to: today },
+        params: { from, to },
         empty: Number(cur.entry_count) === 0,
       };
     }
@@ -234,9 +251,9 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
     }
     case "credit_sales_month": {
       // Ties to the Business Report's CREDIT bar for the same dates.
-      const from = monthStart(today);
-      const f = await rpc(db, "ai_credit_sales", { p_from: from, p_to: today });
-      return { figures: f, params: { from, to: today }, empty: f.credit_bills === 0 && Number(f.other_open) === 0 };
+      const { from, to } = range(ctx, monthStart(today), today);
+      const f = await rpc(db, "ai_credit_sales", { p_from: from, p_to: to });
+      return { figures: f, params: { from, to }, empty: f.credit_bills === 0 && Number(f.other_open) === 0 };
     }
     case "cash_today": {
       // Ties to the Day Book for today, or says the exact gap and why.
@@ -249,51 +266,52 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
     }
     case "payment_mix_month": {
       // Ties to the Business Report's Billed vs Collected, billed per method.
-      const from = monthStart(today);
-      const f = await rpc(db, "ai_payment_mix", { p_from: from, p_to: today });
-      return { figures: f, params: { from, to: today }, empty: f.bill_count === 0 };
+      const { from, to } = range(ctx, monthStart(today), today);
+      const f = await rpc(db, "ai_payment_mix", { p_from: from, p_to: to });
+      return { figures: f, params: { from, to }, empty: f.bill_count === 0 };
     }
     // ── sales and stock, second set (branch ask-sales-stock) ──────────────
     case "sales_vs_last_month": {
       // Month to date against the same dates last month, both by ai_sales_summary.
-      const from = monthStart(today);
-      const p = sameDaysLastMonth(today);
-      const cur = await rpc(db, "ai_sales_summary", { p_from: from, p_to: today });
+      const r = range(ctx, monthStart(today), today);
+      const { from, to } = r;
+      const p = r.custom ? sameDaysMonthBefore(from, to) : sameDaysLastMonth(today);
+      const cur = await rpc(db, "ai_sales_summary", { p_from: from, p_to: to });
       const prev = await rpc(db, "ai_sales_summary", { p_from: p.from, p_to: p.to });
       return {
         figures: {
-          period_from: from, period_to: today, as_of: cur.as_of,
+          period_from: from, period_to: to, as_of: cur.as_of,
           gross_sales: cur.gross_sales, bill_count: cur.bill_count, average_bill: cur.average_bill,
           previous_gross_sales: prev.gross_sales, previous_bill_count: prev.bill_count, previous_average_bill: prev.average_bill,
           previous_from: p.from, previous_to: p.to, change_pct: changePct(cur.gross_sales, prev.gross_sales),
         },
-        params: { from, to: today },
+        params: { from, to },
         empty: cur.bill_count === 0 && prev.bill_count === 0,
       };
     }
     case "sales_week": {
-      const from = mondayOf(today);
-      const p = sameDaysLastWeek(from, today);
-      const cur = await rpc(db, "ai_sales_by_day", { p_from: from, p_to: today });
+      const { from, to } = range(ctx, mondayOf(today), today);
+      const p = sameDaysLastWeek(from, to);
+      const cur = await rpc(db, "ai_sales_by_day", { p_from: from, p_to: to });
       const prev = await rpc(db, "ai_sales_summary", { p_from: p.from, p_to: p.to });
       return {
         figures: {
           ...cur, previous_gross_sales: prev.gross_sales, previous_bill_count: prev.bill_count,
           previous_from: p.from, previous_to: p.to, change_pct: changePct(cur.gross_sales, prev.gross_sales),
         },
-        params: { from, to: today },
+        params: { from, to },
         empty: cur.bill_count === 0 && prev.bill_count === 0,
       };
     }
     case "best_customers": {
-      const from = monthStart(today);
-      const f = await rpc(db, "ai_best_customers", { p_from: from, p_to: today, p_limit: 10 });
-      return { figures: f, params: { from, to: today }, empty: f.bill_count === 0 };
+      const { from, to } = range(ctx, monthStart(today), today);
+      const f = await rpc(db, "ai_best_customers", { p_from: from, p_to: to, p_limit: 10 });
+      return { figures: f, params: { from, to }, empty: f.bill_count === 0 };
     }
     case "returns_month": {
-      const from = monthStart(today);
-      const f = await rpc(db, "ai_sales_returns", { p_from: from, p_to: today, p_limit: 5 });
-      return { figures: f, params: { from, to: today }, empty: f.return_count === 0 };
+      const { from, to } = range(ctx, monthStart(today), today);
+      const f = await rpc(db, "ai_sales_returns", { p_from: from, p_to: to, p_limit: 5 });
+      return { figures: f, params: { from, to }, empty: f.return_count === 0 };
     }
     case "stock_value": {
       const f = await rpc(db, "ai_stock_value", { p_limit: 10 });

@@ -144,7 +144,8 @@ interface Allowed {
   textWithDigits: string[];
   textNumbers: Set<number>; // digits inside names: "500" of "Parle-G 500g"
   listLength: number;       // the longest list of rows
-  periodDays: number | null;
+  periodDays: number[];     // one span per read
+  changes: number[];        // each read's change_pct
 }
 
 function collect(value: unknown, into: Allowed) {
@@ -188,16 +189,26 @@ function buildAllowed(figures: unknown): Allowed {
   const a: Allowed = {
     plain: new Set(), exact: [], lakh: new Set(), crore: new Set(), thousand: new Set(),
     dates: new Set(), dayMonths: new Set(), yearMonths: new Set(), textWithDigits: [],
-    textNumbers: new Set(), listLength: 0, periodDays: null,
+    textNumbers: new Set(), listLength: 0, periodDays: [], changes: [],
   };
   collect(figures, a);
-  // The span of the period: "30 days" on the expiring and dead stock questions.
-  const f = figures as { period_from?: unknown; period_to?: unknown } | null;
-  const from = Date.parse(String(f?.period_from ?? "").slice(0, 10));
-  const to = Date.parse(String(f?.period_to ?? "").slice(0, 10));
-  if (!Number.isNaN(from) && !Number.isNaN(to)) a.periodDays = Math.round((to - from) / 864e5);
+  // A chat answer is checked against the union of its reads, sent as
+  // { reads: [{ question, figures }] }: each read keeps its own span and change.
+  for (const f of readScopes(figures)) {
+    // The span of the period: "30 days" on the expiring and dead stock questions.
+    const from = Date.parse(String(f?.period_from ?? "").slice(0, 10));
+    const to = Date.parse(String(f?.period_to ?? "").slice(0, 10));
+    if (!Number.isNaN(from) && !Number.isNaN(to)) a.periodDays.push(Math.round((to - from) / 864e5));
+    if (typeof f?.change_pct === "number") a.changes.push(f.change_pct);
+  }
   a.textWithDigits.sort((x, y) => y.length - x.length);
   return a;
+}
+
+function readScopes(figures: unknown): any[] {
+  const f = figures as { reads?: unknown } | null;
+  const reads = Array.isArray(f?.reads) ? f!.reads.map((r: any) => r?.figures).filter(Boolean) : [];
+  return [f, ...reads];
 }
 
 function escapeRe(s: string) {
@@ -274,7 +285,6 @@ export function checkReply(text: string, figures: unknown, standIns: Record<stri
 
   const nextWords = (at: number, n: number) => (t.slice(at).toLowerCase().match(/[\p{L}\p{M}]+/gu) || []).slice(0, n);
   const prevWords = (at: number, n: number) => (t.slice(0, at).toLowerCase().match(/[\p{L}\p{M}]+/gu) || []).slice(-n);
-  const change = (figures as { change_pct?: unknown } | null)?.change_pct;
 
   for (const m of t.matchAll(NUMBER_RE)) {
     const n = Number(m[1]);
@@ -289,7 +299,7 @@ export function checkReply(text: string, figures: unknown, standIns: Record<stri
     else ok = allowed.plain.has(hundredths(n));
     const next = nextWords(at, 1)[0];
     // "30 days": the span of the period, which only the dates hold.
-    if (!ok && !unit && n === allowed.periodDays && DAY_WORDS.has(next)) ok = true;
+    if (!ok && !unit && allowed.periodDays.includes(n) && DAY_WORDS.has(next)) ok = true;
     // "500 ग्राम": a size from a product name written another way. Only as a
     // size, never as money, so digits in a name cannot pass for an amount.
     if (!ok && !unit && allowed.textNumbers.has(n) && MEASURE_WORDS.has(next)
@@ -297,7 +307,9 @@ export function checkReply(text: string, figures: unknown, standIns: Record<stri
     if (!ok) return { ok: false, reason: `number:${m[0].trim()}` };
 
     // A right percentage in the wrong direction.
-    if (PERCENT.includes(unit) && typeof change === "number" && change !== 0 && Math.abs(change) === n) {
+    // With two reads, a figure both share in opposite directions fails either way.
+    for (const change of allowed.changes) {
+      if (!(PERCENT.includes(unit) && change !== 0 && Math.abs(change) === n)) continue;
       const after = nextWords(at, 3);
       const near = hasWord(after, UP_WORDS) || hasWord(after, DOWN_WORDS) ? after : prevWords(m.index!, 3);
       const says = hasWord(near, UP_WORDS) ? 1 : hasWord(near, DOWN_WORDS) ? -1 : 0;

@@ -46,7 +46,7 @@
    "never_3": "GSTIN, PAN, Aadhaar",
    "never_4": "Bank and UPI details",
    "never_5": "Your shop's name",
-   "on_fine": "When you turn on Ask, the figures for the question you tap are sent to Google's Gemini API, which writes the short explanation. These figures are totals, counts, dates and product names. We never send customer or supplier names, phone numbers, GSTINs or bank details.\nWe use Google's free service. Google may use what we send to improve its products, and Google's human reviewers may read it after Google separates it from our Google account, API key and project. Google does not state how long it keeps this data.\nDo not turn this on if you treat your sales, stock or dues figures as confidential. The numbers on the card come from your own books, not from the AI. You can turn Ask off at any time in Settings.",
+   "on_fine": "When you turn on Ask, the figures for the question you tap are sent to Google's Gemini API, which writes the short explanation. These figures are totals, counts, dates and product names. We never send customer or supplier names, phone numbers, GSTINs or bank details. What you type in the chat box is also sent to Google. Don't type customers' phone numbers, bank or ID details.\nWe use Google's free service. Google may use what we send to improve its products, and Google's human reviewers may read it after Google separates it from our Google account, API key and project. Google does not state how long it keeps this data.\nDo not turn this on if you treat your sales, stock or dues figures as confidential. The numbers on the card come from your own books, not from the AI. You can turn Ask off at any time in Settings.",
    "turn_on": "Turn on",
    "not_now": "Not now",
    "turn_off": "Turn off",
@@ -70,14 +70,15 @@
    "ask_again": "Ask again in English",
    "stale_note": "Tap to see this answer in English.",
    "on_fine_paragraphs": [
-    "When you turn on Ask, the figures for the question you tap are sent to Google's Gemini API, which writes the short explanation. These figures are totals, counts, dates and product names. We never send customer or supplier names, phone numbers, GSTINs or bank details.",
+    "When you turn on Ask, the figures for the question you tap are sent to Google's Gemini API, which writes the short explanation. These figures are totals, counts, dates and product names. We never send customer or supplier names, phone numbers, GSTINs or bank details. What you type in the chat box is also sent to Google. Don't type customers' phone numbers, bank or ID details.",
     "We use Google's free service. Google may use what we send to improve its products, and Google's human reviewers may read it after Google separates it from our Google account, API key and project. Google does not state how long it keeps this data.",
     "Do not turn this on if you treat your sales, stock or dues figures as confidential. The numbers on the card come from your own books, not from the AI. You can turn Ask off at any time in Settings."
    ],
    "on_fine_review": "",
    "category_purchases": "Purchases & suppliers",
    "category_expenses": "Expenses",
-   "category_staff": "Staff"
+   "category_staff": "Staff",
+   "reason_chat_consent_needed": "Read the updated notice before using the chat box."
   },
   "card": {
    "sales": "Sales",
@@ -643,6 +644,38 @@
    "PURCHASE_EDIT": "Purchase edits",
    "OTHER": "Other entries"
   },
+  "chat": {
+   "title": "Ask your own question",
+   "placeholder": "Type a question about your shop",
+   "send": "Send",
+   "new_chat": "New chat",
+   "you": "You",
+   "hint": "Answers come only from your books. Each message uses one explanation.",
+   "finding": "Finding the right figures",
+   "no_match": "I can only answer from your books, and none of the figures I can read fits that question. Try one of these:",
+   "try_these": "Try one of these:",
+   "removed": "Something that looked like a phone number, ID or bank detail was removed before sending.",
+   "too_long": "Keep your question under {n} characters.",
+   "consent_title": "Before you use the chat box",
+   "consent_body": "What you type in the chat box is also sent to Google. Don't type customers' phone numbers, bank or ID details.",
+   "consent_more": "Set questions keep working without this.",
+   "consent_accept": "I understand, turn on chat",
+   "titles": {
+    "profit_month": "Profit",
+    "purchases_month": "Bought",
+    "expenses_month": "Spent",
+    "top_expenses": "Biggest expenses",
+    "top_suppliers": "Top suppliers",
+    "best_customers": "Top customers",
+    "returns_month": "Returns",
+    "credit_sales_month": "Sold on credit",
+    "payment_mix_month": "How customers paid",
+    "sales_week": "Sales",
+    "collections_week": "Collected",
+    "sales_vs_last_month": "Sales against the month before"
+   },
+   "title_period": "{title}, {range}"
+  },
   "review_pending": []
  },
  "hi": {
@@ -692,7 +725,7 @@
    "never_3": "GSTIN, PAN, आधार",
    "never_4": "बैंक और UPI की जानकारी",
    "never_5": "आपकी दुकान का नाम",
-   "on_fine": "जब आप पूछें सुविधा चालू करते हैं, तो आप जो सवाल चुनते हैं उसके आँकड़े Google के Gemini API को भेजे जाते हैं, जो छोटी व्याख्या लिखता है। ये आँकड़े कुल रकम, गिनती, तारीखें और उत्पादों के नाम होते हैं। हम ग्राहकों या सप्लायरों के नाम, फ़ोन नंबर, GSTIN या बैंक की जानकारी कभी नहीं भेजते।\nहम Google की मुफ़्त सेवा इस्तेमाल करते हैं। Google भेजी गई जानकारी का इस्तेमाल अपने उत्पाद बेहतर करने के लिए कर सकता है, और Google इसे हमारे Google खाते, API key और प्रोजेक्ट से अलग करने के बाद Google के लोग (मानव समीक्षक) इसे पढ़ सकते हैं। Google यह नहीं बताता कि वह यह डेटा कितने समय तक रखता है।\nअगर आप अपनी बिक्री, स्टॉक या बकाया के आँकड़ों को गोपनीय मानते हैं, तो इसे चालू न करें। कार्ड पर दिखने वाले आँकड़े आपके अपने खातों से आते हैं, AI से नहीं। आप पूछें सुविधा कभी भी Settings में बंद कर सकते हैं।",
+   "on_fine": "जब आप पूछें सुविधा चालू करते हैं, तो आप जो सवाल चुनते हैं उसके आँकड़े Google के Gemini API को भेजे जाते हैं, जो छोटी व्याख्या लिखता है। ये आँकड़े कुल रकम, गिनती, तारीखें और उत्पादों के नाम होते हैं। हम ग्राहकों या सप्लायरों के नाम, फ़ोन नंबर, GSTIN या बैंक की जानकारी कभी नहीं भेजते। चैट बॉक्स में आप जो लिखते हैं, वह भी Google को भेजा जाता है। ग्राहकों के फ़ोन नंबर, बैंक या पहचान की जानकारी न लिखें।\nहम Google की मुफ़्त सेवा इस्तेमाल करते हैं। Google भेजी गई जानकारी का इस्तेमाल अपने उत्पाद बेहतर करने के लिए कर सकता है, और Google इसे हमारे Google खाते, API key और प्रोजेक्ट से अलग करने के बाद Google के लोग (मानव समीक्षक) इसे पढ़ सकते हैं। Google यह नहीं बताता कि वह यह डेटा कितने समय तक रखता है।\nअगर आप अपनी बिक्री, स्टॉक या बकाया के आँकड़ों को गोपनीय मानते हैं, तो इसे चालू न करें। कार्ड पर दिखने वाले आँकड़े आपके अपने खातों से आते हैं, AI से नहीं। आप पूछें सुविधा कभी भी Settings में बंद कर सकते हैं।",
    "turn_on": "चालू करें",
    "not_now": "अभी नहीं",
    "turn_off": "बंद करें",
@@ -716,14 +749,15 @@
    "ask_again": "हिन्दी में फिर पूछें",
    "stale_note": "यह जवाब हिन्दी में देखने के लिए टैप करें।",
    "on_fine_paragraphs": [
-    "जब आप पूछें सुविधा चालू करते हैं, तो आप जो सवाल चुनते हैं उसके आँकड़े Google के Gemini API को भेजे जाते हैं, जो छोटी व्याख्या लिखता है। ये आँकड़े कुल रकम, गिनती, तारीखें और उत्पादों के नाम होते हैं। हम ग्राहकों या सप्लायरों के नाम, फ़ोन नंबर, GSTIN या बैंक की जानकारी कभी नहीं भेजते।",
+    "जब आप पूछें सुविधा चालू करते हैं, तो आप जो सवाल चुनते हैं उसके आँकड़े Google के Gemini API को भेजे जाते हैं, जो छोटी व्याख्या लिखता है। ये आँकड़े कुल रकम, गिनती, तारीखें और उत्पादों के नाम होते हैं। हम ग्राहकों या सप्लायरों के नाम, फ़ोन नंबर, GSTIN या बैंक की जानकारी कभी नहीं भेजते। चैट बॉक्स में आप जो लिखते हैं, वह भी Google को भेजा जाता है। ग्राहकों के फ़ोन नंबर, बैंक या पहचान की जानकारी न लिखें।",
     "हम Google की मुफ़्त सेवा इस्तेमाल करते हैं। Google भेजी गई जानकारी का इस्तेमाल अपने उत्पाद बेहतर करने के लिए कर सकता है, और Google इसे हमारे Google खाते, API key और प्रोजेक्ट से अलग करने के बाद Google के लोग (मानव समीक्षक) इसे पढ़ सकते हैं। Google यह नहीं बताता कि वह यह डेटा कितने समय तक रखता है।",
     "अगर आप अपनी बिक्री, स्टॉक या बकाया के आँकड़ों को गोपनीय मानते हैं, तो इसे चालू न करें। कार्ड पर दिखने वाले आँकड़े आपके अपने खातों से आते हैं, AI से नहीं। आप पूछें सुविधा कभी भी Settings में बंद कर सकते हैं।"
    ],
    "on_fine_review": "NEEDS NATIVE HINDI REVIEW",
    "category_purchases": "खरीद और सप्लायर",
    "category_expenses": "खर्च",
-   "category_staff": "स्टाफ़"
+   "category_staff": "स्टाफ़",
+   "reason_chat_consent_needed": "चैट बॉक्स इस्तेमाल करने से पहले नई सूचना पढ़ें।"
   },
   "card": {
    "sales": "बिक्री",
@@ -1289,6 +1323,38 @@
    "PURCHASE_EDIT": "खरीद में बदलाव",
    "OTHER": "अन्य एंट्री"
   },
+  "chat": {
+   "title": "अपना सवाल पूछें",
+   "placeholder": "अपनी दुकान के बारे में सवाल लिखें",
+   "send": "भेजें",
+   "new_chat": "नई चैट",
+   "you": "आप",
+   "hint": "जवाब सिर्फ़ आपके खातों से आते हैं। हर संदेश एक व्याख्या इस्तेमाल करता है।",
+   "finding": "सही आँकड़े ढूँढ रहे हैं",
+   "no_match": "मैं सिर्फ़ आपके खातों से जवाब दे सकता हूँ, और जो आँकड़े मैं पढ़ सकता हूँ उनमें से कोई इस सवाल पर नहीं बैठता। इनमें से कोई आज़माएँ:",
+   "try_these": "इनमें से कोई आज़माएँ:",
+   "removed": "भेजने से पहले फ़ोन नंबर, पहचान या बैंक जैसी दिखने वाली जानकारी हटा दी गई।",
+   "too_long": "अपना सवाल {n} अक्षरों से छोटा रखें।",
+   "consent_title": "चैट बॉक्स इस्तेमाल करने से पहले",
+   "consent_body": "चैट बॉक्स में आप जो लिखते हैं, वह भी Google को भेजा जाता है। ग्राहकों के फ़ोन नंबर, बैंक या पहचान की जानकारी न लिखें।",
+   "consent_more": "इसके बिना भी तैयार सवाल चलते रहेंगे।",
+   "consent_accept": "समझ गया, चैट चालू करें",
+   "titles": {
+    "profit_month": "मुनाफ़ा",
+    "purchases_month": "खरीद",
+    "expenses_month": "खर्च",
+    "top_expenses": "सबसे बड़े खर्च",
+    "top_suppliers": "बड़े सप्लायर",
+    "best_customers": "बड़े ग्राहक",
+    "returns_month": "वापसी",
+    "credit_sales_month": "उधार बिक्री",
+    "payment_mix_month": "ग्राहकों ने कैसे भुगतान किया",
+    "sales_week": "बिक्री",
+    "collections_week": "वसूली",
+    "sales_vs_last_month": "बिक्री, पिछले महीने से तुलना"
+   },
+   "title_period": "{title}, {range}"
+  },
   "review_pending": [
    "ui.on_fine_paragraphs",
    "footnotes.gst_screen_unmatched",
@@ -1611,7 +1677,37 @@
    "card.tip_fast_low",
    "card.tip_items_n",
    "links.reports_product_margins",
-   "no_data_by_question.profit_tips"
+   "no_data_by_question.profit_tips",
+   "ui.on_fine",
+   "ui.reason_chat_consent_needed",
+   "chat.title",
+   "chat.placeholder",
+   "chat.send",
+   "chat.new_chat",
+   "chat.you",
+   "chat.hint",
+   "chat.finding",
+   "chat.no_match",
+   "chat.try_these",
+   "chat.removed",
+   "chat.too_long",
+   "chat.consent_title",
+   "chat.consent_body",
+   "chat.consent_more",
+   "chat.consent_accept",
+   "chat.title_period",
+   "chat.titles.profit_month",
+   "chat.titles.purchases_month",
+   "chat.titles.expenses_month",
+   "chat.titles.top_expenses",
+   "chat.titles.top_suppliers",
+   "chat.titles.best_customers",
+   "chat.titles.returns_month",
+   "chat.titles.credit_sales_month",
+   "chat.titles.payment_mix_month",
+   "chat.titles.sales_week",
+   "chat.titles.collections_week",
+   "chat.titles.sales_vs_last_month"
   ]
  }
 }
