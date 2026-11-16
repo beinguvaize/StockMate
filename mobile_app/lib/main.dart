@@ -30,7 +30,9 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 });
 
 final syncServiceProvider = Provider<SyncService>((ref) {
-  return SyncService(ref.watch(databaseProvider));
+  final svc = SyncService(ref.watch(databaseProvider));
+  ref.onDispose(svc.dispose);
+  return svc;
 });
 
 Future<void> main() async {
@@ -85,7 +87,9 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
     // an offline trip), kick the sync engine. Cheap if queue is empty.
     if (state == AppLifecycleState.resumed) {
       try {
-        ref.read(syncServiceProvider).sync();
+        // Forced: coming back to the app is when a cashier expects the
+        // morning's offline bills to go, not after a backoff timer.
+        ref.read(syncServiceProvider).sync(force: true);
         ref.read(syncServiceProvider).pullSync();
         // Force-refresh every screen's data — covers the case where the
         // realtime websocket dropped while backgrounded so events were

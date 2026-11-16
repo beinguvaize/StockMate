@@ -1,3 +1,4 @@
+import 'package:mobile_app/core/database/offline_sales_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -93,8 +94,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             salesAsync.maybeWhen(
               data: (sales) {
                 // Stats follow the selected date range (Total Today by default).
+                // A refused sale is listed (the owner must see it) but it is
+                // not in the books, so it is not takings either.
                 final rangeSales = sales
-                    .where((s) => _inDateRange(s.date))
+                    .where((s) => _inDateRange(s.date) && s.syncState != 'refused')
                     .toList();
                 final total = rangeSales.fold(
                   0.0,
@@ -279,6 +282,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
             const SizedBox(height: 16),
 
+            const OfflineSalesBanner(
+              padding: EdgeInsets.fromLTRB(Gap.xl, 0, Gap.xl, 12),
+            ),
+
             // ── Sales list ──────────────────────────────────────────
             Expanded(
               child: salesAsync.when(
@@ -355,7 +362,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                       );
                       String badgeLabel;
                       Color badgeColor;
-                      if (isPaid) {
+                      if (sale.syncState == 'refused') {
+                        badgeLabel = 'Refused';
+                        badgeColor = AppColors.danger;
+                      } else if (sale.syncState == 'pending') {
+                        badgeLabel = 'Not synced';
+                        badgeColor = AppColors.warning;
+                      } else if (isPaid) {
                         badgeLabel = 'Paid';
                         badgeColor = AppColors.success;
                       } else if (isFailed) {
@@ -377,7 +390,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
                       return AppTappable(
    ripple: false,
-                        onTap: () => Navigator.push(
+                        // A sale the server does not have yet has no detail
+                        // screen to open; show where it stands in the queue.
+                        onTap: () => sale.isUnsynced
+                            ? UnsyncedSalesSheet.show(context)
+                            : Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => InvoiceDetailScreen(

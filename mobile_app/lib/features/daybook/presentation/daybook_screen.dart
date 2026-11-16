@@ -1,3 +1,4 @@
+import 'package:mobile_app/core/database/offline_sales_ui.dart' show OfflineSalesBanner;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -484,6 +485,16 @@ class _LedgerBodyState extends State<_LedgerBody> {
           // blank ledger as a closed till would reconcile against nothing.
           if (ledger.fromCache) ...[
             const _OfflineLedgerBanner(),
+            const SizedBox(height: 12),
+          ],
+          if (ledger.unsyncedEntries > 0) ...[
+            const OfflineSalesBanner(),
+            const SizedBox(height: 4),
+            Text(
+              '${ledger.unsyncedEntries} entr${ledger.unsyncedEntries == 1 ? 'y' : 'ies'} '
+              'below ${ledger.unsyncedEntries == 1 ? 'is' : 'are'} on this phone only, not synced yet.',
+              style: const TextStyle(fontSize: 12, color: AppColors.inkTertiary),
+            ),
             const SizedBox(height: 12),
           ],
 

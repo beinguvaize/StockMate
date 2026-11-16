@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:drift/drift.dart' show OrderingTerm, OrderingMode;
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/core/database/unsynced_sales.dart';
+import 'package:mobile_app/core/database/offline_sales_ui.dart'
+    show unsyncedSaleCountProvider, refusedJobCountProvider;
 import 'package:mobile_app/features/sales/data/models/sale.dart';
 import 'package:mobile_app/main.dart' show databaseProvider;
 
@@ -27,10 +30,20 @@ final topSellingQtyProvider = FutureProvider<Map<String, double>>((ref) async {
 
 // Cache-first recent sales. Mirrors web useSales: tenant-scoped, newest first,
 // 500-row cap. Falls back to local Drift sales table when offline.
+//
+// Either way, sales rung on this phone that the server has not confirmed yet
+// are laid over the top from the outbox, tagged pending / refused, so the
+// cashier never sees a sale "disappear" between ringing it and syncing it.
 final recentSalesProvider = FutureProvider<List<Sale>>((ref) async {
+  // Re-run when a queued sale is added, lands or is refused.
+  ref.watch(unsyncedSaleCountProvider.select((v) => v.valueOrNull));
+  ref.watch(refusedJobCountProvider.select((v) => v.valueOrNull));
   final ctx = await ref.watch(tenantContextProvider.future);
   if (ctx == null) return [];
+  final db = ref.read(databaseProvider);
 
+  List<Map<String, dynamic>> base;
+  var offline = false;
   try {
     final response = await supabase
         .from('sales')
@@ -38,28 +51,23 @@ final recentSalesProvider = FutureProvider<List<Sale>>((ref) async {
         .eq('tenant_id', ctx.tenantId)
         .order('created_at', ascending: false)
         .limit(500);
-
-    return (response as List).map((data) => Sale.fromJson(data)).toList();
+    base = (response as List).cast<Map<String, dynamic>>();
   } catch (e) {
     debugPrint('[recentSalesProvider] online failed, using Drift cache: $e');
-    final db = ref.read(databaseProvider);
+    offline = true;
     final rows = await (db.select(db.sales)
           ..where((t) => t.tenantId.equals(ctx.tenantId))
-          // Drift schema has no createdAt yet so we order by date desc
-          // then id desc as a stable tiebreaker. Online path uses the
-          // server's created_at timestamp — this offline fallback is
-          // close enough for sales placed on different days, and only
-          // fires when supabase is unreachable.
           ..orderBy([
             (t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc),
             (t) => OrderingTerm(expression: t.id,   mode: OrderingMode.desc),
           ])
           ..limit(500))
         .get();
-    return rows
-        .map((r) => Sale.fromJson({
+    base = rows
+        .map((r) => <String, dynamic>{
               'id': r.id,
               'tenant_id': r.tenantId,
+              'shopId': r.clientId,
               'paymentMethod': r.paymentMethod,
               'paymentStatus': r.paymentStatus,
               'subtotal': r.subtotal,
@@ -68,7 +76,23 @@ final recentSalesProvider = FutureProvider<List<Sale>>((ref) async {
               'paidAmount': r.paidAmount,
               'date': r.date.toIso8601String().split('T').first,
               'items': jsonDecode(r.itemsJson),
-            }))
+              if (r.createdAt != null) 'created_at': r.createdAt!.toIso8601String(),
+              if (r.customerInfoJson != null) 'customerInfo': jsonDecode(r.customerInfoJson!),
+            })
         .toList();
   }
+
+  try {
+    final ops = await unsyncedOps(db, ctx.tenantId, includeSynced: offline);
+    if (ops.isNotEmpty) {
+      final clients = await (db.select(db.clients)
+            ..where((t) => t.tenantId.equals(ctx.tenantId)))
+          .get();
+      base = overlayUnsyncedSales(base, ops,
+          clientNames: {for (final c in clients) c.id: c.name});
+    }
+  } catch (e) {
+    debugPrint('[recentSalesProvider] outbox overlay failed: $e');
+  }
+  return base.map(Sale.fromJson).toList();
 });

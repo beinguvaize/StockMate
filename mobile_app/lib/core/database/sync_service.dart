@@ -1,12 +1,31 @@
-// Offline-first sync service.
+// Offline-first sync service (the outbox).
 //
-// Pattern mirrors the server-side e_invoice_irn queue:
-//   • every mutation goes into a local sync_mutations table first (Drift/SQLite)
-//   • a worker pass picks PENDING jobs whose next_attempt_at <= now()
-//   • on success → status=SUCCESS, isSynced=true
-//   • on failure → exponential backoff up to MAX_ATTEMPTS, then status=FAILED
-//   • a Connectivity stream listener auto-flushes the queue when the device
-//     transitions from offline → online (no manual user action needed)
+// Every write the phone cannot deliver right now goes into the local
+// sync_mutations table (Drift/SQLite, so it survives an app kill and a phone
+// restart) and is replayed, in the order it was made, when the network returns.
+//
+// The rules the replay keeps:
+//
+//   • FIFO. Jobs are replayed in insertion order. A collection queued after a
+//     credit sale must not reach the server before the sale it pays for, so a
+//     job waiting on its backoff timer holds the ones behind it, and a new
+//     online write is queued (not sent ahead) while older jobs are still owed.
+//
+//   • Same call, same id. A queued job is the exact RPC the phone makes online,
+//     carrying a client-made id (sale SAL-…, payment CP-…). The server's replay
+//     guard (processed_ops / "sale already exists") makes a second delivery a
+//     no-op, so a request that timed out AFTER committing is safe to resend.
+//
+//   • Transport failures never expire. A sale made at 9 am in a dead zone must
+//     still be there at 9 pm. They back off (capped at five minutes) and retry
+//     on a timer, on app resume and the moment connectivity returns.
+//
+//   • Server refusals are never retried silently and never dropped. They are
+//     parked as FAILED with the server's reason, counted in the indicator and
+//     listed for the owner with Retry and Discard. Discard keeps the row.
+//
+// Statuses: PENDING | PROCESSING | SUCCESS | FAILED (refused, needs the owner)
+//           | DISCARDED (owner acknowledged a refused job; kept for audit).
 
 import 'dart:async';
 import 'dart:convert';
@@ -14,47 +33,110 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mobile_app/core/database/database.dart';
+import 'package:mobile_app/core/database/sync_errors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException, AuthException;
 
-enum SyncAction { upsert, delete, rpc }
+enum SyncAction { upsert, delete, rpc, update }
+
+/// Job states, as stored in sync_mutations.status.
+class JobStatus {
+  static const pending = 'PENDING';
+  static const processing = 'PROCESSING';
+  static const success = 'SUCCESS';
+  static const failed = 'FAILED';
+  static const discarded = 'DISCARDED';
+  static const owed = [pending, processing];
+}
+
+/// Everything the outbox needs from the outside world. The default talks to
+/// Supabase and connectivity_plus; tests hand in a fake so "the network is
+/// down" is a flag rather than airplane mode.
+abstract class SyncTransport {
+  Future<bool> isOnline();
+  Stream<bool> get onlineChanges;
+  Future<dynamic> rpc(String name, Map<String, dynamic> params);
+  Future<void> upsert(String table, Map<String, dynamic> row);
+  Future<void> update(String table, String id, Map<String, dynamic> fields);
+  Future<void> softDelete(String table, String id);
+}
+
+class SupabaseSyncTransport implements SyncTransport {
+  // Bounded: on a slow link fall back to the queue after 6s instead of
+  // freezing the till for the platform default (60s+).
+  static const _netTimeout = Duration(seconds: 6);
+
+  @override
+  Future<bool> isOnline() async =>
+      (await Connectivity().checkConnectivity()) != ConnectivityResult.none;
+
+  @override
+  Stream<bool> get onlineChanges =>
+      Connectivity().onConnectivityChanged.map((r) => r != ConnectivityResult.none);
+
+  @override
+  Future<dynamic> rpc(String name, Map<String, dynamic> params) =>
+      supabase.rpc(name, params: params).timeout(_netTimeout);
+
+  @override
+  Future<void> upsert(String table, Map<String, dynamic> row) =>
+      supabase.from(table).upsert(row).timeout(_netTimeout);
+
+  @override
+  Future<void> update(String table, String id, Map<String, dynamic> fields) =>
+      supabase.from(table).update(fields).eq('id', id).timeout(_netTimeout);
+
+  @override
+  Future<void> softDelete(String table, String id) => supabase
+      .from(table)
+      // Soft delete — rows are flagged, never dropped (recoverable + audit).
+      .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
+      .eq('id', id)
+      .timeout(_netTimeout);
+}
 
 class SyncService {
   final AppDatabase db;
+  final SyncTransport transport;
 
-  /// Cap on retries before a job is marked FAILED.
+  /// Kept for callers that read it; transport failures no longer expire.
   static const int kMaxAttempts = 6;
 
-  /// Backoff schedule (seconds) per attempt index. After this many seconds
-  /// since last attempt the worker may retry. Last value is the cap.
-  static const List<int> kBackoffSeconds = [
-    10, 30, 120, 300, 900, 1800, 3600,
-  ];
+  /// Backoff (seconds) after the n-th consecutive transport failure of the
+  /// head job. Capped at five minutes: a shop coming back online should not
+  /// wait an hour for its morning's sales to land.
+  static const List<int> kBackoffSeconds = [5, 15, 30, 60, 120, 300];
 
-  StreamSubscription<ConnectivityResult>? _connSub;
+  /// How often the worker looks at the queue on its own. Covers the case
+  /// connectivity_plus cannot see: Wi-Fi up, internet down, then back.
+  static const Duration kTick = Duration(seconds: 60);
+
+  StreamSubscription<bool>? _connSub;
+  Timer? _ticker;
   bool _flushing = false;
+  Completer<void>? _flushDone;
 
-  SyncService(this.db) {
-    // Auto-flush on connectivity restore.
-    _connSub = Connectivity().onConnectivityChanged.listen((result) {
-      if (result != ConnectivityResult.none) {
-        // Fire and forget — flush errors are logged inside sync().
-        sync();
-      }
-    });
+  SyncService(this.db, {SyncTransport? transport, bool autoStart = true})
+      : transport = transport ?? SupabaseSyncTransport() {
+    if (autoStart) {
+      // Connectivity restored → replay now, ignoring backoff timers.
+      _connSub = this.transport.onlineChanges.listen((online) {
+        if (online) sync(force: true);
+      });
+      _ticker = Timer.periodic(kTick, (_) => sync());
+    }
   }
 
   void dispose() {
     _connSub?.cancel();
+    _ticker?.cancel();
   }
 
   // ── Queue API ──────────────────────────────────────────────────────────────
 
   /// Queue a mutation. Returns the row id of the queued job.
-  /// Caller may opt-in to a synchronous best-effort flush attempt.
   Future<int> queueMutation({
     required String targetTable,
-    required String action, // 'upsert' | 'delete' | 'rpc'
+    required String action, // 'upsert' | 'delete' | 'rpc' | 'update'
     required Map<String, dynamic> payload,
     String? rpcName, // required when action == 'rpc'
     bool fireAndForgetFlush = true,
@@ -69,7 +151,6 @@ class SyncService {
         );
 
     if (fireAndForgetFlush) {
-      // Don't block the caller — flush in background.
       // ignore: unawaited_futures
       sync();
     }
@@ -77,134 +158,213 @@ class SyncService {
   }
 
   // ── Offline-first helpers ──────────────────────────────────────────────────
-  // Each helper tries the network first while online; on transient failure
-  // (network, 5xx, timeout) it falls back to enqueueing the mutation. Returns
-  // true if the operation was queued for later (caller can show "saved offline"
-  // UI), false if it completed online immediately.
+  // Each tries the network first and falls back to the queue when the failure
+  // is transport (or the queue already owes older jobs). Returns true when the
+  // operation was queued (caller shows "saved on this phone"), false when it
+  // completed online. A server refusal is rethrown: queueing it would only
+  // report "saved" for something that can never land.
 
-  // Network attempts are bounded — on slow/flaky connections we fall back to
-  // the offline queue after 6s instead of freezing the UI for the platform
-  // default (60s+).
-  static const _netTimeout = Duration(seconds: 6);
+  /// True when older jobs are still owed. A new write then joins the back of
+  /// the queue rather than overtaking them.
+  Future<bool> _hasBacklog() async => (await pendingCount()) > 0;
 
-  /// True when a failure looks like a connectivity problem (worth queueing),
-  /// false when the server answered and rejected the call.
-  ///
-  /// Queueing a server rejection is harmful: the mutation can never succeed on
-  /// replay, it burns retries until FAILED, and the caller is told "saved
-  /// offline" for something that will never land. A real DB error must surface
-  /// instead — that's how a broken RPC (adjust_inventory_atomic overload
-  /// ambiguity) stayed invisible. Mirrors the desktop isOfflineError split.
-  bool _isNetworkError(Object e) {
-    if (e is PostgrestException) return false; // server responded → logic/data error
-    if (e is AuthException) return false;      // auth rejection → not connectivity
-    return true;                               // socket / timeout / DNS → offline
-  }
-
-  Future<bool> upsertOnlineOrQueue(String table, Map<String, dynamic> row) async {
-    try {
-      await supabase.from(table).upsert(row).timeout(_netTimeout);
-      return false;
-    } catch (e) {
-      debugPrint('[sync] upsert($table) failed online — queueing: $e');
-      await queueMutation(targetTable: table, action: 'upsert', payload: row);
+  Future<bool> _onlineOrQueue(
+    Future<void> Function() online,
+    Future<int> Function() queue,
+    String label,
+  ) async {
+    if (await _hasBacklog()) {
+      debugPrint('[sync] $label queued behind older jobs');
+      await queue();
       return true;
     }
-  }
-
-  Future<bool> deleteOnlineOrQueue(String table, String id) async {
     try {
-      // Soft delete — rows are flagged, never dropped (recoverable + audit).
-      await supabase.from(table).update({'deleted_at': DateTime.now().toUtc().toIso8601String()}).eq('id', id).timeout(_netTimeout);
+      await online();
       return false;
     } catch (e) {
-      debugPrint('[sync] delete($table) failed online — queueing: $e');
-      await queueMutation(
-        targetTable: table,
-        action: 'delete',
-        payload: {'id': id},
-      );
-      return true;
-    }
-  }
-
-  Future<bool> rpcOnlineOrQueue(String name, Map<String, dynamic> params) async {
-    try {
-      await supabase.rpc(name, params: params).timeout(_netTimeout);
-      return false;
-    } catch (e) {
-      if (!_isNetworkError(e)) {
-        // Server rejected it — replaying would never help. Surface the real
-        // reason to the caller instead of a false "saved offline".
-        debugPrint('[sync] rpc($name) REJECTED by server — not queueing: $e');
+      final kind = classifyFailure(e);
+      if (kind == FailureKind.refused) {
+        debugPrint('[sync] $label REJECTED by server — not queueing: $e');
         rethrow;
       }
-      debugPrint('[sync] rpc($name) failed online — queueing: $e');
-      await queueMutation(
-        targetTable: 'rpc:$name',
-        action: 'rpc',
-        rpcName: name,
-        payload: params,
-      );
+      // Transport or auth: it may even have committed. Keep it; the
+      // idempotent replay settles which.
+      debugPrint('[sync] $label failed online ($kind) — queueing: $e');
+      await queue();
       return true;
     }
+  }
+
+  Future<bool> upsertOnlineOrQueue(String table, Map<String, dynamic> row) =>
+      _onlineOrQueue(
+        () => transport.upsert(table, row),
+        () => queueMutation(targetTable: table, action: 'upsert', payload: row),
+        'upsert($table)',
+      );
+
+  Future<bool> deleteOnlineOrQueue(String table, String id) => _onlineOrQueue(
+        () => transport.softDelete(table, id),
+        () => queueMutation(targetTable: table, action: 'delete', payload: {'id': id}),
+        'delete($table)',
+      );
+
+  /// Absolute-value column writes on one row (`UPDATE … SET … WHERE id`).
+  /// Replaying it is harmless, which is why it is allowed in the queue.
+  Future<bool> updateOnlineOrQueue(
+          String table, String id, Map<String, dynamic> fields) =>
+      _onlineOrQueue(
+        () => transport.update(table, id, fields),
+        () => queueMutation(
+            targetTable: table, action: 'update', payload: {'id': id, 'fields': fields}),
+        'update($table)',
+      );
+
+  Future<bool> rpcOnlineOrQueue(String name, Map<String, dynamic> params) =>
+      _onlineOrQueue(
+        () async => transport.rpc(name, params),
+        () => queueMutation(
+            targetTable: 'rpc:$name', action: 'rpc', rpcName: name, payload: params),
+        'rpc($name)',
+      );
+
+  // ── Editing a job that has not been sent ────────────────────────────────────
+
+  /// The newest still-PENDING rpc job whose payload has `p_id == opId`.
+  Future<SyncMutation?> findPendingRpc(String rpcName, String opId) async {
+    final rows = await (db.select(db.syncMutations)
+          ..where((t) => t.rpcName.equals(rpcName) & t.status.equals(JobStatus.pending))
+          ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)]))
+        .get();
+    for (final r in rows) {
+      try {
+        if ((jsonDecode(r.payload) as Map)['p_id'] == opId) return r;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  /// Merge [changes] into a job that has NOT been picked up yet. Returns false
+  /// when the worker already holds it (or it finished), in which case the
+  /// caller must send its change as a follow-up job instead.
+  Future<bool> amendPendingJob(int jobId, Map<String, dynamic> changes) async {
+    return db.transaction(() async {
+      final row = await (db.select(db.syncMutations)..where((t) => t.id.equals(jobId)))
+          .getSingleOrNull();
+      if (row == null || row.status != JobStatus.pending) return false;
+      final payload = Map<String, dynamic>.from(jsonDecode(row.payload) as Map)
+        ..addAll(changes);
+      final n = await (db.update(db.syncMutations)
+            ..where((t) => t.id.equals(jobId) & t.status.equals(JobStatus.pending)))
+          .write(SyncMutationsCompanion(payload: Value(jsonEncode(payload))));
+      return n == 1;
+    });
+  }
+
+  /// Withdraw a job that has not been sent (e.g. a UPI sale whose payment never
+  /// arrived). Kept as DISCARDED with [reason]; returns false if already sent.
+  Future<bool> withdrawPendingJob(int jobId, String reason) async {
+    final n = await (db.update(db.syncMutations)
+          ..where((t) => t.id.equals(jobId) & t.status.equals(JobStatus.pending)))
+        .write(SyncMutationsCompanion(
+          status: const Value(JobStatus.discarded),
+          lastError: Value(reason),
+        ));
+    return n == 1;
   }
 
   // ── Counters / observability ───────────────────────────────────────────────
 
-  /// Count of jobs still owed to the server (PENDING + FAILED retryable).
-  Future<int> pendingCount() async {
-    final q = await db.customSelect(
-      "SELECT COUNT(*) AS c FROM sync_mutations WHERE status IN ('PENDING','PROCESSING')",
-    ).getSingle();
-    return q.read<int>('c');
-  }
+  static const _owedSql =
+      "SELECT COUNT(*) AS c FROM sync_mutations WHERE status IN ('PENDING','PROCESSING')";
 
-  /// Stream of pending count — recomputed via watcher.
-  Stream<int> watchPendingCount() {
-    return db
-        .customSelect(
-          "SELECT COUNT(*) AS c FROM sync_mutations WHERE status IN ('PENDING','PROCESSING')",
-          readsFrom: {db.syncMutations},
-        )
-        .watchSingle()
-        .map((r) => r.read<int>('c'));
-  }
+  /// Jobs still owed to the server.
+  Future<int> pendingCount() async =>
+      (await db.customSelect(_owedSql).getSingle()).read<int>('c');
 
-  Future<int> failedCount() async {
-    final q = await db.customSelect(
-      "SELECT COUNT(*) AS c FROM sync_mutations WHERE status = 'FAILED'",
-    ).getSingle();
-    return q.read<int>('c');
-  }
+  Stream<int> watchPendingCount() => db
+      .customSelect(_owedSql, readsFrom: {db.syncMutations})
+      .watchSingle()
+      .map((r) => r.read<int>('c'));
+
+  Future<int> failedCount() async => (await db
+          .customSelect("SELECT COUNT(*) AS c FROM sync_mutations WHERE status = 'FAILED'")
+          .getSingle())
+      .read<int>('c');
+
+  /// Jobs the server refused — each one needs the owner.
+  Stream<int> watchFailedCount() => db
+      .customSelect("SELECT COUNT(*) AS c FROM sync_mutations WHERE status = 'FAILED'",
+          readsFrom: {db.syncMutations})
+      .watchSingle()
+      .map((r) => r.read<int>('c'));
+
+  /// Sales made on this phone that the server does not have yet.
+  Stream<int> watchUnsyncedSaleCount() => db
+      .customSelect(
+          "SELECT COUNT(*) AS c FROM sync_mutations "
+          "WHERE rpc_name = 'process_sale' AND status IN ('PENDING','PROCESSING')",
+          readsFrom: {db.syncMutations})
+      .watchSingle()
+      .map((r) => r.read<int>('c'));
 
   // ── Worker ─────────────────────────────────────────────────────────────────
 
-  /// Process queued mutations. Idempotent + reentrant-safe via _flushing latch.
-  /// Each job is attempted independently — one failure does NOT block siblings.
-  Future<void> sync() async {
-    if (_flushing) return;
+  /// Replay owed jobs in insertion order. Reentrant-safe: a call made while a
+  /// pass runs does not start a second pass; it makes the running one go
+  /// round again when it finishes (so a request made just as the network
+  /// came back is not lost inside a pass that had already seen it offline),
+  /// and resolves when that is done.
+  ///
+  /// [force] ignores backoff timers (connectivity just came back, or the
+  /// cashier tapped Sync now).
+  Future<void> sync({bool force = false}) async {
+    if (_flushing) {
+      _again = true;
+      _againForce = _againForce || force;
+      return _flushDone?.future;
+    }
     _flushing = true;
+    _flushDone = Completer<void>();
     try {
-      final conn = await Connectivity().checkConnectivity();
-      if (conn == ConnectivityResult.none) return;
-
-      final now = DateTime.now();
-      final due = await (db.select(db.syncMutations)
-            ..where((t) =>
-                (t.status.equals('PENDING') | t.status.equals('PROCESSING')) &
-                t.nextAttemptAt.isSmallerOrEqualValue(now))
-            ..orderBy([(t) => OrderingTerm(expression: t.nextAttemptAt)])
-            ..limit(50))
-          .get();
-
-      for (final job in due) {
-        await _processJob(job);
-      }
+      var f = force;
+      do {
+        _again = false;
+        await _pass(f);
+        f = _againForce;
+        _againForce = false;
+      } while (_again);
     } catch (e) {
       debugPrint('[sync] outer error: $e');
     } finally {
       _flushing = false;
+      _flushDone?.complete();
+      _flushDone = null;
+    }
+  }
+
+  bool _again = false;
+  bool _againForce = false;
+
+  Future<void> _pass(bool force) async {
+    if (!await transport.isOnline()) return;
+    var lastId = 0;
+    while (true) {
+      final batch = await (db.select(db.syncMutations)
+            ..where((t) => t.status.isIn(JobStatus.owed) & t.id.isBiggerThanValue(lastId))
+            ..orderBy([(t) => OrderingTerm(expression: t.id)])
+            ..limit(50))
+          .get();
+      if (batch.isEmpty) return;
+      for (final job in batch) {
+        lastId = job.id;
+        // Head of line: a job waiting on its timer holds everything after
+        // it, or a later job (a collection) could overtake its sale.
+        if (!force && job.nextAttemptAt.isAfter(DateTime.now())) return;
+        final failure = await _processJob(job);
+        // The network (or the session) is gone for everyone, not just this
+        // job; stop rather than time out on the rest of the queue.
+        if (failure == FailureKind.transport || failure == FailureKind.auth) return;
+      }
     }
   }
 
@@ -218,15 +378,21 @@ class SyncService {
     return _cachedTenantId;
   }
 
-  Future<void> _processJob(SyncMutation job) async {
-    // Mark PROCESSING
-    await (db.update(db.syncMutations)..where((t) => t.id.equals(job.id))).write(
-      SyncMutationsCompanion(
-        status: const Value('PROCESSING'),
-        lastAttemptAt: Value(DateTime.now()),
-        attempts: Value(job.attempts + 1),
-      ),
-    );
+  /// Returns null on success, otherwise how it failed.
+  Future<FailureKind?> _processJob(SyncMutation queued) async {
+    // Claim it, then re-read: an amendment made before the claim must be the
+    // payload that is sent, and one made after it is refused (see
+    // amendPendingJob), so nothing is half-applied.
+    final claimed = await (db.update(db.syncMutations)
+          ..where((t) => t.id.equals(queued.id) & t.status.isIn(JobStatus.owed)))
+        .write(SyncMutationsCompanion(
+          status: const Value(JobStatus.processing),
+          lastAttemptAt: Value(DateTime.now()),
+          attempts: Value(queued.attempts + 1),
+        ));
+    if (claimed == 0) return null; // withdrawn meanwhile
+    final job = await (db.select(db.syncMutations)..where((t) => t.id.equals(queued.id)))
+        .getSingle();
 
     try {
       final payload = jsonDecode(job.payload) as Map<String, dynamic>;
@@ -239,75 +405,105 @@ class SyncService {
             final tid = await _currentTenantId();
             if (tid != null) payload['tenant_id'] = tid;
           }
-          // Bounded — a hung supabase call would otherwise stall the whole
-          // queue and latch _flushing, leaving the app stuck on "Syncing…".
-          await supabase.from(job.targetTable).upsert(payload).timeout(_netTimeout);
+          await transport.upsert(job.targetTable, payload);
           break;
         case 'delete':
           final id = payload['id'];
           if (id == null) throw Exception('delete payload missing id');
-          // Soft delete — flag, don't drop.
-          await supabase.from(job.targetTable).update({'deleted_at': DateTime.now().toUtc().toIso8601String()}).eq('id', id).timeout(_netTimeout);
+          await transport.softDelete(job.targetTable, id as String);
+          break;
+        case 'update':
+          await transport.update(job.targetTable, payload['id'] as String,
+              Map<String, dynamic>.from(payload['fields'] as Map));
           break;
         case 'rpc':
           final name = job.rpcName;
           if (name == null || name.isEmpty) {
-            throw Exception('rpc job missing rpcName');
+            throw StateError('rpc job missing rpcName');
           }
-          await supabase.rpc(name, params: payload).timeout(_netTimeout);
+          await transport.rpc(name, payload);
           break;
         default:
-          throw Exception('unknown action ${job.action}');
+          throw StateError('unknown action ${job.action}');
       }
 
-      // SUCCESS
       await (db.update(db.syncMutations)..where((t) => t.id.equals(job.id))).write(
         const SyncMutationsCompanion(
-          status: Value('SUCCESS'),
+          status: Value(JobStatus.success),
           isSynced: Value(true),
           lastError: Value(null),
         ),
       );
       debugPrint('[sync] OK job=${job.id} ${job.action} ${job.targetTable}');
+      return null;
     } catch (e) {
-      final attempts = job.attempts + 1;
-      final shouldRetry = attempts < kMaxAttempts;
-      final backoff = kBackoffSeconds[
-          attempts.clamp(0, kBackoffSeconds.length - 1)];
-
-      await (db.update(db.syncMutations)..where((t) => t.id.equals(job.id))).write(
-        SyncMutationsCompanion(
-          status: Value(shouldRetry ? 'PENDING' : 'FAILED'),
-          lastError: Value(e.toString()),
-          nextAttemptAt: Value(
-              DateTime.now().add(Duration(seconds: backoff))),
-        ),
-      );
-      debugPrint(
-          '[sync] FAIL job=${job.id} attempt=$attempts retry=$shouldRetry: $e');
+      // A malformed job is a refusal too: it can never succeed on replay.
+      final kind = e is StateError || e is FormatException || e is TypeError
+          ? FailureKind.refused
+          : classifyFailure(e);
+      if (kind == FailureKind.refused) {
+        await (db.update(db.syncMutations)..where((t) => t.id.equals(job.id))).write(
+          SyncMutationsCompanion(
+            status: const Value(JobStatus.failed),
+            lastError: Value(e.toString()),
+          ),
+        );
+      } else {
+        final backoff = kBackoffSeconds[
+            (job.attempts - 1).clamp(0, kBackoffSeconds.length - 1)];
+        await (db.update(db.syncMutations)..where((t) => t.id.equals(job.id))).write(
+          SyncMutationsCompanion(
+            status: const Value(JobStatus.pending),
+            lastError: Value(kind == FailureKind.auth
+                ? 'Sign in again to send this. ($e)'
+                : e.toString()),
+            nextAttemptAt: Value(DateTime.now().add(Duration(seconds: backoff))),
+          ),
+        );
+      }
+      debugPrint('[sync] FAIL job=${job.id} attempt=${job.attempts} kind=$kind: $e');
+      return kind;
     }
   }
 
-  /// One-shot manual retry — used by the "Retry sync" button.
-  ///
-  /// Resets BOTH FAILED jobs and PENDING jobs that are still parked
-  /// behind their exponential-backoff timer (nextAttemptAt in the
-  /// future). Without the PENDING reset, a job that failed a few times
-  /// — e.g. while a server-side bug like an RPC overload was being
-  /// fixed — would sit unsynced for up to an hour with no way for the
-  /// cashier to push it immediately. For a POS that's unacceptable:
-  /// staff need to confirm a sale reached the server on demand.
+  /// "Sync now" / "Retry all": resets FAILED and backed-off PENDING jobs, then
+  /// replays. Owner-initiated, so a refused job gets another honest attempt.
   Future<void> retryFailed() async {
     await (db.update(db.syncMutations)
-          ..where((t) =>
-              t.status.equals('FAILED') | t.status.equals('PENDING')))
+          ..where((t) => t.status.equals(JobStatus.failed) | t.status.equals(JobStatus.pending)))
         .write(SyncMutationsCompanion(
-          status: const Value('PENDING'),
+          status: const Value(JobStatus.pending),
           attempts: const Value(0),
           nextAttemptAt: Value(DateTime.now()),
-          lastError: const Value(null),
         ));
-    await sync();
+    await sync(force: true);
+  }
+
+  /// Retry one refused job (after the owner fixed the stock, limit, …).
+  Future<void> retryJob(int jobId) async {
+    await (db.update(db.syncMutations)
+          ..where((t) => t.id.equals(jobId) & t.status.equals(JobStatus.failed)))
+        .write(SyncMutationsCompanion(
+          status: const Value(JobStatus.pending),
+          attempts: const Value(0),
+          nextAttemptAt: Value(DateTime.now()),
+        ));
+    await sync(force: true);
+  }
+
+  /// The owner accepts that a refused job will not be recorded. The row is
+  /// kept (DISCARDED) with the reason it was refused, never deleted.
+  Future<void> discardJob(int jobId) async {
+    final row = await (db.select(db.syncMutations)..where((t) => t.id.equals(jobId)))
+        .getSingleOrNull();
+    if (row == null || row.status != JobStatus.failed) return;
+    await (db.update(db.syncMutations)..where((t) => t.id.equals(jobId))).write(
+      SyncMutationsCompanion(
+        status: const Value(JobStatus.discarded),
+        lastError: Value('Discarded by owner on ${DateTime.now().toIso8601String()}. '
+            'Was refused: ${row.lastError ?? ''}'),
+      ),
+    );
   }
 
   // ── Pull sync (server → local) ─────────────────────────────────────────────

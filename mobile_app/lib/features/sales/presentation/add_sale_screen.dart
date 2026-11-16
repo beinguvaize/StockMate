@@ -16,6 +16,7 @@ import 'package:mobile_app/features/sales/presentation/providers/sales_provider.
 import 'package:mobile_app/core/database/database.dart' hide Client, Sale, Invoice;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:uuid/uuid.dart';
+import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/add_client_screen.dart';
 import 'package:mobile_app/core/database/offline_reads.dart';
@@ -32,6 +33,9 @@ import 'package:mobile_app/features/sales/data/models/sale.dart';
 import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:printing/printing.dart';
 import 'package:mobile_app/core/widgets/success_tick.dart';
+import 'package:mobile_app/core/database/sync_errors.dart' show describeRefusal;
+import 'package:mobile_app/core/database/offline_sales_ui.dart' show OfflineSalesBanner, nudgeSync;
+import 'package:mobile_app/core/auth/offline_context_cache.dart';
 
 // POS stores (non-vehicle inventory locations) for the multi-store
 // store picker. Cached per session.
@@ -57,6 +61,11 @@ final posStoresProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
     return rows.where((l) => (l['type'] ?? 'WAREHOUSE') != 'VEHICLE').toList();
   }
 });
+
+/// A new bill number: `SAL-` and 12 random hex digits. Made on the phone and
+/// final (see _submit for why 12).
+String newSaleId() =>
+    'SAL-${const Uuid().v4().replaceAll('-', '').substring(0, 12).toUpperCase()}';
 
 // ─── Cart model ───────────────────────────────────────────────────────────────
 
@@ -101,6 +110,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
   @override
   void initState() {
     super.initState();
+    // Opening the till is a good moment to push anything still owed.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) nudgeSync(ref);
+    });
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.toLowerCase());
     });
@@ -263,6 +276,24 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     );
   }
 
+  /// A write that follows a recorded sale. It is not the sale, so its failure
+  /// must not report "Sale failed" -- but it is not swallowed either: a
+  /// refusal is shown with its reason.
+  Future<void> _followUp(Future<bool> Function() write, String what) async {
+    try {
+      await write();
+    } catch (e) {
+      debugPrint('[SALE] follow-up "$what" refused: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Sale saved, but could not $what: ${describeRefusal(e.toString()).reason}'),
+          backgroundColor: AppColors.danger,
+          duration: const Duration(seconds: 6),
+        ));
+      }
+    }
+  }
+
   Future<void> _submit(String paymentMethod, double? paidAmountOverride, [double discount = 0]) async {
     if (_cart.isEmpty) {
       _showError('Cart is empty');
@@ -272,7 +303,15 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       // Bill total net of any discount — this is what's charged / owed / receipted.
       final discountAmt = discount.clamp(0, _subtotal).toDouble();
       final netTotal = (_subtotal - discountAmt).clamp(0, double.infinity).toDouble();
-      final saleId = 'SAL-${const Uuid().v4().substring(0, 8).toUpperCase()}';
+      // The bill number is made here, on the phone, and it is final: the
+      // server keeps the id it is given (and a GST invoice for a credit bill
+      // takes its own number server-side). Twelve hex digits, not eight:
+      // with phones billing offline there is no server to catch a clash, and
+      // process_sale's replay guard treats "this id already exists" as "this
+      // sale already landed" -- so two devices drawing the same 8-digit id
+      // would silently drop the second sale. 48 random bits put that out of
+      // reach (about 1 in 50,000 for a shop with a million bills).
+      final saleId = newSaleId();
 
       // Items format mirrors web: { id, quantity, name, rate, taxRate }
       // taxRate snapshot at sale-time so invoice GST stays correct even
@@ -350,29 +389,14 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         if (paidAmt != null) 'p_paid_amount': paidAmt,
       };
 
-      // Offline-first: try direct RPC, on network/transient failure queue it.
-      final queued = await ref.read(syncServiceProvider)
-          .rpcOnlineOrQueue('process_sale', rpcParams);
+      // Offline-first: try direct RPC; on a transport failure (or while older
+      // jobs are still owed) queue the SAME call with the same p_id. A
+      // timeout may already have committed -- the replay guard makes the
+      // resend a no-op -- so a queued sale is "saved on this phone", never
+      // "not saved". A server refusal is thrown and shown below.
+      final sync = ref.read(syncServiceProvider);
+      final queued = await sync.rpcOnlineOrQueue('process_sale', rpcParams);
       debugPrint(queued ? '[SALE] queued for offline sync' : '[SALE] RPC success');
-
-      // Persist the real amount the customer handed over (may exceed the bill
-      // → change, or applied to previous dues). p_paid_amount is capped at the
-      // bill by the RPC, so this preserves the true tender for the receipt.
-      // Online-only + best-effort — offline sales just omit it (receipt falls
-      // back to the paid amount). Kept off the RPC to avoid an overload change.
-      //
-      // Previously this required the cashier to have typed an explicit amount,
-      // so ordinary sales never wrote the column. The tender is known without
-      // it: credit tenders nothing at the till, UPI is unconfirmed until the
-      // QR sheet flips it, anything else is paid in full.
-      if (!queued) {
-        final tendered = paidAmountOverride ??
-            (paymentMethod == 'CREDIT_SALE' || paymentMethod == 'UPI' ? 0.0 : netTotal);
-        try {
-          await supabase.from('sales')
-              .update({'amount_received': tendered}).eq('id', saleId);
-        } catch (e) { debugPrint('[SALE] amount_received save failed: $e'); }
-      }
 
       // NOTE: do NOT touch clients.outstanding_balance here. A DB trigger
       // (_trg_sales_recalc_outstanding) recomputes it from the client's
@@ -434,37 +458,58 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       }
 
       // Resolve the PENDING UPI sale.
-      //   Received → flip to PAID + paidAmount = total.
-      //   Not Received → fire void_sale RPC: rolls back stock, FIFO batches,
-      //     credit balance, marks the row VOIDED so it drops out of reports.
-      //     The cashier can immediately ring a fresh sale if the customer
-      //     wants to retry.
+      //   Received → PAID, paidAmount = total.
+      //   Not received → the sale must not count.
+      // When the sale is still sitting in the outbox unsent, the cleanest
+      // fix is to edit that job before it goes: mark it PAID, or withdraw it
+      // so it is never sent at all. If the worker already took it, the
+      // follow-up goes through the outbox behind it (FIFO), so it can never
+      // reach the server before the sale it changes. Both follow-ups are
+      // safe to replay: an absolute column write, and void_sale returns
+      // early on a sale already voided.
+      bool upiVoided = false;
       if (paymentMethod == 'UPI') {
+        final job = queued ? await sync.findPendingRpc('process_sale', saleId) : null;
         if (upiConfirmed == true) {
-          try {
-            await supabase.from('sales').update({
-              'paymentStatus': 'PAID',
-              'paidAmount': netTotal,
-              // Tender lands here, not at sale time — the sale wrote 0 while
-              // the QR was still unconfirmed. Without this a confirmed UPI
-              // sale reads as never collected.
-              'amount_received': netTotal,
-            }).eq('id', saleId);
-          } catch (e) {
-            debugPrint('[SALE] mark PAID failed: $e');
+          final amended = job != null &&
+              await sync.amendPendingJob(job.id, {
+                'p_payment_status': 'PAID',
+                'p_paid_amount': netTotal,
+              });
+          if (!amended) {
+            await _followUp(() => sync.updateOnlineOrQueue('sales', saleId, {
+                  'paymentStatus': 'PAID',
+                  'paidAmount': netTotal,
+                }), 'mark UPI bill paid');
           }
         } else {
-          // Not received OR dismissed → void everything.
-          try {
-            await supabase.rpc('void_sale', params: {
-              'p_id': saleId,
-              'p_reason': 'UPI payment not received',
-              'p_user_id': userId,
-            });
-          } catch (e) {
-            debugPrint('[SALE] void_sale failed: $e');
+          upiVoided = true;
+          final withdrawn = job != null &&
+              await sync.withdrawPendingJob(job.id, 'UPI payment not received');
+          if (!withdrawn) {
+            await _followUp(() => sync.rpcOnlineOrQueue('void_sale', {
+                  'p_id': saleId,
+                  'p_reason': 'UPI payment not received',
+                  'p_user_id': userId,
+                }), 'void the unpaid UPI bill');
           }
         }
+      }
+
+      // Persist the real amount the customer handed over (may exceed the bill
+      // → change, or applied to previous dues). p_paid_amount is capped at the
+      // bill by the RPC, so this keeps the true tender for the receipt. Credit
+      // tenders nothing at the till; UPI only once confirmed; anything else is
+      // paid in full. Queued behind the sale when offline (it used to be
+      // dropped), so it lands after the row it updates.
+      if (!upiVoided) {
+        final tendered = paidAmountOverride ??
+            (paymentMethod == 'CREDIT_SALE' ||
+                    (paymentMethod == 'UPI' && upiConfirmed != true)
+                ? 0.0
+                : netTotal);
+        await _followUp(() => sync.updateOnlineOrQueue(
+            'sales', saleId, {'amount_received': tendered}), 'save the amount received');
       }
 
       if (!mounted) return;
@@ -473,6 +518,24 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       final outstanding = (_selectedClient?.outstandingBalance ?? 0.0);
       await _SaleSuccessSheet.show(
         context,
+        queued:        queued,
+        localSale: {
+          'id': saleId,
+          'tenant_id': tenantId,
+          'shopId': _selectedClient?.id,
+          if (_selectedClient != null) 'customerInfo': {'name': _selectedClient!.name},
+          'paymentMethod': pm,
+          'paymentStatus': paymentMethod == 'UPI' && upiConfirmed == true ? 'PAID' : ps,
+          'totalAmount': netTotal,
+          'discount': discountAmt,
+          'paidAmount': paymentMethod == 'CREDIT_SALE'
+              ? (paidAmt ?? 0.0).clamp(0.0, netTotal)
+              : (paymentMethod == 'UPI' && upiConfirmed != true ? 0.0 : netTotal),
+          'amount_received': paidAmountOverride,
+          'date': dateStr,
+          'items': payloadItems,
+          'created_at': now.toUtc().toIso8601String(),
+        },
         saleId:        saleId,
         total:         netTotal,
         client:        _selectedClient,
@@ -488,7 +551,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
     } catch (e, stack) {
       debugPrint('[SALE] FAILED: $e\n$stack');
-      _showError('Sale failed: $e');
+      // Only a server refusal reaches here (transport failures are queued).
+      // Say which rule refused it, in words, as the web till does.
+      final info = describeRefusal(e.toString());
+      _showError('${info.title}: ${info.reason}');
     }
   }
 
@@ -649,6 +715,13 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                   ),
                                 ),
                               ],
+                            ),
+
+                            // Offline / not-synced / refused, always in view
+                            // at the till. Collapses to nothing when all is
+                            // synced and online.
+                            const OfflineSalesBanner(
+                              padding: EdgeInsets.only(top: 12),
                             ),
 
                             const SizedBox(height: 16),
@@ -2525,7 +2598,37 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
         _filtered = _clients;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
+      // Offline: the customers cached by the last sync, with the outstanding
+      // balance as of that sync. A credit sale can still be rung against
+      // them; process_sale enforces the credit limit when it replays, and a
+      // refusal is shown in the sync sheet rather than lost.
+      debugPrint('[clientPicker] online failed, using Drift cache: $e');
+      try {
+        final ref = ProviderScope.containerOf(context, listen: false);
+        final db = ref.read(databaseProvider);
+        final tenantId = ref.read(tenantContextProvider).valueOrNull?.tenantId;
+        final q = db.select(db.clients)
+          ..orderBy([(t) => OrderingTerm(expression: t.name)]);
+        if (tenantId != null) q.where((t) => t.tenantId.equals(tenantId));
+        final rows = await q.get();
+        if (!mounted) return;
+        if (rows.isNotEmpty) {
+          setState(() {
+            _clients = rows.map((r) => Client.fromJson({
+                  'id': r.id,
+                  'name': r.name,
+                  'phone': r.phone,
+                  'outstanding_balance': r.outstandingBalance,
+                })).toList();
+            _filtered = _clients;
+            _loading = false;
+          });
+          return;
+        }
+      } catch (e2) {
+        debugPrint('[clientPicker] cache read failed: $e2');
+      }
       if (!mounted) return;
       setState(() { _loading = false; _loadFailed = true; });
     }
@@ -2853,6 +2956,11 @@ class _BarcodeScannerScreen extends StatelessWidget {
 
 class _SaleSuccessSheet extends StatefulWidget {
   final String  saleId;
+  /// True when the sale is in the outbox, not yet on the server.
+  final bool    queued;
+  /// The sale as rung, in Sale.fromJson columns, so a receipt can be built
+  /// with no network at all.
+  final Map<String, dynamic>? localSale;
   final double  total;
   final Client? client;
   final double  outstanding;   // client's pre-sale outstanding balance
@@ -2861,6 +2969,8 @@ class _SaleSuccessSheet extends StatefulWidget {
 
   const _SaleSuccessSheet({
     required this.saleId,
+    this.queued = false,
+    this.localSale,
     required this.total,
     this.client,
     this.outstanding = 0,
@@ -2871,6 +2981,8 @@ class _SaleSuccessSheet extends StatefulWidget {
   static Future<void> show(
     BuildContext context, {
     required String  saleId,
+    bool             queued        = false,
+    Map<String, dynamic>? localSale,
     required double  total,
     Client?          client,
     double           outstanding   = 0,
@@ -2883,6 +2995,8 @@ class _SaleSuccessSheet extends StatefulWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => _SaleSuccessSheet(
         saleId:        saleId,
+        queued:        queued,
+        localSale:     localSale,
         total:         total,
         client:        client,
         outstanding:   outstanding,
@@ -2930,6 +3044,17 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
   // on mobile data), build the same slip locally instead of hard-failing —
   // see core/print/pos_receipt_pdf.dart, shared with invoice_detail_screen.
   Future<Uint8List> _receiptBytes() async {
+    // The web layout needs the network AND the sale on the server. With
+    // either missing, waiting 25s for the embed to time out only to fall
+    // back anyway is dead time at the counter: print from this phone now.
+    if (widget.localSale != null) {
+      final svc = ProviderScope.containerOf(context).read(syncServiceProvider);
+      final online = await svc.transport.isOnline();
+      final stillQueued = widget.queued &&
+          (await svc.findPendingRpc('process_sale', widget.saleId) != null ||
+              await svc.pendingCount() > 0);
+      if (!online || stillQueued) return _offlineReceipt();
+    }
     try {
       final bytes = await WebPrintService.renderReceiptPdf(widget.saleId);
       if (bytes == null || bytes.isEmpty) throw Exception('Empty PDF');
@@ -2944,8 +3069,20 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
           duration: Duration(seconds: 3),
         ));
       }
-      final row = await supabase.from('sales').select('*').eq('id', widget.saleId).maybeSingle();
-      if (row == null) rethrow;
+      final Map<String, dynamic>? row;
+      try {
+        row = await supabase.from('sales').select('*').eq('id', widget.saleId)
+            .maybeSingle().timeout(const Duration(seconds: 6));
+      } catch (e2) {
+        // No network at all: build the slip from the bill as rung and the
+        // cached shop profile. Same layout code, nothing fetched.
+        debugPrint('[print] server unreachable, printing from this phone: $e2');
+        return _offlineReceipt();
+      }
+      if (row == null) {
+        // Not on the server yet (still queued): print what was rung.
+        return _offlineReceipt();
+      }
       final sale = Sale.fromJson(row);
       final invoice = Invoice.fromSale(sale);
       final tenantId = row['tenant_id'] as String?;
@@ -2978,6 +3115,55 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
         noGst: noGst,
       );
     }
+  }
+
+  /// The receipt from local data only: the sale as rung and the shop profile
+  /// cached on this phone. Marked as not synced on the slip's terms line, so a
+  /// reprint after sync is the one with the server's figures.
+  Future<Uint8List> _offlineReceipt() async {
+    final local = widget.localSale;
+    if (local == null) throw Exception('This bill is not on this phone.');
+    final container = ProviderScope.containerOf(context);
+    Map<String, dynamic>? profile;
+    try {
+      profile = await container.read(tenantProfileProvider.future);
+    } catch (_) {}
+    final tenantId = local['tenant_id'] as String?;
+    if (profile == null && tenantId != null) {
+      profile = await OfflineContextCache.loadBusinessProfile(tenantId);
+      if (profile == null) {
+        final cachedBiz = await (container.read(databaseProvider).select(
+                container.read(databaseProvider).businessProfileLocal)
+              ..where((t) => t.tenantId.equals(tenantId)))
+            .getSingleOrNull();
+        if (cachedBiz != null) {
+          profile = {
+            'tenant_id': cachedBiz.tenantId, 'name': cachedBiz.name,
+            'address': cachedBiz.address, 'phone': cachedBiz.phone,
+            'gst_no': cachedBiz.gstNo, 'upi_id': cachedBiz.upiId,
+            'invoice_terms': cachedBiz.invoiceTerms,
+          };
+        }
+      }
+    }
+    final biz = profile == null
+        ? null
+        : BusinessProfile.fromJson({
+            ...profile,
+            'tenant_id': profile['tenant_id'] ?? tenantId ?? '',
+            if (widget.queued)
+              'footer_message': 'Bill saved offline. It syncs automatically.',
+          });
+    final noGst = (profile?['tax_mode'] as String?)?.toUpperCase() == 'NONE';
+    final invoice = Invoice.fromSale(Sale.fromJson(local));
+    return pos_pdf.buildPosReceiptPdf(
+      invoice, biz,
+      // The customer's balance as of the last sync plus this bill would be a
+      // guess; the slip leaves the account summary out rather than print one.
+      clientOutstanding: null,
+      amountReceived: (local['amount_received'] as num?)?.toDouble(),
+      noGst: noGst,
+    );
   }
 
   Future<void> _print() async {
@@ -3137,8 +3323,17 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
           // colour is the point rather than the accent.
           const SuccessTick(size: 72),
           const SizedBox(height: 16),
-          Text('Sale recorded!',
+          Text(widget.queued ? 'Sale saved on this phone' : 'Sale recorded!',
             style: GoogleFonts.manrope(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
+          if (widget.queued) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Not synced yet. It is sent automatically when the internet is back; '
+              'the bill number below stays the same.',
+              textAlign: TextAlign.center,
+              style: AppText.caption.copyWith(color: AppColors.warning),
+            ),
+          ],
           const SizedBox(height: 4),
           Text(Money.inrExact(widget.total),
             style: AppText.moneyLarge),
