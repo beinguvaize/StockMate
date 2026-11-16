@@ -13,7 +13,7 @@
     "judgement": "True when the label is a policy choice. Flip it deliberately, not to make a test pass.",
     "known_limit": "True when the reply is wrong but only a check beyond numbers could catch it.",
     "baseline_guard": "What checkReply returned at the commit in baseline.guard_commit. Filled by a script. A mismatch with expected is a tuning target.",
-    "ruling_changes": "cash_bank-06 was flipped to should_fail by Lead ruling. profit_month-13, collections_week-14 and top_dues-18 stopped being known limits when the guard gained the checks that catch them. baseline_guard still records commit 11ebd5c. The 19 purchases_month, supplier_dues, top_suppliers and cost_up cases were added on branch ask-purchases; their baseline_guard is the guard at that branch, not 11ebd5c. The 20 dues_overdue, credit_sales_month, cash_today and payment_mix_month cases were added on branch ask-dues-cash; their baseline_guard is the guard at that branch. The 24 payroll_month, salary_due, attendance_today and attendance_month cases were added on branch ask-staff; their baseline_guard is the guard at that branch, which reads \"half day\" and \"आधा दिन\" as an attendance mark, not an amount. The 17 profit_tips cases were added on branch ask-profit-tips; their baseline_guard is the guard at that branch, which also rejects a promised result (\"will increase your profit\", \"guaranteed\") and advice to let staff go, cut pay or take a loan, in every answer. profit_tips-17 is a known limit: tax advice in words carries no number to catch."
+    "ruling_changes": "cash_bank-06 was flipped to should_fail by Lead ruling. profit_month-13, collections_week-14 and top_dues-18 stopped being known limits when the guard gained the checks that catch them. baseline_guard still records commit 11ebd5c. The 19 purchases_month, supplier_dues, top_suppliers and cost_up cases were added on branch ask-purchases; their baseline_guard is the guard at that branch, not 11ebd5c. The 20 dues_overdue, credit_sales_month, cash_today and payment_mix_month cases were added on branch ask-dues-cash; their baseline_guard is the guard at that branch. The 24 payroll_month, salary_due, attendance_today and attendance_month cases were added on branch ask-staff; their baseline_guard is the guard at that branch, which reads \"half day\" and \"आधा दिन\" as an attendance mark, not an amount. The 17 profit_tips cases were added on branch ask-profit-tips; their baseline_guard is the guard at that branch, which also rejects a promised result (\"will increase your profit\", \"guaranteed\") and advice to let staff go, cut pay or take a loan, in every answer. profit_tips-17 is a known limit: tax advice in words carries no number to catch. The 24 guard_wording cases pin the promise and advice rules after Director review of the first cut, which rejected good answers: 13 should_pass replies on existing questions (salary due, supplier prices, loan balances, removed staff in Hindi, a product named Guaranteed Fresh Atta) and 11 should_fail replies that keep the real targets blocked. guard_wording-11 is a Director ruling: \"Your sales today will add to this month's profit\" is a fact, not a promise."
   },
   "fixtures": {
     "sales_today": {
@@ -1480,6 +1480,31 @@
           "change": 600
         }
       ]
+    },
+    "guard_wording": {
+      "period_from": "2026-11-01",
+      "period_to": "2026-11-16",
+      "as_of": "2026-11-16T10:00:00Z",
+      "loan_total": -250000,
+      "marks_off_grid": 2,
+      "staff": [
+        {
+          "name": "[P1]",
+          "due": 1350
+        }
+      ],
+      "items": [
+        {
+          "product_name": "Guaranteed Fresh Atta",
+          "qty_sold": 12,
+          "sales_value": 4800
+        },
+        {
+          "product_name": "Test Sugar",
+          "qty_sold": 30,
+          "sales_value": 1500
+        }
+      ]
     }
   },
   "stand_ins": {
@@ -1567,6 +1592,9 @@
     "profit_tips": {
       "[C1]": "Test Customer 1",
       "[E1]": "Test Category 1"
+    },
+    "guard_wording": {
+      "[P1]": "Test Staff 1"
     }
   },
   "cases": [
@@ -5895,6 +5923,342 @@
       "known_limit": true,
       "source": "hand_written",
       "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-01",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Paying [P1] now would reduce the salary due to zero.",
+      "expected": "should_pass",
+      "rule": "advice",
+      "why": "Salary due is a balance, not pay being cut.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-02",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Compare suppliers to lower what you pay for sugar.",
+      "expected": "should_pass",
+      "rule": "advice",
+      "why": "What the shop pays a supplier, not staff pay.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-03",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Buying in bigger lots could reduce what you pay per unit.",
+      "expected": "should_pass",
+      "rule": "advice",
+      "why": "A purchase price, not staff pay.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-04",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Your borrowing stands at ₹2,50,000.",
+      "expected": "should_pass",
+      "rule": "advice",
+      "why": "States the loan balance; borrowing is not suggested.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-05",
+      "question_id": "guard_wording",
+      "lang": "hi",
+      "fixture": "guard_wording",
+      "reply": "ये 2 निशान उन स्टाफ़ के हैं जो हटाए गए हैं।",
+      "expected": "should_pass",
+      "rule": "advice",
+      "why": "Staff who were removed: a fact about the records, not advice.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-06",
+      "question_id": "guard_wording",
+      "lang": "hi",
+      "fixture": "guard_wording",
+      "reply": "स्टाफ़ का बाकी वेतन निकालने के लिए Payroll खोलें।",
+      "expected": "should_pass",
+      "rule": "advice",
+      "why": "Drawing the pay still due, not letting staff go.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-07",
+      "question_id": "guard_wording",
+      "lang": "hi",
+      "fixture": "guard_wording",
+      "reply": "[P1] का बाकी वेतन कम करने के लिए भुगतान करें।",
+      "expected": "should_pass",
+      "rule": "advice",
+      "why": "Paying down pay still due, not cutting pay.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-08",
+      "question_id": "guard_wording",
+      "lang": "hi",
+      "fixture": "guard_wording",
+      "reply": "आपका लोन लेखा ₹2,50,000 दिखाता है।",
+      "expected": "should_pass",
+      "rule": "advice",
+      "why": "A loan account, not taking a loan.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-09",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "The new cost would add to your cost and squeeze your margin on this item.",
+      "expected": "should_pass",
+      "rule": "promise",
+      "why": "The verb takes cost, not margin, as its object.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-10",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "If nothing changes, the higher cost will raise your cost and cut into your margin.",
+      "expected": "should_pass",
+      "rule": "promise",
+      "why": "A warning about cost, not a promised gain.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-11",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "sales_today",
+      "reply": "Your sales today will add to this month's profit.",
+      "expected": "should_pass",
+      "rule": "promise",
+      "why": "A factual statement with no amount, not a promise. Director ruling: allowed.",
+      "judgement": true,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-12",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Guaranteed Fresh Atta sold the most.",
+      "expected": "should_pass",
+      "rule": "promise",
+      "why": "The word is part of a product name, which is blanked before the check.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-13",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Replace the helper's missing mark for today on the Attendance tab.",
+      "expected": "should_pass",
+      "rule": "advice",
+      "why": "Replaces a mark, not the helper.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-14",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Cut [P1]'s pay to save money.",
+      "expected": "should_fail",
+      "rule": "advice",
+      "why": "Cutting pay, with the stand-in as owner.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:advice:Cut [P1]'s pay"
+    },
+    {
+      "id": "guard_wording-15",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Consider reducing their salaries.",
+      "expected": "should_fail",
+      "rule": "advice",
+      "why": "Cutting pay.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:advice:reducing their salaries"
+    },
+    {
+      "id": "guard_wording-16",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "You could borrow ₹2,50,000 to restock.",
+      "expected": "should_fail",
+      "rule": "advice",
+      "why": "Borrowing suggested.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:advice:You could borrow"
+    },
+    {
+      "id": "guard_wording-17",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Raising prices will boost your margins.",
+      "expected": "should_fail",
+      "rule": "promise",
+      "why": "A promised gain in margin.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:promise:will boost your margins"
+    },
+    {
+      "id": "guard_wording-18",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Selling more Test Sugar would add ₹1,500 to your profit.",
+      "expected": "should_fail",
+      "rule": "promise",
+      "why": "A promised amount, though ₹1,500 is in the figures.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:promise:would add ₹1,500 to your profit"
+    },
+    {
+      "id": "guard_wording-19",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Fire [P1] to cut costs.",
+      "expected": "should_fail",
+      "rule": "advice",
+      "why": "Letting staff go.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:advice:Fire [P1]"
+    },
+    {
+      "id": "guard_wording-20",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Replace the helper to save money.",
+      "expected": "should_fail",
+      "rule": "advice",
+      "why": "Replacing staff.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:advice:Replace the helper"
+    },
+    {
+      "id": "guard_wording-21",
+      "question_id": "guard_wording",
+      "lang": "en",
+      "fixture": "guard_wording",
+      "reply": "Guaranteed Fresh Atta is guaranteed to sell.",
+      "expected": "should_fail",
+      "rule": "promise",
+      "why": "The name is blanked; the promise after it is not.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:promise:guaranteed"
+    },
+    {
+      "id": "guard_wording-22",
+      "question_id": "guard_wording",
+      "lang": "hi",
+      "fixture": "guard_wording",
+      "reply": "खर्च घटाने के लिए स्टाफ़ को हटा दें।",
+      "expected": "should_fail",
+      "rule": "advice",
+      "why": "Letting staff go, imperative.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:advice:स्टाफ़ को हटा दें"
+    },
+    {
+      "id": "guard_wording-23",
+      "question_id": "guard_wording",
+      "lang": "hi",
+      "fixture": "guard_wording",
+      "reply": "मज़दूरी काट दें ताकि खर्च कम हो।",
+      "expected": "should_fail",
+      "rule": "advice",
+      "why": "Cutting wages.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:advice:मज़दूरी काट"
+    },
+    {
+      "id": "guard_wording-24",
+      "question_id": "guard_wording",
+      "lang": "hi",
+      "fixture": "guard_wording",
+      "reply": "लोन लें और स्टॉक भरें।",
+      "expected": "should_fail",
+      "rule": "advice",
+      "why": "Taking a loan.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "fail:advice:लोन लें"
     }
   ],
   "baseline": {
