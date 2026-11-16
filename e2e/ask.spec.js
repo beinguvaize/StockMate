@@ -635,3 +635,81 @@ test('Staff: the category shows, its card renders with stand-in names swapped ba
   await expect(page).toHaveURL(/\/payroll\?tab=ATTENDANCE&from=2026-10-01&to=2026-10-31/);
   await expect(page.getByText('October 2026', { exact: true })).toBeVisible();
 });
+
+// ── Profit tips (ask-profit-tips) ───────────────────────────────────────────
+const TIPS = {
+  period_from: '2026-10-17', period_to: '2026-11-16', as_of: 'x', findings_found: 3,
+  findings: [
+    { key: 'dead_stock', amount: 36887, kind: 'money', screen: 'reports_inventory_dead', items: 11, since: '2026-10-17', product_name: 'Test Steel Tray', top_value: 9600 },
+    { key: 'dues_over_60', amount: 14398.04, kind: 'money', screen: 'reports_customer_aging', over_days: 60, customers_over: 7, bills_over: 12, oldest_days: 159,
+      aged_61_90: 7845, aged_91_120: 4593.04, aged_over_120: 1960 },
+    { key: 'below_cost', amount: 167.5, kind: 'money', screen: 'reports_product_margins', product_name: 'Test Paper Cup', unit: 'PKT', units_sold: 50,
+      avg_sell_price: 31.65, revenue: 1582.5, cogs: 1750, gross_profit: -167.5, margin_pct: -10.58, items: 1 },
+  ],
+  customers: [{ name: 'Test Customer One', amount_over: 4200, oldest_days: 159 }],
+  categories: [],
+};
+const tipsAnswer = (reason = null, text = null, figures = TIPS, empty = false) => ({
+  ...answerOf('en', { text, reason }), figures, card: buildCard('profit_tips', figures, strings.en, empty),
+  screen: { key: null, fallback_key: null, mobile: false, params: { from: '2026-10-17', to: '2026-11-16' } },
+});
+
+test('profit_tips: first in Sales; with figures only, every finding shows with its amount and its own link', async ({ page }) => {
+  await open(page, { answer: () => tipsAnswer('ai_off') });
+  await openPanel(page);
+  await openCat(page, 'sales');
+  await expect(page.getByTestId('ask-list').locator('[data-q]').first()).toHaveAttribute('data-q', 'profit_tips');
+  await pick(page, 'profit_tips');
+  const ans = page.getByTestId('ask-answer');
+  await expect(page.getByTestId('ask-reason')).toHaveAttribute('data-reason', 'ai_off');
+  await expect(page.getByTestId('ask-hero')).toContainText('3');
+  await expect(ans).toContainText('Unsold since 17 Oct: 11 items, the most in Test Steel Tray (₹9,600.00)');
+  await expect(ans).toContainText('₹36,887.00');
+  await expect(ans).toContainText('Unpaid for over 60 days: 7 customers, the most Test Customer One (₹4,200.00, 159 days)');
+  await expect(ans).toContainText('Sold below cost: Test Paper Cup, sold for ₹1,582.50 against a cost of ₹1,750.00');
+  await expect(ans).toContainText('Ideas from your own books, not guarantees.');
+  await expect(ans).toContainText('Customer Aging shows this as 61–90 days ₹7,845.00');
+  const links = ans.getByTestId('ask-row-link');
+  await expect(links).toHaveCount(3);
+  await expect(links.nth(0)).toHaveText(/Open Dead Stock/);
+  await expect(links.nth(1)).toHaveText(/Open Customer Aging/);
+  // No single screen holds every finding: no main link under the card.
+  await expect(ans.locator('.golink')).toHaveCount(0);
+  await links.nth(2).click();
+  await expect(page).toHaveURL(/tab=PROFITABILITY&from=2026-10-17&to=2026-11-16/);
+  await expect(page.getByText('2026-10-17 → 2026-11-16')).toBeVisible();
+});
+
+test('profit_tips: a row link opens Customer Aging; nothing to suggest shows a friendly line', async ({ page }) => {
+  let none = false;
+  await open(page, { answer: () => (none
+    ? { ...tipsAnswer('no_data', strings.en.no_data, { ...TIPS, findings: [], findings_found: 0, customers: [] }, true) }
+    : tipsAnswer(null, 'Follow up with Test Customer One on ₹4,200, unpaid for 159 days. These are ideas from your books, not guarantees.')) });
+  await openPanel(page);
+  await pick(page, 'profit_tips');
+  const ans = page.getByTestId('ask-answer');
+  await expect(page.getByTestId('ask-ai-text')).toContainText('Follow up with Test Customer One');
+  await ans.getByTestId('ask-row-link').nth(1).click();
+  await expect(page).toHaveURL(/tab=AR_AGING/);
+
+  none = true;
+  await openPanel(page);
+  await pick(page, 'profit_tips');
+  await expect(page.getByTestId('ask-answer')).toContainText(strings.en.no_data_by_question.profit_tips);
+  await expect(page.getByTestId('ask-row-link')).toHaveCount(0);
+});
+
+test('profit_tips: on a phone the rows and their links still show', async ({ page }) => {
+  await open(page, { answer: () => tipsAnswer('ai_off'), width: 390, height: 844 });
+  await page.locator('button.md\\:hidden').first().click();
+  await page.getByTestId('ask-entry-mobile').click();
+  await expect(page.getByTestId('ask-panel')).toBeVisible();
+  await pick(page, 'profit_tips');
+  const ans = page.getByTestId('ask-answer');
+  await expect(ans).toContainText('Test Steel Tray');
+  await expect(ans.getByTestId('ask-row-link')).toHaveCount(3);
+  // No sideways scroll on the answer.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  expect(await page.getByTestId('ask-panel').locator('.ask-b').evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+  if (process.env.ASK_SHOTS) await page.getByTestId('ask-panel').screenshot({ path: `${process.env.ASK_SHOTS}/ask-profit-tips-phone.png` });
+});

@@ -74,6 +74,18 @@ function resolveScreen(q: any, modules: string[]) {
   };
 }
 
+/**
+ * Per-row links (profit_tips) name a screen each. A row whose screen's module
+ * the plan does not open keeps its facts and loses its link, never a fallback
+ * screen that would show a different figure.
+ */
+const screenModule = (key: string) => (key.startsWith("reports_") ? "reports" : key);
+export function gateRowLinks(card: any, modules: string[]) {
+  if (!card?.table?.links) return card;
+  const links = card.table.links.map((l: any) => (l?.key && modules.includes(screenModule(l.key)) ? l : null));
+  return { ...card, table: { ...card.table, links } };
+}
+
 async function hasExpiryBatches(db: any, tenantId: string) {
   const { data, error } = await db.from("product_batches").select("id")
     .eq("tenant_id", tenantId).is("deleted_at", null).not("expiry_date", "is", null).limit(1);
@@ -126,7 +138,7 @@ async function ask(deps: Deps, db: any, ctx: any, q: any, lang: string, userId: 
 
   let usage: { used: number; limit: number; resets_on: string } | null = null;
   const respond = (text: string | null, reason: string | null) => json(deps, 200, {
-    text, figures: run.figures, card: buildCard(q.id, run.figures, langStrings, run.empty),
+    text, figures: run.figures, card: gateRowLinks(buildCard(q.id, run.figures, langStrings, run.empty), ctx.modules),
     screen: { ...screen, params: run.params },
     as_of: run.figures.as_of, label: q.label[lang] ?? q.label.en, reason,
     reason_message: reason ? langStrings.ui[`reason_${reason}`] ?? null : null,

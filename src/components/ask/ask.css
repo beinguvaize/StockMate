@@ -111,6 +111,11 @@
 .ask-root table.t td.n.word{font-family:var(--sans);font-weight:500;color:var(--ink-3);letter-spacing:inherit}
 .ask-root table.t tr.neg td.n.word{color:var(--neg)}
 .ask-root table.t tr.neg td{color:var(--neg)}
+.ask-root table.t td.lnk{text-align:right;white-space:nowrap;width:1%}
+.ask-root .rowlink{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--ink-1);text-decoration:underline;text-underline-offset:2px;min-height:32px}
+.ask-root .rowlink:hover{color:var(--accent)}
+.ask-root.phone table.t td.lnk{white-space:normal}
+.ask-root.phone .rowlink{min-height:44px;text-align:right}
 .ask-root .bar{display:block;height:4px;border-radius:2px;background:var(--bar);margin-top:5px;position:relative;overflow:hidden}
 .ask-root .bar i{position:absolute;inset:0 auto 0 0;background:var(--ink-3);border-radius:2px}
 .ask-root tr.strong td{font-weight:600;color:var(--ink-1)}

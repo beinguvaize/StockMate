@@ -57,6 +57,28 @@ const NOT_A_QUANTITY_RE = /\bdouble[-\s]check(?:s|ed|ing)?\b|\b(?:this|the|whole
 // word next to day; "half the staff" still trips the spelled-amount check.
 const HALF_DAY_RE = /(?<![\p{L}\p{M}])(?:half[-\s]days?|आधा\s+दिन|आधे\s+दिन(?:ों)?)(?![\p{L}\p{M}])/giu;
 
+// A promise of a result ("this will increase your profit by ₹500"), which no
+// figure can back. Added with profit_tips but true of every answer. The
+// disclaimer "these are ideas, not guarantees" must still pass, so a bare
+// "guarantee" is not enough; "guaranteed" and a guarantee of something are.
+const PROMISE_RE = [
+  /\b(?:will|would|is going to|are going to)\s+(?:\w+\s+){0,2}?(?:increase|boost|raise|improve|lift|grow|add|double|save|earn|bring in|give you|get you)\b[^.!?]{0,50}?\b(?:profits?|earnings|income|margins?)\b/i,
+  /\b(?:profits?|margins?|earnings|income)\s+(?:will|would|is going to|are going to)\s+(?:\w+\s+){0,2}?(?:go up|rise|increase|grow|improve|double|jump)\b/i,
+  /\b(?:increases?|boosts?|raises?|improves?|lifts?|grows?|adds?)\s+(?:to\s+)?(?:your\s+)?(?:profits?|earnings|income)\s+by\b/i,
+  /\bguaranteed\b|\bguarantees?\s+(?:you|that|more|a|an|higher|extra)\b/i,
+  /(?:मुनाफ़ा|मुनाफा|मुनाफ़े|मुनाफे|लाभ|कमाई)[^।.!?]{0,30}?(?:बढ़ेगा|बढ़ेगी|बढ़ेंगे|बढ़\s+जाएगा|बढ़\s+जाएगी|ज़रूर|जरूर|पक्का|निश्चित)/u,
+  /गारंटी\s+से|पक्की\s+गारंटी/u,
+].map((r) => new RegExp(r.source, r.flags.includes("u") ? r.flags : `${r.flags}u`));
+// Advice no answer may give: letting staff go, cutting pay, or borrowing.
+const ADVICE_RE = [
+  /\b(?:fir(?:e|ing)|sack(?:ing)?|lay(?:ing)?\s+off|let(?:ting)?\s+go\s+of|dismiss(?:ing)?|remov(?:e|ing)|replac(?:e|ing))\s+(?:\w+\s+){0,2}?(?:staff|workers?|employees?|helpers?|\[P\d+\])/i,
+  /\b(?:cut(?:ting)?|reduc(?:e|ing)|lower(?:ing)?|slash(?:ing)?)\s+(?:\w+\s+){0,2}?(?:pay|salary|salaries|wages?)\b/i,
+  /\b(?:tak(?:e|ing)|get(?:ting)?|apply(?:ing)?\s+for|rais(?:e|ing))\s+(?:a\s+|an\s+)?(?:\w+\s+)?loans?\b|\bborrow(?:ing)?\b/i,
+  /(?:स्टाफ़|स्टाफ|कर्मचारी|कर्मचारियों)[^।.!?]{0,25}?(?:निकाल|हटा)/u,
+  /(?:वेतन|तनख़्वाह|तनख्वाह|सैलरी|मज़दूरी|मजदूरी)[^।.!?]{0,20}?(?:कम\s+कर|काट)/u,
+  /(?:लोन|कर्ज़|कर्ज|क़र्ज़|उधार\s+पैसा)\s+(?:ले|लें|लीजिए)/u,
+].map((r) => new RegExp(r.source, r.flags.includes("u") ? r.flags : `${r.flags}u`));
+
 // A rank inside a list is not a figure, but it cannot be longer than the list.
 const WORD_RANK: Record<string, number> = {};
 [
@@ -172,6 +194,8 @@ export function checkReply(text: string, figures: unknown, standIns: Record<stri
   for (const m of t.match(/\[[a-z]\d+\]/gi) || []) {
     if (!(m in standIns)) return { ok: false, reason: `unknown_stand_in:${m}` };
   }
+  for (const r of PROMISE_RE) { const m = t.match(r); if (m) return { ok: false, reason: `promise:${m[0].trim()}` }; }
+  for (const r of ADVICE_RE) { const m = t.match(r); if (m) return { ok: false, reason: `advice:${m[0].trim()}` }; }
   t = t.replace(/\[[a-z]\d+\]/gi, " ");
 
   const allowed = buildAllowed(figures);

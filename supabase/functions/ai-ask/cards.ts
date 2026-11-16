@@ -629,6 +629,75 @@ export function buildCard(id: string, f: Record<string, any>, strings: any, empt
       footnote = lines.join(" ") || null;
       break;
     }
+    // ── profit tips (ask-profit-tips) ──────────────────────────────────────
+    // One row per finding: what it is, its amount, and the screen that shows
+    // it. Each amount equals that screen's figure, or a footnote says exactly
+    // where it is there. The links are per row (table.links); a client that
+    // does not draw them still shows every fact.
+    case "profit_tips": {
+      const N = strings.footnotes;
+      const findings = (f.findings ?? []) as any[];
+      value = findings.length; kind = "count"; unit = H.unit;
+      caption = fill(H.caption, { from: lead(f.period_from, f.period_to), to: day(f.period_to) });
+      const range = span(f.period_from, f.period_to);
+      const pct = (n: unknown) => `${Number(n ?? 0).toFixed(1)}%`;
+      const cust = f.customers?.[0];
+      const cat = f.categories?.[0];
+      const lines: string[] = [];
+      const said = new Set<string>();
+      const once = (k: string, line: string) => { if (!said.has(k)) { said.add(k); lines.push(line); } };
+      const label = (x: any): string => {
+        switch (x.key) {
+          case "below_cost":
+            return fill(L.tip_below_cost, { item: x.product_name, revenue: inr(x.revenue), cogs: inr(x.cogs), n: count(x.items) })
+              + (Number(x.items) > 1 ? fill(L.tip_more_loss, { n: count(Number(x.items) - 1) }) : "");
+          case "thin_margin":
+            return fill(L.tip_thin_margin, { item: x.product_name, margin: pct(x.margin_pct), profit: inr(x.gross_profit) });
+          case "cost_up":
+            return fill(L.tip_cost_up, { item: x.product_name, old: inr(x.old_cost), new: inr(x.new_cost), rise: pct(x.pct_rise), price: inr(x.selling_price) });
+          case "dead_stock":
+            return fill(L.tip_dead_stock, { n: count(x.items), since: day(x.since), item: x.product_name ?? "", value: inr(x.top_value ?? 0) });
+          case "dues_over_60":
+            return fill(L.tip_dues, { n: count(x.customers_over), name: cust?.name ?? "", amount: inr(cust?.amount_over ?? 0), days: count(cust?.oldest_days ?? x.oldest_days) });
+          case "expense_up":
+            return fill(L.tip_expense_up, { category: cat?.category ?? "", now: inr(x.this_amount), prev: inr(x.previous_amount) });
+          case "returns":
+            return fill(L.tip_returns, { n: count(x.return_count), item: x.product_name ?? "", value: inr(x.top_value ?? 0) });
+          case "fast_low":
+            return fill(L.tip_fast_low, { item: x.product_name ?? "", days: count(x.days_left ?? 0) });
+          default:
+            return "";
+        }
+      };
+      const amount = (x: any) => (x.kind === "count" ? fill(L.tip_items_n, { n: count(x.amount) })
+        : x.key === "expense_up" ? `+${inr(x.amount)}` : inr(x.amount));
+      for (const x of findings) {
+        if (["below_cost", "thin_margin", "cost_up"].includes(x.key)) once("margins", fill(N.profit_tips_margins, { range }));
+        if (x.key === "below_cost") once("loss", N.profit_tips_loss);
+        if (x.key === "cost_up") once("cost", N.profit_tips_cost_up);
+        if (x.key === "dues_over_60") {
+          once("dues", fill(N.profit_tips_dues, { a: inr(x.aged_61_90), b: inr(x.aged_91_120), c: inr(x.aged_over_120) }));
+        }
+        if (x.key === "expense_up") {
+          once("exp", fill(N.profit_tips_expense, { category: cat?.category ?? "", range: span(x.month_from, x.month_to), now: inr(x.this_amount),
+            prange: span(x.previous_from, x.previous_to), prev: inr(x.previous_amount) }));
+        }
+        if (x.key === "returns") {
+          const all = Number(x.all_return_count) === Number(x.return_count) && Math.abs(Number(x.all_returns_total) - Number(x.amount)) < 0.005;
+          once("ret", fill(all ? N.returns_month_all : N.returns_month, { n: count(x.all_return_count), total: inr(x.all_returns_total) }));
+        }
+        if (x.key === "fast_low") once("fast", fill(N.profit_tips_fast, { top: count(x.top_n), cover: count(x.cover_days) }));
+      }
+      if (Number(f.findings_found) > findings.length) lines.push(fill(N.list_capped, { shown: count(findings.length), n: count(f.findings_found) }));
+      table = findings.length
+        ? { columns: [col("tip_finding", "text", false), col("amount", "text")],
+          rows: findings.map((x) => [label(x), amount(x)]),
+          links: findings.map((x) => ({ key: x.screen, params: x.screen === "reports_expenses"
+            ? { from: x.month_from, to: x.month_to } : x.screen === "reports_product_margins" ? { from: f.period_from, to: f.period_to } : {} })) }
+        : null;
+      footnote = lines.join(" ") || null;
+      break;
+    }
     default:
       throw new Error(`no card for ${id}`);
   }

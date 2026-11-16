@@ -60,6 +60,8 @@ export function toModelFigures(figures: Record<string, unknown>) {
   }
   expenseStandIns(view, figures, map);
   staffStandIns(view, figures, map);
+  // profit_tips: which screen a finding links to is for the card only.
+  if (Array.isArray(view.findings)) view.findings = view.findings.map(({ screen: _s, ...f }: any) => f);
   return { view, map };
 }
 

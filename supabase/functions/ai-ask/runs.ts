@@ -379,9 +379,169 @@ export async function runQuestion(id: string, db: any, ctx: { tenantId: string; 
         empty: Number(f.staff_count) === 0 || Number(f.marked_days) === 0,
       };
     }
+    // ── profit tips (ask-profit-tips) ──────────────────────────────────────
+    case "profit_tips":
+      return profitTips(db, today, asOf);
     default:
       throw new ReadFailed(`no reads for ${id}`);
   }
+}
+
+// ── profit tips helpers ────────────────────────────────────────────────────
+/**
+ * "How can I make more profit?" Facts from the shop's own books, each with
+ * exact figures and the screen that shows them. The model only words
+ * suggestions on top of these; the card shows them with or without it.
+ *
+ * Windows: items, dead stock and fast sellers over the last 30 days (the
+ * dead_stock window, today - 30 to today); expenses and returns this month
+ * to date, expenses against the same days last month.
+ */
+export const PROFIT_TIPS_SHOWN = 5;
+// The Product Margins report's BREAK-EVEN tier: a margin from 0 up to 5%.
+export const THIN_UNDER_PCT = 5;
+
+async function profitTips(db: any, today: string, asOf: string): Promise<Run> {
+  const from = addDays(today, -30);
+  const mFrom = monthStart(today);
+  const p = sameDaysLastMonth(today);
+  const cost = await rpc(db, "ai_cost_up", { p_days: 90, p_limit: 10 });
+  const ids = (cost?.items ?? []).map((i: any) => i.product_id).filter(Boolean);
+  const margins = await rpc(db, "ai_item_margins", { p_from: from, p_to: today, p_limit: 5, p_product_ids: ids });
+  const dead = await rpc(db, "ai_dead_stock", { p_days: 30, p_limit: 1 });
+  const dues = await rpc(db, "ai_dues_over_60", { p_limit: 1 });
+  const expNow = await expenseSummary(db, mFrom, today, 1);
+  const expPrev = await expenseSummary(db, p.from, p.to, 1);
+  // A comparison over a cut list would invent zeros: a failed read, never a guess.
+  for (const x of [expNow, expPrev]) {
+    if (Number(x.category_count) > x.categories.length) throw new ReadFailed("ai_expense_summary: category list cut");
+  }
+  const returns = await rpc(db, "ai_sales_returns", { p_from: mFrom, p_to: today, p_limit: 1 });
+  const fast = await rpc(db, "ai_fast_movers_low", { p_days: 30, p_top: 15, p_cover_days: 7, p_limit: 1 });
+  for (const [name, x, list] of [["ai_item_margins", margins, "loss"], ["ai_cost_up", cost, "items"], ["ai_dead_stock", dead, "items"],
+    ["ai_dues_over_60", dues, "customers"], ["ai_sales_returns", returns, "items"], ["ai_fast_movers_low", fast, "items"]] as const) {
+    if (!x || !Array.isArray(x[list])) throw new ReadFailed(`${name}: no figures`);
+  }
+  const figures = profitFindings({ today, from, mFrom, prev: p, asOf, margins, cost, dead, dues, expNow, expPrev, returns, fast });
+  return { figures, params: { from, to: today }, empty: figures.findings.length === 0 };
+}
+
+const money2 = (n: unknown) => round2(Number(n ?? 0));
+
+/**
+ * The findings, ranked by rupee size (biggest first), at most
+ * PROFIT_TIPS_SHOWN. A count finding (fast sellers running low) has no rupee
+ * size and goes after every money one. Each finding names the screen that
+ * shows its amount; `screen` is read by the card, never sent to the model.
+ * Names that are people or free text go in top-level lists so the stand-in
+ * pass swaps them: the customer in `customers`, the expense category in
+ * `categories`. Product names stay, as on every other question.
+ */
+export function profitFindings(x: Record<string, any>) {
+  const { today, from, mFrom, prev, asOf, margins, cost, dead, dues, expNow, expPrev, returns, fast } = x;
+  const found: any[] = [];
+  const customers: any[] = [];
+  const categories: any[] = [];
+
+  // Items sold below cost: the biggest loss on Product Margins for the dates.
+  const loss = margins.loss?.[0];
+  if (loss && Number(margins.loss_items) > 0) {
+    found.push({
+      key: "below_cost", amount: money2(-Number(loss.gross_profit)), kind: "money", screen: "reports_product_margins",
+      product_name: loss.product_name, unit: loss.unit ?? null, units_sold: Number(loss.units_sold),
+      avg_sell_price: money2(loss.avg_sell_price), revenue: money2(loss.revenue), cogs: money2(loss.cogs),
+      gross_profit: money2(loss.gross_profit), margin_pct: Number(loss.margin_pct), items: Number(margins.loss_items),
+    });
+  }
+  // The thinnest margin: the biggest seller in the BREAK-EVEN tier.
+  const thin = margins.thin?.[0];
+  if (thin && Number(margins.thin_items) > 0) {
+    found.push({
+      key: "thin_margin", amount: money2(thin.revenue), kind: "money", screen: "reports_product_margins",
+      product_name: thin.product_name, unit: thin.unit ?? null, units_sold: Number(thin.units_sold),
+      avg_sell_price: money2(thin.avg_sell_price), revenue: money2(thin.revenue), cogs: money2(thin.cogs),
+      gross_profit: money2(thin.gross_profit), margin_pct: Number(thin.margin_pct), items: Number(margins.thin_items),
+      under_pct: THIN_UNDER_PCT,
+    });
+  }
+  // Purchase cost rose and the list price did not keep up: the list price now
+  // leaves under THIN_UNDER_PCT over the new cost. Only items sold in the 30
+  // days, so their sales are on Product Margins; the biggest seller first.
+  const sold = new Map((margins.picked ?? []).map((r: any) => [r.product_id, r]));
+  const squeezed = (cost.items ?? [])
+    .map((c: any) => ({ c, m: sold.get(c.product_id) as any }))
+    .filter(({ c, m }: any) => m && Number(m.selling_price) > 0
+      && (Number(m.selling_price) - Number(c.new_cost)) / Number(m.selling_price) * 100 < THIN_UNDER_PCT)
+    .sort((a: any, b: any) => Number(b.m.revenue) - Number(a.m.revenue) || String(a.c.product_name).localeCompare(String(b.c.product_name)));
+  if (squeezed.length) {
+    const { c, m } = squeezed[0];
+    found.push({
+      key: "cost_up", amount: money2(m.revenue), kind: "money", screen: "reports_product_margins",
+      product_name: c.product_name, unit: c.unit ?? null, old_cost: money2(c.old_cost), new_cost: money2(c.new_cost),
+      pct_rise: Number(c.pct_rise), selling_price: money2(m.selling_price), revenue: money2(m.revenue),
+      units_sold: Number(m.units_sold), items: squeezed.length, under_pct: THIN_UNDER_PCT,
+    });
+  }
+  // Money stuck in stock with no sale for 30 days.
+  if (Number(dead.items_dead) > 0) {
+    const top = dead.items[0];
+    found.push({
+      key: "dead_stock", amount: money2(dead.value_stuck), kind: "money", screen: "reports_inventory_dead",
+      items: Number(dead.items_dead), since: dead.period_from,
+      product_name: top?.product_name ?? null, top_value: top ? money2(top.value) : null,
+    });
+  }
+  // Customer money unpaid for over 60 days.
+  if (Number(dues.bills_over) > 0) {
+    const top = dues.customers[0];
+    if (top) customers.push({ name: top.name, amount_over: money2(top.amount_over), oldest_days: Number(top.oldest_days) });
+    found.push({
+      key: "dues_over_60", amount: money2(dues.total_over), kind: "money", screen: "reports_customer_aging", over_days: 60,
+      customers_over: Number(dues.customers_over), bills_over: Number(dues.bills_over), oldest_days: Number(dues.oldest_days),
+      aged_61_90: money2(dues.aged_61_90), aged_91_120: money2(dues.aged_91_120), aged_over_120: money2(dues.aged_over_120),
+    });
+  }
+  // The expense category up most on the same days last month.
+  const up = compareCategories(expNow.categories, expPrev.categories).find((r) => r.change > 0);
+  if (up) {
+    categories.push({ category: up.category, amount: up.amount, previous_amount: up.previous_amount, change: up.change });
+    found.push({
+      key: "expense_up", amount: money2(up.change), kind: "money", screen: "reports_expenses",
+      this_amount: money2(up.amount), previous_amount: money2(up.previous_amount),
+      month_from: mFrom, month_to: today, previous_from: prev.from, previous_to: prev.to,
+    });
+  }
+  // Returns this month.
+  if (Number(returns.return_count) > 0) {
+    const top = returns.items[0];
+    found.push({
+      key: "returns", amount: money2(returns.returns_total), kind: "money", screen: "sales",
+      return_count: Number(returns.return_count), month_from: mFrom, month_to: today,
+      product_name: top?.product_name ?? null, top_value: top ? money2(top.value) : null,
+      all_return_count: Number(returns.all_return_count), all_returns_total: money2(returns.all_returns_total),
+    });
+  }
+  // Best sellers running low: sales at risk, counted in items, not rupees.
+  if (Number(fast.items_low) > 0) {
+    const top = fast.items[0];
+    found.push({
+      key: "fast_low", amount: Number(fast.items_low), kind: "count", screen: "reports_product_movement",
+      top_n: Number(fast.top_n), cover_days: Number(fast.cover_days),
+      product_name: top?.product_name ?? null, days_left: top ? Number(top.days_left) : null,
+    });
+  }
+
+  const order = ["below_cost", "dues_over_60", "dead_stock", "thin_margin", "cost_up", "expense_up", "returns", "fast_low"];
+  found.sort((a, b) => (a.kind === "count" ? 1 : 0) - (b.kind === "count" ? 1 : 0)
+    || (a.kind === "count" ? 0 : b.amount - a.amount) || order.indexOf(a.key) - order.indexOf(b.key));
+  const findings = found.slice(0, PROFIT_TIPS_SHOWN);
+  const keep = new Set(findings.map((f) => f.key));
+  return {
+    period_from: from, period_to: today, as_of: asOf,
+    findings, findings_found: found.length,
+    customers: keep.has("dues_over_60") ? customers : [],
+    categories: keep.has("expense_up") ? categories : [],
+  };
 }
 
 // ── staff helpers ──────────────────────────────────────────────────────────
