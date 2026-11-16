@@ -206,8 +206,8 @@ function buildAllowed(figures: unknown): Allowed {
 }
 
 function readScopes(figures: unknown): any[] {
-  const f = figures as { reads?: unknown } | null;
-  const reads = Array.isArray(f?.reads) ? f!.reads.map((r: any) => r?.figures).filter(Boolean) : [];
+  const f = figures as any;
+  const reads: any[] = Array.isArray(f?.reads) ? f.reads.map((r: any) => r?.figures).filter(Boolean) : [];
   return [f, ...reads];
 }
 

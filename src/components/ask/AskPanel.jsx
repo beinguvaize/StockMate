@@ -4,10 +4,11 @@ import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-re
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useOffline } from '../../context/OfflineContext';
-import { callAsk, setAskEnabled } from '../../lib/askClient';
+import { callAsk, setAskEnabled, setChatConsent } from '../../lib/askClient';
 import { dayMonth, fill, formatValue, screenPath, splitNumbers, usageVars } from '../../lib/askFormat';
 import bundled from '../../../shared/ai_chat/strings.json';
 import { ASK_HINDI } from '../../lib/askLanguages';
+import { ChatBar, ChatThread, useAskChat } from './AskChat';
 import './ask.css';
 
 const CATEGORIES = ['sales', 'stock', 'purchases', 'expenses', 'staff', 'dues', 'cash', 'gst'];
@@ -268,6 +269,17 @@ export default function AskPanel({ onClose }) {
   const strings = list?.strings ?? bundled[lang];
   const ui = strings.ui;
 
+  // ── chat (ask-free-chat) ──
+  // 'set' shows a set question's answer; 'chat' the thread. Present only when
+  // the server's list says it has the chat action.
+  const chat = useAskChat(lang);
+  const [view, setView] = useState('set');
+  const [chatConsented, setChatConsented] = useState(false);
+  const chatInfo = list?.chat ?? null;
+  const chatNeedsConsent = Boolean(chatInfo?.consent_needed) && !chatConsented;
+  const sendChat = (message) => { setView('chat'); setCurrent(null); chat.send(message); };
+  const newChat = () => { chat.reset(); setView('set'); };
+
   const loadList = useCallback(async () => {
     if (!online) { setListState(store.get(listKey) ? 'ready' : 'error'); return; }
     setListState('loading');
@@ -311,6 +323,7 @@ export default function AskPanel({ onClose }) {
   const ask = useCallback(async (question) => {
     if (phone && !current && scrollRef.current) listTop.current = scrollRef.current.scrollTop;
     const mine = ++seq.current;
+    setView('set');
     setCurrent({ question, status: 'loading' });
     try {
       const answer = await callAsk({ action: 'ask', question_id: question.id, lang });
@@ -341,7 +354,16 @@ export default function AskPanel({ onClose }) {
 
   const turnOn = async () => {
     setTurning(true); setTurnError(null);
-    try { await setAskEnabled(true); window.dispatchEvent(new Event('ask:changed')); await loadList(); }
+    try {
+      await setAskEnabled(true);
+      // The notice just shown has the chat sentence in it: it counts as read.
+      if (list?.chat) {
+        try { await setChatConsent(list.chat.consent_version); setChatConsented(true); }
+        catch (e) { console.error('[ask] chat consent failed', e); }
+      }
+      window.dispatchEvent(new Event('ask:changed'));
+      await loadList();
+    }
     catch (e) { console.error('[ask] turn on failed', e); setTurnError(e.message); }
     finally { setTurning(false); }
   };
@@ -389,8 +411,16 @@ export default function AskPanel({ onClose }) {
 
   const errorWhy = (e) => (e?.kind === 'slow' ? ui.error_slow : e?.kind === 'connection' ? ui.error_connection : ui.error_read);
 
+  const chatUi = { Rows, FigureTable, Numbered, AiSlot, BotFace, formatValue, fillUsage: (t, u) => fill(t, usageVars(u, strings)) };
+  const chatThread = () => (
+    <ChatThread chat={{ ...chat, reset: newChat }} strings={strings} lang={lang} questions={questions} usage={usage} ui={chatUi}
+      onAsk={(q) => ask(q)} onPlans={() => { onClose(); navigate('/settings'); }}
+      onGo={(s) => { const p = screenPath(s?.key, s?.params); if (p) { onClose(); navigate(p); } }} />
+  );
+
   const right = () => {
     if (!online) return <Message title={ui.offline_title}><p>{ui.offline_body}</p></Message>;
+    if (view === 'chat' && chat.turns.length) return chatThread();
     if (!current) {
       return (
         <div className="intro">
@@ -460,6 +490,7 @@ export default function AskPanel({ onClose }) {
           <div className="ask-b" ref={scrollRef}>{listPane}</div>
         </>);
       }
+      if (view === 'chat' && chat.turns.length) return <div className="ask-b"><div className="pane-r">{chatThread()}</div></div>;
       if (!current) return <div className="ask-b" ref={scrollRef}>{listPane}</div>;
       const link = current.answer?.screen?.key && screenPath(current.answer.screen.key) ? strings.links[current.answer.screen.key] : null;
       return (<>
@@ -470,13 +501,17 @@ export default function AskPanel({ onClose }) {
     return <div className="ask-b">{listPane}<div className="pane-r">{right()}</div></div>;
   };
 
-  const onAnswer = phone && current && online;
+  const onAnswer = phone && online && (current || (view === 'chat' && chat.turns.length));
+  // The chat box: under the list and the answer pane, never over a set answer on a phone.
+  const showChatBar = Boolean(chatInfo) && online && listState === 'ready' && state === 'on' && !staff && !fullMessage
+    && !(phone && current && view !== 'chat');
+  const backPhone = () => { if (view === 'chat') setView('set'); setCurrent(null); };
   return (
     <section className={`ask-root ask ${phone ? 'phone' : 'web panel'}${fullMessage ? ' narrow' : ''}`} role="dialog" aria-label={ui.title}
       lang={lang} data-testid="ask-panel">
       <header className="ask-h">
         {phone && (
-          <button type="button" className="iconbtn" aria-label="Back" onClick={() => (onAnswer ? setCurrent(null) : onClose())}><ChevronLeft size={18} /></button>
+          <button type="button" className="iconbtn" aria-label="Back" onClick={() => (onAnswer ? backPhone() : onClose())}><ChevronLeft size={18} /></button>
         )}
         <h2>{ui.title}</h2>
         <span className="tag">{ui.tagline}</span>
@@ -490,6 +525,12 @@ export default function AskPanel({ onClose }) {
         {!phone && <button type="button" className="iconbtn" aria-label="Close" onClick={onClose}><X size={16} /></button>}
       </header>
       {body()}
+      {showChatBar && (
+        <ChatBar strings={strings} lang={lang} consentNeeded={chatNeedsConsent} consentVersion={chatInfo.consent_version}
+          onAccepted={() => setChatConsented(true)} onSend={sendChat}
+          busy={chat.turns.some((t) => t.status === 'loading')}
+          onFocus={() => { if (chat.turns.length && !phone) setView('chat'); }} />
+      )}
     </section>
   );
 }

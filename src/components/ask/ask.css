@@ -201,3 +201,42 @@
 @media (prefers-reduced-motion: reduce){
   .ask-root *,.ask-root *::before,.ask-root *::after,.ask-root{animation:none !important;transition:none !important}
 }
+/* ── chat: "Ask your own question" (ask-free-chat) ─────────────────────── */
+.ask-root .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ask-root .chatbar{flex:none;border-top:1px solid var(--border);background:var(--surface);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+.ask-root .chat-form{display:flex;align-items:center;gap:8px}
+.ask-root .chat-form input{flex:1;min-width:0;height:40px;padding:0 12px;border-radius:var(--r-md);border:0;background:var(--canvas);box-shadow:inset 0 0 0 1px var(--border);font:inherit;font-size:14px;color:var(--ink-1);outline:none;transition:box-shadow 120ms var(--ease)}
+.ask-root .chat-form input:focus{box-shadow:inset 0 0 0 1.5px var(--focus)}
+.ask-root .chat-form input:disabled{opacity:.6;cursor:not-allowed}
+.ask-root .chat-form .send{flex:none;width:40px;height:40px;border-radius:9999px;display:grid;place-items:center;background:var(--accent);color:var(--on-accent);transition:background-color 120ms var(--ease),transform 120ms var(--ease)}
+.ask-root .chat-form .send:hover:not(:disabled){background:var(--accent-hover)}
+.ask-root .chat-form .send:active:not(:disabled){transform:scale(.94)}
+.ask-root .chat-form .send:disabled{background:var(--canvas);color:var(--ink-3);cursor:not-allowed}
+.ask-root .chat-hint{font-size:11.5px;color:var(--ink-3);margin-top:6px;padding-left:12px}
+.ask-root .chat-consent{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px 12px;margin-bottom:10px;border-radius:var(--r-xl);background:var(--canvas);box-shadow:inset 0 0 0 1px var(--border)}
+.ask-root .chat-consent b{font-weight:700;font-size:13px}
+.ask-root .chat-consent p{color:var(--ink-2);font-size:12.5px;line-height:1.5}
+.ask-root .chat-consent .more{color:var(--ink-3)}
+.ask-root .chat-consent .pill{margin-top:6px}
+.ask-root .chat{padding:16px 24px 24px;display:flex;flex-direction:column;gap:18px}
+.ask-root .chat-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ask-root .chat-h h3{font-size:13px;font-weight:600;color:var(--ink-2)}
+.ask-root .chat-turn{display:flex;flex-direction:column;gap:12px;scroll-margin-top:12px}
+.ask-root .chat-u{align-self:flex-end;max-width:85%;padding:8px 12px;border-radius:14px 14px 4px 14px;background:var(--canvas);box-shadow:inset 0 0 0 1px var(--border);color:var(--ink-1);font-size:14px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.ask-root .chat-a{display:flex;flex-direction:column;gap:14px}
+.ask-root .chat-a .note{font-size:13px;color:var(--ink-2);line-height:1.55}
+.ask-root .chat-a .acts{display:flex;gap:8px}
+.ask-root .chat-removed{font-size:12px;color:var(--ink-3)}
+.ask-root .chat-read{display:flex;flex-direction:column;gap:12px;padding:14px 16px;border-radius:var(--r-xl);box-shadow:inset 0 0 0 1px var(--border)}
+.ask-root .chat-read .hero{margin-top:0}
+.ask-root .chat-read .hero .v{font-size:24px}
+.ask-root .chat-read-t{font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.ask-root .chips{display:flex;flex-wrap:wrap;gap:8px}
+.ask-root .chip{min-height:34px;padding:6px 14px;border-radius:9999px;box-shadow:inset 0 0 0 1px var(--border-2);font-weight:600;font-size:12.5px;line-height:1.35;color:var(--ink-1);transition:background-color 120ms var(--ease)}
+.ask-root .chip:hover{background:var(--canvas)}
+.ask-root.phone .chatbar{padding:8px 12px calc(8px + env(safe-area-inset-bottom))}
+.ask-root.phone .chat-form input{height:44px;font-size:16px}
+.ask-root.phone .chat-form .send{width:44px;height:44px}
+.ask-root.phone .chat{padding:14px 16px 20px}
+.ask-root.phone .chat-read{padding:12px}
+.ask-root.phone .chip{min-height:40px;font-size:13.5px}
