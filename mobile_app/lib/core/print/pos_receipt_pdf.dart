@@ -106,7 +106,7 @@ String fmtReceiptDate(String? iso) {
 
 String fmtReceiptAmount(double v) => v.toStringAsFixed(2);
 
-/// The money block of a receipt: Subtotal + Tax - Discount (+ Other) = Total.
+/// The money block of a receipt: Subtotal + Tax - Discount + Adjustment = Total.
 ///
 /// [taxMode] is the shop's business_profile.tax_mode:
 ///   NONE       no tax split; the lines are the price.
@@ -114,20 +114,18 @@ String fmtReceiptAmount(double v) => v.toStringAsFixed(2);
 ///              tax = line - taxable. Subtotal is the taxable value.
 ///   EXCLUSIVE  (default) tax sits on top of the line.
 ///
-/// [recordedTotal] is what the sale was recorded at. The slip prints it as the
-/// Total whenever the rows add up to it; the discount is the sale's own. If the
-/// record does not reconcile the rows can still not be left adding up wrongly:
-///   - an EXCLUSIVE sale recorded without its tax prints the tax-inclusive
-///     figure the checkout showed;
-///   - any other gap becomes an explicit "Other charges" (or extra discount),
-///     never a silent mismatch.
+/// The Total is ALWAYS the recorded total: a slip never prints a figure the
+/// books do not hold. When the rows do not add up to it (sales recorded before
+/// EXCLUSIVE totals carried their tax, delivery fees, rounding) the difference
+/// is shown as an explicit signed [adjustment] line, never folded into a
+/// made-up total or due. Only with no recorded total (<= 0) is it computed.
 class ReceiptTotals {
   final double subtotal;
   final double tax;
   final double discount;
-  final double other;
+  final double adjustment;
   final double total;
-  const ReceiptTotals(this.subtotal, this.tax, this.discount, this.other, this.total);
+  const ReceiptTotals(this.subtotal, this.tax, this.discount, this.adjustment, this.total);
 
   static double _r2(double v) => (v * 100).round() / 100;
 
@@ -154,23 +152,17 @@ class ReceiptTotals {
     }
     sub = _r2(sub);
     tax = _r2(tax);
-    var disc = _r2(discount < 0 ? 0 : discount);
+    final disc = _r2(discount < 0 ? 0 : discount);
     final expected = _r2(sub + tax - disc);
-    if (recordedTotal <= 0 || (recordedTotal - expected).abs() <= 0.01) {
-      return ReceiptTotals(sub, tax, disc, 0, expected);
-    }
-    if (mode == 'EXCLUSIVE' && (recordedTotal - _r2(sub - disc)).abs() <= 0.01) {
-      return ReceiptTotals(sub, tax, disc, 0, expected);
-    }
-    final gap = _r2(recordedTotal - expected);
-    if (gap > 0) return ReceiptTotals(sub, tax, disc, gap, _r2(recordedTotal));
-    disc = _r2(disc - gap);
-    return ReceiptTotals(sub, tax, disc, 0, _r2(recordedTotal));
+    if (recordedTotal <= 0) return ReceiptTotals(sub, tax, disc, 0, expected);
+    final total = _r2(recordedTotal);
+    final gap = _r2(total - expected);
+    return ReceiptTotals(sub, tax, disc, gap.abs() <= 0.01 ? 0 : gap, total);
   }
 }
 
 /// The rows between the item list and the Total: [label, value] pairs.
-/// Subtotal + tax - Discount (+ Other charges) = Total, always.
+/// Subtotal + tax - Discount + Adjustment = Total, always.
 List<List<String>> receiptSummaryRows(ReceiptTotals t) {
   final rows = <List<String>>[
     ['Subtotal', 'Rs.${fmtReceiptAmount(t.subtotal)}'],
@@ -183,8 +175,21 @@ List<List<String>> receiptSummaryRows(ReceiptTotals t) {
     rows.add(['SGST ($pct%)', 'Rs.${fmtReceiptAmount(t.tax - cgst)}']);
   }
   if (t.discount > 0.001) rows.add(['Discount', '-Rs.${fmtReceiptAmount(t.discount)}']);
-  if (t.other > 0.001) rows.add(['Other charges', 'Rs.${fmtReceiptAmount(t.other)}']);
+  if (t.adjustment.abs() > 0.001) {
+    rows.add(['Adjustment', '${t.adjustment < 0 ? '-' : ''}Rs.${fmtReceiptAmount(t.adjustment.abs())}']);
+  }
   return rows;
+}
+
+/// Bill amount, paid, and (only when something is really owed) still due.
+/// Both inputs are the recorded figures; nothing here is invented.
+List<List<String>> receiptMoneyRows(double total, double paid) {
+  final due = (total - paid).clamp(0, double.infinity).toDouble();
+  return [
+    ['Bill amount', 'Rs.${fmtReceiptAmount(total)}'],
+    ['Paid on this bill', 'Rs.${fmtReceiptAmount(paid)}'],
+    if (due > 0.001) ['Still due on this bill', 'Rs.${fmtReceiptAmount(due)}'],
+  ];
 }
 
 /// Builds an 80mm thermal-style receipt PDF straight from an [Invoice] +
@@ -379,10 +384,8 @@ Future<Uint8List> buildPosReceiptPdf(
 
           // Money summary — same wording and order as the web slip, so the
           // offline fallback tells the customer the same story.
-          amtRow('Bill amount', 'Rs.${fmtReceiptAmount(grandTotal)}'),
-          amtRow('Paid on this bill', 'Rs.${fmtReceiptAmount(paidAmount)}'),
-          if (balance > 0.001)
-            amtRow('Still due on this bill', 'Rs.${fmtReceiptAmount(balance)}', isBold: true),
+          for (final r in receiptMoneyRows(grandTotal, paidAmount))
+            amtRow(r[0], r[1], isBold: r[0].startsWith('Still due')),
 
           if (showReceived) ...[
             dashedLine(),

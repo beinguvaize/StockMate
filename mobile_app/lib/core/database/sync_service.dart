@@ -66,6 +66,10 @@ abstract class SyncTransport {
   Future<void> upsert(String table, Map<String, dynamic> row);
   Future<void> update(String table, String id, Map<String, dynamic> fields);
   Future<void> softDelete(String table, String id);
+
+  /// The tenant_id of the row [table]/[id] as this user can see it, or null
+  /// when no such row is visible (it may belong to another shop).
+  Future<String?> rowTenant(String table, String id);
 }
 
 /// An UPDATE that touched no row. A refusal: replaying it cannot succeed until
@@ -107,6 +111,17 @@ class SupabaseSyncTransport implements SyncTransport {
         .select('id')
         .timeout(_netTimeout);
     if ((rows as List).isEmpty) throw ZeroRowsException(table, id);
+  }
+
+  @override
+  Future<String?> rowTenant(String table, String id) async {
+    final r = await supabase
+        .from(table)
+        .select('tenant_id')
+        .eq('id', id)
+        .maybeSingle()
+        .timeout(_netTimeout);
+    return r?['tenant_id'] as String?;
   }
 
   @override
@@ -526,11 +541,12 @@ class SyncService {
         lastId = job.id;
         // Head of line: a job waiting on its timer holds everything after
         // it, or a later job (a collection) could overtake its sale.
-        if (!force && job.nextAttemptAt.isAfter(DateTime.now())) return;
         // A follow-up of a refused sale is held, not sent (it would update a
-        // row that does not exist). It does not block the others.
+        // row that does not exist). It waits for the owner, not a timer, so it
+        // is checked FIRST: it must never hold up the jobs behind it.
         final follows = _followedSale(job);
         if (follows != null && (await _refusedSaleIds()).contains(follows)) continue;
+        if (!force && job.nextAttemptAt.isAfter(DateTime.now())) return;
         final failure = await _processJob(job);
         // The network (or the session) is gone for everyone, not just this
         // job; stop rather than time out on the rest of the queue.
@@ -610,7 +626,7 @@ class SyncService {
           } catch (e) {
             // A duplicate key on the row this very job creates: the first
             // delivery landed and only its reply was lost. That is success.
-            if (_landedBefore(name, e)) {
+            if (await _landedBefore(name, e, payload)) {
               debugPrint('[sync] $name already landed (replay hit its own key)');
               break;
             }
@@ -672,11 +688,23 @@ class SyncService {
     }
   }
 
-  bool _landedBefore(String rpcName, Object e) {
+  /// True when [e] is the job's own key colliding AND the row that is there
+  /// is this shop's. Ids are random, but a clash across shops must never be
+  /// read as "already landed" (that would silently lose a purchase). If the
+  /// row's tenant cannot be confirmed it stays a refusal.
+  Future<bool> _landedBefore(String rpcName, Object e, Map<String, dynamic> payload) async {
     final constraint = kOwnKeyConstraint[rpcName];
     if (constraint == null || e is! PostgrestException) return false;
     if ((e.code ?? '') != '23505') return false;
-    return '${e.message} ${e.details} ${e.hint}'.contains(constraint);
+    if (!'${e.message} ${e.details} ${e.hint}'.contains(constraint)) return false;
+    final tenant = payload['p_tenant_id'];
+    final id = payload['p_id'];
+    if (tenant == null || id == null) return false;
+    try {
+      return await transport.rowTenant('purchases', id.toString()) == tenant;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// "Sync now" / "Retry all": resets FAILED and backed-off PENDING jobs, then

@@ -43,6 +43,9 @@ class FakeSyncTransport implements SyncTransport {
   /// dies on the primary key (23505), like the real table.
   final purchases = <String>{};
 
+  /// Purchase id -> the tenant that owns it.
+  final purchaseTenant = <String, String>{};
+
   void goOnline() {
     online = true;
     _changes.add(true);
@@ -80,7 +83,9 @@ class FakeSyncTransport implements SyncTransport {
       return null;
     }
     if (name == 'process_purchase') {
-      if (!purchases.add(id)) {
+      if (purchases.add(id)) {
+        purchaseTenant[id] = (params['p_tenant_id'] ?? '').toString();
+      } else {
         throw PostgrestException(
             message: 'duplicate key value violates unique constraint "purchases_pkey"',
             code: '23505');
@@ -112,6 +117,12 @@ class FakeSyncTransport implements SyncTransport {
     updates.add('update:$table:$id:${fields.keys.join(',')}');
     calls.add('update:$id');
     if (table == 'sales') saleFields.putIfAbsent(id, () => {}).addAll(fields);
+  }
+
+  @override
+  Future<String?> rowTenant(String table, String id) async {
+    await _wire();
+    return purchaseTenant[id]; // null: not visible to this user
   }
 
   @override

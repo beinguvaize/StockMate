@@ -23,6 +23,10 @@ import 'package:mobile_app/main.dart' show syncServiceProvider, databaseProvider
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 
+/// A new purchase id: `PUR-` and 16 random hex digits. Made on the phone.
+String newPurchaseId() =>
+    'PUR-${const Uuid().v4().replaceAll('-', '').substring(0, 16).toUpperCase()}';
+
 class Purchase {
   final String id;
   final String? supplierName;
@@ -1210,7 +1214,9 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
 
       for (int i = 0; i < validLines.length; i++) {
         final line = validLines[i];
-        final id = 'PUR-${DateTime.now().millisecondsSinceEpoch}-${i.toString().padLeft(2, '0')}';
+        // 16 random hex digits, like SAL-: a clock-based id can clash across
+        // phones and shops, and a clash on replay is read as "already landed".
+        final id = newPurchaseId();
         final params = <String, dynamic>{
           'p_id':           id,
           'p_product_id':   line.productId,

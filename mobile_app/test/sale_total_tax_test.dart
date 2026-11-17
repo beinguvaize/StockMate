@@ -61,7 +61,7 @@ void main() {
     final r = ReceiptTotals.compute(items,
         taxMode: 'EXCLUSIVE', recordedTotal: sent, discount: 10);
     expect(r.total, closeTo(sent, 0.005));
-    expect(r.other, 0);
+    expect(r.adjustment, 0);
     expect(r.subtotal + r.tax - r.discount, closeTo(sent, 0.005));
   });
 }

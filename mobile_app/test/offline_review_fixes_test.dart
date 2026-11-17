@@ -15,6 +15,7 @@ import 'package:mobile_app/core/database/sync_errors.dart';
 import 'package:mobile_app/core/database/sync_service.dart';
 import 'package:mobile_app/core/print/pos_receipt_pdf.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
+import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart' show newPurchaseId;
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart'
     show cachedPickerClients, newSaleId;
 import 'package:supabase_flutter/supabase_flutter.dart'
@@ -176,7 +177,7 @@ void main() {
     test('23505 on purchases_pkey is SUCCESS, not "ring the bill again"', () async {
       net.online = true;
       net.commitThenTimeout.add('PUR-1');
-      final p = {'p_id': 'PUR-1', 'p_product_id': 'P1', 'p_total_amount': 50};
+      final p = {'p_id': 'PUR-1', 'p_product_id': 'P1', 'p_total_amount': 50, 'p_tenant_id': 'T1'};
       expect(await svc.rpcOnlineOrQueue('process_purchase', p), isTrue);
       expect(net.purchases, {'PUR-1'});
 
@@ -196,6 +197,33 @@ void main() {
       await s.sync(force: true);
       expect((await jobs(db)).single.status, JobStatus.failed);
       s.dispose();
+    });
+
+    test('a clash with ANOTHER shop\'s purchase is a refusal, never "landed"', () async {
+      net.purchases.add('PUR-X');
+      net.purchaseTenant['PUR-X'] = 'T-OTHER';
+      await svc.rpcOnlineOrQueue(
+          'process_purchase', {'p_id': 'PUR-X', 'p_tenant_id': 'T1', 'p_total_amount': 5});
+      net.goOnline();
+      await svc.sync(force: true);
+      expect((await jobs(db)).single.status, JobStatus.failed);
+    });
+
+    test('a clash whose owner cannot be confirmed is a refusal', () async {
+      net.purchases.add('PUR-Y'); // visible to nobody
+      await svc.rpcOnlineOrQueue(
+          'process_purchase', {'p_id': 'PUR-Y', 'p_tenant_id': 'T1', 'p_total_amount': 5});
+      net.goOnline();
+      await svc.sync(force: true);
+      expect((await jobs(db)).single.status, JobStatus.failed);
+    });
+
+    test('purchase ids are PUR- plus 16 random hex digits', () {
+      final ids = {for (var i = 0; i < 5000; i++) newPurchaseId()};
+      expect(ids, hasLength(5000));
+      for (final id in ids.take(50)) {
+        expect(id, matches(RegExp(r'^PUR-[0-9A-F]{16}$')));
+      }
     });
 
     test('describeRefusal names the job type', () {
@@ -258,6 +286,19 @@ void main() {
       final all = await jobs(db);
       expect(all[1].status, JobStatus.pending);
       expect(all[1].lastError, isNull, reason: 'held is not a failure');
+    });
+
+    test('(c) a held job ahead of a due job does not block it, even on a backoff timer', () async {
+      await svc.rpcOnlineOrQueue('process_sale', saleParams('SAL-1'));
+      await svc.updateOnlineOrQueue('sales', 'SAL-1', {'amount_received': 1});
+      await svc.rpcOnlineOrQueue('settle_client_payment', {'p_id': 'CP-1'});
+      await refuseOnReplay('SAL-1');
+      // The held follow-up sits on a future timer; the payment behind it is due.
+      await db.customStatement(
+          "UPDATE sync_mutations SET next_attempt_at = ${DateTime.now().add(const Duration(minutes: 5)).millisecondsSinceEpoch ~/ 1000} WHERE id = 2");
+      net.calls.clear();
+      await svc.sync();
+      expect((await jobs(db))[2].status, JobStatus.success);
     });
 
     test('(c) a follow-up made now, while the sale is refused, is queued', () async {
@@ -335,7 +376,7 @@ void main() {
     final items = [PdfLineItem(name: 'Soap', qty: 2, price: 59, taxRate: 18)];
 
     void expectAddsUp(ReceiptTotals t) {
-      expect(t.subtotal + t.tax - t.discount + t.other, closeTo(t.total, 0.005));
+      expect(t.subtotal + t.tax - t.discount + t.adjustment, closeTo(t.total, 0.005));
     }
 
     test('INCLUSIVE: taxable = line/(1+r), tax = line - taxable, with a Discount line', () {
@@ -368,12 +409,24 @@ void main() {
       expect(receiptSummaryRows(t).map((r) => r[0]), contains('Discount'));
     });
 
-    test('EXCLUSIVE sale recorded without its tax still prints rows that add up', () {
+    test('an old EXCLUSIVE sale recorded without tax prints the RECORDED total plus an Adjustment', () {
       final one = [PdfLineItem(name: 'Soap', qty: 1, price: 100, taxRate: 18)];
       final t = ReceiptTotals.compute(one,
           taxMode: 'EXCLUSIVE', recordedTotal: 90, discount: 10);
-      expect(t.total, 108);
+      expect(t.total, 90, reason: 'never a total the books do not hold');
+      expect(t.adjustment, -18);
       expectAddsUp(t);
+      expect(receiptSummaryRows(t).map((r) => r[0]), contains('Adjustment'));
+      // Fully paid at the recorded 90: nothing is invented as due.
+      expect(receiptMoneyRows(t.total, 90).map((r) => r[0]), isNot(contains('Still due on this bill')));
+    });
+
+    test('a fully paid EXCLUSIVE cash bill shows no Still due', () {
+      final one = [PdfLineItem(name: 'Soap', qty: 1, price: 100, taxRate: 18)];
+      final t = ReceiptTotals.compute(one, taxMode: 'EXCLUSIVE', recordedTotal: 118);
+      expect(t.adjustment, 0);
+      final rows = receiptMoneyRows(t.total, 118);
+      expect(rows.map((r) => r[0]), ['Bill amount', 'Paid on this bill']);
     });
 
     test('NONE: no tax rows; the lines are the price', () {

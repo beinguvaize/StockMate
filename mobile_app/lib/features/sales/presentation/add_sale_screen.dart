@@ -3180,6 +3180,9 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
             'address': cachedBiz.address, 'phone': cachedBiz.phone,
             'gst_no': cachedBiz.gstNo, 'upi_id': cachedBiz.upiId,
             'invoice_terms': cachedBiz.invoiceTerms,
+            // This table does not keep tax_mode. Unknown means NONE: print
+            // no tax split rather than guess one.
+            'tax_mode': 'NONE',
           };
         }
       }
@@ -3203,7 +3206,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
       noGst: noGst,
       // INCLUSIVE shops back the tax out of the line; EXCLUSIVE adds it on top.
       // Without the mode every offline slip was treated as EXCLUSIVE.
-      taxMode: (profile?['tax_mode'] as String?) ?? biz?.taxMode,
+      taxMode: (profile?['tax_mode'] as String?) ?? biz?.taxMode ?? 'NONE',
     );
   }
 
