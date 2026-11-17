@@ -62,10 +62,31 @@ final posStoresProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
   }
 });
 
-/// A new bill number: `SAL-` and 12 random hex digits. Made on the phone and
-/// final (see _submit for why 12).
+/// A new bill number: `SAL-` and 16 random hex digits. Made on the phone and
+/// final (see _submit for why 16).
 String newSaleId() =>
-    'SAL-${const Uuid().v4().replaceAll('-', '').substring(0, 12).toUpperCase()}';
+    'SAL-${const Uuid().v4().replaceAll('-', '').substring(0, 16).toUpperCase()}';
+
+/// The customers cached on this phone for [tenantId], as the picker reads
+/// them. No tenant known means nobody: the cache can hold other shops' rows and
+/// they must never be offered.
+Future<List<Map<String, dynamic>>> cachedPickerClients(
+    AppDatabase db, String? tenantId) async {
+  if (tenantId == null) return const [];
+  final rows = await (db.select(db.clients)
+        ..where((t) => t.tenantId.equals(tenantId))
+        ..orderBy([(t) => OrderingTerm(expression: t.name)]))
+      .get();
+  return [
+    for (final r in rows)
+      {
+        'id': r.id,
+        'name': r.name,
+        'phone': r.phone,
+        'outstanding_balance': r.outstandingBalance,
+      }
+  ];
+}
 
 // ─── Cart model ───────────────────────────────────────────────────────────────
 
@@ -305,12 +326,13 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       final netTotal = (_subtotal - discountAmt).clamp(0, double.infinity).toDouble();
       // The bill number is made here, on the phone, and it is final: the
       // server keeps the id it is given (and a GST invoice for a credit bill
-      // takes its own number server-side). Twelve hex digits, not eight:
+      // takes its own number server-side). Sixteen hex digits, not eight:
       // with phones billing offline there is no server to catch a clash, and
       // process_sale's replay guard treats "this id already exists" as "this
-      // sale already landed" -- so two devices drawing the same 8-digit id
-      // would silently drop the second sale. 48 random bits put that out of
-      // reach (about 1 in 50,000 for a shop with a million bills).
+      // sale already landed" -- so two devices drawing the same id would
+      // silently drop the second sale. 64 random bits put that out of reach:
+      // by the birthday bound (n^2 / 2^65) a million bills in one tenant
+      // collide with odds of about 1 in 36 million.
       final saleId = newSaleId();
 
       // Items format mirrors web: { id, quantity, name, rate, taxRate }
@@ -2608,19 +2630,11 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
         final ref = ProviderScope.containerOf(context, listen: false);
         final db = ref.read(databaseProvider);
         final tenantId = ref.read(tenantContextProvider).valueOrNull?.tenantId;
-        final q = db.select(db.clients)
-          ..orderBy([(t) => OrderingTerm(expression: t.name)]);
-        if (tenantId != null) q.where((t) => t.tenantId.equals(tenantId));
-        final rows = await q.get();
+        final rows = await cachedPickerClients(db, tenantId);
         if (!mounted) return;
         if (rows.isNotEmpty) {
           setState(() {
-            _clients = rows.map((r) => Client.fromJson({
-                  'id': r.id,
-                  'name': r.name,
-                  'phone': r.phone,
-                  'outstanding_balance': r.outstandingBalance,
-                })).toList();
+            _clients = rows.map((r) => Client.fromJson(r)).toList();
             _filtered = _clients;
             _loading = false;
           });
@@ -3113,6 +3127,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
         clientOutstanding: clientOutstanding,
         amountReceived: (row['amount_received'] as num?)?.toDouble(),
         noGst: noGst,
+        taxMode: biz?.taxMode,
       );
     }
   }
@@ -3163,6 +3178,9 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
       clientOutstanding: null,
       amountReceived: (local['amount_received'] as num?)?.toDouble(),
       noGst: noGst,
+      // INCLUSIVE shops back the tax out of the line; EXCLUSIVE adds it on top.
+      // Without the mode every offline slip was treated as EXCLUSIVE.
+      taxMode: (profile?['tax_mode'] as String?) ?? biz?.taxMode,
     );
   }
 

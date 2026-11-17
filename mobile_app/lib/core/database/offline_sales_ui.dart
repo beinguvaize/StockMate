@@ -265,7 +265,7 @@ class _RefusedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final info = describeRefusal(op.lastError);
+    final info = describeRefusal(op.lastError, rpcName: op.rpcName);
     return Container(
       key: Key('refused-${op.jobId}'),
       margin: const EdgeInsets.only(bottom: 10),

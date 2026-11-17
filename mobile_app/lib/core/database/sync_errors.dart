@@ -70,6 +70,39 @@ FailureKind classifyFailure(Object e) {
   return FailureKind.transport;
 }
 
+/// True only when the request provably never reached the server: the socket
+/// could not connect (no route, DNS, refused). A SocketException that says the
+/// connection was reset or closed can come AFTER the request was sent, so it is
+/// not "never left". A timeout, a 5xx, 408/429 or a ClientException never is.
+bool requestNeverLeft(Object e) {
+  if (e is! SocketException) return false;
+  final m = '${e.message} ${e.osError?.message ?? ''}'.toLowerCase();
+  return !(m.contains('reset') ||
+      m.contains('closed') ||
+      m.contains('broken pipe') ||
+      m.contains('terminated') ||
+      m.contains('aborted'));
+}
+
+/// What the owner calls a queued job, for "the ___ was refused".
+String jobNoun(String? rpcName) {
+  switch (rpcName) {
+    case 'process_purchase':
+      return 'purchase';
+    case 'settle_client_payment':
+      return 'payment';
+    case 'adjust_inventory_atomic':
+      return 'stock adjustment';
+    case 'void_sale':
+      return 'void';
+    case 'process_sale':
+    case null:
+      return 'sale';
+    default:
+      return 'entry';
+  }
+}
+
 /// The owner-facing explanation of a refused job.
 class RefusalInfo {
   final String title;
@@ -87,8 +120,10 @@ String _messageOf(String raw) {
   return (m?.group(1) ?? raw).trim();
 }
 
-RefusalInfo describeRefusal(String? lastError) {
+/// [rpcName] is the job's RPC, so a refused purchase is not called a sale.
+RefusalInfo describeRefusal(String? lastError, {String? rpcName}) {
   final raw = lastError ?? '';
+  final noun = jobNoun(rpcName);
   final msg = _messageOf(raw);
   String after(String marker) =>
       msg.replaceFirst(RegExp('^.*?$marker:\\s*'), '').trim();
@@ -126,10 +161,21 @@ RefusalInfo describeRefusal(String? lastError) {
           'Retry. Do not discard: the bill is kept safely on this phone.',
     );
   }
+  if (raw.contains('Unconfirmed')) {
+    return RefusalInfo(
+      'May already be recorded',
+      'The phone lost the reply, so it cannot tell whether the $noun went through.',
+      'Open Stock History and look for it. If it is there, tap Discard. If '
+          'it is not, tap Retry. It is never sent again on its own.',
+    );
+  }
+  final again = rpcName == 'process_sale' || rpcName == null
+      ? 'ring the bill again'
+      : 'enter it again';
   return RefusalInfo(
-    'Server refused the sale',
+    'Server refused the $noun',
     msg.isEmpty ? 'No reason was given.' : msg,
-    'The sale is NOT in the books yet. Fix the cause and tap Retry, or tap '
-        'Discard and ring the bill again. Send this screen to support if unsure.',
+    'The $noun is NOT in the books yet. Fix the cause and tap Retry, or tap '
+        'Discard and $again. Send this screen to support if unsure.',
   );
 }

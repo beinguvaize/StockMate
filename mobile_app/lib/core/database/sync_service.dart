@@ -24,6 +24,13 @@
 //     parked as FAILED with the server's reason, counted in the indicator and
 //     listed for the owner with Retry and Discard. Discard keeps the row.
 //
+//   • Not every RPC is safe to resend. adjust_inventory_atomic carries no op
+//     id, so the server cannot tell a second delivery from a second
+//     adjustment. Those (kUnsafeToResend) are queued only when the request
+//     provably never left the phone; after any ambiguous failure they are
+//     parked FAILED as "Unconfirmed" for the owner to check and never resent
+//     on their own.
+//
 // Statuses: PENDING | PROCESSING | SUCCESS | FAILED (refused, needs the owner)
 //           | DISCARDED (owner acknowledged a refused job; kept for audit).
 
@@ -35,6 +42,7 @@ import 'package:flutter/foundation.dart';
 import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/database/sync_errors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 enum SyncAction { upsert, delete, rpc, update }
 
@@ -60,6 +68,13 @@ abstract class SyncTransport {
   Future<void> softDelete(String table, String id);
 }
 
+/// An UPDATE that touched no row. A refusal: replaying it cannot succeed until
+/// the row exists, and "saved" would be a lie.
+class ZeroRowsException extends PostgrestException {
+  ZeroRowsException(String table, String id)
+      : super(message: 'No $table row $id was updated', code: 'ZERO_ROWS');
+}
+
 class SupabaseSyncTransport implements SyncTransport {
   // Bounded: on a slow link fall back to the queue after 6s instead of
   // freezing the till for the platform default (60s+).
@@ -82,8 +97,17 @@ class SupabaseSyncTransport implements SyncTransport {
       supabase.from(table).upsert(row).timeout(_netTimeout);
 
   @override
-  Future<void> update(String table, String id, Map<String, dynamic> fields) =>
-      supabase.from(table).update(fields).eq('id', id).timeout(_netTimeout);
+  Future<void> update(String table, String id, Map<String, dynamic> fields) async {
+    // select('id') so a write that matched NOTHING (RLS hid the row, or the
+    // sale it follows never landed) is seen and refused, not reported as done.
+    final rows = await supabase
+        .from(table)
+        .update(fields)
+        .eq('id', id)
+        .select('id')
+        .timeout(_netTimeout);
+    if ((rows as List).isEmpty) throw ZeroRowsException(table, id);
+  }
 
   @override
   Future<void> softDelete(String table, String id) => supabase
@@ -109,6 +133,19 @@ class SyncService {
   /// How often the worker looks at the queue on its own. Covers the case
   /// connectivity_plus cannot see: Wi-Fi up, internet down, then back.
   static const Duration kTick = Duration(seconds: 60);
+
+  /// RPCs that must never be sent twice: no op id, so a second delivery is a
+  /// second adjustment. Queued only when the request never left the phone.
+  static const Set<String> kUnsafeToResend = {'adjust_inventory_atomic'};
+
+  /// Shown on a job whose delivery cannot be known.
+  static const String kUnconfirmed = 'Unconfirmed: check Stock History before Retry';
+
+  /// rpc → the primary-key constraint of the row the job itself creates. A
+  /// 23505 on it on replay means the first delivery already landed.
+  static const Map<String, String> kOwnKeyConstraint = {
+    'process_purchase': 'purchases_pkey',
+  };
 
   StreamSubscription<bool>? _connSub;
   Timer? _ticker;
@@ -166,14 +203,18 @@ class SyncService {
 
   /// True when older jobs are still owed. A new write then joins the back of
   /// the queue rather than overtaking them.
-  Future<bool> _hasBacklog() async => (await pendingCount()) > 0;
+  /// Jobs held behind a refused sale do not count: they wait for the owner,
+  /// not for the network, and must not make every later write queue too.
+  Future<bool> _hasBacklog() async =>
+      (await pendingCount()) - (await _heldJobIds()).length > 0;
 
   Future<bool> _onlineOrQueue(
     Future<void> Function() online,
     Future<int> Function() queue,
-    String label,
-  ) async {
-    if (await _hasBacklog()) {
+    String label, {
+    Future<bool>? forceQueue,
+  }) async {
+    if (await _hasBacklog() || (forceQueue != null && await forceQueue)) {
       debugPrint('[sync] $label queued behind older jobs');
       await queue();
       return true;
@@ -217,22 +258,71 @@ class SyncService {
         () => queueMutation(
             targetTable: table, action: 'update', payload: {'id': id, 'fields': fields}),
         'update($table)',
+        forceQueue: table == 'sales' ? _saleIsHeld(id) : null,
       );
 
-  Future<bool> rpcOnlineOrQueue(String name, Map<String, dynamic> params) =>
-      _onlineOrQueue(
-        () async => transport.rpc(name, params),
-        () => queueMutation(
-            targetTable: 'rpc:$name', action: 'rpc', rpcName: name, payload: params),
-        'rpc($name)',
+  Future<bool> rpcOnlineOrQueue(String name, Map<String, dynamic> params) {
+    Future<int> queue() => queueMutation(
+        targetTable: 'rpc:$name', action: 'rpc', rpcName: name, payload: params);
+    if (kUnsafeToResend.contains(name)) return _unsafeRpc(name, params, queue);
+    // A follow-up of a refused sale waits behind it instead of racing ahead.
+    return _onlineOrQueue(
+      () async => transport.rpc(name, params),
+      queue,
+      'rpc($name)',
+      forceQueue: _followsHeldSale(name, params),
+    );
+  }
+
+  /// An RPC that must not be sent twice. Queue it only when the request
+  /// provably never left (offline, or the socket never connected); after
+  /// anything ambiguous record it FAILED/Unconfirmed instead of resending.
+  Future<bool> _unsafeRpc(
+      String name, Map<String, dynamic> params, Future<int> Function() queue) async {
+    Future<bool> unconfirmed(Object e) async {
+      debugPrint('[sync] $name outcome unknown ($e) — parked as Unconfirmed');
+      final id = await queue();
+      await (db.update(db.syncMutations)..where((t) => t.id.equals(id))).write(
+        SyncMutationsCompanion(
+          status: const Value(JobStatus.failed),
+          lastError: Value('$kUnconfirmed ($e)'),
+        ),
       );
+      return true;
+    }
+
+    if (await _hasBacklog() || !await transport.isOnline()) {
+      await queue();
+      return true;
+    }
+    try {
+      await transport.rpc(name, params);
+      return false;
+    } catch (e) {
+      final kind = classifyFailure(e);
+      if (kind == FailureKind.refused) rethrow;
+      if (requestNeverLeft(e) || kind == FailureKind.auth) {
+        await queue(); // not delivered; the replay is the first delivery
+        return true;
+      }
+      return unconfirmed(e);
+    }
+  }
 
   // ── Editing a job that has not been sent ────────────────────────────────────
 
-  /// The newest still-PENDING rpc job whose payload has `p_id == opId`.
+  // A sale that was refused can still be edited before the owner retries it:
+  // the UPI answer arrives after the replay already failed. So for process_sale
+  // "editable" means PENDING or FAILED; any other RPC only PENDING.
+  List<String> _editable(String? rpcName) => rpcName == 'process_sale'
+      ? [JobStatus.pending, JobStatus.failed]
+      : [JobStatus.pending];
+
+  /// The newest still-editable rpc job whose payload has `p_id == opId`
+  /// (PENDING, or FAILED for a process_sale).
   Future<SyncMutation?> findPendingRpc(String rpcName, String opId) async {
     final rows = await (db.select(db.syncMutations)
-          ..where((t) => t.rpcName.equals(rpcName) & t.status.equals(JobStatus.pending))
+          ..where((t) => t.rpcName.equals(rpcName) & t.status.isIn(_editable(rpcName)))
           ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)]))
         .get();
     for (final r in rows) {
@@ -243,33 +333,110 @@ class SyncService {
     return null;
   }
 
-  /// Merge [changes] into a job that has NOT been picked up yet. Returns false
-  /// when the worker already holds it (or it finished), in which case the
+  /// Merge [changes] into a job that has NOT been picked up yet (or a refused
+  /// sale, which stays FAILED until Retry sends the edited payload). Returns
+  /// false when the worker already holds it (or it finished), in which case the
   /// caller must send its change as a follow-up job instead.
   Future<bool> amendPendingJob(int jobId, Map<String, dynamic> changes) async {
     return db.transaction(() async {
       final row = await (db.select(db.syncMutations)..where((t) => t.id.equals(jobId)))
           .getSingleOrNull();
-      if (row == null || row.status != JobStatus.pending) return false;
+      if (row == null || !_editable(row.rpcName).contains(row.status)) return false;
       final payload = Map<String, dynamic>.from(jsonDecode(row.payload) as Map)
         ..addAll(changes);
       final n = await (db.update(db.syncMutations)
-            ..where((t) => t.id.equals(jobId) & t.status.equals(JobStatus.pending)))
+            ..where((t) => t.id.equals(jobId) & t.status.equals(row.status)))
           .write(SyncMutationsCompanion(payload: Value(jsonEncode(payload))));
       return n == 1;
     });
   }
 
   /// Withdraw a job that has not been sent (e.g. a UPI sale whose payment never
-  /// arrived). Kept as DISCARDED with [reason]; returns false if already sent.
+  /// arrived), or a refused sale. Kept as DISCARDED with [reason]; a sale takes
+  /// its follow-ups with it. Returns false if already sent.
   Future<bool> withdrawPendingJob(int jobId, String reason) async {
-    final n = await (db.update(db.syncMutations)
-          ..where((t) => t.id.equals(jobId) & t.status.equals(JobStatus.pending)))
-        .write(SyncMutationsCompanion(
+    return db.transaction(() async {
+      final row = await (db.select(db.syncMutations)..where((t) => t.id.equals(jobId)))
+          .getSingleOrNull();
+      if (row == null || !_editable(row.rpcName).contains(row.status)) return false;
+      final n = await (db.update(db.syncMutations)
+            ..where((t) => t.id.equals(jobId) & t.status.equals(row.status)))
+          .write(SyncMutationsCompanion(
+            status: const Value(JobStatus.discarded),
+            lastError: Value(reason),
+          ));
+      if (n == 1 && row.rpcName == 'process_sale') {
+        await _discardFollowUps(_opIdOf(row), reason);
+      }
+      return n == 1;
+    });
+  }
+
+  // ── Follow-ups of a sale ────────────────────────────────────────────────────
+  // A follow-up is a job that changes a sale the same phone queued: an UPDATE
+  // on sales (amount received, paid) or void_sale. It means nothing without
+  // the sale, so while the sale is refused it is held; if the sale is
+  // discarded it goes too; Retry sends both, sale first.
+
+  String? _opIdOf(SyncMutation r) {
+    try {
+      return (jsonDecode(r.payload) as Map)['p_id']?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The sale id a job follows, or null when it is not a follow-up.
+  String? _followedSale(SyncMutation r) {
+    try {
+      final p = jsonDecode(r.payload) as Map;
+      if (r.action == 'update' && r.targetTable == 'sales') return p['id']?.toString();
+      if (r.action == 'rpc' && r.rpcName == 'void_sale') return p['p_id']?.toString();
+    } catch (_) {}
+    return null;
+  }
+
+  Future<Set<String>> _refusedSaleIds() async {
+    final rows = await (db.select(db.syncMutations)
+          ..where((t) => t.rpcName.equals('process_sale') & t.status.equals(JobStatus.failed)))
+        .get();
+    return {for (final r in rows) if (_opIdOf(r) != null) _opIdOf(r)!};
+  }
+
+  Future<bool> _saleIsHeld(String saleId) async => (await _refusedSaleIds()).contains(saleId);
+
+  Future<bool> _followsHeldSale(String rpcName, Map<String, dynamic> params) async {
+    if (rpcName != 'void_sale') return false;
+    return _saleIsHeld((params['p_id'] ?? '').toString());
+  }
+
+  /// Owed follow-ups of refused sales: waiting on the owner, not the network.
+  Future<Set<int>> _heldJobIds() async {
+    final refused = await _refusedSaleIds();
+    if (refused.isEmpty) return {};
+    final owed = await (db.select(db.syncMutations)
+          ..where((t) => t.status.isIn(JobStatus.owed)))
+        .get();
+    return {
+      for (final r in owed)
+        if (refused.contains(_followedSale(r))) r.id
+    };
+  }
+
+  Future<void> _discardFollowUps(String? saleId, String reason) async {
+    if (saleId == null) return;
+    final rows = await (db.select(db.syncMutations)
+          ..where((t) => t.status.isIn([...JobStatus.owed, JobStatus.failed])))
+        .get();
+    for (final r in rows) {
+      if (_followedSale(r) != saleId) continue;
+      await (db.update(db.syncMutations)..where((t) => t.id.equals(r.id))).write(
+        SyncMutationsCompanion(
           status: const Value(JobStatus.discarded),
-          lastError: Value(reason),
-        ));
-    return n == 1;
+          lastError: Value('Its sale was discarded ($reason)'),
+        ),
+      );
+    }
   }
 
   // ── Counters / observability ───────────────────────────────────────────────
@@ -360,6 +527,10 @@ class SyncService {
         // Head of line: a job waiting on its timer holds everything after
         // it, or a later job (a collection) could overtake its sale.
         if (!force && job.nextAttemptAt.isAfter(DateTime.now())) return;
+        // A follow-up of a refused sale is held, not sent (it would update a
+        // row that does not exist). It does not block the others.
+        final follows = _followedSale(job);
+        if (follows != null && (await _refusedSaleIds()).contains(follows)) continue;
         final failure = await _processJob(job);
         // The network (or the session) is gone for everyone, not just this
         // job; stop rather than time out on the rest of the queue.
@@ -391,6 +562,19 @@ class SyncService {
           attempts: Value(queued.attempts + 1),
         ));
     if (claimed == 0) return null; // withdrawn meanwhile
+    // An unsafe RPC found mid-flight (PROCESSING: the app died or the reply
+    // never came) may already have been applied. Never send it a second time.
+    if (queued.status == JobStatus.processing &&
+        queued.action == 'rpc' &&
+        kUnsafeToResend.contains(queued.rpcName)) {
+      await (db.update(db.syncMutations)..where((t) => t.id.equals(queued.id))).write(
+        const SyncMutationsCompanion(
+          status: Value(JobStatus.failed),
+          lastError: Value(kUnconfirmed),
+        ),
+      );
+      return null;
+    }
     final job = await (db.select(db.syncMutations)..where((t) => t.id.equals(queued.id)))
         .getSingle();
 
@@ -421,7 +605,17 @@ class SyncService {
           if (name == null || name.isEmpty) {
             throw StateError('rpc job missing rpcName');
           }
-          await transport.rpc(name, payload);
+          try {
+            await transport.rpc(name, payload);
+          } catch (e) {
+            // A duplicate key on the row this very job creates: the first
+            // delivery landed and only its reply was lost. That is success.
+            if (_landedBefore(name, e)) {
+              debugPrint('[sync] $name already landed (replay hit its own key)');
+              break;
+            }
+            rethrow;
+          }
           break;
         default:
           throw StateError('unknown action ${job.action}');
@@ -438,9 +632,21 @@ class SyncService {
       return null;
     } catch (e) {
       // A malformed job is a refusal too: it can never succeed on replay.
-      final kind = e is StateError || e is FormatException || e is TypeError
+      final unsafe = job.action == 'rpc' && kUnsafeToResend.contains(job.rpcName);
+      var kind = e is StateError || e is FormatException || e is TypeError
           ? FailureKind.refused
           : classifyFailure(e);
+      if (unsafe && kind == FailureKind.transport && !requestNeverLeft(e)) {
+        // Ambiguous: it may have been applied. Park it; the owner checks.
+        await (db.update(db.syncMutations)..where((t) => t.id.equals(job.id))).write(
+          SyncMutationsCompanion(
+            status: const Value(JobStatus.failed),
+            lastError: Value('$kUnconfirmed ($e)'),
+          ),
+        );
+        debugPrint('[sync] job=${job.id} ${job.rpcName} outcome unknown — Unconfirmed');
+        return kind;
+      }
       if (kind == FailureKind.refused) {
         await (db.update(db.syncMutations)..where((t) => t.id.equals(job.id))).write(
           SyncMutationsCompanion(
@@ -466,11 +672,23 @@ class SyncService {
     }
   }
 
+  bool _landedBefore(String rpcName, Object e) {
+    final constraint = kOwnKeyConstraint[rpcName];
+    if (constraint == null || e is! PostgrestException) return false;
+    if ((e.code ?? '') != '23505') return false;
+    return '${e.message} ${e.details} ${e.hint}'.contains(constraint);
+  }
+
   /// "Sync now" / "Retry all": resets FAILED and backed-off PENDING jobs, then
   /// replays. Owner-initiated, so a refused job gets another honest attempt.
   Future<void> retryFailed() async {
+    // Unconfirmed jobs are the owner's call (Retry on that one job), never a
+    // bulk resend: they may already have been applied.
     await (db.update(db.syncMutations)
-          ..where((t) => t.status.equals(JobStatus.failed) | t.status.equals(JobStatus.pending)))
+          ..where((t) =>
+              (t.status.equals(JobStatus.failed) &
+                  (t.lastError.isNull() | t.lastError.like('$kUnconfirmed%').not())) |
+              t.status.equals(JobStatus.pending)))
         .write(SyncMutationsCompanion(
           status: const Value(JobStatus.pending),
           attempts: const Value(0),
@@ -481,6 +699,26 @@ class SyncService {
 
   /// Retry one refused job (after the owner fixed the stock, limit, …).
   Future<void> retryJob(int jobId) async {
+    final row = await (db.select(db.syncMutations)..where((t) => t.id.equals(jobId)))
+        .getSingleOrNull();
+    if (row != null && row.status == JobStatus.failed && row.rpcName == 'process_sale') {
+      // Its follow-ups were held; put any that failed back behind it.
+      final id = _opIdOf(row);
+      final rows = await (db.select(db.syncMutations)
+            ..where((t) => t.status.equals(JobStatus.failed)))
+          .get();
+      for (final r in rows) {
+        if (id != null && _followedSale(r) == id) {
+          await (db.update(db.syncMutations)..where((t) => t.id.equals(r.id))).write(
+            SyncMutationsCompanion(
+              status: const Value(JobStatus.pending),
+              attempts: const Value(0),
+              nextAttemptAt: Value(DateTime.now()),
+            ),
+          );
+        }
+      }
+    }
     await (db.update(db.syncMutations)
           ..where((t) => t.id.equals(jobId) & t.status.equals(JobStatus.failed)))
         .write(SyncMutationsCompanion(
@@ -504,6 +742,9 @@ class SyncService {
             'Was refused: ${row.lastError ?? ''}'),
       ),
     );
+    if (row.rpcName == 'process_sale') {
+      await _discardFollowUps(_opIdOf(row), 'discarded by owner');
+    }
   }
 
   // ── Pull sync (server → local) ─────────────────────────────────────────────

@@ -2,7 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/auth/offline_context_cache.dart';
+import 'package:mobile_app/core/database/sync_errors.dart' show classifyFailure, FailureKind;
 import 'package:mobile_app/features/auth/data/auth_provider.dart';
+
+/// The cached context stands in only when the server could not be reached.
+/// An answer from the server (refused, or a session that is no longer valid)
+/// must not be papered over with a stale shop.
+bool mayUseCachedContext(Object e) => classifyFailure(e) == FailureKind.transport;
 
 // Models
 class UserProfile {
@@ -246,7 +252,10 @@ final tenantContextProvider = FutureProvider<TenantContext?>((ref) async {
         print('[tenantContextProvider] attempt ${i + 1} failed: $e');
         // An exception here is the network, not the server's answer (a server
         // that answers "no tenant" returns null above and never reaches this).
-        if (cached != null) {
+        // Only a transport failure may fall back to the cache. A refusal or an
+        // auth failure is the server answering; a cached context there could
+        // keep a revoked user inside a shop they no longer belong to.
+        if (cached != null && mayUseCachedContext(e)) {
           final c = fromCache();
           if (c != null) return c;
         }

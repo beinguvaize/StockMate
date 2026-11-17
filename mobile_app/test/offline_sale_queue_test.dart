@@ -300,11 +300,11 @@ void main() {
   });
 
   group('bill numbers', () {
-    test('are SAL- plus 12 hex digits, and do not repeat', () {
+    test('are SAL- plus 16 hex digits, and do not repeat', () {
       final ids = {for (var i = 0; i < 20000; i++) newSaleId()};
       expect(ids, hasLength(20000));
       for (final id in ids.take(50)) {
-        expect(id, matches(RegExp(r'^SAL-[0-9A-F]{12}$')));
+        expect(id, matches(RegExp(r'^SAL-[0-9A-F]{16}$')));
       }
     });
   });

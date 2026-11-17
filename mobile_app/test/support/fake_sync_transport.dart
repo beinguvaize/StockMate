@@ -32,6 +32,17 @@ class FakeSyncTransport implements SyncTransport {
 
   final updates = <String>[];
 
+  /// Column writes applied to sales rows: id -> fields.
+  final saleFields = <String, Map<String, dynamic>>{};
+
+  /// Every adjust_inventory_atomic the server APPLIED. No op id, so no replay
+  /// guard: a second delivery is a second adjustment.
+  final adjustments = <Map<String, dynamic>>[];
+
+  /// Purchases the server holds. A second process_purchase with the same p_id
+  /// dies on the primary key (23505), like the real table.
+  final purchases = <String>{};
+
   void goOnline() {
     online = true;
     _changes.add(true);
@@ -55,11 +66,29 @@ class FakeSyncTransport implements SyncTransport {
   @override
   Future<dynamic> rpc(String name, Map<String, dynamic> params) async {
     await _wire();
-    final id = (params['p_id'] ?? '').toString();
+    final id = (params['p_id'] ?? params['p_product_id'] ?? '').toString();
     calls.add('$name:$id');
     final msg = refuse[id];
     if (msg != null) {
       throw PostgrestException(message: msg, code: 'P0001');
+    }
+    if (name == 'adjust_inventory_atomic') {
+      adjustments.add(Map<String, dynamic>.from(params));
+      if (commitThenTimeout.remove(id)) {
+        throw TimeoutException('reply lost after commit');
+      }
+      return null;
+    }
+    if (name == 'process_purchase') {
+      if (!purchases.add(id)) {
+        throw PostgrestException(
+            message: 'duplicate key value violates unique constraint "purchases_pkey"',
+            code: '23505');
+      }
+      if (commitThenTimeout.remove(id)) {
+        throw TimeoutException('reply lost after commit');
+      }
+      return null;
     }
     // Replay guard: a sale that already exists returns without a second write.
     recorded.putIfAbsent(id, () => Map<String, dynamic>.from(params));
@@ -78,8 +107,11 @@ class FakeSyncTransport implements SyncTransport {
   @override
   Future<void> update(String table, String id, Map<String, dynamic> fields) async {
     await _wire();
+    // Like the real transport: an UPDATE that matches no row is refused.
+    if (table == 'sales' && !recorded.containsKey(id)) throw ZeroRowsException(table, id);
     updates.add('update:$table:$id:${fields.keys.join(',')}');
     calls.add('update:$id');
+    if (table == 'sales') saleFields.putIfAbsent(id, () => {}).addAll(fields);
   }
 
   @override

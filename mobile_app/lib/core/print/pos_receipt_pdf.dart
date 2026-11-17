@@ -106,18 +106,101 @@ String fmtReceiptDate(String? iso) {
 
 String fmtReceiptAmount(double v) => v.toStringAsFixed(2);
 
+/// The money block of a receipt: Subtotal + Tax - Discount (+ Other) = Total.
+///
+/// [taxMode] is the shop's business_profile.tax_mode:
+///   NONE       no tax split; the lines are the price.
+///   INCLUSIVE  the line already contains tax: taxable = line / (1 + r),
+///              tax = line - taxable. Subtotal is the taxable value.
+///   EXCLUSIVE  (default) tax sits on top of the line.
+///
+/// [recordedTotal] is what the sale was recorded at. The slip prints it as the
+/// Total whenever the rows add up to it; the discount is the sale's own. If the
+/// record does not reconcile the rows can still not be left adding up wrongly:
+///   - an EXCLUSIVE sale recorded without its tax prints the tax-inclusive
+///     figure the checkout showed;
+///   - any other gap becomes an explicit "Other charges" (or extra discount),
+///     never a silent mismatch.
+class ReceiptTotals {
+  final double subtotal;
+  final double tax;
+  final double discount;
+  final double other;
+  final double total;
+  const ReceiptTotals(this.subtotal, this.tax, this.discount, this.other, this.total);
+
+  static double _r2(double v) => (v * 100).round() / 100;
+
+  factory ReceiptTotals.compute(
+    List<PdfLineItem> items, {
+    String? taxMode,
+    double recordedTotal = 0,
+    double discount = 0,
+  }) {
+    final mode = (taxMode ?? 'EXCLUSIVE').toUpperCase();
+    double sub = 0, tax = 0;
+    for (final it in items) {
+      final line = it.lineTotal;
+      if (mode == 'NONE') {
+        sub += line;
+      } else if (mode == 'INCLUSIVE') {
+        final taxable = line / (1 + it.taxRate / 100);
+        sub += taxable;
+        tax += line - taxable;
+      } else {
+        sub += line;
+        tax += line * it.taxRate / 100;
+      }
+    }
+    sub = _r2(sub);
+    tax = _r2(tax);
+    var disc = _r2(discount < 0 ? 0 : discount);
+    final expected = _r2(sub + tax - disc);
+    if (recordedTotal <= 0 || (recordedTotal - expected).abs() <= 0.01) {
+      return ReceiptTotals(sub, tax, disc, 0, expected);
+    }
+    if (mode == 'EXCLUSIVE' && (recordedTotal - _r2(sub - disc)).abs() <= 0.01) {
+      return ReceiptTotals(sub, tax, disc, 0, expected);
+    }
+    final gap = _r2(recordedTotal - expected);
+    if (gap > 0) return ReceiptTotals(sub, tax, disc, gap, _r2(recordedTotal));
+    disc = _r2(disc - gap);
+    return ReceiptTotals(sub, tax, disc, 0, _r2(recordedTotal));
+  }
+}
+
+/// The rows between the item list and the Total: [label, value] pairs.
+/// Subtotal + tax - Discount (+ Other charges) = Total, always.
+List<List<String>> receiptSummaryRows(ReceiptTotals t) {
+  final rows = <List<String>>[
+    ['Subtotal', 'Rs.${fmtReceiptAmount(t.subtotal)}'],
+  ];
+  if (t.tax > 0 && t.subtotal > 0) {
+    final pct = (t.tax / t.subtotal * 50).toStringAsFixed(1);
+    // SGST is the remainder, so the two halves always add to the tax.
+    final cgst = (t.tax * 50).round() / 100;
+    rows.add(['CGST ($pct%)', 'Rs.${fmtReceiptAmount(cgst)}']);
+    rows.add(['SGST ($pct%)', 'Rs.${fmtReceiptAmount(t.tax - cgst)}']);
+  }
+  if (t.discount > 0.001) rows.add(['Discount', '-Rs.${fmtReceiptAmount(t.discount)}']);
+  if (t.other > 0.001) rows.add(['Other charges', 'Rs.${fmtReceiptAmount(t.other)}']);
+  return rows;
+}
+
 /// Builds an 80mm thermal-style receipt PDF straight from an [Invoice] +
 /// [BusinessProfile] — no network, no WebView, always succeeds.
 /// [clientOutstanding] is the client's balance AFTER this sale (negative = an
 /// advance). Pass null for walk-ins — the account lines are then skipped.
 /// [amountReceived] is the cash actually handed over (may exceed the bill).
-/// [noGst] mirrors tax mode NONE so this slip matches the web receipt.
+/// [taxMode] is the shop's tax_mode (NONE / INCLUSIVE / EXCLUSIVE); [noGst]
+/// is the older way of saying NONE.
 Future<Uint8List> buildPosReceiptPdf(
   Invoice invoice,
   BusinessProfile? biz, {
   double? clientOutstanding,
   double? amountReceived,
   bool noGst = false,
+  String? taxMode,
 }) async {
   final pdf   = pw.Document();
   final items = parsePdfItems(invoice);
@@ -128,9 +211,13 @@ Future<Uint8List> buildPosReceiptPdf(
     fmtReceiptTime(invoice.createdAt),
   ].where((x) => x.isNotEmpty).join(' · ');
 
-  final double subtotal   = items.fold(0.0, (s, i) => s + i.lineTotal);
-  final double totalTax   = noGst ? 0.0 : items.fold(0.0, (s, i) => s + i.taxAmount);
-  final double grandTotal = invoice.grandTotal > 0 ? invoice.grandTotal : subtotal + totalTax;
+  final totals = ReceiptTotals.compute(
+    items,
+    taxMode: noGst ? 'NONE' : taxMode,
+    recordedTotal: invoice.grandTotal,
+    discount: invoice.discount,
+  );
+  final double grandTotal = totals.total;
   final double paidAmount = invoice.paidAmount;
   final double balance    = (grandTotal - paidAmount).clamp(0, double.infinity).toDouble();
 
@@ -274,13 +361,7 @@ Future<Uint8List> buildPosReceiptPdf(
 
           dashedLine(),
 
-          amtRow('Subtotal', 'Rs.${fmtReceiptAmount(subtotal)}'),
-          if (totalTax > 0) ...[
-            amtRow('CGST (${(totalTax / subtotal * 50).toStringAsFixed(1)}%)',
-                'Rs.${fmtReceiptAmount(totalTax / 2)}'),
-            amtRow('SGST (${(totalTax / subtotal * 50).toStringAsFixed(1)}%)',
-                'Rs.${fmtReceiptAmount(totalTax / 2)}'),
-          ],
+          for (final r in receiptSummaryRows(totals)) amtRow(r[0], r[1]),
 
           solidLine(),
 
