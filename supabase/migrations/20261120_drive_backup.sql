@@ -137,6 +137,9 @@ GRANT EXECUTE ON FUNCTION public.drive_export_table(uuid, text, int, int) TO ser
 -- are all installed on prod. The secret is read from the vault AT RUN TIME, so
 -- the owner must create it once (same value as the function's DRIVE_CRON_SECRET):
 --   select vault.create_secret('<value>', 'drive_cron_secret');
+--   select vault.create_secret('https://<project-ref>.supabase.co/functions/v1/drive-backup', 'drive_backup_url');
+-- The URL is in the vault too, so the same migration on dev never calls prod.
+-- With no URL, net.http_post refuses and the job logs an error; nothing runs.
 -- Until then the job sends an empty header and the function answers 401.
 -- The function itself skips shops backed up in the last 20h, so a double fire
 -- is harmless.
@@ -149,7 +152,7 @@ BEGIN
       'drive-backup-nightly', '0 21 * * *',
       $job$
       select net.http_post(
-        url := 'https://lmviftlynuhopzmvaxeu.supabase.co/functions/v1/drive-backup',
+        url := (select decrypted_secret from vault.decrypted_secrets where name = 'drive_backup_url'),
         headers := jsonb_build_object(
           'Content-Type', 'application/json',
           'x-cron-secret', coalesce((select decrypted_secret from vault.decrypted_secrets where name = 'drive_cron_secret'), '')),
