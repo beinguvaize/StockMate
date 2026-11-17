@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, relative } from 'path';
+import { join, relative, sep } from 'path';
 
 /**
  * Who is allowed to write products."costPrice".
@@ -55,7 +55,7 @@ const TYPED_BY_A_HUMAN = [
 describe('products.costPrice', () => {
   const offenders = [];
   for (const file of sourceFiles(SRC)) {
-    const rel = relative(SRC, file);
+    const rel = relative(SRC, file).split(sep).join('/');
     if (TYPED_BY_A_HUMAN.includes(rel)) continue;
     const text = readFileSync(file, 'utf8');
     // A write is `costPrice:` inside an object going to a mutation helper.
