@@ -437,7 +437,7 @@ const BackupRestore = () => {
                       {driveFiles.length === 0 && <p className="text-[13px] text-muted-foreground">No backups in your Drive folder yet.</p>}
                       {driveFiles.map((f) => (
                         <button key={f.id} type="button" onClick={() => drivePick(f)} disabled={!!driveBusy}
-                          className="text-left px-4 py-2 rounded-xl border border-border bg-canvas text-[13px] disabled:opacity-50">
+                          className="text-left px-4 py-2 rounded-pill border border-border bg-canvas text-[13px] disabled:opacity-50">
                           <span className="font-bold">{fmtWhen(f.createdTime)}</span>
                           <span className="text-muted-foreground"> · {fmtSize(f.size)} · {f.name}</span>
                         </button>
