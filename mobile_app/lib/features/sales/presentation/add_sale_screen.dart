@@ -88,6 +88,28 @@ Future<List<Map<String, dynamic>>> cachedPickerClients(
   ];
 }
 
+/// What the customer is charged before any discount, by the shop's tax_mode.
+/// The checkout sheet and _submit both use this, so the figure shown is the
+/// figure recorded (web InvoiceBuilder: grossTotal).
+///   NONE / INCLUSIVE  the lines are the price (tax already inside, or none).
+///   EXCLUSIVE         lines plus tax on top, at each product's own rate.
+double saleGrossTotal(Iterable<CartItem> cart, String? taxMode) {
+  final mode = (taxMode ?? 'EXCLUSIVE').toUpperCase();
+  final lines = cart.fold(0.0, (s, c) => s + c.lineTotal);
+  if (mode == 'NONE' || mode == 'INCLUSIVE') return lines;
+  final tax = cart.fold(0.0, (s, c) => s + c.lineTotal * c.product.taxRate.toDouble() / 100);
+  return lines + tax;
+}
+
+/// The amounts _submit records: gross (see [saleGrossTotal]), the discount
+/// capped at it, and the net that goes to process_sale as p_total_amount.
+({double gross, double discount, double net}) saleTotals(
+    Iterable<CartItem> cart, String? taxMode, double discount) {
+  final gross = saleGrossTotal(cart, taxMode);
+  final d = discount.clamp(0, gross).toDouble();
+  return (gross: gross, discount: d, net: (gross - d).clamp(0, double.infinity).toDouble());
+}
+
 // ─── Cart model ───────────────────────────────────────────────────────────────
 
 class CartItem {
@@ -322,8 +344,12 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     }
     try {
       // Bill total net of any discount — this is what's charged / owed / receipted.
-      final discountAmt = discount.clamp(0, _subtotal).toDouble();
-      final netTotal = (_subtotal - discountAmt).clamp(0, double.infinity).toDouble();
+      // The same total the checkout sheet showed: tax on top for EXCLUSIVE
+      // shops, with the discount taken off that total (as checkout and web do).
+      final taxMode = (ref.read(tenantProfileProvider).valueOrNull?['tax_mode'] as String?);
+      final totals = saleTotals(_cart, taxMode, discount);
+      final discountAmt = totals.discount;
+      final netTotal = totals.net;
       // The bill number is made here, on the phone, and it is final: the
       // server keeps the id it is given (and a GST invoice for a credit bill
       // takes its own number server-side). Sixteen hex digits, not eight:
@@ -383,7 +409,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         return;
       }
 
-      debugPrint('[SALE] calling process_sale id=$saleId user=$userId tenant=$tenantId items=${payloadItems.length} total=$_subtotal');
+      debugPrint('[SALE] calling process_sale id=$saleId user=$userId tenant=$tenantId items=${payloadItems.length} total=$netTotal');
 
       // If the cashier entered a specific amount paid, ship it. The RPC
       // recomputes paymentStatus and pushes any unpaid balance to the
@@ -1928,10 +1954,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   double get _total {
     // NONE / INCLUSIVE: grand total = sum of line totals (no tax added on top).
     // EXCLUSIVE: grand total = subtotal + tax.
-    if (_taxMode == 'NONE' || _taxMode == 'INCLUSIVE') {
-      return _localCart.fold(0.0, (s, c) => s + c.lineTotal);
-    }
-    return _subtotal + _tax;
+    return saleGrossTotal(_localCart, _taxMode);
   }
 
   // Bill-level discount in ₹ (flat amount or computed from %), capped at total.
