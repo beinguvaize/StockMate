@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Download, Upload, ShieldCheck, AlertTriangle, Database, Loader2, Undo2, CheckCircle2 } from 'lucide-react';
+import { Download, Upload, ShieldCheck, AlertTriangle, Database, Loader2, Undo2, CheckCircle2, Cloud } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../context/TenantContext';
 import { useAuth } from '../context/AuthContext';
@@ -48,6 +49,24 @@ const Card = ({ children }) => (
   <div className="bg-card border border-border rounded-2xl p-5">{children}</div>
 );
 
+/** The real reason from a failed edge-function call, not the generic wrapper. */
+async function driveErrorText(error, data) {
+  if (data && data.message) return data.message;
+  try {
+    const body = await error?.context?.json?.();
+    if (body?.message) return body.message;
+  } catch { /* body was not JSON */ }
+  return error?.message || String(error);
+}
+
+const driveCall = async (action, extra = {}) => {
+  const { data, error } = await supabase.functions.invoke('drive-backup', { body: { action, ...extra } });
+  if (error || data?.ok === false) throw new Error(await driveErrorText(error, data));
+  return data;
+};
+
+const fmtSize = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
 const BackupRestore = () => {
   const { currentTenantId, currentTenant } = useTenant();
   const { isOwner } = useAuth();
@@ -60,6 +79,10 @@ const BackupRestore = () => {
   const [outcome, setOutcome] = useState(null);   // { kind: 'done'|'error', title, detail, rows? }
   const [last, setLast] = useState(null);         // the newest applied restore, for Undo
   const fileRef = useRef(null);
+  const [drive, setDrive] = useState(null);      // drive_backup_status() result
+  const [driveBusy, setDriveBusy] = useState('');
+  const [driveFiles, setDriveFiles] = useState(null);
+  const [search, setSearch] = useSearchParams();
 
   const shopName = currentTenant?.name || 'this shop';
 
@@ -70,6 +93,67 @@ const BackupRestore = () => {
   }, [currentTenantId, isOwner]);
 
   useEffect(() => { loadLast(); }, [loadLast]);
+
+  // ── google drive ────────────────────────────────────────────────────────
+  const loadDrive = useCallback(async () => {
+    if (!currentTenantId || !isOwner) return;
+    const { data, error } = await supabase.rpc('drive_backup_status');
+    if (error) { console.error('[drive] status failed:', error); return; }
+    setDrive(data);
+  }, [currentTenantId, isOwner]);
+
+  useEffect(() => { loadDrive(); }, [loadDrive]);
+
+  // Google sends the owner back here as /backup?drive=connected|error.
+  useEffect(() => {
+    const flag = search.get('drive');
+    if (!flag) return;
+    if (flag === 'connected') {
+      setOutcome({ kind: 'done', title: 'Google Drive connected', detail: 'A backup will be saved to your Drive every night. You can also back up now.' });
+    } else {
+      const reason = search.get('reason') || 'unknown reason';
+      console.error('[drive] connect failed:', reason);
+      setOutcome({ kind: 'error', title: 'Google Drive was not connected', detail: reason === 'drive_not_configured' ? 'Google Drive backup is not set up on the server yet.' : reason });
+    }
+    loadDrive();
+    setSearch({}, { replace: true });
+  }, [search, setSearch, loadDrive]);
+
+  const driveAction = async (name, fn) => {
+    setDriveBusy(name);
+    try { await fn(); } catch (err) {
+      console.error(`[drive] ${name} failed:`, err);
+      setOutcome({ kind: 'error', title: 'Google Drive', detail: err.message || String(err) });
+    } finally { setDriveBusy(''); }
+  };
+
+  const driveConnect = () => driveAction('connect', async () => {
+    const { url } = await driveCall('start');
+    window.location.assign(url);
+  });
+  const driveBackupNow = () => driveAction('run', async () => {
+    const r = await driveCall('run');
+    addNotification(`Backed up to Google Drive (${fmtSize(r.bytes || 0)})`, 'success');
+    await loadDrive();
+  });
+  const driveDisconnect = () => driveAction('disconnect', async () => {
+    if (!window.confirm('Disconnect Google Drive? Nightly backups stop. Files already in your Drive stay there.')) return;
+    await driveCall('disconnect');
+    setDriveFiles(null);
+    await loadDrive();
+  });
+  const driveList = () => driveAction('list', async () => {
+    const r = await driveCall('list');
+    setDriveFiles(r.files);
+  });
+  // The downloaded file goes through the same inspect + typed-name confirmation as an uploaded one.
+  const drivePick = (f) => driveAction('download', async () => {
+    const parsed = await driveCall('download', { fileId: f.id });
+    setOutcome(null);
+    setConfirmText('');
+    setCheck({ ...inspectBackup(parsed, { tenantId: currentTenantId }), parsed });
+    setDriveFiles(null);
+  });
 
   // ── backup ──────────────────────────────────────────────────────────────
   const takeBackup = async () => {
@@ -302,6 +386,70 @@ const BackupRestore = () => {
           </div>
         </div>
       </Card>
+
+      {isOwner && (
+        <Card>
+          <div className="flex items-start gap-3" data-testid="drive-card">
+            <Cloud size={18} className="mt-0.5 text-accent-text shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-[15px]">Google Drive</div>
+              {!drive?.connected ? (
+                <>
+                  <p className="text-[13px] text-muted-foreground mt-0.5">
+                    Saves a backup of your books to your Google Drive every night. bookledger can only see the files it creates.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={driveConnect}
+                    disabled={!!driveBusy || !drive}
+                    className="mt-3 inline-flex items-center gap-2 px-5 h-11 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white
+                               text-[14px] font-bold disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    {driveBusy === 'connect' ? <><Loader2 size={16} className="animate-spin" /> Opening Google…</> : 'Connect Google Drive'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-[13px] text-muted-foreground mt-0.5">Connected as {drive.google_email || 'your Google account'}</p>
+                  <p className="text-[13px] mt-1" data-testid="drive-last">
+                    {drive.last_status === 'error'
+                      ? <span className="text-rose-600">Last backup failed: {drive.last_error}</span>
+                      : drive.last_backup_at
+                        ? <>Last backup: {fmtWhen(drive.last_backup_at)} <span className="text-emerald-600">✓</span></>
+                        : <span className="text-muted-foreground">No backup yet. The first one runs tonight, or press Back up now.</span>}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={driveBackupNow} disabled={!!driveBusy || !!busy}
+                      className="inline-flex items-center gap-2 px-5 h-10 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[13px] font-bold disabled:opacity-50 disabled:pointer-events-none">
+                      {driveBusy === 'run' ? <><Loader2 size={15} className="animate-spin" /> Backing up…</> : 'Back up now'}
+                    </button>
+                    <button type="button" onClick={driveList} disabled={!!driveBusy || !!busy}
+                      className="inline-flex items-center gap-2 px-5 h-10 rounded-pill bg-card border border-border text-[13px] font-bold disabled:opacity-50 disabled:pointer-events-none">
+                      {driveBusy === 'list' || driveBusy === 'download' ? <><Loader2 size={15} className="animate-spin" /> Loading…</> : 'Restore from Drive'}
+                    </button>
+                    <button type="button" onClick={driveDisconnect} disabled={!!driveBusy || !!busy}
+                      className="inline-flex items-center gap-2 px-5 h-10 rounded-pill bg-card border border-border text-[13px] font-bold text-rose-600 disabled:opacity-50 disabled:pointer-events-none">
+                      Disconnect
+                    </button>
+                  </div>
+                  {driveFiles && (
+                    <div className="mt-3 flex flex-col gap-1.5" data-testid="drive-files">
+                      {driveFiles.length === 0 && <p className="text-[13px] text-muted-foreground">No backups in your Drive folder yet.</p>}
+                      {driveFiles.map((f) => (
+                        <button key={f.id} type="button" onClick={() => drivePick(f)} disabled={!!driveBusy}
+                          className="text-left px-4 py-2 rounded-xl border border-border bg-canvas text-[13px] disabled:opacity-50">
+                          <span className="font-bold">{fmtWhen(f.createdTime)}</span>
+                          <span className="text-muted-foreground"> · {fmtSize(f.size)} · {f.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <div className="flex items-start gap-3">
