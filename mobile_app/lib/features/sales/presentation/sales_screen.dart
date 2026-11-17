@@ -12,6 +12,9 @@ import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/features/returns/presentation/providers/returns_provider.dart';
+import 'package:mobile_app/features/returns/presentation/sales_returns_tab.dart';
 
 class SalesScreen extends ConsumerStatefulWidget {
   const SalesScreen({super.key});
@@ -23,6 +26,7 @@ class SalesScreen extends ConsumerStatefulWidget {
 class _SalesScreenState extends ConsumerState<SalesScreen> {
   int _filterIndex = 0; // 0=All, 1=Paid, 2=Credit, 3=Pending/Failed
   int _dateIndex = 0; // 0=All, 1=Today, 2=Yesterday, 3=This Week, 4=This Month
+  int _historyIndex = 0; // 0=Sales, 1=Returns (web Sales page sub-tabs)
   static const _dateFilters = [
     'All',
     'Today',
@@ -61,6 +65,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   @override
   Widget build(BuildContext context) {
     final salesAsync = ref.watch(recentSalesProvider);
+    final tenantId = ref.watch(tenantContextProvider).valueOrNull?.tenantId;
+    final returnsCount = tenantId == null
+        ? null
+        : ref.watch(salesReturnsProvider(tenantId)).valueOrNull?.length;
     final filters = ['All', 'Paid', 'Credit', 'Failed'];
 
     return Scaffold(
@@ -90,7 +98,16 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
             const SizedBox(height: 20),
 
+            SalesHistoryTabs(
+              index: _historyIndex,
+              returnsCount: returnsCount,
+              onChanged: (i) => setState(() => _historyIndex = i),
+            ),
+
+            const SizedBox(height: 20),
+
             // ── Stats row ──────────────────────────────────────────
+            if (_historyIndex == 0) ...[
             salesAsync.maybeWhen(
               data: (sales) {
                 // Stats follow the selected date range (Total Today by default).
@@ -614,6 +631,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 ),
               ),
             ),
+            ],
+            if (_historyIndex == 1)
+              Expanded(child: SalesReturnsTab(tenantId: tenantId)),
           ],
         ),
       ),
