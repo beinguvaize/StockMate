@@ -43,6 +43,16 @@ describe('chat text sanitiser', () => {
     gone('mail ramesh.k@example.co.in the bill', 'ramesh.k@example.co.in', 'email');
     gone('paid to ramesh@okaxis today', 'ramesh@okaxis', 'upi');
   });
+  it('maps non-ASCII digits first: a Devanagari phone and Aadhaar are removed', () => {
+    expect(s('call ९८७६५४३२१०').text).toBe(`call ${REMOVED}`);
+    expect(s('aadhaar १२३४ ५६७८ ९०१२').text).toBe(`aadhaar ${REMOVED}`);
+  });
+  it('a spaced 16-digit number is removed whole, not left with a tail', () => {
+    expect(s('ac 1234 5678 9012 3456').text).toBe(`ac ${REMOVED}`);
+  });
+  it('drops fullwidth angle brackets too', () => {
+    expect(s('a\uFF1C/question\uFF1E b').text).not.toMatch(/[\uFF1C\uFF1E]/);
+  });
   it('a GSTIN is removed whole, not half-eaten by the PAN rule', () => {
     expect(s('27AAPFU0939F1ZV').text).toBe(REMOVED);
   });
@@ -322,6 +332,16 @@ describe('chat action', () => {
     expect(json.reads[0].screen).toMatchObject({ key: 'reports_daily_sales', params: { from: '2026-11-02', to: '2026-11-04' } });
     expect(json.turn).toEqual({ reads: [{ id: 'sales_week', from: '2026-11-02', to: '2026-11-04' }] });
     expect(ai).toHaveBeenCalledTimes(2);
+  });
+
+  it('a custom-period read is labelled to the model with its dates, not the default period', async () => {
+    const ai = model(JSON.stringify({ reads: [{ id: 'sales_week', from: '2026-10-26', to: '2026-11-01' }] }), 'You sold ₹12,450.50.');
+    await chat(fakeDb(), { ai });
+    const user = ai.mock.calls[1][1];
+    expect(user).toContain('2026-10-26 to 2026-11-01');
+    const labels = [...user.matchAll(/"question":"([^"]*)"/g)].map((m) => m[1]);
+    expect(labels).toEqual(['Sales, 2026-10-26 to 2026-11-01']);
+    expect(labels[0]).not.toMatch(/this month|this week|today/i);
   });
 
   it('counts one explanation per message, closes it with both calls\' tokens, and stores no text', async () => {

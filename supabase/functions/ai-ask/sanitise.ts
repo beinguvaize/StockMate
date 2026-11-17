@@ -21,6 +21,8 @@ const RULES: Array<[string, RegExp]> = [
   ["pan", /(?<![\p{L}\p{N}])[A-Z]{5}\d{4}[A-Z](?![\p{L}\p{N}])/giu],
   // IFSC: SBIN0001234 (4 letters, a zero, 6 letters or digits)
   ["ifsc", /(?<![\p{L}\p{N}])[A-Z]{4}0[A-Z\d]{6}(?![\p{L}\p{N}])/giu],
+  // 13 or more digits split by spaces or hyphens (a 16-digit account): before the Aadhaar rule, which would eat 12 of them
+  ["digits", /(?<![\p{N}])(?:\d[\s-]?){13,}(?![\p{N}])/gu],
   // Aadhaar-like: 12 digits, alone or as 4-4-4 with spaces or hyphens
   ["aadhaar", /(?<![\p{N}])\d{4}[\s-]?\d{4}[\s-]?\d{4}(?![\p{N}])/gu],
   // Phone numbers: +91 98765 43210, 098765-43210, 9876543210, (022) 2345 6789
@@ -29,6 +31,14 @@ const RULES: Array<[string, RegExp]> = [
   ["digits", /(?<![\p{N}])\d{9,18}(?![\p{N}])/gu],
   ["digits", /(?<![\p{N}])(?:\d[\s-]?){10,}(?![\p{N}])/gu],
 ];
+
+/** ASCII value of a decimal digit from any script: Nd runs are whole sets of ten, so count from the run start. */
+function digitValue(ch: string) {
+  const cp = ch.codePointAt(0)!;
+  let start = cp;
+  while (/^\p{Nd}$/u.test(String.fromCodePoint(start - 1))) start--;
+  return (cp - start) % 10;
+}
 
 /** A phone rule hit that is really a date or a short amount is left alone. */
 function phoneLike(match: string) {
@@ -52,10 +62,12 @@ export interface Sanitised {
 export function sanitiseChatText(input: unknown): Sanitised {
   let text = String(input ?? "")
     .normalize("NFC")
+    // Any script's decimal digits become ASCII, so the digit rules see them all.
+    .replace(/\p{Nd}/gu, (d) => String(digitValue(d)))
     // Control characters and zero-width marks can hide text from a reader.
     .replace(/[\u0000-\u0008\u000B-\u001F\u007F\u200B-\u200F\u2028-\u202E\u2060-\u206F\uFEFF]/g, " ")
     // The prompt wraps this text in <question> tags: it may not open or close one.
-    .replace(/[<>]/g, " ");
+    .replace(/[<>\uFF1C\uFF1E]/g, " ");
   const removed: string[] = [];
   for (const [name, re] of RULES) {
     text = text.replace(re, (m) => {

@@ -388,7 +388,8 @@ export async function chatTurn(
     }
   } catch (e) {
     // The claim is given back: a failed read is not an explanation.
-    if (e instanceof ReadFailed) await close("model_error");
+    // Any failure of the reads gives the claim back, not only a ReadFailed.
+    await close("model_error");
     throw e;
   }
   const reads = runs.map(({ id, period, run }) => {
@@ -408,12 +409,16 @@ export async function chatTurn(
   const turn = { reads: runs.map(({ id, run }) => (RANGED[id] ? { id, from: run.params.from, to: run.params.to } : { id })) };
 
   if (runs.every((r) => r.run.empty)) {
-    await close("answered");
+    await close("no_data");
     return reply({ reads, text: S.no_data, reason: "no_data", turn });
   }
 
   // ── 3. answer ──
-  const { view, map } = mergeModelFigures(runs.map(({ id, run }) => ({ question: byId.get(id)!.label, figures: run.figures })));
+  const { view, map } = mergeModelFigures(runs.map(({ id, period, run }) => ({
+    // A custom period must not be contradicted by the registry label ("this month").
+    question: period ? `${strings.en.chat.titles[id] ?? S.titles[id] ?? byId.get(id)!.label}, ${run.params.from} to ${run.params.to}` : byId.get(id)!.label,
+    figures: run.figures,
+  })));
   const asked = maskNames(clean.text, map);
   const before = history.map((t) => ({ ...t, message: maskNames(t.message, map) }));
   let answer: ModelReply;
