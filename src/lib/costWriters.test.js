@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, relative } from 'path';
@@ -28,7 +29,7 @@ import { join, relative } from 'path';
  * This test exists so the second writer cannot come back quietly.
  */
 
-const SRC = new URL('..', import.meta.url).pathname;
+const SRC = fileURLToPath(new URL('..', import.meta.url));
 
 const sourceFiles = (dir) =>
   readdirSync(dir).flatMap((name) => {
