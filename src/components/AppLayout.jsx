@@ -18,6 +18,7 @@ import AvatarPicker from './AvatarPicker';
 import SyncStatus from './SyncStatus';
 import OfflineGraceBanner from './OfflineGraceBanner';
 import OfflineLockScreen from './OfflineLockScreen';
+import { useOfflineGrace } from '../lib/offline/useOfflineGrace';
 
 // Lazy: the panel, its Hindi font and its strings load only when it is opened.
 const AskPanel = React.lazy(() => import('./ask/AskPanel'));
@@ -813,7 +814,13 @@ const MainContent = ({ kioskMode = false }) => {
 };
 
 const AppLayout = () => {
-  const { currentUser, loading: authLoading, offlineLock } = useAuth();
+  const { currentUser, loading: authLoading, offlineLock: startLock } = useAuth();
+  // The start-up check only runs at launch; this catches a desktop left open
+  // offline past its window (re-checked hourly by useOfflineGrace).
+  const grace = useOfflineGrace();
+  const offlineLock = startLock || ((grace?.expired || grace?.clockBack)
+    ? { reason: grace.clockBack ? 'clock' : 'expired', graceDays: grace.graceDays, daysOffline: grace.daysOffline }
+    : null);
   const { currentTenant, isImpersonating, stopImpersonating, loading: tenantLoading } = useTenant();
   const navigate = useNavigate();
   // Apply saved theme on every page load
