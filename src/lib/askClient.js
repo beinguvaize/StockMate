@@ -51,3 +51,12 @@ export async function setAskEnabled(on) {
   const { error } = await supabase.rpc('ai_set_enabled', { p_enabled: on });
   if (error) throw new AskError('reason', 'read_failed', error.message);
 }
+
+/**
+ * Records that the owner read the chat notice. ai-ask refuses a chat message
+ * (chat_consent_needed) until the version stored matches its own.
+ */
+export async function setChatConsent(version) {
+  const { error } = await supabase.rpc('ai_set_chat_consent', { p_version: version });
+  if (error) throw new AskError('reason', 'read_failed', error.message);
+}
