@@ -14,13 +14,14 @@
  *          bootstrap snapshot.
  *   4. Subsequent launches (no network):
  *        → AuthContext reads cached profile/tenant/subscription.
- *          Allowed if grace window (default 7 days) hasn't expired AND
+ *          Allowed if grace window (30 days paid/trial, 7 days free) hasn't expired AND
  *          last known subscription status is not SUSPENDED/CANCELLED.
  *
  * Web/mobile users: every helper here is a no-op (gated by isElectron()).
  */
 
 import { getMeta, setMeta } from './cache.js';
+import { hasFeature } from '../tenancy.js';
 
 const BOOTSTRAP_KEY = 'authBootstrap';
 
@@ -29,6 +30,43 @@ const BOOTSTRAP_KEY = 'authBootstrap';
 // 7 days lines up with typical billing cycles + gives field staff
 // (vans, kirana counters with patchy 4G) a comfortable buffer.
 export const OFFLINE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Paid plans (and trials) get 30 days; everyone else keeps 7.
+const CLOCK_SLACK_MS = 6 * 60 * 60 * 1000;
+const MAX_SEEN_KEY = 'offlineMaxSeenAt';
+
+export function graceDaysFor(plan, status) {
+  if (String(status || '').toUpperCase() === 'TRIAL') return 30;
+  return hasFeature(plan, 'offline_30_days') ? 30 : 7;
+}
+
+/**
+ * Pure grace calculation. `maxSeenAt` is the largest Date.now() this machine
+ * has ever reported (see touchMaxSeen) - used to catch a rolled-back clock.
+ */
+export function graceInfo(bootstrap, now = Date.now(), maxSeenAt = 0) {
+  const graceDays = graceDaysFor(bootstrap?.subscription?.plan, bootstrap?.subscription?.status);
+  const validatedAt = bootstrap?.validatedAt || 0;
+  const expiresAt = validatedAt + graceDays * DAY_MS;
+  const clockBack = !!validatedAt &&
+    (now < (maxSeenAt || 0) - CLOCK_SLACK_MS || now < validatedAt - CLOCK_SLACK_MS);
+  const expired = !validatedAt || now >= expiresAt;
+  const daysLeft = Math.max(0, Math.ceil((expiresAt - now) / DAY_MS));
+  return { graceDays, validatedAt, expiresAt, daysLeft, expired, clockBack };
+}
+
+/** Read the stored max-seen time, then raise it to `now`. Returns the PREVIOUS max. */
+export async function touchMaxSeen(now = Date.now()) {
+  if (!isElectron()) return 0;
+  try {
+    const prev = Number(await getMeta(MAX_SEEN_KEY)) || 0;
+    if (now > prev) await setMeta(MAX_SEEN_KEY, now);
+    return prev;
+  } catch (err) {
+    console.warn('[authGuard] touchMaxSeen failed (clock-rollback check skipped):', err);
+    return 0;
+  }
+}
 
 export const isElectron = () => {
   if (typeof navigator === 'undefined') return false;
@@ -79,9 +117,10 @@ export async function clearBootstrap() {
 /**
  * True if the bootstrap snapshot is still within the offline grace window.
  */
-export function isGraceValid(bootstrap, now = Date.now()) {
+export function isGraceValid(bootstrap, now = Date.now(), maxSeenAt = 0) {
   if (!bootstrap?.validatedAt) return false;
-  return (now - bootstrap.validatedAt) < OFFLINE_GRACE_MS;
+  const g = graceInfo(bootstrap, now, maxSeenAt);
+  return !g.expired && !g.clockBack;
 }
 
 /**
@@ -114,8 +153,10 @@ export async function evaluateOfflineAccess({ online = navigator?.onLine } = {})
   if (!isSubscriptionActive(bootstrap)) {
     return { allowed: false, reason: 'subscription-blocked', bootstrap };
   }
-  if (!isGraceValid(bootstrap)) {
-    return { allowed: false, reason: 'offline-grace-expired', bootstrap };
-  }
-  return { allowed: true, reason: 'offline-grace', bootstrap };
+  const now = Date.now();
+  const maxSeen = await touchMaxSeen(now);
+  const info = graceInfo(bootstrap, now, maxSeen);
+  if (info.clockBack) return { allowed: false, reason: 'offline-clock-back', bootstrap, info };
+  if (info.expired) return { allowed: false, reason: 'offline-grace-expired', bootstrap, info };
+  return { allowed: true, reason: 'offline-grace', bootstrap, info };
 }

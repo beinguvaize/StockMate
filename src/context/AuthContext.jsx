@@ -20,6 +20,8 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Desktop offline past its grace window: keep the user + cache, show a lock screen.
+  const [offlineLock, setOfflineLock] = useState(null);
 
   useEffect(() => {
     // 1. Initial Session check
@@ -63,20 +65,33 @@ export const AuthProvider = ({ children }) => {
             // force the user back to the login screen instead of giving
             // unauthorised offline access to cached data.
             try {
-              const { loadBootstrap, isGraceValid, isSubscriptionActive } =
+              const { loadBootstrap, graceInfo, touchMaxSeen, isSubscriptionActive } =
                 await import('../lib/offline/authGuard.js');
               const bootstrap = await loadBootstrap();
-              const block =
+              const hardBlock =
                 !bootstrap ||
                 bootstrap.userId !== session.user.id ||
-                !isGraceValid(bootstrap) ||
                 !isSubscriptionActive(bootstrap);
-              if (block) {
-                console.warn('[auth] offline grace/subscription gate failed → signing out');
+              if (hardBlock) {
+                console.warn('[auth] offline bootstrap/subscription gate failed → signing out');
                 await supabase.auth.signOut();
                 profile = null;
+              } else {
+                const now = Date.now();
+                const info = graceInfo(bootstrap, now, await touchMaxSeen(now));
+                if (info.expired || info.clockBack) {
+                  console.warn('[auth] offline grace over (%s) → lock screen, staying signed in',
+                    info.clockBack ? 'clock' : 'expired');
+                  setOfflineLock({
+                    reason: info.clockBack ? 'clock' : 'expired',
+                    graceDays: info.graceDays,
+                    daysOffline: Math.max(0, Math.floor((now - info.validatedAt) / 86400000)),
+                  });
+                }
               }
-            } catch (_) {/* if guard fails, fall through with cached profile */}
+            } catch (guardErr) {
+              console.warn('[auth] offline guard failed, falling through with cached profile:', guardErr);
+            }
           }
         }
 
@@ -449,6 +464,7 @@ export const AuthProvider = ({ children }) => {
     currentUser,
     session,
     loading,
+    offlineLock,
     login,
     logout,
     updateAvatar,
