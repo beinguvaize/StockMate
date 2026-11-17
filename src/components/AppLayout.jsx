@@ -16,6 +16,9 @@ import NotificationStack from './NotificationStack';
 import GlobalLoading from './GlobalLoading';
 import AvatarPicker from './AvatarPicker';
 import SyncStatus from './SyncStatus';
+import OfflineGraceBanner from './OfflineGraceBanner';
+import OfflineLockScreen from './OfflineLockScreen';
+import { useOfflineGrace } from '../lib/offline/useOfflineGrace';
 
 // Lazy: the panel, its Hindi font and its strings load only when it is opened.
 const AskPanel = React.lazy(() => import('./ask/AskPanel'));
@@ -788,6 +791,7 @@ const MainContent = ({ kioskMode = false }) => {
           : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-2 md:pt-8 md:pb-6'
       }`}
     >
+      <OfflineGraceBanner />
       {/* One message about status, never two. The trial banner and the billing
           banner read from different tables that disagree -- only four tenants
           have a subscription row, and Aisha Store's says her trial expired in
@@ -810,7 +814,13 @@ const MainContent = ({ kioskMode = false }) => {
 };
 
 const AppLayout = () => {
-  const { currentUser, loading: authLoading } = useAuth();
+  const { currentUser, loading: authLoading, offlineLock: startLock } = useAuth();
+  // The start-up check only runs at launch; this catches a desktop left open
+  // offline past its window (re-checked hourly by useOfflineGrace).
+  const grace = useOfflineGrace();
+  const offlineLock = startLock || ((grace?.expired || grace?.clockBack)
+    ? { reason: grace.clockBack ? 'clock' : 'expired', graceDays: grace.graceDays, daysOffline: grace.daysOffline }
+    : null);
   const { currentTenant, isImpersonating, stopImpersonating, loading: tenantLoading } = useTenant();
   const navigate = useNavigate();
   // Apply saved theme on every page load
@@ -849,6 +859,8 @@ const AppLayout = () => {
   if (authLoading || tenantLoading) {
     return <GlobalLoading />;
   }
+
+  if (offlineLock) return <OfflineLockScreen lock={offlineLock} />;
 
   return (
     <div className="min-h-screen bg-canvas font-inter selection:bg-accent-signature/30 flex flex-col relative">

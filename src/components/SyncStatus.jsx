@@ -11,6 +11,7 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useOffline } from '../context/OfflineContext.jsx';
+import { useOfflineGrace } from '../lib/offline/useOfflineGrace.js';
 
 function useRelativeTime(isoTs) {
   const [label, setLabel] = useState('');
@@ -40,6 +41,7 @@ function useRelativeTime(isoTs) {
 export default function SyncStatus() {
   const { online, syncing, lastSyncAt, pendingCount, syncNow } = useOffline();
   const relTime = useRelativeTime(lastSyncAt);
+  const grace = useOfflineGrace();
 
   const dotColor = online ? 'bg-emerald-500' : 'bg-gray-400';
   const ringColor = online ? 'bg-emerald-50 border-emerald-100' : 'bg-muted border-border';
@@ -57,7 +59,7 @@ export default function SyncStatus() {
 
         {/* Label */}
         <span className={`text-[10px] font-bold ${textColor} leading-none`}>
-          {syncing ? 'Syncing…' : online ? 'Live' : 'Offline'}
+          {syncing ? 'Syncing…' : online ? 'Live' : grace ? `Offline · ${grace.daysLeft} days left` : 'Offline'}
         </span>
 
         {/* Pending badge */}

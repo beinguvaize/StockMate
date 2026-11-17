@@ -31,7 +31,7 @@ export const PLANS = {
       // was a conservative default to be moved down.
       'appointments',
     ],
-    features: ['gstr_export'],
+    features: ['gstr_export', 'offline_30_days'],
     maxUsers: 3,
     maxInvoices: 1000,
     color: 'bg-emerald-50 text-emerald-600',
@@ -49,7 +49,7 @@ export const PLANS = {
       // services tenant locked out of the thing they signed up for.
       'appointments',
     ],
-    features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory'],
+    features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory', 'offline_30_days'],
     maxUsers: 5,
     maxInvoices: -1,
     color: 'bg-blue-50 text-blue-600',
@@ -67,7 +67,7 @@ export const PLANS = {
       'appointments', 'kds', 'labels',
       'users', 'settings', 'audit-log',
     ],
-    features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory', 'api_access', 'white_label', 'priority_support'],
+    features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory', 'api_access', 'white_label', 'priority_support', 'offline_30_days'],
     maxUsers: -1,
     maxInvoices: -1,
     color: 'bg-purple-50 text-purple-600',
