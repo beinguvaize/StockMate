@@ -1,7 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/core/auth/offline_context_cache.dart';
+import 'package:mobile_app/core/database/sync_errors.dart' show classifyFailure, FailureKind;
 import 'package:mobile_app/features/auth/data/auth_provider.dart';
+
+/// The cached context stands in only when the server could not be reached.
+/// An answer from the server (refused, or a session that is no longer valid)
+/// must not be papered over with a stale shop.
+bool mayUseCachedContext(Object e) => classifyFailure(e) == FailureKind.transport;
 
 // Models
 class UserProfile {
@@ -185,6 +192,8 @@ final tenantContextProvider = FutureProvider<TenantContext?>((ref) async {
         final userProfile = UserProfile.fromMap(Map<String, dynamic>.from(userMap));
         if (tenantMap == null || userProfile.tenantId.isEmpty) return null;
         final tenant = Tenant.fromMap(Map<String, dynamic>.from(tenantMap));
+        await OfflineContextCache.saveTenantContext(userId,
+            Map<String, dynamic>.from(userMap), Map<String, dynamic>.from(tenantMap));
         return TenantContext(userProfile: userProfile, tenant: tenant);
       }
     } catch (e) {
@@ -212,7 +221,25 @@ final tenantContextProvider = FutureProvider<TenantContext?>((ref) async {
         .timeout(const Duration(seconds: 20));
     if (tenantData == null) return null;
 
+    await OfflineContextCache.saveTenantContext(userId, userProfileData, tenantData);
     return TenantContext(userProfile: userProfile, tenant: Tenant.fromMap(tenantData));
+  }
+
+  // The last context this user resolved, for when the server is unreachable.
+  // Without it a cold start in airplane mode landed on "No Business Account"
+  // and the till could not be opened at all.
+  final cached = await OfflineContextCache.loadTenantContext(userId);
+  TenantContext? fromCache() {
+    try {
+      final u = UserProfile.fromMap(Map<String, dynamic>.from(cached!['user'] as Map));
+      final t = Tenant.fromMap(Map<String, dynamic>.from(cached['tenant'] as Map));
+      if (u.tenantId.isEmpty) return null;
+      // ignore: avoid_print
+      print('[tenantContextProvider] server unreachable — using cached context');
+      return TenantContext(userProfile: u, tenant: t);
+    } catch (_) {
+      return null;
+    }
   }
 
   try {
@@ -223,6 +250,15 @@ final tenantContextProvider = FutureProvider<TenantContext?>((ref) async {
       } catch (e) {
         // ignore: avoid_print
         print('[tenantContextProvider] attempt ${i + 1} failed: $e');
+        // An exception here is the network, not the server's answer (a server
+        // that answers "no tenant" returns null above and never reaches this).
+        // Only a transport failure may fall back to the cache. A refusal or an
+        // auth failure is the server answering; a cached context there could
+        // keep a revoked user inside a shop they no longer belong to.
+        if (cached != null && mayUseCachedContext(e)) {
+          final c = fromCache();
+          if (c != null) return c;
+        }
         if (i == 2) rethrow;
       }
       await Future.delayed(Duration(milliseconds: 800 * (i + 1)));

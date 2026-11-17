@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/database/offline_sales_ui.dart';
 
 final pendingSyncCountProvider = StreamProvider<int>((ref) {
   final svc = ref.watch(syncServiceProvider);
@@ -66,13 +67,19 @@ class _SyncStatusPillState extends ConsumerState<SyncStatusPill> {
   @override
   Widget build(BuildContext context) {
     final pending = ref.watch(pendingSyncCountProvider).asData?.value ?? 0;
+    final refused = ref.watch(refusedJobCountProvider).asData?.value ?? 0;
     final conn = ref.watch(connectivityProvider).asData?.value;
     final offline = conn == ConnectivityResult.none;
 
     final Color fg;
     final String label;
 
-    if (offline) {
+    // Refused jobs outrank everything: each one is a sale or payment that is
+    // not in the books and will not get there without the owner.
+    if (refused > 0) {
+      fg = const Color(0xFFDC2626);
+      label = '$refused need${refused == 1 ? 's' : ''} attention';
+    } else if (offline) {
       fg = const Color(0xFFDC2626);
       label = pending > 0 ? 'Offline · $pending queued' : 'Offline';
     } else if (_syncing) {
@@ -88,7 +95,11 @@ class _SyncStatusPillState extends ConsumerState<SyncStatusPill> {
 
     return AppTappable(
    ripple: false,
-      onTap: () => _forceSync(offline, pending),
+      // With anything on the phone, open the list (Sync now lives there, and
+      // so do Retry / Discard for refused bills). Otherwise a plain flush.
+      onTap: () => (refused > 0 || pending > 0)
+          ? UnsyncedSalesSheet.show(context)
+          : _forceSync(offline, pending),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
@@ -101,7 +112,7 @@ class _SyncStatusPillState extends ConsumerState<SyncStatusPill> {
               decoration: BoxDecoration(
                 color: fg,
                 shape: BoxShape.circle,
-                boxShadow: offline || pending > 0
+                boxShadow: offline || pending > 0 || refused > 0
                     ? [BoxShadow(color: fg.withValues(alpha: 0.4), blurRadius: 4, spreadRadius: 1)]
                     : null,
               ),

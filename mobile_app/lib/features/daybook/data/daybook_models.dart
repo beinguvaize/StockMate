@@ -97,6 +97,11 @@ class DayBookLedger {
   /// reads a blank day as a closed till.
   final bool fromCache;
 
+  /// Sales / collections in these figures that were rung on this phone and
+  /// have not reached the server yet. They are included (it is the cashier's
+  /// drawer), but the screen says how many so nobody mistakes them for books.
+  final int unsyncedEntries;
+
   DayBookLedger({
     required this.date,
     required this.openingBal,
@@ -114,6 +119,7 @@ class DayBookLedger {
     this.prevClosing,
     this.entries = const [],
     this.fromCache = false,
+    this.unsyncedEntries = 0,
   });
 
   int get txCount => entries.length;

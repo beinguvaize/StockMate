@@ -885,6 +885,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
       clientOutstanding: clientOutstanding,
       amountReceived: amountReceived,
       noGst: noGst,
+      taxMode: biz?.taxMode,
     );
   }
 

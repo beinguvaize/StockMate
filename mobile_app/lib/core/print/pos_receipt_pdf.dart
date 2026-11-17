@@ -106,18 +106,106 @@ String fmtReceiptDate(String? iso) {
 
 String fmtReceiptAmount(double v) => v.toStringAsFixed(2);
 
+/// The money block of a receipt: Subtotal + Tax - Discount + Adjustment = Total.
+///
+/// [taxMode] is the shop's business_profile.tax_mode:
+///   NONE       no tax split; the lines are the price.
+///   INCLUSIVE  the line already contains tax: taxable = line / (1 + r),
+///              tax = line - taxable. Subtotal is the taxable value.
+///   EXCLUSIVE  (default) tax sits on top of the line.
+///
+/// The Total is ALWAYS the recorded total: a slip never prints a figure the
+/// books do not hold. When the rows do not add up to it (sales recorded before
+/// EXCLUSIVE totals carried their tax, delivery fees, rounding) the difference
+/// is shown as an explicit signed [adjustment] line, never folded into a
+/// made-up total or due. Only with no recorded total (<= 0) is it computed.
+class ReceiptTotals {
+  final double subtotal;
+  final double tax;
+  final double discount;
+  final double adjustment;
+  final double total;
+  const ReceiptTotals(this.subtotal, this.tax, this.discount, this.adjustment, this.total);
+
+  static double _r2(double v) => (v * 100).round() / 100;
+
+  factory ReceiptTotals.compute(
+    List<PdfLineItem> items, {
+    String? taxMode,
+    double recordedTotal = 0,
+    double discount = 0,
+  }) {
+    final mode = (taxMode ?? 'EXCLUSIVE').toUpperCase();
+    double sub = 0, tax = 0;
+    for (final it in items) {
+      final line = it.lineTotal;
+      if (mode == 'NONE') {
+        sub += line;
+      } else if (mode == 'INCLUSIVE') {
+        final taxable = line / (1 + it.taxRate / 100);
+        sub += taxable;
+        tax += line - taxable;
+      } else {
+        sub += line;
+        tax += line * it.taxRate / 100;
+      }
+    }
+    sub = _r2(sub);
+    tax = _r2(tax);
+    final disc = _r2(discount < 0 ? 0 : discount);
+    final expected = _r2(sub + tax - disc);
+    if (recordedTotal <= 0) return ReceiptTotals(sub, tax, disc, 0, expected);
+    final total = _r2(recordedTotal);
+    final gap = _r2(total - expected);
+    return ReceiptTotals(sub, tax, disc, gap.abs() <= 0.01 ? 0 : gap, total);
+  }
+}
+
+/// The rows between the item list and the Total: [label, value] pairs.
+/// Subtotal + tax - Discount + Adjustment = Total, always.
+List<List<String>> receiptSummaryRows(ReceiptTotals t) {
+  final rows = <List<String>>[
+    ['Subtotal', 'Rs.${fmtReceiptAmount(t.subtotal)}'],
+  ];
+  if (t.tax > 0 && t.subtotal > 0) {
+    final pct = (t.tax / t.subtotal * 50).toStringAsFixed(1);
+    // SGST is the remainder, so the two halves always add to the tax.
+    final cgst = (t.tax * 50).round() / 100;
+    rows.add(['CGST ($pct%)', 'Rs.${fmtReceiptAmount(cgst)}']);
+    rows.add(['SGST ($pct%)', 'Rs.${fmtReceiptAmount(t.tax - cgst)}']);
+  }
+  if (t.discount > 0.001) rows.add(['Discount', '-Rs.${fmtReceiptAmount(t.discount)}']);
+  if (t.adjustment.abs() > 0.001) {
+    rows.add(['Adjustment', '${t.adjustment < 0 ? '-' : ''}Rs.${fmtReceiptAmount(t.adjustment.abs())}']);
+  }
+  return rows;
+}
+
+/// Bill amount, paid, and (only when something is really owed) still due.
+/// Both inputs are the recorded figures; nothing here is invented.
+List<List<String>> receiptMoneyRows(double total, double paid) {
+  final due = (total - paid).clamp(0, double.infinity).toDouble();
+  return [
+    ['Bill amount', 'Rs.${fmtReceiptAmount(total)}'],
+    ['Paid on this bill', 'Rs.${fmtReceiptAmount(paid)}'],
+    if (due > 0.001) ['Still due on this bill', 'Rs.${fmtReceiptAmount(due)}'],
+  ];
+}
+
 /// Builds an 80mm thermal-style receipt PDF straight from an [Invoice] +
 /// [BusinessProfile] — no network, no WebView, always succeeds.
 /// [clientOutstanding] is the client's balance AFTER this sale (negative = an
 /// advance). Pass null for walk-ins — the account lines are then skipped.
 /// [amountReceived] is the cash actually handed over (may exceed the bill).
-/// [noGst] mirrors tax mode NONE so this slip matches the web receipt.
+/// [taxMode] is the shop's tax_mode (NONE / INCLUSIVE / EXCLUSIVE); [noGst]
+/// is the older way of saying NONE.
 Future<Uint8List> buildPosReceiptPdf(
   Invoice invoice,
   BusinessProfile? biz, {
   double? clientOutstanding,
   double? amountReceived,
   bool noGst = false,
+  String? taxMode,
 }) async {
   final pdf   = pw.Document();
   final items = parsePdfItems(invoice);
@@ -128,9 +216,13 @@ Future<Uint8List> buildPosReceiptPdf(
     fmtReceiptTime(invoice.createdAt),
   ].where((x) => x.isNotEmpty).join(' · ');
 
-  final double subtotal   = items.fold(0.0, (s, i) => s + i.lineTotal);
-  final double totalTax   = noGst ? 0.0 : items.fold(0.0, (s, i) => s + i.taxAmount);
-  final double grandTotal = invoice.grandTotal > 0 ? invoice.grandTotal : subtotal + totalTax;
+  final totals = ReceiptTotals.compute(
+    items,
+    taxMode: noGst ? 'NONE' : taxMode,
+    recordedTotal: invoice.grandTotal,
+    discount: invoice.discount,
+  );
+  final double grandTotal = totals.total;
   final double paidAmount = invoice.paidAmount;
   final double balance    = (grandTotal - paidAmount).clamp(0, double.infinity).toDouble();
 
@@ -274,13 +366,7 @@ Future<Uint8List> buildPosReceiptPdf(
 
           dashedLine(),
 
-          amtRow('Subtotal', 'Rs.${fmtReceiptAmount(subtotal)}'),
-          if (totalTax > 0) ...[
-            amtRow('CGST (${(totalTax / subtotal * 50).toStringAsFixed(1)}%)',
-                'Rs.${fmtReceiptAmount(totalTax / 2)}'),
-            amtRow('SGST (${(totalTax / subtotal * 50).toStringAsFixed(1)}%)',
-                'Rs.${fmtReceiptAmount(totalTax / 2)}'),
-          ],
+          for (final r in receiptSummaryRows(totals)) amtRow(r[0], r[1]),
 
           solidLine(),
 
@@ -298,10 +384,8 @@ Future<Uint8List> buildPosReceiptPdf(
 
           // Money summary — same wording and order as the web slip, so the
           // offline fallback tells the customer the same story.
-          amtRow('Bill amount', 'Rs.${fmtReceiptAmount(grandTotal)}'),
-          amtRow('Paid on this bill', 'Rs.${fmtReceiptAmount(paidAmount)}'),
-          if (balance > 0.001)
-            amtRow('Still due on this bill', 'Rs.${fmtReceiptAmount(balance)}', isBold: true),
+          for (final r in receiptMoneyRows(grandTotal, paidAmount))
+            amtRow(r[0], r[1], isBold: r[0].startsWith('Still due')),
 
           if (showReceived) ...[
             dashedLine(),

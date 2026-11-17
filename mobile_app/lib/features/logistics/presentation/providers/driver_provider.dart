@@ -1,3 +1,4 @@
+import 'package:mobile_app/core/auth/offline_context_cache.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
@@ -14,7 +15,9 @@ final tenantProfileProvider = FutureProvider<Map<String, dynamic>?>((ref) async 
   final tenantId = session?.user.userMetadata?['tenant_id'] as String?;
   if (tenantId == null) return null;
 
-  final res = await supabase
+  final Map<String, dynamic>? res;
+  try {
+    res = await supabase
       .from('business_profile')
       // tax_mode + bill_settings are required by the checkout sheet so it
       // can back tax out of the price on INCLUSIVE tenants. They were
@@ -23,7 +26,17 @@ final tenantProfileProvider = FutureProvider<Map<String, dynamic>?>((ref) async 
       // a price that already contained it.
       .select('currencySymbol, name, country, upi_id, bank_name, account_no, ifsc_code, tax_mode, bill_settings, gst_no, state')
       .eq('tenant_id', tenantId)
-      .maybeSingle();
+      .maybeSingle()
+      .timeout(const Duration(seconds: 8));
+    if (res != null) await OfflineContextCache.saveBusinessProfile(tenantId, res);
+  } catch (e) {
+    // Offline: the checkout still needs tax_mode and the UPI id. Without this
+    // an INCLUSIVE shop's offline checkout added tax on top of the price.
+    final cached = await OfflineContextCache.loadBusinessProfile(tenantId);
+    if (cached == null) rethrow;
+    debugPrint('[tenantProfileProvider] offline, using cached profile: $e');
+    return {...cached, 'businessName': cached['name']};
+  }
   if (res == null) return null;
   // Mirror `name` into `businessName` so existing call sites that read
   // either key keep working — the source-of-truth column on the table
