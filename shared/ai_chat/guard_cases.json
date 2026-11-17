@@ -6259,6 +6259,47 @@
       "known_limit": false,
       "source": "hand_written",
       "baseline_guard": "fail:advice:लोन लें"
+    },
+    {
+      "id": "guard_wording-25",
+      "question_id": "guard_wording",
+      "lang": "hi",
+      "fixture": "guard_wording",
+      "reply": "[P1] को निकाल दें।",
+      "expected": "should_fail",
+      "rule": "advice",
+      "why": "Telling the owner to let one named staff member go.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-26",
+      "question_id": "guard_wording",
+      "lang": "hi",
+      "fixture": "guard_wording",
+      "reply": "[P1] को हटा दीजिए।",
+      "expected": "should_fail",
+      "rule": "advice",
+      "why": "Telling the owner to remove one named staff member.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
+    },
+    {
+      "id": "guard_wording-27",
+      "question_id": "guard_wording",
+      "lang": "hi",
+      "fixture": "guard_wording",
+      "reply": "[P1] को हटाए गए स्टाफ़ में दिखाया गया है।",
+      "expected": "should_pass",
+      "why": "Past participle: a fact about removed staff, not advice.",
+      "judgement": false,
+      "known_limit": false,
+      "source": "hand_written",
+      "baseline_guard": "pass"
     }
   ],
   "baseline": {
