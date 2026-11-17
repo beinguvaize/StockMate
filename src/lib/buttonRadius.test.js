@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 /**
  * The button radius system, enforced rather than described.
  *
@@ -21,7 +22,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, relative } from 'path';
 
-const SRC = new URL('..', import.meta.url).pathname;
+const SRC = fileURLToPath(new URL('..', import.meta.url));
 
 const jsxFiles = (dir) =>
   readdirSync(dir).flatMap((name) => {
