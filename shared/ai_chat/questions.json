@@ -2,6 +2,9 @@
   "contract_version": 1,
   "languages": ["en", "hi"],
   "questions": [
+    { "id": "profit_tips", "category": "sales", "module": "reports", "roles": ["OWNER"],
+      "label": { "en": "How can I make more profit?", "hi": "मैं और मुनाफ़ा कैसे कमा सकता हूँ?" },
+      "screen": { "key": null, "fallback_key": null, "module": "reports", "mobile": false } },
     { "id": "sales_today", "category": "sales", "module": "sales", "roles": ["OWNER"],
       "label": { "en": "How much did I sell today?", "hi": "आज मैंने कितनी बिक्री की?" },
       "screen": { "key": "reports_daily_sales", "fallback_key": "sales", "module": "reports", "mobile": true } },

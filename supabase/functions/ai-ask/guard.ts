@@ -57,6 +57,54 @@ const NOT_A_QUANTITY_RE = /\bdouble[-\s]check(?:s|ed|ing)?\b|\b(?:this|the|whole
 // word next to day; "half the staff" still trips the spelled-amount check.
 const HALF_DAY_RE = /(?<![\p{L}\p{M}])(?:half[-\s]days?|आधा\s+दिन|आधे\s+दिन(?:ों)?)(?![\p{L}\p{M}])/giu;
 
+// A promise of a result ("this will increase your profit by ₹500"), which no
+// figure can back. Added with profit_tips but true of every answer. The verb
+// must take the profit word as its object, with at most two filler words
+// between, so "will raise your cost and cut into your margin" is not a
+// promise. "Your sales today will add to this month's profit" states a fact
+// and passes: "add to" counts only with an amount ("add ₹500 to your profit").
+// The disclaimer "these are ideas, not guarantees" must still pass, so a bare
+// "guarantee" is not enough; "guaranteed" and a guarantee of something are.
+const PROFIT_WORD = String.raw`(?:profits?|earnings|income|margins?)\b`;
+const FILLER = String.raw`(?:(?:your|the|this|that|its|their|month's|shop's|more|extra|higher|a|an|bit|lot|of|real)\s+){0,2}`;
+const PROMISE_RE = [
+  new RegExp(String.raw`\b(?:will|would|is going to|are going to)\s+(?:\w+\s+)??(?:increase|boost|raise|improve|lift|grow|double|save|earn|bring\s+in|give\s+you|get\s+you)\s+${FILLER}${PROFIT_WORD}`, "iu"),
+  new RegExp(String.raw`\b(?:will|would|is going to|are going to)\s+(?:\w+\s+)??add\s+(?:₹\s?[\d,.]+|[\d,.]+\s+(?:rupees|lakh))\s+to\s+${FILLER}${PROFIT_WORD}`, "iu"),
+  /\b(?:profits?|margins?|earnings|income)\s+(?:will|would|is going to|are going to)\s+(?:\w+\s+){0,2}?(?:go up|rise|increase|grow|improve|double|jump)\b/iu,
+  /\b(?:increases?|boosts?|raises?|improves?|lifts?|grows?|adds?)\s+(?:to\s+)?(?:your\s+)?(?:profits?|earnings|income)\s+by\b/iu,
+  /\bguaranteed\b|\bguarantees?\s+(?:you|that|more|a|an|higher|extra)\b/iu,
+  /(?:मुनाफ़ा|मुनाफा|मुनाफ़े|मुनाफे|लाभ|कमाई)[^।.!?]{0,30}?(?:बढ़ेगा|बढ़ेगी|बढ़ेंगे|बढ़\s+जाएगा|बढ़\s+जाएगी|ज़रूर|जरूर|पक्का|निश्चित)/u,
+  /गारंटी\s+से|पक्की\s+गारंटी/u,
+];
+// Advice no answer may give: letting staff go, cutting pay, or borrowing. Each
+// arm wants the person or the pay as the direct object, so "reduce the salary
+// due to zero", "lower what you pay for sugar", "Replace the helper's missing
+// mark" and "Your borrowing stands at ₹2,50,000" are facts and pass.
+const ADVICE_RE = [
+  /\b(?:fir(?:e|ing)|sack(?:ing)?|lay(?:ing)?\s+off|let(?:ting)?\s+go\s+of|dismiss(?:ing)?|remov(?:e|ing)|replac(?:e|ing))\s+(?:(?:a|an|one|two|the|some|your|those|these|extra|of)\s+){0,2}(?:staff|workers?|employees?|helpers?|\[P\d+\])(?!\s*['’]s?\b|[\p{L}\p{M}])/iu,
+  /\b(?:cut(?:ting)?|reduc(?:e|ing)|lower(?:ing)?|slash(?:ing)?)\s+(?:(?:the|their|his|her|staff|workers?'?|employees?'?|\[P\d+\]'?s?)\s+){0,2}(?:pay|salar(?:y|ies)|wages?)\b(?!\s+(?:due|still|run))/iu,
+  /\b(?:tak(?:e|ing)|get(?:ting)?|apply(?:ing)?\s+for|rais(?:e|ing))\s+(?:a\s+|an\s+)?(?:\w+\s+)?loans?\b/iu,
+  /\b(?:you\s+(?:could|should|can)|consider|try)\s+borrow(?:ing)?\b/iu,
+  // Hindi: only the advice forms, an imperative or suggestion ending, or को
+  // right before the verb. Not हटाए गए (were removed), not वेतन निकालना (draw pay).
+  /(?:\[P\d+\]|स्टाफ़|स्टाफ|कर्मचारी|कर्मचारियों|हेल्पर)[^।.!?]{0,25}?(?<!(?:वेतन|पैसा|पैसे|रकम)\s+)(?:निकाल|हटा)\s*(?:दें|दीजिए|देना|दो|सकते)/u,
+  /(?:\[P\d+\]|स्टाफ़|स्टाफ|कर्मचारी|कर्मचारियों|हेल्पर)\S*\s+को\s+(?:\S+\s+)?(?:निकाल|हटा)(?!ए\s+ग|या\s+ग)/u,
+  /(?<!(?:बाकी|बकाया)\s+)(?:वेतन|तनख़्वाह|तनख्वाह|सैलरी|मज़दूरी|मजदूरी)[^।.!?]{0,20}?(?:कम\s+कर|काट)/u,
+  /(?:लोन|कर्ज़|कर्ज|क़र्ज़|उधार\s+पैसा)\s+(?:ले|लें|लीजिए)(?![\p{L}\p{M}])/u,
+];
+
+/** Every product_name in the figures: a shop's own words, never advice. */
+function productNames(value: unknown, into: string[] = []): string[] {
+  if (Array.isArray(value)) value.forEach((v) => productNames(v, into));
+  else if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (k === "product_name" && typeof v === "string" && v.trim()) into.push(nfc(v));
+      else productNames(v, into);
+    }
+  }
+  return into;
+}
+
 // A rank inside a list is not a figure, but it cannot be longer than the list.
 const WORD_RANK: Record<string, number> = {};
 [
@@ -172,6 +220,11 @@ export function checkReply(text: string, figures: unknown, standIns: Record<stri
   for (const m of t.match(/\[[a-z]\d+\]/gi) || []) {
     if (!(m in standIns)) return { ok: false, reason: `unknown_stand_in:${m}` };
   }
+  // Product names are blanked first, so "Guaranteed Fresh Atta" is a name.
+  let plain = t;
+  for (const n of productNames(figures).sort((a, b) => b.length - a.length)) plain = plain.replace(new RegExp(escapeRe(n), "giu"), " ");
+  for (const r of PROMISE_RE) { const m = plain.match(r); if (m) return { ok: false, reason: `promise:${m[0].trim()}` }; }
+  for (const r of ADVICE_RE) { const m = plain.match(r); if (m) return { ok: false, reason: `advice:${m[0].trim()}` }; }
   t = t.replace(/\[[a-z]\d+\]/gi, " ");
 
   const allowed = buildAllowed(figures);

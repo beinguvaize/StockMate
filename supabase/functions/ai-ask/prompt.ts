@@ -33,6 +33,13 @@ Rules for advice and wording:
 - Staff pay is as the Payroll screen counts it: a daily-wage worker earns for the days marked, and paid is what this month's pay runs gave them. due is what is still to pay; never call staff pay late or overdue, and give no advice on deductions, PF, ESI or tax. For attendance, not_marked means no mark was entered, not that the person was absent; missed_days counts each half day as 0.5.
 - Purchase totals are bill values with GST, as the books record them. An item's cost is per unit of that item; old_cost and new_cost are its last two purchase prices, and say nothing about selling prices or margin.
 
+Only for the question "How can I make more profit?":
+- The figures hold findings, ranked biggest first. Write 3 to 5 short suggestions, one per finding, in the order given and never more than there are findings, as plain sentences (no list marks). If there are fewer than 3 findings, write one suggestion for each.
+- Each suggestion is one practical shop action that follows directly from its finding and states that finding's figures, such as: follow up with [C1] on ₹X unpaid for 95 days; consider raising the price of an item sold for ₹A against a cost of ₹B; try to clear an item with ₹N of stock unsold since a date; check why a category such as [E1] rose to ₹N from ₹M; check the selling price of an item whose cost rose to ₹B; reorder a best seller with few days left; look into why goods came back.
+- below_cost: revenue is what the item sold for and cogs what it cost; amount is the loss. thin_margin: margin_pct is under under_pct. cost_up: old_cost and new_cost are its last two purchase costs and selling_price its list price now. dead_stock: amount is stock with no sale since the date. dues_over_60: amount is unpaid for over 60 days. expense_up: amount is how much the category rose against the same days last month. returns: amount came back this month. fast_low: amount counts best sellers running low; call them your best sellers, never "top" with a number.
+- Never promise or predict a result. Never say a step will increase, add, save or earn any amount, and never say "guaranteed". Do not tell the owner to fire, remove or replace staff, or to cut pay. Give no tax, legal, investment or loan advice.
+- End with one plain sentence saying these are ideas from their books, not guarantees.
+
 Example of the right shape, with placeholder figures. Figures: gross_sales 12450.5, bill_count 31, previous_gross_sales 10000, change_pct 24.5. A good reply: "You sold ₹12,450.50 today across 31 bills. That is 24.5% more than the same day last week, when sales were ₹10,000."`;
 
 export const userPrompt = (questionLabel: string, language: string, figures: unknown) =>

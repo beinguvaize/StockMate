@@ -229,7 +229,18 @@
    "att_not_marked": "Not marked",
    "att_other": "Other mark",
    "att_absent_days": "Absent days",
-   "att_half_days": "Half days"
+   "att_half_days": "Half days",
+   "tip_finding": "What your books show",
+   "tip_below_cost": "Sold below cost: {item}, sold for {revenue} against a cost of {cogs}",
+   "tip_more_loss": "; {n} more items also sold below cost",
+   "tip_thin_margin": "Thin margin: {item}, {margin} margin, {profit} profit on these sales",
+   "tip_cost_up": "Cost up {rise}: {item}, {old} to {new} a unit, list price {price}. Its sales:",
+   "tip_dead_stock": "Unsold since {since}: {n} items, the most in {item} ({value})",
+   "tip_dues": "Unpaid for over 60 days: {n} customers, the most {name} ({amount}, {days} days)",
+   "tip_expense_up": "{category} up: {now} this month against {prev} on the same days last month",
+   "tip_returns": "Returns this month: {n}, the most {item} ({value})",
+   "tip_fast_low": "Best sellers running low: {item} has {days} days left",
+   "tip_items_n": "{n} items"
   },
   "hero": {
    "sales_today": {
@@ -380,6 +391,10 @@
     "caption": "{absent} absent and {half} half days, {from} to {to}",
     "detail": "{n} of {of} daily-wage staff missed a day",
     "none": "No one of {of} daily-wage staff was marked absent"
+   },
+   "profit_tips": {
+    "unit": "things to look at",
+    "caption": "From your books, {from} to {to}"
    }
   },
   "titles": {
@@ -419,7 +434,8 @@
    "payroll_month": "Staff pay this month",
    "salary_due": "Staff pay still due",
    "attendance_today": "Attendance today",
-   "attendance_month": "Days missed this month"
+   "attendance_month": "Days missed this month",
+   "profit_tips": "Ideas to make more profit"
   },
   "notes": {
    "gst_collected": "GST on your sales, from your books. This is before input credit and is not a filing figure.",
@@ -433,7 +449,8 @@
    "payroll_month": "As the Payroll screen's Attendance tab counts it: daily wages from the days marked, and every pay run whose dates end this month.",
    "salary_due": "Each amount is the Attendance tab's Still due: wages for the days marked, less what was paid in this month's pay runs.",
    "attendance_today": "Attendance is marked for daily-wage staff on the Payroll screen's Attendance tab.",
-   "attendance_month": "A half day counts as half a missed day. Days is the Attendance tab's Days column."
+   "attendance_month": "A half day counts as half a missed day. Days is the Attendance tab's Days column.",
+   "profit_tips": "Ideas from your own books, not guarantees. Each row shows the figure and the screen to check it on."
   },
   "footnotes": {
    "top_items": "Top {shown} of {n} items sold this month. By sales value, not margin.",
@@ -506,7 +523,13 @@
    "salary_due_footer": "The Attendance tab's footer reads {screen}: it takes off {amount} paid beyond earned to {n} staff.",
    "salary_due_monthly": "{n} monthly-salary staff are not counted: the Payroll screen shows no amount due for them. {unpaid} of them have no pay run this month yet.",
    "attendance_off_grid": "{n} marks today are for staff the Attendance tab does not list (monthly-salary, inactive or removed) and are not counted.",
-   "attendance_off_grid_month": "{n} marks this month are for staff the Attendance tab does not list (monthly-salary, inactive or removed) and are not counted."
+   "attendance_off_grid_month": "{n} marks this month are for staff the Attendance tab does not list (monthly-salary, inactive or removed) and are not counted.",
+   "profit_tips_margins": "Product Margins opens on {range} and shows the same Revenue, COGS and Gross Profit for each item.",
+   "profit_tips_loss": "A loss is the item's Gross Profit there, shown as a minus.",
+   "profit_tips_cost_up": "The two costs are the item's last two purchase bills, as on Purchases. Its amount is its sales on Product Margins.",
+   "profit_tips_dues": "Customer Aging shows this as 61–90 days {a}, 91–120 days {b} and over 120 days {c}.",
+   "profit_tips_expense": "The Expenses report opens on {range}, where {category} is {now}. On the same days last month, {prange}, it was {prev}.",
+   "profit_tips_fast": "Best sellers are your top {top} items by units sold. Days left is Days Cover on Fast / Slow Movers; {cover} days or fewer is low."
   },
   "links": {
    "reports_daily_sales": "Open Daily Sales",
@@ -530,7 +553,8 @@
    "reports_business": "Open Business Report",
    "reports_sales_by_party": "Open Sales by Party",
    "reports_product_movement": "Open Fast / Slow Movers",
-   "payroll_attendance": "Open Payroll attendance"
+   "payroll_attendance": "Open Payroll attendance",
+   "reports_product_margins": "Open Product Margins"
   },
   "methods": {
    "CASH": "Cash",
@@ -567,7 +591,8 @@
    "payroll_month": "No active staff and no pay runs this month.",
    "salary_due": "No active staff on the Payroll screen.",
    "attendance_today": "No daily-wage staff to mark attendance for.",
-   "attendance_month": "No attendance marked for daily-wage staff this month."
+   "attendance_month": "No attendance marked for daily-wage staff this month.",
+   "profit_tips": "Nothing in your books stands out to suggest right now. Ask again after more sales and purchases."
   },
   "months_short": [
    "Jan",
@@ -850,7 +875,18 @@
    "att_not_marked": "दर्ज नहीं",
    "att_other": "अन्य",
    "att_absent_days": "ग़ैरहाज़िर दिन",
-   "att_half_days": "आधे दिन"
+   "att_half_days": "आधे दिन",
+   "tip_finding": "आपकी किताबें क्या दिखाती हैं",
+   "tip_below_cost": "लागत से कम पर बिका: {item}, {cogs} की लागत पर {revenue} में बिका",
+   "tip_more_loss": "; {n} और आइटम भी लागत से कम पर बिके",
+   "tip_thin_margin": "कम मार्जिन: {item}, {margin} मार्जिन, इस बिक्री पर {profit} मुनाफ़ा",
+   "tip_cost_up": "लागत {rise} बढ़ी: {item}, {old} से {new} प्रति इकाई, बिक्री मूल्य {price}। इसकी बिक्री:",
+   "tip_dead_stock": "{since} से नहीं बिका: {n} आइटम, सबसे ज़्यादा {item} में ({value})",
+   "tip_dues": "60 दिन से ज़्यादा से बाकी: {n} ग्राहक, सबसे ज़्यादा {name} ({amount}, {days} दिन)",
+   "tip_expense_up": "{category} बढ़ा: इस महीने {now}, पिछले महीने के इन्हीं दिनों में {prev}",
+   "tip_returns": "इस महीने वापसी: {n}, सबसे ज़्यादा {item} ({value})",
+   "tip_fast_low": "ज़्यादा बिकने वाले कम बचे: {item} के {days} दिन बचे",
+   "tip_items_n": "{n} आइटम"
   },
   "hero": {
    "sales_today": {
@@ -1001,6 +1037,10 @@
     "caption": "{absent} ग़ैरहाज़िर और {half} आधे दिन, {from} से {to}",
     "detail": "{of} में से {n} दिहाड़ी स्टाफ़ का कोई दिन छूटा",
     "none": "{of} दिहाड़ी स्टाफ़ में से कोई ग़ैरहाज़िर दर्ज नहीं"
+   },
+   "profit_tips": {
+    "unit": "बातें देखने लायक",
+    "caption": "आपकी किताबों से, {from} से {to}"
    }
   },
   "titles": {
@@ -1040,7 +1080,8 @@
    "payroll_month": "इस महीने स्टाफ़ का वेतन",
    "salary_due": "स्टाफ़ का बाकी वेतन",
    "attendance_today": "आज की हाज़िरी",
-   "attendance_month": "इस महीने छूटे दिन"
+   "attendance_month": "इस महीने छूटे दिन",
+   "profit_tips": "ज़्यादा मुनाफ़े के लिए सुझाव"
   },
   "notes": {
    "gst_collected": "आपकी बिक्री पर GST, आपके खातों से। यह इनपुट क्रेडिट से पहले का है और फ़ाइलिंग का आँकड़ा नहीं है।",
@@ -1054,7 +1095,8 @@
    "payroll_month": "जैसा Payroll स्क्रीन का Attendance टैब गिनता है: दर्ज दिनों से दिहाड़ी, और वे सभी पे रन जिनकी तारीख़ें इस महीने ख़त्म होती हैं।",
    "salary_due": "हर रक़म Attendance टैब का Still due है: दर्ज दिनों की दिहाड़ी, इस महीने के पे रन में दिए पैसे घटाकर।",
    "attendance_today": "हाज़िरी Payroll स्क्रीन के Attendance टैब पर दिहाड़ी स्टाफ़ के लिए दर्ज होती है।",
-   "attendance_month": "आधा दिन आधा छूटा दिन गिना जाता है। दिन, Attendance टैब का Days कॉलम है।"
+   "attendance_month": "आधा दिन आधा छूटा दिन गिना जाता है। दिन, Attendance टैब का Days कॉलम है।",
+   "profit_tips": "ये आपकी अपनी किताबों से निकले सुझाव हैं, कोई गारंटी नहीं। हर लाइन में रकम है और वह स्क्रीन जहाँ इसे जाँच सकते हैं।"
   },
   "footnotes": {
    "top_items": "इस महीने बिके {n} आइटम में से शीर्ष {shown}। बिक्री रकम के हिसाब से, मार्जिन के नहीं।",
@@ -1127,7 +1169,13 @@
    "salary_due_footer": "Attendance टैब का फ़ुटर {screen} दिखाता है: वह {n} स्टाफ़ को कमाई से ज़्यादा दिए {amount} घटा देता है।",
    "salary_due_monthly": "{n} मासिक वेतन वाले स्टाफ़ नहीं गिने गए: Payroll स्क्रीन उनका कोई बाकी नहीं दिखाती। उनमें से {unpaid} का इस महीने अभी कोई पे रन नहीं हुआ।",
    "attendance_off_grid": "आज के {n} निशान उन स्टाफ़ के हैं जो Attendance टैब पर नहीं दिखते (मासिक, निष्क्रिय या हटाए गए), इसलिए नहीं गिने गए।",
-   "attendance_off_grid_month": "इस महीने के {n} निशान उन स्टाफ़ के हैं जो Attendance टैब पर नहीं दिखते (मासिक, निष्क्रिय या हटाए गए), इसलिए नहीं गिने गए।"
+   "attendance_off_grid_month": "इस महीने के {n} निशान उन स्टाफ़ के हैं जो Attendance टैब पर नहीं दिखते (मासिक, निष्क्रिय या हटाए गए), इसलिए नहीं गिने गए।",
+   "profit_tips_margins": "Product Margins {range} पर खुलता है और हर आइटम का वही Revenue, COGS और Gross Profit दिखाता है।",
+   "profit_tips_loss": "नुकसान वहाँ उस आइटम का Gross Profit है, जो माइनस में दिखता है।",
+   "profit_tips_cost_up": "दोनों लागत उस आइटम के पिछले दो खरीद बिल की हैं, जैसे Purchases पर। रकम Product Margins पर उसकी बिक्री है।",
+   "profit_tips_dues": "Customer Aging इसे 61–90 दिन {a}, 91–120 दिन {b} और 120 दिन से ज़्यादा {c} दिखाता है।",
+   "profit_tips_expense": "Expenses रिपोर्ट {range} पर खुलती है, जहाँ {category} {now} है। पिछले महीने के इन्हीं दिनों, {prange}, में यह {prev} था।",
+   "profit_tips_fast": "ज़्यादा बिकने वाले आपके टॉप {top} आइटम हैं, बिकी इकाइयों के हिसाब से। बचे दिन Fast / Slow Movers का Days Cover है; {cover} दिन या कम को कम माना गया है।"
   },
   "links": {
    "reports_daily_sales": "Daily Sales खोलें",
@@ -1151,7 +1199,8 @@
    "reports_business": "Business Report खोलें",
    "reports_sales_by_party": "Sales by Party खोलें",
    "reports_product_movement": "Fast / Slow Movers खोलें",
-   "payroll_attendance": "Payroll हाज़िरी खोलें"
+   "payroll_attendance": "Payroll हाज़िरी खोलें",
+   "reports_product_margins": "Product Margins खोलें"
   },
   "methods": {
    "CASH": "नकद",
@@ -1188,7 +1237,8 @@
    "payroll_month": "इस महीने न कोई सक्रिय स्टाफ़ है, न कोई पे रन।",
    "salary_due": "Payroll स्क्रीन पर कोई सक्रिय स्टाफ़ नहीं है।",
    "attendance_today": "हाज़िरी के लिए कोई दिहाड़ी स्टाफ़ नहीं है।",
-   "attendance_month": "इस महीने दिहाड़ी स्टाफ़ की कोई हाज़िरी दर्ज नहीं हुई।"
+   "attendance_month": "इस महीने दिहाड़ी स्टाफ़ की कोई हाज़िरी दर्ज नहीं हुई।",
+   "profit_tips": "अभी आपकी किताबों में सुझाने लायक कुछ ख़ास नहीं दिखा। और बिक्री व खरीद के बाद फिर पूछें।"
   },
   "months_short": [
    "जनवरी",
@@ -1538,7 +1588,30 @@
    "no_data_by_question.payroll_month",
    "no_data_by_question.salary_due",
    "no_data_by_question.attendance_today",
-   "no_data_by_question.attendance_month"
+   "no_data_by_question.attendance_month",
+   "titles.profit_tips",
+   "hero.profit_tips.unit",
+   "hero.profit_tips.caption",
+   "notes.profit_tips",
+   "footnotes.profit_tips_margins",
+   "footnotes.profit_tips_loss",
+   "footnotes.profit_tips_cost_up",
+   "footnotes.profit_tips_dues",
+   "footnotes.profit_tips_expense",
+   "footnotes.profit_tips_fast",
+   "card.tip_finding",
+   "card.tip_below_cost",
+   "card.tip_more_loss",
+   "card.tip_thin_margin",
+   "card.tip_cost_up",
+   "card.tip_dead_stock",
+   "card.tip_dues",
+   "card.tip_expense_up",
+   "card.tip_returns",
+   "card.tip_fast_low",
+   "card.tip_items_n",
+   "links.reports_product_margins",
+   "no_data_by_question.profit_tips"
   ]
  }
 }

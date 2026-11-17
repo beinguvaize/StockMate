@@ -27,7 +27,7 @@ describe('the shared registry', () => {
   });
   it('every question has a label in every language, and every string set has the same keys', () => {
     const reg = JSON.parse(read('../../shared/ai_chat/questions.json'));
-    expect(reg.questions).toHaveLength(37);
+    expect(reg.questions).toHaveLength(38);
     for (const q of reg.questions) for (const l of reg.languages) expect(q.label[l]).toBeTruthy();
     for (const k of ['ui', 'card', 'hero', 'titles', 'notes', 'footnotes', 'links', 'methods', 'no_data_by_question']) {
       expect(Object.keys(strings.hi[k]).sort()).toEqual(Object.keys(strings.en[k]).sort());
@@ -720,7 +720,7 @@ describe('sales and stock, second set', () => {
     stock_value: STOCK, out_of_stock: OUT, fast_movers_low: FAST };
 
   it('join the existing sales and stock categories, after the questions already there', () => {
-    expect(reg.questions.filter((q) => q.category === 'sales').map((q) => q.id)).toEqual(['sales_today', 'profit_month', 'top_items', ...SALES_IDS]);
+    expect(reg.questions.filter((q) => q.category === 'sales').map((q) => q.id)).toEqual(['profit_tips', 'sales_today', 'profit_month', 'top_items', ...SALES_IDS]);
     expect(reg.questions.filter((q) => q.category === 'stock').map((q) => q.id)).toEqual(['low_stock', 'expiring_stock', 'dead_stock', ...STOCK_IDS]);
     for (const lang of ['en', 'hi']) {
       for (const id of [...SALES_IDS, ...STOCK_IDS]) {

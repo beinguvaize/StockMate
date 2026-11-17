@@ -53,6 +53,8 @@ DATED.add('reports_business');
 DATED.add('reports_sales_by_party');
 // Payroll's Attendance tab opens on the month of the answer's dates.
 DATED.add('payroll_attendance');
+// Product Margins (profit_tips) opens on the answer's 30 days.
+DATED.add('reports_product_margins');
 const ROUTES = {
   reports_daily_sales: '/reports?tab=DAILY_SALES',
   reports_financials: '/reports?tab=FINANCIALS',
@@ -77,6 +79,7 @@ const ROUTES = {
   reports_sales_by_party: '/reports?tab=SALES_BY_PARTY',
   reports_product_movement: '/reports?tab=PRODUCT_MOVEMENT',
   payroll_attendance: '/payroll?tab=ATTENDANCE',
+  reports_product_margins: '/reports?tab=PROFITABILITY',
 };
 
 /** The route for a screen key, or null: an unknown key draws no link. */

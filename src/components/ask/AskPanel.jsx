@@ -47,12 +47,19 @@ function Rows({ rows, strings }) {
   );
 }
 
-function FigureTable({ table, strings }) {
+// A row may carry its own link (profit_tips: each finding opens its screen).
+// A link the web has no route for draws no button; the facts stay.
+function FigureTable({ table, strings, onLink }) {
   if (!table?.rows?.length) return null;
+  const rowLink = (ri) => {
+    const l = table.links?.[ri];
+    return l?.key && screenPath(l.key, l.params) && strings.links?.[l.key] ? l : null;
+  };
+  const hasLinks = !!table.links && table.rows.some((_, ri) => rowLink(ri));
   return (
     <table className="t">
       <thead>
-        <tr>{table.columns.map((c, i) => <th key={i} className={c.align === 'right' ? 'n' : ''}>{c.label}</th>)}</tr>
+        <tr>{table.columns.map((c, i) => <th key={i} className={c.align === 'right' ? 'n' : ''}>{c.label}</th>)}{hasLinks && <th aria-hidden="true" />}</tr>
       </thead>
       <tbody>
         {table.rows.map((row, ri) => (
@@ -66,6 +73,16 @@ function FigureTable({ table, strings }) {
                 </td>
               );
             })}
+            {hasLinks && (
+              <td className="lnk">
+                {rowLink(ri) && (
+                  <button type="button" className="rowlink" data-testid="ask-row-link" data-screen={rowLink(ri).key}
+                    onClick={() => onLink?.(rowLink(ri))}>
+                    {strings.links[rowLink(ri).key]}<ArrowRight size={12} aria-hidden="true" />
+                  </button>
+                )}
+              </td>
+            )}
           </tr>
         ))}
       </tbody>
@@ -109,7 +126,7 @@ function AiSlot({ answer, usage, strings, onRetry, onPlans }) {
   );
 }
 
-function Answer({ answer, question, usage, strings, phone, onRetry, onPlans, onGo, also, onAsk, headRef }) {
+function Answer({ answer, question, usage, strings, phone, onRetry, onPlans, onGo, onLink, also, onAsk, headRef }) {
   const { card, screen } = answer;
   const { hero } = card;
   const link = screen?.key && screenPath(screen.key) ? strings.links[screen.key] : null;
@@ -127,7 +144,7 @@ function Answer({ answer, question, usage, strings, phone, onRetry, onPlans, onG
       <section className="fig">
         <div className="fig-h"><b>{strings.ui.from_books}</b><span className="m">{asOfText(answer.as_of, strings)}</span></div>
         <Rows rows={card.rows} strings={strings} />
-        <FigureTable table={card.table} strings={strings} />
+        <FigureTable table={card.table} strings={strings} onLink={onLink} />
         <Rows rows={card.rows_after} strings={strings} />
         {card.note && <p className="fn req">{card.note}</p>}
         {card.footnote && <p className="fn"><Numbered text={card.footnote} /></p>}
@@ -317,6 +334,10 @@ export default function AskPanel({ onClose }) {
     const p = screenPath(s?.key, s?.params);
     if (p) { onClose(); navigate(p); }
   };
+  const goRow = (l) => {
+    const p = screenPath(l?.key, l?.params);
+    if (p) { onClose(); navigate(p); }
+  };
 
   const turnOn = async () => {
     setTurning(true); setTurnError(null);
@@ -403,7 +424,7 @@ export default function AskPanel({ onClose }) {
     const same = questions.filter((q) => q.category === current.question.category && q.id !== current.question.id);
     return (
       <Answer answer={current.answer} question={current.question} usage={usage} strings={strings} phone={phone} headRef={headRef}
-        onRetry={() => ask(current.question)} onPlans={() => { onClose(); navigate('/settings'); }} onGo={go}
+        onRetry={() => ask(current.question)} onPlans={() => { onClose(); navigate('/settings'); }} onGo={go} onLink={goRow}
         also={(same.length ? same : questions.filter((q) => q.id !== current.question.id)).slice(0, 2)} onAsk={ask} />
     );
   };
