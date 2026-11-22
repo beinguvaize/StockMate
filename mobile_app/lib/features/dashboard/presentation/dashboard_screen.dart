@@ -147,6 +147,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         children: [
           // ── Global app bar ────────────────────────────────────────
           _GlobalAppBar(
+            title: tabs.isEmpty ? '' : tabs[selIdx].label,
             onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
           ),
 
@@ -248,7 +249,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
 class _GlobalAppBar extends StatelessWidget {
   final VoidCallback onMenuTap;
-  const _GlobalAppBar({required this.onMenuTap});
+  final String title;
+  const _GlobalAppBar({required this.onMenuTap, required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -256,49 +258,34 @@ class _GlobalAppBar extends StatelessWidget {
       color: AppColors.canvas,
       child: SafeArea(
         bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Stack(
-            alignment: Alignment.center,
+        child: SizedBox(
+          height: 52,
+          child: Row(
             children: [
-              // Logo — exact center of screen
-              Center(
-                child: Image.asset(
-                  'assets/images/logo_linear.png',
-                  height: 32,
-                  fit: BoxFit.contain,
-                ),
-              ),
-
-              // Edge controls
-              Row(
-            children: [
-              // Hamburger
+              // Menu: a bare icon, 48dp hit area, no card behind it.
               AppTappable(
                 ripple: false,
                 onTap: onMenuTap,
-                child: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [AppColors.cardShadow],
-                  ),
-                  child: const Icon(
-                    LucideIcons.menu,
-                    size: 20,
-                    color: AppColors.inkPrimary,
+                child: const SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: Icon(LucideIcons.menu, size: 22, color: AppColors.inkPrimary),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.title.copyWith(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.onSurface,
                   ),
                 ),
               ),
-
-              const Spacer(),
-
-              // Offline sync status (hidden when synced + online)
+              // Online / sync state (hidden when synced + online)
               const SyncStatusPill(),
-
-              // Bell
               AppTappable(
                 ripple: false,
                 onTap: () => showModalBottomSheet(
@@ -322,22 +309,11 @@ class _GlobalAppBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                child: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [AppColors.cardShadow],
-                  ),
-                  child: const Icon(
-                    LucideIcons.bell,
-                    size: 20,
-                    color: AppColors.inkPrimary,
-                  ),
+                child: const SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: Icon(LucideIcons.bell, size: 20, color: AppColors.inkPrimary),
                 ),
-              ),
-            ],
               ),
             ],
           ),

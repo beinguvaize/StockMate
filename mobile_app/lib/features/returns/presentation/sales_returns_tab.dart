@@ -35,9 +35,8 @@ class SalesHistoryTabs extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: AppColors.canvas,
+          color: AppColors.secondaryContainer,
           borderRadius: Radii.rPill,
-          border: Border.all(color: AppColors.outlineVariant),
         ),
         child: Stack(
           children: [
@@ -50,7 +49,7 @@ class SalesHistoryTabs extends StatelessWidget {
                   widthFactor: 0.5,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: AppColors.primaryContainer,
+                      color: AppColors.onSurface,
                       borderRadius: Radii.rPill,
                     ),
                   ),
@@ -71,9 +70,7 @@ class SalesHistoryTabs extends StatelessWidget {
 
   Widget _tab(BuildContext context, int i, String label, int? count) {
     final active = index == i;
-    final fg = active
-        ? AppColors.onPrimaryContainer
-        : AppColors.onSurfaceVariant;
+    final fg = active ? AppColors.canvas : AppColors.onSurfaceVariant;
     return AppTappable(
       ripple: false,
       onTap: () => onChanged(i),
@@ -83,7 +80,10 @@ class SalesHistoryTabs extends StatelessWidget {
         child: AnimatedDefaultTextStyle(
           duration: motionDur(context, 260),
           curve: MotionCurves.out,
-          style: AppText.label.copyWith(color: fg),
+          style: AppText.label.copyWith(
+            color: fg,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

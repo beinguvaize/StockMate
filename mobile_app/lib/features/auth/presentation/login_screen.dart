@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -30,6 +31,9 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
+  // Android has fingerprint; Face ID is Apple's name.
+  static String get _bioName => Platform.isAndroid ? 'fingerprint' : 'Face ID';
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _biometric = BiometricService();
@@ -302,8 +306,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             Expanded(
                               child: Text(
                                 _rememberMe
-                                    ? 'Unlock with Face ID / fingerprint'
-                                    : 'Unlock with Face ID (enable Remember me first)',
+                                    ? 'Unlock with $_bioName'
+                                    : 'Unlock with $_bioName (enable Remember me first)',
                                 style: AppText.body.copyWith(
                                   color: _rememberMe
                                       ? AppColors.onSurface
