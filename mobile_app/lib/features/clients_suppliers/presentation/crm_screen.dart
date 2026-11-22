@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/widgets/motion/motion_refresh.dart';
+import 'package:mobile_app/widgets/motion/motion_sheet.dart';
+import 'package:mobile_app/widgets/motion/swipe_actions.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart';
@@ -592,13 +596,45 @@ class _ClientsTab extends ConsumerWidget {
 
             // ── List ───────────────────────────────────────────────────────
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(14, 4, 14, 100),
-                itemCount: filtered.length,
-                separatorBuilder: (_, __) => const Divider(height: 1, indent: 52),
-                itemBuilder: (ctx, i) => _ClientRow(
-                  client: filtered[i],
-                  onTap: () => _showClientDetail(ctx, filtered[i], ref),
+              child: MotionRefresh(
+                onRefresh: () async {
+                  ref.invalidate(clientsProvider);
+                  try {
+                    await ref.read(clientsProvider.future);
+                  } catch (_) {}
+                },
+                child: ListView.separated(
+                  physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics()),
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 100),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1, indent: 52),
+                  itemBuilder: (ctx, i) {
+                    final c = filtered[i];
+                    final phone = (c.phone ?? '').trim();
+                    return SwipeActions(
+                      openWidth: phone.isEmpty ? 80 : 160,
+                      actions: [
+                        if (phone.isNotEmpty)
+                          _SwipeAction(
+                            icon: LucideIcons.phone,
+                            label: 'Call',
+                            color: _kSupplierGreen,
+                            onTap: () => launchUrl(Uri(scheme: 'tel', path: phone)),
+                          ),
+                        _SwipeAction(
+                          icon: LucideIcons.indianRupee,
+                          label: 'Collect',
+                          color: _kClientOrange,
+                          onTap: () => _showClientDetail(ctx, c, ref),
+                        ),
+                      ],
+                      child: _ClientRow(
+                        client: c,
+                        onTap: () => _showClientDetail(ctx, c, ref),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -611,13 +647,34 @@ class _ClientsTab extends ConsumerWidget {
   }
 
   void _showClientDetail(BuildContext context, Client client, WidgetRef ref) {
-    showModalBottomSheet(
+    showMotionSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _ClientDetailSheet(client: client, ref: ref),
     );
   }
+}
+
+class _SwipeAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _SwipeAction({required this.icon, required this.label, required this.color, required this.onTap});
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: ColoredBox(
+          color: color,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: Colors.white),
+              const SizedBox(height: 2),
+              Text(label, style: AppText.caption.copyWith(color: Colors.white)),
+            ],
+          ),
+        ),
+      );
 }
 
 // ─── Client row (flat list item) ──────────────────────────────────────────────

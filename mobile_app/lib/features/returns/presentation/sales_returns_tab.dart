@@ -6,6 +6,8 @@ import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/core/utils/money.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/widgets/motion/expand_reveal.dart';
+import 'package:mobile_app/widgets/motion/motion_curves.dart';
 import 'package:mobile_app/features/returns/data/models/sales_return.dart';
 import 'package:mobile_app/features/returns/presentation/providers/returns_provider.dart';
 
@@ -26,19 +28,48 @@ class SalesHistoryTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Item 10: one highlight slides between the segments (260ms) while the
+    // label colours change in the same motion.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
-      child: Row(
-        children: [
-          _tab(0, 'Sales', null),
-          const SizedBox(width: Gap.sm),
-          _tab(1, 'Returns', returnsCount),
-        ],
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: AppColors.canvas,
+          borderRadius: Radii.rPill,
+          border: Border.all(color: AppColors.outlineVariant),
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: AnimatedAlign(
+                duration: motionDur(context, 260),
+                curve: MotionCurves.out,
+                alignment: index == 0 ? Alignment.centerLeft : Alignment.centerRight,
+                child: FractionallySizedBox(
+                  widthFactor: 0.5,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      borderRadius: Radii.rPill,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Expanded(child: _tab(context, 0, 'Sales', null)),
+                Expanded(child: _tab(context, 1, 'Returns', returnsCount)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _tab(int i, String label, int? count) {
+  Widget _tab(BuildContext context, int i, String label, int? count) {
     final active = index == i;
     final fg = active
         ? AppColors.onPrimaryContainer
@@ -46,35 +77,27 @@ class SalesHistoryTabs extends StatelessWidget {
     return AppTappable(
       ripple: false,
       onTap: () => onChanged(i),
-      child: AnimatedContainer(
-        duration: Motion.base,
-        curve: Motion.standard,
-        padding: const EdgeInsets.symmetric(
-          horizontal: Gap.lg,
-          vertical: Gap.sm,
-        ),
-        decoration: BoxDecoration(
-          color: active ? AppColors.primaryContainer : AppColors.canvas,
-          borderRadius: Radii.rPill,
-          border: Border.all(
-            color: active
-                ? AppColors.primaryContainer
-                : AppColors.outlineVariant,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label, style: AppText.label.copyWith(color: fg)),
-            if (count != null) ...[
-              const SizedBox(width: Gap.xs),
-              Text(
-                '$count',
-                key: Key('returns-count-$i'),
-                style: AppText.label.copyWith(color: fg.withValues(alpha: 0.7)),
-              ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+        alignment: Alignment.center,
+        child: AnimatedDefaultTextStyle(
+          duration: motionDur(context, 260),
+          curve: MotionCurves.out,
+          style: AppText.label.copyWith(color: fg),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label),
+              if (count != null) ...[
+                const SizedBox(width: Gap.xs),
+                Text(
+                  '$count',
+                  key: Key('returns-count-$i'),
+                  style: TextStyle(color: fg.withValues(alpha: 0.7)),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -164,6 +187,7 @@ class SalesReturnRow extends StatefulWidget {
 
 class _SalesReturnRowState extends State<SalesReturnRow> {
   bool _open = false;
+  bool _everOpen = false; // keep lines mounted so collapse can animate
 
   static const _months = [
     'Jan',
@@ -196,7 +220,10 @@ class _SalesReturnRowState extends State<SalesReturnRow> {
 
     return AppTappable(
       ripple: false,
-      onTap: () => setState(() => _open = !_open),
+      onTap: () => setState(() {
+        _open = !_open;
+        if (_open) _everOpen = true;
+      }),
       child: Container(
         color: AppColors.canvas,
         padding: const EdgeInsets.symmetric(vertical: Gap.lg),
@@ -230,17 +257,26 @@ class _SalesReturnRowState extends State<SalesReturnRow> {
                   style: AppText.money.copyWith(color: AppColors.error),
                 ),
                 const SizedBox(width: Gap.sm),
-                Icon(
-                  _open ? LucideIcons.chevronUp : LucideIcons.chevronDown,
-                  size: 16,
-                  color: AppColors.inkTertiary,
+                AnimatedRotation(
+                  turns: _open ? 0.5 : 0,
+                  duration: motionDur(context, 220),
+                  curve: MotionCurves.out,
+                  child: const Icon(
+                    LucideIcons.chevronDown,
+                    size: 16,
+                    color: AppColors.inkTertiary,
+                  ),
                 ),
               ],
             ),
-            if (_open) ...[
-              const SizedBox(height: Gap.md),
-              _SalesReturnLines(returnId: r.id),
-            ],
+            if (_everOpen)
+              ExpandReveal(
+                expanded: _open,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: Gap.md),
+                  child: _SalesReturnLines(returnId: r.id),
+                ),
+              ),
           ],
         ),
       ),

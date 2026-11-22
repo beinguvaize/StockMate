@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_app/core/utils/units.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -36,6 +37,11 @@ import 'package:mobile_app/core/widgets/success_tick.dart';
 import 'package:mobile_app/core/database/sync_errors.dart' show describeRefusal;
 import 'package:mobile_app/core/database/offline_sales_ui.dart' show OfflineSalesBanner, nudgeSync;
 import 'package:mobile_app/core/auth/offline_context_cache.dart';
+import 'package:mobile_app/widgets/motion/motion_sheet.dart';
+import 'package:mobile_app/widgets/motion/motion_toast.dart';
+import 'package:mobile_app/widgets/motion/pressable.dart';
+import 'package:mobile_app/widgets/motion/rolling_number.dart';
+import 'package:mobile_app/widgets/motion/save_button.dart';
 
 // POS stores (non-vehicle inventory locations) for the multi-store
 // store picker. Cached per session.
@@ -235,10 +241,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
 
   void _showProductDetail(Product p) {
     final currentItem = _cart.where((c) => c.product.id == p.id).firstOrNull;
-    showModalBottomSheet(
+    showMotionSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _ProductDetailSheet(
         product: p,
         // A product bought by weight and sold in packets opens at ONE PACKET.
@@ -281,14 +285,13 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
   // ── Checkout sheet ────────────────────────────────────────────────────────────
 
   void _openCheckout() {
-    showModalBottomSheet(
+    showMotionSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _CheckoutSheet(
         cart: _cart,
         subtotal: _subtotal,
         selectedClient: _selectedClient,
+        saveState: _saveState,
         onComplete: (paymentMethod, paidAmount, discount) => _submit(paymentMethod, paidAmount, discount),
         onRemove: _deleteFromCart,
         ref: ref,
@@ -337,7 +340,34 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     }
   }
 
+  // Item 2: the checkout Save button mirrors this REAL state.
+  final ValueNotifier<(SaveStatus, String?)> _saveState =
+      ValueNotifier((SaveStatus.idle, null));
+  bool _lastOk = false;
+  String? _lastErr;
+
   Future<void> _submit(String paymentMethod, double? paidAmountOverride, [double discount = 0]) async {
+    _lastOk = false;
+    _lastErr = null;
+    _saveState.value = (SaveStatus.saving, null);
+    await _submitInner(paymentMethod, paidAmountOverride, discount);
+    if (!mounted) return;
+    if (_lastOk) {
+      HapticFeedback.lightImpact();
+      _saveState.value = (SaveStatus.saved, null);
+      final reduce = MediaQuery.maybeDisableAnimationsOf(context) == true;
+      await Future<void>.delayed(Duration(milliseconds: reduce ? 0 : 700));
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
+      _saveState.value = (SaveStatus.idle, null);
+    } else {
+      _saveState.value = (SaveStatus.error, _lastErr ?? 'Not saved');
+      await Future<void>.delayed(const Duration(milliseconds: 1800));
+      if (mounted) _saveState.value = (SaveStatus.idle, null);
+    }
+  }
+
+  Future<void> _submitInner(String paymentMethod, double? paidAmountOverride, [double discount = 0]) async {
     if (_cart.isEmpty) {
       _showError('Cart is empty');
       return;
@@ -596,12 +626,13 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         paymentMethod: paymentMethod,
       );
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
+      _lastOk = true;
     } catch (e, stack) {
       debugPrint('[SALE] FAILED: $e\n$stack');
       // Only a server refusal reaches here (transport failures are queued).
       // Say which rule refused it, in words, as the web till does.
       final info = describeRefusal(e.toString());
+      _lastErr = info.title;
       _showError('${info.title}: ${info.reason}');
     }
   }
@@ -695,6 +726,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                       ),
                                       if (!widget.isVanSale && stores.length > 1)
                                         PopupMenuButton<String>(
+                                          popUpAnimationStyle: menuAnimationStyle(context),
                                           initialValue: _posStoreId,
                                           onSelected: (v) => setState(() => _posStoreId = v),
                                           itemBuilder: (_) => [
@@ -987,10 +1019,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
   }
 
   void _showClientPicker() {
-    showModalBottomSheet(
+    showMotionSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _ClientPickerSheet(
         selectedClient: _selectedClient,
         onSelected: (client) {
@@ -1718,7 +1748,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
               const SizedBox(height: 28),
 
               // ── Add to Basket ─────────────────────────────────────
-              SizedBox(
+              Pressable(child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
@@ -1766,7 +1796,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                     elevation: 0,
                   ),
                 ),
-              ),
+              )),
 
               const SizedBox(height: 8),
 
@@ -1793,6 +1823,7 @@ class _CheckoutSheet extends StatefulWidget {
   // method default" (CASH/UPI/BANK → full pay; CREDIT_SALE → 0).
   final Future<void> Function(String paymentMethod, double? paidAmount, double discount) onComplete;
   final void Function(Product) onRemove;
+  final ValueListenable<(SaveStatus, String?)> saveState;
   // Pulled from parent so the checkout sheet can read business profile
   // (tax_mode) without spinning up its own ConsumerStatefulWidget.
   final WidgetRef ref;
@@ -1803,6 +1834,7 @@ class _CheckoutSheet extends StatefulWidget {
     required this.selectedClient,
     required this.onComplete,
     required this.onRemove,
+    required this.saveState,
     required this.ref,
   });
 
@@ -1816,7 +1848,6 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   List<AccountModel> _accounts = [];
   // account.id of selected method, or 'CREDIT_SALE' sentinel.
   String _paymentMethod = 'CASH';
-  bool _isLoading = false;
   late List<CartItem> _localCart;
   // Optional cashier-entered "Amount paid now". Empty/null → full pay
   // for CASH/UPI/BANK, or 0 for CREDIT_SALE. When less than the bill
@@ -2346,8 +2377,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                   color: AppColors.inkPrimary,
                                 ),
                               ),
-                              Text(
-                                '₹${_netTotal.toStringAsFixed(2)}',
+                              RollingNumber(
+                                text: '₹${_netTotal.toStringAsFixed(2)}',
                                 style: AppText.title.copyWith(fontWeight: FontWeight.w800, color: AppColors.primary, letterSpacing: -0.5),
                               ),
                             ],
@@ -2359,37 +2390,17 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     const SizedBox(height: 32),
 
                     // ── Complete Transaction ───────────────────────
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _isLoading
-                            ? null
-                            : () async {
-                                setState(() => _isLoading = true);
-                                await widget.onComplete(_selectedPayType, _effectivePaid, _discountAmount);
-                                if (mounted) setState(() => _isLoading = false);
-                              },
-                        icon: _isLoading
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primary,
-                                ),
-                              )
-                            : const Icon(LucideIcons.arrowRight, size: 18),
-                        label: Text(
-                          _isLoading ? 'Processing...' : 'Complete Transaction',
-                          style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.secondary,
-                          foregroundColor: AppColors.primaryContainer,
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: const StadiumBorder(),
-                          elevation: 0,
-                        ),
+                    ValueListenableBuilder<(SaveStatus, String?)>(
+                      valueListenable: widget.saveState,
+                      builder: (_, st, __) => SaveButton(
+                        status: st.$1,
+                        errorText: st.$2,
+                        idleLabel: 'Complete Transaction',
+                        idleIcon: LucideIcons.arrowRight,
+                        background: AppColors.secondary,
+                        foreground: AppColors.primaryContainer,
+                        textStyle: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+                        onPressed: () => widget.onComplete(_selectedPayType, _effectivePaid, _discountAmount),
                       ),
                     ),
                   ],
@@ -3026,10 +3037,8 @@ class _SaleSuccessSheet extends StatefulWidget {
     double           excess        = 0,
     String           paymentMethod = 'CASH',
   }) {
-    return showModalBottomSheet<void>(
+    return showMotionSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _SaleSuccessSheet(
         saleId:        saleId,
         queued:        queued,
@@ -3051,6 +3060,8 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
   bool _printing  = false;
   bool _sharing   = false;
   bool _collecting = false;
+  SaveStatus _collectStatus = SaveStatus.idle;
+  String? _collectErr;
   // For the "collect now" sub-form (no-excess path)
   late TextEditingController _collectCtrl;
   String _collectMethod = 'CASH';
@@ -3295,13 +3306,13 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
     return ok ?? false;
   }
 
-  Future<void> _recordPayment(double amount) async {
-    if (widget.client == null || amount <= 0) return;
+  Future<bool> _recordPayment(double amount) async {
+    if (widget.client == null || amount <= 0) return false;
     setState(() => _collecting = true);
     try {
       final container = ProviderScope.containerOf(context);
       final ctx = await container.read(tenantContextProvider.future);
-      if (ctx == null) return;
+      if (ctx == null) return false;
       final today = DateTime.now().toIso8601String().substring(0, 10);
       final paymentId = 'CP-${DateTime.now().millisecondsSinceEpoch}';
       // One settled path: settle_client_payment does FIFO allocation across
@@ -3323,16 +3334,15 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
         },
       );
       if (mounted && queued) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payment saved offline — will sync when online')),
-        );
+        MotionToast.show(context, 'Payment saved offline — will sync when online');
       }
+      return true;
     } catch (e) {
+      _collectErr = 'Payment failed';
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment record failed: $e'), backgroundColor: AppColors.danger),
-        );
+        MotionToast.show(context, 'Payment record failed: $e', isError: true);
       }
+      return false;
     } finally {
       if (mounted) setState(() => _collecting = false);
     }
@@ -3517,7 +3527,15 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                           const SizedBox(width: 8),
                           Expanded(
                             flex: 2,
-                            child: ElevatedButton(
+                            child: SaveButton(
+                              status: _collectStatus,
+                              errorText: _collectErr,
+                              idleLabel: 'Collect',
+                              background: AppColors.primaryContainer,
+                              foreground: AppColors.inkPrimary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              textStyle: AppText.label.copyWith(fontWeight: FontWeight.w700),
                               onPressed: _collecting ? null : () async {
                                 // Not capped at the outstanding — the surplus
                                 // is recorded as an advance.
@@ -3526,19 +3544,19 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                                 final toDues  = amt <= widget.outstanding ? amt : widget.outstanding;
                                 final advance = amt - toDues;
                                 if (!await _confirmApply(amt, toDues, advance)) return;
-                                await _recordPayment(amt);
-                                if (mounted) Navigator.of(context).pop();
+                                setState(() => _collectStatus = SaveStatus.saving);
+                                final ok = await _recordPayment(amt);
+                                if (!mounted) return;
+                                setState(() => _collectStatus = ok ? SaveStatus.saved : SaveStatus.error);
+                                if (ok) {
+                                  HapticFeedback.lightImpact();
+                                  await Future<void>.delayed(const Duration(milliseconds: 700));
+                                  if (mounted) Navigator.of(context).pop();
+                                } else {
+                                  await Future<void>.delayed(const Duration(milliseconds: 1800));
+                                  if (mounted) setState(() => _collectStatus = SaveStatus.idle);
+                                }
                               },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryContainer,
-                                foregroundColor: AppColors.inkPrimary,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                              ),
-                              child: _collecting
-                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.inkPrimary))
-                                  : Text('Collect', style: AppText.label.copyWith(fontWeight: FontWeight.w700)),
                             ),
                           ),
                         ],

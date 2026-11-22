@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -10,6 +9,7 @@ import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart
 import 'package:mobile_app/features/returns/presentation/purchase_return_form_screen.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/widgets/motion/copy_button.dart';
 
 class PurchaseDetailScreen extends ConsumerWidget {
   final Purchase purchase;
@@ -114,34 +114,18 @@ class PurchaseDetailScreen extends ConsumerWidget {
               // Copy PO number
               Padding(
                 padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-                child: AppTappable(
-   ripple: false,
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: purchase.poNumber));
-                    HapticFeedback.lightImpact();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Copied ${purchase.poNumber}',
-                            style: GoogleFonts.manrope(color: AppColors.inkPrimary)),
-                        backgroundColor: AppColors.primaryContainer,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [AppColors.cardShadow],
-                    ),
-                    child: const Icon(LucideIcons.copy,
-                        size: 16, color: AppColors.inkSecondary),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [AppColors.cardShadow],
                   ),
- ),
+                  child: CopyButton(
+                    text: purchase.poNumber,
+                    size: 16,
+                    color: AppColors.inkSecondary,
+                  ),
+                ),
               ),
             ],
           ),
