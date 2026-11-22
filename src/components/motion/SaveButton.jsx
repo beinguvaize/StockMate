@@ -14,7 +14,9 @@ export default function SaveButton({ status = 'idle', idleLabel, savingLabel = '
     <Button
       {...rest}
       icon={status === 'idle' || status === 'error' ? icon : undefined}
-      disabled={rest.disabled || status === 'saving'}
+      // 'saved' stays disabled too: the dialog closes ~700ms later, and a click
+      // in that window would save the same thing twice.
+      disabled={rest.disabled || status === 'saving' || status === 'saved'}
       className={`${className} ${status === 'saved' ? 'save-btn-saved' : ''}`}
     >
       <span key={status} className="save-label inline-flex items-center gap-2" aria-live="polite">
