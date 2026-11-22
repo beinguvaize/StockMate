@@ -49,20 +49,4 @@ class StockLevels {
 
   static bool isHealthy(double stock, {double? threshold}) =>
       !needsRestock(stock, threshold: threshold);
-
-  /// The low / out split every screen must show for a list of stock levels.
-  /// Inventory's Low and Out chips and the dashboard's "needs attention" row
-  /// both read this, so the two can never disagree again (dashboard said 12
-  /// while inventory said 9 low + 4 out).
-  static ({int low, int out}) counts(Iterable<double> stocks) {
-    var low = 0, out = 0;
-    for (final s in stocks) {
-      if (isOutOfStock(s)) {
-        out++;
-      } else if (isLow(s)) {
-        low++;
-      }
-    }
-    return (low: low, out: out);
-  }
 }
