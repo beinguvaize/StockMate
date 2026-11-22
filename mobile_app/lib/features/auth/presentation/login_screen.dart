@@ -68,7 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _tryBiometricUnlock() async {
     if (!_biometricAvailable) return;
     final ok = await _biometric.authenticate(
-      reason: 'Unlock LedgrPro with biometrics',
+      reason: 'Unlock bookledger with biometrics',
     );
     if (!mounted || !ok) return;
     await _handleLogin();

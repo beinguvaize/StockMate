@@ -88,7 +88,7 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: 'StockMate sync queue export — ${jobs.length} jobs',
+        subject: 'bookledger sync queue export — ${jobs.length} jobs',
         text: 'Pending/failed sync queue from mobile device. '
               'Forward to admin for server-side replay.',
       );

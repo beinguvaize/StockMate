@@ -440,8 +440,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 builder: (context, snap) {
                   final v = snap.data;
                   final label = v == null
-                      ? 'StockMate'
-                      : 'StockMate · v${v.version} (build ${v.buildNumber})';
+                      ? 'bookledger'
+                      : 'bookledger · v${v.version} (build ${v.buildNumber})';
                   return Center(
                     child: Text(
                       label,
