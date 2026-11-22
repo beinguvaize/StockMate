@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as web from './backupFile.js';
 import * as mirror from '../../supabase/functions/drive-backup/backupFile.ts';
