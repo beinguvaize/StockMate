@@ -13,12 +13,11 @@
 --
 -- The mapping mirrors sales_screen.dart as it stood before this change:
 --
---   countable  every row with deleted_at IS NULL and date::date in
---              [p_from, p_to]. The screen summed totalAmount over every row in
---              range (it excluded only local 'refused' outbox rows, which are
---              not on the server). It did NOT drop VOIDED/FAILED rows, so
---              neither does this. (ai_countable() would drop them: not used,
---              to keep the figure equal to what the phone showed.)
+--   countable  deleted_at IS NULL, date::date in [p_from, p_to], AND
+--              ai_countable(voided_at, status, paymentStatus) -- the web's
+--              isCountableSale. The old phone screen also summed voided and
+--              failed bills; that was a bug, and the phone total now agrees
+--              with the web Sales screen and reports for the same dates.
 --   total      SUM("totalAmount")
 --   bills      COUNT(*)
 --   due        the screen's per-row Collect strip: rows whose upper
@@ -54,6 +53,7 @@ BEGIN
    ) d
    WHERE s.tenant_id = v_tenant
      AND s.deleted_at IS NULL
+     AND public.ai_countable(s.voided_at, s.status, s."paymentStatus")
      AND (p_from IS NULL OR s.date::date >= p_from)
      AND (p_to   IS NULL OR s.date::date <= p_to);
 
