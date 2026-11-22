@@ -93,7 +93,7 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
   const style = TIER_STYLES[tier.color];
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
+    <div className="fixed inset-0 z-50 flex flex-col bg-canvas dialog-pop">
 
       {/* ── Top bar ── */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-border/60 bg-card shrink-0">
@@ -105,7 +105,7 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
         </button>
         <div className="min-w-0">
           <h1 className="text-lg font-semibold text-foreground leading-tight">Price Lists</h1>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mt-0.5">
+          <p className="text-[11px] font-semibold text-muted-foreground mt-0.5">
             Wholesale &amp; distributor tier pricing with quantity breaks
           </p>
         </div>
@@ -145,17 +145,17 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
           })}
         </div>
 
-        <div className="text-[10px] font-semibold text-muted-foreground">{tier.desc}</div>
+        <div className="text-[11px] font-semibold text-muted-foreground">{tier.desc}</div>
 
         <div className="flex flex-col gap-4">
 
           {/* Add form */}
           <div className="bg-muted rounded-2xl p-4 border border-border/60">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Add / Update Price Break</p>
+            <p className="text-[11px] font-semibold text-muted-foreground mb-3">Add / Update Price Break</p>
             <div className="grid grid-cols-12 gap-2 items-end">
               {/* Product */}
               <div className="col-span-5">
-                <label className="text-[10px] font-semibold text-muted-foreground block mb-1">Product</label>
+                <label className="text-[11px] font-semibold text-muted-foreground block mb-1">Product</label>
                 <select
                   value={form.productId}
                   onChange={e => setForm(f => ({ ...f, productId: e.target.value }))}
@@ -169,7 +169,7 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
               </div>
               {/* Min Qty */}
               <div className="col-span-3">
-                <label className="text-[10px] font-semibold text-muted-foreground block mb-1">Min Qty</label>
+                <label className="text-[11px] font-semibold text-muted-foreground block mb-1">Min Qty</label>
                 <select
                   value={form.minQty}
                   onChange={e => setForm(f => ({ ...f, minQty: Number(e.target.value) }))}
@@ -180,7 +180,7 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
               </div>
               {/* Price */}
               <div className="col-span-3">
-                <label className="text-[10px] font-semibold text-muted-foreground block mb-1">Price</label>
+                <label className="text-[11px] font-semibold text-muted-foreground block mb-1">Price</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground pointer-events-none">
                     {currencySymbol}
@@ -245,7 +245,7 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
                         <div className="text-left">
                           <div className="text-sm font-semibold text-foreground">{name}</div>
                           {basePrice != null && (
-                            <div className="text-[10px] font-semibold text-muted-foreground">
+                            <div className="text-[11px] font-semibold text-muted-foreground">
                               Base retail: {currencySymbol}{Number(basePrice).toFixed(2)}
                             </div>
                           )}
@@ -287,7 +287,7 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
                         <div className="px-4 py-2 bg-card">
                           <button
                             onClick={() => setForm(f => ({ ...f, productId }))}
-                            className="text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                            className="text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
                           >
                             <Plus size={10} /> Add break for this product
                           </button>

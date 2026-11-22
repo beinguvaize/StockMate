@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabase';
 import { formatCurrency, formatDate } from '../../../lib/utils';
+import SaveButton from '../../../components/motion/SaveButton';
 import { useDialogClose } from '../../../hooks/useDialogClose';
 import { X, TrendingUp, TrendingDown, Target, AlertCircle, Loader2, CheckCircle2, ArrowRight, Minus, Plus, ChevronLeft } from 'lucide-react';
 
@@ -97,7 +98,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
 
   /* ── Success screen ── */
   if (done) return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
+    <div className="fixed inset-0 z-50 flex flex-col bg-canvas dialog-pop">
       <div className="flex items-center gap-4 px-6 py-4 border-b border-border/60 bg-card shrink-0">
         <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
           <ChevronLeft size={18} />
@@ -126,7 +127,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
 
   /* ── Main modal ── */
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
+    <div className="fixed inset-0 z-50 flex flex-col bg-canvas dialog-pop">
 
       {/* ── Top bar ── */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-border/60 bg-card shrink-0">
@@ -135,7 +136,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
         </button>
         <div className="min-w-0">
           <h1 className="text-lg font-semibold text-foreground leading-tight">Stock Adjustment</h1>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mt-0.5">
+          <p className="text-[11px] font-semibold text-muted-foreground mt-0.5">
             {product.name} · Current: {currentStock} {product.unit || 'pcs'}
           </p>
         </div>
@@ -166,7 +167,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
                   }`}>
                     <Icon size={15} strokeWidth={2} />
                   </div>
-                  <span className="text-[10px] font-semibold leading-none">{t.label}</span>
+                  <span className="text-[11px] font-semibold leading-none">{t.label}</span>
                   {active && (
                     <div className={`absolute top-2 right-2 w-2 h-2 rounded-full ${t.accent}`} />
                   )}
@@ -174,11 +175,11 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
               );
             })}
           </div>
-          <p className="text-[10px] text-muted-foreground -mt-3">{activeType.desc}</p>
+          <p className="text-[11px] text-muted-foreground -mt-3">{activeType.desc}</p>
 
           {/* ── Quantity ── */}
           <div>
-            <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-3">
+            <label className="text-[11px] font-semibold text-muted-foreground block mb-3">
               {type === 'set' ? 'New count' : type === 'add' ? 'Units to add' : 'Units to remove'}
             </label>
             <div className="flex items-center gap-3">
@@ -204,7 +205,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
               </button>
             </div>
             {overStock && (
-              <p className="text-[10px] text-rose-500 font-semibold mt-2 flex items-center gap-1">
+              <p className="text-[11px] text-rose-500 font-semibold mt-2 flex items-center gap-1">
                 <AlertCircle size={11} /> Cannot exceed current stock ({currentStock} {product.unit || 'pcs'})
               </p>
             )}
@@ -214,7 +215,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
           {p && qtyNum > 0 && !overStock && (
             <div className="flex items-center gap-3 px-4 py-3.5 bg-card border border-border shadow-sm rounded-2xl">
               <div className="flex-1 text-center">
-                <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest mb-0.5">Before</p>
+                <p className="text-[9px] text-muted-foreground font-semibold mb-0.5">Before</p>
                 <p className="text-lg font-semibold text-foreground">{currentStock}</p>
                 <p className="text-[9px] text-muted-foreground font-medium">{product.unit || 'pcs'}</p>
               </div>
@@ -229,7 +230,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
                 <ArrowRight size={14} className="text-muted-foreground" />
               </div>
               <div className="flex-1 text-center">
-                <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest mb-0.5">After</p>
+                <p className="text-[9px] text-muted-foreground font-semibold mb-0.5">After</p>
                 <p className={`text-lg font-semibold ${p.after < 0 ? 'text-rose-500' : 'text-foreground'}`}>
                   {Math.max(0, p.after)}
                 </p>
@@ -240,7 +241,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
 
           {/* ── Reason ── */}
           <div>
-            <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-2">
+            <label className="text-[11px] font-semibold text-muted-foreground block mb-2">
               Reason <span className="text-rose-400">*</span>
             </label>
             <select
@@ -266,12 +267,12 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
           {isAddition && qtyNum > 0 && (
             <div>
               <div className="flex items-baseline justify-between mb-2 gap-2">
-                <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <label className="text-[11px] font-semibold text-muted-foreground">
                   Purchase price / unit
                 </label>
                 {/* Name the source of the default so the figure is answerable. */}
                 {lastBuy && (
-                  <span className="text-[10px] text-muted-foreground truncate">
+                  <span className="text-[11px] text-muted-foreground truncate">
                     last bought {formatDate(lastBuy.date)} · {lastBuy.ref}
                   </span>
                 )}
@@ -310,16 +311,14 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
         </div>
 
         {/* ── Submit ── */}
-        <button
+        <SaveButton
+          status={saving ? 'saving' : 'idle'}
+          idleLabel="Save adjustment"
+          icon={CheckCircle2}
           onClick={handleSubmit}
-          disabled={!canSubmit || saving}
-          className="btn-signature w-full flex items-center justify-center gap-2 text-xs font-semibold h-12 rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-        >
-          {saving
-            ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
-            : <><CheckCircle2 size={14} /> Save Adjustment</>
-          }
-        </button>
+          disabled={!canSubmit}
+          className="btn-signature w-full h-12 rounded-2xl"
+        />
 
       </div>
     </div>,

@@ -9,6 +9,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { ShoppingCart, History, Plus, ReceiptText, TrendingUp, Receipt, BarChart2, LayoutGrid } from 'lucide-react';
 import { generateRef, formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 import Button from '../../shared/Button';
+import SegmentedTabs from '../../components/motion/SegmentedTabs';
 import Modal from '../../shared/Modal';
 import InvoiceBuilder from './components/InvoiceBuilder';
 import InvoiceList from './components/InvoiceList';
@@ -350,34 +351,18 @@ const SalesPage = () => {
             )}
           </div>
         </div>
-        <div className="flex gap-1 bg-canvas p-1 rounded-pill shadow-inner">
-          {isResto && (
-            <button
-              onClick={() => { setActiveTable(null); setActiveTab('tables'); }}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-semibold transition-all ${
-                activeTab === 'tables' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <LayoutGrid size={13} /> Tables
-            </button>
-          )}
-          <button
-            onClick={() => setActiveTab('pos')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-semibold transition-all ${
-              activeTab === 'pos' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <ShoppingCart size={13} /> {isResto ? 'Order' : 'New Sale'}
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-semibold transition-all ${
-              activeTab === 'history' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <History size={13} /> History
-          </button>
-        </div>
+        <SegmentedTabs
+          value={activeTab}
+          onChange={(k) => { if (k === 'tables') setActiveTable(null); setActiveTab(k); }}
+          trackClass="bg-canvas shadow-inner"
+          indicatorClass="bg-accent-signature shadow-lg"
+          activeClass="text-button-text"
+          items={[
+            ...(isResto ? [{ key: 'tables', label: 'Tables', icon: LayoutGrid }] : []),
+            { key: 'pos', label: isResto ? 'Order' : 'New Sale', icon: ShoppingCart },
+            { key: 'history', label: 'History', icon: History },
+          ]}
+        />
       </div>
 
 <div>
@@ -438,15 +423,15 @@ const SalesPage = () => {
         ) : (
           <>
             {/* Sales / Returns sub-tabs */}
-            <div className="flex gap-1 mb-3">
-              {[['sales', 'Sales', sales.length], ['returns', 'Returns', salesReturns.length]].map(([k, label, n]) => (
-                <button key={k} onClick={() => setHistoryView(k)}
-                  className={`px-3.5 py-1.5 rounded-pill text-xs font-semibold transition-colors ${
-                    historyView === k ? 'bg-foreground text-background' : 'bg-canvas text-muted-foreground hover:text-foreground'
-                  }`}>
-                  {label}<span className={`ml-1.5 ${historyView === k ? 'opacity-60' : 'text-muted-foreground'}`}>{n}</span>
-                </button>
-              ))}
+            <div className="mb-3">
+              <SegmentedTabs
+                value={historyView}
+                onChange={setHistoryView}
+                trackClass="bg-canvas"
+                indicatorClass="bg-foreground"
+                activeClass="text-background"
+                items={[{ key: 'sales', label: `Sales ${sales.length}` }, { key: 'returns', label: `Returns ${salesReturns.length}` }]}
+              />
             </div>
             {historyView === 'sales' ? (
               <InvoiceList

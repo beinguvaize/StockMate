@@ -1,3 +1,5 @@
+import SaveButton, { useSaveStatus } from '../../../components/motion/SaveButton';
+import RollingNumber from '../../../components/motion/RollingNumber';
 import React, { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Trash2, CheckCircle2, Barcode, AlertCircle, Search, X, TrendingUp, TrendingDown, ArrowLeft } from 'lucide-react';
@@ -215,7 +217,7 @@ const emptyLine = () => ({
   barcodeStatus:     null, // null | 'found' | 'not_found'
 });
 
-const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [], onSave, loading, onCreateProduct }) => {
+const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [], onSave, loading, onCreateProduct, initialProductId = null }) => {
   const [header, setHeader] = useState({
     supplier_id:  '',
     location_id:  '',   // target warehouse
@@ -226,7 +228,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [
     notes:        '',
   });
 
-  const [lines, setLines] = useState([emptyLine()]);
+  const [lines, setLines] = useState(() => [initialProductId ? { ...emptyLine(), linked_product_id: initialProductId } : emptyLine()]);
 
   // Quick-create state
   const [quickCreate, setQuickCreate] = useState(null); // { lineKey, barcode }
@@ -382,8 +384,11 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [
     save(validLines(), priceUpdates);
   };
 
-  const save = (valid, priceUpdates) => {
-    onSave({
+  const saveState = useSaveStatus();
+  const save = async (valid, priceUpdates) => {
+    saveState.start();
+    let res;
+    try { res = await onSave({
       priceUpdates,
       header,
       items: valid.map(l => {
@@ -405,7 +410,9 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [
           expiry_date:       l.expiry_date || null,
         };
       }),
-    });
+    }); } catch (e) { saveState.fail(); throw e; }
+    // Mirrors the real outcome only: handleSaveMultiPurchase reports ok.
+    if (res && res.ok === false) saveState.fail(); else if (res && res.ok) saveState.ok(); else saveState.fail();
   };
 
   const inp = 'w-full bg-card border border-border shadow-sm rounded-lg p-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums';
@@ -682,23 +689,21 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Grand Total</span>
               <span className="text-lg font-semibold text-foreground tabular-nums">
-                ₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                <RollingNumber text={`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} />
               </span>
             </div>
           </div>
         </div>
 
         {/* Submit */}
-        <button
+        <SaveButton
           type="submit"
+          status={saveState.status}
+          idleLabel={`Save ${lines.filter(l => l.linked_product_id).length} Item${lines.filter(l => l.linked_product_id).length !== 1 ? 's' : ''}`}
+          icon={CheckCircle2}
           disabled={loading || !header.supplier_id || lines.every(l => !l.linked_product_id)}
-          className="w-full h-12 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold text-[10px] uppercase tracking-widest rounded-pill hover:bg-black transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98] disabled:active:scale-100 shadow-sm disabled:opacity-40"
-        >
-          {loading
-            ? <span className="animate-pulse">Saving…</span>
-            : <><CheckCircle2 size={14} /> Save {lines.filter(l => l.linked_product_id).length} Item{lines.filter(l => l.linked_product_id).length !== 1 ? 's' : ''}</>
-          }
-        </button>
+          className="w-full !h-12"
+        />
       </form>
 
       {priceFlags && (

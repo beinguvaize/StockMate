@@ -182,6 +182,10 @@
 
 /* expanded lines share the bill's grid; the rail sits in the chevron column */
 .breg .lines { padding: 0 0 10px; }
+.breg .lines.expand-in { display: grid; grid-template-rows: 1fr; animation: breg-expand 260ms var(--ease-out) both; }
+.breg .lines.expand-in > .inner { overflow: hidden; min-height: 0; animation: breg-expand-fade 200ms var(--ease-out) 80ms both; }
+@keyframes breg-expand { from { grid-template-rows: 0fr; } to { grid-template-rows: 1fr; } }
+@keyframes breg-expand-fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 .breg .line { min-height: 40px; padding: 4px 0; font-size: 12.5px; }
 .breg .line .rail, .breg .bfoot .rail { align-self: stretch; position: relative; }
 .breg .line .rail::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--b-rail); }

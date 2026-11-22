@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import CopyButton from '../../../components/motion/CopyButton';
 import { createPortal } from 'react-dom';
 import {
   Search, Calendar, ChevronDown, ChevronRight, MoreVertical, X, Download, ArrowUpDown,
@@ -644,7 +645,8 @@ function BillRow({ b, group, isOpen, isSel, onToggleOpen, onToggleSel, productBy
       </div>
 
       {isOpen && (
-        <div className="lines" role="rowgroup">
+        <div className="lines expand-in" role="rowgroup">
+         <div className="inner">
           {b.lines.map((l) => {
             const p = productById[l.linked_product_id] || {};
             const qty = Number(l.quantity) || 0;
@@ -677,13 +679,14 @@ function BillRow({ b, group, isOpen, isSel, onToggleOpen, onToggleSel, productBy
               <span>{b.tax > 0.005 ? <>{b.interstate ? 'IGST' : 'CGST + SGST'} <b>{money(b.tax)}</b></> : sup.gstin ? 'No GST on these items' : 'No GST claimed · supplier has no GSTIN'}</span>
               <span>{b.paid > 0.005 ? <>Paid <b>{money(b.paid)}</b>{b.paidVia ? ` by ${b.paidVia}` : ''}{b.paidOn ? ` on ${fmtDate(b.paidOn, { year: false })}` : ''}</> : 'Nothing paid yet'}</span>
               {b.due >= 0.5 && <span>Balance <b>{money(b.due)}</b> due {fmtDate(b.dueOn, { year: false })}</span>}
-              <span>{pv}</span>
+              <span>{pv}<CopyButton value={ref} label={`Copy ${ref}`} size={12} className="ml-1 align-middle" /></span>
             </div>
             <div className="go">
               {b.due >= 0.5 && b.state !== 'cancelled' && <button className="linkbtn" type="button" onClick={() => handlers.onPay?.(b)}>Record payment</button>}
               <button className="linkbtn" type="button" onClick={() => handlers.onVoucher?.(b)}>Open voucher</button>
             </div>
           </div>
+         </div>
         </div>
       )}
     </div>

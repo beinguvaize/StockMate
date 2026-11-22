@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Download, Upload, ShieldCheck, AlertTriangle, Database, Loader2, Undo2, CheckCircle2, Cloud } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import ProgressBar from '../components/motion/ProgressBar';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../context/TenantContext';
 import { useAuth } from '../context/AuthContext';
@@ -74,6 +75,7 @@ const BackupRestore = () => {
 
   const [busy, setBusy] = useState('');           // '' | 'backup' | 'restore' | 'undo'
   const [progress, setProgress] = useState('');
+  const [pct, setPct] = useState(0);              // real progress 0..1, from table / chunk counts
   const [check, setCheck] = useState(null);       // inspectBackup result + parsed
   const [confirmText, setConfirmText] = useState('');
   const [outcome, setOutcome] = useState(null);   // { kind: 'done'|'error', title, detail, rows? }
@@ -169,6 +171,7 @@ const BackupRestore = () => {
       for (const m of manifest) {
         done += 1;
         setProgress(`${m.table} (${done} of ${manifest.length})`);
+        setPct((done - 1) / manifest.length);
         const rows = [];
         // Paged by the server in primary-key order, so pages neither overlap
         // nor skip, and no single call approaches the time limit.
@@ -207,6 +210,7 @@ const BackupRestore = () => {
     } finally {
       setBusy('');
       setProgress('');
+      setPct(0);
     }
   };
 
@@ -255,6 +259,7 @@ const BackupRestore = () => {
           p_job_id: jobId, p_table: c.table, p_chunk_no: c.chunkNo, p_rows: c.rows,
         });
         if (error) throw error;
+        setPct((i + 1) / plan.length);
       }
 
       setProgress('Restoring — this replaces the shop in one step');
@@ -288,6 +293,7 @@ const BackupRestore = () => {
     } finally {
       setBusy('');
       setProgress('');
+      setPct(0);
     }
   };
 
@@ -383,6 +389,7 @@ const BackupRestore = () => {
                 ? <><Loader2 size={16} className="animate-spin" /> Saving {progress}…</>
                 : <><Download size={16} /> Download backup</>}
             </button>
+            {busy === 'backup' && <ProgressBar value={pct} label="Saving" />}
           </div>
         </div>
       </Card>
@@ -525,6 +532,7 @@ const BackupRestore = () => {
                             ? <><Loader2 size={16} className="animate-spin" /> {progress || 'Restoring'}…</>
                             : <><Upload size={16} /> Restore this backup</>}
                         </button>
+                        {busy === 'restore' && <ProgressBar value={pct} label={progress || 'Restoring'} />}
                       </div>
                     </div>
                   </>
