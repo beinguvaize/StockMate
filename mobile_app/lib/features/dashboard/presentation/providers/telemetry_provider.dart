@@ -6,6 +6,8 @@ import 'package:mobile_app/core/database/sync_status_pill.dart' show connectivit
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/main.dart' show databaseProvider;
 import 'package:mobile_app/core/utils/stock_levels.dart';
+import 'package:mobile_app/features/dashboard/presentation/dashboard_logic.dart'
+    show isCountableSale;
 
 class DayTotals {
   final DateTime date;
@@ -46,6 +48,14 @@ class DashboardMetrics {
   /// happened. Like against like, or the number is worse than no number.
   final double yesterdayToDate;
 
+  /// Today's day_book row exists. Without one `currentCashBalance` is a 0 that
+  /// means "unknown", not "empty drawer", so the screen must not print it.
+  final bool hasDayBook;
+
+  /// Entries behind today's expense and purchase totals, for the tile sub-lines.
+  final int expenseCount;
+  final int purchaseCount;
+
   final bool fromCache; // true = sourced from local DB
 
   DashboardMetrics({
@@ -62,6 +72,9 @@ class DashboardMetrics {
     this.todayBillCount = 0,
     this.hourlySales = const [],
     this.yesterdayToDate = 0,
+    this.hasDayBook = false,
+    this.expenseCount = 0,
+    this.purchaseCount = 0,
     this.fromCache = false,
   });
 
@@ -116,6 +129,45 @@ List<double> _bucketByHour(Iterable<(DateTime?, double)> rows) {
   return buckets;
 }
 
+/// Sales rows in a date window, with voided / cancelled / failed bills left
+/// out -- the server's hero total already excludes them, and a chart that
+/// counted them would disagree with the number printed above it.
+///
+/// Asks for status / voided_at / paymentStatus. If that select is refused the
+/// plain columns are used instead, so an older schema degrades to the previous
+/// behaviour rather than to an empty dashboard.
+Future<List<Map<String, dynamic>>> _countableSales(
+  String cols,
+  String tenantId,
+  String from, {
+  String? before,
+  String? through,
+}) async {
+  Future<List<Map<String, dynamic>>> run(String select) async {
+    var q = supabase
+        .from('sales')
+        .select(select)
+        .isFilter('deleted_at', null)
+        .eq('tenant_id', tenantId)
+        .gte('date', from);
+    if (before != null) q = q.lt('date', before);
+    if (through != null) q = q.lte('date', through);
+    return (await q as List).cast<Map<String, dynamic>>();
+  }
+
+  try {
+    final rows = await run('$cols, status, voided_at, paymentStatus');
+    return rows
+        .where((r) => isCountableSale(
+            voidedAt: r['voided_at'],
+            status: r['status']?.toString(),
+            paymentStatus: r['paymentStatus']?.toString()))
+        .toList();
+  } catch (_) {
+    return run(cols);
+  }
+}
+
 final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
   // Watch connectivity — re-runs automatically when online/offline changes
   final conn = ref.watch(connectivityProvider).asData?.value;
@@ -138,13 +190,16 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
       double cashBal = 0, outstandingSum = 0, salariesDebt = 0;
       int productsCount = 0, tripsCount = 0, lowStockCount = 0;
       int billCount = 0;
+      int expenseCount = 0, purchaseCount = 0;
+      bool hasDayBook = false;
       double yesterdaySoFar = 0;
       List<double> hourly = const [];
 
       try {
-        final salesData = await supabase
-            .from('sales').select('totalAmount, created_at').isFilter('deleted_at', null)
-            .eq('tenant_id', tenantId).gte('date', todayStr).lt('date', tomorrowStr);
+        final salesData = (await _countableSales(
+                'totalAmount, created_at', tenantId, todayStr,
+                before: tomorrowStr))
+            .toList();
         final rows = <(DateTime?, double)>[];
         for (var s in salesData) {
           final amount = double.tryParse(s['totalAmount']?.toString() ?? '0') ?? 0;
@@ -159,6 +214,7 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
         final expData = await supabase
             .from('expenses').select('amount').isFilter('deleted_at', null)
             .eq('tenant_id', tenantId).gte('date', todayStr).lt('date', tomorrowStr);
+        expenseCount = expData.length;
         for (var e in expData) {
           expensesSum += double.tryParse(e['amount']?.toString() ?? '0') ?? 0;
         }
@@ -168,6 +224,7 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
         final pchData = await supabase
             .from('purchases').select('total_amount').isFilter('deleted_at', null)
             .eq('tenant_id', tenantId).gte('date', todayStr).lt('date', tomorrowStr);
+        purchaseCount = pchData.length;
         for (var p in pchData) {
           purchasesSum += double.tryParse(p['total_amount']?.toString() ?? '0') ?? 0;
         }
@@ -177,6 +234,7 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
         final dbData = await supabase.from('day_book').select('closing_balance')
             .eq('tenant_id', tenantId).eq('date', todayStr).limit(1);
         if (dbData.isNotEmpty) {
+          hasDayBook = true;
           cashBal = double.tryParse(dbData[0]['closing_balance']?.toString() ?? '0') ?? 0;
         }
       } catch (_) {}
@@ -225,9 +283,9 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
       try {
         final y = today.subtract(const Duration(days: 1));
         final yStr = '${y.year}-${y.month.toString().padLeft(2, '0')}-${y.day.toString().padLeft(2, '0')}';
-        final yRows = await supabase
-            .from('sales').select('totalAmount, created_at').isFilter('deleted_at', null)
-            .eq('tenant_id', tenantId).gte('date', yStr).lt('date', todayStr);
+        final yRows = await _countableSales(
+            'totalAmount, created_at', tenantId, yStr,
+            before: todayStr);
         yesterdaySoFar = _takingsUpToNow(
           yRows.map((r) => (
             DateTime.tryParse(r['created_at']?.toString() ?? ''),
@@ -248,8 +306,8 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
         }
         final sevenAgo = today.subtract(const Duration(days: 6));
         final fromStr = '${sevenAgo.year}-${sevenAgo.month.toString().padLeft(2, '0')}-${sevenAgo.day.toString().padLeft(2, '0')}';
-        final rawRows = await supabase.from('sales').select('date, totalAmount').isFilter('deleted_at', null)
-            .eq('tenant_id', tenantId).gte('date', fromStr).lte('date', todayStr);
+        final rawRows = await _countableSales('date, totalAmount', tenantId, fromStr,
+            through: todayStr);
         for (final row in rawRows) {
           final key = row['date']?.toString() ?? '';
           if (byDate.containsKey(key)) {
@@ -278,6 +336,9 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
         todayBillCount: billCount,
         hourlySales: hourly,
         yesterdayToDate: yesterdaySoFar,
+        hasDayBook: hasDayBook,
+        expenseCount: expenseCount,
+        purchaseCount: purchaseCount,
         fromCache: false,
       );
     } catch (_) {
@@ -372,6 +433,7 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
       todayBillCount: todaySalesRows.length,
       hourlySales: hourly,
       yesterdayToDate: yesterdaySoFar,
+      expenseCount: todayExpRows.length,
       fromCache: true,
     );
   } catch (_) {
