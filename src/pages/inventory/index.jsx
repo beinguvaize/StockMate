@@ -237,7 +237,7 @@ const Inventory = () => {
       <div className="flex justify-between items-center gap-3 py-2 border-b border-border/60">
         <div className="min-w-0">
           <h1 className="text-base font-semibold text-foreground tracking-tight">Inventory</h1>
-          <p className="text-xs text-muted-foreground tabular-nums">{products.length} products · {kpis.uniqueCats} categories</p>
+          <p className="text-xs text-muted-foreground tabular-nums">{products.length} {products.length === 1 ? 'product' : 'products'} · {kpis.uniqueCats} {kpis.uniqueCats === 1 ? 'category' : 'categories'}</p>
         </div>
         <div className="flex gap-2 items-center">
           <div className="relative" ref={moreRef}>
