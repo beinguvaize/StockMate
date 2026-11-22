@@ -21,14 +21,17 @@ import 'package:mobile_app/widgets/motion/motion_curves.dart';
 const _tabular = <FontFeature>[];
 
 class SalesScreen extends ConsumerStatefulWidget {
-  const SalesScreen({super.key});
+  const SalesScreen({super.key, this.initialFilter = 0});
+
+  /// 0 = All, 1 = Credit, 2 = Failed (the dashboard deep-links into Failed).
+  final int initialFilter;
 
   @override
   ConsumerState<SalesScreen> createState() => _SalesScreenState();
 }
 
 class _SalesScreenState extends ConsumerState<SalesScreen> {
-  int _filterIndex = 0; // 0=All, 1=Credit, 2=Failed
+  late int _filterIndex = widget.initialFilter; // 0=All, 1=Credit, 2=Failed
   SalesPeriod _period = SalesPeriod.today;
   int _historyIndex = 0; // 0=Sales, 1=Returns
   int _limit = salesPageSize;
