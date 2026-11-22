@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>StockMate records the van's location when deliveries are completed, so the team can see where each vehicle was last active.</string>
+	<string>bookledger records the van's location when deliveries are completed, so the team can see where each vehicle was last active.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Mobile App</string>
+	<string>bookledger</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -17,7 +17,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>mobile_app</string>
+	<string>bookledger</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -69,7 +69,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Unlock LedgrPro with Face ID for fast, secure sign-in.</string>
+	<string>Unlock bookledger with Face ID for fast, secure sign-in.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Take a photo of a purchase bill to auto-fill purchase details.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

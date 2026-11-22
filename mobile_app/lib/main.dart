@@ -499,7 +499,7 @@ class _TrialExpiredScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Your free trial has ended. Please upgrade your plan to continue using LedgrPro.',
+                'Your free trial has ended. Please upgrade your plan to continue using bookledger.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.inkSecondary, fontSize: 14),
               ),
