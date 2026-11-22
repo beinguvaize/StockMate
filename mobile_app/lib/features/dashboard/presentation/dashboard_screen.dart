@@ -37,6 +37,8 @@ import 'package:mobile_app/features/sales/presentation/sale_type_sheet.dart';
 import 'package:mobile_app/features/sales/presentation/sales_screen.dart';
 import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
 import 'widgets/today_card.dart';
+import 'package:mobile_app/widgets/motion/motion_refresh.dart';
+import 'package:mobile_app/widgets/motion/stagger_in.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shell
@@ -589,10 +591,15 @@ class DashboardHome extends ConsumerStatefulWidget {
 class _DashboardHomeState extends ConsumerState<DashboardHome>
     with WidgetsBindingObserver {
   bool _revenueVisible = true;
+  bool _introPending = true; // item 13: first open of the day only
+  bool _playIntro = false;
 
   @override
   void initState() {
     super.initState();
+    claimFirstOpenToday().then((v) {
+      if (mounted) setState(() { _introPending = false; _playIntro = v; });
+    });
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -630,10 +637,10 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
       backgroundColor: AppColors.canvasWarm,
       body: SafeArea(
         top: false,
-        child: RefreshIndicator(
+        child: MotionRefresh(
           onRefresh: _refresh,
           child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.md, Gap.xl, 120),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -715,7 +722,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
               telemetryAsync.when(
                 data: (m) => Column(
                   children: [
-                    TodayCard(
+                    StaggerIn(pending: _introPending, play: _playIntro, index: 0, child: TodayCard(
                       amount: m.todaySales,
                       billCount: m.todayBillCount,
                       averageBill: m.averageBill,
@@ -725,7 +732,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       onToggleVisible: () =>
                           setState(() => _revenueVisible = !_revenueVisible),
                       onTap: () => widget.onTabSwitch('sales'),
-                    ),
+                    )),
                     const SizedBox(height: Gap.md),
                     // The day's three next moves, and exactly ONE of them
                     // filled. Peers stay neutral, which is what makes the
@@ -772,7 +779,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                     SectionHeading('The rest of today'),
                     const SizedBox(height: Gap.sm),
                     // Row 2: Expenses | Outstanding
-                    Row(
+                    StaggerIn(pending: _introPending, play: _playIntro, index: 1, child: Row(
                       children: [
                         Expanded(
                           child: _KpiCard(
@@ -794,10 +801,10 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                           ),
                         ),
                       ],
-                    ),
+                    )),
                     const SizedBox(height: 12),
                     // Row 3: Products | Low Stock
-                    Row(
+                    StaggerIn(pending: _introPending, play: _playIntro, index: 2, child: Row(
                       children: [
                         Expanded(
                           child: _KpiCard(
@@ -821,7 +828,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                           ),
                         ),
                       ],
-                    ),
+                    )),
                   ],
                 ),
                 // The skeleton has to be the shape of what arrives. This one
