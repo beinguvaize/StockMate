@@ -13,9 +13,28 @@ import 'dash_common.dart';
 /// top-right action the old dashboard had (opens the drawer).
 class DashboardHeader extends ConsumerWidget {
   final VoidCallback onMenu;
+  final VoidCallback? onBell;
   final bool showingSavedFigures;
   const DashboardHeader(
-      {super.key, required this.onMenu, this.showingSavedFigures = false});
+      {super.key,
+      required this.onMenu,
+      this.onBell,
+      this.showingSavedFigures = false});
+
+  Widget _round(IconData icon, VoidCallback? onTap, String label) => Semantics(
+        button: true,
+        label: label,
+        child: Tap(
+          onTap: onTap,
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+                color: DashColors.card, shape: BoxShape.circle),
+            child: Icon(icon, size: 20, color: DashColors.ink),
+          ),
+        ),
+      );
 
   static String _role(List<String> roles) {
     if (roles.contains('OWNER')) return 'Owner';
@@ -92,17 +111,11 @@ class DashboardHeader extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Tap(
-            onTap: onMenu,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                  color: DashColors.card, shape: BoxShape.circle),
-              child: const Icon(LucideIcons.user,
-                  size: 20, color: DashColors.ink),
-            ),
-          ),
+          if (onBell != null) ...[
+            _round(LucideIcons.bell, onBell, 'Notifications'),
+            const SizedBox(width: 8),
+          ],
+          _round(LucideIcons.menu, onMenu, 'Menu'),
         ],
       ),
     );

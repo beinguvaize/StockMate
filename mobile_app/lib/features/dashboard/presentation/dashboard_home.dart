@@ -20,6 +20,7 @@ import 'package:mobile_app/widgets/motion/motion_refresh.dart';
 import 'package:mobile_app/widgets/motion/stagger_in.dart';
 
 import 'dashboard_logic.dart';
+import 'dashboard_screen.dart' show showNotificationsSheet;
 import 'providers/telemetry_provider.dart';
 import 'widgets/attention_cards.dart';
 import 'widgets/dash_common.dart';
@@ -209,6 +210,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                   // `context` here is above this screen's own Scaffold, so this
                   // opens the shell's drawer, as the old avatar button did.
                   onMenu: () => Scaffold.of(context).openDrawer(),
+                  onBell: () => showNotificationsSheet(context),
                   showingSavedFigures: m?.fromCache == true,
                 )),
                 if (ctx != null &&

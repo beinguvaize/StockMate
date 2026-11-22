@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'widgets/dash_common.dart' show DashColors;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -137,10 +138,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: Column(
         children: [
           // ── Global app bar ────────────────────────────────────────
-          _GlobalAppBar(
-            title: tabs.isEmpty ? '' : tabs[selIdx].label,
-            onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
-          ),
+          // The Dashboard draws its own header (logo, shop, menu, bell), so
+          // the shell bar would only repeat it. Keep the status-bar inset.
+          if (currentFeature == 'dashboard')
+            Container(
+              color: DashColors.bg,
+              child: const SafeArea(bottom: false, child: SizedBox(height: 4)),
+            )
+          else
+            _GlobalAppBar(
+              title: tabs.isEmpty ? '' : tabs[selIdx].label,
+              onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
+            ),
 
           // ── Tab content ───────────────────────────────────────────
           Expanded(
@@ -238,6 +247,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 // Global App Bar
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// The notifications sheet, shared by the shell bar and the Dashboard header.
+void showNotificationsSheet(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (_) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(LucideIcons.bell, size: 40, color: AppColors.inkTertiary),
+          const SizedBox(height: 16),
+          Text(
+            'No new notifications',
+            style: AppText.bodyStrong.copyWith(color: AppColors.inkSecondary),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _GlobalAppBar extends StatelessWidget {
   final VoidCallback onMenuTap;
   final String title;
@@ -279,27 +313,7 @@ class _GlobalAppBar extends StatelessWidget {
               const SyncStatusPill(),
               AppTappable(
                 ripple: false,
-                onTap: () => showModalBottomSheet(
-                  context: context,
-                  backgroundColor: Colors.white,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                  ),
-                  builder: (_) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(LucideIcons.bell, size: 40, color: AppColors.inkTertiary),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No new notifications',
-                          style: AppText.bodyStrong.copyWith(color: AppColors.inkSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                onTap: () => showNotificationsSheet(context),
                 child: const SizedBox(
                   width: 52,
                   height: 52,
