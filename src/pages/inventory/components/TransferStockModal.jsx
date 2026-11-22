@@ -109,7 +109,7 @@ export default function TransferStockModal({
 
   /* ── Not enough places to move anything between ── */
   if (locations.length < 2) return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
+    <div className="fixed inset-0 z-50 flex flex-col bg-canvas dialog-pop">
       <Header title="Transfer Stock" onClose={onClose} />
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="text-center space-y-3 max-w-sm">
@@ -130,7 +130,7 @@ export default function TransferStockModal({
 
   /* ── Done ── */
   if (done) return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
+    <div className="fixed inset-0 z-50 flex flex-col bg-canvas dialog-pop">
       <Header title="Transfer Stock" onClose={onClose} />
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="text-center space-y-5 max-w-sm w-full">
@@ -161,7 +161,7 @@ export default function TransferStockModal({
 
   /* ── Main form ── */
   return createPortal(
-    <div data-testid="transfer-modal" className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
+    <div data-testid="transfer-modal" className="fixed inset-0 z-50 flex flex-col bg-canvas dialog-pop">
       <Header title="Transfer Stock" subtitle="Move stock between your locations" onClose={onClose} />
 
       <div className="flex-1 overflow-y-auto">
@@ -169,7 +169,7 @@ export default function TransferStockModal({
 
           {/* ── From / To ── */}
           <div>
-            <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-3">
+            <label className="text-[11px] font-semibold text-muted-foreground block mb-3">
               Route
             </label>
             <div className="flex items-stretch gap-2">
@@ -195,7 +195,7 @@ export default function TransferStockModal({
               />
             </div>
             {samePlace && (
-              <p className="text-[10px] text-rose-500 font-semibold mt-2 flex items-center gap-1">
+              <p className="text-[11px] text-rose-500 font-semibold mt-2 flex items-center gap-1">
                 <AlertCircle size={11} /> Pick two different places — stock cannot move to where it already is
               </p>
             )}
@@ -204,10 +204,10 @@ export default function TransferStockModal({
           {/* ── Product ── */}
           <div>
             <div className="flex items-baseline justify-between mb-2 gap-2">
-              <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <label className="text-[11px] font-semibold text-muted-foreground">
                 Product
               </label>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[11px] text-muted-foreground">
                 in stock at {locName(fromId)}
               </span>
             </div>
@@ -216,7 +216,7 @@ export default function TransferStockModal({
               <div className="flex items-center gap-3 px-4 py-3 bg-card border border-border shadow-sm rounded-2xl">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-foreground truncate">{product.name}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
                     {product.sku || '—'} · {available} {unit} at {locName(fromId)}
                     {toId && !samePlace && <> · {destHas} {unit} at {locName(toId)}</>}
                   </p>
@@ -256,7 +256,7 @@ export default function TransferStockModal({
                     >
                       <span className="min-w-0 flex-1">
                         <span className="block text-[13px] font-semibold text-foreground truncate">{p.name}</span>
-                        <span className="block text-[10px] text-muted-foreground">{p.sku || '—'}</span>
+                        <span className="block text-[11px] text-muted-foreground">{p.sku || '—'}</span>
                       </span>
                       <span className="shrink-0 text-[11px] font-semibold tabular-nums text-foreground">
                         {at(fromId, p.id)} <span className="font-normal text-muted-foreground">{p.unit || 'pcs'}</span>
@@ -272,12 +272,12 @@ export default function TransferStockModal({
           {product && (
             <div>
               <div className="flex items-baseline justify-between mb-2 gap-2">
-                <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <label className="text-[11px] font-semibold text-muted-foreground">
                   Quantity to move
                 </label>
                 <button
                   onClick={() => setQty(String(available))}
-                  className="text-[10px] font-semibold text-accent-signature hover:underline"
+                  className="text-[11px] font-semibold text-accent-signature hover:underline"
                 >
                   Move all {available}
                 </button>
@@ -294,7 +294,7 @@ export default function TransferStockModal({
                 className="w-full text-center text-2xl font-semibold bg-card border border-border shadow-sm rounded-2xl py-3 outline-none focus:ring-2 focus:ring-accent-signature/25 transition-all tabular-nums"
               />
               {overDraw && (
-                <p className="text-[10px] text-rose-500 font-semibold mt-2 flex items-center gap-1">
+                <p className="text-[11px] text-rose-500 font-semibold mt-2 flex items-center gap-1">
                   <AlertCircle size={11} /> Only {available} {unit} at {locName(fromId)}
                 </p>
               )}
@@ -304,7 +304,7 @@ export default function TransferStockModal({
               {qtyNum > 0 && !overDraw && !samePlace && (
                 <div className="flex items-center gap-3 px-4 py-3.5 mt-3 bg-card border border-border shadow-sm rounded-2xl">
                   <div className="flex-1 text-center min-w-0">
-                    <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest mb-0.5 truncate">{locName(fromId)}</p>
+                    <p className="text-[9px] text-muted-foreground font-semibold mb-0.5 truncate">{locName(fromId)}</p>
                     <p className="text-lg font-semibold text-foreground tabular-nums">{available} → {available - qtyNum}</p>
                     <p className="text-[9px] text-muted-foreground font-medium">{unit}</p>
                   </div>
@@ -315,7 +315,7 @@ export default function TransferStockModal({
                     <ArrowRight size={14} className="text-muted-foreground" />
                   </div>
                   <div className="flex-1 text-center min-w-0">
-                    <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest mb-0.5 truncate">{locName(toId)}</p>
+                    <p className="text-[9px] text-muted-foreground font-semibold mb-0.5 truncate">{locName(toId)}</p>
                     <p className="text-lg font-semibold text-foreground tabular-nums">{destHas} → {destHas + qtyNum}</p>
                     <p className="text-[9px] text-muted-foreground font-medium">{unit}</p>
                   </div>
@@ -327,7 +327,7 @@ export default function TransferStockModal({
           {/* ── Note ── */}
           {product && (
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-2">
+              <label className="text-[11px] font-semibold text-muted-foreground block mb-2">
                 Note <span className="font-medium normal-case tracking-normal text-muted-foreground">· shown on both stock movements</span>
               </label>
               <input
@@ -360,7 +360,7 @@ export default function TransferStockModal({
                 </p>
               )}
               {!problem.refused && (
-                <p className="text-[10px] text-rose-700/80 mt-1.5">
+                <p className="text-[11px] text-rose-700/80 mt-1.5">
                   Nothing was moved. Check the stock at both places before trying again.
                 </p>
               )}
@@ -395,7 +395,7 @@ function Header({ title, subtitle, onClose }) {
       <div className="min-w-0">
         <h1 className="text-lg font-semibold text-foreground leading-tight">{title}</h1>
         {subtitle && (
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mt-0.5">{subtitle}</p>
+          <p className="text-[11px] font-semibold text-muted-foreground mt-0.5">{subtitle}</p>
         )}
       </div>
       <button onClick={onClose} className="ml-auto w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-muted-foreground shrink-0">
@@ -410,7 +410,7 @@ function LocationPicker({ label, value, locations, onChange, invalid }) {
   const Icon = LOCATION_ICON[current?.type] || Warehouse;
   return (
     <div className="flex-1 min-w-0">
-      <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground mb-1 px-1">{label}</p>
+      <p className="text-[9px] font-semibold text-muted-foreground mb-1 px-1">{label}</p>
       <div className={`flex items-center gap-2 bg-card border shadow-sm rounded-2xl px-3 ${
         invalid ? 'border-rose-300' : 'border-border'
       }`}>

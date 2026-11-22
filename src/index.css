@@ -1492,3 +1492,16 @@ body {
   .first-open, .roll-digit, .field-blur-in { animation: none; }
   .hold-btn[data-holding="true"] .hold-fill { transition-duration: 1500ms; }
 }
+
+/* Inventory side panel: 400ms drawer curve, backdrop fades. Closing slides back. */
+.drawer-panel { animation: drawerIn 400ms var(--ease-drawer) both; }
+.drawer-panel[data-closing="true"] { animation: drawerOut 300ms var(--ease-drawer) both; }
+.drawer-backdrop { animation: backdropIn 300ms var(--ease-out) both; }
+.drawer-backdrop[data-closing="true"] { animation: backdropOut 300ms var(--ease-out) both; }
+@keyframes drawerIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes drawerOut { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes backdropOut { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .drawer-panel, .drawer-backdrop, .dialog-pop { animation: none; }
+}

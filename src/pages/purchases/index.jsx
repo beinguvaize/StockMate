@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
@@ -35,6 +36,24 @@ const PurchasesPage = () => {
 
   const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' | 'returns'
   const [showAddModal, setShowAddModal] = useState(false);
+  // Inventory side panel "Reorder" lands here as ?reorder=<productId>: open the
+  // new-purchase form with that product on its first line, then drop the param.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [reorderId, setReorderId] = useState(null);
+  useEffect(() => {
+    const id = searchParams.get('reorder');
+    if (!id) return;
+    setReorderId(id);
+    setShowAddModal(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('reorder');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+  const wasOpen = React.useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !showAddModal) setReorderId(null);
+    wasOpen.current = showAddModal;
+  }, [showAddModal]);
   const [editBillTarget, setEditBillTarget] = useState(null); // whole bill being edited
   const [billSaving, setBillSaving] = useState(false);
   const [paymentsTarget, setPaymentsTarget] = useState(null); // bill whose payments are open
@@ -698,7 +717,7 @@ const PurchasesPage = () => {
       </Modal>
 
       {/* Add Purchase Modal — multi-line */}
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Purchase" subtitle="One supplier · multiple products · single submit">
+      <Modal isOpen={showAddModal} onClose={() => { setShowAddModal(false); setReorderId(null); }} title="Add Purchase" subtitle="One supplier · multiple products · single submit">
         <MultiPurchaseForm
           products={products}
           suppliers={suppliers}
@@ -707,6 +726,7 @@ const PurchasesPage = () => {
           onSave={handleSaveMultiPurchase}
           loading={addLoading}
           onCreateProduct={handleCreateProduct}
+          initialProductId={reorderId}
         />
       </Modal>
 

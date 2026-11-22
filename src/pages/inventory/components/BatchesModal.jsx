@@ -51,22 +51,22 @@ const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
       {/* Summary strip */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="p-4 rounded-xl bg-card border border-border shadow-sm">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
+          <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground mb-1">
             <Layers size={12} /> Open Batches
           </div>
           <div className="text-2xl font-semibold tabular-nums">{openBatches.length}</div>
         </div>
         <div className="p-4 rounded-xl bg-card border border-border shadow-sm">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
+          <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground mb-1">
             <Package size={12} /> Total Qty
           </div>
           <div className="text-2xl font-semibold tabular-nums">
             {totalOpenQty.toFixed(2)}
-            <span className="text-[10px] font-semibold opacity-40 ml-1">{product?.unit || 'pcs'}</span>
+            <span className="text-[11px] font-semibold opacity-40 ml-1">{product?.unit || 'pcs'}</span>
           </div>
         </div>
         <div className="p-4 rounded-xl bg-card border border-border shadow-sm">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
+          <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground mb-1">
             <TrendingUp size={12} /> Wtd Avg Cost
           </div>
           <div className="text-2xl font-semibold tabular-nums">
@@ -80,7 +80,7 @@ const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
         <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700">
           <AlertTriangle size={16} className="shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide">Selling Below Cost — Loss Risk</p>
+            <p className="text-xs font-semibold">Selling below Cost — loss risk</p>
             <p className="text-xs font-semibold mt-0.5 opacity-80">
               {lossRiskBatches.length} batch{lossRiskBatches.length > 1 ? 'es' : ''} with unit cost above sell price ({currencySymbol}{sellPrice.toFixed(2)}).
               On FIFO, these units are consumed first — every sale generates a loss.
@@ -101,7 +101,7 @@ const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold border-b border-border/60">
+              <tr className="text-[11px] text-muted-foreground font-semibold border-b border-border/60">
                 <th className="text-left py-2 px-2">Received</th>
                 <th className="text-right py-2 px-2">Unit Cost</th>
                 <th className="text-right py-2 px-2">Received Qty</th>
@@ -138,11 +138,11 @@ const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
                     </td>
                     <td className="py-3 px-2 text-center">
                       {depleted ? (
-                        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Depleted</span>
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Depleted</span>
                       ) : pct < 25 ? (
-                        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent-signature/15 text-accent-signature-hover">Low</span>
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-accent-signature/15 text-accent-signature-hover">Low</span>
                       ) : (
-                        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Open</span>
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Open</span>
                       )}
                     </td>
                   </tr>

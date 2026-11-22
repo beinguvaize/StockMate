@@ -41,7 +41,9 @@ const modal = (page) => page.getByTestId('transfer-modal');
 
 async function openTransfer(page) {
   await gotoInventory(page);
-  await page.getByRole('button', { name: /transfer/i }).click();
+  // Transfer stock now lives in the page's More menu.
+  await page.getByRole('button', { name: /^more/i }).click();
+  await page.getByRole('menuitem', { name: /transfer stock/i }).click();
   await expect(modal(page)).toBeVisible();
 }
 

@@ -3,9 +3,9 @@ import { isService } from '../../../lib/productTypes';
 import { useDialogClose } from '../../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import {
-  ArrowLeft, ScanLine, SlidersHorizontal, Pencil, Trash2,
-  FileText, Boxes, Users, Warehouse, Tags, Search, Plus,
+  ScanLine, SlidersHorizontal, Pencil, Trash2, X, ChevronUp, ChevronDown,
 } from 'lucide-react';
+import SegmentedTabs from '../../../components/motion/SegmentedTabs';
 import { supabase } from '../../../lib/supabase';
 import { formatCurrency } from '../../../lib/utils';
 
@@ -16,11 +16,10 @@ import { formatCurrency } from '../../../lib/utils';
  * Batches / sales / clients / party-prices are fetched on open.
  */
 const TABS = [
-  { id: 'DETAILS', label: 'Item Details', icon: FileText },
-  { id: 'STOCK',   label: 'Stock Details', icon: Boxes },
-  { id: 'PARTY',   label: 'Client Wise Report', icon: Users },
-  { id: 'GODOWN',  label: 'Godown', icon: Warehouse },
-  { id: 'PRICES',  label: 'Client Wise Prices', icon: Tags },
+  { key: 'OVERVIEW', label: 'Overview' },
+  { key: 'BATCHES',  label: 'Batches' },
+  { key: 'CLIENTS',  label: 'Clients' },
+  { key: 'PRICES',   label: 'Prices' },
 ];
 
 // Where a batch came from when no supplier is linked (hand-added stock, or a
@@ -34,12 +33,10 @@ const batchSource = (b) => {
 
 const ItemDetailView = ({
   product, locations = [], balances = [], tenantId,
-  onClose, onEdit, onAdjust, onPrintBarcode, onDelete, currencySymbol = '₹',
-  items = [], onSelect, onCreate,
+  onClose, onEdit, onAdjust, onPrintBarcode, onDelete, onReorder, currencySymbol = '₹',
+  items = [], onSelect,
 }) => {
-  useDialogClose(onClose); // only mounted while a product is being viewed
-  const [tab, setTab] = useState('DETAILS');
-  const [listSearch, setListSearch] = useState('');
+  const [tab, setTab] = useState('OVERVIEW');
   const detailRef = React.useRef(null);
   const [batches, setBatches] = useState([]);
   const [movements, setMovements] = useState([]);
@@ -54,7 +51,7 @@ const ItemDetailView = ({
   // Picking a different item should show its details from the top — reset the
   // detail panel scroll (and tab) on selection change.
   useEffect(() => {
-    setTab('DETAILS');
+    setTab('OVERVIEW');
     if (detailRef.current) detailRef.current.scrollTop = 0;
   }, [pid]);
 
@@ -151,242 +148,225 @@ const ItemDetailView = ({
   const svc = isService(product);
   const inStock = totalStock > 0;
 
-  const Field = ({ label, value, accent, hint }) => (
-    <div className="rounded-xl border border-border/60 bg-card p-3.5">
-      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
-      <div className={`text-sm font-semibold mt-1 ${accent || 'text-foreground'}`}>{value}</div>
-      {hint && <div className="text-[10px] mt-1 text-amber-600 font-medium">{hint}</div>}
+  const [closing, setClosing] = useState(false);
+  const closeTimer = React.useRef(null);
+  const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
+  // Slide out first, then unmount; reduced motion closes at once.
+  const requestClose = () => {
+    if (closing) return;
+    if (reduced) { onClose?.(); return; }
+    setClosing(true);
+    closeTimer.current = setTimeout(() => onClose?.(), 300);
+  };
+  useDialogClose(requestClose);
+  const panelRef = React.useRef(null);
+  useEffect(() => { panelRef.current?.focus(); }, []);
+  // Keep Tab inside the panel while it is open.
+  const trapTab = (e) => {
+    if (e.key !== 'Tab') return;
+    const f = panelRef.current?.querySelectorAll('button:not([disabled]), a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (!f || !f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && (document.activeElement === first || document.activeElement === panelRef.current)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+
+  const idx = (items || []).findIndex(it => it.id === pid);
+  const prevItem = idx > 0 ? items[idx - 1] : null;
+  const nextItem = idx >= 0 && idx < items.length - 1 ? items[idx + 1] : null;
+  const lastBuyCost = batches.length ? Number(batches[0].unit_cost) : null;
+  const unit = product?.unit || '';
+  const money = (n) => formatCurrency(n, currencySymbol);
+
+  const Stat = ({ label, value, cls = 'text-foreground', hint }) => (
+    <div>
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className={`text-sm font-semibold tabular-nums mt-0.5 ${cls}`}>{value}</div>
+      {hint && <div className="text-[11px] text-amber-600 mt-0.5">{hint}</div>}
     </div>
   );
-
-  const filteredItems = (items || []).filter(it => {
-    const q = listSearch.toLowerCase().trim();
-    if (!q) return true;
-    return (it.name || '').toLowerCase().includes(q) ||
-      (it.sku || '').toLowerCase().includes(q) ||
-      (it.barcode || '').toLowerCase().includes(q);
-  });
+  const Row = ({ label, value }) => (
+    <div className="flex justify-between gap-3 py-2 border-b border-border/50 last:border-0 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground tabular-nums text-right break-all">{value}</span>
+    </div>
+  );
+  const outline = 'inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-pill border border-border text-xs font-semibold text-foreground hover:bg-black/[0.03] transition-colors active:scale-[0.97]';
 
   // Portal to <body>: AppLayout's <main> animates with a transform, which would
-  // otherwise trap this `fixed inset-0` overlay inside <main> (below the sticky
-  // navbar) and clip it to blank. z-[200] keeps it above the navbar (z-50).
+  // otherwise trap this `fixed inset-0` overlay inside <main>. z-[200] keeps it
+  // above the navbar (z-50).
   return createPortal((
-    <div className="fixed inset-0 z-[200] bg-canvas flex">
-      {/* Master list */}
-      <aside className="w-72 shrink-0 border-r border-border/60 bg-card flex flex-col">
-        <div className="p-3 border-b border-black/[0.05] space-y-2">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input value={listSearch} onChange={e => setListSearch(e.target.value)}
-              placeholder="Search item"
-              className="w-full bg-canvas border border-border/60 rounded-lg pl-9 pr-3 py-2 text-xs font-semibold outline-none focus:border-black/20" />
-          </div>
-          {onCreate && (
-            <button onClick={onCreate}
-              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-pill border border-dashed border-accent-signature/50 text-accent-signature text-xs font-semibold hover:bg-accent-signature/5 transition-colors">
-              <Plus size={14} /> Create Item
-            </button>
-          )}
-        </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-          {filteredItems.map(it => (
-            <button key={it.id} onClick={() => onSelect?.(it)}
-              className={`w-full text-left rounded-pill border p-3 transition-colors ${
-                it.id === pid ? 'border-accent-signature bg-accent-signature/5' : 'border-border/60 hover:border-black/15 bg-card'
-              }`}>
-              <div className="text-[13px] font-semibold text-foreground truncate">{it.name}</div>
-              <div className="text-[10px] tabular-nums text-muted-foreground mt-0.5 uppercase">{it.sku || it.barcode || ''}</div>
-            </button>
-          ))}
-          {filteredItems.length === 0 && (
-            <div className="px-3 py-8 text-center text-[11px] text-muted-foreground font-semibold">No items</div>
-          )}
-        </div>
-      </aside>
-
-      {/* Detail panel */}
-      <div ref={detailRef} className="flex-1 overflow-y-auto">
-      <div className="max-w-4xl mx-auto p-4 md:p-6">
+    <div className="fixed inset-0 z-[200]" onKeyDown={trapTab}>
+      <div className="drawer-backdrop absolute inset-0 bg-black/30" data-closing={closing} onClick={requestClose} aria-hidden="true" />
+      <aside ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={product?.name || 'Product'} data-closing={closing}
+        className="drawer-panel absolute right-0 top-0 bottom-0 w-full sm:w-[420px] bg-card border-l border-border/60 flex flex-col outline-none">
         {/* Header */}
-        <div className="flex flex-wrap items-center gap-3 mb-5">
-          <button onClick={onClose} className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:bg-card transition-colors">
-            <ArrowLeft size={16} />
-          </button>
-          <h1 className="text-[20px] font-semibold text-foreground">{product?.name}</h1>
-          <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${svc ? 'bg-violet-50 text-violet-600' : inStock ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-            {svc ? 'Service' : inStock ? 'In Stock' : 'Out of Stock'}
-          </span>
-          <div className="flex items-center gap-2 ml-auto">
-            <button onClick={() => onPrintBarcode?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
-              <ScanLine size={14} /> Print Barcode
-            </button>
-            {onAdjust && (
-              <button onClick={() => onAdjust(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
-                <SlidersHorizontal size={14} /> Adjust Stock
-              </button>
-            )}
-            <button onClick={() => onEdit?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-xs font-semibold text-ink-secondary hover:bg-card transition-colors">
-              <Pencil size={14} /> Edit
-            </button>
-            <button onClick={() => onDelete?.(product)} className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors">
-              <Trash2 size={14} />
-            </button>
+        <div className="flex items-start gap-3 px-5 pt-5 pb-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[17px] font-semibold text-foreground leading-snug break-words">{product?.name}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">{[itemCode !== '—' ? itemCode : null, product?.category].filter(Boolean).join(' · ') || '—'}</p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {(prevItem || nextItem) && (<>
+              <button onClick={() => prevItem && onSelect?.(prevItem)} disabled={!prevItem} aria-label="Previous product"
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/[0.04] disabled:opacity-30"><ChevronUp size={16} /></button>
+              <button onClick={() => nextItem && onSelect?.(nextItem)} disabled={!nextItem} aria-label="Next product"
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/[0.04] disabled:opacity-30"><ChevronDown size={16} /></button>
+            </>)}
+            <button onClick={requestClose} aria-label="Close"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-black/[0.04]"><X size={16} /></button>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 border-b border-border/60 mb-5 overflow-x-auto">
-          {TABS.map(t => {
-            const Icon = t.icon;
-            return (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`inline-flex items-center gap-2 px-3.5 py-2.5 text-[13px] font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors ${
-                  tab === t.id ? 'border-accent-signature text-accent-signature' : 'border-transparent text-muted-foreground hover:text-foreground'
-                }`}>
-                <Icon size={15} /> {t.label}
-              </button>
-            );
-          })}
+        <div className="px-5">
+          <SegmentedTabs className="w-full" items={TABS} value={tab} onChange={setTab}
+            indicatorClass="bg-card shadow-sm" />
         </div>
 
-        {/* Item Details */}
-        {tab === 'DETAILS' && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <Field label="Item Name" value={product?.name || '—'} />
-            <Field label="Item Code" value={itemCode} />
-            <Field label="Category" value={product?.category || '—'} />
-            {!svc && <Field label="Stock Quantity" value={`${totalStock} ${product?.unit || ''}`} accent={inStock ? 'text-emerald-600' : 'text-red-600'} />}
-            <Field label="Purchase Price" value={formatCurrency(cost, currencySymbol)} />
-            <Field label="Selling Price" value={formatCurrency(sell, currencySymbol)} />
-            <Field label="Margin" value={`${margin.toFixed(1)}%`} accent={margin >= 0 ? 'text-emerald-600' : 'text-red-600'} />
-            <Field label="GST %" value={`${product?.taxRate ?? 0}%`} />
-            <Field label="HSN Code" value={product?.hsn_code || product?.hsn || '—'} />
-            <Field label="Barcode" value={product?.barcode || '—'} />
-            <Field label="Unit" value={product?.unit || '—'} />
-            {!svc && <Field label="Low-Stock Alert" value={`${lowThreshold} ${product?.unit || ''}`} />}
-            <Field label="Serialized" value={product?.track_serial ? 'Yes (IMEI/Serial)' : 'No'} />
-          </div>
-        )}
+        <div ref={detailRef} className="flex-1 overflow-y-auto px-5 py-4">
+          {tab === 'OVERVIEW' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+                {!svc && <Stat label="In stock" value={`${totalStock} ${unit}`} cls={inStock ? 'text-foreground' : 'text-red-600'} />}
+                {!svc && <Stat label="Reorder at" value={`${lowThreshold} ${unit}`} />}
+                <Stat label="Avg cost" value={money(cost)} />
+                <Stat label="Last buy" value={lastBuyCost == null ? '—' : money(lastBuyCost)}
+                  cls={lastBuyCost == null || Math.abs(lastBuyCost - cost) <= 0.5 ? 'text-foreground' : lastBuyCost > cost ? 'text-red-600' : 'text-emerald-600'} />
+                <Stat label="Sell" value={money(sell)} />
+                <Stat label="Margin" value={`${margin.toFixed(1)}%`} cls={margin < 5 ? 'text-red-600' : margin < 15 ? 'text-amber-600' : 'text-foreground'} />
+                {!svc && <Stat label="Stock value at cost" value={money(stockValue.value)}
+                  hint={stockValue.uncosted > 0 ? `${stockValue.uncosted} ${unit} not in any batch, valued at average cost` : null} />}
+              </div>
 
-        {/* Stock Details */}
-        {tab === 'STOCK' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {!svc && <Field label="Total Stock" value={`${totalStock} ${product?.unit || ''}`} accent={inStock ? 'text-emerald-600' : 'text-red-600'} />}
-              <Field label="Stock Value (cost)" value={formatCurrency(stockValue.value, currencySymbol)}
-                hint={stockValue.uncosted > 0
-                  ? `${stockValue.uncosted} ${product?.unit || ''} not in any batch — valued at average cost`
-                  : null} />
-              <Field label="Batches" value={batches.length} />
-              {!svc && <Field label="Low-Stock Alert" value={lowThreshold} />}
+              {!svc && byGodown.length > 0 && (
+                <section>
+                  <h3 className="text-xs font-semibold text-foreground mb-1">Stock by location</h3>
+                  {byGodown.map((g, i) => <Row key={i} label={g.name} value={`${g.qty} ${unit}`} />)}
+                </section>
+              )}
+
+              {!svc && (
+                <section>
+                  <h3 className="text-xs font-semibold text-foreground mb-1">Recent movements</h3>
+                  {loading ? <p className="text-xs text-muted-foreground py-3">Loading…</p>
+                    : movements.length === 0 ? <p className="text-xs text-muted-foreground py-3">No movements yet</p>
+                    : movements.slice(0, 8).map(m => {
+                      const isIn = String(m.type).toUpperCase() === 'IN';
+                      return (
+                        <div key={m.id} className="flex items-baseline gap-3 py-2 border-b border-border/50 last:border-0 text-xs">
+                          <span className="text-muted-foreground tabular-nums shrink-0">{m.date ? String(m.date).slice(0, 10) : '—'}</span>
+                          <span className="flex-1 min-w-0 truncate text-foreground">{m.reason || (isIn ? 'Stock in' : 'Stock out')}</span>
+                          <span className={`font-semibold tabular-nums ${isIn ? 'text-emerald-600' : 'text-red-500'}`}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</span>
+                        </div>
+                      );
+                    })}
+                </section>
+              )}
+
+              <section>
+                <h3 className="text-xs font-semibold text-foreground mb-1">Details</h3>
+                <Row label="GST" value={`${product?.taxRate ?? 0}%`} />
+                <Row label="HSN code" value={product?.hsn_code || product?.hsn || '—'} />
+                <Row label="Barcode" value={product?.barcode || '—'} />
+                <Row label="Unit" value={product?.unit || '—'} />
+                <Row label="Serialized" value={product?.track_serial ? 'Yes (IMEI/serial)' : 'No'} />
+              </section>
             </div>
-            <Card title="Batches">
+          )}
+
+          {tab === 'BATCHES' && (
+            <div>
               {loading ? <Empty text="Loading…" /> : batches.length === 0 ? <Empty text="No batch records" /> : (
-                <Tbl head={['Received', 'Source', 'Expiry', 'Received Qty', 'Remaining', 'Unit Cost']}
+                <Tbl head={['Received', 'Source', 'Remaining', 'Unit cost']}
                   rows={batches.map(b => [
                     b.received_date || '—',
-                    // Not every batch comes from a supplier — stock added by
-                    // hand, or by a cost reconciliation, has no supplier_id and
-                    // rendered a bare "—" with no way to tell where it came
-                    // from. Fall back to the batch note.
-                    suppliers[b.supplier_id] || batchSource(b), b.expiry_date || '—',
-                    b.qty_received ?? '—', b.qty_remaining ?? 0, formatCurrency(b.unit_cost, currencySymbol),
+                    // Stock added by hand or by a cost reconciliation has no
+                    // supplier_id; fall back to the batch note.
+                    suppliers[b.supplier_id] || batchSource(b),
+                    `${b.qty_remaining ?? 0}/${b.qty_received ?? '—'}`, money(b.unit_cost),
                   ])} />
               )}
-            </Card>
+              {/* Manual adjustments only: anything NOT written by an automated flow. */}
+              {(() => {
+                const SYSTEM_REASON = /^(sale|purchase|van |loaded on vehicle|dispatch to vehicle|void sale|unvoid sale)/i;
+                const manual = movements.filter(m => { const r = (m.reason || '').trim(); return r !== '' && !SYSTEM_REASON.test(r); });
+                return (
+                  <>
+                    <h3 className="text-xs font-semibold text-foreground mt-6 mb-1">Manual adjustments</h3>
+                    {loading ? <Empty text="Loading…" /> : manual.length === 0 ? <Empty text="No manual adjustments" /> : (
+                      <Tbl head={['Date', 'Reason', 'Qty']}
+                        rows={manual.map(m => {
+                          const isIn = String(m.type).toUpperCase() === 'IN';
+                          return [
+                            m.date ? String(m.date).slice(0, 10) : '—', m.reason || '—',
+                            <span key="q" className={isIn ? 'text-emerald-600' : 'text-red-500'}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</span>,
+                          ];
+                        })} />
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
 
-            {/* Manual adjustments only — hand corrections to stock. */}
-            {(() => {
-              // Anything NOT written by an automated flow is a hand correction.
-              // Matching /manual|adjust/ on the reason hid almost everything:
-              // none of the Adjust Stock presets ("Data correction", "Physical
-              // stock count", "Internal use", …) contain those words, so real
-              // adjustments looked like "No manual adjustments". Exclude the
-              // system-generated reasons instead — that also covers free text
-              // and any preset added later.
-              const SYSTEM_REASON = /^(sale|purchase|van |loaded on vehicle|dispatch to vehicle|void sale|unvoid sale)/i;
-              const manual = movements.filter(m => {
-                const reason = (m.reason || '').trim();
-                return reason !== '' && !SYSTEM_REASON.test(reason);
-              });
-              return (
-                <Card title="Manual Adjustments">
-                  {loading ? <Empty text="Loading…" /> : manual.length === 0 ? <Empty text="No manual adjustments" /> : (
-                    <Tbl head={['Date', 'Reason', 'Qty']}
-                      rows={manual.map(m => {
-                        const isIn = String(m.type).toUpperCase() === 'IN';
-                        return [
-                          m.date ? String(m.date).slice(0, 10) : '—',
-                          m.reason || '—',
-                          <span key="q" className={`font-semibold ${isIn ? 'text-emerald-600' : 'text-red-500'}`}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</span>,
-                        ];
-                      })} />
-                  )}
-                </Card>
-              );
-            })()}
-          </div>
-        )}
+          {tab === 'CLIENTS' && (
+            loading ? <Empty text="Loading…" /> : partyReport.length === 0 ? <Empty text="No sales for this item yet" /> : (
+              <Tbl head={['Client', 'Bills', 'Qty', 'Value']}
+                rows={partyReport.map(p => [p.party, p.count, p.qty, money(p.value)])} />
+            )
+          )}
 
-        {/* Party Wise Report */}
-        {tab === 'PARTY' && (
-          <Card title="Sales by Client">
-            {loading ? <Empty text="Loading…" /> : partyReport.length === 0 ? <Empty text="No sales for this item yet" /> : (
-              <Tbl head={['Client', 'Bills', 'Qty Sold', 'Total Value', 'Last Sale']}
-                rows={partyReport.map(p => [p.party, p.count, p.qty, formatCurrency(p.value, currencySymbol), p.last || '—'])} />
-            )}
-          </Card>
-        )}
-
-        {/* Godown */}
-        {tab === 'GODOWN' && (
-          <Card title="Stock by Godown / Location">
-            {byGodown.length === 0 ? <Empty text="No locations" /> : (
-              <Tbl head={['Godown', 'Type', 'Quantity']}
-                rows={byGodown.map(g => [g.name, g.type, `${g.qty} ${product?.unit || ''}`])} />
-            )}
-          </Card>
-        )}
-
-        {/* Party Wise Prices */}
-        {tab === 'PRICES' && (
-          <Card title="Client Wise Prices">
-            <Tbl head={['Client / Tier', 'Sales Price']}
+          {tab === 'PRICES' && (
+            <Tbl head={['Client / tier', 'Price']}
               rows={[
-                ['All Parties Price', formatCurrency(sell, currencySymbol)],
+                ['All clients', money(sell)],
                 ...prices.map(p => [
                   (p.client_id ? (clients[p.client_id] || 'Client') : (p.price_tier || p.tier || 'Tier')) +
                     (p.min_qty > 1 ? ` (min ${p.min_qty})` : ''),
-                  formatCurrency(p.price, currencySymbol),
+                  money(p.price),
                 ]),
               ]} />
-          </Card>
-        )}
-      </div>
-      </div>
+          )}
+        </div>
+
+        {/* Actions: one primary */}
+        <div className="border-t border-border/60 px-5 py-3 flex flex-wrap items-center gap-2">
+          <button onClick={() => onDelete?.(product)} aria-label="Delete product" title="Delete"
+            className="w-9 h-9 rounded-pill border border-border flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors active:scale-[0.97]">
+            <Trash2 size={14} />
+          </button>
+          <button onClick={() => onPrintBarcode?.(product)} className={outline}><ScanLine size={14} /> Print barcode</button>
+          <button onClick={() => onEdit?.(product)} className={outline}><Pencil size={14} /> Edit</button>
+          {onAdjust && !svc && (
+            <button onClick={() => onAdjust(product)} className={outline}><SlidersHorizontal size={14} /> Adjust stock</button>
+          )}
+          {onReorder && !svc && (
+            <button onClick={() => onReorder(product)}
+              className="ml-auto inline-flex items-center h-9 px-5 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover transition-colors active:scale-[0.97]">
+              Reorder
+            </button>
+          )}
+        </div>
+      </aside>
     </div>
   ), document.body);
 };
 
-const Card = ({ title, children }) => (
-  <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
-    <div className="px-4 py-3 border-b border-black/[0.05] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{title}</div>
-    {children}
-  </div>
-);
-const Empty = ({ text }) => <div className="px-4 py-10 text-center text-xs font-semibold text-muted-foreground">{text}</div>;
+const Empty = ({ text }) => <div className="py-8 text-center text-xs text-muted-foreground">{text}</div>;
 const Tbl = ({ head, rows }) => (
   <div className="overflow-x-auto">
     <table className="w-full text-left">
       <thead>
-        <tr className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-black/[0.05]">
-          {head.map((h, i) => <th key={i} className={`px-4 py-2.5 ${i >= head.length - 1 ? 'text-right' : ''}`}>{h}</th>)}
+        <tr className="text-[11px] font-medium text-muted-foreground border-b border-border/60">
+          {head.map((h, i) => <th key={i} className={`py-2 pr-2 ${i === head.length - 1 ? 'text-right pr-0' : ''}`}>{h}</th>)}
         </tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={i} className="border-b border-black/[0.04] last:border-0">
-            {r.map((c, j) => <td key={j} className={`px-4 py-2.5 text-xs font-semibold text-ink-secondary ${j >= r.length - 1 ? 'text-right font-semibold text-foreground' : ''}`}>{c}</td>)}
+          <tr key={i} className="border-b border-border/40 last:border-0">
+            {r.map((c, j) => <td key={j} className={`py-2 pr-2 text-xs text-foreground tabular-nums ${j === r.length - 1 ? 'text-right font-semibold pr-0' : ''}`}>{c}</td>)}
           </tr>
         ))}
       </tbody>

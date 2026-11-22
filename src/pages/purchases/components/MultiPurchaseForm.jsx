@@ -217,7 +217,7 @@ const emptyLine = () => ({
   barcodeStatus:     null, // null | 'found' | 'not_found'
 });
 
-const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [], onSave, loading, onCreateProduct }) => {
+const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [], onSave, loading, onCreateProduct, initialProductId = null }) => {
   const [header, setHeader] = useState({
     supplier_id:  '',
     location_id:  '',   // target warehouse
@@ -228,7 +228,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [
     notes:        '',
   });
 
-  const [lines, setLines] = useState([emptyLine()]);
+  const [lines, setLines] = useState(() => [initialProductId ? { ...emptyLine(), linked_product_id: initialProductId } : emptyLine()]);
 
   // Quick-create state
   const [quickCreate, setQuickCreate] = useState(null); // { lineKey, barcode }

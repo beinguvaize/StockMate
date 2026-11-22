@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { isRaw, isStocked } from '../../lib/productTypes';
 import { useDialogClose } from '../../hooks/useDialogClose';
 import { useNavigate } from 'react-router-dom';
@@ -7,8 +7,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useInventory } from '../../hooks/useInventory';
 import { useOrders } from '../../hooks/useOrders';
-import { Plus, History, PackagePlus, AlertCircle, Tag as TagIcon, TrendingUp, DollarSign, BarChart3, ShoppingBag, Search, X, Filter, ArrowLeftRight } from 'lucide-react';
-import Button from '../../shared/Button';
+import { Plus, History, PackagePlus, Tag as TagIcon, Search, X, ArrowLeftRight, ChevronDown } from 'lucide-react';
+import SegmentedTabs from '../../components/motion/SegmentedTabs';
 import StockTable from './components/StockTable';
 import AddItemModal from './components/AddItemModal';
 import BatchesModal from './components/BatchesModal';
@@ -71,6 +71,32 @@ const Inventory = () => {
   const [adjustSaving,     setAdjustSaving]     = useState(false);
   const [showHistory,      setShowHistory]      = useState(false);
   const [showTransfer,     setShowTransfer]     = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef(null);
+  const searchRef = useRef(null);
+
+  useEffect(() => {
+    if (!moreOpen) return undefined;
+    const onDown = (e) => { if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setMoreOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [moreOpen]);
+
+  // "/" jumps to search unless the user is already typing in a field.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target;
+      const tag = t?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   // Filter + search state
   const [searchTerm,   setSearchTerm]   = useState('');
@@ -192,147 +218,132 @@ const Inventory = () => {
 
   if (loading) return <PageSkeleton cards={4} rows={10} />;
 
+  const cur = businessProfile?.currencySymbol || '₹';
+  const inr = (n) => Math.round(n).toLocaleString('en-IN');
+  const hasNonStandard = products.some(p => (p.product_type || 'STANDARD').toUpperCase() !== 'STANDARD');
+  const toggleStock = (k) => setStockFilter(f => (f === k ? 'ALL' : k));
+  const tiles = [
+    { key: 'cost', label: 'Stock value at cost', value: `${cur}${inr(kpis.stockValue)}`,
+      sub: `${kpis.totalUnits.toLocaleString('en-IN')} units${kpis.rawValue > 0 ? ` · incl. ${cur}${inr(kpis.rawValue)} raw material` : ''}` },
+    { key: 'retail', label: 'Retail value', value: `${cur}${inr(kpis.retailValue)}`,
+      sub: kpis.marginValue !== 0 ? `${kpis.marginValue >= 0 ? '+' : '−'}${cur}${inr(Math.abs(kpis.marginValue))} margin` : 'sellable stock',
+      subCls: kpis.marginValue > 0 ? 'text-emerald-600' : kpis.marginValue < 0 ? 'text-red-600' : '' },
+    { key: 'LOW', label: 'Low stock', value: kpis.lowStock, sub: 'products', n: kpis.lowStock, cls: 'text-accent-signature-hover' },
+    { key: 'OUT', label: 'Out of stock', value: kpis.outOfStock, sub: 'products', n: kpis.outOfStock, cls: 'text-[color:var(--color-neg)]' },
+  ];
+
   return (
     <div className="animate-fade-in flex flex-col gap-6">
-      <div className="flex justify-between items-center py-2 border-b border-border/60">
-        <div className="flex items-center gap-3">
+      <div className="flex justify-between items-center gap-3 py-2 border-b border-border/60">
+        <div className="min-w-0">
           <h1 className="text-base font-semibold text-foreground tracking-tight">Inventory</h1>
-          <span className="text-xs text-muted-foreground hidden sm:block">Manage products and stock</span>
+          <p className="text-xs text-muted-foreground tabular-nums">{products.length} products · {kpis.uniqueCats} categories</p>
         </div>
         <div className="flex gap-2 items-center">
-          <button onClick={() => setShowPriceLists(true)}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
-            <TagIcon size={15} className="text-muted-foreground" /> Price Lists
-          </button>
-          {/* Offered only to a shop that has somewhere to move stock TO. One
-              location means the button could do nothing but explain itself. */}
-          {inventoryLocations.length > 1 && (
-            <button onClick={() => setShowTransfer(true)}
-              className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
-              <ArrowLeftRight size={15} className="text-muted-foreground" /> Transfer
+          <div className="relative" ref={moreRef}>
+            <button onClick={() => setMoreOpen(o => !o)} aria-haspopup="menu" aria-expanded={moreOpen}
+              className="inline-flex items-center gap-1.5 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] transition-colors active:scale-[0.97]">
+              More <ChevronDown size={14} className="text-muted-foreground" />
             </button>
-          )}
-          <button onClick={() => setShowHistory(true)}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
-            <History size={15} className="text-muted-foreground" /> History
-          </button>
-          <button onClick={() => { window.location.href = '/bulk-add?type=products'; }}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
-            Bulk Import
-          </button>
+            {moreOpen && (
+              <div role="menu" style={{ transformOrigin: 'top right' }}
+                className="menu-pop absolute right-0 top-full mt-1.5 z-30 min-w-[180px] rounded-xl bg-card border border-border shadow-lg p-1">
+                {[
+                  { label: 'Price lists', icon: TagIcon, run: () => setShowPriceLists(true) },
+                  ...(inventoryLocations.length > 1 ? [{ label: 'Transfer stock', icon: ArrowLeftRight, run: () => setShowTransfer(true) }] : []),
+                  { label: 'Stock history', icon: History, run: () => setShowHistory(true) },
+                  { label: 'Bulk import', icon: PackagePlus, run: () => { window.location.href = '/bulk-add?type=products'; } },
+                ].map(({ label, icon: Icon, run }) => (
+                  <button key={label} role="menuitem" onClick={() => { setMoreOpen(false); run(); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-black/[0.04] text-left">
+                    <Icon size={14} className="text-muted-foreground" /> {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button onClick={openAddModal}
-            className="inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md transition-colors">
-            <Plus size={16} strokeWidth={2.5} /> Add Product
+            className="inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover transition-colors active:scale-[0.97]">
+            <Plus size={16} strokeWidth={2.5} /> Add product
           </button>
         </div>
       </div>
 
-      {/* KPI Ribbon — compact stat strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-px bg-border/60 rounded-2xl overflow-hidden border border-border/60 shadow-sm">
-        {[
-          { label: 'Total Products', value: products.length, suffix: 'items', icon: <PackagePlus size={14} />, money: false },
-          { label: 'Total Units',    value: kpis.totalUnits.toLocaleString('en-IN'), suffix: 'pcs', icon: <ShoppingBag size={14} />, money: false },
-          { label: 'Stock Value',    value: Math.round(kpis.stockValue).toLocaleString('en-IN'),  icon: <DollarSign size={14} />, money: true,
-            // Say what is inside the number. Raw material is real money on the
-            // shelf, it just has no retail price, and burying it made the
-            // margin below look impossible.
-            hint: kpis.rawValue > 0
-              ? `incl. ₹${Math.round(kpis.rawValue).toLocaleString('en-IN')} raw material`
-              : null },
-          { label: 'Retail Value',   value: Math.round(kpis.retailValue).toLocaleString('en-IN'), icon: <TrendingUp size={14} />, money: true,
-            hint: kpis.marginValue !== 0
-              ? `sellable stock · ${kpis.marginValue >= 0 ? '+' : '−'}₹${Math.abs(Math.round(kpis.marginValue)).toLocaleString('en-IN')} margin`
-              : 'sellable stock' },
-          { label: 'Low Stock',      value: kpis.lowStock,   suffix: 'SKUs', icon: <AlertCircle size={14} />, warn: kpis.lowStock > 0 ? 'low' : null },
-          { label: 'Out of Stock',   value: kpis.outOfStock, suffix: 'SKUs', icon: <BarChart3 size={14} />,   warn: kpis.outOfStock > 0 ? 'out' : null },
-        ].map((m, i) => (
-          <div key={i} className="bg-card px-4 py-3">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-              <span className={m.warn === 'out' ? 'text-[color:var(--color-neg)]' : m.warn === 'low' ? 'text-accent-signature-hover' : 'text-muted-foreground'}>{m.icon}</span>
-              {m.label}
-            </div>
-            <div className={`text-[19px] font-semibold tabular-nums tracking-tight mt-0.5 ${m.warn === 'low' ? 'text-accent-signature-hover' : m.warn === 'out' ? 'text-[color:var(--color-neg)]' : 'text-foreground'}`}>
-              {m.money && <span className="text-muted-foreground text-sm mr-0.5">₹</span>}{m.value}
-              {m.suffix && <span className="text-[11px] font-normal text-muted-foreground ml-1">{m.suffix}</span>}
-            </div>
-            {m.hint && <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{m.hint}</div>}
-          </div>
-        ))}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        {tiles.map(t => {
+          const clickable = t.n > 0;
+          const active = clickable && stockFilter === t.key;
+          const body = (
+            <>
+              <div className="text-xs text-muted-foreground">{t.label}</div>
+              <div className={`text-[22px] font-semibold tabular-nums tracking-tight mt-1 ${clickable ? t.cls : 'text-foreground'}`}>{t.value}</div>
+              <div className={`text-[11px] mt-0.5 tabular-nums text-muted-foreground ${t.subCls || ''}`}>{t.sub}</div>
+            </>
+          );
+          const base = `text-left rounded-2xl border bg-card px-4 py-3 ${active ? 'border-accent-signature' : 'border-border/60'}`;
+          return clickable ? (
+            <button key={t.key} onClick={() => toggleStock(t.key)} aria-pressed={active}
+              className={`${base} hover:border-black/20 transition-[border-color,transform] duration-(--dur-press) active:scale-[0.98]`}>{body}</button>
+          ) : (
+            <div key={t.key} className={base}>{body}</div>
+          );
+        })}
       </div>
 
-      {/* ── Search + Filter toolbar ─────────────────────────────────── */}
-      <div className="bg-card border border-border rounded-2xl shadow-sm p-4 flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
+      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
         <div className="relative flex-1 min-w-0">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          <input type="text" value={searchTerm}
+          <input ref={searchRef} type="text" value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Search by name, SKU, category, barcode…"
-            className="w-full pl-10 pr-9 py-2.5 bg-card border border-border rounded-xl text-sm font-medium text-foreground placeholder:text-muted-foreground placeholder:font-normal outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all" />
+            onKeyDown={e => { if (e.key === 'Escape' && searchTerm) { e.stopPropagation(); setSearchTerm(''); } }}
+            placeholder="Search name, SKU or barcode"
+            className="w-full pl-10 pr-9 h-10 bg-card border border-border rounded-xl text-sm font-medium text-foreground placeholder:text-muted-foreground placeholder:font-normal outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-[border-color,box-shadow]" />
           {searchTerm && (
-            <button onClick={() => setSearchTerm('')}
+            <button onClick={() => setSearchTerm('')} aria-label="Clear search"
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
               <X size={14} />
             </button>
           )}
         </div>
 
-        {/* Type chips */}
-        <div className="flex items-center gap-1 bg-canvas border border-border rounded-xl p-1">
-          {[
-            { id: 'ALL',      label: 'All' },
-            { id: 'STANDARD', label: 'Standard' },
-            { id: 'SERVICE',  label: 'Services' },
-            { id: 'RAW',      label: 'Raw' },
-            { id: 'FINISHED', label: 'Finished' },
-          ].map(t => (
-            <button key={t.id} onClick={() => setTypeFilter(t.id)}
-              className={`px-3 py-1.5 rounded-pill text-[11px] font-semibold transition-all whitespace-nowrap ${
-                typeFilter === t.id ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
-              }`}>{t.label}</button>
-          ))}
-        </div>
+        <SegmentedTabs
+          items={[{ key: 'ALL', label: 'All' }, { key: 'LOW', label: 'Low' }, { key: 'OUT', label: 'Out' }]}
+          value={['ALL', 'LOW', 'OUT'].includes(stockFilter) ? stockFilter : 'ALL'}
+          onChange={setStockFilter} />
 
-        {/* Stock chips */}
-        <div className="flex items-center gap-1 bg-canvas border border-border rounded-xl p-1">
-          {[
-            { id: 'ALL', label: 'All Stock' },
-            { id: 'IN',  label: 'In Stock' },
-            { id: 'LOW', label: 'Low' },
-            { id: 'OUT', label: 'Out' },
-          ].map(s => (
-            <button key={s.id} onClick={() => setStockFilter(s.id)}
-              className={`px-3 py-1.5 rounded-pill text-[11px] font-semibold transition-all whitespace-nowrap ${
-                stockFilter === s.id ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
-              }`}>{s.label}</button>
-          ))}
-        </div>
+        {hasNonStandard && (
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} aria-label="Product type"
+            className="bg-card border border-border rounded-xl px-3 h-10 text-xs font-medium text-foreground outline-none focus:border-accent-signature">
+            <option value="ALL">All types</option>
+            <option value="STANDARD">Standard</option>
+            <option value="SERVICE">Services</option>
+            <option value="RAW">Raw material</option>
+            <option value="FINISHED">Finished</option>
+          </select>
+        )}
 
-        {/* Category select */}
-        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
-          className="bg-card border border-border rounded-xl px-3 py-2.5 text-xs font-semibold text-foreground outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all min-w-[140px]">
-          <option value="">All Categories</option>
+        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} aria-label="Category"
+          className="bg-card border border-border rounded-xl px-3 h-10 text-xs font-medium text-foreground outline-none focus:border-accent-signature min-w-[140px]">
+          <option value="">All categories</option>
           {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
 
         {activeFilterCount > 0 && (
           <button onClick={clearAllFilters}
-            className="flex items-center gap-1.5 px-3 py-2.5 rounded-pill text-[11px] font-semibold text-red-500 hover:bg-red-50 transition-all whitespace-nowrap">
-            <X size={12} /> Clear ({activeFilterCount})
+            className="text-xs font-medium text-muted-foreground hover:text-foreground underline underline-offset-2 whitespace-nowrap px-1">
+            Clear filters
           </button>
         )}
       </div>
 
-      {/* Result count */}
-      <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-widest -mt-2">
-        <Filter size={12} />
-        Showing {filteredProducts.length} of {products.length} products
-      </div>
-
       <StockTable
         products={filteredProducts}
+        totalProducts={products.length}
+        onClearFilters={clearAllFilters}
+        onAddProduct={openAddModal}
         inventoryBalances={balances}
         lastBuy={lastBuy}
-        currencySymbol={businessProfile?.currencySymbol || '₹'}
+        currencySymbol={cur}
         onView={setViewingProduct}
         onEdit={openEditModal}
         onDelete={(id) => { if (window.confirm('Delete this product?')) deleteProduct(id); }}
@@ -345,6 +356,11 @@ const Inventory = () => {
           clear();
         } : null}
       />
+      {products.length > 0 && filteredProducts.length > 0 && (
+        <p className="text-xs text-muted-foreground tabular-nums -mt-3">
+          Showing {filteredProducts.length} of {products.length} products
+        </p>
+      )}
 
       {bulkEdit && (
         <BulkEditModal
@@ -375,7 +391,6 @@ const Inventory = () => {
           product={viewingProduct}
           items={filteredProducts}
           onSelect={setViewingProduct}
-          onCreate={() => { setViewingProduct(null); openAddModal(); }}
           locations={inventoryLocations || []}
           balances={balances || []}
           tenantId={currentTenantId}
@@ -384,6 +399,7 @@ const Inventory = () => {
           onEdit={(p) => { setViewingProduct(null); openEditModal(p); }}
           onAdjust={isOwner ? (p) => { setViewingProduct(null); setAdjustingProduct(p); } : null}
           onPrintBarcode={() => navigate('/labels')}
+          onReorder={(p) => navigate(`/purchases?reorder=${encodeURIComponent(p.id)}`)}
           onDelete={(p) => { if (window.confirm('Delete this product?')) { deleteProduct(p.id); setViewingProduct(null); } }}
         />
       )}
@@ -455,10 +471,10 @@ const BulkEditModal = ({ count, categories, onClose, onApply }) => {
   const [saving, setSaving] = useState(false);
   const dirty = f.category || f.pricePct !== '' || f.sellPrice !== '' || f.reorder !== '' || f.gstRate !== '';
   const inp = 'w-full text-[13px] border border-border rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40 bg-card';
-  const lbl = 'text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1 block';
+  const lbl = 'text-xs font-medium text-muted-foreground mb-1 block';
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label="Bulk edit" className="dialog-pop bg-card rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center mb-1">
           <div className="font-semibold text-[15px] text-foreground">Bulk edit</div>
           <button onClick={onClose} className="ml-auto text-muted-foreground hover:text-foreground"><X size={18} /></button>

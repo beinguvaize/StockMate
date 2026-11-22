@@ -276,11 +276,11 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     >
       {(() => {
         const inputCls = "w-full bg-card border border-border rounded-xl px-3.5 py-3 text-xs font-semibold text-foreground placeholder:text-muted-foreground placeholder:font-medium outline-none transition-all hover:border-border focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 shadow-sm";
-        const labelCls = "block text-[10px] font-semibold text-ink-secondary uppercase tracking-wider mb-2";
+        const labelCls = "block text-[11px] font-semibold text-ink-secondary mb-2";
         const Section = ({ children }) => (
           <div className="flex items-center gap-2 pt-1.5">
             <span className="w-1 h-3.5 rounded-full bg-accent-signature" />
-            <span className="text-[11px] font-semibold text-foreground uppercase tracking-widest">{children}</span>
+            <span className="text-[11px] font-semibold text-foreground">{children}</span>
           </div>
         );
         const c = parseFloat(formData.costPrice);
@@ -566,13 +566,13 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 per-KG price becomes 120. Nothing extra is stored. */}
             {!isService && packConv > 0 && (
               <div className="mt-3 rounded-xl border border-accent-signature/25 bg-accent-signature/[0.04] p-3.5">
-                <div className="text-[10px] font-bold text-accent-signature-hover uppercase tracking-wider mb-2.5">
+                <div className="text-[11px] font-bold text-accent-signature-hover mb-2.5">
                   Per {formData.secondary_unit} · 1 {formData.secondary_unit} = {Number(packConv.toFixed(4))} {formData.unit}
                 </div>
                 <div className={`grid grid-cols-1 ${subUnit ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-3`}>
                   {subUnit && (
                     <div>
-                      <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                      <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
                         Pack size ({subUnit})
                       </label>
                       <input type="number" step="1" min="0" placeholder="250"
@@ -593,13 +593,13 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     </div>
                   )}
                   <div>
-                    <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Costs you</div>
+                    <div className="text-[11px] font-semibold text-muted-foreground mb-1">Costs you</div>
                     <div className="text-[15px] font-bold tabular-nums text-foreground h-9 flex items-center">
                       ₹{((parseFloat(formData.costPrice) || 0) * packConv).toFixed(2)}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
                       Sell at (₹ / {formData.secondary_unit})
                     </label>
                     <input type="number" step="0.01" placeholder="0.00"
@@ -619,13 +619,13 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       }} />
                   </div>
                   <div>
-                    <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Margin</div>
+                    <div className="text-[11px] font-semibold text-muted-foreground mb-1">Margin</div>
                     <div className={`text-[15px] font-bold tabular-nums h-9 flex items-center ${marginColor}`}>
                       {showMargin ? `${margin.toFixed(1)}%` : '—'}
                     </div>
                   </div>
                 </div>
-                <div className="text-[10px] text-muted-foreground mt-2">
+                <div className="text-[11px] text-muted-foreground mt-2">
                   Margin is the same per {formData.unit} or per {formData.secondary_unit} — it is a ratio.
                 </div>
 
@@ -649,18 +649,18 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   const isWeight = ['KG', 'LITRE'].includes(String(formData.unit || '').toUpperCase());
                   return (
                     <div className="mt-3 pt-3 border-t border-accent-signature/20">
-                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                      <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">
                         Not sure of the pack size? Enter what you want to charge
                       </div>
                       <div className="flex flex-wrap items-end gap-2">
                         <div className="w-28">
-                          <label className="block text-[9px] font-semibold text-muted-foreground uppercase mb-1">Sell at ₹</label>
+                          <label className="block text-[9px] font-semibold text-muted-foreground mb-1">Sell at ₹</label>
                           <input type="number" step="0.01" placeholder="30" value={wantPrice}
                             onChange={e => setWantPrice(e.target.value)}
                             className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[13px] font-semibold tabular-nums outline-none focus:border-accent-signature/50" />
                         </div>
                         <div className="w-24">
-                          <label className="block text-[9px] font-semibold text-muted-foreground uppercase mb-1">Margin % on cost</label>
+                          <label className="block text-[9px] font-semibold text-muted-foreground mb-1">Margin % on cost</label>
                           <input type="number" step="1" placeholder="25" value={wantMargin}
                             onChange={e => setWantMargin(e.target.value)}
                             className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[13px] font-semibold tabular-nums outline-none focus:border-accent-signature/50" />
@@ -699,7 +699,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                         )}
                       </div>
                       {size > 0 && (
-                        <div className="text-[10px] text-muted-foreground mt-1.5 tabular-nums">
+                        <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">
                           That pack costs ₹{(size * cost).toFixed(2)} and sells at ₹{price.toFixed(2)} — ₹{(price / size).toFixed(2)} per {formData.unit}.
                         </div>
                       )}
@@ -712,7 +712,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             {!isService && (
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Price tiers</span>
+                  <span className="text-[11px] font-semibold text-muted-foreground">Price tiers</span>
                   <label className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
                     <input type="checkbox" checked={!!formData.price_inclusive}
                       onChange={e => setFormData({ ...formData, price_inclusive: e.target.checked })} />
@@ -783,7 +783,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {showMargin && (
                 <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3 shadow-sm self-end">
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Current Margin</span>
+                  <span className="text-[11px] font-semibold text-muted-foreground">Current Margin</span>
                   <span className={`text-sm font-semibold tabular-nums ${marginColor}`}>
                     {margin.toFixed(1)}%{margin < 0 ? ' · loss' : margin < 10 ? ' · low' : ''}
                   </span>
@@ -797,7 +797,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     onChange={e => setFormData({ ...formData, min_margin: e.target.value })} />
                   <Percent size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1">POS warns / blocks if margin drops below this</p>
+                <p className="text-[11px] text-muted-foreground mt-1">POS warns / blocks if margin drops below this</p>
               </div>
             </div>
             </>)}
@@ -844,7 +844,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     <option key={i} value={i}>{s.label}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-muted-foreground mt-1">GST + Compensation Cess. Applied on invoice & POS checkout.</p>
+                <p className="text-[11px] text-muted-foreground mt-1">GST + Compensation Cess. Applied on invoice & POS checkout.</p>
               </div>
 
               {/* HSN for goods, SAC for services — one column, see lib/hsn.js.
@@ -861,7 +861,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   maxLength={8}
                   className="w-full px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground focus:outline-none focus:border-accent-signature/40"
                 />
-                <p className="text-[10px] text-muted-foreground mt-1">
+                <p className="text-[11px] text-muted-foreground mt-1">
                   {isService
                     ? 'Services use a 6-digit SAC. Required for the GSTR-1 summary (Table 12).'
                     : 'Required for GSTR-1 HSN summary (Table 12).'}
@@ -908,7 +908,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   >
                     <Images size={13} /> Choose from Library
                   </button>
-                  <p className="text-[10px] text-muted-foreground">Max 5 MB · JPG, PNG, WEBP</p>
+                  <p className="text-[11px] text-muted-foreground">Max 5 MB · JPG, PNG, WEBP</p>
                 </div>
 
                 <input
@@ -924,7 +924,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               {showPhotoLib && (
                 <div className="mt-3 bg-card border border-border shadow-sm rounded-xl p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Recent Photos</span>
+                    <span className="text-[11px] font-semibold text-muted-foreground">Recent Photos</span>
                     <button type="button" onClick={() => setShowPhotoLib(false)}>
                       <X size={14} className="text-muted-foreground hover:text-foreground" />
                     </button>
@@ -963,7 +963,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <button
                     type="button"
                     onClick={() => { fileInputRef.current?.click(); setShowPhotoLib(false); }}
-                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-pill border border-dashed border-border text-[10px] font-semibold text-muted-foreground hover:border-accent-signature hover:text-accent-signature transition-colors"
+                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-pill border border-dashed border-border text-[11px] font-semibold text-muted-foreground hover:border-accent-signature hover:text-accent-signature transition-colors"
                   >
                     <Upload size={11} /> Upload new photo
                   </button>
