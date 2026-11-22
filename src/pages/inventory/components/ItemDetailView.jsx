@@ -216,7 +216,7 @@ const ItemDetailView = ({
                 className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/[0.04] disabled:opacity-30"><ChevronDown size={16} /></button>
             </>)}
             <button onClick={requestClose} aria-label="Close"
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-black/[0.04]"><X size={16} /></button>
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/[0.04]"><X size={16} /></button>
           </div>
         </div>
 
@@ -334,7 +334,7 @@ const ItemDetailView = ({
         {/* Actions: one primary */}
         <div className="border-t border-border/60 px-5 py-3 flex flex-wrap items-center gap-2">
           <button onClick={() => onDelete?.(product)} aria-label="Delete product" title="Delete"
-            className="w-9 h-9 rounded-pill border border-border flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors active:scale-[0.97]">
+            className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors active:scale-[0.97]">
             <Trash2 size={14} />
           </button>
           <button onClick={() => onPrintBarcode?.(product)} className={outline}><ScanLine size={14} /> Print barcode</button>

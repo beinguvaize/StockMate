@@ -255,7 +255,7 @@ const Inventory = () => {
                   { label: 'Bulk import', icon: PackagePlus, run: () => { window.location.href = '/bulk-add?type=products'; } },
                 ].map(({ label, icon: Icon, run }) => (
                   <button key={label} role="menuitem" onClick={() => { setMoreOpen(false); run(); }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-black/[0.04] text-left">
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-pill text-xs font-medium text-foreground hover:bg-black/[0.04] text-left">
                     <Icon size={14} className="text-muted-foreground" /> {label}
                   </button>
                 ))}
