@@ -16,6 +16,7 @@ import { useOperations } from '../hooks/useOperations';
 import { useAccounts } from '../hooks/useAccounts';
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, ArrowUpRight, ArrowDownRight, LayoutDashboard, Activity, Users, Calendar} from 'lucide-react';
 import { useNavigate} from 'react-router-dom';
+import useFirstOpenToday from '../components/motion/useFirstOpenToday';
 import DailyRevenueTrendChart from '../components/DailyRevenueTrendChart';
 import { todayISOInAppTZ, formatDate, parseLocalDate } from '../lib/utils';
 import { realtimeEnabled } from '../lib/realtime';
@@ -96,6 +97,7 @@ const ExpenseCategoryBarChart = React.memo(({ data, currencySymbol }) => (
 ));
 
 const Dashboard = () => {
+  const firstOpenToday = useFirstOpenToday('dashboard'); // motion only on the first open of the day
   const { currentTenant, currentTenantId, businessProfile } = useTenant();
   const slug = currentTenant?.slug || '';
   const { products, inventoryBalances, refetch: refetchInventory, loading: invLoading, error: invError } = useInventory(currentTenantId);
@@ -644,9 +646,10 @@ const Dashboard = () => {
    const d = typeof m.delta === 'number' ? m.delta : null;
    return (
    <div key={i} role="button" tabIndex={0}
+     style={firstOpenToday ? { '--stagger-i': i } : undefined}
      onClick={() => m.to && navigate(m.to)}
      onKeyDown={(e) => { if (m.to && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); navigate(m.to); } }}
-     className="bg-white rounded-2xl border border-black/[0.07] shadow-sm p-4 flex flex-col gap-2 hover:shadow-md hover:border-black/15 transition-all cursor-pointer">
+     className={`bg-white rounded-2xl border border-black/[0.07] shadow-sm p-4 flex flex-col gap-2 hover:shadow-md hover:border-black/15 transition-all cursor-pointer${firstOpenToday ? ' first-open' : ''}`}>
      <div className="flex items-center justify-between">
        <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${chip}`}>{m.icon}</span>
        {d !== null && (

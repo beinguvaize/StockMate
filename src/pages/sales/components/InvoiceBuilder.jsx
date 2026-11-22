@@ -17,6 +17,10 @@ import { useAuth } from '../../../context/AuthContext';
 import { supabase, restInsert } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 import CashBillPrint from './CashBillPrint';
+import CopyButton from '../../../components/motion/CopyButton';
+import SaveButton, { useSaveStatus } from '../../../components/motion/SaveButton';
+import RollingNumber from '../../../components/motion/RollingNumber';
+import FieldError, { useShake } from '../../../components/motion/FieldError';
 
 // Restaurant modifier picker — choose options for a dish before it hits the cart.
 const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' }) => {
@@ -194,6 +198,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     address: '', zone: '', date: '', notes: '', fee: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const saveState = useSaveStatus();
   const [clientSearch, setClientSearch]     = useState('');
   const [clientDropOpen, setClientDropOpen] = useState(false);
   const clientDropRef = useRef(null);
@@ -209,16 +214,19 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [savingCust, setSavingCust] = useState(false);
   const [newCust, setNewCust] = useState({ type: 'B2C', name: '', phone: '', aadhaar: '', gstin: '' });
 
+  const [custErr, setCustErr] = useState('');
+  const custShake = useShake(custErr);
+  useEffect(() => { setCustErr(''); }, [newCust]);
   const saveNewCustomer = async () => {
     const name = newCust.name.trim();
     const phone = newCust.phone.trim();
-    if (!name) { addNotification('Customer name required', 'error'); return; }
-    if (!phone) { addNotification('Phone number required', 'error'); return; }
+    if (!name) { setCustErr('Customer name is required.'); return; }
+    if (!phone) { setCustErr('Phone number is required.'); return; }
     if (newCust.type === 'B2B' && newCust.gstin.trim() && newCust.gstin.trim().length !== 15) {
-      addNotification('GSTIN must be 15 characters', 'error'); return;
+      setCustErr(`GSTIN must be 15 characters (you entered ${newCust.gstin.trim().length}).`); return;
     }
     if (newCust.type === 'B2C' && newCust.aadhaar.trim() && newCust.aadhaar.replace(/\s/g, '').length !== 12) {
-      addNotification('Aadhaar must be 12 digits', 'error'); return;
+      setCustErr('Aadhaar must be 12 digits.'); return;
     }
     setSavingCust(true);
     const id = 'CLI-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -781,6 +789,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       return;
     }
     setIsSubmitting(true);
+    saveState.start();
     try {
       const isCreditSale = paymentMethod === 'CREDIT';
       // Resolve effective paid amount + payment status from cashier input.
@@ -865,6 +874,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           ? raw.replace(new RegExp(`^.*${hit[0]}:\\s*`), '')
           : raw;
         addNotification(hit ? `${hit[1]} — ${msg}` : `Checkout failed: ${msg}`, 'error');
+        saveState.fail();
         return; // keep cart + modal so user can retry
       }
       // Persist the tender computed above.
@@ -939,6 +949,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       const excessApplicable  = postClientId !== 'WALKIN' && amtNum > total && postOutstanding > 0
         ? Math.min(amtNum - total, postOutstanding) : 0;
 
+      saveState.ok();
       setLineImeis({});
       setCart([]);
       setDiscount('');
@@ -965,6 +976,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       }
     } catch (err) {
       addNotification(`Checkout error: ${err.message || err}`, 'error');
+      saveState.fail();
     } finally {
       setIsSubmitting(false);
     }
@@ -1568,6 +1580,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                           placeholder="GSTIN (optional, 15 chars)"
                           className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
                       )}
+                      <div key={custShake ? custErr : 'ok'} className={custShake}><FieldError message={custErr} /></div>
                       <div className="flex gap-2 pt-0.5">
                         <button type="button" onClick={() => setShowAddCust(false)}
                           className="flex-1 h-8 rounded-pill text-[11px] font-semibold text-muted-foreground border border-border hover:bg-card">Cancel</button>
@@ -1650,7 +1663,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             )}
             <div className="flex justify-between text-xl font-semibold text-foreground pt-2 border-t border-border/60">
               <span>Total</span>
-              <span className="tabular-nums">{formatCurrency(total)}</span>
+              <RollingNumber text={formatCurrency(total)} />
             </div>
             {taxInclusive && (
               <p className="text-[10px] text-muted-foreground font-medium text-right">
@@ -2124,7 +2137,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       {formatCurrency(total)}
                     </div>
                     <div className="text-[10px] text-muted-foreground">
-                      UPI: <b>{upiId}</b>
+                      UPI: <b>{upiId}</b><CopyButton value={upiId} label="Copy UPI ID" size={12} className="ml-1 align-middle" />
                       {selectedUpiAcc && <span className="text-muted-foreground"> · {selectedUpiAcc.name}</span>}
                     </div>
                     <button
@@ -2160,18 +2173,17 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               </div>
 
               {/* Confirm */}
-              <Button
+              <SaveButton
                 onClick={handleCompleteSale}
                 disabled={isSubmitting || cart.length === 0}
                 className="w-full !h-14 !rounded-2xl !text-sm"
                 icon={Check}
-              >
-                {/* Say what pressing this does, not just the bill amount. When
-                    there is change to hand back, that is the cashier's next
-                    physical action and it belongs on the button. */}
-                {isSubmitting
-                  ? 'Processing…'
-                  : money.tone === 'change'
+                status={saveState.status}
+                savingLabel="Processing"
+                /* Say what pressing this does, not just the bill amount. When
+                   there is change to hand back, that is the cashier's next
+                   physical action and it belongs on the button. */
+                idleLabel={money.tone === 'change'
                     ? `Complete · return ${formatCurrency(money.value)}`
                     : money.tone === 'change-or-credit'
                       /* Not "return": the next screen offers to put this
@@ -2179,7 +2191,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                          refund here gets the cash counted out first. */
                       ? `Complete · ${formatCurrency(money.value)} over`
                       : `Confirm & Pay ${formatCurrency(total)}`}
-              </Button>
+              />
             </div>
           </div>
         </div>
@@ -2204,22 +2216,35 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
   const [collectAmt, setCollectAmt]   = useState(outstanding.toFixed(2));
   const [method, setMethod]           = useState(paymentMethod === 'CREDIT' ? 'CASH' : paymentMethod);
   const [busy, setBusy]               = useState(false);
+  const [collectErr, setCollectErr]   = useState('');
+  const collectState = useSaveStatus();
   const today = new Date().toISOString().slice(0, 10);
   const fmt   = (v) => `${currency}${Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const collect = async (amount) => {
     if (!amount || amount <= 0) { onClose(); return; }
     setBusy(true);
-    await onRecordPayment(clientId, amount, today, 'Collected at POS', [], method);
+    setCollectErr('');
+    collectState.start();
+    let r;
+    try { r = await onRecordPayment(clientId, amount, today, 'Collected at POS', [], method); }
+    catch (e) { r = { success: false, error: e }; }
     setBusy(false);
-    onClose();
+    if (r && r.success === false) {
+      // Real reason, dialog stays open so the cashier can retry.
+      setCollectErr(`Payment not recorded: ${r.error?.message || r.error || 'unknown error'}`);
+      collectState.fail();
+      return;
+    }
+    collectState.ok();
+    setTimeout(onClose, 700);
   };
 
   const methods = ['CASH', 'UPI', 'BANK'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+      <div className="dialog-pop bg-card rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
 
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-border/60">
@@ -2315,14 +2340,16 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
                 >
                   Skip
                 </button>
-                <button
+                <SaveButton
                   onClick={() => collect(Math.min(parseFloat(collectAmt) || 0, outstanding))}
                   disabled={busy || !parseFloat(collectAmt)}
-                  className="flex-2 flex-grow py-3 rounded-pill bg-signature text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
-                >
-                  {busy ? 'Recording…' : `Collect ${fmt(Math.min(parseFloat(collectAmt)||0, outstanding))}`}
-                </button>
+                  status={collectState.status}
+                  savingLabel="Recording"
+                  idleLabel={`Collect ${fmt(Math.min(parseFloat(collectAmt)||0, outstanding))}`}
+                  className="flex-2 flex-grow"
+                />
               </div>
+              <FieldError message={collectErr} />
             </>
           )}
         </div>

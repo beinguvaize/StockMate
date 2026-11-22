@@ -537,7 +537,7 @@ table.report-table tbody td.numeric {
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);  /* moving on screen */
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);   /* iOS-like drawer */
 
-  --dur-press: 120ms;    /* button press feedback */
+  --dur-press: 160ms;    /* button press feedback */
   --dur-hover: 160ms;    /* hover, colour change */
   --dur-popover: 180ms;  /* tooltips, small popovers */
   --dur-menu: 200ms;     /* dropdowns, selects */
@@ -812,7 +812,7 @@ body {
 }
 
 .btn:active {
-  transform: translateY(0px) scale(0.98);
+  transform: translateY(0px) scale(0.97);
   background: rgba(0,0,0,0.05);
 }
 
@@ -895,7 +895,7 @@ body {
 }
 
 .btn-pill:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
 }
 
 .btn-pill-edit {
@@ -1404,4 +1404,91 @@ body {
   .hover\:translate-y-0:hover {
     transform: none;
   }
+}
+
+
+/* ── Motion kit (src/components/motion) ─────────────────────────────────────
+   Shared keyframes for the sixteen-item motion pass. Only transform, opacity,
+   filter, clip-path and grid-template-rows animate. Each has a static cue
+   (colour / icon / label) and the global reduced-motion rule above flattens
+   the rest. */
+
+/* 2. Save button label crossfade: opacity + 2px blur, 180ms */
+.save-label { animation: saveLabelIn 180ms var(--ease-out) both; }
+@keyframes saveLabelIn { from { opacity: 0; filter: blur(2px); } to { opacity: 1; filter: blur(0); } }
+.save-btn-saved { background: var(--color-pos) !important; color: #fff !important; }
+
+/* 3. Rolling digits: only changed digits slide up 70% -> 0 */
+.roll-digit { display: inline-block; animation: rollDigit 260ms var(--ease-out) both; font-variant-numeric: tabular-nums; }
+@keyframes rollDigit {
+  from { opacity: 0; transform: translateY(70%); filter: blur(2px); }
+  to   { opacity: 1; transform: translateY(0);   filter: blur(0); }
+}
+
+/* 5. Hold to confirm: fill sweeps left to right while held */
+.hold-fill { clip-path: inset(0 100% 0 0); transition: clip-path 200ms var(--ease-out); pointer-events: none; }
+.hold-btn[data-holding="true"] .hold-fill { clip-path: inset(0 0 0 0); transition: clip-path 1500ms linear; }
+
+/* 6. Stacked toasts */
+.toast-card {
+  transition: transform 400ms var(--ease-out), opacity 300ms var(--ease-out);
+  transform: translateY(calc(var(--toast-i) * -10px)) scale(calc(1 - var(--toast-i) * 0.05)) translateX(var(--toast-dx, 0px));
+  opacity: calc(1 - var(--toast-i) * 0.15);
+}
+.toast-card[data-enter="true"] { transform: translateY(100%); opacity: 0; }
+.toast-card[data-leave="true"] { transform: translateY(100%); opacity: 0; }
+
+/* 7. Field error: one 4px shake + message reveal via grid rows */
+.field-shake { animation: fieldShake 300ms var(--ease-out) 1; }
+@keyframes fieldShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.reveal-rows { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 200ms var(--ease-out); }
+.reveal-rows[data-open="true"] { grid-template-rows: 1fr; }
+.reveal-rows > * { overflow: hidden; min-height: 0; }
+
+/* 8. Copy icon crossfade */
+.copy-icon { animation: copyIcon 300ms var(--ease-out) both; }
+@keyframes copyIcon { from { opacity: 0; transform: scale(0.25); filter: blur(4px); } to { opacity: 1; transform: scale(1); filter: blur(0); } }
+
+/* 9. Expand row */
+.expand-rows { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 260ms var(--ease-out); }
+.expand-rows[data-open="true"] { grid-template-rows: 1fr; }
+.expand-rows > .expand-inner { overflow: hidden; min-height: 0; }
+.expand-inner > * { opacity: 0; transform: translateY(-4px); transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out); }
+.expand-rows[data-open="true"] .expand-inner > * { opacity: 1; transform: translateY(0); transition-delay: 80ms; }
+.chevron-turn { transition: transform 220ms var(--ease-out); }
+.chevron-turn[data-open="true"] { transform: rotate(90deg); }
+
+/* 10. Segmented tabs: sliding indicator */
+.seg-indicator { transition: transform 260ms var(--ease-out), width 260ms var(--ease-out); }
+
+/* 13. Dashboard first open of the day */
+.first-open { animation: firstOpen 300ms var(--ease-out) both; animation-delay: calc(var(--stagger-i, 0) * 60ms); }
+@keyframes firstOpen { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* 14. Centered dialog (web): scale .96 -> 1 + opacity from centre */
+.dialog-pop { animation: dialogPop 200ms var(--ease-out) both; }
+@keyframes dialogPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+
+/* 15. Tooltip */
+.tip { transform-origin: bottom center; animation: tipIn 125ms var(--ease-out) both; }
+.tip[data-instant="true"] { animation-duration: 0ms; }
+@keyframes tipIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+
+/* 16. Long tasks */
+.sheen-wrap { position: relative; overflow: hidden; }
+.sheen-wrap::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%);
+  transform: translateX(-100%); animation: sheen 1400ms linear infinite;
+}
+@keyframes sheen { to { transform: translateX(100%); } }
+.field-blur-in { animation: fieldBlurIn 260ms var(--ease-out) both; animation-delay: calc(var(--stagger-i, 0) * 220ms); }
+@keyframes fieldBlurIn { from { opacity: 0; filter: blur(4px); } to { opacity: 1; filter: blur(0); } }
+.progress-fill { transition: width 300ms linear; }
+.step-text { animation: saveLabelIn 180ms var(--ease-out) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheen-wrap::after { animation: none; opacity: 0; }
+  .first-open, .roll-digit, .field-blur-in { animation: none; }
+  .hold-btn[data-holding="true"] .hold-fill { transition-duration: 1500ms; }
 }

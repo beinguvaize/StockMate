@@ -1,4 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import Tooltip from '../../../components/motion/Tooltip';
+import CopyButton from '../../../components/motion/CopyButton';
+import HoldButton from '../../../components/motion/HoldButton';
 import {
   Search, Trash2, Printer, Receipt, Package, Wallet, CreditCard, Landmark,
   Download, X, User, Clock, Calendar, CheckCircle2, AlertCircle, RotateCcw, Truck, PackageCheck,
@@ -320,7 +323,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           )}
         </td>
         <td className="px-4 py-4">
-          <div className="text-sm font-semibold text-foreground tracking-tight">#{shortRef(sale.id)}</div>
+          <div className="text-sm font-semibold text-foreground tracking-tight inline-flex items-center gap-1">#{shortRef(sale.id)}<CopyButton value={shortRef(sale.id)} label="Copy invoice no." size={12} /></div>
         </td>
         <td className="px-4 py-4">
           <div className="text-sm font-semibold text-foreground">{clientName}</div>
@@ -433,12 +436,16 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
                 <FileText size={15} />
               </button>
             )}
-            <button onClick={() => onPrint(sale)} title="Print / View" className="p-2 rounded-pill hover:bg-card text-muted-foreground hover:text-foreground transition-colors">
-              <Printer size={15} />
-            </button>
-            <button onClick={() => onDelete(sale.id)} title="Delete" className="p-2 rounded-pill hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors">
-              <Trash2 size={15} />
-            </button>
+            <Tooltip label="Print / View">
+              <button onClick={() => onPrint(sale)} aria-label="Print / View" className="p-2 rounded-pill hover:bg-card text-muted-foreground hover:text-foreground transition-colors">
+                <Printer size={15} />
+              </button>
+            </Tooltip>
+            <Tooltip label="Hold to delete bill">
+              <HoldButton onConfirm={() => onDelete(sale.id)} title="Hold 1.5s to delete this bill" className="p-2 rounded-pill hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors">
+                <Trash2 size={15} />
+              </HoldButton>
+            </Tooltip>
           </div>
         </td>
       </tr>

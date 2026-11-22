@@ -372,8 +372,10 @@ const PurchasesPage = () => {
       if (priceUpdates.length) {
         addNotification?.(`Selling price updated for ${priceUpdates.length} item${priceUpdates.length > 1 ? 's' : ''}`, 'success');
       }
-      setShowAddModal(false);
+      // Let the Save button's "Saved" tick be seen before the dialog closes.
+      setTimeout(() => setShowAddModal(false), 700);
     }
+    return { ok: failed === 0 };
   };
 
   // Duplicate → create a brand-new purchase from a prefilled single form.
