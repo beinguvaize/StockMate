@@ -74,25 +74,25 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     // productsProvider while this screen is visible.
     ref.watch(productsRealtimeSubscriberProvider);
 
-    final filters = ['All', 'Low', 'Out'];
+    const filters = ['All', 'Low', 'Out'];
 
-    // For the header line only. The list below does its own watching; this is
-    // the same cached list, so it costs nothing extra.
+    // Header figures come from the whole stock list, not the searched one.
     final all = ref.watch(productsProvider).valueOrNull ?? const [];
     final stockValue = all.fold<double>(
       0,
       (sum, p) => sum + p.stock * p.costPrice,
     );
+    final lowCount = all.where((p) => StockLevels.isLow(p.stock)).length;
+    final outCount = all.where((p) => StockLevels.isOutOfStock(p.stock)).length;
+    final productsAsync = ref.watch(filteredProductsProvider);
+    final products = (productsAsync.valueOrNull ?? const <Product>[]).where((p) {
+      if (_filterIndex == 1) return StockLevels.isLow(p.stock);
+      if (_filterIndex == 2) return StockLevels.isOutOfStock(p.stock);
+      return true;
+    }).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.canvasWarm,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvasWarm,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        toolbarHeight: 0,
-        actions: const [],
-      ),
+      backgroundColor: AppColors.canvas,
       floatingActionButton: !widget.showAddButton
           ? null
           : FloatingActionButton(
@@ -101,8 +101,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 context,
                 MaterialPageRoute(builder: (_) => const AddProductScreen()),
               ).then((_) => ref.invalidate(productsProvider)),
-              // Was grey-on-pale-amber: the one button that creates a product did
-              // not look like the brand's primary action.
               backgroundColor: AppColors.brandFill,
               foregroundColor: AppColors.onBrandFill,
               elevation: 3,
@@ -110,479 +108,334 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               child: const Icon(LucideIcons.plus, size: 26),
             ),
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Header ─────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Inventory', style: AppText.display),
-                  // What the shelf is worth, which is the question a stock
-                  // list exists to answer and the title alone never did.
-                  if (all.isNotEmpty)
-                    Text(
-                      '${all.length} items · ${Money.inr(stockValue)} at cost',
-                      style: AppText.caption,
-                    ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Search bar ──────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: AppSearchField(
-                controller: _searchController,
-                hint: 'Search products, SKU…',
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Product list ───────────────────────────────────────
-            Expanded(
-              child: Builder(
-                builder: (context) => ref
-                    .watch(filteredProductsProvider)
-                    .when(
-                      data: (allProducts) {
-                        // StockLevels, not a local <= 10: this screen and the
-                        // dashboard were counting low stock by different rules
-                        // and printing different numbers for the same shop.
-                        final products = allProducts.where((p) {
-                          if (_filterIndex == 1) {
-                            return StockLevels.isLow(p.stock);
-                          }
-                          if (_filterIndex == 2) {
-                            return StockLevels.isOutOfStock(p.stock);
-                          }
-                          return true;
-                        }).toList();
-
-                        final lowCount = allProducts
-                            .where((p) => StockLevels.isLow(p.stock))
-                            .length;
-                        final outCount = allProducts
-                            .where((p) => StockLevels.isOutOfStock(p.stock))
-                            .length;
-                        final healthyCount =
-                            allProducts.length - lowCount - outCount;
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 2x2 summary; Low and Out double as filters.
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: Gap.xl,
-                              ),
-                              child: Column(
+        child: MotionRefresh(
+          onRefresh: () async {
+            ref.invalidate(productsProvider);
+            await ref.read(productsProvider.future);
+          },
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _InvHeaderDelegate(
+                  height: 208,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, 0),
+                        child: Text(
+                          Money.inr(stockValue),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.moneyLarge.copyWith(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w600,
+                            
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
+                        child: Text(
+                          'at cost · ${all.length} ${all.length == 1 ? 'item' : 'items'}',
+                          style: AppText.caption,
+                        ),
+                      ),
+                      if (lowCount > 0 || outCount > 0)
+                        AppTappable(
+                          ripple: false,
+                          onTap: () => setState(
+                            () => _filterIndex = _filterIndex == 0
+                                ? (lowCount > 0 ? 1 : 2)
+                                : 0,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.xs, Gap.xl, Gap.xs),
+                            child: Text.rich(
+                              TextSpan(
+                                style: AppText.caption.copyWith(fontWeight: FontWeight.w500),
                                 children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _CountTile(
-                                          label: 'Total items',
-                                          count: allProducts.length,
-                                          onTap: () =>
-                                              setState(() => _filterIndex = 0),
-                                        ),
-                                      ),
-                                      Gap.w8,
-                                      Expanded(
-                                        child: _CountTile(
-                                          label: 'In stock',
-                                          count: healthyCount,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Gap.w8,
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _CountTile(
-                                          label: 'Low stock',
-                                          count: lowCount,
-                                          alert: lowCount > 0,
-                                          selected: _filterIndex == 1,
-                                          onTap: () => setState(
-                                            () => _filterIndex =
-                                                _filterIndex == 1 ? 0 : 1,
-                                          ),
-                                        ),
-                                      ),
-                                      Gap.w8,
-                                      Expanded(
-                                        child: _CountTile(
-                                          label: 'Out of stock',
-                                          count: outCount,
-                                          selected: _filterIndex == 2,
-                                          onTap: () => setState(
-                                            () => _filterIndex =
-                                                _filterIndex == 2 ? 0 : 2,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                  if (lowCount > 0)
+                                    TextSpan(
+                                      text: '$lowCount low',
+                                      style: const TextStyle(color: AppColors.warning),
+                                    ),
+                                  if (lowCount > 0 && outCount > 0)
+                                    const TextSpan(text: ' · '),
+                                  if (outCount > 0)
+                                    TextSpan(
+                                      text: '$outCount out',
+                                      style: const TextStyle(color: AppColors.danger),
+                                    ),
                                 ],
                               ),
                             ),
-
-                            const SizedBox(height: 14),
-
-                            // Segmented All | Low | Out
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: Gap.xl,
-                              ),
-                              child: Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  color: AppColors.outlineVariant.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                  borderRadius: Radii.rPill,
-                                ),
-                                child: Row(
-                                  children: [
-                                    for (var i = 0; i < filters.length; i++)
-                                      Expanded(
-                                        child: AppTappable(
-                                          ripple: false,
-                                          onTap: () =>
-                                              setState(() => _filterIndex = i),
-                                          child: AnimatedContainer(
-                                            duration: Motion.durationOf(
-                                              context,
-                                              Motion.base,
-                                            ),
-                                            alignment: Alignment.center,
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: Gap.sm,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: _filterIndex == i
-                                                  ? AppColors.canvas
-                                                  : Colors.transparent,
-                                              borderRadius: Radii.rPill,
-                                            ),
-                                            child: Text(
-                                              filters[i],
-                                              style: AppText.label.copyWith(
-                                                color: _filterIndex == i
-                                                    ? AppColors.inkPrimary
-                                                    : AppColors.inkSecondary,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
+                          ),
+                        ),
+                      const SizedBox(height: Gap.sm),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
+                        child: AppSearchField(
+                          controller: _searchController,
+                          hint: 'Search products, SKU…',
+                        ),
+                      ),
+                      const SizedBox(height: Gap.md),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondaryContainer,
+                            borderRadius: Radii.rPill,
+                          ),
+                          child: Row(
+                            children: [
+                              for (var i = 0; i < filters.length; i++)
+                                Expanded(
+                                  child: AppTappable(
+                                    ripple: false,
+                                    onTap: () => setState(() => _filterIndex = i),
+                                    child: AnimatedContainer(
+                                      duration: Motion.durationOf(context, Motion.base),
+                                      alignment: Alignment.center,
+                                      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+                                      decoration: BoxDecoration(
+                                        color: _filterIndex == i
+                                            ? AppColors.onSurface
+                                            : Colors.transparent,
+                                        borderRadius: Radii.rPill,
                                       ),
-                                  ],
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // Section header
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                              ),
-                              child: Text(
-                                'INVENTORY ITEMS',
-                                style: AppText.eyebrow,
-                              ),
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // List
-                            Expanded(
-                              child: products.isEmpty
-                                  ? Center(
                                       child: Text(
-                                        'No products found.',
-                                        style: AppText.body.copyWith(
-                                          color: AppColors.inkTertiary,
+                                        filters[i],
+                                        style: AppText.label.copyWith(
+                                          fontWeight: _filterIndex == i
+                                              ? FontWeight.w600
+                                              : FontWeight.w500,
+                                          color: _filterIndex == i
+                                              ? AppColors.canvas
+                                              : AppColors.onSurfaceVariant,
                                         ),
-                                      ),
-                                    )
-                                  : MotionRefresh(
-                                      onRefresh: () async {
-                                        ref.invalidate(productsProvider);
-                                        await ref.read(productsProvider.future);
-                                      },
-                                      child: ListView.separated(
-                                        physics:
-                                            const AlwaysScrollableScrollPhysics(),
-                                        padding: const EdgeInsets.fromLTRB(
-                                          Gap.xl,
-                                          0,
-                                          Gap.xl,
-                                          100,
-                                        ),
-                                        itemCount: products.length,
-                                        separatorBuilder: (context, index) =>
-                                            const Divider(
-                                              height: 1,
-                                              thickness: 1,
-                                              color: AppColors.outlineVariant,
-                                            ),
-                                        itemBuilder: (context, index) {
-                                          final product = products[index];
-                                          // NOT stock.toInt(): that truncates, so
-                                          // half a unit left on the shelf showed
-                                          // as "Out of Stock". Stock is a REAL
-                                          // column and stays a double.
-                                          final stock = product.stock;
-                                          final isLow = StockLevels.isLow(
-                                            stock,
-                                          );
-                                          final isOut =
-                                              StockLevels.isOutOfStock(stock);
-
-                                          Color statusColor;
-                                          String statusLabel;
-                                          if (isOut) {
-                                            statusColor = AppColors.danger;
-                                            statusLabel = 'Out of Stock';
-                                          } else if (isLow) {
-                                            statusColor = AppColors.warning;
-                                            statusLabel = 'Low Stock';
-                                          } else {
-                                            statusColor = AppColors.success;
-                                            statusLabel = 'In Stock';
-                                          }
-
-                                          // Current margin on the latest prices — sell
-                                          // vs weighted-average cost. Null when no sell
-                                          // price, so it reads "—" not a bogus 0%.
-                                          final double? marginPct =
-                                              product.sellingPrice > 0
-                                              ? (product.sellingPrice -
-                                                        product.costPrice) /
-                                                    product.sellingPrice *
-                                                    100
-                                              : null;
-                                          final Color marginColor =
-                                              marginPct == null
-                                              ? AppColors.inkTertiary
-                                              : marginPct < 0
-                                              ? AppColors.error
-                                              : marginPct < 10
-                                              ? AppColors.warning
-                                              : AppColors.success;
-
-                                          return Pressable(
-                                            child: AppTappable(
-                                              ripple: false,
-                                              onTap: () => _showProductSheet(
-                                                context,
-                                                product,
-                                              ),
-                                              child: Container(
-                                                color: AppColors.canvas,
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      vertical: Gap.md,
-                                                    ),
-                                                child: Row(
-                                                  children: [
-                                                    // The tile carries the stock state,
-                                                    // so the row's status is readable
-                                                    // from the left edge as you scan
-                                                    // down, not only from a chip buried
-                                                    // in the right-hand column.
-                                                    IconTile(
-                                                      icon: isOut
-                                                          ? LucideIcons.packageX
-                                                          : LucideIcons.package,
-                                                      tint: statusColor,
-                                                      size: 44,
-                                                    ),
-                                                    Gap.w16,
-                                                    Expanded(
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Text(
-                                                            product.name,
-                                                            style: AppText
-                                                                .bodyStrong,
-                                                            maxLines: 1,
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                          ),
-                                                          const SizedBox(
-                                                            height: 2,
-                                                          ),
-                                                          // SKU and margin share the
-                                                          // supporting line. The right
-                                                          // column was stacking price,
-                                                          // margin, a status chip and a
-                                                          // chevron into about 90px --
-                                                          // four things competing in the
-                                                          // narrowest part of the row.
-                                                          Row(
-                                                            children: [
-                                                              Flexible(
-                                                                child: Text(
-                                                                  'SKU ${product.sku ?? "—"}',
-                                                                  style: AppText
-                                                                      .caption,
-                                                                  maxLines: 1,
-                                                                  overflow:
-                                                                      TextOverflow
-                                                                          .ellipsis,
-                                                                ),
-                                                              ),
-                                                              if (marginPct !=
-                                                                  null) ...[
-                                                                Text(
-                                                                  '  ·  ',
-                                                                  style: AppText
-                                                                      .caption,
-                                                                ),
-                                                                Text(
-                                                                  '${marginPct.toStringAsFixed(0)}% margin',
-                                                                  style: AppText
-                                                                      .caption
-                                                                      .copyWith(
-                                                                        color:
-                                                                            marginColor,
-                                                                      ),
-                                                                ),
-                                                              ],
-                                                            ],
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    Gap.w12,
-                                                    Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .end,
-                                                      children: [
-                                                        Text(
-                                                          Money.inr(
-                                                            product
-                                                                .sellingPrice,
-                                                          ),
-                                                          style: AppText.money,
-                                                        ),
-                                                        const SizedBox(
-                                                          height: 4,
-                                                        ),
-                                                        Text(
-                                                          isOut
-                                                              ? statusLabel
-                                                              : '${_qty(stock)}'
-                                                                    ' ${product.unit ?? "in stock"}',
-                                                          style: AppText.caption
-                                                              .copyWith(
-                                                                color:
-                                                                    isOut ||
-                                                                        isLow
-                                                                    ? statusColor
-                                                                    : AppColors
-                                                                          .inkTertiary,
-                                                                fontWeight:
-                                                                    isOut ||
-                                                                        isLow
-                                                                    ? FontWeight
-                                                                          .w600
-                                                                    : FontWeight
-                                                                          .w400,
-                                                              ),
-                                                        ),
-                                                        const SizedBox(
-                                                          height: 5,
-                                                        ),
-                                                        // Level bar: full at 3x the low threshold.
-                                                        ClipRRect(
-                                                          borderRadius:
-                                                              Radii.rPill,
-                                                          child: SizedBox(
-                                                            width: 56,
-                                                            height: 4,
-                                                            child: TweenAnimationBuilder<double>(
-                                                              tween: Tween(
-                                                                end:
-                                                                    (stock /
-                                                                            (StockLevels.defaultThreshold *
-                                                                                3))
-                                                                        .clamp(
-                                                                          0.0,
-                                                                          1.0,
-                                                                        ),
-                                                              ),
-                                                              duration:
-                                                                  Motion.durationOf(
-                                                                    context,
-                                                                    Motion.base,
-                                                                  ),
-                                                              builder: (_, v, _) =>
-                                                                  LinearProgressIndicator(
-                                                                    value: v,
-                                                                    minHeight:
-                                                                        4,
-                                                                    color:
-                                                                        statusColor,
-                                                                    backgroundColor:
-                                                                        AppColors
-                                                                            .outlineVariant,
-                                                                  ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    Gap.w8,
-                                                    const Icon(
-                                                      LucideIcons.chevronRight,
-                                                      size: 20,
-                                                      color:
-                                                          AppColors.inkTertiary,
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
                                       ),
                                     ),
-                            ),
-                          ],
-                        );
-                      },
-                      loading: () => const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
-                      error: (error, stack) => Center(
-                        child: Text(
-                          'Error loading inventory',
-                          style: AppText.body.copyWith(color: AppColors.error),
+                    ],
+                  ),
+                ),
+              ),
+              if (productsAsync.isLoading && !productsAsync.hasValue)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                )
+              else if (productsAsync.hasError && !productsAsync.hasValue)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text(
+                      'Error loading inventory',
+                      style: AppText.body.copyWith(color: AppColors.error),
+                    ),
+                  ),
+                )
+              else if (products.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text(
+                      'No products found.',
+                      style: AppText.body.copyWith(color: AppColors.inkTertiary),
+                    ),
+                  ),
+                )
+              else
+                SliverList.builder(
+                  itemCount: products.length,
+                  itemBuilder: (context, i) => _ProductRow(
+                    product: products[i],
+                    last: i == products.length - 1,
+                    onTap: () => _showProductSheet(context, products[i]),
+                  ),
+                ),
+              // Clear of the shell's FAB and bottom bar.
+              const SliverToBoxAdapter(child: SizedBox(height: 160)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InvHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double height;
+  final Widget child;
+  _InvHeaderDelegate({required this.height, required this.child});
+
+  @override
+  double get minExtent => height;
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      Container(
+        color: AppColors.canvas,
+        // Always ruled: overlapsContent is false for a fixed-height pinned
+        // header, so rows slid under it with no edge.
+        foregroundDecoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.outlineVariant, width: 0.5)),
+        ),
+        child: child,
+      );
+
+  @override
+  bool shouldRebuild(covariant _InvHeaderDelegate old) => true;
+}
+
+/// Margin colour: only a thin margin earns a colour.
+Color marginColor(double pct) => pct < 5
+    ? AppColors.danger
+    : pct < 15
+        ? AppColors.warning
+        : AppColors.onSurfaceVariant;
+
+/// Level bar fill: qty against twice the reorder level, capped at 1.
+double stockLevelFraction(double stock, {double reorder = StockLevels.defaultThreshold}) =>
+    reorder <= 0 ? 1 : (stock / (reorder * 2)).clamp(0.0, 1.0);
+
+class _ProductRow extends StatelessWidget {
+  final Product product;
+  final bool last;
+  final VoidCallback onTap;
+  const _ProductRow({required this.product, required this.last, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    // Stock is a REAL column: never truncate it (half a unit is not "out").
+    final stock = product.stock;
+    final isOut = StockLevels.isOutOfStock(stock);
+    final isLow = StockLevels.isLow(stock);
+    final statusColor = isOut
+        ? AppColors.danger
+        : isLow
+            ? AppColors.warning
+            : AppColors.success;
+    final unit = (product.unit ?? '').toLowerCase();
+    final double? marginPct = product.sellingPrice > 0
+        ? (product.sellingPrice - product.costPrice) / product.sellingPrice * 100
+        : null;
+
+    return Pressable(
+      child: AppTappable(
+        ripple: false,
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: Gap.xl),
+          padding: const EdgeInsets.symmetric(vertical: Gap.md),
+          decoration: BoxDecoration(
+            border: last
+                ? null
+                : const Border(bottom: BorderSide(color: AppColors.outlineVariant)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.body.copyWith(fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
                         ),
+                        const SizedBox(width: 6),
+                        // Fixed width so every row's level bar starts at the same x.
+                        SizedBox(
+                          width: isOut ? null : 72,
+                          child: Text(
+                            isOut ? 'Out of stock' : '${_qty(stock)}${unit.isEmpty ? '' : ' $unit'}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption.copyWith(
+                              color: isOut
+                                  ? AppColors.danger
+                                  : isLow
+                                      ? AppColors.warning
+                                      : AppColors.onSurfaceVariant,
+                              
+                            ),
+                          ),
+                        ),
+                        if (!isOut) ...[
+                          const SizedBox(width: 8),
+                          ClipRRect(
+                            borderRadius: Radii.rPill,
+                            child: SizedBox(
+                              width: 64,
+                              height: 3,
+                              child: TweenAnimationBuilder<double>(
+                                tween: Tween(end: stockLevelFraction(stock)),
+                                duration: Motion.durationOf(context, Motion.base),
+                                builder: (_, v, _) => LinearProgressIndicator(
+                                  value: v,
+                                  minHeight: 3,
+                                  color: statusColor,
+                                  backgroundColor: AppColors.outlineVariant,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: Gap.md),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    Money.inr(product.sellingPrice),
+                    style: AppText.body.copyWith(
+                      fontWeight: FontWeight.w500,
+                      
+                    ),
+                  ),
+                  if (marginPct != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '${marginPct.toStringAsFixed(0)}% margin',
+                      style: AppText.caption.copyWith(
+                        color: marginColor(marginPct),
+                        
                       ),
                     ),
+                  ],
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1293,69 +1146,3 @@ class _StockAdjustBtn extends StatelessWidget {
 /// common case noisier to read than the rare one.
 String _qty(double v) =>
     v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(2);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Count tile
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _CountTile extends StatelessWidget {
-  final String label;
-  final int count;
-
-  /// Only the tile that is asking for something carries colour, and it carries
-  /// it on the fill AND the ink, so the state does not rest on hue alone.
-  final bool alert;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  const _CountTile({
-    required this.label,
-    required this.count,
-    this.alert = false,
-    this.selected = false,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final tile = Container(
-      padding: const EdgeInsets.all(Gap.md),
-      decoration: BoxDecoration(
-        color: alert ? AppColors.warningContainer : AppColors.canvas,
-        borderRadius: Radii.rMd,
-        border: Border.all(
-          color: selected
-              ? AppColors.inkPrimary
-              : alert
-              ? AppColors.warning
-              : AppColors.outlineVariant,
-          width: selected ? 1.5 : 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$count',
-            style: AppText.moneyLarge.copyWith(
-              fontSize: 20,
-              color: alert ? AppColors.warning : AppColors.onSurface,
-            ),
-          ),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(
-              color: alert ? AppColors.warning : AppColors.inkTertiary,
-            ),
-          ),
-        ],
-      ),
-    );
-    if (onTap == null) return tile;
-    return Pressable(
-      child: AppTappable(ripple: false, onTap: onTap!, child: tile),
-    );
-  }
-}
