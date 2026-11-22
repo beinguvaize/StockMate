@@ -17,7 +17,8 @@ import 'package:mobile_app/features/sales/presentation/providers/sales_provider.
 import 'package:mobile_app/features/sales/presentation/sales_view.dart';
 import 'package:mobile_app/widgets/motion/motion_curves.dart';
 
-const _tabular = [FontFeature.tabularFigures()];
+// This font pads a tabular '1' visibly ("₹8,1 10"), so figures stay proportional.
+const _tabular = <FontFeature>[];
 
 class SalesScreen extends ConsumerStatefulWidget {
   const SalesScreen({super.key});
@@ -200,7 +201,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             SliverPersistentHeader(
               pinned: true,
               delegate: _PinnedHeader(
-                height: 206,
+                height: 182,
                 child: _SummaryHeader(
                   total: total,
                   bills: bills,
@@ -298,11 +299,11 @@ class _PinnedHeader extends SliverPersistentHeaderDelegate {
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
       Container(
         color: AppColors.canvas,
-        foregroundDecoration: overlapsContent
-            ? const BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
-              )
-            : null,
+        // Always ruled: overlapsContent is false for a fixed-height pinned
+        // header, so rows slid under it with no edge.
+        foregroundDecoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.outlineVariant, width: 0.5)),
+        ),
         child: child,
       );
 

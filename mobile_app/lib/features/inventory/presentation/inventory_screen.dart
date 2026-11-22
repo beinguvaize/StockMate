@@ -119,7 +119,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _InvHeaderDelegate(
-                  height: 188,
+                  height: 208,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -132,7 +132,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           style: AppText.moneyLarge.copyWith(
                             fontSize: 32,
                             fontWeight: FontWeight.w600,
-                            fontFeatures: const [FontFeature.tabularFigures()],
+                            
                           ),
                         ),
                       ),
@@ -290,11 +290,11 @@ class _InvHeaderDelegate extends SliverPersistentHeaderDelegate {
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
       Container(
         color: AppColors.canvas,
-        foregroundDecoration: overlapsContent
-            ? const BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
-              )
-            : null,
+        // Always ruled: overlapsContent is false for a fixed-height pinned
+        // header, so rows slid under it with no edge.
+        foregroundDecoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.outlineVariant, width: 0.5)),
+        ),
         child: child,
       );
 
@@ -369,7 +369,9 @@ class _ProductRow extends StatelessWidget {
                           decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
                         ),
                         const SizedBox(width: 6),
-                        Flexible(
+                        // Fixed width so every row's level bar starts at the same x.
+                        SizedBox(
+                          width: isOut ? null : 72,
                           child: Text(
                             isOut ? 'Out of stock' : '${_qty(stock)}${unit.isEmpty ? '' : ' $unit'}',
                             maxLines: 1,
@@ -380,7 +382,7 @@ class _ProductRow extends StatelessWidget {
                                   : isLow
                                       ? AppColors.warning
                                       : AppColors.onSurfaceVariant,
-                              fontFeatures: const [FontFeature.tabularFigures()],
+                              
                             ),
                           ),
                         ),
@@ -417,7 +419,7 @@ class _ProductRow extends StatelessWidget {
                     Money.inr(product.sellingPrice),
                     style: AppText.body.copyWith(
                       fontWeight: FontWeight.w500,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                      
                     ),
                   ),
                   if (marginPct != null) ...[
@@ -426,7 +428,7 @@ class _ProductRow extends StatelessWidget {
                       '${marginPct.toStringAsFixed(0)}% margin',
                       style: AppText.caption.copyWith(
                         color: marginColor(marginPct),
-                        fontFeatures: const [FontFeature.tabularFigures()],
+                        
                       ),
                     ),
                   ],

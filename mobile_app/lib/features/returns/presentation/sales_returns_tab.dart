@@ -47,6 +47,9 @@ class SalesHistoryTabs extends StatelessWidget {
                 alignment: index == 0 ? Alignment.centerLeft : Alignment.centerRight,
                 child: FractionallySizedBox(
                   widthFactor: 0.5,
+                  // Without a height factor the empty DecoratedBox is 0px tall
+                  // and the selected pill never shows.
+                  heightFactor: 1,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: AppColors.onSurface,
