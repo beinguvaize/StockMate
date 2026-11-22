@@ -162,3 +162,20 @@ BEGIN
   END IF;
 END
 $cron$;
+
+-- The cron key is created INSIDE the vault and never leaves the database:
+--   select vault.create_secret(encode(gen_random_bytes(32), 'hex'), 'drive_cron_secret');
+-- drive-backup asks the database whether a given header matches it.
+CREATE OR REPLACE FUNCTION public.drive_cron_secret_ok(p_secret text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT p_secret IS NOT NULL AND length(p_secret) >= 32 AND EXISTS (
+    SELECT 1 FROM vault.decrypted_secrets
+     WHERE name = 'drive_cron_secret' AND decrypted_secret = p_secret);
+$$;
+REVOKE ALL ON FUNCTION public.drive_cron_secret_ok(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.drive_cron_secret_ok(text) TO service_role;

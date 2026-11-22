@@ -9,7 +9,7 @@
 //
 // Scope is drive.file: bookledger can see only files it created, never the rest
 // of the owner's Drive. Secrets: GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET,
-// DRIVE_TOKEN_KEY (base64 32 bytes), DRIVE_STATE_KEY, DRIVE_CRON_SECRET, APP_URL.
+// DRIVE_TOKEN_KEY (base64 32 bytes), DRIVE_STATE_KEY, APP_URL. Cron key: vault drive_cron_secret.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.99.1";
 import { buildBackup, backupFileName } from "./backupFile.ts";
@@ -261,8 +261,14 @@ Deno.serve(async (req) => {
     const { action, fileId } = await req.json().catch(() => ({}));
 
     if (action === "cron") {
-      const secret = env("DRIVE_CRON_SECRET");
-      if (!secret || req.headers.get("x-cron-secret") !== secret) return fail("unauthorized", "Bad cron secret.", 401);
+      // The nightly job's key lives only in the database vault (created there,
+      // never copied out); the database itself says whether the header matches.
+      const given = req.headers.get("x-cron-secret") || "";
+      const { data: okKey, error: keyErr } = given
+        ? await service().rpc("drive_cron_secret_ok", { p_secret: given })
+        : { data: false, error: null };
+      if (keyErr) console.error("[drive-backup] cron key check failed:", keyErr.message);
+      if (okKey !== true) return fail("unauthorized", "Bad cron secret.", 401);
       // Answer at once (pg_net waits only a few seconds); the work continues.
       // @ts-ignore EdgeRuntime is provided by the Supabase runtime
       EdgeRuntime.waitUntil(runCron().catch((e) => console.error("[drive-backup] cron crashed", e)));
