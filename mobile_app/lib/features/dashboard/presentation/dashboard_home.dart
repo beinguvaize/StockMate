@@ -467,7 +467,8 @@ class _BillRow extends StatelessWidget {
     final voided = st == 'VOIDED' || st == 'FAILED';
     final meta = [
       shortSaleId(sale.id),
-      timeLabel(sale.createdAt),
+      // On a screen titled "Today", a bill from another day says which day.
+      _whenLabel(sale.createdAt),
       methodLabel(sale.paymentMethod),
     ].where((e) => e.isNotEmpty).join(' · ');
     return AppTappable(
@@ -554,4 +555,14 @@ class _PromoLine extends StatelessWidget {
       ),
     );
   }
+}
+
+String _whenLabel(DateTime? at) {
+  if (at == null) return '';
+  final l = at.toLocal(), n = DateTime.now();
+  final sameDay = l.year == n.year && l.month == n.month && l.day == n.day;
+  if (sameDay) return timeLabel(at);
+  final y = n.subtract(const Duration(days: 1));
+  final yest = l.year == y.year && l.month == y.month && l.day == y.day;
+  return '${yest ? 'Yesterday' : DateFormat('d MMM').format(l)}, ${timeLabel(at)}';
 }
