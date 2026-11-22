@@ -29,7 +29,10 @@ class InventoryScreen extends ConsumerStatefulWidget {
   /// never offsets a FAB above it -- this screen's own button rendered at the
   /// default position and sat UNDERNEATH the nav bar, invisible. The shell owns
   /// the offset, so the shell owns the button there.
-  const InventoryScreen({super.key, this.showAddButton = true});
+  const InventoryScreen({super.key, this.showAddButton = true, this.initialFilter = 0});
+
+  /// 0 = All, 1 = Low, 2 = Out (the dashboard deep-links into Low / Out).
+  final int initialFilter;
 
   final bool showAddButton;
 
@@ -39,7 +42,7 @@ class InventoryScreen extends ConsumerStatefulWidget {
 
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchController = TextEditingController();
-  int _filterIndex = 0; // 0=All, 1=Low Stock, 2=Out of Stock
+  late int _filterIndex = widget.initialFilter; // 0=All, 1=Low Stock, 2=Out of Stock
 
   @override
   void initState() {
@@ -82,8 +85,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       0,
       (sum, p) => sum + p.stock * p.costPrice,
     );
-    final lowCount = all.where((p) => StockLevels.isLow(p.stock)).length;
-    final outCount = all.where((p) => StockLevels.isOutOfStock(p.stock)).length;
+    final stockCounts = StockLevels.counts(all.map((p) => p.stock));
+    final lowCount = stockCounts.low;
+    final outCount = stockCounts.out;
     final productsAsync = ref.watch(filteredProductsProvider);
     final products = (productsAsync.valueOrNull ?? const <Product>[]).where((p) {
       if (_filterIndex == 1) return StockLevels.isLow(p.stock);
