@@ -1,7 +1,9 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:mobile_app/main.dart' show syncServiceProvider;
+import 'package:mobile_app/widgets/motion/save_button.dart';
+import 'package:mobile_app/widgets/motion/slide_to_confirm.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
@@ -630,166 +632,33 @@ class InvoiceDetailScreen extends ConsumerWidget {
   }
 
   void _showPaymentSheet(BuildContext context, WidgetRef ref) {
-    final outstanding = invoice.outstanding;
-    final amountCtrl = TextEditingController(text: outstanding.toStringAsFixed(2));
-
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      // Floating sheet: the card draws itself.
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      builder: (ctx) => _RecordPaymentSheet(
+        invoice: invoice,
+        onDone: (fullyPaid, queued) {
+          if (ctx.mounted) Navigator.pop(ctx);
+          ref.invalidate(invoicesProvider);
+          ref.invalidate(recentSalesProvider);
+          try { ref.invalidate(clientsProvider); } catch (_) {}
+          if (context.mounted) {
+            Navigator.pop(context); // back to the list
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(queued
+                    ? 'Payment saved on this phone. It is sent when the internet is back'
+                    : fullyPaid
+                        ? 'Bill marked as paid'
+                        : 'Part payment recorded'),
+                behavior: SnackBarBehavior.floating,
               ),
-            ),
-            const SizedBox(height: 20),
-            Text('Record Payment',
-                style: GoogleFonts.manrope(
-                    fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
-            const SizedBox(height: 4),
-            Text('Balance due: ₹${outstanding.toStringAsFixed(2)}',
-                style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
-            const SizedBox(height: 20),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainer,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-              ),
-              child: TextField(
-                controller: amountCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: GoogleFonts.manrope(fontSize: 16, color: AppColors.inkPrimary, fontWeight: FontWeight.w600),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(LucideIcons.indianRupee, size: 18, color: AppColors.inkSecondary),
-                  labelText: 'Payment Amount',
-                  labelStyle: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary, fontWeight: FontWeight.w600),
-                  floatingLabelBehavior: FloatingLabelBehavior.always,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
-                  if (amt <= 0) return;
-                  try {
-                    final supabase = Supabase.instance.client;
-                    // Resolve the underlying SALE — that's what the
-                    // outstanding + Cash & Bank triggers read. Updating only
-                    // the invoice row (old behaviour) never adjusted the
-                    // client's outstanding, and did nothing at all for raw
-                    // sales without an invoice.
-                    final saleId = invoice.saleId ??
-                        (invoice.id.startsWith('INV-') ? null : invoice.id);
-                    final saleRow = saleId == null
-                        ? null
-                        : await supabase
-                            .from('sales')
-                            .select('id, tenant_id, "shopId", "paymentMethod", "totalAmount", "paidAmount"')
-                            .eq('id', saleId)
-                            .maybeSingle();
-
-                    final method = ((saleRow?['paymentMethod'] as String?) ?? '').toUpperCase();
-                    final clientId = saleRow?['shopId'] as String?;
-
-                    if (saleRow != null && method == 'CREDIT' && clientId != null) {
-                      // Credit sale with a registered client: record a
-                      // client payment — the DB replay allocates it FIFO,
-                      // posts Cash & Bank and recomputes outstanding.
-                      await supabase.from('client_payments').insert({
-                        'id': 'CP-${DateTime.now().millisecondsSinceEpoch}',
-                        'tenant_id': saleRow['tenant_id'],
-                        'client_id': clientId,
-                        'amount': amt,
-                        'date': DateTime.now().toIso8601String().substring(0, 10),
-                        'payment_method': 'CASH',
-                        'recorded_by': supabase.auth.currentUser?.id,
-                      });
-                    } else if (saleRow != null) {
-                      // Cash/UPI sale (or walk-in credit): bump the sale's
-                      // paid amount directly — the sale-ledger trigger
-                      // reposts Cash & Bank and outstanding recalcs. No
-                      // client_payments row (the replay would double-count).
-                      final total = ((saleRow['totalAmount'] as num?)?.toDouble() ?? 0);
-                      final paid  = ((saleRow['paidAmount'] as num?)?.toDouble() ?? 0);
-                      final newPaid = (paid + amt).clamp(0, total);
-                      final newStatus = newPaid >= total ? 'PAID' : 'PARTIAL';
-                      await supabase.from('sales').update({
-                        'paidAmount': newPaid,
-                        'paymentStatus': newStatus,
-                      }).eq('id', saleId as Object);
-                      await supabase.from('invoices').update({
-                        'paid_amount': newPaid,
-                        'payment_status': newStatus,
-                      }).eq('id', 'INV-$saleId');
-                    } else {
-                      // Legacy invoice with no linked sale — old behaviour.
-                      final newPaid = invoice.paidAmount + amt;
-                      final newStatus = newPaid >= invoice.grandTotal ? 'PAID' : 'PARTIAL';
-                      await supabase.from('invoices').update({
-                        'paid_amount': newPaid.clamp(0, invoice.grandTotal),
-                        'payment_status': newStatus,
-                      }).eq('id', invoice.id);
-                    }
-                    final newStatus = (invoice.paidAmount + amt) >= invoice.grandTotal ? 'PAID' : 'PARTIAL';
-                    if (ctx.mounted) {
-                      Navigator.pop(ctx);
-                      ref.invalidate(invoicesProvider);
-                      ref.invalidate(recentSalesProvider);
-                      try { ref.invalidate(clientsProvider); } catch (_) {}
-                      if (context.mounted) {
-                        Navigator.pop(context); // go back to list
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                newStatus == 'PAID' ? 'Invoice marked as PAID' : 'Partial payment recorded',
-                                style: GoogleFonts.manrope(color: AppColors.inkPrimary)),
-                            backgroundColor: AppColors.primaryContainer,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        );
-                      }
-                    }
-                  } catch (e) {
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
-                      );
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: const StadiumBorder(),
-                  elevation: 0,
-                ),
-                child: Text('CONFIRM PAYMENT',
-                    style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 1)),
-              ),
-            ),
-          ],
-        ),
+            );
+          }
+        },
       ),
     );
   }
@@ -2101,3 +1970,428 @@ class _Field extends StatelessWidget {
 }
 
 // ─── Tax breakdown row ────────────────────────────────────────────────────────
+
+/// Record a payment against one bill. Laid out to the approved board
+/// "Record Payment" (sales-14).
+///
+/// Where the money goes is decided by the server, not here:
+///  * a credit sale to a registered client is settled through
+///    `settle_client_payment`, which allocates it, posts it to the chosen
+///    method's account and recalculates what the client owes;
+///  * any other sale only has its paid amount raised, and the sale-ledger
+///    trigger reposts it under the sale's own method. A different method
+///    cannot be recorded for that case yet, so the choice is locked.
+class _RecordPaymentSheet extends ConsumerStatefulWidget {
+  final Invoice invoice;
+  /// Called after a successful save with whether the bill is now fully paid.
+  final void Function(bool fullyPaid, bool queued) onDone;
+  const _RecordPaymentSheet({required this.invoice, required this.onDone});
+
+  @override
+  ConsumerState<_RecordPaymentSheet> createState() =>
+      _RecordPaymentSheetState();
+}
+
+class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
+  late final TextEditingController _amount;
+  final _amountFocus = FocusNode();
+  Map<String, dynamic>? _sale;
+  bool _loaded = false;
+  String _method = 'CASH';
+  SaveStatus _status = SaveStatus.idle;
+  String? _error;
+
+  Invoice get inv => widget.invoice;
+  double get _due => inv.outstanding;
+  double get _amt => double.tryParse(_amount.text.trim()) ?? 0;
+
+  String? get _saleId =>
+      inv.saleId ?? (inv.id.startsWith('INV-') ? null : inv.id);
+
+  /// The sale's own method, upper-cased ('' when unknown).
+  String get _saleMethod =>
+      ((_sale?['paymentMethod'] as String?) ?? inv.paymentMethod ?? '')
+          .toUpperCase();
+
+  String? get _clientId => (_sale?['shopId'] as String?) ?? inv.clientId;
+
+  /// Only a credit sale to a registered client can take a method of its own.
+  bool get _canChoose =>
+      _saleMethod.startsWith('CREDIT') && (_clientId ?? '').isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    _amount = TextEditingController(text: _due.toStringAsFixed(2));
+    _amount.addListener(() => setState(() {}));
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _amountFocus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final id = _saleId;
+    if (id != null) {
+      try {
+        _sale = await Supabase.instance.client
+            .from('sales')
+            .select(
+                'id, tenant_id, "shopId", "paymentMethod", "totalAmount", "paidAmount"')
+            .eq('id', id)
+            .maybeSingle()
+            .timeout(const Duration(seconds: 8));
+      } catch (e) {
+        debugPrint('[recordPayment] sale lookup failed: $e');
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _loaded = true;
+      if (!_canChoose) {
+        final m = _saleMethod;
+        _method = (m == 'UPI' || m == 'BANK') ? m : 'CASH';
+      }
+    });
+  }
+
+  Future<void> _save() async {
+    final amt = _amt;
+    if (amt <= 0 || _status != SaveStatus.idle) return;
+    setState(() {
+      _status = SaveStatus.saving;
+      _error = null;
+    });
+    var queued = false;
+    try {
+      final supabase = Supabase.instance.client;
+      final saleId = _saleId;
+      if (_canChoose) {
+        // One settled path, the same one Cash Collection uses. Routed
+        // through the offline queue so a dropped connection queues the
+        // payment instead of losing it.
+        final ctx = await ref.read(tenantContextProvider.future);
+        final tenantId = (_sale?['tenant_id'] as String?) ?? ctx?.tenantId;
+        if (tenantId == null) throw 'Shop not known. Sign in again.';
+        queued = await ref.read(syncServiceProvider).rpcOnlineOrQueue(
+          'settle_client_payment',
+          {
+            'p_id': 'CP-${DateTime.now().millisecondsSinceEpoch}',
+            'p_tenant_id': tenantId,
+            'p_client_id': _clientId,
+            'p_amount': amt,
+            'p_date': DateTime.now().toIso8601String().substring(0, 10),
+            'p_method': _method,
+            'p_recorded_by': supabase.auth.currentUser?.id,
+          },
+        );
+      } else if (_sale != null && saleId != null) {
+        // Cash/UPI sale (or walk-in credit): raise the sale's paid amount.
+        // The sale-ledger trigger reposts Cash & Bank and what is owed is
+        // recalculated. No client_payments row (it would double-count).
+        final total = ((_sale!['totalAmount'] as num?)?.toDouble() ?? 0);
+        final paid = ((_sale!['paidAmount'] as num?)?.toDouble() ?? 0);
+        final newPaid = (paid + amt).clamp(0, total);
+        final newStatus = newPaid >= total ? 'PAID' : 'PARTIAL';
+        await supabase.from('sales').update({
+          'paidAmount': newPaid,
+          'paymentStatus': newStatus,
+        }).eq('id', saleId);
+        await supabase.from('invoices').update({
+          'paid_amount': newPaid,
+          'payment_status': newStatus,
+        }).eq('id', 'INV-$saleId');
+      } else {
+        // Invoice with no linked sale: update the invoice itself.
+        final newPaid = inv.paidAmount + amt;
+        await supabase.from('invoices').update({
+          'paid_amount': newPaid.clamp(0, inv.grandTotal),
+          'payment_status': newPaid >= inv.grandTotal ? 'PAID' : 'PARTIAL',
+        }).eq('id', inv.id);
+      }
+      if (!mounted) return;
+      setState(() => _status = SaveStatus.saved);
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
+      widget.onDone((inv.paidAmount + amt) >= inv.grandTotal, queued);
+    } catch (e) {
+      debugPrint('[recordPayment] failed: $e');
+      if (!mounted) return;
+      // A dropped connection may still have saved it: say so, do not claim
+      // it was lost.
+      setState(() {
+        _status = SaveStatus.error;
+        _error = 'Could not confirm. Check the bill before trying again';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: AppColors.danger));
+      await Future<void>.delayed(const Duration(milliseconds: 2200));
+      if (mounted) setState(() => _status = SaveStatus.idle);
+    }
+  }
+
+  Widget _chip(String label, bool active, VoidCallback onTap) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: active ? DashColors.ink : DashColors.card,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+              color: active ? DashColors.ink : const Color(0xFFE1E0DE)),
+        ),
+        // widthFactor keeps the pill as wide as its words; an aligned
+        // container would stretch across the sheet.
+        child: Center(
+          widthFactor: 1,
+          child: Text(label,
+              style: DashText.tight(12.5,
+                  w: FontWeight.w600,
+                  c: active ? Colors.white : const Color(0xFF30343A),
+                  ls: 0)),
+        ),
+      ),
+    );
+  }
+
+  Widget _methodTile(String key, String word, IconData icon) {
+    final on = _method == key;
+    final locked = !_canChoose && !on;
+    return Expanded(
+      child: Opacity(
+        opacity: locked ? 0.35 : 1,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _canChoose ? () => setState(() => _method = key) : null,
+          child: Column(
+            children: [
+              Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: on ? const Color(0xFFF09935) : const Color(0xFFF4F4F3),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon,
+                    size: 20,
+                    color: on ? Colors.white : const Color(0xFF30343A)),
+              ),
+              const SizedBox(height: 6),
+              Text(word,
+                  style: DashText.tight(12,
+                      w: FontWeight.w600,
+                      c: on ? DashColors.ink : const Color(0xFF6E737A),
+                      ls: 0)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _initials(String name) {
+    final w =
+        name.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    if (w.isEmpty) return '?';
+    if (w.length == 1) return w.first.characters.take(2).toString().toUpperCase();
+    return (w[0].characters.first + w[1].characters.first).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final amt = _amt;
+    final after = (_due - amt) < 0 ? 0.0 : (_due - amt);
+    final half = (_due / 2 * 100).round() / 100;
+    final isFull = (amt - _due).abs() < 0.005;
+    final isHalf = !isFull && (amt - half).abs() < 0.005;
+    String money(double v) => '₹${_fmtAmount(v)}';
+    const grey = Color(0xFF7A8088);
+
+    return Container(
+      margin: EdgeInsets.fromLTRB(
+          8, 0, 8, 8 + mq.viewInsets.bottom + mq.padding.bottom),
+      constraints: BoxConstraints(
+          maxHeight: mq.size.height -
+              mq.padding.top -
+              mq.viewInsets.bottom -
+              mq.padding.bottom -
+              24),
+      decoration: BoxDecoration(
+        color: DashColors.card,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                      color: Color(0xFFFFF3D6), shape: BoxShape.circle),
+                  child: Text(_initials(inv.displayClientName),
+                      style: DashText.tight(13,
+                          c: const Color(0xFF30343A), ls: 0)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Record payment',
+                          style: DashText.tight(18, ls: -0.02)),
+                      const SizedBox(height: 1),
+                      Text('${inv.displayClientName} · ${inv.displayNumber}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: DashText.inter(12.5,
+                              w: FontWeight.w400, c: grey)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            // ── Amount ────────────────────────────────────────────
+            const SizedBox(height: 14),
+            Text('Amount received',
+                textAlign: TextAlign.center,
+                style: DashText.inter(12.5, c: grey)),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text('₹',
+                    style: DashText.tight(40,
+                        w: FontWeight.w600,
+                        c: const Color(0xFFB8BCC2),
+                        ls: -0.04,
+                        h: 1.1)),
+                IntrinsicWidth(
+                  child: TextField(
+                    controller: _amount,
+                    focusNode: _amountFocus,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d{0,2}')),
+                    ],
+                    textAlign: TextAlign.center,
+                    style: DashText.tight(40, ls: -0.04, h: 1.1),
+                    cursorColor: DashColors.amber,
+                    decoration: const InputDecoration(
+                      isCollapsed: true,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      contentPadding: EdgeInsets.zero,
+                      constraints: BoxConstraints(minWidth: 40),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _chip('Full ${money(_due)}', isFull,
+                    () => _amount.text = _due.toStringAsFixed(2)),
+                _chip('Half ${money(half)}', isHalf,
+                    () => _amount.text = half.toStringAsFixed(2)),
+                _chip('Other', !isFull && !isHalf, () {
+                  _amountFocus.requestFocus();
+                  _amount.selection = TextSelection(
+                      baseOffset: 0, extentOffset: _amount.text.length);
+                }),
+              ],
+            ),
+
+            // ── Method ────────────────────────────────────────────
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                _methodTile('CASH', 'Cash', LucideIcons.banknote),
+                const SizedBox(width: 8),
+                _methodTile('UPI', 'UPI', LucideIcons.smartphone),
+                const SizedBox(width: 8),
+                _methodTile('BANK', 'Bank', LucideIcons.landmark),
+              ],
+            ),
+            if (_loaded && !_canChoose) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Goes in the same way this sale was paid. Another method '
+                'can be chosen only on a credit bill to a saved client.',
+                textAlign: TextAlign.center,
+                style: DashText.inter(12, c: grey).copyWith(height: 1.4),
+              ),
+            ],
+
+            // ── Before and after ──────────────────────────────────
+            Container(
+              margin: const EdgeInsets.only(top: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F7F6),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _line('Balance due now', money(_due)),
+                  _line('Still due after this', money(after),
+                      color: after <= 0.005 ? const Color(0xFF17663A) : null),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+            SlideToConfirm(
+              label: amt > 0 ? 'Slide to record ${money(amt)}' : 'Enter an amount',
+              semanticsLabel: 'Record payment',
+              enabled: _loaded && amt > 0,
+              status: _status,
+              errorText: _error,
+              onComplete: _save,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _line(String label, String value, {Color? color}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          children: [
+            Expanded(
+                child: Text(label,
+                    style:
+                        DashText.inter(13.5, c: const Color(0xFF6E737A)))),
+            Text(value,
+                style: DashText.tight(14,
+                    w: FontWeight.w600, c: color ?? DashColors.ink, ls: 0)),
+          ],
+        ),
+      );
+}
