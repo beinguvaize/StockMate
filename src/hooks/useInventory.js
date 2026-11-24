@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restInsert, restUpdate, restRpc } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { fetchWithCache, readCacheThenRevalidate, queueMutation, upsertCachedRow, isOfflineError, isElectron } from '../lib/offline/hookAdapter';
+import { fetchAllPages } from '../lib/fetchAllPages';
 import { realtimeEnabled } from '../lib/realtime';
 
 // Postgres `numeric` arrives as string over the wire (supabase-js preserves
@@ -9,7 +10,16 @@ import { realtimeEnabled } from '../lib/realtime';
 // `"0100"` (string concat), `Math.min("10",5)` coerces but silently, and
 // `.toFixed` on strings throws outright. Coerce once at the fetch boundary
 // so every caller sees clean numbers.
-const NUMERIC_PRODUCT_COLS = ['costPrice', 'sellingPrice', 'stock', 'taxRate', 'mrp', 'discount', 'min_margin'];
+// `mrp` and `discount` used to be in this list and are NOT columns on
+// products -- nothing writes them and nothing ever has. The guard below
+// skips absent keys, so they were harmless, but a coercion list is also a
+// claim about what the table holds, and that claim was wrong. The three
+// added here are real numeric columns that arrive as strings and are used
+// in arithmetic: the two price tiers and the cess rate.
+const NUMERIC_PRODUCT_COLS = [
+  'costPrice', 'sellingPrice', 'stock', 'taxRate', 'min_margin',
+  'wholesale_price', 'distributor_price', 'cess_rate',
+];
 const NUMERIC_BALANCE_COLS = ['quantity'];
 
 const normalizeRow = (row, cols) => {
@@ -48,22 +58,30 @@ export const useInventory = (tenantId) => {
       const [cachedProds, cachedCats, cachedBals, cachedLocs] = await Promise.all([
         readCacheThenRevalidate(
           'products',
-          () => supabase.from('products').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
+          // Paged, not a bare select. PostgREST stops at 1000 rows per request
+          // (fetchAllPages.js), and this read had no .range() and no .limit() --
+          // so a shop with more than 1000 SKUs got the first 1000 and nothing
+          // said so. At the till that is not a short list: a scanned barcode for
+          // product 1001 does not resolve, and the cashier is told the shop does
+          // not stock something that is on the shelf in front of them.
+          () => fetchAllPages(() => supabase.from('products').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'), { label: 'products' }),
           (rows) => setProducts(rows.map(r => normalizeRow(r, NUMERIC_PRODUCT_COLS))),
         ),
         readCacheThenRevalidate(
           'product_categories',
-          () => supabase.from('product_categories').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
+          () => fetchAllPages(() => supabase.from('product_categories').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'), { label: 'product_categories' }),
           (rows) => setProductCategories(rows),
         ),
         readCacheThenRevalidate(
           'inventory_balances',
-          () => supabase.from('inventory_balances').select('*').eq('tenant_id', tenantId),
+          // One row per product PER LOCATION, so this is the first read to pass
+          // 1000 -- a 600-SKU shop with two stores is already over.
+          () => fetchAllPages(() => supabase.from('inventory_balances').select('*').eq('tenant_id', tenantId), { label: 'inventory_balances' }),
           (rows) => setInventoryBalances(rows.map(r => normalizeRow(r, NUMERIC_BALANCE_COLS))),
         ),
         readCacheThenRevalidate(
           'inventory_locations',
-          () => supabase.from('inventory_locations').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
+          () => fetchAllPages(() => supabase.from('inventory_locations').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'), { label: 'inventory_locations' }),
           (rows) => setInventoryLocations(rows),
         ),
       ]);
@@ -216,20 +234,43 @@ export const useInventory = (tenantId) => {
     return { error };
   };
 
-  const transferStock = async (productId, fromLocId, toLocId, quantity) => {
+  // Move stock between two of the shop's locations.
+  //
+  // This called a function that did not exist -- not in production, not in dev,
+  // not in any migration -- for as long as the hook has been here. Nothing ever
+  // noticed because no screen called it; the first real call would have failed
+  // with PGRST202. The function now exists (20261014_transfer_stock_between
+  // _locations.sql) and refuses to overdraw the source, so the error from here
+  // is worth showing rather than swallowing.
+  //
+  // `note` is what the user typed and becomes the reason on both movement_log
+  // rows, which is the only record of WHY stock moved; `userId` is who did it.
+  const transferStock = async (productId, fromLocId, toLocId, quantity, { note, userId } = {}) => {
     const { error } = await supabase.rpc('transfer_inventory_atomic', {
       p_product_id: productId,
       p_from_location_id: fromLocId,
       p_to_location_id: toLocId,
       p_qty: quantity,
-      p_tenant_id: tenantId
+      p_tenant_id: tenantId,
+      p_user_id: userId ?? null,
+      p_note: note?.trim() ? note.trim() : null,
     });
-    if (!error) await fetchInventory();
-    return { error };
+    if (error) {
+      // Surfaced AND logged. A transfer that failed silently leaves the shop
+      // believing stock is in a place it never reached.
+      console.error('[useInventory] transfer_inventory_atomic failed:', error);
+      return { error };
+    }
+    await fetchInventory();
+    return { error: null };
   };
 
   // ── Location (Branch) CRUD ────────────────────────────────────────────────
-  const addLocation = async ({ name, type = 'BRANCH', address = '' }) => {
+  // `type` defaults to WAREHOUSE, not BRANCH. inventory_locations_type_check
+  // allows only WAREHOUSE and VEHICLE, so every call that took the old default
+  // was rejected by the database -- there was no way to create the second
+  // location a transfer needs.
+  const addLocation = async ({ name, type = 'WAREHOUSE', address = '' }) => {
     const id = crypto.randomUUID();
     const { data, error } = await supabase
       .from('inventory_locations')
@@ -291,6 +332,9 @@ export const useInventory = (tenantId) => {
     refetch: fetchInventory, 
     addProduct: add, 
     updateProduct: update, 
+    // Writes the selling price and nothing else. The purchases screen gets
+    // this, never updateProduct: cost belongs to recompute_product_cost.
+    setSellingPrice: (id, sellingPrice) => update(id, { sellingPrice }),
     deleteProduct: remove,
     adjustStock,
     transferStock,

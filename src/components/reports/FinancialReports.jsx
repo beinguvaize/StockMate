@@ -155,7 +155,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
  </div>
  <button 
  onClick={() => downloadCSV(plData, 'profit_loss_statement', businessProfile.name)}
- className="flex items-center gap-2 px-6 py-3 bg-ink-primary text-accent-signature rounded-lg text-[10px] font-semibold hover:bg-black transition-all shadow-premium"
+ className="flex items-center gap-2 px-6 py-3 bg-ink-primary text-accent-signature rounded-pill text-[10px] font-semibold hover:bg-black transition-all shadow-premium"
  >
  <Download size={16} />
  Export P&L

@@ -25,8 +25,11 @@ setup('authenticate and save storage state', async ({ page }) => {
   await page.locator('input[type="password"]').fill('password123');
   await page.locator('button[type="submit"]').click();
 
-  await page.waitForURL(`**/${TENANT_SLUG}/dashboard`, { timeout: 20_000 });
-  await expect(page).toHaveURL(new RegExp(`/${TENANT_SLUG}/dashboard`));
+  // The dashboard, with or without a tenant slug in front of it. The app
+  // routes a single-tenant session to a bare /dashboard, so pinning the
+  // slug-prefixed form made this wait for a URL that never arrives.
+  await page.waitForURL(/\/dashboard/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/dashboard/);
 
   // Persist cookies + localStorage so other tests can skip login
   await page.context().storageState({ path: AUTH_FILE });

@@ -6,6 +6,8 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/presentation/van_stock_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 /// FleetStockScreen — stock-on-board overview for every vehicle.
 class FleetStockScreen extends ConsumerStatefulWidget {
@@ -109,20 +111,13 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
           children: [
             Text(
               'Fleet Stock',
-              style: GoogleFonts.manrope(
-                fontWeight: FontWeight.w800,
-                fontSize: 17,
-                color: AppColors.inkPrimary,
-              ),
+              style: AppText.heading.copyWith(fontWeight: FontWeight.w800,
+                color: AppColors.inkPrimary),
             ),
             Text(
               'STOCK ON BOARD — ALL VANS',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
-                letterSpacing: 1.2,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.2),
             ),
           ],
         ),
@@ -177,10 +172,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                     ),
                                     Text(
                                       '${_rows.length} vehicle${_rows.length > 1 ? 's' : ''}',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 13,
-                                        color: AppColors.secondary,
-                                      ),
+                                      style: AppText.caption.copyWith(color: AppColors.secondary),
                                     ),
                                   ],
                                 ),
@@ -194,7 +186,8 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                             itemCount: _rows.length,
                             itemBuilder: (context, i) {
                               final r = _rows[i];
-                              return GestureDetector(
+                              return AppTappable(
+   ripple: false,
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -242,10 +235,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                               r.units <= 0
                                                   ? 'Empty'
                                                   : '${r.products} product${r.products > 1 ? 's' : ''}',
-                                              style: GoogleFonts.manrope(
-                                                fontSize: 13,
-                                                color: AppColors.inkTertiary,
-                                              ),
+                                              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                             ),
                                           ],
                                         ),
@@ -263,10 +253,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                       const SizedBox(width: 4),
                                       Text(
                                         'units',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          color: AppColors.inkTertiary,
-                                        ),
+                                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                       ),
                                       const SizedBox(width: 6),
                                       const Icon(LucideIcons.chevronRight,
@@ -274,7 +261,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                     ],
                                   ),
                                 ),
-                              );
+ );
                             },
                           ),
                         ),

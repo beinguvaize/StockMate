@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException, FunctionException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,9 +14,18 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchase_detail_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
-import 'package:mobile_app/main.dart' show syncServiceProvider;
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/utils/price_check.dart';
+import 'package:mobile_app/core/widgets/price_check_dialog.dart';
+import 'package:mobile_app/main.dart' show syncServiceProvider, databaseProvider;
 
 // ─── Model ────────────────────────────────────────────────────────────────────
+
+/// A new purchase id: `PUR-` and 16 random hex digits. Made on the phone.
+String newPurchaseId() =>
+    'PUR-${const Uuid().v4().replaceAll('-', '').substring(0, 16).toUpperCase()}';
 
 class Purchase {
   final String id;
@@ -142,8 +152,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                     fontSize: 20, fontWeight: FontWeight.w800,
                     letterSpacing: -0.5, color: AppColors.inkPrimary)),
             Text('Manage and track your supplier purchase orders.',
-                style: GoogleFonts.manrope(
-                    fontSize: 13, color: AppColors.inkSecondary)),
+                style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
           ],
         ),
         actions: [
@@ -154,7 +163,8 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
               }
               return Padding(
                 padding: const EdgeInsets.only(right: 12),
-                child: GestureDetector(
+                child: AppTappable(
+   ripple: false,
                   onTap: () => _showAddSheet(ctx.tenantId),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -170,13 +180,12 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                             size: 14, color: AppColors.inkPrimary),
                         const SizedBox(width: 6),
                         Text('New Order',
-                            style: GoogleFonts.manrope(
-                                fontSize: 13, fontWeight: FontWeight.w700,
+                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                 color: AppColors.inkPrimary)),
                       ],
                     ),
                   ),
-                ),
+ ),
               );
             },
             orElse: () => const SizedBox.shrink(),
@@ -278,8 +287,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('MONTHLY SPEND',
-                                style: GoogleFonts.manrope(
-                                    fontSize: 13, fontWeight: FontWeight.w700,
+                                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                     letterSpacing: 1.2,
                                     color: AppColors.inkSecondary)),
                             const SizedBox(height: 4),
@@ -317,11 +325,12 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                             return Padding(
                               padding: EdgeInsets.only(
                                   right: e.key < _filters.length - 1 ? 8 : 0),
-                              child: GestureDetector(
+                              child: AppTappable(
+   ripple: false,
                                 onTap: () =>
                                     setState(() => _filterIndex = e.key),
                                 child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
+                                  duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 8),
                                   decoration: BoxDecoration(
@@ -339,16 +348,12 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                                   ),
                                   child: Text(
                                     e.value,
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: active
+                                    style: AppText.label.copyWith(color: active
                                           ? AppColors.secondary
-                                          : AppColors.inkSecondary,
-                                    ),
+                                          : AppColors.inkSecondary),
                                   ),
                                 ),
-                              ),
+ ),
                             );
                           }).toList(),
                         ),
@@ -374,8 +379,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                           ),
                           const SizedBox(width: 10),
                           Text('PURCHASE ORDERS',
-                              style: GoogleFonts.manrope(
-                                  fontSize: 13, fontWeight: FontWeight.w700,
+                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                   letterSpacing: 1.5, color: AppColors.primary)),
                         ],
                       ),
@@ -412,7 +416,8 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                         delegate: SliverChildBuilderDelegate(
                           (context, i) => Padding(
                             padding: const EdgeInsets.only(bottom: 10),
-                            child: GestureDetector(
+                            child: AppTappable(
+   ripple: false,
                               onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -424,7 +429,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                                 purchase: filtered[i],
                                 fmtDate: _fmtDate,
                               ),
-                            ),
+ ),
                           ),
                           childCount: filtered.length,
                         ),
@@ -499,8 +504,7 @@ class _StatCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: GoogleFonts.manrope(
-                    fontSize: 13, fontWeight: FontWeight.w700,
+                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                     letterSpacing: 1.2, color: AppColors.inkSecondary)),
             const SizedBox(height: 6),
             Text(value,
@@ -513,8 +517,7 @@ class _StatCard extends StatelessWidget {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(subText,
-                    style: GoogleFonts.manrope(
-                        fontSize: 13, color: AppColors.inkTertiary),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
               ),
@@ -589,8 +592,7 @@ class _PurchaseCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${purchase.poNumber} · ${fmtDate(purchase.date)}',
-                  style: GoogleFonts.manrope(
-                      fontSize: 13, color: AppColors.inkTertiary),
+                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                 ),
                 if (purchase.deliveryDate != null) ...[
                   const SizedBox(height: 2),
@@ -599,8 +601,7 @@ class _PurchaseCard extends StatelessWidget {
                         size: 10, color: AppColors.inkTertiary),
                     const SizedBox(width: 4),
                     Text('Est. ${fmtDate(purchase.deliveryDate)}',
-                        style: GoogleFonts.manrope(
-                            fontSize: 13, color: AppColors.inkTertiary)),
+                        style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                   ]),
                 ],
               ],
@@ -613,8 +614,7 @@ class _PurchaseCard extends StatelessWidget {
             children: [
               Text(
                 '₹${purchase.totalAmount.toStringAsFixed(2)}',
-                style: GoogleFonts.manrope(
-                    fontSize: 15, fontWeight: FontWeight.w900,
+                style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w900,
                     color: AppColors.inkPrimary, letterSpacing: -0.5),
               ),
               const SizedBox(height: 5),
@@ -627,8 +627,7 @@ class _PurchaseCard extends StatelessWidget {
                 ),
                 child: Text(
                   status,
-                  style: GoogleFonts.manrope(
-                      fontSize: 13, fontWeight: FontWeight.w700,
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                       color: statusColor),
                 ),
               ),
@@ -664,11 +663,14 @@ class _PurchaseLine {
   final qtyCtrl       = TextEditingController();
   final unitPriceCtrl = TextEditingController();
   final totalCtrl     = TextEditingController();
+  // "Change it" on the price check puts the cursor back here.
+  final totalFocus    = FocusNode();
 
   void dispose() {
     qtyCtrl.dispose();
     unitPriceCtrl.dispose();
     totalCtrl.dispose();
+    totalFocus.dispose();
   }
 
   double get qtyVal   => double.tryParse(qtyCtrl.text) ?? 0;
@@ -713,7 +715,48 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   }
 
   // ── AI bill scan: photo → extract-bill edge fn → prefill supplier + lines ──
+  static const _consentStore = FlutterSecureStorage();
+  // Per shop: a different shop signed in on the same phone is asked afresh.
+  String get _consentKey => 'bill_scan_google_consent_v1_${widget.tenantId}';
+
+  /// The photo goes to Google's free Gemini service, whose terms let Google
+  /// use it and let human reviewers read it. A bill shows the supplier's
+  /// name, GSTIN and address, so ask once before the first scan.
+  Future<bool> _billScanConsent() async {
+    try {
+      if (await _consentStore.read(key: _consentKey) == 'yes') return true;
+    } catch (_) {/* unreadable store: ask again */}
+    if (!mounted) return false;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Before you scan a bill',
+            style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
+        content: Text(
+          'The photo is sent to Google\'s Gemini service, which reads it and '
+          'fills in the bill for you.\n\n'
+          'We use Google\'s free service. Google may use the photo to improve '
+          'its products, and Google\'s human reviewers may read it. The photo '
+          'shows what is printed on the bill, such as the supplier\'s name, '
+          'GSTIN and address.\n\n'
+          'If you prefer not to share bills, enter the bill by hand.',
+          style: GoogleFonts.manrope(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Enter by hand')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Send to Google')),
+        ],
+      ),
+    );
+    if (ok != true) return false;
+    try {
+      await _consentStore.write(key: _consentKey, value: 'yes');
+    } catch (_) {/* not saved: the notice shows again next time */}
+    return true;
+  }
+
   Future<void> _scanBill() async {
+    if (!await _billScanConsent() || !mounted) return;
     final picker = ImagePicker();
     final XFile? shot = await showModalBottomSheet<XFile?>(
       context: context,
@@ -777,9 +820,14 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
         ));
       }
     } catch (e) {
+      // Log the real reason; show a sentence the person can act on.
+      debugPrint('[scanBill] failed: $e');
+      final signedOut = e is FunctionException && e.status == 401;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Scan failed: $e'),
+          content: Text(signedOut
+              ? 'Please sign in again, then scan the bill.'
+              : 'Couldn\'t read the bill. Try again, or enter it by hand.'),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
         ));
@@ -1069,11 +1117,82 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
     if (picked != null) setState(() => _date = picked);
   }
 
+  // ── Price check: lines far from what the item last cost ─────────────────────
+  // A line against the wrong product looks like a normal line, so a price more
+  // than PriceCheck.pricePct away from the last purchase is asked about once
+  // before saving. Same rule and wording as the web form. It never blocks.
+
+  /// The purchase rows for these products, newest wins in PriceCheck. Online
+  /// first, like the rest of this sheet; offline, the phone's cached copy
+  /// (which carries no status, so a cancelled purchase can count there).
+  Future<List<Map<String, dynamic>>> _purchaseHistory(Set<String> productIds) async {
+    try {
+      final rows = await supabase
+          .from('purchases')
+          .select('id, linked_product_id, quantity, total_amount, date, created_at, status')
+          .eq('tenant_id', widget.tenantId)
+          .isFilter('deleted_at', null)
+          .inFilter('linked_product_id', productIds.toList())
+          .timeout(const Duration(seconds: 6));
+      return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (e) {
+      debugPrint('[purchases] price history online read failed, using local: $e');
+    }
+    try {
+      final db = ref.read(databaseProvider);
+      final local = await db.select(db.purchases).get();
+      return [
+        for (final p in local)
+          if (p.tenantId == widget.tenantId && productIds.contains(p.productId))
+            {
+              'id': p.id,
+              'linked_product_id': p.productId,
+              'quantity': p.quantity,
+              'total_amount': p.totalAmount,
+              'date': p.date,
+              'created_at': p.createdAt?.toIso8601String(),
+            },
+      ];
+    } catch (e) {
+      debugPrint('[purchases] price history local read failed: $e');
+      return const [];
+    }
+  }
+
+  /// True to go on saving; false when the user chose "Change it".
+  Future<bool> _pricesConfirmed(List<_PurchaseLine> lines) async {
+    final ids = {for (final l in lines) if (l.productId != null) l.productId!};
+    if (ids.isEmpty) return true;
+    final history = await _purchaseHistory(ids);
+    final flagged = PriceCheck.check([
+      for (var i = 0; i < lines.length; i++)
+        PriceCheckLine(
+          index: i,
+          productId: lines[i].productId,
+          name: _products.firstWhere((p) => p['id'] == lines[i].productId,
+                  orElse: () => const {'name': 'This item'})['name']?.toString() ?? 'This item',
+          quantity: lines[i].qtyVal,
+          total: lines[i].totalVal,
+        ),
+    ], history);
+    if (flagged.isEmpty || !mounted) return true;
+
+    final ok = await showPriceCheckDialog(context, flagged);
+    if (ok) return true;
+    if (mounted) lines[flagged.first.index].totalFocus.requestFocus();
+    return false;
+  }
+
   Future<void> _save() async {
     final validLines = _lines.where((l) => l.isValid).toList();
-    if (_supplierId == null || validLines.isEmpty) return;
+    if (_supplierId == null || validLines.isEmpty || _saving) return;
 
     setState(() => _saving = true);
+    if (!await _pricesConfirmed(validLines)) {
+      if (mounted) setState(() => _saving = false);
+      return;
+    }
+    if (!mounted) return;
     try {
       final currentUserId = supabase.auth.currentUser?.id;
       final dateStr = '${_date.year}-${_date.month.toString().padLeft(2,'0')}-${_date.day.toString().padLeft(2,'0')}';
@@ -1095,7 +1214,9 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
 
       for (int i = 0; i < validLines.length; i++) {
         final line = validLines[i];
-        final id = 'PUR-${DateTime.now().millisecondsSinceEpoch}-${i.toString().padLeft(2, '0')}';
+        // 16 random hex digits, like SAL-: a clock-based id can clash across
+        // phones and shops, and a clash on replay is read as "already landed".
+        final id = newPurchaseId();
         final params = <String, dynamic>{
           'p_id':           id,
           'p_product_id':   line.productId,
@@ -1218,17 +1339,15 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                         children: [
                           // Header
                           Text('Add Purchase',
-                              style: GoogleFonts.manrope(
-                                  fontSize: 22, fontWeight: FontWeight.w800,
+                              style: AppText.title.copyWith(fontWeight: FontWeight.w800,
                                   letterSpacing: -0.5, color: AppColors.inkPrimary)),
                           Text('ONE SUPPLIER · MULTIPLE PRODUCTS · SINGLE SUBMIT',
-                              style: GoogleFonts.manrope(
-                                  fontSize: 13, fontWeight: FontWeight.w600,
-                                  color: AppColors.inkSecondary, letterSpacing: 1.2)),
+                              style: AppText.label.copyWith(color: AppColors.inkSecondary, letterSpacing: 1.2)),
                           const SizedBox(height: 16),
 
                           // ── Scan bill (AI OCR) ───────────────────────
-                          GestureDetector(
+                          AppTappable(
+                            ripple: false,
                             onTap: _scanning ? null : _scanBill,
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 13),
@@ -1262,6 +1381,12 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                               ),
                             ),
                           ),
+                          // A shared counter phone: whoever holds it is told
+                          // every time, not only the person who first agreed.
+                          const SizedBox(height: 6),
+                          Text('The photo is read by Google\'s free Gemini service.',
+                              textAlign: TextAlign.center,
+                              style: AppText.label.copyWith(color: AppColors.inkSecondary)),
                           const SizedBox(height: 18),
 
                           // ── HEADER CARD ──────────────────────────────
@@ -1334,7 +1459,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                 ],
                                 const SizedBox(height: 12),
                                 _label('DATE'),
-                                GestureDetector(
+                                AppTappable(
+                                  ripple: false,
                                   onTap: _pickDate,
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1349,9 +1475,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                             size: 16, color: AppColors.inkSecondary),
                                         const SizedBox(width: 10),
                                         Text(_fmt(_date),
-                                            style: GoogleFonts.manrope(
-                                                fontSize: 13, fontWeight: FontWeight.w600,
-                                                color: AppColors.inkPrimary)),
+                                            style: AppText.label.copyWith(color: AppColors.inkPrimary)),
                                       ],
                                     ),
                                   ),
@@ -1366,15 +1490,12 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                   ),
                                   child: TextField(
                                     controller: _billNoCtrl,
-                                    style: GoogleFonts.manrope(
-                                        fontSize: 13, color: AppColors.inkPrimary),
+                                    style: AppText.caption.copyWith(color: AppColors.inkPrimary),
                                     decoration: InputDecoration(
                                       prefixIcon: const Icon(LucideIcons.receipt,
                                           size: 16, color: AppColors.inkSecondary),
                                       hintText: "Supplier's invoice no. (for GSTR-2B)",
-                                      hintStyle: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          color: AppColors.inkSecondary.withValues(alpha: 0.5)),
+                                      hintStyle: AppText.caption.copyWith(color: AppColors.inkSecondary.withValues(alpha: 0.5)),
                                       border: InputBorder.none,
                                       contentPadding: const EdgeInsets.symmetric(
                                           horizontal: 12, vertical: 12),
@@ -1391,15 +1512,12 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                   ),
                                   child: TextField(
                                     controller: _notesCtrl,
-                                    style: GoogleFonts.manrope(
-                                        fontSize: 13, color: AppColors.inkPrimary),
+                                    style: AppText.caption.copyWith(color: AppColors.inkPrimary),
                                     decoration: InputDecoration(
                                       prefixIcon: const Icon(LucideIcons.fileText,
                                           size: 16, color: AppColors.inkSecondary),
                                       hintText: 'Remarks...',
-                                      hintStyle: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          color: AppColors.inkSecondary.withValues(alpha: 0.5)),
+                                      hintStyle: AppText.caption.copyWith(color: AppColors.inkSecondary.withValues(alpha: 0.5)),
                                       border: InputBorder.none,
                                       contentPadding: const EdgeInsets.symmetric(
                                           horizontal: 12, vertical: 12),
@@ -1418,8 +1536,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                               _label('LINE ITEMS'),
                               const Spacer(),
                               Text('${_lines.length} ROW${_lines.length == 1 ? '' : 'S'}',
-                                  style: GoogleFonts.manrope(
-                                      fontSize: 13, fontWeight: FontWeight.w700,
+                                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                       color: AppColors.inkTertiary, letterSpacing: 1)),
                             ],
                           ),
@@ -1454,8 +1571,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                             onPressed: () => setState(() => _lines.add(_PurchaseLine())),
                             icon: const Icon(LucideIcons.plus, size: 14),
                             label: Text('ADD ROW',
-                                style: GoogleFonts.manrope(
-                                    fontSize: 13, fontWeight: FontWeight.w700,
+                                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                     letterSpacing: 1)),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.primary,
@@ -1480,8 +1596,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text('GRAND TOTAL',
-                                    style: GoogleFonts.manrope(
-                                        fontSize: 13, fontWeight: FontWeight.w700,
+                                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                         color: Colors.white.withValues(alpha: 0.6),
                                         letterSpacing: 1.5)),
                                 Text('₹${_grandTotal.toStringAsFixed(2)}',
@@ -1522,8 +1637,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                         const SizedBox(width: 8),
                                         Text(
                                           'SAVE ${itemCount > 0 ? "$itemCount ITEM${itemCount == 1 ? '' : 'S'}" : 'PURCHASE'}',
-                                          style: GoogleFonts.manrope(
-                                              fontSize: 13, fontWeight: FontWeight.w700,
+                                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                               letterSpacing: 1.5),
                                         ),
                                       ],
@@ -1543,8 +1657,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 6, left: 2),
     child: Text(text,
-        style: GoogleFonts.manrope(
-            fontSize: 13, fontWeight: FontWeight.w700,
+        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
             color: AppColors.inkTertiary, letterSpacing: 1.2)),
   );
 }
@@ -1627,8 +1740,7 @@ class _LineItemCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text('#${index + 1}',
-                    style: GoogleFonts.manrope(
-                        fontSize: 13, fontWeight: FontWeight.w700,
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                         color: AppColors.primary)),
               ),
               const Spacer(),
@@ -1657,10 +1769,8 @@ class _LineItemCard extends StatelessWidget {
                     child: Text(
                       'On bill: ${line.scannedName}',
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13, fontWeight: FontWeight.w700,
-                        color: AppColors.onPrimaryContainer,
-                      ),
+                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                        color: AppColors.onPrimaryContainer),
                     ),
                   ),
                 ],
@@ -1668,7 +1778,8 @@ class _LineItemCard extends StatelessWidget {
             ),
 
           // Product picker — opens a searchable sheet (type to filter).
-          GestureDetector(
+          AppTappable(
+            ripple: false,
             onTap: () => _openProductSearch(context),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
@@ -1712,7 +1823,8 @@ class _LineItemCard extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  ...line.suggestions.map((p) => GestureDetector(
+                  ...line.suggestions.map((p) => AppTappable(
+   ripple: false,
                         onTap: () => onProductChange(p['id'] as String?),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1722,14 +1834,14 @@ class _LineItemCard extends StatelessWidget {
                           ),
                           child: Text(
                             '${p['name']}',
-                            style: GoogleFonts.manrope(
-                                fontSize: 13, fontWeight: FontWeight.w700,
+                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                 color: AppColors.onPrimaryContainer),
                           ),
                         ),
-                      )),
+ )),
                   if (line.scannedName != null && onCreateFromScan != null)
-                    GestureDetector(
+                    AppTappable(
+                      ripple: false,
                       onTap: onCreateFromScan,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1744,8 +1856,7 @@ class _LineItemCard extends StatelessWidget {
                             const Icon(LucideIcons.plus, size: 12, color: AppColors.primary),
                             const SizedBox(width: 4),
                             Text('Create new',
-                                style: GoogleFonts.manrope(
-                                    fontSize: 13, fontWeight: FontWeight.w700,
+                                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                                     color: AppColors.primary)),
                           ],
                         ),
@@ -1761,9 +1872,7 @@ class _LineItemCard extends StatelessWidget {
               child: Text(
                 'Stock: ${selectedProduct['stock'] ?? 0}'
                 '${lastCost != null && lastCost > 0 ? " · Last ₹${lastCost.toStringAsFixed(2)}" : ""}',
-                style: GoogleFonts.manrope(
-                    fontSize: 13, fontWeight: FontWeight.w600,
-                    color: AppColors.inkTertiary),
+                style: AppText.label.copyWith(color: AppColors.inkTertiary),
               ),
             ),
 
@@ -1794,6 +1903,7 @@ class _LineItemCard extends StatelessWidget {
                 child: _MiniField(
                   label: 'TOTAL',
                   ctrl: line.totalCtrl,
+                  focusNode: line.totalFocus,
                   icon: LucideIcons.indianRupee,
                   onChanged: onTotalChange,
                 ),
@@ -1804,7 +1914,8 @@ class _LineItemCard extends StatelessWidget {
           // Optional expiry — creates a dated batch for expiry tracking.
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: GestureDetector(
+            child: AppTappable(
+   ripple: false,
               onTap: () async {
                 final picked = await showDatePicker(
                   context: context,
@@ -1824,20 +1935,19 @@ class _LineItemCard extends StatelessWidget {
                     line.expiryDate != null
                         ? 'Expiry: ${line.expiryDate!.day}/${line.expiryDate!.month}/${line.expiryDate!.year}'
                         : 'Add expiry date (optional)',
-                    style: GoogleFonts.manrope(
-                        fontSize: 13, fontWeight: FontWeight.w600,
-                        color: line.expiryDate != null ? AppColors.warning : AppColors.inkTertiary),
+                    style: AppText.label.copyWith(color: line.expiryDate != null ? AppColors.warning : AppColors.inkTertiary),
                   ),
                   if (line.expiryDate != null) ...[
                     const SizedBox(width: 6),
-                    GestureDetector(
+                    AppTappable(
+                      ripple: false,
                       onTap: () => onExpiryChange?.call(null),
                       child: const Icon(LucideIcons.x, size: 12, color: AppColors.inkTertiary),
                     ),
                   ],
                 ],
               ),
-            ),
+ ),
           ),
 
           // Cost vs last
@@ -1848,10 +1958,8 @@ class _LineItemCard extends StatelessWidget {
                 unit > lastCost
                     ? '▲ Higher than last ₹${lastCost.toStringAsFixed(2)}'
                     : '▼ Lower than last ₹${lastCost.toStringAsFixed(2)}',
-                style: GoogleFonts.manrope(
-                  fontSize: 13, fontWeight: FontWeight.w700,
-                  color: unit > lastCost ? AppColors.warning : AppColors.success,
-                ),
+                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                  color: unit > lastCost ? AppColors.warning : AppColors.success),
               ),
             ),
         ],
@@ -1865,11 +1973,13 @@ class _MiniField extends StatelessWidget {
   final TextEditingController ctrl;
   final IconData icon;
   final ValueChanged<String>? onChanged;
+  final FocusNode? focusNode;
   const _MiniField({
     required this.label,
     required this.ctrl,
     required this.icon,
     this.onChanged,
+    this.focusNode,
   });
 
   @override
@@ -1880,8 +1990,7 @@ class _MiniField extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 4, left: 2),
           child: Text(label,
-              style: GoogleFonts.manrope(
-                  fontSize: 13, fontWeight: FontWeight.w700,
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                   color: AppColors.inkTertiary, letterSpacing: 1)),
         ),
         Container(
@@ -1892,18 +2001,15 @@ class _MiniField extends StatelessWidget {
           ),
           child: TextField(
             controller: ctrl,
+            focusNode: focusNode,
             onChanged: onChanged,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: GoogleFonts.manrope(
-                fontSize: 13, fontWeight: FontWeight.w600,
-                color: AppColors.inkPrimary),
+            style: AppText.label.copyWith(color: AppColors.inkPrimary),
             decoration: InputDecoration(
               prefixIcon: Icon(icon, size: 13, color: AppColors.inkSecondary),
               prefixIconConstraints: const BoxConstraints(minWidth: 30, minHeight: 0),
               hintText: '0',
-              hintStyle: GoogleFonts.manrope(
-                  color: AppColors.inkSecondary.withValues(alpha: 0.4),
-                  fontSize: 13),
+              hintStyle: AppText.caption.copyWith(color: AppColors.inkSecondary.withValues(alpha: 0.4)),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
             ),
@@ -1972,10 +2078,11 @@ class _PayChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
           color: active ? AppColors.primaryContainer : Colors.white,
@@ -1986,11 +2093,9 @@ class _PayChip extends StatelessWidget {
           boxShadow: [AppColors.cardShadow],
         ),
         child: Text(label,
-            style: GoogleFonts.manrope(
-                fontSize: 13, fontWeight: FontWeight.w600,
-                color: active ? AppColors.primary : AppColors.inkSecondary)),
+            style: AppText.label.copyWith(color: active ? AppColors.primary : AppColors.inkSecondary)),
       ),
-    );
+ );
   }
 }
 
@@ -2018,8 +2123,7 @@ class _UpgradeBanner extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text('Upgrade Required',
-                  style: GoogleFonts.manrope(
-                      fontSize: 22, fontWeight: FontWeight.w900,
+                  style: AppText.title.copyWith(fontWeight: FontWeight.w900,
                       letterSpacing: -0.5)),
               const SizedBox(height: 8),
               Text('$feature requires PRO plan or above.',
@@ -2138,8 +2242,7 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
                         autofocus: true,
                         decoration: InputDecoration(
                           hintText: 'Search product or SKU...',
-                          hintStyle: GoogleFonts.manrope(
-                              fontSize: 13, color: AppColors.inkTertiary),
+                          hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
                           prefixIcon: const Icon(LucideIcons.search,
                               size: 16, color: AppColors.inkTertiary),
                           border: InputBorder.none,
@@ -2149,7 +2252,8 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  GestureDetector(
+                  AppTappable(
+                    ripple: false,
                     onTap: _scanToPick,
                     child: Container(
                       width: 48, height: 48,
@@ -2168,8 +2272,7 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
               child: _filtered.isEmpty
                   ? Center(
                       child: Text('No products found',
-                          style: GoogleFonts.manrope(
-                              fontSize: 13, color: AppColors.inkTertiary)),
+                          style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                     )
                   : ListView.builder(
                       controller: ctrl,
@@ -2178,7 +2281,8 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
                       itemBuilder: (context, i) {
                         final p = _filtered[i];
                         final isSelected = widget.selectedId == p['id'];
-                        return GestureDetector(
+                        return AppTappable(
+   ripple: false,
                           onTap: () => widget.onSelected(p['id'] as String?),
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 8),
@@ -2209,9 +2313,7 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
                                       Text(
                                         'Stock ${p['stock'] ?? 0}'
                                         '${(p['sku'] ?? '').toString().isNotEmpty ? " · ${p['sku']}" : ""}',
-                                        style: GoogleFonts.manrope(
-                                            fontSize: 13,
-                                            color: AppColors.inkTertiary),
+                                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                       ),
                                     ],
                                   ),
@@ -2222,7 +2324,7 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
                               ],
                             ),
                           ),
-                        );
+ );
                       },
                     ),
             ),

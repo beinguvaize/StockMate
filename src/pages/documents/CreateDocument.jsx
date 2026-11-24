@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, FileText, FileCheck, Wallet,
@@ -75,6 +75,25 @@ const CreateDocument = () => {
 
   const businessState = businessProfile?.state || businessProfile?.business_state || '';
 
+  /**
+   * Whether the rates typed on this document already contain the tax.
+   *
+   * Defaults to the shop's own setting, because that is how it prices
+   * everywhere else -- the POS reads the same business_profile.tax_mode. It is
+   * then changeable PER DOCUMENT, which is the thing that was missing: a shop
+   * that sells inclusive over the counter still issues the occasional
+   * exclusive B2B bill, and had no way to say so here.
+   *
+   * NOT changeable on a sales invoice. That path saves through process_sale,
+   * which resolves the mode from business_profile server-side and would
+   * silently overrule anything chosen here -- a toggle that does nothing is
+   * worse than a label that tells the truth.
+   */
+  const tenantTaxMode = String(businessProfile?.tax_mode || 'EXCLUSIVE').toUpperCase();
+  const [taxMode, setTaxMode] = useState(tenantTaxMode);
+  useEffect(() => { setTaxMode(tenantTaxMode); }, [tenantTaxMode]);
+  const taxModeLocked = cfg.save === 'invoice';
+
   // Live GST totals — single source of truth, recomputed from the lines.
   const gst = useMemo(() => calculateGST(
     lines.map((l) => ({
@@ -82,7 +101,8 @@ const CreateDocument = () => {
       taxRate: cfg.gst ? l.taxRate : 0, hsn_code: l.hsn,
     })),
     businessState, party?.state || '',
-  ), [lines, cfg.gst, businessState, party]);
+    { taxMode: cfg.gst ? taxMode : 'NONE' },
+  ), [lines, cfg.gst, businessState, party, taxMode]);
 
   // Final payable = line totals + extra charges − bill discount.
   const finalTotal = Math.max(0, (Number(gst.grandTotal) || 0) + (Number(charges) || 0) - (Number(billDiscount) || 0));
@@ -200,9 +220,10 @@ const CreateDocument = () => {
             && Math.max(0, (Number(s.totalAmount) || 0) - (Number(s.paidAmount) || 0)) > 0.5)
           .sort((a, b) => new Date(a.date) - new Date(b.date));
         if (!open.length) return fail('No open invoice for this party to settle.');
-        res = await settleSale(open[0].id, Number(payAmount));
+        // The server posts this to the chosen method's account. Posting it
+        // again from here would count the same rupees twice.
+        res = await settleSale(open[0].id, Number(payAmount), payMethod);
         if (res?.error) return fail(res.error.message);
-        await postIncome(Number(payAmount), 'PAYMENT', open[0].id);
         addNotification(`Payment of ${inr(payAmount)} recorded`, 'success');
         return navigate('/clients');
       }
@@ -217,13 +238,13 @@ const CreateDocument = () => {
     <div className="min-h-screen bg-canvas">
       {/* Header */}
       <div className="sticky top-0 z-20 bg-white border-b border-black/5 px-4 sm:px-6 py-3 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-black/5"><ArrowLeft size={18} /></button>
+        <button onClick={() => navigate(-1)} className="p-1.5 rounded-pill hover:bg-black/5"><ArrowLeft size={18} /></button>
         <div className="w-7 h-7 rounded-lg bg-accent-signature text-white grid place-items-center font-black text-sm">B</div>
         <div className="font-black text-base text-ink-primary">Create {cfg.label.toLowerCase()}</div>
         <div className="ml-auto flex gap-2">
-          <button onClick={() => navigate(-1)} className="px-3 py-2 rounded-xl text-[12px] font-bold border border-black/10 hover:bg-black/5">Cancel</button>
+          <button onClick={() => navigate(-1)} className="px-3 py-2 rounded-pill text-[12px] font-bold border border-black/10 hover:bg-black/5">Cancel</button>
           <button disabled={!canSave} onClick={handleSave}
-            className="px-4 py-2 rounded-xl text-[12px] font-black bg-accent-signature text-white disabled:opacity-40 hover:opacity-90">
+            className="px-4 py-2 rounded-pill text-[12px] font-black bg-accent-signature text-white disabled:opacity-40 hover:opacity-90">
             {saving ? 'Saving…' : `Save ${cfg.label.toLowerCase()}`}
           </button>
         </div>
@@ -233,7 +254,7 @@ const CreateDocument = () => {
       <div className="px-4 sm:px-6 py-3 flex gap-2 flex-wrap border-b border-black/5 bg-white">
         {Object.entries(DOC_TYPES).map(([k, d]) => (
           <button key={k} onClick={() => { setDocType(k); }}
-            className={`px-3 py-1.5 rounded-full text-[12px] font-bold transition-colors ${
+            className={`px-3 py-1.5 rounded-pill text-[12px] font-bold transition-colors ${
               docType === k ? 'bg-accent-signature text-white' : 'text-muted-foreground border border-black/10 hover:text-ink-primary'
             }`}>{d.label}</button>
         ))}
@@ -294,7 +315,11 @@ const CreateDocument = () => {
             <TotalsPanel gst={gst} gstOn={cfg.gst} interstate={interstate} showPayment={cfg.save === 'invoice'}
               markPaid={markPaid} setMarkPaid={setMarkPaid} payMethod={payMethod} setPayMethod={setPayMethod}
               charges={charges} setCharges={setCharges} billDiscount={billDiscount} setBillDiscount={setBillDiscount}
-              received={received} setReceived={setReceived} />
+              received={received} setReceived={setReceived}
+              taxMode={taxMode} setTaxMode={setTaxMode} taxModeLocked={taxModeLocked}
+              taxModeHint={taxModeLocked
+                ? 'Set by your GST settings; a sales invoice is taxed server-side.'
+                : undefined} />
           </div>
         </div>
         )}

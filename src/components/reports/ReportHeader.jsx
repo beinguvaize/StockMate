@@ -47,7 +47,7 @@ const ReportHeader = ({
         </div>
         {onExport && (
           <button onClick={onExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-[11px] font-medium text-foreground hover:bg-muted/60 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill border border-border bg-card text-[11px] font-medium text-foreground hover:bg-muted/60 transition-colors">
             <Download size={12} /> {exportLabel}
           </button>
         )}
@@ -62,7 +62,7 @@ const ReportHeader = ({
         <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
           className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
         <button onClick={onApplyCustom}
-          className="px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
+          className="px-3.5 py-1.5 rounded-pill bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
           Apply
         </button>
       </div>

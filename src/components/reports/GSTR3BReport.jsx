@@ -335,15 +335,15 @@ const GSTR3BReport = () => {
   const exportBar = (
     <div className="no-print flex justify-end gap-2 mb-3">
       <button onClick={() => downloadGSTR3BExcel(gstr3b, { gstin, fp: fpNow() })}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors">
+        className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors">
         <Download size={13} /> Excel Summary
       </button>
       <button onClick={() => downloadGSTR3BJSON(gstr3b, { gstin, fp: fpNow() })}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-ink-primary text-white text-[11px] font-semibold hover:opacity-90 transition-colors">
+        className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-ink-primary text-white text-[11px] font-semibold hover:opacity-90 transition-colors">
         <Download size={13} /> Portal JSON
       </button>
       <button onClick={() => shareGSTWithCA({ kind: 'GSTR-3B', gstin, fp: fpNow(), totals: { taxable: gstr3b.summary.totalTurnover, cgst: gstr3b.section3_1?.[0]?.centralTax, sgst: gstr3b.section3_1?.[0]?.stateTax, igst: gstr3b.section3_1?.[0]?.integratedTax } })}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#25D366] text-white text-[11px] font-semibold hover:opacity-90 transition-colors">
+        className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-[#25D366] text-white text-[11px] font-semibold hover:opacity-90 transition-colors">
         <Download size={13} /> Share with CA
       </button>
     </div>

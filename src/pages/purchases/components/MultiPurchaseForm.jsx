@@ -1,8 +1,106 @@
+import SaveButton, { useSaveStatus } from '../../../components/motion/SaveButton';
+import RollingNumber from '../../../components/motion/RollingNumber';
 import React, { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Trash2, CheckCircle2, Barcode, AlertCircle, Search, X } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Barcode, AlertCircle, Search, X, TrendingUp, TrendingDown, ArrowLeft } from 'lucide-react';
 import { todayISOInAppTZ } from '../../../lib/utils';
 import QuickCreateProductModal from './QuickCreateProductModal';
+import { lineUnitCost, priceChanges, priceKeepingMargin } from '../lib/priceChange';
+import { priceCheck } from '../lib/priceCheck';
+import PriceCheckDialog from './PriceCheckDialog';
+import { useFocusAfterDialog } from '../lib/useFocusAfterDialog';
+
+const inr = (n) => `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * The step between "Save" and saving, shown only when the bill changes what
+ * an item costs. Each changed item can get a new selling price here; leaving
+ * the field as it is keeps the current one.
+ */
+const PriceChangeReview = ({ changes, prices, setPrice, onBack, onConfirm, loading }) => {
+  const ups = changes.filter((c) => c.direction === 'UP').length;
+  const downs = changes.length - ups;
+  return (
+    <div className="flex flex-col gap-4" data-testid="price-change-review">
+      <div>
+        <h3 className="text-[15px] font-semibold text-foreground">
+          {changes.length === 1 ? 'This bill changes an item’s cost' : `This bill changes the cost of ${changes.length} items`}
+        </h3>
+        <p className="text-[12px] text-muted-foreground mt-1">
+          {[ups && `${ups} went up`, downs && `${downs} came down`].filter(Boolean).join(' · ')}.
+          {' '}Check the selling prices before saving. Leave a price as it is to keep it.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-border/60 overflow-x-auto">
+        <table className="w-full text-[12px] tabular-nums">
+          <thead className="bg-canvas text-ink-secondary">
+            <tr className="text-left">
+              <th className="px-3 py-2 font-semibold">Item</th>
+              <th className="px-3 py-2 font-semibold text-right">Cost was</th>
+              <th className="px-3 py-2 font-semibold text-right">Cost now</th>
+              <th className="px-3 py-2 font-semibold text-right">Margin now</th>
+              <th className="px-3 py-2 font-semibold">Selling price</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-black/[0.04]">
+            {changes.map((c) => {
+              const typed = parseFloat(prices[c.productId]);
+              const sell = typed > 0 ? typed : c.sellingPrice;
+              const margin = sell > 0 ? ((sell - c.newCost) / sell) * 100 : null;
+              const keep = priceKeepingMargin(c);
+              const up = c.direction === 'UP';
+              return (
+                <tr key={c.productId} data-testid="price-change-row" data-direction={c.direction}>
+                  <td className="px-3 py-2.5">
+                    <div className="font-semibold text-foreground">{c.name}</div>
+                    <div className={`mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold ${up ? 'text-[color:var(--color-neg)]' : 'text-[color:var(--color-pos)]'}`}>
+                      {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                      {up ? 'Up' : 'Down'} {Math.abs(c.pct).toFixed(1)}%
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-muted-foreground">{inr(c.oldCost)}</td>
+                  <td className="px-3 py-2.5 text-right font-semibold">{inr(c.newCost)}{c.unit && <span className="text-muted-foreground font-normal"> /{c.unit}</span>}</td>
+                  <td className={`px-3 py-2.5 text-right font-semibold ${margin !== null && margin <= 0 ? 'text-[color:var(--color-neg)]' : ''}`}>
+                    {margin === null ? '—' : `${margin.toFixed(1)}%`}
+                    {margin !== null && margin <= 0 && <div className="text-[10px] font-semibold">Sells at a loss</div>}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <input type="number" min="0" step="0.01"
+                        aria-label={`Selling price for ${c.name}`}
+                        placeholder={c.sellingPrice > 0 ? c.sellingPrice.toFixed(2) : 'Set price'}
+                        value={prices[c.productId] ?? ''}
+                        onChange={(e) => setPrice(c.productId, e.target.value)}
+                        className="w-24 bg-card border border-border rounded-lg px-2 py-1.5 text-[12px] font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
+                      {keep !== null && Math.abs(keep - c.sellingPrice) >= 0.005 && (
+                        <button type="button" onClick={() => setPrice(c.productId, keep.toFixed(2))}
+                          className="text-[11px] font-semibold text-accent-signature hover:underline whitespace-nowrap">
+                          {inr(keep)} keeps {c.marginBefore.toFixed(0)}%
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex gap-3">
+        <button type="button" onClick={onBack}
+          className="h-12 px-5 flex items-center gap-2 rounded-pill border border-border text-[12px] font-semibold text-foreground hover:bg-canvas transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98]">
+          <ArrowLeft size={14} /> Back to bill
+        </button>
+        <button type="button" onClick={onConfirm} disabled={loading} data-testid="price-change-confirm"
+          className="flex-1 h-12 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold text-[12px] rounded-pill hover:bg-black transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98] disabled:opacity-40">
+          {loading ? <span className="animate-pulse">Saving…</span> : <><CheckCircle2 size={14} /> Save purchase</>}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // Searchable product combobox — plain <select> is unusable once the catalog
 // grows past a few dozen items (no way to filter by typing). The results list
@@ -48,7 +146,7 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
         <input
           type="text"
           className={`w-full bg-card border border-border shadow-sm rounded-lg pl-6 pr-6 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 ${selected ? '' : 'text-muted-foreground'}`}
-          placeholder="Search product…"
+          placeholder="Search product…" aria-label="Product"
           value={open ? query : (selected?.name || '')}
           // Seed the query with the current product and select it, instead of
           // blanking the box. Clearing on focus made tabbing through a row look
@@ -71,8 +169,11 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
       </div>
       {open && rect && createPortal(
         <div
-          className="fixed z-[100] bg-card border border-border rounded-xl shadow-xl max-h-64 overflow-y-auto"
-          style={{ left: rect.left, top: rect.bottom + 4, width: rect.width }}
+          // Anchored under the field's left edge, so that is the corner it
+          // grows from. It appeared with no transition at all before, which on
+          // a list that covers what you were reading reads as a glitch.
+          className="menu-pop fixed z-[100] bg-card border border-border rounded-xl shadow-xl max-h-64 overflow-y-auto"
+          style={{ left: rect.left, top: rect.bottom + 4, width: rect.width, '--menu-origin': 'top left' }}
         >
           {filtered.length === 0 && (
             <div className="px-3 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">No matches</div>
@@ -93,7 +194,7 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
             <button
               type="button"
               onMouseDown={e => { e.preventDefault(); const q = query.trim(); setOpen(false); setQuery(''); onCreateNew(q); }}
-              className="w-full text-left px-3 py-2.5 text-xs font-semibold text-accent-signature hover:bg-accent-signature/5 transition-colors border-t border-border/60 flex items-center gap-1.5 sticky bottom-0 bg-card"
+              className="w-full text-left px-3 py-2.5 text-xs font-semibold text-accent-signature hover:bg-accent-signature/5 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] border-t border-border/60 flex items-center gap-1.5 sticky bottom-0 bg-card"
             >
               <Plus size={13} /> Create new product{query.trim() ? ` “${query.trim()}”` : ''}
             </button>
@@ -116,7 +217,7 @@ const emptyLine = () => ({
   barcodeStatus:     null, // null | 'found' | 'not_found'
 });
 
-const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loading, onCreateProduct }) => {
+const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [], onSave, loading, onCreateProduct, initialProductId = null }) => {
   const [header, setHeader] = useState({
     supplier_id:  '',
     location_id:  '',   // target warehouse
@@ -127,7 +228,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
     notes:        '',
   });
 
-  const [lines, setLines] = useState([emptyLine()]);
+  const [lines, setLines] = useState(() => [initialProductId ? { ...emptyLine(), linked_product_id: initialProductId } : emptyLine()]);
 
   // Quick-create state
   const [quickCreate, setQuickCreate] = useState(null); // { lineKey, barcode }
@@ -145,6 +246,20 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
 
   // ── Line helpers ─────────────────────────────────────────────────────────────
   const patchLine = (key, patch) => setLines(prev => prev.map(l => l._key !== key ? l : { ...l, ...patch }));
+
+  // One definition for the column names, so the header and the accessible name
+  // of each input cannot drift apart. The inputs are in a grid, not a <table>,
+  // and their only visible name is the header above them -- which a screen
+  // reader has no way to associate. Each one carries the name itself.
+  const LINE_COLUMNS = [
+    { key: 'barcode',  label: 'Barcode' },
+    { key: 'product',  label: 'Product' },
+    { key: 'qty',      label: 'Quantity' },
+    { key: 'price',    label: 'Price each' },
+    { key: 'total',    label: 'Line total' },
+    { key: 'expiry',   label: 'Expiry', optional: true },
+    { key: 'remove',   label: '' },
+  ];
 
   const updateLine = (key, patch) => {
     setLines(prev => prev.map(l => {
@@ -222,12 +337,59 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
     setQuickCreate(null);
   };
 
+  // ── Price changes ────────────────────────────────────────────────────────────
+  // null = not reviewing; an array = the review step is showing these.
+  const [review, setReview] = useState(null);
+  const [newPrices, setNewPrices] = useState({});
+
   // ── Submit ───────────────────────────────────────────────────────────────────
+  const validLines = () =>
+    lines.filter(l => l.linked_product_id && parseFloat(l.quantity) > 0 && parseFloat(l.total_amount) > 0);
+
+  // ── Price check ──────────────────────────────────────────────────────────────
+  // Lines far from what the item last cost: asked about once, before anything
+  // else, because a wrong product looks exactly like a price change.
+  const [priceFlags, setPriceFlags] = useState(null);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    const valid = lines.filter(l => l.linked_product_id && parseFloat(l.quantity) > 0 && parseFloat(l.total_amount) > 0);
+    const valid = validLines();
     if (!valid.length) return;
-    onSave({
+    const flagged = priceCheck(valid.map(l => ({ ...l, key: l._key })), purchases, products);
+    if (flagged.length) { setPriceFlags(flagged); return; }
+    proceed(valid);
+  };
+
+  const focusAmount = useFocusAfterDialog((key) => rowsRef.current?.querySelector(`[data-line-total="${key}"]`));
+  const backToLine = () => {
+    focusAmount(priceFlags?.[0]?.key);
+    setPriceFlags(null);
+  };
+
+  const confirmPrices = () => {
+    setPriceFlags(null);
+    proceed(validLines());
+  };
+
+  const proceed = (valid) => {
+    const changes = priceChanges(valid, products);
+    if (changes.length) { setReview(changes); return; }
+    save(valid, []);
+  };
+
+  const confirmReview = () => {
+    const priceUpdates = (review || [])
+      .map(c => ({ productId: c.productId, name: c.name, sellingPrice: parseFloat(newPrices[c.productId]) }))
+      .filter(u => u.sellingPrice > 0 && Math.abs(u.sellingPrice - (review.find(c => c.productId === u.productId)?.sellingPrice || 0)) >= 0.005);
+    save(validLines(), priceUpdates);
+  };
+
+  const saveState = useSaveStatus();
+  const save = async (valid, priceUpdates) => {
+    saveState.start();
+    let res;
+    try { res = await onSave({
+      priceUpdates,
       header,
       items: valid.map(l => {
         const total = parseFloat(l.total_amount);
@@ -248,10 +410,25 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
           expiry_date:       l.expiry_date || null,
         };
       }),
-    });
+    }); } catch (e) { saveState.fail(); throw e; }
+    // Mirrors the real outcome only: handleSaveMultiPurchase reports ok.
+    if (res && res.ok === false) saveState.fail(); else if (res && res.ok) saveState.ok(); else saveState.fail();
   };
 
   const inp = 'w-full bg-card border border-border shadow-sm rounded-lg p-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums';
+
+  if (review) {
+    return (
+      <PriceChangeReview
+        changes={review}
+        prices={newPrices}
+        setPrice={(id, v) => setNewPrices(p => ({ ...p, [id]: v }))}
+        onBack={() => setReview(null)}
+        onConfirm={confirmReview}
+        loading={loading}
+      />
+    );
+  }
 
   return (
     <>
@@ -260,19 +437,20 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
         {/* ── Header ──────────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-canvas rounded-2xl border border-border/60">
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Supplier <span className="text-red-400">*</span></label>
-            <select required className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            <label htmlFor="pf-supplier" className="block text-[11px] font-semibold text-ink-secondary mb-2">Supplier <span className="text-red-400" aria-hidden="true">*</span></label>
+            <select id="pf-supplier" required aria-required="true" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={header.supplier_id} onChange={e => setHeader(h => ({ ...h, supplier_id: e.target.value }))}>
               <option value="">Select supplier...</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            <label htmlFor="pf-warehouse" className="block text-[11px] font-semibold text-ink-secondary mb-2">
               Receive Into Warehouse
               {warehouses.length === 0 && <span className="ml-1 text-muted-foreground">(auto)</span>}
             </label>
             <select
+              id="pf-warehouse"
               className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={header.location_id}
               onChange={e => setHeader(h => ({ ...h, location_id: e.target.value }))}
@@ -282,8 +460,8 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
             </select>
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Payment Type</label>
-            <select className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            <label htmlFor="pf-paytype" className="block text-[11px] font-semibold text-ink-secondary mb-2">Payment Type</label>
+            <select id="pf-paytype" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={header.payment_type} onChange={e => setHeader(h => ({ ...h, payment_type: e.target.value }))}>
               <option value="CASH">Cash (paid now)</option>
               <option value="CREDIT">Credit (pay later)</option>
@@ -293,10 +471,10 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
           {/* Part payment. A bill is often settled with some cash now and the
               rest on credit, which the two payment types alone cannot say. */}
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            <label htmlFor="pf-paidnow" className="block text-[11px] font-semibold text-ink-secondary mb-2">
               Paid now
             </label>
-            <input type="number" step="0.01" min="0"
+            <input id="pf-paidnow" aria-label="Amount paid now" type="number" step="0.01" min="0"
               className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
               placeholder={header.payment_type === 'CREDIT'
                 ? 'Nothing paid yet'
@@ -317,20 +495,20 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
             })()}
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Date</label>
-            <input required type="date" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            <label htmlFor="pf-date" className="block text-[11px] font-semibold text-ink-secondary mb-2">Date</label>
+            <input id="pf-date" required type="date" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
               value={header.date} onChange={e => setHeader(h => ({ ...h, date: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Supplier Bill No</label>
-            <input type="text" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            <label htmlFor="pf-billno" className="block text-[11px] font-semibold text-ink-secondary mb-2">Supplier Bill No</label>
+            <input id="pf-billno" type="text" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
               placeholder="Supplier's invoice no. (for GSTR-2B)" value={header.bill_no}
               onChange={e => setHeader(h => ({ ...h, bill_no: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Notes</label>
-            <input type="text" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-              placeholder="Remarks..." value={header.notes}
+            <label htmlFor="pf-notes" className="block text-[11px] font-semibold text-ink-secondary mb-2">Notes</label>
+            <input id="pf-notes" type="text" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+              placeholder="Remarks…" aria-label="Notes" value={header.notes}
               onChange={e => setHeader(h => ({ ...h, notes: e.target.value }))} />
           </div>
         </div>
@@ -338,18 +516,40 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
         {/* ── Line Items ───────────────────────────────────────────────────────── */}
         <div className="rounded-2xl border border-border/60 overflow-hidden">
 
-          {/* Column headers */}
+          {/* Column headers.
+              They were 9px, uppercase, letter-spaced -- the least readable
+              setting available, on the only thing naming five unlabelled
+              inputs. 11px sentence case reads at a glance, and the two
+              optional columns now say so instead of leaving someone to guess
+              which fields block the save. */}
           <div className="grid grid-cols-[140px_1fr_72px_92px_92px_112px_32px] gap-2 bg-canvas px-4 py-2.5 border-b border-border/60">
-            {['Barcode / SKU', 'Product', 'Qty', 'Unit Price', 'Total', 'Expiry', ''].map(h => (
-              <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+            {LINE_COLUMNS.map(c => (
+              <span key={c.key} className="text-[11px] font-semibold text-ink-secondary">
+                {c.label}
+                {c.optional && <span className="font-normal text-muted-foreground"> · optional</span>}
+              </span>
             ))}
           </div>
+
+          {/* The one rule of this grid that is not visible in it.
+              Price each and Line total fill each other in: type a price and
+              the total appears, type a total and the price is worked back from
+              the quantity. That is genuinely useful -- a supplier's bill often
+              states one and not the other -- but watching a field you did not
+              touch change its own value is alarming if nobody said it would. */}
+          <p className="px-4 py-2 text-[11px] text-muted-foreground bg-canvas/60 border-b border-border/60">
+            Enter either <span className="font-semibold text-ink-secondary">price each</span> or{' '}
+            <span className="font-semibold text-ink-secondary">line total</span> — the other is worked out from the quantity.
+          </p>
 
           {/* Rows */}
           <div ref={rowsRef} className="divide-y divide-black/[0.04]">
             {lines.map((line) => {
               const product = products.find(p => p.id === line.linked_product_id);
-              const unitCost = parseFloat(line.unit_price) || null;
+              // Per base unit, so a packet price is not compared with a piece cost.
+              const unitCost = product ? lineUnitCost(line, product) : null;
+              const costPct = unitCost !== null && product?.costPrice > 0
+                ? ((unitCost - product.costPrice) / product.costPrice) * 100 : null;
 
               return (
                 <div key={line._key} className="grid grid-cols-[140px_1fr_72px_92px_92px_112px_32px] gap-2 items-start px-4 py-3">
@@ -366,6 +566,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                           'border-border/60'
                         }`}
                         placeholder="Scan / type…"
+                        aria-label="Barcode"
                         value={line.barcodeInput}
                         onChange={e => patchLine(line._key, { barcodeInput: e.target.value, barcodeStatus: null })}
                         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBarcodeSearch(line._key, line.barcodeInput); } }}
@@ -376,7 +577,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                       <button
                         type="button"
                         onClick={() => setQuickCreate({ lineKey: line._key, barcode: line.barcodeInput })}
-                        className="mt-1 flex items-center gap-1 text-[8px] font-semibold text-red-500 hover:text-red-700 uppercase tracking-widest"
+                        className="mt-1 flex items-center gap-1 text-[8px] font-semibold text-red-500 hover:text-red-700 transition-colors duration-(--dur-hover) uppercase tracking-widest"
                       >
                         <AlertCircle size={9} /> Create product
                       </button>
@@ -412,6 +613,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                   {/* Qty + optional buy-by-alternate-unit toggle */}
                   <div>
                     <input required type="number" min="0" placeholder="0" className={inp}
+                      aria-label="Quantity"
                       value={line.quantity}
                       onChange={e => updateLine(line._key, { quantity: e.target.value })} />
                     {product?.secondary_unit && Number(product.conversion_factor) > 0 && (() => {
@@ -436,14 +638,17 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                   {/* Unit Price */}
                   <div>
                     <input type="number" min="0" step="0.01" placeholder="0.00" className={inp}
+                      aria-label="Price each"
+                      title="Type this or the line total — the other is worked out for you"
                       value={line.unit_price}
                       onChange={e => updateLine(line._key, { unit_price: e.target.value })} />
                     {product?.secondary_unit && line.buyUnit === 'ALT' && (
                       <p className="text-[8px] text-muted-foreground mt-1 ml-1">per {product.secondary_unit}</p>
                     )}
-                    {unitCost !== null && product?.costPrice > 0 && (
-                      <p className={`text-[8px] font-semibold mt-1 ml-1 ${unitCost > product.costPrice ? 'text-accent-signature' : 'text-emerald-500'}`}>
-                        {unitCost > product.costPrice ? '▲' : '▼'} ₹{product.costPrice}
+                    {costPct !== null && Math.abs(unitCost - product.costPrice) >= 0.005 && (
+                      <p data-testid="line-cost-change"
+                        className={`text-[10px] font-semibold mt-1 ml-1 tabular-nums ${costPct > 0 ? 'text-[color:var(--color-neg)]' : 'text-[color:var(--color-pos)]'}`}>
+                        {costPct > 0 ? '▲' : '▼'} {Math.abs(costPct).toFixed(1)}% vs ₹{product.costPrice}
                       </p>
                     )}
                     {unitCost !== null && product?.sellingPrice > 0 && unitCost > product.sellingPrice && (
@@ -455,17 +660,19 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
 
                   {/* Total */}
                   <input required type="number" min="0" step="0.01" placeholder="0.00" className={inp}
+                    aria-label="Line total" data-line-total={line._key}
+                    title="Type this or the price each — the other is worked out for you"
                     value={line.total_amount}
                     onChange={e => updateLine(line._key, { total_amount: e.target.value })} />
 
                   {/* Expiry (optional — creates a dated batch) */}
-                  <input type="date" title="Expiry date (optional)" className={inp}
+                  <input type="date" aria-label="Expiry date (optional)" title="Leave blank unless this stock expires" className={inp}
                     value={line.expiry_date}
                     onChange={e => updateLine(line._key, { expiry_date: e.target.value })} />
 
                   {/* Remove */}
                   <button type="button" onClick={() => removeLine(line._key)} disabled={lines.length === 1}
-                    className="mt-1 w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-20">
+                    className="mt-1 w-7 h-7 flex items-center justify-center rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition-[background-color,color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97] disabled:active:scale-100 disabled:opacity-20">
                     <Trash2 size={12} />
                   </button>
                 </div>
@@ -476,30 +683,32 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
           {/* Add row + grand total */}
           <div className="px-4 py-3 border-t border-border/60 flex items-center justify-between">
             <button type="button" onClick={addLine}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-widest text-accent-signature bg-accent-signature/10 hover:bg-accent-signature/20 transition-colors">
+              className="flex items-center gap-2 px-3 py-1.5 rounded-pill text-[10px] font-semibold uppercase tracking-widest text-accent-signature bg-accent-signature/10 hover:bg-accent-signature/20 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]">
               <Plus size={12} /> Add Row
             </button>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Grand Total</span>
               <span className="text-lg font-semibold text-foreground tabular-nums">
-                ₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                <RollingNumber text={`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} />
               </span>
             </div>
           </div>
         </div>
 
         {/* Submit */}
-        <button
+        <SaveButton
           type="submit"
+          status={saveState.status}
+          idleLabel={`Save ${lines.filter(l => l.linked_product_id).length} Item${lines.filter(l => l.linked_product_id).length !== 1 ? 's' : ''}`}
+          icon={CheckCircle2}
           disabled={loading || !header.supplier_id || lines.every(l => !l.linked_product_id)}
-          className="w-full h-12 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold text-[10px] uppercase tracking-widest rounded-2xl hover:bg-black transition-all shadow-sm disabled:opacity-40"
-        >
-          {loading
-            ? <span className="animate-pulse">Saving…</span>
-            : <><CheckCircle2 size={14} /> Save {lines.filter(l => l.linked_product_id).length} Item{lines.filter(l => l.linked_product_id).length !== 1 ? 's' : ''}</>
-          }
-        </button>
+          className="w-full !h-12"
+        />
       </form>
+
+      {priceFlags && (
+        <PriceCheckDialog flagged={priceFlags} onChange={backToLine} onConfirm={confirmPrices} saving={loading} />
+      )}
 
       {/* Quick-create product modal */}
       {quickCreate && (

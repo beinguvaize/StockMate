@@ -7,6 +7,7 @@ import { formatCurrency } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../context/TenantContext';
 import { iso, compareRange, shortDate, COMPARE } from '../../lib/reportPeriods';
+import { useLinkedRange } from '../../lib/linkedRange';
 
 const EXP_COLORS = ['#534AB7', '#1D9E75', '#D85A30', '#EF9F27', '#D4537E', '#888780', '#378ADD', '#A32D2D'];
 
@@ -38,8 +39,10 @@ const FinancialReport = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const cur = businessProfile?.currencySymbol || '₹';
   const presets = useMemo(buildPresets, []);
-  const [preset, setPreset] = useState('THIS_FY');
+  const linked = useLinkedRange();
+  const [preset, setPreset] = useState(linked ? '' : 'THIS_FY');
   const [range, setRange] = useState(() => {
+    if (linked) return { from: linked.from, to: linked.to };
     const p = buildPresets().find(x => x.id === 'THIS_FY');
     return { from: p.from, to: p.to };
   });

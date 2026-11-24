@@ -73,7 +73,7 @@ const ClientAging = ({ clients, sales, clientPayments, businessProfile}) => {
  <div className="glass-panel !p-0 rounded-[2rem] border border-black/5 overflow-hidden">
  <div className="p-6 border-b border-black/5 flex justify-between items-center bg-canvas/30">
  <h3 className="text-xl font-semibold">Debt Aging Breakdown</h3>
- <button className="flex items-center gap-2 px-4 py-2 bg-ink-primary text-accent-signature rounded-full text-[10px] font-semibold hover:scale-105 transition-all">
+ <button className="flex items-center gap-2 px-4 py-2 bg-ink-primary text-accent-signature rounded-pill text-[10px] font-semibold hover:scale-105 transition-all">
  <Download size={14} /> Export Report
  </button>
  </div>

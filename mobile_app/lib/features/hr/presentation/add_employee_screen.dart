@@ -8,6 +8,10 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/hr/data/models/employee.dart';
 import 'package:mobile_app/features/hr/presentation/providers/hr_provider.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import '../../../core/widgets/app_surfaces.dart';
 
 class AddEmployeeScreen extends ConsumerStatefulWidget {
   /// Pass an existing [Employee] to enter edit mode; leave null to add a new one.
@@ -178,12 +182,8 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             ),
             Text(
               'HR & PAYROLL',
-              style: GoogleFonts.manrope(
-                color: AppColors.secondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -211,11 +211,8 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                           : '?';
                       return Text(
                         initial,
-                        style: GoogleFonts.manrope(
-                          color: AppColors.secondary,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w900,
-                        ),
+                        style: AppText.display.copyWith(color: AppColors.secondary,
+                          fontWeight: FontWeight.w900),
                       );
                     },
                   ),
@@ -225,7 +222,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             const SizedBox(height: 28),
 
             // Personal info
-            _SectionHeader(title: 'PERSONAL INFO', icon: LucideIcons.user),
+            SectionHeading('PERSONAL INFO', icon: LucideIcons.user),
             const SizedBox(height: 12),
             _buildField(
               label: 'Full Name',
@@ -244,7 +241,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             const SizedBox(height: 28),
 
             // Salary
-            _SectionHeader(title: 'COMPENSATION', icon: LucideIcons.indianRupee),
+            SectionHeading('COMPENSATION', icon: LucideIcons.indianRupee),
             const SizedBox(height: 12),
             _buildField(
               label: 'Base Salary (Monthly)',
@@ -258,7 +255,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             const SizedBox(height: 28),
 
             // Status
-            _SectionHeader(title: 'STATUS', icon: LucideIcons.activity),
+            SectionHeading('STATUS', icon: LucideIcons.activity),
             const SizedBox(height: 12),
             Row(
               children: _statusOptions.map((status) {
@@ -268,10 +265,11 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                   child: Padding(
                     padding: EdgeInsets.only(
                         right: status != _statusOptions.last ? 8 : 0),
-                    child: GestureDetector(
+                    child: AppTappable(
+   ripple: false,
                       onTap: () => setState(() => _selectedStatus = status),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
+                        duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
                           color: selected
@@ -302,18 +300,15 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                             Text(
                               status,
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.manrope(
-                                color: selected ? color : AppColors.inkSecondary,
-                                fontSize: 13,
+                              style: AppText.label.copyWith(color: selected ? color : AppColors.inkSecondary,
                                 fontWeight: selected
                                     ? FontWeight.w700
-                                    : FontWeight.w500,
-                              ),
+                                    : FontWeight.w500),
                             ),
                           ],
                         ),
                       ),
-                    ),
+ ),
                   ),
                 );
               }).toList(),
@@ -351,11 +346,8 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEditing ? 'SAVE CHANGES' : 'ADD EMPLOYEE',
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          letterSpacing: 1,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          letterSpacing: 1),
                       ),
                     ],
                   ),
@@ -397,12 +389,8 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
             fontSize: 14,
           ),
           labelText: label,
-          labelStyle: GoogleFonts.manrope(
-            color: AppColors.inkSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
+          labelStyle: AppText.label.copyWith(color: AppColors.inkSecondary,
+            letterSpacing: 0.5),
           floatingLabelBehavior: FloatingLabelBehavior.always,
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
@@ -416,34 +404,3 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 14, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: GoogleFonts.manrope(
-            color: AppColors.primary,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-          ),
-        ),
-      ],
-    );
-  }
-}

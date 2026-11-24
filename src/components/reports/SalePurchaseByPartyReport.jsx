@@ -10,6 +10,7 @@ import ReportHeader from './ReportHeader';
 import { KPI, SectionHead } from './ReportBits';
 import { isCountableSale, presetRange } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
+import { useLinkedRange } from '../../lib/linkedRange';
 
 const ShareBar = ({ share, color }) => (
   <div className="flex items-center gap-2 mt-1">
@@ -70,8 +71,10 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
 const RANK_COLORS = ['text-accent-signature', 'text-muted-foreground', 'text-accent-signature-hover'];
 
 const SalePurchaseByPartyReport = () => {
-  const [preset, setPreset]       = useState('TODAY');
-  const [range,  setRange]        = useState(() => presetRange('TODAY'));
+  // ?from=&to= (an Ask answer's link) opens on the answer's own dates.
+  const linked = useLinkedRange();
+  const [preset, setPreset]       = useState(linked ? 'CUSTOM' : 'TODAY');
+  const [range,  setRange]        = useState(() => (linked ? { start: linked.from, end: linked.to } : presetRange('TODAY')));
   const [customStart, setCustomStart] = useState('');
   const [customEnd,   setCustomEnd]   = useState('');
   const [showCustom,  setShowCustom]  = useState(false);

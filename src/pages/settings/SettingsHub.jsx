@@ -2,11 +2,15 @@ import React, { useEffect, useState } from 'react';
 import {
   User, Building, Printer, Users as UsersIcon, CreditCard,
   LifeBuoy, ChevronRight, Check, BellRing, Zap, Tag, Database,
-  FileText, RotateCcw, ShieldCheck, } from 'lucide-react';
+  FileText, RotateCcw, ShieldCheck, Blocks, Lock, } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { supabase, uploadProductImage } from '../../lib/supabase';
-import { PLANS } from '../../lib/tenancy';
+import { PLANS, getRequiredPlan } from '../../lib/tenancy';
+import {
+  BUSINESS_TYPES, VERTICAL_META, DEFAULT_MODULES,
+  MODULE_KEYS, MODULE_META, overridesFrom,
+} from '../../lib/verticals';
 import Settings from '../Settings';
 import Users from '../Users';
 import CashBillPrint from '../sales/components/CashBillPrint';
@@ -14,6 +18,7 @@ import POSReceipt from '../../components/invoice/POSReceipt';
 import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
 import { INVOICE_LAYOUT_META, RECEIPT_META, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, ACCENT_SWATCHES } from '../../components/invoice/invoiceLayouts';
 import { linkPhone, confirmPhoneLink, formatPhone, toE164 } from '../../lib/phoneAuth';
+import AskSettingsCard from '../../components/ask/AskSettingsCard';
 
 // Sample documents for the print previews — exact production components.
 const SAMPLE_SALE = {
@@ -43,6 +48,7 @@ const NAV_GROUPS = [
   { caption: 'General', items: [
     { id: 'account',  label: 'Account',     icon: <User size={15} /> },
     { id: 'business', label: 'Business',    icon: <Building size={15} /> },
+    { id: 'modules',  label: 'Business type & modules', icon: <Blocks size={15} /> },
   ]},
   { caption: 'Catalog', items: [
     { id: 'categories', label: 'Categories', icon: <Tag size={15} /> },
@@ -135,14 +141,14 @@ const FormRow = ({ label, hint, children }) => (
 
 const PrimaryBtn = ({ children, ...props }) => (
   <button {...props}
-    className="px-3.5 py-2 rounded-md bg-gray-900 text-white text-[13px] font-semibold hover:bg-gray-800 disabled:opacity-50 transition-colors">
+    className="px-3.5 py-2 rounded-pill bg-gray-900 text-white text-[13px] font-semibold hover:bg-gray-800 disabled:opacity-50 transition-colors">
     {children}
   </button>
 );
 
 const Toggle = ({ checked, onChange }) => (
   <button type="button" onClick={() => onChange(!checked)} aria-pressed={checked}
-    className={`relative w-9 h-5 rounded-full transition-colors ${checked ? 'bg-gray-900' : 'bg-gray-300'}`}>
+    className={`relative w-9 h-5 rounded-xl transition-colors ${checked ? 'bg-gray-900' : 'bg-gray-300'}`}>
     <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
   </button>
 );
@@ -287,7 +293,7 @@ const AccountPanel = () => {
       <Card title="Session">
         <FormRow label="Sign out" hint="Sign out of bookledger on this device.">
           <button onClick={logout}
-            className="px-3.5 py-2 rounded-md border border-red-200 text-red-600 text-[13px] font-semibold hover:bg-red-50 transition-colors">
+            className="px-3.5 py-2 rounded-pill border border-red-200 text-red-600 text-[13px] font-semibold hover:bg-red-50 transition-colors">
             Log out
           </button>
         </FormRow>
@@ -431,7 +437,7 @@ const PrintPanel = ({ tenantId }) => {
             <div className="grid grid-cols-3 gap-3 mb-4">
               {RECEIPT_META.map(t => (
                 <button key={t.id} onClick={() => setPrefs({ ...prefs, receiptTemplate: t.id })}
-                  className={`text-left rounded-md border p-3 transition-colors ${prefs.receiptTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-border hover:border-border'}`}>
+                  className={`text-left rounded-pill border p-3 transition-colors ${prefs.receiptTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-border hover:border-border'}`}>
                   <div className="text-[13px] font-semibold text-foreground">{t.name}</div>
                   <div className="text-[11.5px] text-muted-foreground">{t.blurb}</div>
                 </button>
@@ -464,7 +470,7 @@ const PrintPanel = ({ tenantId }) => {
               <div className="flex gap-2 mb-4">
                 {[['80', '80mm'], ['58', '58mm']].map(([v, label]) => (
                   <button key={v} onClick={() => setBillSet({ ...billSet, paper_width: v })}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${
+                    className={`flex-1 py-2 rounded-pill text-xs font-bold border transition-colors ${
                       (billSet.paper_width || '80') === v
                         ? 'bg-gray-900 text-white border-gray-900'
                         : 'bg-white text-ink-secondary border-border hover:border-gray-400'
@@ -535,7 +541,7 @@ const PrintPanel = ({ tenantId }) => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               {INVOICE_LAYOUT_META.map(t => (
                 <button key={t.id} onClick={() => setPrefs({ ...prefs, invoiceTemplate: t.id })}
-                  className={`text-left rounded-md border p-3 transition-colors ${prefs.invoiceTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-border hover:border-border'}`}>
+                  className={`text-left rounded-pill border p-3 transition-colors ${prefs.invoiceTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-border hover:border-border'}`}>
                   <div className="text-[13px] font-semibold text-foreground">{t.name}</div>
                   <div className="text-[11.5px] text-muted-foreground">{t.blurb}</div>
                 </button>
@@ -601,7 +607,7 @@ const PrintPanel = ({ tenantId }) => {
                         <img src={businessProfile.signature_url} alt="signature" className="h-10 object-contain" />
                       </div>
                       <button onClick={removeSignature} disabled={sigBusy}
-                        className="w-full py-1.5 rounded-md border border-border text-[12px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-200 disabled:opacity-50">
+                        className="w-full py-1.5 rounded-pill border border-border text-[12px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-200 disabled:opacity-50">
                         {sigBusy ? 'Removing…' : 'Remove signature'}
                       </button>
                     </div>
@@ -639,7 +645,7 @@ const PrintPanel = ({ tenantId }) => {
                     ))}
                     {(prefs.customFields || []).length < 4 && (
                       <button onClick={() => setPrefs({ ...prefs, customFields: [...(prefs.customFields || []), { label: '', value: '' }] })}
-                        className="w-full py-1.5 rounded-md border border-dashed border-border text-[12px] font-medium text-muted-foreground hover:border-gray-400 hover:text-ink-secondary">
+                        className="w-full py-1.5 rounded-pill border border-dashed border-border text-[12px] font-medium text-muted-foreground hover:border-gray-400 hover:text-ink-secondary">
                         + Add field
                       </button>
                     )}
@@ -734,6 +740,166 @@ const RemindersPanel = ({ tenantId }) => {
   );
 };
 
+// ── Business type & modules ──────────────────────────────────────────────────
+//
+// The switchboard for the vertical axis. tenants.modules has been the
+// documented per-tenant override layer since Stage A and NOTHING in the app
+// has ever written it -- so "turn a capability on for this shop" has meant a
+// hand-edit in the database. business_type was likewise write-once at signup:
+// a shop that picked Retail and later wanted a different set had no path at
+// all.
+//
+// Two axes meet on this screen, and they are not the same thing:
+//   · the PLAN says what the shop has paid for. Server-enforced. Not editable
+//     here, and a toggle cannot buy it.
+//   · the VERTICAL says which parts of that a shop wants to see. This screen.
+const BusinessTypePanel = () => {
+  const { currentTenant, businessType, tenantModules, updateTenant, isModuleAllowed } = useTenant();
+  const { isOwner } = useAuth();
+
+  const [type, setType] = useState(businessType);
+  const [modules, setModules] = useState(tenantModules);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  // Re-seed when the tenant finishes loading, or after another device saves.
+  useEffect(() => { setType(businessType); setModules(tenantModules); },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [businessType, JSON.stringify(tenantModules)]);
+
+  const defaults = DEFAULT_MODULES[type] || DEFAULT_MODULES.RETAIL;
+  const pending = overridesFrom(type, modules);
+  const dirty = type !== businessType ||
+    JSON.stringify(pending) !== JSON.stringify(overridesFrom(businessType, tenantModules));
+
+  // Switching vertical re-bases every toggle on the new defaults. Carrying the
+  // old overrides across would silently hand a restaurant the retail module set
+  // under a restaurant label.
+  const chooseType = (next) => {
+    setType(next);
+    setModules(DEFAULT_MODULES[next]);
+    setMsg(''); setErr('');
+  };
+
+  const save = async () => {
+    setBusy(true); setErr(''); setMsg('');
+    const res = await updateTenant({ business_type: type, modules: overridesFrom(type, modules) });
+    setBusy(false);
+    // Surface the real reason. A silent failure here looks identical to a save.
+    if (res?.success) setMsg('Saved.');
+    else setErr(res?.error?.message || 'Could not save. Your changes are still on screen.');
+  };
+
+  const resetToDefaults = () => { setModules(defaults); setMsg(''); setErr(''); };
+
+  if (!isOwner) {
+    return (
+      <div className="max-w-3xl space-y-4">
+        <Card title="Business type & modules"
+              description="Only the account owner can change these.">
+          <FormRow label="Business type">
+            <div className="text-[13px] text-foreground py-1.5">
+              {VERTICAL_META[businessType]?.label || businessType}
+            </div>
+          </FormRow>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl space-y-4">
+      <Card
+        title="Business type"
+        description="Sets the starting module list and the words the app uses — a restaurant sees Dishes and Orders where a shop sees Products and Sales."
+      >
+        <div className="grid sm:grid-cols-3 gap-2">
+          {BUSINESS_TYPES.map((id) => {
+            const meta = VERTICAL_META[id] || {};
+            const on = type === id;
+            return (
+              <button key={id} type="button" onClick={() => chooseType(id)}
+                aria-pressed={on}
+                className={`text-left px-3.5 py-3 rounded-pill border transition-colors ${
+                  on ? 'border-gray-900 bg-gray-900/[0.03]' : 'border-border hover:border-gray-400'
+                }`}>
+                <div className="text-[13px] font-semibold text-foreground flex items-center gap-1.5">
+                  {meta.label || id}
+                  {on && <Check size={13} className="text-gray-900" />}
+                </div>
+                <div className="text-[12px] text-muted-foreground mt-0.5">{meta.tagline}</div>
+              </button>
+            );
+          })}
+        </div>
+        {type !== businessType && (
+          <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-3">
+            Changing this resets the modules below to that type's defaults. Your
+            data is not touched — no product, bill or customer changes.
+          </p>
+        )}
+      </Card>
+
+      <Card
+        title="Modules"
+        description="What this shop sees. Switching one off hides it from the menu and closes the page; nothing is deleted and you can switch it back."
+        footer={
+          <>
+            {err && <span className="text-[12px] text-red-600 mr-auto">{err}</span>}
+            {!err && msg && <span className="text-[12px] text-emerald-600 mr-auto">{msg}</span>}
+            <button type="button" onClick={resetToDefaults}
+              className="px-3.5 py-2 rounded-pill border border-border text-[13px] font-medium text-ink-secondary hover:bg-muted transition-colors">
+              Reset to defaults
+            </button>
+            <PrimaryBtn onClick={save} disabled={busy || !dirty}>
+              {busy ? 'Saving…' : 'Save changes'}
+            </PrimaryBtn>
+          </>
+        }
+      >
+        {MODULE_KEYS.map((key) => {
+          const meta = MODULE_META[key] || { label: key };
+          const on = !!modules[key];
+          const isDefault = !!defaults[key];
+          // The plan axis. A toggle that the plan does not cover would look
+          // like it worked and then change nothing, so it is shown locked with
+          // the plan that would unlock it, rather than hidden or silently on.
+          const planned = meta.plan ? isModuleAllowed(meta.plan) : true;
+          const needs = meta.plan ? getRequiredPlan(meta.plan) : null;
+
+          return (
+            <FormRow key={key} label={meta.label} hint={meta.help}>
+              <div className="flex items-center gap-3 py-1">
+                {planned ? (
+                  <Toggle checked={on} onChange={(v) => {
+                    setModules((m) => ({ ...m, [key]: v })); setMsg(''); setErr('');
+                  }} />
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                    <Lock size={12} />
+                    Needs {PLANS[needs]?.label || needs}
+                  </span>
+                )}
+                {planned && on !== isDefault && (
+                  <span className="text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                    changed from default
+                  </span>
+                )}
+              </div>
+            </FormRow>
+          );
+        })}
+      </Card>
+
+      <p className="text-[12px] text-muted-foreground">
+        These switches decide what is <em>shown</em>. What the business has paid
+        for is the plan, which the server enforces separately — see Plan &amp; billing.
+      </p>
+    </div>
+  );
+};
+
 // ── Plan & billing ───────────────────────────────────────────────────────────
 const PricingPanel = () => {
   const { currentTenant } = useTenant();
@@ -811,7 +977,7 @@ const SupportPanel = () => (
 
 // ── Hub ──────────────────────────────────────────────────────────────────────
 const SettingsHub = () => {
-  const { currentTenantId } = useTenant();
+  const { currentTenantId, currentTenant } = useTenant();
   const { isOwner } = useAuth();
   const [active, setActive] = useState('account');
 
@@ -833,7 +999,7 @@ const SettingsHub = () => {
                 </div>
                 {g.items.map(n => (
                   <button key={n.id} onClick={() => setActive(n.id)}
-                    className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] whitespace-nowrap w-full text-left transition-colors ${
+                    className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-pill text-[13px] whitespace-nowrap w-full text-left transition-colors ${
                       active === n.id
                         ? 'bg-border/70 text-foreground font-semibold'
                         : 'text-ink-secondary hover:bg-muted font-medium'
@@ -850,12 +1016,14 @@ const SettingsHub = () => {
         {/* Panel */}
         <main className="flex-1 min-w-0">
           {active === 'account'  && <AccountPanel />}
+          {active === 'account' && isOwner && currentTenant?.settings?.ai_chat_available === true && <div className="mt-6 max-w-2xl"><AskSettingsCard /></div>}
           {CLASSIC_SECTIONS[active] && (
             <Settings embedded section={CLASSIC_SECTIONS[active]} key={active} />
           )}
           {active === 'print'    && <PrintPanel tenantId={currentTenantId} />}
           {active === 'users'    && <EmbedSkin><Users embedded /></EmbedSkin>}
           {active === 'reminders' && <RemindersPanel tenantId={currentTenantId} />}
+          {active === 'modules'  && <BusinessTypePanel />}
           {active === 'pricing'  && <PricingPanel />}
           {active === 'support'  && <SupportPanel />}
         </main>

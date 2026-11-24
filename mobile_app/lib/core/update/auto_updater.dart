@@ -321,7 +321,7 @@ class AutoUpdater {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Text(
-                    'If install does not start, enable "Install unknown apps" for LedgrPro in Android Settings.',
+                    'If install does not start, enable "Install unknown apps" for bookledger in Android Settings.',
                     style: TextStyle(fontSize: 13, color: Colors.black87),
                   ),
                 ),

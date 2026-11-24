@@ -7,6 +7,8 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/location/location_service.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 /// DispatchRouteScreen — start a delivery route for a vehicle.
 /// Mirrors the web dispatchRoute flow: picks a driver + pending delivery
@@ -195,20 +197,13 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
           children: [
             Text(
               'Dispatch Route',
-              style: GoogleFonts.manrope(
-                fontWeight: FontWeight.w800,
-                fontSize: 17,
-                color: AppColors.inkPrimary,
-              ),
+              style: AppText.heading.copyWith(fontWeight: FontWeight.w800,
+                color: AppColors.inkPrimary),
             ),
             Text(
               widget.vehicleName.toUpperCase(),
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
-                letterSpacing: 1.2,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.2),
             ),
           ],
         ),
@@ -289,7 +284,8 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                     'DELIVERIES (${_selected.length}/${_invoices.length})'),
                               ),
                               if (_invoices.isNotEmpty)
-                                GestureDetector(
+                                AppTappable(
+                                  ripple: false,
                                   onTap: () => setState(() {
                                     if (_selected.length == _invoices.length) {
                                       _selected.clear();
@@ -304,11 +300,8 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                     _selected.length == _invoices.length
                                         ? 'Clear all'
                                         : 'Select all',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.primary,
-                                    ),
+                                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                                      color: AppColors.primary),
                                   ),
                                 ),
                             ],
@@ -318,14 +311,14 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               child: Text('No pending deliveries',
-                                  style: GoogleFonts.manrope(
-                                      color: AppColors.inkTertiary, fontSize: 13)),
+                                  style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                             )
                           else
                             ..._invoices.map((inv) {
                               final id = inv['id'].toString();
                               final on = _selected.contains(id);
-                              return GestureDetector(
+                              return AppTappable(
+   ripple: false,
                                 onTap: () => setState(() {
                                   on ? _selected.remove(id) : _selected.add(id);
                                 }),
@@ -361,37 +354,28 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                             Text(
                                               inv['client_name']?.toString() ??
                                                   'Customer',
-                                              style: GoogleFonts.manrope(
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 13,
-                                                color: AppColors.inkPrimary,
-                                              ),
+                                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                                                color: AppColors.inkPrimary),
                                             ),
                                             if (inv['delivery_address'] != null)
                                               Text(
                                                 inv['delivery_address'].toString(),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: GoogleFonts.manrope(
-                                                  fontSize: 13,
-                                                  color: AppColors.inkTertiary,
-                                                ),
+                                                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                               ),
                                           ],
                                         ),
                                       ),
                                       Text(
                                         '₹${_num(inv['grand_total']).toStringAsFixed(0)}',
-                                        style: GoogleFonts.manrope(
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 13,
-                                          color: AppColors.inkPrimary,
-                                        ),
+                                        style: AppText.label.copyWith(fontWeight: FontWeight.w800,
+                                          color: AppColors.inkPrimary),
                                       ),
                                     ],
                                   ),
                                 ),
-                              );
+ );
                             }),
                         ],
                       ),
@@ -438,12 +422,9 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(
           text,
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
             letterSpacing: 1.2,
-            color: AppColors.inkTertiary,
-          ),
+            color: AppColors.inkTertiary),
         ),
       );
 

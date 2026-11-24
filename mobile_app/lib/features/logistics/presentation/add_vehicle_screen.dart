@@ -7,6 +7,10 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/data/models/vehicle.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import '../../../core/widgets/app_surfaces.dart';
 
 class AddVehicleScreen extends ConsumerStatefulWidget {
   /// When non-null the screen operates in edit mode.
@@ -163,12 +167,8 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
             ),
             Text(
               'FLEET MANAGEMENT',
-              style: GoogleFonts.manrope(
-                color: AppColors.secondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -197,19 +197,15 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
             Center(
               child: Text(
                 'FLEET VEHICLE',
-                style: GoogleFonts.manrope(
-                  color: AppColors.inkSecondary,
-                  fontSize: 13,
+                style: AppText.label.copyWith(color: AppColors.inkSecondary,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 2,
-                ),
+                  letterSpacing: 2),
               ),
             ),
             const SizedBox(height: 28),
 
             // Vehicle details
-            _SectionHeader(
-                title: 'VEHICLE DETAILS', icon: LucideIcons.truck),
+            SectionHeading('VEHICLE DETAILS', icon: LucideIcons.truck),
             const SizedBox(height: 12),
             _buildField(
               label: 'Vehicle Name / Model',
@@ -236,7 +232,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
             const SizedBox(height: 28),
 
             // Status
-            _SectionHeader(title: 'STATUS', icon: LucideIcons.activity),
+            SectionHeading('STATUS', icon: LucideIcons.activity),
             const SizedBox(height: 12),
             Column(
               children: _statusOptions.map((status) {
@@ -247,10 +243,11 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
                 final label = _statusLabels[status] ?? status;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: GestureDetector(
+                  child: AppTappable(
+   ripple: false,
                     onTap: () => setState(() => _selectedStatus = status),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
+                      duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
@@ -296,7 +293,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
                         ],
                       ),
                     ),
-                  ),
+ ),
                 );
               }).toList(),
             ),
@@ -335,11 +332,8 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEditing ? 'SAVE CHANGES' : 'ADD TO FLEET',
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          letterSpacing: 1,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          letterSpacing: 1),
                       ),
                     ],
                   ),
@@ -383,12 +377,8 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
             fontSize: 14,
           ),
           labelText: label,
-          labelStyle: GoogleFonts.manrope(
-            color: AppColors.inkSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
+          labelStyle: AppText.label.copyWith(color: AppColors.inkSecondary,
+            letterSpacing: 0.5),
           floatingLabelBehavior: FloatingLabelBehavior.always,
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
@@ -402,34 +392,3 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 14, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: GoogleFonts.manrope(
-            color: AppColors.primary,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-          ),
-        ),
-      ],
-    );
-  }
-}

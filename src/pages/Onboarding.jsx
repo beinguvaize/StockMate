@@ -227,7 +227,7 @@ const Onboarding = () => {
 
             <button
               onClick={markDone}
-              className="w-full flex items-center justify-center gap-2 py-4 bg-ink-primary text-white rounded-2xl text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+              className="w-full flex items-center justify-center gap-2 py-4 bg-ink-primary text-white rounded-pill text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
             >
               Get Started <ArrowRight size={14} />
             </button>
@@ -253,7 +253,7 @@ const Onboarding = () => {
                 </p>
                 <button
                   onClick={() => navigate(`/settings`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-pill text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Open Settings <ChevronRight size={14} />
                 </button>
@@ -267,7 +267,7 @@ const Onboarding = () => {
                 </p>
                 <button
                   onClick={() => navigate(`/inventory`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-pill text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Go to Inventory <ChevronRight size={14} />
                 </button>
@@ -281,7 +281,7 @@ const Onboarding = () => {
                 </p>
                 <button
                   onClick={() => navigate(`/clients`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-pill text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Go to Clients <ChevronRight size={14} />
                 </button>
@@ -295,7 +295,7 @@ const Onboarding = () => {
                 </p>
                 <button
                   onClick={() => navigate(`/sales`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-pill text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Go to Sales <ChevronRight size={14} />
                 </button>
@@ -306,7 +306,7 @@ const Onboarding = () => {
               {isLastStep ? (
                 <button
                   onClick={goToDashboard}
-                  className="flex-1 flex items-center justify-center gap-2 py-4 bg-accent-signature text-button-text rounded-2xl text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+                  className="flex-1 flex items-center justify-center gap-2 py-4 bg-accent-signature text-button-text rounded-pill text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
                 >
                   Go to Dashboard <ArrowRight size={14} />
                 </button>
@@ -314,13 +314,13 @@ const Onboarding = () => {
                 <>
                   <button
                     onClick={markDone}
-                    className="flex-1 flex items-center justify-center gap-2 py-4 bg-ink-primary text-white rounded-2xl text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 py-4 bg-ink-primary text-white rounded-pill text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
                   >
                     Done <CheckCircle2 size={14} />
                   </button>
                   <button
                     onClick={() => setCurrentStep(s => s + 1)}
-                    className="px-6 py-4 border border-black/8 rounded-2xl text-[12px] font-black text-muted-foreground hover:text-ink-primary hover:bg-canvas transition-all"
+                    className="px-6 py-4 border border-black/8 rounded-pill text-[12px] font-black text-muted-foreground hover:text-ink-primary hover:bg-canvas transition-all"
                   >
                     Skip
                   </button>

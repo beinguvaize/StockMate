@@ -9,6 +9,8 @@ import 'package:mobile_app/features/reports/data/report_providers.dart';
 import 'package:mobile_app/features/reports/presentation/widgets/report_kpi_tile.dart';
 import 'package:mobile_app/features/reports/presentation/widgets/simple_pie_chart.dart';
 import 'package:mobile_app/features/reports/utils/financial_calcs.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import '../../../core/widgets/app_surfaces.dart';
 
 // ---------------------------------------------------------------------------
 // Pie palette
@@ -99,24 +101,14 @@ class _InventoryReportScreenState
                   ),
                   Text(
                     'STOCK VALUATION',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.secondary,
-                      letterSpacing: 1.5,
-                    ),
+                    style: AppText.label.copyWith(color: AppColors.secondary,
+                      letterSpacing: 1.5),
                   ),
                 ],
               ),
               bottom: TabBar(
-                labelStyle: GoogleFonts.manrope(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-                unselectedLabelStyle: GoogleFonts.manrope(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 13,
-                ),
+                labelStyle: AppText.label.copyWith(fontWeight: FontWeight.w700),
+                unselectedLabelStyle: AppText.caption.copyWith(fontWeight: FontWeight.w500),
                 labelColor: AppColors.primary,
                 unselectedLabelColor: AppColors.inkSecondary,
                 indicatorColor: AppColors.primary,
@@ -298,8 +290,7 @@ class _InventoryBody extends StatelessWidget {
 
                     // Pie chart
                     const SizedBox(height: 24),
-                    _SectionHeader(
-                        title: 'BY CATEGORY', icon: LucideIcons.pieChart),
+                    SectionHeading('BY CATEGORY', icon: LucideIcons.pieChart),
                     const SizedBox(height: 16),
                     if (pieSlices.isNotEmpty)
                       Center(
@@ -312,8 +303,7 @@ class _InventoryBody extends StatelessWidget {
                       ),
 
                     const SizedBox(height: 24),
-                    _SectionHeader(
-                        title: 'PRODUCTS', icon: LucideIcons.layoutList),
+                    SectionHeading('PRODUCTS', icon: LucideIcons.layoutList),
                     const SizedBox(height: 12),
                   ],
                 ),
@@ -383,20 +373,14 @@ class _InventoryBody extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     '${deadStock.length} product${deadStock.length == 1 ? '' : 's'} with no sales in the last 30 days',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      color: const Color(0xFFEA580C),
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                    style: AppText.label.copyWith(color: const Color(0xFFEA580C)),
                                   ),
                                 ),
                               ],
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _SectionHeader(
-                              title: 'IDLE STOCK',
-                              icon: LucideIcons.packageX),
+                          SectionHeading('IDLE STOCK', icon: LucideIcons.packageX),
                           const SizedBox(height: 12),
                         ],
                       ),
@@ -486,11 +470,7 @@ class _ProductCard extends StatelessWidget {
                 ),
                 child: Text(
                   category,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+                  style: AppText.label.copyWith(color: AppColors.primary),
                 ),
               ),
             ],
@@ -501,10 +481,7 @@ class _ProductCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               sku,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: AppColors.inkTertiary,
-              ),
+              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
             ),
           ],
 
@@ -517,16 +494,12 @@ class _ProductCard extends StatelessWidget {
             children: [
               Text(
                 'Stock: ',
-                style: GoogleFonts.manrope(
-                    fontSize: 13, color: AppColors.inkSecondary),
+                style: AppText.caption.copyWith(color: AppColors.inkSecondary),
               ),
               Text(
                 '${stock.toStringAsFixed(stock.truncateToDouble() == stock ? 0 : 2)} $unit',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.inkPrimary,
-                ),
+                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                  color: AppColors.inkPrimary),
               ),
               const Spacer(),
               if (isLow)
@@ -547,12 +520,9 @@ class _ProductCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         'LOW STOCK',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                           color: AppColors.danger,
-                          letterSpacing: 0.5,
-                        ),
+                          letterSpacing: 0.5),
                       ),
                     ],
                   ),
@@ -607,17 +577,12 @@ class _ValueLabel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: color.withValues(alpha: 0.8),
+              style: AppText.caption.copyWith(color: color.withValues(alpha: 0.8),
                   fontWeight: FontWeight.w500)),
           Text(
             value,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
+            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+              color: color),
           ),
         ],
       ),
@@ -677,23 +642,17 @@ class _DeadStockCard extends StatelessWidget {
                 if (sku.isNotEmpty)
                   Text(
                     sku,
-                    style: GoogleFonts.manrope(
-                        fontSize: 13, color: AppColors.inkTertiary),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                   ),
                 const SizedBox(height: 4),
                 Text(
                   'Stock: ${stock.toStringAsFixed(stock.truncateToDouble() == stock ? 0 : 2)} $unit',
-                  style: GoogleFonts.manrope(
-                      fontSize: 13, color: AppColors.inkSecondary),
+                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Not sold in 30+ days',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFFEA580C),
-                  ),
+                  style: AppText.label.copyWith(color: const Color(0xFFEA580C)),
                 ),
               ],
             ),
@@ -703,17 +662,12 @@ class _DeadStockCard extends StatelessWidget {
             children: [
               Text(
                 compactINR(costValue),
-                style: GoogleFonts.manrope(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                  color: const Color(0xFFF59E0B),
-                ),
+                style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w800,
+                  color: const Color(0xFFF59E0B)),
               ),
               Text(
                 'idle capital',
-                style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.8)),
+                style: AppText.caption.copyWith(color: const Color(0xFFF59E0B).withValues(alpha: 0.8)),
               ),
             ],
           ),
@@ -726,37 +680,6 @@ class _DeadStockCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Section header
 // ---------------------------------------------------------------------------
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 14, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-            color: AppColors.primary,
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Empty state

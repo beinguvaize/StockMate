@@ -47,10 +47,10 @@ export const PartyPicker = ({ label, party, clients = [], onChange, manual = fal
             <div className="font-black text-sm text-ink-primary">{party.name}</div>
             <div className="text-[11px] text-muted-foreground">{party.gstin ? `GSTIN ${party.gstin} · ` : ''}{party.state || '—'}</div>
           </div>
-          <button onClick={() => setOpen(true)} className="ml-auto text-[11px] font-bold px-2.5 py-1 rounded-lg border border-black/10 hover:bg-black/5">Change</button>
+          <button onClick={() => setOpen(true)} className="ml-auto text-[11px] font-bold px-2.5 py-1 rounded-pill border border-black/10 hover:bg-black/5">Change</button>
         </div>
       ) : (
-        <button onClick={() => setOpen(true)} className="w-full py-8 rounded-xl border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5">+ Add party</button>
+        <button onClick={() => setOpen(true)} className="w-full py-8 rounded-pill border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5">+ Add party</button>
       ))}
       {open && (
         <div className="mt-3 max-h-52 overflow-auto rounded-xl border border-black/10 divide-y divide-black/5">
@@ -106,10 +106,10 @@ export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, on
         );
       })}
       <div className="flex gap-2 p-2.5 border-t border-black/5">
-        <button onClick={() => (manual ? onAddBlank?.() : setPicker(true))} className="flex-1 py-2.5 rounded-xl border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5"><Plus size={14} className="inline -mt-0.5 mr-1" />Add item</button>
+        <button onClick={() => (manual ? onAddBlank?.() : setPicker(true))} className="flex-1 py-2.5 rounded-pill border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5"><Plus size={14} className="inline -mt-0.5 mr-1" />Add item</button>
         {manual
-          ? <button onClick={() => setPicker(true)} className="px-4 py-2.5 rounded-xl border border-black/10 text-[13px] font-bold hover:bg-black/5">Pick product</button>
-          : <button className="px-4 py-2.5 rounded-xl border border-black/10 text-[13px] font-bold hover:bg-black/5"><ScanLine size={14} className="inline -mt-0.5 mr-1.5" />Scan</button>}
+          ? <button onClick={() => setPicker(true)} className="px-4 py-2.5 rounded-pill border border-black/10 text-[13px] font-bold hover:bg-black/5">Pick product</button>
+          : <button className="px-4 py-2.5 rounded-pill border border-black/10 text-[13px] font-bold hover:bg-black/5"><ScanLine size={14} className="inline -mt-0.5 mr-1.5" />Scan</button>}
       </div>
 
       {picker && (
@@ -141,17 +141,68 @@ export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, on
 
 const miniInput = 'w-24 text-right text-[12px] tabular-nums border border-black/10 rounded px-2 py-1 outline-none focus:border-accent-signature/40';
 
+/**
+ * The tax-mode switch.
+ *
+ * Inclusive and exclusive are not a formatting choice, they change what the
+ * customer pays: at 18%, a Rs 125 line is Rs 147.50 exclusive and Rs 125
+ * inclusive. So the control says which one is in force on THIS document rather
+ * than leaving the reader to infer it from the arithmetic.
+ *
+ * Rendered read-only where the server owns the answer -- see the note in
+ * CreateDocument -- because a control that looks settable and is then
+ * overruled on save is worse than a label.
+ */
+export const TaxModeToggle = ({ value = 'EXCLUSIVE', onChange, locked = false, hint }) => {
+  const opts = [
+    ['EXCLUSIVE', 'Tax extra'],
+    ['INCLUSIVE', 'Tax included'],
+  ];
+  return (
+    <div className="flex items-center justify-between gap-3 py-1.5">
+      <span className="text-[13px] text-muted-foreground">
+        Prices are
+        {hint && <span className="block text-[11px] text-muted-foreground/80">{hint}</span>}
+      </span>
+      {locked ? (
+        <span className="text-[12px] font-semibold text-ink-primary">
+          {value === 'INCLUSIVE' ? 'Tax included' : value === 'NONE' ? 'No GST' : 'Tax extra'}
+        </span>
+      ) : (
+        <div className="inline-flex rounded-pill bg-muted p-0.5">
+          {opts.map(([val, label]) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => onChange(val)}
+              aria-pressed={value === val}
+              className={`px-3 h-7 rounded-pill text-[12px] font-semibold transition-[background-color,color] duration-150
+                ${value === val ? 'bg-white text-ink-primary shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const TotalsPanel = ({
   gst, gstOn = true, interstate = false, showPayment = false,
   markPaid, setMarkPaid, payMethod, setPayMethod,
   charges = '', setCharges, billDiscount = '', setBillDiscount,
   received = '', setReceived,
+  taxMode, setTaxMode, taxModeLocked = false, taxModeHint,
 }) => {
   const base = gstOn ? Number(gst.grandTotal) || 0 : Number(gst.subtotal) || 0;
   const total = Math.max(0, base + (Number(charges) || 0) - (Number(billDiscount) || 0));
   const balance = Math.max(0, total - (Number(received) || 0));
   return (
     <div className="bg-white rounded-2xl border border-black/10 shadow-sm p-4">
+      {gstOn && taxMode && (
+        <TaxModeToggle value={taxMode} onChange={setTaxMode} locked={taxModeLocked} hint={taxModeHint} />
+      )}
       <Row label="Taxable value" value={inr(gst.taxable)} />
       {gstOn && interstate ? (
         <Row label="IGST" value={inr(gst.igst)} />

@@ -69,11 +69,11 @@ const StatusBadge = ({ status }) => {
 };
 
 const DateTab  = ({ k, label, active, onClick }) => (
-  <button onClick={onClick} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${active ? 'bg-accent-signature text-button-text' : 'bg-white text-ink-secondary hover:text-ink-primary border border-black/5'}`}>{label}</button>
+  <button onClick={onClick} className={`px-3 py-1.5 rounded-pill text-xs font-semibold transition-colors ${active ? 'bg-accent-signature text-button-text' : 'bg-white text-ink-secondary hover:text-ink-primary border border-black/5'}`}>{label}</button>
 );
 
 const StatusTab = ({ k, label, count, active, onClick }) => (
-  <button onClick={onClick} className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${active ? 'bg-ink-primary text-surface' : 'bg-white text-ink-secondary hover:text-ink-primary border border-black/5'}`}>
+  <button onClick={onClick} className={`px-3.5 py-1.5 rounded-pill text-xs font-semibold transition-colors ${active ? 'bg-ink-primary text-surface' : 'bg-white text-ink-secondary hover:text-ink-primary border border-black/5'}`}>
     {label}{count != null && <span className={`ml-1.5 ${active ? 'opacity-70' : 'text-muted-foreground'}`}>{count}</span>}
   </button>
 );
@@ -302,7 +302,7 @@ const Invoices = () => {
             <button
               onClick={() => setEwayInv(inv)}
               title={inv.eway_no ? `e-Way ${inv.eway_no}` : 'Generate e-Way bill'}
-              className={`p-2 rounded-lg transition-colors ${inv.eway_no ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature'}`}
+              className={`p-2 rounded-pill transition-colors ${inv.eway_no ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature'}`}
             >
               <FileText size={15} />
             </button>
@@ -317,7 +317,7 @@ const Invoices = () => {
                 refetchInvoices?.();
               }}
               title={inv.delivery_required ? 'Remove delivery flag' : 'Mark as requires delivery'}
-              className={`p-2 rounded-lg transition-colors ${inv.delivery_required ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'hover:bg-blue-50 text-muted-foreground hover:text-blue-600'}`}
+              className={`p-2 rounded-pill transition-colors ${inv.delivery_required ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'hover:bg-blue-50 text-muted-foreground hover:text-blue-600'}`}
             >
               <Truck size={15} />
             </button>
@@ -325,7 +325,7 @@ const Invoices = () => {
               <button
                 onClick={() => { setDetailInv(inv); setSettleInput(String(out)); }}
                 title="Settle Payment"
-                className="p-2 rounded-lg hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600 transition-colors"
+                className="p-2 rounded-pill hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600 transition-colors"
               >
                 <CheckCircle2 size={15} />
               </button>
@@ -333,14 +333,14 @@ const Invoices = () => {
             <button
               onClick={() => { setViewingInvoice(inv); setInvoiceMode('gst'); }}
               title="View / Print"
-              className="p-2 rounded-lg hover:bg-white text-muted-foreground hover:text-ink-primary transition-colors"
+              className="p-2 rounded-pill hover:bg-white text-muted-foreground hover:text-ink-primary transition-colors"
             >
               <Printer size={15} />
             </button>
             <button
               onClick={() => shareToWhatsApp(inv, client, businessProfile)}
               title="Share WhatsApp"
-              className="p-2 rounded-lg hover:bg-[#25D366]/10 text-muted-foreground hover:text-[#25D366] transition-colors"
+              className="p-2 rounded-pill hover:bg-[#25D366]/10 text-muted-foreground hover:text-[#25D366] transition-colors"
             >
               <Share2 size={15} />
             </button>
@@ -348,7 +348,7 @@ const Invoices = () => {
               <button
                 onClick={() => handleRemind(inv, client)}
                 title="Send payment reminder (SMS/WhatsApp)"
-                className="p-2 rounded-lg hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature transition-colors"
+                className="p-2 rounded-pill hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature transition-colors"
               >
                 <BellRing size={15} />
               </button>
@@ -424,14 +424,14 @@ const Invoices = () => {
           ))}
           <button
             onClick={() => setShowRecurring(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-ink-secondary hover:text-ink-primary hover:border-black/20 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold bg-white border border-black/5 text-ink-secondary hover:text-ink-primary hover:border-black/20 transition-colors"
           >
             <TrendingUp size={13} /> Recurring
           </button>
           <button
             onClick={handleExport}
             disabled={!filtered.length}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-ink-secondary hover:text-ink-primary hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold bg-white border border-black/5 text-ink-secondary hover:text-ink-primary hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <Download size={13} /> Export
           </button>
@@ -608,7 +608,7 @@ const Invoices = () => {
                       />
                       <button
                         onClick={handleSettle}
-                        className="px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
+                        className="px-4 py-2.5 rounded-pill bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
                       >
                         <CheckCircle2 size={14} /> Record Payment
                       </button>
@@ -616,7 +616,7 @@ const Invoices = () => {
                   )}
                   <button
                     onClick={() => { setDetailInv(null); setViewingInvoice(inv); setInvoiceMode('gst'); }}
-                    className="px-4 py-2.5 rounded-lg bg-ink-primary text-surface text-xs font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5"
+                    className="px-4 py-2.5 rounded-pill bg-ink-primary text-surface text-xs font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5"
                   >
                     <Printer size={14} /> Print
                   </button>

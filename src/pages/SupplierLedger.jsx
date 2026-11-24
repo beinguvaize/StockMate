@@ -349,7 +349,7 @@ const SupplierLedger = () => {
           </span>
           <button
             onClick={() => window.print()}
-            className="no-print h-10 px-4 rounded-xl bg-ink-primary text-white text-[11px] font-bold hover:bg-ink-primary/90 transition-all flex items-center gap-2"
+            className="no-print h-10 px-4 rounded-pill bg-ink-primary text-white text-[11px] font-bold hover:bg-ink-primary/90 transition-all flex items-center gap-2"
           >
             Export PDF <ArrowUpRight size={14} className="text-accent-signature/70" />
           </button>
@@ -410,7 +410,7 @@ const SupplierLedger = () => {
             {metrics.payable > 0 && hasPermission('purchases', 'edit') !== false && (
               <button
                 onClick={() => openPay()}
-                className="no-print w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-ink-primary text-white text-[12px] font-bold hover:bg-ink-primary/90 transition-all"
+                className="no-print w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-pill bg-ink-primary text-white text-[12px] font-bold hover:bg-ink-primary/90 transition-all"
               >
                 <CreditCard size={14} className="text-accent-signature/70" /> Record payment
               </button>
@@ -455,7 +455,7 @@ const SupplierLedger = () => {
                           onClick={() => runOffset(c.id)}
                           disabled={offsetting === c.id}
                           title="Apply this credit against the supplier's open bills"
-                          className="no-print text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-ink-primary text-white hover:bg-black disabled:opacity-50 transition-all"
+                          className="no-print text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-pill bg-ink-primary text-white hover:bg-black disabled:opacity-50 transition-all"
                         >
                           {offsetting === c.id ? '…' : 'Offset'}
                         </button>
@@ -535,7 +535,7 @@ const SupplierLedger = () => {
                     <button
                       key={val}
                       onClick={() => { setRange(val); setExpandedRow(null); }}
-                      className={`px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      className={`px-2.5 h-7 rounded-pill text-[10px] font-bold uppercase tracking-wider transition-all ${
                         range === val
                           ? 'bg-ink-primary text-white shadow-sm'
                           : 'text-muted-foreground hover:text-ink-primary'
@@ -550,7 +550,7 @@ const SupplierLedger = () => {
                     <button
                       key={val}
                       onClick={() => { setPaymentFilter(val); setExpandedRow(null); }}
-                      className={`px-2.5 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      className={`px-2.5 h-7 rounded-pill text-[10px] font-bold uppercase tracking-wider transition-all ${
                         paymentFilter === val
                           ? 'bg-accent-signature text-white shadow-sm'
                           : 'text-muted-foreground hover:text-ink-primary'
@@ -565,7 +565,7 @@ const SupplierLedger = () => {
                 <button
                   onClick={() => setNewestFirst(v => !v)}
                   title={newestFirst ? 'Showing newest first' : 'Showing oldest first'}
-                  className="h-7 px-2.5 rounded-lg border border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-ink-primary transition-all"
+                  className="h-7 px-2.5 rounded-pill border border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-ink-primary transition-all"
                 >
                   {newestFirst ? 'Newest ↑' : 'Oldest ↓'}
                 </button>
@@ -660,7 +660,7 @@ const SupplierLedger = () => {
                                 {!multi && b.due > 0.01 && hasPermission('purchases', 'edit') !== false && (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); openPay(b.lines[0], b.due); }}
-                                    className="no-print text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-ink-primary text-white hover:bg-black transition-all"
+                                    className="no-print text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-pill bg-ink-primary text-white hover:bg-black transition-all"
                                   >Pay</button>
                                 )}
                               </div>
@@ -713,7 +713,7 @@ const SupplierLedger = () => {
                                                 {hasPermission('purchases', 'edit') !== false && (
                                                   <button
                                                     onClick={(e) => { e.stopPropagation(); openPay(x, lineDue); }}
-                                                    className="no-print text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-ink-primary text-white hover:bg-black transition-all"
+                                                    className="no-print text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-pill bg-ink-primary text-white hover:bg-black transition-all"
                                                   >Pay</button>
                                                 )}
                                               </span>
@@ -935,11 +935,11 @@ const SupplierLedger = () => {
                   if (res?.success) setEditTarget(null);
                   else setEditError(res?.error?.message || 'Could not save the change.');
                 }}
-                className="flex-1 h-10 rounded-xl bg-ink-primary text-white text-[13px] font-bold disabled:opacity-60">
+                className="flex-1 h-10 rounded-pill bg-ink-primary text-white text-[13px] font-bold disabled:opacity-60">
                 {editSaving ? 'Saving…' : 'Save'}
               </button>
               <button disabled={editSaving} onClick={() => setEditTarget(null)}
-                className="h-10 px-4 rounded-xl border border-black/10 text-[13px] font-bold text-muted-foreground">Cancel</button>
+                className="h-10 px-4 rounded-pill border border-black/10 text-[13px] font-bold text-muted-foreground">Cancel</button>
             </div>
           </div>
         </div>
@@ -972,11 +972,11 @@ const SupplierLedger = () => {
                   if (res?.success) setDeleteTarget(null);
                   else setDeleteError(res?.error?.message || 'Could not delete the payment.');
                 }}
-                className="flex-1 h-10 rounded-xl bg-[color:var(--color-neg)] text-white text-[13px] font-bold disabled:opacity-60">
+                className="flex-1 h-10 rounded-pill bg-[color:var(--color-neg)] text-white text-[13px] font-bold disabled:opacity-60">
                 {deleting ? 'Deleting…' : 'Delete payment'}
               </button>
               <button disabled={deleting} onClick={() => setDeleteTarget(null)}
-                className="h-10 px-4 rounded-xl border border-black/10 text-[13px] font-bold text-muted-foreground">
+                className="h-10 px-4 rounded-pill border border-black/10 text-[13px] font-bold text-muted-foreground">
                 Cancel
               </button>
             </div>
@@ -1022,7 +1022,7 @@ const SupplierLedger = () => {
                 <div className="grid grid-cols-5 gap-2">
                   {['CASH','BANK','UPI','CHEQUE','OTHER'].map(m => (
                     <button key={m} type="button" onClick={() => setPayMethod(m)}
-                      className={`px-2 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
+                      className={`px-2 py-2 rounded-pill text-[10px] font-black uppercase tracking-wider border transition-all ${
                         payMethod === m ? 'bg-ink-primary text-white border-ink-primary' : 'bg-white border-border text-muted-foreground hover:border-accent-signature/40'
                       }`}>{m}</button>
                   ))}
@@ -1055,7 +1055,7 @@ const SupplierLedger = () => {
               )}
 
               <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)}
-                className="w-full py-3 rounded-xl bg-accent-signature text-button-text text-sm font-black disabled:opacity-50 transition-all">
+                className="w-full py-3 rounded-pill bg-accent-signature text-button-text text-sm font-black disabled:opacity-50 transition-all">
                 {paySubmitting ? 'Saving…' : `Pay ${businessProfile?.currencySymbol}${Number(payAmount || 0).toLocaleString()}`}
               </button>
             </div>

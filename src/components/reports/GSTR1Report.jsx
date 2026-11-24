@@ -57,7 +57,7 @@ const ExportMenu = ({ gstr1, gstin }) => {
     <div className="relative no-print">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors"
       >
         <Download size={13} /> Export <ChevronDown size={11} className={open ? 'rotate-180' : ''} />
       </button>

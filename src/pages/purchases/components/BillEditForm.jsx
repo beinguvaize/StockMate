@@ -1,5 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { formatCurrency } from '../../../lib/utils';
+import { priceCheck } from '../lib/priceCheck';
+import PriceCheckDialog from './PriceCheckDialog';
+import { useFocusAfterDialog } from '../lib/useFocusAfterDialog';
 
 /**
  * Edit a whole bill: the header once, every line beneath it.
@@ -25,7 +28,7 @@ import { formatCurrency } from '../../../lib/utils';
 const PAY_TYPES = ['CASH', 'CREDIT', 'BANK', 'UPI'];
 
 const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {}, payments = [],
-                       onSave, onCancel, saving }) => {
+                       purchases = [], onSave, onCancel, saving }) => {
   const [date, setDate]         = useState(bill.date || '');
   const [supplierId, setSupId]  = useState(bill.supplier_id || '');
   const [payType, setPayType]   = useState((bill.payment_type || 'CASH').toUpperCase());
@@ -43,8 +46,26 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
     notes: l.notes || '',
   })));
 
-  const setLine = (id, field, value) =>
-    setLines(prev => prev.map(l => (l.id === id ? { ...l, [field]: value } : l)));
+  // Keyed by id for saved lines; a new line has no id yet, so it carries a
+  // local key instead. Nothing downstream reads the key -- the ABSENCE of an
+  // id is what tells the save handler this line has to be inserted.
+  const keyOf = (l) => l.id || l.__key;
+  const setLine = (key, field, value) =>
+    setLines(prev => prev.map(l => (keyOf(l) === key ? { ...l, [field]: value } : l)));
+
+  const addLine = () => setLines(prev => [...prev, {
+    id: null,
+    __key: `new-${Date.now()}-${prev.length}`,
+    linked_product_id: products[0]?.id || '',
+    quantity: '',
+    total_amount: '',
+    notes: '',
+  }]);
+
+  // Only an unsaved line can be dropped here. Removing a SAVED line is a
+  // different act -- stock has moved, the ledger has a row -- and belongs to
+  // the line's own Delete, which reverses all of that.
+  const dropNewLine = (key) => setLines(prev => prev.filter(l => keyOf(l) !== key));
 
   const total = useMemo(
     () => lines.reduce((s, l) => s + (parseFloat(l.total_amount) || 0), 0),
@@ -68,19 +89,48 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
   // on-account advance, and that belongs on the supplier, not on this bill.
   const payTooMuch = payNum > stillDue + 0.005;
 
-  const invalid = lines.some(l => !(parseFloat(l.quantity) > 0) || !(parseFloat(l.total_amount) >= 0))
+  const invalid = lines.some(l => !(parseFloat(l.quantity) > 0) || !(parseFloat(l.total_amount) >= 0)
+      || !l.linked_product_id)
     || !date || !supplierId || payTooMuch;
+
+  // Lines whose price is far from the item's last purchase. Only lines this
+  // edit touched -- a new line, or a changed product, quantity or amount --
+  // so changing the date does not re-ask about prices nobody altered. An
+  // edited line is compared with the purchase before it, never with itself.
+  const [priceFlags, setPriceFlags] = useState(null);
+  const formRef = useRef(null);
+  const focusAmount = useFocusAfterDialog((key) => formRef.current?.querySelector(`[data-line-total="${key}"]`));
+
+  const touchedLines = () => {
+    const before = new Map((bill.lines || []).map(l => [l.id, l]));
+    return lines.filter(l => {
+      const was = l.id && before.get(l.id);
+      return !was || was.linked_product_id !== l.linked_product_id
+        || Math.abs((Number(was.quantity) || 0) - (parseFloat(l.quantity) || 0)) > 1e-9
+        || Math.abs((Number(was.total_amount) || 0) - (parseFloat(l.total_amount) || 0)) > 0.005;
+    }).map(l => ({ ...l, key: keyOf(l) }));
+  };
 
   const submit = (e) => {
     e.preventDefault();
     if (invalid || saving) return;
+    const flagged = priceCheck(touchedLines(), purchases, products);
+    if (flagged.length) { setPriceFlags(flagged); return; }
+    save();
+  };
+
+  const save = () => {
+    setPriceFlags(null);
     onSave({
       billId: bill.bill_id || bill.id,
       supplierId, paymentType: payType, date, billNo,
       // Recorded after the bill saves, as a payment against the bill's lines.
       paidNow: isCredit && payNum > 0 ? payNum : 0,
       lines: lines.map(l => ({
-        id: l.id,
+        // null on an added line. The save handler splits on this: saved lines
+        // go through edit_purchase_bill, which refuses an id it does not know,
+        // and new ones are inserted the way any purchase is.
+        id: l.id || null,
         linked_product_id: l.linked_product_id,
         quantity: parseFloat(l.quantity) || 0,
         total_amount: parseFloat(l.total_amount) || 0,
@@ -97,7 +147,7 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
   const field = 'w-full bg-canvas border border-black/10 rounded-lg px-2.5 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20';
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
+    <form ref={formRef} onSubmit={submit} className="flex flex-col gap-4">
 
       {/* Header — applies to every line, which is the whole point */}
       <div className="grid grid-cols-2 gap-3">
@@ -130,13 +180,15 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
 
       {/* Lines */}
       <div className="rounded-xl border border-black/8 overflow-hidden">
-        <div className="grid grid-cols-[1fr_88px_110px] gap-2 px-3 py-2 bg-canvas/60 border-b border-black/8">
+        <div className="grid grid-cols-[1fr_88px_110px_24px] gap-2 px-3 py-2 bg-canvas/60 border-b border-black/8">
           {['Product', 'Qty', 'Amount'].map((h, i) => (
             <span key={h} className={`text-[9px] font-bold uppercase tracking-wider text-muted-foreground ${i ? 'text-right' : ''}`}>{h}</span>
           ))}
+          <span />
         </div>
         {lines.map(l => (
-          <div key={l.id} className="grid grid-cols-[1fr_88px_110px] gap-2 items-center px-3 py-2 border-b border-black/5 last:border-0">
+          <div key={keyOf(l)} className={`grid grid-cols-[1fr_88px_110px_24px] gap-2 items-center px-3 py-2 border-b border-black/5 last:border-0 ${
+            l.id ? '' : 'bg-accent-signature/[0.04]'}`}>
             <div className="min-w-0">
               {/* Changing the product rewrites which batch the stock came from.
                   edit_purchase already refuses that once units have been sold,
@@ -144,7 +196,7 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
                   here, and its message reaches the user through the save. */}
               <select
                 value={l.linked_product_id || ''}
-                onChange={e => setLine(l.id, 'linked_product_id', e.target.value)}
+                onChange={e => setLine(keyOf(l), 'linked_product_id', e.target.value)}
                 className={`${field} !py-1.5 !text-[12.5px] truncate`}
               >
                 {!products.some(p2 => p2.id === l.linked_product_id) && (
@@ -154,16 +206,36 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
                 )}
                 {products.map(p2 => <option key={p2.id} value={p2.id}>{p2.name}</option>)}
               </select>
-              <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">{l.id.split('-').pop()}</div>
+              <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                {l.id ? l.id.split('-').pop() : 'new line'}
+              </div>
             </div>
             <input type="number" step="any" min="0" value={l.quantity}
-              onChange={e => setLine(l.id, 'quantity', e.target.value)}
+              onChange={e => setLine(keyOf(l), 'quantity', e.target.value)}
               className={`${field} !py-1.5 text-right tabular-nums`} />
             <input type="number" step="0.01" min="0" value={l.total_amount}
-              onChange={e => setLine(l.id, 'total_amount', e.target.value)}
+              aria-label="Amount" data-line-total={keyOf(l)}
+              onChange={e => setLine(keyOf(l), 'total_amount', e.target.value)}
               className={`${field} !py-1.5 text-right tabular-nums`} />
+            {l.id ? <span /> : (
+              <button type="button" onClick={() => dropNewLine(keyOf(l))}
+                aria-label="Remove this new line"
+                className="w-6 h-6 rounded-xl grid place-items-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-[color,background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.92]">
+                ×
+              </button>
+            )}
           </div>
         ))}
+
+        {/* A delivery is not always counted in one go: five things are booked
+            in and the sixth turns up in the van an hour later. Without this the
+            only way to record it was a second bill for the same delivery --
+            which is the same split this form exists to prevent, reached from
+            the other side. */}
+        <button type="button" onClick={addLine}
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-[12px] font-semibold text-accent-signature-hover border-b border-black/5 hover:bg-accent-signature/5 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.995]">
+          + Add another product
+        </button>
         <div className="flex items-center justify-between px-3 py-2.5 bg-canvas/60 border-t border-black/8">
           <span className="text-[11px] font-semibold text-muted-foreground">Bill total</span>
           <span className="text-sm font-bold tabular-nums">
@@ -224,7 +296,7 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
 
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onCancel} disabled={saving}
-          className="px-4 py-2.5 rounded-xl border border-black/10 text-sm font-semibold disabled:opacity-50">
+          className="px-4 py-2.5 rounded-pill border border-black/10 text-sm font-semibold disabled:opacity-50">
           Cancel
         </button>
         <button type="submit" disabled={invalid || saving}
@@ -232,6 +304,11 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
           {saving ? 'Saving…' : `Save bill · ${lines.length} line${lines.length === 1 ? '' : 's'}`}
         </button>
       </div>
+
+      {priceFlags && (
+        <PriceCheckDialog flagged={priceFlags} saving={saving} onConfirm={save}
+          onChange={() => { focusAmount(priceFlags[0]?.key); setPriceFlags(null); }} />
+      )}
     </form>
   );
 };

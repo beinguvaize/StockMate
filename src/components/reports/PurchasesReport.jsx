@@ -397,7 +397,7 @@ const PurchasesReport = () => {
         <div className="flex items-center bg-muted rounded-lg p-0.5">
           {PERIODS.map(([id, label]) => (
             <button key={id} onClick={() => applyPreset(id)}
-              className={`px-3 py-1.5 rounded-md text-[11px] whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-pill text-[11px] whitespace-nowrap transition-colors flex items-center gap-1.5 ${
                 preset === id
                   ? 'bg-card text-foreground font-semibold shadow-sm'
                   : 'text-muted-foreground font-medium hover:text-foreground'
@@ -414,7 +414,7 @@ const PurchasesReport = () => {
             <span className="text-muted-foreground">–</span>
             <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
               className="bg-card border border-black/10 rounded-lg px-3 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature/70" />
-            <button onClick={applyCustom} className="px-3 py-1.5 rounded-lg bg-accent-signature text-white text-[11px] font-semibold">Apply</button>
+            <button onClick={applyCustom} className="px-3 py-1.5 rounded-pill bg-accent-signature text-white text-[11px] font-semibold">Apply</button>
           </div>
         )}
       </div>

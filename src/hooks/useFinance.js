@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restInsert, restUpdate } from '../lib/supabase';
+import { fetchAllPages } from '../lib/fetchAllPages';
 import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate, isElectron } from '../lib/offline/hookAdapter';
@@ -28,7 +29,7 @@ export const useFinance = (tenantId) => {
       const [expCached, dbCached, cpCached, purCached] = await Promise.all([
         readCacheThenRevalidate(
           'expenses',
-          () => supabase.from('expenses').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          () => fetchAllPages(() => supabase.from('expenses').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }), { label: 'expenses' }),
           (rows) => setExpenses(normalizeNumericRows(rows, EXPENSE_NUMERIC)),
         ),
         readCacheThenRevalidate(
@@ -38,12 +39,12 @@ export const useFinance = (tenantId) => {
         ),
         readCacheThenRevalidate(
           'client_payments',
-          () => supabase.from('client_payments').select('id, amount, date, payment_method, notes, client_id, created_at').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          () => fetchAllPages(() => supabase.from('client_payments').select('id, amount, date, payment_method, notes, client_id, created_at').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }), { label: 'client_payments' }),
           (rows) => setClientPayments(normalizeNumericRows(rows, CLIENT_PAYMENT_NUMERIC)),
         ),
         readCacheThenRevalidate(
           'purchases',
-          () => supabase.from('purchases').select('id, total_amount, paid_amount, payment_type, date, supplier_id, created_at').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          () => fetchAllPages(() => supabase.from('purchases').select('id, total_amount, paid_amount, payment_type, date, supplier_id, created_at').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }), { label: 'purchases (finance)' }),
           (rows) => setPurchases(normalizeNumericRows(rows, PURCHASE_NUMERIC)),
         ),
       ]);
@@ -183,8 +184,16 @@ export const useFinance = (tenantId) => {
       amount:         tpl.amount,
       category:       tpl.category ?? 'Other',
       payment_method: tpl.payment_method ?? 'CASH',
-      frequency:      'MONTHLY',
+      frequency:      tpl.frequency === 'DAILY' ? 'DAILY' : 'MONTHLY',
+      weekdays:       tpl.weekdays ?? null,
       day_of_month:   Math.min(Math.max(parseInt(tpl.day_of_month, 10) || 1, 1), 28),
+      start_date:     tpl.start_date ?? null,
+      last_generated: tpl.last_generated ?? null,
+      location_id:    tpl.location_id ?? null,
+      exclude_from_pl: !!tpl.exclude_from_pl,
+      gst_rate:       tpl.gst_rate ?? null,
+      gst_amount:     tpl.gst_amount ?? null,
+      vendor_gstin:   tpl.vendor_gstin ?? null,
       active:         true,
     };
     const { error } = await supabase.from('recurring_expense_templates').insert(row);

@@ -20,6 +20,33 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Desktop offline past its grace window: keep the user + cache, show a lock screen.
+  const [offlineLock, setOfflineLock] = useState(null);
+  const tenantIdRef = React.useRef(null);
+
+  // Desktop: re-validate the plan with the server and restart the offline clock.
+  // Skipped (not written as ACTIVE) when the tenant row cannot be read, so a
+  // failed fetch can never hide a suspended shop or grant the paid window.
+  const refreshOfflineBootstrap = async (user, tenantId) => {
+    if (!user?.id || !tenantId) return;
+    tenantIdRef.current = tenantId;
+    try {
+      const { isElectron, saveBootstrap } = await import('../lib/offline/authGuard.js');
+      if (!isElectron()) return;
+      const { data: tenantRow, error } = await supabase
+        .from('tenants').select('plan, status').eq('id', tenantId).maybeSingle();
+      if (error || !tenantRow) {
+        console.warn('[auth] offline bootstrap not refreshed, tenant row unreadable:', error?.message || 'no row');
+        return;
+      }
+      await saveBootstrap({
+        userId: user.id, email: user.email, tenantId,
+        subscription: { plan: tenantRow.plan || 'FREE', status: tenantRow.status || 'ACTIVE' },
+      });
+    } catch (err) {
+      console.warn('[auth] offline bootstrap refresh failed:', err);
+    }
+  };
 
   useEffect(() => {
     // 1. Initial Session check
@@ -63,20 +90,33 @@ export const AuthProvider = ({ children }) => {
             // force the user back to the login screen instead of giving
             // unauthorised offline access to cached data.
             try {
-              const { loadBootstrap, isGraceValid, isSubscriptionActive } =
+              const { loadBootstrap, graceInfo, touchMaxSeen, isSubscriptionActive } =
                 await import('../lib/offline/authGuard.js');
               const bootstrap = await loadBootstrap();
-              const block =
+              const hardBlock =
                 !bootstrap ||
                 bootstrap.userId !== session.user.id ||
-                !isGraceValid(bootstrap) ||
                 !isSubscriptionActive(bootstrap);
-              if (block) {
-                console.warn('[auth] offline grace/subscription gate failed → signing out');
+              if (hardBlock) {
+                console.warn('[auth] offline bootstrap/subscription gate failed → signing out');
                 await supabase.auth.signOut();
                 profile = null;
+              } else {
+                const now = Date.now();
+                const info = graceInfo(bootstrap, now, await touchMaxSeen(now));
+                if (info.expired || info.clockBack) {
+                  console.warn('[auth] offline grace over (%s) → lock screen, staying signed in',
+                    info.clockBack ? 'clock' : 'expired');
+                  setOfflineLock({
+                    reason: info.clockBack ? 'clock' : 'expired',
+                    graceDays: info.graceDays,
+                    daysOffline: Math.max(0, Math.floor((now - info.validatedAt) / 86400000)),
+                  });
+                }
               }
-            } catch (_) {/* if guard fails, fall through with cached profile */}
+            } catch (guardErr) {
+              console.warn('[auth] offline guard failed, falling through with cached profile:', guardErr);
+            }
           }
         }
 
@@ -130,25 +170,7 @@ export const AuthProvider = ({ children }) => {
           // a successful ONLINE validation so subsequent launches can run
           // offline within the grace window. Fire-and-forget — never blocks UI.
           if (isDesktop && enrichedProfile.tenant_id) {
-            (async () => {
-              try {
-                const { data: tenantRow } = await supabase
-                  .from('tenants')
-                  .select('plan, status')
-                  .eq('id', enrichedProfile.tenant_id)
-                  .maybeSingle();
-                const { saveBootstrap } = await import('../lib/offline/authGuard.js');
-                await saveBootstrap({
-                  userId: session.user.id,
-                  email: session.user.email,
-                  tenantId: enrichedProfile.tenant_id,
-                  subscription: {
-                    plan: tenantRow?.plan || 'STARTER',
-                    status: tenantRow?.status || 'ACTIVE',
-                  },
-                });
-              } catch (_) {/* ignore — bootstrap is best-effort */}
-            })();
+            refreshOfflineBootstrap(session.user, enrichedProfile.tenant_id);
           }
         } else if (isSuperUser) {
           // A bootstrap admin is provisioned for real -- the row is written, so
@@ -209,6 +231,9 @@ export const AuthProvider = ({ children }) => {
       setSession(session);
 
       if (event === 'TOKEN_REFRESHED') {
+        // A token refresh is an online round-trip (about hourly), so a desktop
+        // left running for weeks keeps its offline clock current.
+        if (session?.user && tenantIdRef.current) refreshOfflineBootstrap(session.user, tenantIdRef.current);
         // JWT rotated but user identity unchanged — do NOT re-fetch profile.
         // Re-fetching would create a new currentUser object reference which
         // triggers TenantContext to setLoading(true) and show the loading screen.
@@ -255,25 +280,7 @@ export const AuthProvider = ({ children }) => {
             // grace timer resets and subscription status is current.
             const isDesktopEvt = typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent);
             if (isDesktopEvt && enrichedProfile.tenant_id) {
-              (async () => {
-                try {
-                  const { data: tenantRow } = await supabase
-                    .from('tenants')
-                    .select('plan, status')
-                    .eq('id', enrichedProfile.tenant_id)
-                    .maybeSingle();
-                  const { saveBootstrap } = await import('../lib/offline/authGuard.js');
-                  await saveBootstrap({
-                    userId: session.user.id,
-                    email: session.user.email,
-                    tenantId: enrichedProfile.tenant_id,
-                    subscription: {
-                      plan: tenantRow?.plan || 'STARTER',
-                      status: tenantRow?.status || 'ACTIVE',
-                    },
-                  });
-                } catch (_) {/* best-effort */}
-              })();
+              refreshOfflineBootstrap(session.user, enrichedProfile.tenant_id);
             }
           } else {
             setCurrentUser({
@@ -449,6 +456,7 @@ export const AuthProvider = ({ children }) => {
     currentUser,
     session,
     loading,
+    offlineLock,
     login,
     logout,
     updateAvatar,

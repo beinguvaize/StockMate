@@ -201,15 +201,27 @@ table.report-table tbody td.numeric {
 /* Applied via data-theme="X" on <html>. Default (signature) needs no attr.  */
 
 [data-theme="white"] {
-  --color-canvas: #FFFFFF;
-  --color-surface: #F9F9F9;
+  /* canvas is the GROUND and the quiet tint behind a chip, a table head and a
+     row hover -- `bg-canvas` carries both jobs at 445 call sites. This theme
+     used to set it to #FFFFFF and hand `surface` the grey, inverting the pair
+     every other theme here uses. White cards then sat on a white ground and
+     every chip disappeared, which read as "the theme does nothing". Warm and
+     quiet, so a white card reads as a card. */
+  --color-canvas: #F6F5F3;
+  --color-surface: #FFFFFF;
   --color-ink-primary: #111111;
   --color-ink-secondary: #444444;
-  --color-ink-tertiary: #6B7280;
+  /* #6B7280 measured 4.44:1 once the ground stopped being pure white -- it had
+     room to spare against #FFFFFF and none against a tint. One step down: now
+     4.59:1 on the ground, 5.00:1 on a white card. */
+  --color-ink-tertiary: #68707C;
   --color-accent-signature: #D97706;
   --color-accent-signature-hover: #B45309;
+  /* The same amber, for the job the brand value cannot do. See the rule that
+     consumes it, below the theme blocks. */
+  --color-accent-text: #AB4F08;
   --color-button-text: #FFFFFF;
-  --bg-color: #FFFFFF;
+  --bg-color: #F6F5F3;
   --border-color: rgba(0,0,0,0.08);
 }
 
@@ -236,6 +248,60 @@ table.report-table tbody td.numeric {
   line-height: 1 !important;
 }
 
+/* Keyboard focus.
+
+   320 elements in this app carry `outline-none` and nothing replaces it, so
+   tabbing through a screen moved an invisible cursor: you could not tell which
+   button Enter was about to press. That is WCAG 2.4.7, and it is also the
+   difference between an app that feels finished and one that does not.
+
+   Unlayered, so it beats the `outline-none` utility wherever that was written
+   -- there is no value in hunting 320 call sites to delete a class that should
+   never have been the end of the story.
+
+   :focus-visible, not :focus, so a mouse click does not leave a ring behind.
+
+   The ring is ink, not amber: it has to read on a white card, on the warm
+   ground AND on a black pill, and #111111 measures 17.3:1 on the first two
+   while amber manages 3.19:1 and 2.92:1. The 2px offset puts it just outside
+   the control, so a dark button gets a dark ring on the light ground behind
+   it rather than a ring that disappears into its own fill. */
+:where(a, button, summary, [role="button"], [role="tab"], [tabindex]):focus-visible {
+  /* Two rings, because one colour cannot be seen on every background.
+     Measured on the live login page, an ink ring scored 1.04:1 against that
+     dark panel where 3:1 is the minimum -- it was drawn and it was invisible.
+     The white ring fills the 2px offset gap and carries the dark grounds; the
+     ink ring sits outside it and carries the light ones. Whichever the control
+     is sitting on, one of the two reads.
+
+     The box-shadow replaces whatever shadow the control had, for as long as it
+     holds focus. That is a fair trade for being able to see where you are. */
+  outline: 2px solid var(--color-ink-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px #FFFFFF;
+  border-radius: inherit;
+}
+
+/* Amber has two jobs and one value, and only one of them works.
+
+   As a FILL -- the primary button, an icon tile -- #D97706 needs 3:1 against
+   what is behind it and clears it. As TEXT it needs 4.5:1 and measures
+   3.19:1 on a white card, 2.92:1 on the ground, and 2.64:1 on its own
+   amber/10 chip. It has never passed, at any of the 568 elements carrying
+   `text-accent-signature`.
+
+   So the utility that colours text points at a darker amber and nothing else
+   moves: bg-accent-signature is untouched, so every button keeps the brand
+   colour. #AB4F08 is the lightest value that clears 4.5:1 on all three of
+   those surfaces (4.51 / 5.00 / 5.45), and it stays inside the same hue, so
+   amber still means one thing.
+
+   Dark panels are deliberately not covered. There the relationship inverts --
+   #D97706 measures 5.93:1 on #111111 and #AB4F08 only 3.76:1 -- and the
+   `.bg-ink-primary` rules below are more specific than this one, so they keep
+   deciding what happens on black exactly as they did before. */
+.text-accent-signature { color: var(--color-accent-text); }
+
 /* White theme: any element with black bg must show white text */
 [data-theme="white"] .bg-ink-primary { color: #FFFFFF; }
 [data-theme="white"] .bg-ink-primary * { color: #FFFFFF; }
@@ -254,8 +320,13 @@ table.report-table tbody td.numeric {
   filter: grayscale(35%);
 }
 [data-theme="white"] .btn-signature * { color: #FFFFFF; }
-/* Nav bar dark bg */
-[data-theme="white"] nav .text-ink-primary { color: #FFFFFF; }
+/* Nav bar dark bg.
+   Scoped with :not([data-rail]) because this was written for the old top
+   nav, whose ACTIVE item was a dark pill -- white ink was right there. The
+   sidebar's active row is a light fill, so the same rule painted white text
+   on a near-white background and the current page became the one item you
+   could not read. */
+[data-theme="white"] nav:not([data-rail]) .text-ink-primary { color: #FFFFFF; }
 [data-theme="white"] [class*="bg-[#111]"] { color: #FFFFFF; }
 [data-theme="white"] [class*="bg-gray-900"] { color: #FFFFFF; }
 [data-theme="white"] [class*="bg-gray-900"] * { color: #FFFFFF; }
@@ -372,7 +443,11 @@ table.report-table tbody td.numeric {
   --color-ink-primary: #1E1B2E;     /* near-black with a violet cast */
   --color-ink-secondary: #4B5563;
   --color-ink-tertiary: #6B7280;    /* gray-500 — legible muted text */
-  --color-accent-signature: #D97706;       /* amber-600 (brand) */
+  --color-accent-signature: #D97706;       /* amber-600 (brand) -- fills only */
+  /* Amber as text. Declared here as well as per-theme so it always resolves:
+     an unresolved var() is invalid at computed-value time, which would drop
+     the colour entirely on any page that has not stamped a theme yet. */
+  --color-accent-text: #AB4F08;
   --color-accent-signature-hover: #B45309; /* amber-700 */
   --color-button-text: #FFFFFF;            /* white text on amber */
 
@@ -412,7 +487,12 @@ table.report-table tbody td.numeric {
      dark theme overrides these to the lighter 400 steps. Reports read them via
      var() since this Tailwind v4 setup has no `dark:` variant wired. */
   --color-pos: #047857;
-  --color-neg: #E11D48;
+  /* #E11D48 measured 4.70:1 on white and 4.31:1 on the warm ground the tables
+     actually sit on -- so money owed failed wherever a row was not pure white,
+     which is most of them. #D01040 is 5.48 / 5.03, the SAME pair as --color-pos
+     above, so a loss and a gain now carry equal weight instead of the loss
+     being the fainter of the two. */
+  --color-neg: #D01040;
   --color-accent: var(--color-canvas);
   --color-accent-foreground: var(--color-ink-primary);
   --color-destructive: #DC2626;
@@ -445,7 +525,40 @@ table.report-table tbody td.numeric {
   --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
   --shadow-hover: 0 20px 40px -15px rgba(0, 0, 0, 0.12);
   
-  --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  /* ── Motion ──────────────────────────────────────────────────────────────
+     One set of curves and durations. Extend these; never hand-roll a
+     cubic-bezier next to them.
+
+     The built-in CSS easings are too weak to read as deliberate, so these are
+     the strong versions. ease-in is deliberately absent: it starts slow, which
+     delays the exact moment the user is watching, and an ease-out at 200ms
+     feels faster than an ease-in at 200ms. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);      /* entering / exiting */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);  /* moving on screen */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);   /* iOS-like drawer */
+
+  --dur-press: 160ms;    /* button press feedback */
+  --dur-hover: 160ms;    /* hover, colour change */
+  --dur-popover: 180ms;  /* tooltips, small popovers */
+  --dur-menu: 200ms;     /* dropdowns, selects */
+  --dur-modal: 260ms;    /* modals, drawers */
+
+  /* Was `all 0.4s`. Two faults in one token, and it is the default reached
+     for across the app:
+
+       * `all` makes the browser watch every animatable property, so an
+         unrelated layout change during the transition animates too -- that is
+         where a hover that also nudges width or shadow starts to feel soft.
+       * 400ms is past the point where a hover still feels like a response.
+         UI motion stays under 300ms; hover belongs at 100-160ms.
+
+     Named properties, hover duration. Anything needing transform should say
+     so explicitly rather than inheriting it from here. */
+  --transition: background-color var(--dur-hover) ease,
+                border-color     var(--dur-hover) ease,
+                color            var(--dur-hover) ease,
+                box-shadow       var(--dur-hover) ease,
+                opacity          var(--dur-hover) ease;
 }
 
 @layer base {
@@ -591,6 +704,64 @@ body {
   }
 }
 
+/* A menu anchored to a trigger scales FROM that trigger, not from its own
+   centre. These row menus open below the kebab and are right-aligned to it
+   (openMenu sets left = trigger.right - 160), so the trigger sits at the
+   menu's top-right corner and that is where the growth starts.
+
+   Never from scale(0): nothing in the world appears out of nothing, and a
+   menu that does reads as a glitch rather than an opening. 0.96 is enough to
+   register as movement while still having a shape at frame one.
+
+   160ms, because this is a menu someone opens dozens of times an afternoon;
+   anything slower is felt as lag rather than polish. */
+.menu-pop {
+  /* The menu is placed from the trigger's own rect, so its corner nearest the
+     trigger is the corner it should grow from. When there is no room below and
+     it flips above, that corner moves to the bottom -- the JS that decides the
+     flip sets --menu-origin with it. A popover that scales from its centre
+     reads as arriving from nowhere. */
+  transform-origin: var(--menu-origin, top right);
+  animation: menuPop 160ms var(--ease-out) forwards;
+}
+
+@keyframes menuPop {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-pop { animation: menuFade 120ms linear forwards; }
+  @keyframes menuFade { from { opacity: 0 } to { opacity: 1 } }
+}
+
+/* ── A bill unfolding into its lines ────────────────────────────────────────
+   The lines are <tr>s inside a table, where animating height fights the
+   layout engine and janks the whole column. The cell CONTENT carries the
+   entrance instead: opacity plus a 3px lift, which is enough to register as
+   movement without moving anything the eye is reading.
+
+   Staggered 24ms so the lines read as unfolding out of the bill rather than
+   four rows blinking on at once, and capped at six steps -- past that the
+   stagger stops being sequence and becomes waiting. Exit is not animated: the
+   same click removes the rows, and the parent row's own ground colour changing
+   back is the signal. */
+.line-reveal {
+  animation: lineReveal var(--dur-press) var(--ease-out) both;
+}
+
+@keyframes lineReveal {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Reduced motion means gentler, not none -- the opacity still explains
+     where the rows came from; only the movement goes. */
+  .line-reveal { animation: lineFade var(--dur-press) linear both; }
+  @keyframes lineFade { from { opacity: 0 } to { opacity: 1 } }
+}
+
 @keyframes modalScaleUp {
   from { opacity: 0; transform: scale(0.95) translateY(20px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
@@ -641,7 +812,7 @@ body {
 }
 
 .btn:active {
-  transform: translateY(0px) scale(0.98);
+  transform: translateY(0px) scale(0.97);
   background: rgba(0,0,0,0.05);
 }
 
@@ -724,7 +895,7 @@ body {
 }
 
 .btn-pill:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
 }
 
 .btn-pill-edit {
@@ -1161,4 +1332,176 @@ body {
   -webkit-text-fill-color: #c7cdc9;
   caret-color: #c7cdc9;
   transition: background-color 9999s ease-in-out 0s;
+}
+
+
+/* ── Reduced motion ─────────────────────────────────────────────────────────
+   Reduced motion means FEWER and GENTLER animations, not none. Opacity and
+   colour still carry meaning -- they tell the user something changed -- so
+   they stay. What goes is movement: transforms, and anything long enough to
+   read as travel across the screen.
+
+   `!important` is load-bearing here: this has to beat 487 utility classes and
+   inline transitions it does not own. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: var(--dur-hover) !important;
+    transition-property: opacity, background-color, border-color, color !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* ── `transition-all`, defanged ─────────────────────────────────────────────
+   483 elements use Tailwind's `transition-all`. Rewriting each by hand would
+   be 483 chances to drop a property something actually animates, so the
+   UTILITY is redefined once instead.
+
+   What `all` costs: the browser watches every animatable property, so a
+   width, height, margin or `top` that changes for an unrelated reason during
+   the transition animates too -- and those three trigger layout and paint
+   rather than running on the GPU. That is where a hover starts to feel soft
+   or janky for no visible reason.
+
+   The list below keeps everything a hover or press legitimately animates --
+   including `transform`, because plenty of these are lifts and presses -- and
+   drops only the layout-triggering properties nobody meant to animate.
+
+   The default duration also moves from Tailwind's 150ms to the hover token,
+   so a button and a card agree on what "quick" means. */
+/* Deliberately OUTSIDE @layer. Tailwind emits its own `.transition-all` into
+   the utilities layer; an override inside that same layer loses on source
+   order. Unlayered rules beat layered ones outright, which is the only way a
+   single definition here can win over the generated utility. Verified in the
+   built CSS, not assumed. */
+.transition-all {
+  transition-property:
+    color, background-color, border-color, text-decoration-color, fill,
+    stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-duration: var(--dur-hover);
+  transition-timing-function: ease;
+}
+
+/* ── Hover motion on touch ──────────────────────────────────────────────────
+   Tailwind v4 does NOT gate `hover:` behind `(hover: hover)` in this setup --
+   checked in the built stylesheet, where the media query appears zero times.
+   On a phone a tap fires :hover and it STICKS until the next tap elsewhere,
+   so a card left scaled up after a tap reads as broken rather than as polish.
+
+   Only transform-based hovers are neutralised. Colour and shadow hovers are
+   harmless when they linger; a lift is not. */
+@media (hover: none) {
+  .hover\:scale-105:hover,
+  .hover\:scale-110:hover,
+  .hover\:scale-175:hover,
+  .hover\:scale-\[1\.02\]:hover,
+  .hover\:scale-\[1\.03\]:hover,
+  .hover\:-translate-y-0\.5:hover,
+  .hover\:translate-y-0:hover {
+    transform: none;
+  }
+}
+
+
+/* ── Motion kit (src/components/motion) ─────────────────────────────────────
+   Shared keyframes for the sixteen-item motion pass. Only transform, opacity,
+   filter, clip-path and grid-template-rows animate. Each has a static cue
+   (colour / icon / label) and the global reduced-motion rule above flattens
+   the rest. */
+
+/* 2. Save button label crossfade: opacity + 2px blur, 180ms */
+.save-label { animation: saveLabelIn 180ms var(--ease-out) both; }
+@keyframes saveLabelIn { from { opacity: 0; filter: blur(2px); } to { opacity: 1; filter: blur(0); } }
+.save-btn-saved { background: var(--color-pos) !important; color: #fff !important; }
+
+/* 3. Rolling digits: only changed digits slide up 70% -> 0 */
+.roll-digit { display: inline-block; animation: rollDigit 260ms var(--ease-out) both; font-variant-numeric: tabular-nums; }
+@keyframes rollDigit {
+  from { opacity: 0; transform: translateY(70%); filter: blur(2px); }
+  to   { opacity: 1; transform: translateY(0);   filter: blur(0); }
+}
+
+/* 5. Hold to confirm: fill sweeps left to right while held */
+.hold-fill { clip-path: inset(0 100% 0 0); transition: clip-path 200ms var(--ease-out); pointer-events: none; }
+.hold-btn[data-holding="true"] .hold-fill { clip-path: inset(0 0 0 0); transition: clip-path 1500ms linear; }
+
+/* 6. Stacked toasts */
+.toast-card {
+  transition: transform 400ms var(--ease-out), opacity 300ms var(--ease-out);
+  transform: translateY(calc(var(--toast-i) * -10px)) scale(calc(1 - var(--toast-i) * 0.05)) translateX(var(--toast-dx, 0px));
+  opacity: calc(1 - var(--toast-i) * 0.15);
+}
+.toast-card[data-enter="true"] { transform: translateY(100%); opacity: 0; }
+.toast-card[data-leave="true"] { transform: translateY(100%); opacity: 0; }
+
+/* 7. Field error: one 4px shake + message reveal via grid rows */
+.field-shake { animation: fieldShake 300ms var(--ease-out) 1; }
+@keyframes fieldShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.reveal-rows { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 200ms var(--ease-out); }
+.reveal-rows[data-open="true"] { grid-template-rows: 1fr; }
+.reveal-rows > * { overflow: hidden; min-height: 0; }
+
+/* 8. Copy icon crossfade */
+.copy-icon { animation: copyIcon 300ms var(--ease-out) both; }
+@keyframes copyIcon { from { opacity: 0; transform: scale(0.25); filter: blur(4px); } to { opacity: 1; transform: scale(1); filter: blur(0); } }
+
+/* 9. Expand row */
+.expand-rows { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 260ms var(--ease-out); }
+.expand-rows[data-open="true"] { grid-template-rows: 1fr; }
+.expand-rows > .expand-inner { overflow: hidden; min-height: 0; }
+.expand-inner > * { opacity: 0; transform: translateY(-4px); transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out); }
+.expand-rows[data-open="true"] .expand-inner > * { opacity: 1; transform: translateY(0); transition-delay: 80ms; }
+.chevron-turn { transition: transform 220ms var(--ease-out); }
+.chevron-turn[data-open="true"] { transform: rotate(90deg); }
+
+/* 10. Segmented tabs: sliding indicator */
+.seg-indicator { transition: transform 260ms var(--ease-out), width 260ms var(--ease-out); }
+
+/* 13. Dashboard first open of the day */
+.first-open { animation: firstOpen 300ms var(--ease-out) both; animation-delay: calc(var(--stagger-i, 0) * 60ms); }
+@keyframes firstOpen { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* 14. Centered dialog (web): scale .96 -> 1 + opacity from centre */
+.dialog-pop { animation: dialogPop 200ms var(--ease-out) both; }
+@keyframes dialogPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+
+/* 15. Tooltip */
+.tip { transform-origin: bottom center; animation: tipIn 125ms var(--ease-out) both; }
+.tip[data-instant="true"] { animation-duration: 0ms; }
+@keyframes tipIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+
+/* 16. Long tasks */
+.sheen-wrap { position: relative; overflow: hidden; }
+.sheen-wrap::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%);
+  transform: translateX(-100%); animation: sheen 1400ms linear infinite;
+}
+@keyframes sheen { to { transform: translateX(100%); } }
+.field-blur-in { animation: fieldBlurIn 260ms var(--ease-out) both; animation-delay: calc(var(--stagger-i, 0) * 220ms); }
+@keyframes fieldBlurIn { from { opacity: 0; filter: blur(4px); } to { opacity: 1; filter: blur(0); } }
+.progress-fill { transition: width 300ms linear; }
+.step-text { animation: saveLabelIn 180ms var(--ease-out) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheen-wrap::after { animation: none; opacity: 0; }
+  .first-open, .roll-digit, .field-blur-in { animation: none; }
+  .hold-btn[data-holding="true"] .hold-fill { transition-duration: 1500ms; }
+}
+
+/* Inventory side panel: 400ms drawer curve, backdrop fades. Closing slides back. */
+.drawer-panel { animation: drawerIn 400ms var(--ease-drawer) both; }
+.drawer-panel[data-closing="true"] { animation: drawerOut 300ms var(--ease-drawer) both; }
+.drawer-backdrop { animation: backdropIn 300ms var(--ease-out) both; }
+.drawer-backdrop[data-closing="true"] { animation: backdropOut 300ms var(--ease-out) both; }
+@keyframes drawerIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes drawerOut { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes backdropOut { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .drawer-panel, .drawer-backdrop, .dialog-pop { animation: none; }
 }

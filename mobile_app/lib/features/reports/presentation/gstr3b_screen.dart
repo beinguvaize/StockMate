@@ -8,6 +8,7 @@ import 'package:mobile_app/features/reports/data/report_params.dart';
 import 'package:mobile_app/features/reports/data/report_providers.dart';
 import 'package:mobile_app/features/reports/presentation/widgets/report_kpi_tile.dart';
 import 'package:mobile_app/features/reports/utils/financial_calcs.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // A GSTIN is 15 chars: 2 state digits + 10-char PAN + 3 more. Good enough to
 // tell "registered supplier" from a blank/placeholder, matching web's check.
@@ -143,7 +144,7 @@ class _Gstr3bView extends ConsumerWidget {
           child: Text(
             'Failed to load data\n${invoicesError ?? purchasesError ?? expensesError}',
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 13),
+            style: AppText.caption.copyWith(color: AppColors.danger),
           ),
         ),
       );
@@ -203,11 +204,7 @@ class _Gstr3bView extends ConsumerWidget {
         DropdownButton<int>(
           value: month,
           underline: const SizedBox.shrink(),
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.inkPrimary,
-          ),
+          style: AppText.label.copyWith(color: AppColors.inkPrimary),
           items: List.generate(12, (i) {
             final m = i + 1;
             return DropdownMenuItem(
@@ -223,11 +220,7 @@ class _Gstr3bView extends ConsumerWidget {
         DropdownButton<int>(
           value: year,
           underline: const SizedBox.shrink(),
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.inkPrimary,
-          ),
+          style: AppText.label.copyWith(color: AppColors.inkPrimary),
           items: yearRange
               .map((y) => DropdownMenuItem(value: y, child: Text('$y')))
               .toList(),
@@ -326,11 +319,8 @@ class _Gstr3bBody extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Filing Period: ${_kMonthNames[month]} $year',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.inkSecondary,
-                ),
+                style: AppText.caption.copyWith(fontWeight: FontWeight.w500,
+                  color: AppColors.inkSecondary),
               ),
             ],
           ),
@@ -420,10 +410,7 @@ class _Gstr3bBody extends StatelessWidget {
             children: [
               Text(
                 '${interStateInvoices.length} inter-state invoice${interStateInvoices.length == 1 ? '' : 's'}',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: AppColors.inkSecondary,
-                ),
+                style: AppText.caption.copyWith(color: AppColors.inkSecondary),
               ),
               const SizedBox(height: 10),
               _GstRow(label: 'Taxable', value: formatINR(interStateTaxable)),
@@ -462,11 +449,8 @@ class _Gstr3bBody extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 'ITC counts only purchases from GST-registered suppliers, estimated at 18% on paid bills. Verify against actual invoices.',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontStyle: FontStyle.italic,
-                  color: AppColors.inkTertiary,
-                ),
+                style: AppText.caption.copyWith(fontStyle: FontStyle.italic,
+                  color: AppColors.inkTertiary),
               ),
             ],
           ),
@@ -492,11 +476,8 @@ class _Gstr3bBody extends StatelessWidget {
                 children: [
                   Text(
                     'Net Tax Payable',
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkPrimary,
-                    ),
+                    style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                      color: AppColors.inkPrimary),
                   ),
                   const Spacer(),
                   Text(
@@ -535,11 +516,8 @@ class _Gstr3bBody extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Figures are estimates. File official GSTR-3B on the GST portal.',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: const Color(0xFF1D4ED8),
-                    height: 1.5,
-                  ),
+                  style: AppText.caption.copyWith(color: const Color(0xFF1D4ED8),
+                    height: 1.5),
                 ),
               ),
             ],
@@ -573,11 +551,8 @@ class _SectionCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.inkPrimary,
-            ),
+            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+              color: AppColors.inkPrimary),
           ),
           const SizedBox(height: 12),
           child,
@@ -608,11 +583,7 @@ class _GstRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
-            color: bold ? AppColors.inkPrimary : AppColors.inkSecondary,
-          ),
+          style: AppText.label.copyWith(color: bold ? AppColors.inkPrimary : AppColors.inkSecondary),
         ),
         const Spacer(),
         Text(
@@ -649,21 +620,15 @@ class _GstCell extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
-              color: AppColors.inkTertiary,
-            ),
+              color: AppColors.inkTertiary),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.inkPrimary,
-            ),
+            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+              color: AppColors.inkPrimary),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -683,12 +648,9 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: GoogleFonts.manrope(
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
+      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
-        color: AppColors.inkTertiary,
-      ),
+        color: AppColors.inkTertiary),
     );
   }
 }

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { isService } from '../../../lib/productTypes';
-import { PackagePlus, Eye, Trash2, SlidersHorizontal, Pencil } from 'lucide-react';
+import { PackagePlus, Trash2, Pencil, ArrowUp, ArrowDown, ChevronsUpDown, Plus } from 'lucide-react';
 import { useTenant } from '../../../context/TenantContext';
 
 // Veg/non-veg/egg square (restaurant menu). null = nothing.
@@ -55,9 +55,9 @@ const marginPct = (p) => {
 // items bleeding margin without reading every number.
 const marginCls = (m) =>
   m == null ? 'text-muted-foreground'
-  : m < 0    ? 'text-red-600'
-  : m < 10   ? 'text-accent-signature'
-  :            'text-emerald-600';
+  : m < 5    ? 'text-red-600'
+  : m < 15   ? 'text-amber-600'
+  :            'text-foreground';
 
 // Last-buy tint vs the weighted-average cost: costlier to restock = red,
 // cheaper = green, same/unknown = muted. Small threshold so rounding noise
@@ -70,7 +70,7 @@ const lastBuyCls = (last, cost) => {
   return 'text-muted-foreground';
 };
 
-const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit, onDelete, onAdjust, onBatches, onBulkEdit, onBulkDelete, currencySymbol = '₹' }) => {
+const StockTable = ({ products, totalProducts = 0, onClearFilters, onAddProduct, inventoryBalances, lastBuy = {}, onView, onEdit, onDelete, onAdjust, onBatches, onBulkEdit, onBulkDelete, currencySymbol = '₹' }) => {
   const { businessType } = useTenant();
   const isResto = businessType === 'RESTAURANT';
   // Tenant-level: decides the COLUMN HEADINGS only. Whether a given ROW is a
@@ -133,83 +133,97 @@ const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit,
   const clearSelection = () => setSelected(new Set());
 
   if (!products.length) {
+    const none = totalProducts === 0;
     return (
-      <div className="rounded-2xl bg-card border border-border/60 p-16 text-center shadow-sm">
-        <PackagePlus size={48} strokeWidth={1} className="mx-auto opacity-10 mb-4" />
-        <p className="text-sm font-semibold text-muted-foreground">No products registered in the catalog</p>
+      <div className="rounded-2xl bg-card border border-border/60 p-14 text-center">
+        <PackagePlus size={40} strokeWidth={1.25} className="mx-auto text-muted-foreground/40 mb-4" />
+        <p className="text-sm font-semibold text-foreground">{none ? 'Add your first product' : 'No products match'}</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {none ? 'Products you add show up here with live stock, cost and margin.' : 'Nothing fits the current search and filters.'}
+        </p>
+        {none ? (
+          onAddProduct && (
+            <button onClick={onAddProduct}
+              className="mt-5 inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover transition-colors active:scale-[0.97]">
+              <Plus size={16} strokeWidth={2.5} /> Add product
+            </button>
+          )
+        ) : (
+          onClearFilters && (
+            <button onClick={onClearFilters}
+              className="mt-5 inline-flex items-center h-10 px-5 rounded-pill bg-card border border-border text-xs font-semibold text-foreground hover:bg-black/[0.03] transition-colors active:scale-[0.97]">
+              Clear filters
+            </button>
+          )
+        )}
       </div>
     );
   }
 
   const TH = ({ children, align = 'left', extra = '', sortKey = null }) => (
-    <th className={`px-3 py-2.5 text-[11px] font-medium text-muted-foreground ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''} ${extra}`}>
+    <th className={`px-3 py-2.5 text-xs font-medium text-muted-foreground ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''} ${extra}`}>
       {sortKey ? (
         <button onClick={() => toggleSort(sortKey)} className="inline-flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer">
           {children}
-          <span className={`text-[8px] ${sort.key === sortKey ? 'text-accent-signature' : 'text-muted-foreground'}`}>
-            {sort.key === sortKey ? (sort.dir === 'asc' ? '▲' : '▼') : '▲▼'}
-          </span>
+          {sort.key === sortKey
+            ? (sort.dir === 'asc' ? <ArrowUp size={12} className="text-accent-signature" /> : <ArrowDown size={12} className="text-accent-signature" />)
+            : <ChevronsUpDown size={12} className="opacity-50" />}
         </button>
       ) : children}
     </th>
   );
 
   return (
-    <div className="rounded-2xl bg-card border border-border/60 overflow-hidden shadow-sm">
-      <div className="px-5 py-3 border-b border-border/60 flex items-center justify-between">
-        <span className="text-[11px] font-medium text-foreground">Grouped by category</span>
-        <span className="text-[11px] text-muted-foreground tabular-nums">{products.length} products · {groups.length} categories</span>
-      </div>
+    <div className="rounded-2xl bg-card border border-border/60 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr className="border-b border-border">
               {(onBulkEdit || onBulkDelete) && (
                 <th className="pl-5 pr-1 py-2.5 w-px">
-                  <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all"
                     className="w-3.5 h-3.5 rounded border-border accent-accent-signature cursor-pointer" />
                 </th>
               )}
               <TH extra="pl-5 w-full" sortKey="name">{isServiceTenant ? 'Service' : 'Product'}</TH>
-              <TH sortKey="sku">SKU</TH>
               <TH align="right" sortKey={isServiceTenant ? null : 'stock'}>{isServiceTenant ? 'Duration' : 'Stock'}</TH>
-              <TH align="right" sortKey={isServiceTenant ? null : 'reorder'}>{isServiceTenant ? '' : 'Reorder'}</TH>
               <TH align="right" sortKey={isServiceTenant ? null : 'cost'}>{isServiceTenant ? '' : 'Cost'}</TH>
-              <TH align="right" sortKey={isServiceTenant ? null : 'lastbuy'}>{isServiceTenant ? '' : 'Last buy'}</TH>
               <TH align="right" sortKey="sell">{isServiceTenant ? 'Price' : 'Sell'}</TH>
               <TH align="right" sortKey={isServiceTenant ? null : 'margin'}>{isServiceTenant ? '' : 'Margin'}</TH>
-              <TH align="right" sortKey={isServiceTenant ? null : 'value'}>{isServiceTenant ? '' : 'Value'}</TH>
-              <TH align="center"> </TH>
-              <TH align="right"> </TH>
+              <TH align="right" extra="pr-5" sortKey={isServiceTenant ? null : 'value'}>{isServiceTenant ? '' : 'Value'}</TH>
             </tr>
           </thead>
           <tbody>
             {groups.map(({ cat, items, subValue }) => (
               <React.Fragment key={cat}>
                 <tr className="bg-black/[0.025]">
-                  <td colSpan={(onBulkEdit || onBulkDelete) ? 3 : 2} className="px-5 py-2 text-[11px] font-semibold text-foreground">
-                    {cat} <span className="text-muted-foreground ml-1">{items.length}</span>
+                  <td colSpan={(onBulkEdit || onBulkDelete) ? 6 : 5} className="px-5 py-2 text-xs font-semibold text-foreground">
+                    {cat} <span className="text-muted-foreground font-normal ml-1 tabular-nums">{items.length}</span>
                   </td>
-                  <td colSpan={6} />
-                  <td className="px-3 py-2 text-right tabular-nums text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                  <td className="px-5 py-2 text-right tabular-nums text-xs font-medium text-muted-foreground whitespace-nowrap">
                     {currencySymbol}{Math.round(subValue).toLocaleString('en-IN')}
                   </td>
-                  <td colSpan={2} />
                 </tr>
                 {items.map(product => {
                   const qty = stockOf(product);
                   const reorder = reorderOf(product);
                   const st = statusOf(qty, reorder);
                   const sell = toNum(product.sellingPrice);
+                  const cost = toNum(product.costPrice);
                   const margin = marginPct(product);
                   const svc = isServiceTenant || isService(product);
+                  const last = lastBuy[product.id];
+                  const lastDiff = last == null ? 0 : toNum(last) - cost;
+                  const showLast = !svc && last != null && Math.abs(lastDiff) > 0.5;
+                  const pct = reorder > 0 ? Math.min(100, Math.max(0, (qty / (reorder * 2)) * 100)) : null;
                   return (
                     <tr key={product.id}
                       onClick={onView ? () => onView(product) : undefined}
-                      className={`group border-t border-black/[0.04] hover:bg-accent-signature/[0.04] transition-colors ${onView ? 'cursor-pointer' : ''} ${selected.has(product.id) ? 'bg-accent-signature/[0.06]' : ''}`}>
+                      className={`group border-t border-black/[0.04] hover:bg-black/[0.025] ${onView ? 'cursor-pointer' : ''} ${selected.has(product.id) ? 'bg-accent-signature/[0.06]' : ''}`}>
                       {(onBulkEdit || onBulkDelete) && (
                         <td className="pl-5 pr-1 py-2.5 w-px" onClick={(e) => e.stopPropagation()}>
                           <input type="checkbox" checked={selected.has(product.id)} onChange={() => toggleOne(product.id)}
+                            aria-label={`Select ${product.name}`}
                             className="w-3.5 h-3.5 rounded border-border accent-accent-signature cursor-pointer" />
                         </td>
                       )}
@@ -217,71 +231,66 @@ const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit,
                         <div className="flex items-center gap-2 min-w-0">
                           {isResto && <FoodMark type={product.food_type} />}
                           {onView ? (
-                            <button onClick={() => onView(product)}
-                              className="text-[13px] font-semibold text-foreground truncate hover:text-accent-signature hover:underline text-left">
+                            <button onClick={(e) => { e.stopPropagation(); onView(product); }}
+                              className="text-[13px] font-semibold text-foreground truncate hover:text-accent-signature text-left">
                               {product.name}
                             </button>
                           ) : (
                             <span className="text-[13px] font-semibold text-foreground truncate">{product.name}</span>
                           )}
                           {isResto && product.is_available === false && (
-                            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">86</span>
+                            <span className="shrink-0 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">86</span>
                           )}
                           {isResto && product.station && (
-                            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{product.station}</span>
+                            <span className="shrink-0 text-[10px] font-medium text-muted-foreground">{product.station}</span>
                           )}
                         </div>
+                        {product.sku && <div className="text-[11px] tabular-nums text-muted-foreground truncate mt-0.5">{product.sku}</div>}
                       </td>
-                      <td className="px-3 py-2.5 tabular-nums text-[11px] text-muted-foreground uppercase whitespace-nowrap">{product.sku || '—'}</td>
                       <td className="px-3 py-2.5 text-right whitespace-nowrap">
                         {svc ? (
-                          <span className="tabular-nums text-[12px] font-semibold text-violet-500">{product.duration_min ? `${product.duration_min}m` : 'Service'}</span>
+                          <span className="tabular-nums text-xs font-semibold text-violet-500">{product.duration_min ? `${product.duration_min}m` : 'Service'}</span>
                         ) : (<>
                           <span className={`tabular-nums text-[13px] font-semibold ${qtyCls(st)}`}>{qty}</span>
-                          <span className="text-[9px] text-muted-foreground uppercase ml-0.5">{product.unit || 'pcs'}</span>
+                          <span className="text-[11px] text-muted-foreground ml-1">{product.unit || 'pcs'}</span>
+                          {pct != null && (
+                            <div className="h-[3px] w-14 ml-auto mt-1.5 rounded-full bg-black/[0.07] overflow-hidden" aria-hidden="true">
+                              <div className={`h-full rounded-full ${dotCls(st)}`} style={{ width: `${pct}%` }} />
+                            </div>
+                          )}
                         </>)}
                       </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">{svc ? '' : (reorder > 0 ? reorder : '—')}</td>
                       {/* Cost is held per base unit (per KG). A product bought by
                           weight and sold in packets is priced and judged per
                           packet, so show that underneath rather than making the
                           shopkeeper divide in their head. */}
-                      <td className="px-3 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-right tabular-nums text-xs text-foreground whitespace-nowrap">
                         {svc ? '' : <>
-                          {currencySymbol}{toNum(product.costPrice).toFixed(2)}
+                          {currencySymbol}{cost.toFixed(2)}
                           {packConv(product) > 0 && (
-                            <div className="text-[10px] text-muted-foreground/70">
-                              {currencySymbol}{(toNum(product.costPrice) * packConv(product)).toFixed(2)}/{product.secondary_unit}
+                            <div className="text-[11px] text-muted-foreground">
+                              {currencySymbol}{(cost * packConv(product)).toFixed(2)}/{product.secondary_unit}
+                            </div>
+                          )}
+                          {/* Last buy vs average: red when restocking costs more,
+                              green when less. Shown only past a 50 paise gap. */}
+                          {showLast && (
+                            <div className={`text-[11px] ${lastBuyCls(last, cost)}`}>
+                              {lastDiff > 0 ? '▲' : '▼'} last {currencySymbol}{toNum(last).toFixed(2)}
                             </div>
                           )}
                         </>}
                       </td>
-                      {/* Last buy — newest batch rate. Tinted vs avg cost so a
-                          rising restock price stands out: red above avg, green
-                          below, muted when equal or unknown. */}
-                      <td className={`px-3 py-2.5 text-right tabular-nums text-[12px] whitespace-nowrap ${lastBuyCls(lastBuy[product.id], product.costPrice)}`}>
-                        {svc ? '' : (lastBuy[product.id] == null ? '—' : `${currencySymbol}${toNum(lastBuy[product.id]).toFixed(2)}`)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-[12px] font-semibold whitespace-nowrap">
-                        <span className="text-accent-signature/70">{currencySymbol}</span>{sell.toFixed(2)}
+                      <td className="px-3 py-2.5 text-right tabular-nums text-xs font-semibold text-foreground whitespace-nowrap">
+                        {currencySymbol}{sell.toFixed(2)}
                         {packConv(product) > 0 && (
-                          <div className="text-[10px] font-normal text-muted-foreground/70">
+                          <div className="text-[11px] font-normal text-muted-foreground">
                             {currencySymbol}{(sell * packConv(product)).toFixed(2)}/{product.secondary_unit}
                           </div>
                         )}
                       </td>
-                      <td className={`px-3 py-2.5 text-right tabular-nums text-[12px] font-semibold whitespace-nowrap ${marginCls(margin)}`}>{svc ? '' : (margin == null ? '—' : `${margin.toFixed(1)}%`)}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-[13px] font-semibold whitespace-nowrap">{svc ? '' : <><span className="text-accent-signature/70">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
-                      <td className="px-3 py-2.5 text-center">{svc ? null : <span className={`inline-block w-2 h-2 rounded-full ${dotCls(st)}`} />}</td>
-                      <td className="px-4 py-2.5 w-px" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {onAdjust && (
-                            <button onClick={() => onAdjust(product)} title="Adjust stock" className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"><SlidersHorizontal size={14} /></button>
-                          )}
-                          <button onClick={() => onEdit(product)} title="View / edit" className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-black/[0.05] hover:text-foreground transition-colors"><Eye size={14} /></button>
-                          <button onClick={() => onDelete(product.id)} title="Delete" className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
-                        </div>
-                      </td>
+                      <td className={`px-3 py-2.5 text-right tabular-nums text-xs font-semibold whitespace-nowrap ${marginCls(margin)}`}>{svc ? '' : (margin == null ? '—' : `${margin.toFixed(1)}%`)}</td>
+                      <td className="px-5 py-2.5 text-right tabular-nums text-[13px] font-semibold whitespace-nowrap">{svc ? '' : <>{currencySymbol}{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
                     </tr>
                   );
                 })}
@@ -291,21 +300,21 @@ const StockTable = ({ products, inventoryBalances, lastBuy = {}, onView, onEdit,
         </table>
       </div>
       {selected.size > 0 && (onBulkEdit || onBulkDelete) && (
-        <div className="sticky bottom-0 px-5 py-3 bg-foreground flex items-center gap-3 shadow-2xl">
+        <div className="sticky bottom-0 px-5 py-3 bg-foreground flex items-center gap-3 ">
           <span className="text-[12px] font-semibold text-background">{selected.size} selected</span>
           <button onClick={clearSelection} className="text-[11px] font-semibold text-background/70 hover:text-background transition-colors">Clear</button>
           <div className="ml-auto flex items-center gap-2">
             {onBulkEdit && (
               <button
                 onClick={() => onBulkEdit(products.filter(p => selected.has(p.id)), clearSelection)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-pill text-[12px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity">
                 <Pencil size={13} /> Bulk edit
               </button>
             )}
             {onBulkDelete && (
               <button
                 onClick={() => onBulkDelete(products.filter(p => selected.has(p.id)), clearSelection)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-semibold bg-red-500/90 text-white hover:bg-red-500 transition-colors">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-pill text-[12px] font-semibold bg-red-500/90 text-white hover:bg-red-500 transition-colors">
                 <Trash2 size={13} /> Delete
               </button>
             )}

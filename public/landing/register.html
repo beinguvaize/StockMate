@@ -4,19 +4,23 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Create your bookledger workspace — Free 60-day trial</title>
 <meta name="description" content="Start a free 60-day bookledger trial. GST billing, inventory, POS and reports for Indian businesses. No credit card required."/>
+<link rel="stylesheet" href="tw.css?v=00e960bc83"/>
 <link rel="icon" href="favicon-256.png"/>
 <link rel="canonical" href="https://bookledger.in/register"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="bookledger"/>
+<meta property="og:locale" content="en_IN"/>
+<meta property="og:url" content="https://bookledger.in/register"/>
+<meta property="og:title" content="Create your bookledger workspace — Free 60-day trial"/>
+<meta property="og:description" content="Start a free 60-day bookledger trial. GST billing, inventory, POS and reports for Indian businesses. No credit card required."/>
+<meta property="og:image" content="https://bookledger.in/og.webp"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Create your bookledger workspace — Free 60-day trial"/>
+<meta name="twitter:description" content="Start a free 60-day bookledger trial. GST billing, inventory, POS and reports for Indian businesses. No credit card required."/>
+<meta name="twitter:image" content="https://bookledger.in/og.webp"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  tailwind.config = { theme: { extend: {
-    colors: { primary:'#1A1815', secondary:'#6b6660', surface:'#FBFAF7', canvas:'#FFFFFF', line:'#E9E6DF', accent:'#D97706', 'accent-700':'#B45309' },
-    fontFamily: { sans:['Manrope','sans-serif'], mono:['JetBrains Mono','monospace'] },
-  }}}
-</script>
-<style>.mono{font-variant-numeric:tabular-nums}</style>
 </head>
 <body class="bg-canvas text-primary font-sans antialiased">
 
@@ -25,18 +29,18 @@
   <!-- Left: value panel -->
   <aside class="lg:w-2/5 bg-primary text-white p-8 lg:p-14 flex flex-col justify-between relative overflow-hidden">
     <a href="/" class="flex items-center gap-2.5 relative z-10">
-      <img src="ledgrpro-logo-white.png" alt="bookledger" class="h-8 w-auto"/>
+      <img src="bookledger-logo-white.png" alt="bookledger" class="h-8 w-auto"/>
     </a>
     <div class="relative z-10 max-w-md">
       <h1 class="text-3xl lg:text-4xl font-light leading-tight tracking-tight">Your shop's ledger, online in two minutes.</h1>
       <ul class="mt-8 space-y-3 text-sm text-white/70 font-light">
-        <li class="flex gap-3"><span class="material-symbols-outlined text-accent" style="font-size:18px">check_circle</span> 60 days free — no credit card</li>
-        <li class="flex gap-3"><span class="material-symbols-outlined text-accent" style="font-size:18px">check_circle</span> GST billing, inventory, POS &amp; reports</li>
-        <li class="flex gap-3"><span class="material-symbols-outlined text-accent" style="font-size:18px">check_circle</span> Works offline · free mobile app</li>
-        <li class="flex gap-3"><span class="material-symbols-outlined text-accent" style="font-size:18px">check_circle</span> Cancel anytime</li>
+        <li class="flex gap-3"><span class="material-symbols-outlined text-accent-text" style="font-size:18px">check_circle</span> 60 days free — no credit card</li>
+        <li class="flex gap-3"><span class="material-symbols-outlined text-accent-text" style="font-size:18px">check_circle</span> GST billing, inventory, POS &amp; reports</li>
+        <li class="flex gap-3"><span class="material-symbols-outlined text-accent-text" style="font-size:18px">check_circle</span> Works offline · free mobile app</li>
+        <li class="flex gap-3"><span class="material-symbols-outlined text-accent-text" style="font-size:18px">check_circle</span> Cancel anytime</li>
       </ul>
     </div>
-    <div class="relative z-10 text-xs text-white/40 font-light">© 2026 bookledger · Built for Indian business</div>
+    <div class="relative z-10 text-xs text-white/60 font-light">© 2026 bookledger · Built for Indian business</div>
     <div class="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-accent/20 blur-3xl"></div>
   </aside>
 
@@ -44,9 +48,9 @@
   <main class="lg:w-3/5 flex items-center justify-center p-6 lg:p-14">
     <div class="w-full max-w-md">
       <div class="mb-7">
-        <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Create workspace</span>
+        <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-text">Create workspace</span>
         <h2 class="mt-3 text-2xl font-light tracking-tight">Start your free trial</h2>
-        <p class="mt-2 text-sm text-secondary font-light">Already have an account? <a href="https://app.bookledger.in/login" class="text-accent hover:underline font-medium">Sign in</a></p>
+        <p class="mt-2 text-sm text-secondary font-light">Already have an account? <a href="https://app.bookledger.in/login" class="text-accent-text hover:underline font-medium">Sign in</a></p>
       </div>
 
       <form id="reg" class="space-y-4">
@@ -76,16 +80,16 @@
           <label class="text-[11px] font-bold uppercase tracking-wide text-secondary mb-1.5 block">Plan</label>
           <div class="grid grid-cols-4 gap-2">
             <label class="cursor-pointer"><input type="radio" name="plan" value="free" class="peer sr-only"/><div class="rounded-xl border border-line peer-checked:border-accent peer-checked:bg-accent/5 px-2 py-2.5 text-center transition"><div class="text-[11px] font-bold uppercase tracking-wide">Free</div><div class="mono text-[11px] text-secondary">₹0</div></div></label>
-            <label class="cursor-pointer"><input type="radio" name="plan" value="growth" class="peer sr-only"/><div class="rounded-xl border border-line peer-checked:border-accent peer-checked:bg-accent/5 px-2 py-2.5 text-center transition"><div class="text-[11px] font-bold uppercase tracking-wide">Growth</div><div class="mono text-[11px] text-secondary">₹2,999</div></div></label>
-            <label class="cursor-pointer"><input type="radio" name="plan" value="pro" checked class="peer sr-only"/><div class="rounded-xl border border-line peer-checked:border-accent peer-checked:bg-accent/5 px-2 py-2.5 text-center transition"><div class="text-[11px] font-bold uppercase tracking-wide">Pro</div><div class="mono text-[11px] text-secondary">₹5,999</div></div></label>
-            <label class="cursor-pointer"><input type="radio" name="plan" value="enterprise" class="peer sr-only"/><div class="rounded-xl border border-line peer-checked:border-accent peer-checked:bg-accent/5 px-2 py-2.5 text-center transition"><div class="text-[11px] font-bold uppercase tracking-wide">Ent.</div><div class="mono text-[11px] text-secondary">Custom</div></div></label>
+            <label class="cursor-pointer"><input type="radio" name="plan" value="growth" class="peer sr-only"/><div class="rounded-xl border border-line peer-checked:border-accent peer-checked:bg-accent/5 px-2 py-2.5 text-center transition"><div class="text-[11px] font-bold uppercase tracking-wide">Growth</div><div class="mono text-[11px] text-secondary">₹1,999</div></div></label>
+            <label class="cursor-pointer"><input type="radio" name="plan" value="pro" checked class="peer sr-only"/><div class="rounded-xl border border-line peer-checked:border-accent peer-checked:bg-accent/5 px-2 py-2.5 text-center transition"><div class="text-[11px] font-bold uppercase tracking-wide">Pro</div><div class="mono text-[11px] text-secondary">₹2,999</div></div></label>
+            <label class="cursor-pointer"><input type="radio" name="plan" value="enterprise" class="peer sr-only"/><div class="rounded-xl border border-line peer-checked:border-accent peer-checked:bg-accent/5 px-2 py-2.5 text-center transition"><div class="text-[11px] font-bold uppercase tracking-wide">Ent.</div><div class="mono text-[11px] text-secondary">₹3,999</div></div></label>
           </div>
         </div>
         <label class="flex items-start gap-2 text-xs text-secondary font-light pt-1">
-          <input type="checkbox" required class="mt-0.5 rounded border-line text-accent focus:ring-accent"/>
-          <span>I agree to the <a href="terms.html" class="text-accent hover:underline">Terms</a> &amp; <a href="privacy.html" class="text-accent hover:underline">Privacy Policy</a>.</span>
+          <input type="checkbox" required class="mt-0.5 rounded border-line text-accent-text focus:ring-accent"/>
+          <span>I agree to the <a href="terms.html" class="text-accent-text hover:underline">Terms</a> &amp; <a href="privacy.html" class="text-accent-text hover:underline">Privacy Policy</a>.</span>
         </label>
-        <button id="submitBtn" type="submit" class="w-full mt-2 bg-accent text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-accent-700 shadow-md shadow-accent/25 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">Create my workspace →</button>
+        <button id="submitBtn" type="submit" class="w-full mt-2 bg-accent-solid text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-accent-hover shadow-md shadow-accent/25 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">Create my workspace →</button>
         <p id="regMsg" class="hidden text-sm font-medium rounded-xl px-3.5 py-2.5"></p>
         <p class="text-center text-[11px] text-secondary font-light">60-day free trial · no card required</p>
       </form>

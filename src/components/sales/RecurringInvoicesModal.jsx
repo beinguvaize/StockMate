@@ -91,7 +91,7 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
             <Repeat size={17} className="text-accent-signature" />
             <h2 className="text-[15px] font-black text-ink-primary">Recurring Invoices</h2>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center">
+          <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-muted flex items-center justify-center">
             <X size={15} />
           </button>
         </div>
@@ -100,7 +100,7 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
           {!creating && (
             <>
               <button onClick={() => setCreating(true)}
-                className="w-full py-2.5 rounded-xl border border-dashed border-accent-signature/50 text-accent-signature text-[12px] font-black hover:bg-accent-signature/5 flex items-center justify-center gap-1.5">
+                className="w-full py-2.5 rounded-pill border border-dashed border-accent-signature/50 text-accent-signature text-[12px] font-black hover:bg-accent-signature/5 flex items-center justify-center gap-1.5">
                 <Plus size={14} /> New recurring invoice
               </button>
 
@@ -121,11 +121,11 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
                     </div>
                   </div>
                   <button onClick={() => toggleActive(t)} title={t.active ? 'Pause' : 'Resume'}
-                    className="w-8 h-8 rounded-lg border border-black/10 flex items-center justify-center hover:bg-muted">
+                    className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center hover:bg-muted">
                     {t.active ? <Pause size={13} /> : <Play size={13} />}
                   </button>
                   <button onClick={() => removeTemplate(t)} title="Delete"
-                    className="w-8 h-8 rounded-lg border border-black/10 flex items-center justify-center text-red-500 hover:bg-red-50">
+                    className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center text-red-500 hover:bg-red-50">
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -180,7 +180,7 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
                         {[0, 5, 12, 18, 28].map(r => <option key={r} value={r}>{r}%</option>)}
                       </select>
                       <button onClick={() => setLines(ls => ls.length > 1 ? ls.filter((_, j) => j !== i) : ls)}
-                        className="w-8 h-8 shrink-0 rounded-lg border border-black/10 text-muted-foreground hover:text-red-500 flex items-center justify-center">
+                        className="w-8 h-8 shrink-0 rounded-xl border border-black/10 text-muted-foreground hover:text-red-500 flex items-center justify-center">
                         <X size={12} />
                       </button>
                     </div>
@@ -199,11 +199,11 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
 
               <div className="flex gap-2 justify-end">
                 <button onClick={() => { setCreating(false); setErr(''); }}
-                  className="px-4 py-2 rounded-lg border border-black/10 text-[12px] font-bold text-ink-secondary hover:bg-muted">
+                  className="px-4 py-2 rounded-pill border border-black/10 text-[12px] font-bold text-ink-secondary hover:bg-muted">
                   Cancel
                 </button>
                 <button onClick={saveTemplate} disabled={busy}
-                  className="px-4 py-2 rounded-lg bg-ink-primary text-white text-[12px] font-black disabled:opacity-50">
+                  className="px-4 py-2 rounded-pill bg-ink-primary text-white text-[12px] font-black disabled:opacity-50">
                   {busy ? 'Saving…' : 'Save recurring invoice'}
                 </button>
               </div>

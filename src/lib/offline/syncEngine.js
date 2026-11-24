@@ -309,19 +309,52 @@ async function _cycle() {
   }
 }
 
+/**
+ * One flush at a time ACROSS TABS, not just within one.
+ *
+ * `_running` only makes this single-flight inside one JavaScript context,
+ * which was enough while the outbox was desktop-only: an Electron app is one
+ * window. On the web two tabs of the same shop are ordinary, they share one
+ * IndexedDB, and each would run its own loop over the same outbox — so the
+ * same op gets pushed twice.
+ *
+ * 20261012 made a replayed op a no-op rather than a FAILED one, so the cost of
+ * that is now wasted requests rather than a double-charged customer. Wasted
+ * requests at a counter are still worth not making, and `adjust_inventory_atomic`
+ * is NOT yet replay-safe, so a duplicate flush can still double an adjustment.
+ *
+ * Web Locks is the right primitive: the lock is released automatically if the
+ * tab is closed or crashes mid-flush, which a localStorage mutex is not. Where
+ * it is missing (older Safari, some WebViews) the behaviour is exactly what it
+ * was before — in-context single-flight only — rather than a half-built mutex
+ * nobody can reason about.
+ */
+export function withSyncLock(fn, locksImpl) {
+  const locks = locksImpl
+    ?? ((typeof navigator !== 'undefined' && navigator.locks) || null);
+  if (!locks?.request) return fn();
+  // ifAvailable: a tab that cannot get the lock does NOT queue behind the one
+  // that has it. The holder is already flushing the same shared outbox, so
+  // waiting would only schedule a redundant second pass.
+  return locks.request('stockmate-sync', { ifAvailable: true }, async (lock) => {
+    if (!lock) return null;        // another tab is flushing; nothing to do
+    return fn();
+  });
+}
+
 export async function syncNow() {
   if (_running) {
     _followUp = true;
     return _running;
   }
-  _running = (async () => {
+  _running = withSyncLock(async () => {
     let ts = await _cycle();
     while (_followUp) {
       _followUp = false;
       ts = await _cycle();
     }
     return ts;
-  })();
+  });
   try {
     return await _running;
   } finally {

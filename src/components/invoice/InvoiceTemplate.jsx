@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { resolveColumns, spanOf, columnCount, GST_INVOICE_COLUMNS } from '../../lib/invoiceColumns';
 import { useDialogClose } from '../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import {
@@ -16,6 +17,7 @@ import { formatINR, amountToWords } from '../../lib/gstEngine';
 import { INVOICE_LAYOUTS, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, Editable, CustomFields } from './invoiceLayouts';
 import { formatDate, formatTime } from '../../lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
+import BillBarcode from './BillBarcode';
 
 const Totals = ({ k, v, bold }) => (
   <div className={`flex justify-between items-center py-0.5 ${bold ? 'font-bold' : ''}`}>
@@ -102,6 +104,10 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
     : { ...DEFAULT_DOC_TEXTS, ...(printPrefs.docTexts || {}) };
 
   const invOpts = { ...DEFAULT_INV_OPTS, ...(printPrefs.invOpts || {}), ...(optsOverride || {}) };
+
+  // What the column registry needs to decide which columns exist: the bill
+  // (interstate or not) and the print options (HSN on or off).
+  const colCtx = { invoice, opts: invOpts };
   const invAccent = accentOverride || printPrefs.invAccent || '#0f172a';
   const customFields = customFieldsOverride || printPrefs.customFields || [];
 
@@ -210,7 +216,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
         <div className="flex items-center gap-4">
           <button 
             onClick={onClose}
-            className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all active:scale-95"
+            className="p-2 rounded-pill bg-white/10 text-white hover:bg-white/20 transition-all active:scale-95"
           >
             <X size={20} />
           </button>
@@ -235,7 +241,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
           {onToggleMode && (
             <button
               onClick={onToggleMode}
-              className="flex items-center gap-2 px-6 py-2.5 bg-white/10 text-white border border-white/20 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-white/20 active:scale-95 transition-all"
+              className="flex items-center gap-2 px-6 py-2.5 bg-white/10 text-white border border-white/20 rounded-pill font-black text-[10px] uppercase tracking-widest hover:bg-white/20 active:scale-95 transition-all"
             >
               POS Receipt
             </button>
@@ -243,14 +249,14 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
 
           <button
             onClick={onPrint}
-            className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
+            className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-pill font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
           >
             <Printer size={16} /> PRINT INVOICE
           </button>
 
           <button 
             onClick={() => onShare('whatsapp')}
-            className="flex items-center gap-2 px-6 py-2.5 bg-[#25D366] text-white rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
+            className="flex items-center gap-2 px-6 py-2.5 bg-[#25D366] text-white rounded-pill font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
           >
             <Share2 size={16} /> SHARE WHATSAPP
           </button>
@@ -340,7 +346,15 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
               </div>
             </div>
 
-            {/* Line items */}
+            {/* Line items.
+                The column SET is still written out below rather than mapped
+                from the registry: this is a GST tax invoice and its cells
+                carry per-line borders and widths the compact layouts do not.
+                What DOES come from the registry is the arithmetic -- the
+                colspans below used to be literals (`interstate ? 8 : 9`,
+                `hsn ? 5 : 4`) that whoever added a column had to re-derive
+                correctly or the totals row would slide one cell out of line
+                on a printed tax document. */}
             <table className="w-full border-collapse text-[10px]">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-900">
@@ -399,12 +413,12 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                 {Array.from({ length: emptyRowsNeeded }).map((_, i) => (
                   <tr key={`empty-${i}`} className="print-empty-row border-b border-slate-100">
                     <td className="py-3 px-1 border-r border-slate-100">&nbsp;</td>
-                    <td colSpan={((invoice.is_interstate || invoice.isInterstate) ? 8 : 9) - (invOpts.hsn ? 0 : 1)}>&nbsp;</td>
+                    <td colSpan={columnCount(GST_INVOICE_COLUMNS, colCtx) - 1}>&nbsp;</td>
                   </tr>
                 ))}
                 {/* Totals row */}
                 <tr className="bg-slate-50 border-t-2 border-slate-900 font-bold">
-                  <td className="py-1.5 px-1 border-r border-slate-900 text-right" colSpan={invOpts.hsn ? 5 : 4}>TOTAL</td>
+                  <td className="py-1.5 px-1 border-r border-slate-900 text-right" colSpan={spanOf(GST_INVOICE_COLUMNS, colCtx, 'taxable')}>TOTAL</td>
                   <td className="py-1.5 px-1 border-r border-slate-900 text-right">{parseFloat(taxableAmount).toFixed(2)}</td>
                   <td className="py-1.5 px-1 border-r border-slate-900"></td>
                   {(invoice.is_interstate || invoice.isInterstate) ? (
@@ -580,6 +594,21 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
               </div>
               <div className="p-3 flex flex-col justify-between text-[10px]">
                 <div>
+                  {/* The number this invoice is filed under, scannable. Sits
+                      with the declaration rather than in the header: the header
+                      already prints it as text, and a second copy up there
+                      reads as decoration. Down here it is the thing you scan
+                      when the paper comes back. */}
+                  {invOpts.barcode && (invoice?.invoice_number || invoice?.id) && (
+                    <div className="mb-2">
+                      <BillBarcode
+                        value={invoice.invoice_number || invoice.id}
+                        width={1.3}
+                        height={30}
+                        fontSize={9}
+                      />
+                    </div>
+                  )}
                   <div className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Declaration</div>
                   <div className="text-slate-700 leading-snug">We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.</div>
                 </div>

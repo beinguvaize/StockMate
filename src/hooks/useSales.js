@@ -3,6 +3,7 @@ import { hydrateSales, hydrateInvoicesFromSales, SALE_ITEMS_EMBED } from '../lib
 import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { readCacheThenRevalidate, queueMutation, isOfflineError, decrementCachedStock, isElectron, upsertCachedRow } from '../lib/offline/hookAdapter';
+import { fetchAllPages } from '../lib/fetchAllPages';
 import { generateRef, todayISOInAppTZ } from '../lib/utils';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { getPlanLimits } from '../lib/tenancy';
@@ -79,10 +80,22 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
           //
           // The blob column is still selected, and hydrateSale falls back to
           // it for any sale the table has no rows for. See lib/saleLines.js.
-          () => supabase.from('sales')
-            .select((lean && !isElectron() ? SALE_LEAN_COLS + ', items' : '*') + ', ' + SALE_ITEMS_EMBED)
+          // Paged rather than capped. The cap was 500 and the largest tenant
+          // already has 1,187 sales, so every total over "all sales" was a
+          // total over the newest 500 -- and the client statement, which joins
+          // the far fewer invoices to these, credited a settled bill as debt
+          // once its sale aged out. See lib/fetchAllPages.js.
+          // `lean` means "this screen shows totals, never lines". It was
+          // selecting SALE_LEAN_COLS -- every column EXCEPT items -- and then
+          // appending `, items` and the sale_items embed anyway, so it fetched
+          // MORE than a plain `*` while claiming to fetch less. The three lean
+          // screens (dashboard, revenue trend, clients list) read neither.
+          () => fetchAllPages(() => supabase.from('sales')
+            .select(lean && !isElectron()
+              ? SALE_LEAN_COLS
+              : '*, ' + SALE_ITEMS_EMBED)
             .is('deleted_at', null).eq('tenant_id', tenantId)
-            .order('created_at', { ascending: false, nullsFirst: false }).limit(500),
+            .order('created_at', { ascending: false, nullsFirst: false }), { label: 'sales' }),
           (fresh) => {
             const hydrated = hydrateSales(fresh);
             salesRef.current = hydrated;
@@ -90,16 +103,19 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
           },
         ),
         readCacheThenRevalidate('clients',
-          () => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
+          // Paged like its siblings above. It was the one read here without a
+          // .range(), so past 1000 customers the POS could not find the client
+          // it was about to put a credit sale on.
+          () => fetchAllPages(() => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'), { label: 'clients' }),
           (fresh) => setClients(fresh.map(r => normalizeRow(r, NUMERIC_CLIENT_COLS))),
         ),
         readCacheThenRevalidate('invoices',
-          () => supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(500),
+          () => fetchAllPages(() => supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }), { label: 'invoices' }),
           (fresh) => setInvoices(hydrateInvoicesFromSales(fresh, salesRef.current)
             .map(r => normalizeRow(r, NUMERIC_INVOICE_COLS))),
         ),
         readCacheThenRevalidate('sales_returns',
-          () => supabase.from('sales_returns').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          () => fetchAllPages(() => supabase.from('sales_returns').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }), { label: 'sales_returns' }),
           (fresh) => setSalesReturns(fresh),
         ),
       ]);
@@ -202,13 +218,40 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
     return { error };
   };
 
-  const settlePayment = async (saleId, amount) => {
-     // ... logic to update paidAmount and status
-     const { error } = await restRpc('settle_sale_payment', {
-        p_sale_id: saleId,
-        p_amount: amount,
-        p_tenant_id: tenantId
-     });
+  // Record money received against one sale. `method` is how it arrived
+  // (CASH | UPI | BANK); the server posts it to that method's account.
+  //
+  // A credit sale to a saved client is a client payment: settle_client_payment
+  // allocates it oldest bill first, posts Cash & Bank and recalculates what
+  // the client owes. Any other sale goes through settle_sale_payment, and the
+  // sale-ledger trigger posts what just arrived. Nothing is posted from here.
+  const settlePayment = async (saleId, amount, method = null) => {
+     const sale = (data || []).find((s) => s.id === saleId);
+     const saleMethod = String(sale?.paymentMethod ?? sale?.payment_method ?? '').toUpperCase();
+     const clientId = sale?.customerInfo?.id ?? sale?.shopId ?? sale?.shop_id ?? null;
+     const how = method ? String(method).toUpperCase() : null;
+
+     let error;
+     if (saleMethod.startsWith('CREDIT') && clientId) {
+       ({ error } = await restRpc('settle_client_payment', {
+         p_id: generateRef('CP'),
+         p_tenant_id: tenantId,
+         p_client_id: clientId,
+         p_amount: amount,
+         p_date: todayISOInAppTZ(),
+         p_method: how || 'CASH',
+         p_notes: null,
+         p_recorded_by: currentUser?.id || null,
+       }));
+     } else {
+       ({ error } = await restRpc('settle_sale_payment', {
+         p_sale_id: saleId,
+         p_amount: amount,
+         p_tenant_id: tenantId,
+         p_method: how,
+         p_date: todayISOInAppTZ(),
+       }));
+     }
      if (!error) await fetchSales();
      return { error };
   };
@@ -296,11 +339,21 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
           }
           // Optimistic sale row so lists/DayBook reflect it before sync.
           const optimisticPaid = paidAmount ?? (paymentStatus === 'PAID' ? totalAmount : 0);
+          // The tender rides on the payload because the POS can no longer write
+          // it after the fact when the sale is queued -- there is no server row
+          // to update. Queue it as its own op and keep it on the cached row so a
+          // reprint before sync still shows what the customer actually handed
+          // over, not the capped paidAmount.
+          const tendered = sale.amountReceived == null ? null : Number(sale.amountReceived);
+          if (tendered != null && Number.isFinite(tendered)) {
+            await queueMutation({ table: 'sales', type: 'update', payload: { id, amount_received: tendered } });
+          }
           await upsertCachedRow('sales', {
             id, tenant_id: tenantId, shopId: clientId, items,
             totalAmount, discount: Number(sale.discount) || 0,
             paymentMethod: sale.paymentMethod || 'CASH', paymentStatus,
             paidAmount: optimisticPaid,
+            amount_received: tendered,
             date: sale.date || todayISOInAppTZ(), created_at: new Date().toISOString(),
           });
           // Credit/partial sale: bump the client's outstanding in state AND the

@@ -21,7 +21,7 @@ export const PLANS = {
   },
   GROWTH: {
     label: 'Growth',
-    price: '₹2,999/yr',
+    price: '₹1,999/yr',
     modules: [
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'payroll', 'reports', 'estimates',
@@ -31,14 +31,14 @@ export const PLANS = {
       // was a conservative default to be moved down.
       'appointments',
     ],
-    features: ['gstr_export'],
+    features: ['gstr_export', 'offline_30_days'],
     maxUsers: 3,
     maxInvoices: 1000,
     color: 'bg-emerald-50 text-emerald-600',
   },
   PRO: {
     label: 'Pro',
-    price: '₹5,999/yr',
+    price: '₹2,999/yr',
     modules: [
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports',
@@ -49,14 +49,14 @@ export const PLANS = {
       // services tenant locked out of the thing they signed up for.
       'appointments',
     ],
-    features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory'],
+    features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory', 'offline_30_days'],
     maxUsers: 5,
     maxInvoices: -1,
     color: 'bg-blue-50 text-blue-600',
   },
   ENTERPRISE: {
     label: 'Enterprise',
-    price: 'Custom',
+    price: '₹3,999/yr',
     modules: [
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports',
@@ -67,7 +67,7 @@ export const PLANS = {
       'appointments', 'kds', 'labels',
       'users', 'settings', 'audit-log',
     ],
-    features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory', 'api_access', 'white_label', 'priority_support'],
+    features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory', 'api_access', 'white_label', 'priority_support', 'offline_30_days'],
     maxUsers: -1,
     maxInvoices: -1,
     color: 'bg-purple-50 text-purple-600',
@@ -158,6 +158,13 @@ export const TENANT_STATUS = {
 // 60 days, decided 20 Aug 2026 -- the length the edge function already grants
 // and the one existing trial_end_date values were written against, so nobody's
 // trial is shortened by the decision. The landing copy said 30 and was wrong.
+//
+// It went to 180 on 29 Sep 2026 and came back on 1 Oct, before the edge
+// function was ever redeployed -- so production never granted anything but 60
+// and no trial was affected either way. Kept as a note because the site said
+// six months for two days, and because it is the standing example of the rule:
+// create-tenant writes trial_end_date at signup, so the offer is whatever THAT
+// function grants, no matter what this constant says.
 
 /** Days a trial runs. Must match create-tenant and the pricing page. */
 export const TRIAL_DAYS = 60;

@@ -50,3 +50,15 @@ jobs:
             exit 1
           fi
           echo "✓ All client outstanding balances reconcile."
+
+  # A cron job's red cross is addressed to nobody. These four failed every run
+  # from June to October without anyone noticing.
+  notify:
+    needs: [audit]
+    if: always() && github.event_name == 'schedule'
+    uses: ./.github/workflows/scheduled-failure-issue.yml
+    with:
+      job: Nightly outstanding-drift audit
+      outcome: ${{ needs.audit.result }}
+    permissions:
+      issues: write

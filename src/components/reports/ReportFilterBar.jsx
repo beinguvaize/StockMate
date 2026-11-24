@@ -106,7 +106,7 @@ const ReportFilterBar = ({
                 key={preset.id}
                 onClick={() => handleDatePreset(preset.id)}
                 className={`
-                  px-6 py-2.5 rounded-full text-[10px] font-semibold tracking-widest uppercase transition-all whitespace-nowrap
+                  px-6 py-2.5 rounded-pill text-[10px] font-semibold tracking-widest uppercase transition-all whitespace-nowrap
                   ${isActive ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'}
                 `}
               >
@@ -133,7 +133,7 @@ const ReportFilterBar = ({
           <div className="relative">
             <button
               onClick={() => setShowExportMenu((s) => !s)}
-              className="btn-signature !h-11 !px-8 !text-[10px] !rounded-pill shadow-xl hover:shadow-accent-signature/20 flex items-center gap-3 transition-all active:scale-95"
+              className="btn-signature !h-11 !px-8 !text-[10px] !rounded-pill shadow-xl hover: flex items-center gap-3 transition-all active:scale-95"
             >
               <span>EXPORT MATRIX</span>
               <div className="icon-nest !w-7 !h-7 bg-ink-primary/20 backdrop-blur-md">
@@ -149,7 +149,7 @@ const ReportFilterBar = ({
                     onExportCSV?.();
                   }}
                   disabled={!onExportCSV}
-                  className="flex items-center gap-3 w-full p-3 rounded-xl text-[10px] font-semibold uppercase tracking-widest hover:bg-canvas transition-all text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex items-center gap-3 w-full p-3 rounded-pill text-[10px] font-semibold uppercase tracking-widest hover:bg-canvas transition-all text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <div className="icon-nest !w-8 !h-8 bg-emerald-50">
                     <FileSpreadsheet size={14} className="text-emerald-600" />
@@ -165,7 +165,7 @@ const ReportFilterBar = ({
                     onExportPDF?.();
                   }}
                   disabled={!onExportPDF}
-                  className="flex items-center gap-3 w-full p-3 rounded-xl text-[10px] font-semibold uppercase tracking-widest hover:bg-canvas transition-all text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex items-center gap-3 w-full p-3 rounded-pill text-[10px] font-semibold uppercase tracking-widest hover:bg-canvas transition-all text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <div className="icon-nest !w-8 !h-8 bg-rose-50">
                     <Printer size={14} className="text-rose-600" />
@@ -245,7 +245,7 @@ const ReportFilterBar = ({
                           setFilters(prev => ({ ...prev, [item.key]: 'ALL' }));
                           setActiveDropdown(null);
                         }}
-                        className="flex items-center justify-between w-full p-3 rounded-xl text-[10px] font-semibold uppercase hover:bg-canvas transition-all"
+                        className="flex items-center justify-between w-full p-3 rounded-pill text-[10px] font-semibold uppercase hover:bg-canvas transition-all"
                       >
                         ALL {item.label}S
                         {filters[item.key] === 'ALL' && <Check size={14} className="text-accent-signature" />}
@@ -258,7 +258,7 @@ const ReportFilterBar = ({
                             setActiveDropdown(null);
                           }}
                           className={`
-                            flex items-center justify-between w-full p-3 rounded-xl text-[10px] font-semibold uppercase hover:bg-canvas transition-all
+                            flex items-center justify-between w-full p-3 rounded-pill text-[10px] font-semibold uppercase hover:bg-canvas transition-all
                             ${filters[item.key] === opt.value ? 'bg-canvas text-foreground' : 'text-muted-foreground'}
                           `}
                         >

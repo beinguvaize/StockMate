@@ -8,6 +8,8 @@ import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/client_settlement_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ─── Aging bucket data ────────────────────────────────────────────────────────
 class _AgingBuckets {
@@ -214,12 +216,9 @@ class ClientAgingScreen extends ConsumerWidget {
                         const SizedBox(width: 6),
                         Text(
                           'CLIENT BREAKDOWN',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                             color: AppColors.inkTertiary,
-                            letterSpacing: 1.2,
-                          ),
+                            letterSpacing: 1.2),
                         ),
                         const SizedBox(width: 8),
                         Container(
@@ -230,11 +229,8 @@ class ClientAgingScreen extends ConsumerWidget {
                           ),
                           child: Text(
                             '${entries.length}',
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.danger,
-                            ),
+                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                              color: AppColors.danger),
                           ),
                         ),
                       ],
@@ -292,10 +288,7 @@ class ClientAgingScreen extends ConsumerWidget {
           ),
           Text(
             'Who owes you, and for how long',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: AppColors.inkTertiary,
-            ),
+            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
           ),
         ],
       ),
@@ -342,12 +335,9 @@ class _KpiCard extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                     color: AppColors.inkTertiary,
-                    letterSpacing: 0.5,
-                  ),
+                    letterSpacing: 0.5),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -367,23 +357,17 @@ class _KpiCard extends StatelessWidget {
             children: [
               Text(
                 compactAmount(amount),
-                style: GoogleFonts.manrope(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
+                style: AppText.heading.copyWith(fontWeight: FontWeight.w900,
                   color: color,
-                  letterSpacing: -0.4,
-                ),
+                  letterSpacing: -0.4),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 1),
               Text(
                 '$count account${count == 1 ? '' : 's'}',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: AppColors.inkTertiary,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AppText.caption.copyWith(color: AppColors.inkTertiary,
+                  fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -406,7 +390,8 @@ class _ClientAgingCard extends StatelessWidget {
     final aColor  = avatarColor(client.name);
     final aBg     = avatarBg(client.name);
 
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: () {
         Navigator.push(
           context,
@@ -437,11 +422,8 @@ class _ClientAgingCard extends StatelessWidget {
                   child: Center(
                     child: Text(
                       initials(client.name),
-                      style: GoogleFonts.manrope(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: aColor,
-                      ),
+                      style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w800,
+                        color: aColor),
                     ),
                   ),
                 ),
@@ -455,11 +437,8 @@ class _ClientAgingCard extends StatelessWidget {
                     children: [
                       Text(
                         client.name ?? 'Unknown',
-                        style: GoogleFonts.manrope(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary,
-                        ),
+                        style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                          color: AppColors.inkPrimary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -471,7 +450,7 @@ class _ClientAgingCard extends StatelessWidget {
                             const SizedBox(width: 3),
                             Text(
                               client.phone!,
-                              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                             ),
                           ],
                         )
@@ -483,7 +462,7 @@ class _ClientAgingCard extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 client.email!,
-                                style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -509,21 +488,15 @@ class _ClientAgingCard extends StatelessWidget {
                       ),
                       child: Text(
                         compactAmount(buckets.total),
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.danger,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w800,
+                          color: AppColors.danger),
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       'Total Owed',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        color: AppColors.inkTertiary,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: AppText.caption.copyWith(color: AppColors.inkTertiary,
+                        fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -576,11 +549,7 @@ class _ClientAgingCard extends StatelessWidget {
               children: [
                 Text(
                   'View settlement',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppText.label.copyWith(color: AppColors.primary),
                 ),
                 const SizedBox(width: 3),
                 const Icon(LucideIcons.chevronRight, size: 12, color: AppColors.primary),
@@ -589,7 +558,7 @@ class _ClientAgingCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+ );
   }
 }
 
@@ -625,21 +594,14 @@ class _BucketCell extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkTertiary,
-              letterSpacing: 0.3,
-            ),
+            style: AppText.label.copyWith(color: AppColors.inkTertiary,
+              letterSpacing: 0.3),
           ),
           const SizedBox(height: 3),
           Text(
             hasAmount ? compactAmount(amount) : '—',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: hasAmount ? FontWeight.w800 : FontWeight.w500,
-              color: hasAmount ? color : AppColors.inkTertiary,
-            ),
+            style: AppText.label.copyWith(fontWeight: hasAmount ? FontWeight.w800 : FontWeight.w500,
+              color: hasAmount ? color : AppColors.inkTertiary),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -675,20 +637,13 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               'All accounts are current.',
-              style: GoogleFonts.manrope(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: AppColors.inkPrimary,
-              ),
+              style: AppText.heading.copyWith(color: AppColors.inkPrimary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
               'No outstanding balances.',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: AppColors.inkTertiary,
-              ),
+              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
               textAlign: TextAlign.center,
             ),
           ],

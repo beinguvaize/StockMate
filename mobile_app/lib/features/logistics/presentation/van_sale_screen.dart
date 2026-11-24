@@ -6,6 +6,8 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/data/models/van_stock.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class VanSaleScreen extends ConsumerStatefulWidget {
   final String? vehicleId;
@@ -133,12 +135,8 @@ class _VanSaleScreenState extends ConsumerState<VanSaleScreen> {
             ),
             Text(
               'ROADSIDE POS',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -292,14 +290,15 @@ class _StepBtn extends StatelessWidget {
   const _StepBtn({required this.icon, required this.color, required this.bg, required this.textColor, this.onTap});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
+  Widget build(BuildContext context) => AppTappable(
+   ripple: false,
     onTap: onTap,
     child: Container(
       width: 32, height: 32,
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(9), border: Border.all(color: color)),
       child: Icon(icon, size: 14, color: onTap == null ? color : textColor),
     ),
-  );
+ );
 }
 
 // ── Checkout panel ─────────────────────────────────────────────────────────────
@@ -358,7 +357,8 @@ class _CheckoutPanel extends StatelessWidget {
         // Payment method
         Row(
           children: ['CASH', 'CREDIT', 'CARD'].map((m) => Expanded(
-            child: GestureDetector(
+            child: AppTappable(
+   ripple: false,
               onTap: () => onPaymentMethodChange(m),
               child: Container(
                 margin: const EdgeInsets.only(right: 6),
@@ -372,7 +372,7 @@ class _CheckoutPanel extends StatelessWidget {
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900,
                     color: paymentMethod == m ? Colors.white : AppColors.inkPrimary)),
               ),
-            ),
+ ),
           )).toList(),
         ),
 

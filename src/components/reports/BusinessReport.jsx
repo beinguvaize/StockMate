@@ -32,8 +32,10 @@ import ReportHeader from './ReportHeader';
 import usePLRanged from './usePLRanged';
 import PLTieOut from './PLTieOut';
 import { SectionHead, StatStrip } from './ReportBits';
-import { isCountableSale, presetRange, priorRange, pctChange } from './reportUtils';
+import { isCountableSale, priorRange, pctChange } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
+import { useLinkedRange } from '../../lib/linkedRange';
+import useDateWindow from './useDateWindow';
 
 /* ─── Date preset helpers ─────────────────────────────────────────────────── */
 /* ─── Mini sparkline ──────────────────────────────────────────────────────── */
@@ -104,14 +106,12 @@ const ChartTip = ({ active, payload, label }) => {
    MAIN COMPONENT
    ════════════════════════════════════════════════════════════════════════════ */
 const BusinessReport = () => {
-  const [preset, setPreset]   = useState('TODAY');
-  const [range,  setRange]    = useState(() => presetRange('TODAY'));
-  const [customStart, setCustomStart] = useState('');
-  const [customEnd,   setCustomEnd]   = useState('');
-  const [showCustom,  setShowCustom]  = useState(false);
+  // Ask's answers link here with their own dates, so the report opens on them.
+  const linked = useLinkedRange();
+  const win = useDateWindow('TODAY', linked);
+  const { range, filters } = win;
   const [prodSort,    setProdSort]    = useState('REVENUE');
 
-  const filters = useMemo(() => ({ dateRange: range }), [range]);
 
   const { data: salesRaw,     loading: salesLoading }     = useReportData({ table: 'sales',     select: '*', dateColumn: 'date', filters });
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
@@ -165,16 +165,6 @@ const BusinessReport = () => {
     () => (priorPl ? pctChange(pl?.revenue_net, priorPl.revenue_net) : null),
     [pl, priorPl],
   );
-
-  const applyPreset = (id) => {
-    setPreset(id);
-    if (id !== 'CUSTOM') { setRange(presetRange(id)); setShowCustom(false); }
-    else setShowCustom(true);
-  };
-
-  const applyCustom = () => {
-    if (customStart && customEnd) { setRange({ start: customStart, end: customEnd }); setShowCustom(false); }
-  };
 
   /* ── Sales aggregations ─────────────────────────────────────────────── */
   const salesMetrics = useMemo(() => {
@@ -358,15 +348,7 @@ const BusinessReport = () => {
       {/* ── HEADER ─────────────────────────────────────────────────────── */}
       <ReportHeader
         title="Business Report"
-        subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
-        preset={preset}
-        onPreset={applyPreset}
-        showCustom={showCustom}
-        customStart={customStart}
-        customEnd={customEnd}
-        setCustomStart={setCustomStart}
-        setCustomEnd={setCustomEnd}
-        onApplyCustom={applyCustom}
+        {...win.headerProps}
         onExport={exportCSV}
         exportLabel="Export CSV"
       />
@@ -526,7 +508,7 @@ const BusinessReport = () => {
           <div className="flex items-center bg-muted rounded-lg p-0.5">
             {[['REVENUE', 'Revenue'], ['PROFIT', 'Profit']].map(([id, label]) => (
               <button key={id} onClick={() => setProdSort(id)}
-                className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                className={`px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
                   prodSort === id
                     ? 'bg-card text-foreground font-semibold shadow-sm'
                     : 'text-muted-foreground font-medium hover:text-foreground'}`}>

@@ -215,7 +215,7 @@ const ClientStatementReport = () => {
               {selectedClient.phone && <div className="text-[10px] text-muted-foreground">{selectedClient.phone}</div>}
             </div>
             <button onClick={() => setClientId('')}
-              className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50">
+              className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-pill hover:bg-red-50">
               Change
             </button>
           </div>

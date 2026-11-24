@@ -59,3 +59,15 @@ jobs:
           PROD_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           PROD_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: bash scripts/check-schema-drift.sh
+
+  # A cron job's red cross is addressed to nobody. These four failed every run
+  # from June to October without anyone noticing.
+  notify:
+    needs: [lint]
+    if: always() && github.event_name == 'schedule'
+    uses: ./.github/workflows/scheduled-failure-issue.yml
+    with:
+      job: Schema guard (RPC overloads)
+      outcome: ${{ needs.lint.result }}
+    permissions:
+      issues: write

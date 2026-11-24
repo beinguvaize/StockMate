@@ -2,12 +2,13 @@ import React from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
-import { ShieldAlert, Lock, Sparkles } from 'lucide-react';
+import { ShieldAlert, Lock, Sparkles, Blocks } from 'lucide-react';
 import { getRequiredPlan, PLANS } from '../lib/tenancy';
+import { MODULE_META, VERTICAL_META } from '../lib/verticals';
 
 export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOwner = false }) {
   const { session, currentUser, hasPermission, isOwner, loading: authLoading } = useAuth();
-  const { currentTenant, isModuleAllowed, loading: tenantLoading } = useTenant();
+  const { currentTenant, isModuleAllowed, isModuleOn, businessType, loading: tenantLoading } = useTenant();
   const loading = authLoading || tenantLoading;
  const location = useLocation();
  const { tenantSlug } = useParams();
@@ -117,6 +118,57 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOw
   };
 
  const moduleKey = moduleMap[path];
+
+ // Vertical-based module gating.
+ //
+ // AppLayout already hides these nav items when the tenant's vertical has them
+ // off -- but hiding a link is not blocking a page, and every one of these was
+ // reachable by typing the URL. A retail shop on Pro could open the Kitchen
+ // Display. Now that the modules screen lets a shop switch these off, "off"
+ // has to mean the page does not open.
+ //
+ // Only routes AppLayout already gates are listed, so the nav and the router
+ // agree and no existing tenant loses a page they can reach today. The keys
+ // are the VERTICAL toggle names, which are not always the route name: /kds is
+ // the `kot` toggle.
+ const verticalMap = {
+   'inventory': 'inventory',
+   'appointments': 'appointments',
+   'manufacturing': 'manufacturing',
+   'kds': 'kot',
+   'payroll': 'payroll',
+   'vehicles': 'vehicles',
+ };
+ const verticalKey = verticalMap[path];
+
+ if (verticalKey && !isModuleOn(verticalKey)) {
+   const meta = MODULE_META[verticalKey] || {};
+   const vertical = VERTICAL_META[businessType]?.label || businessType;
+   return (
+     <div className="flex flex-col items-center justify-center min-h-[80vh] p-5 animate-in fade-in zoom-in duration-500">
+       <div className="glass-panel max-w-[500px] w-full text-center p-8 border-accent-signature/10">
+         <div className="flex justify-center mb-8">
+           <div className="bg-accent-signature/5 p-5 rounded-full text-accent-signature">
+             <Blocks size={64} strokeWidth={2} />
+           </div>
+         </div>
+         <h2 className="text-3xl font-bold text-ink-primary mb-2 leading-none font-sora">Module turned off</h2>
+         <p className="text-sm font-semibold text-ink-secondary opacity-80 mb-8 leading-relaxed">
+           <span className="text-ink-primary font-bold">{meta.label || path}</span> is switched off for this
+           business. Nothing has been deleted — the owner can switch it back on
+           under Settings → Business type &amp; modules.
+         </p>
+         <p className="text-xs font-semibold text-ink-secondary opacity-60 mb-8">
+           This business is set up as {vertical}.
+         </p>
+         <a href={`/${tenantSlug || ''}`}
+            className="inline-block px-5 py-2.5 rounded-xl bg-ink-primary text-surface text-xs font-bold">
+           Back to dashboard
+         </a>
+       </div>
+     </div>
+   );
+ }
 
  // Plan-based module gating
  if (moduleKey && !isModuleAllowed(moduleKey)) {

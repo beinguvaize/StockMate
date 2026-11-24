@@ -1,4 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import Tooltip from '../../../components/motion/Tooltip';
+import CopyButton from '../../../components/motion/CopyButton';
+import HoldButton from '../../../components/motion/HoldButton';
 import {
   Search, Trash2, Printer, Receipt, Package, Wallet, CreditCard, Landmark,
   Download, X, User, Clock, Calendar, CheckCircle2, AlertCircle, RotateCcw, Truck, PackageCheck,
@@ -109,6 +112,12 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
   const [sort, setSort] = useState({ key: 'date', dir: 'desc' });
   const [detailSale, setDetailSale] = useState(null);
   const [settleInput, setSettleInput] = useState('');
+  // How the money being recorded arrived. Opens on the sale's own method.
+  const [settleMethod, setSettleMethod] = useState('CASH');
+  const methodFor = (sale) => {
+    const m = String(sale?.paymentMethod ?? sale?.payment_method ?? '').toUpperCase();
+    return m === 'UPI' || m === 'BANK' ? m : 'CASH';
+  };
 
   // ---------- Lookups ----------
   const getClientId = (sale) => sale.shopId ?? sale.shop_id ?? sale.clientId ?? null;
@@ -271,7 +280,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
     if (!amt || amt <= 0) return alert('Enter positive amount');
     const out = outstandingOf(detailSale);
     if (amt > out) return alert(`Max payable: ${formatCurrency(out)}`);
-    const { error } = await onSettle(detailSale.id, amt);
+    const { error } = await onSettle(detailSale.id, amt, settleMethod);
     if (error) return alert('Settle failed: ' + error.message);
     setSettleInput('');
     setDetailSale(null);
@@ -310,7 +319,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
     return (
       <tr
         key={sale.id}
-        onClick={() => setDetailSale(sale)}
+        onClick={() => { setDetailSale(sale); setSettleMethod(methodFor(sale)); }}
         className="group hover:bg-canvas/70 transition-colors cursor-pointer"
       >
         <td className="px-4 py-4">
@@ -320,7 +329,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           )}
         </td>
         <td className="px-4 py-4">
-          <div className="text-sm font-semibold text-foreground tracking-tight">#{shortRef(sale.id)}</div>
+          <div className="text-sm font-semibold text-foreground tracking-tight inline-flex items-center gap-1">#{shortRef(sale.id)}<CopyButton value={shortRef(sale.id)} label="Copy invoice no." size={12} /></div>
         </td>
         <td className="px-4 py-4">
           <div className="text-sm font-semibold text-foreground">{clientName}</div>
@@ -387,9 +396,9 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
             {!paid && !voided && onSettle && (
               <button
-                onClick={() => { setDetailSale(sale); setSettleInput(String(outstanding)); }}
+                onClick={() => { setDetailSale(sale); setSettleInput(String(outstanding)); setSettleMethod(methodFor(sale)); }}
                 title="Settle Payment"
-                className="p-2 rounded-lg hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600 transition-colors"
+                className="p-2 rounded-pill hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600 transition-colors"
               >
                 <CheckCircle2 size={15} />
               </button>
@@ -398,7 +407,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
               <button
                 onClick={() => onDispatch(sale.id)}
                 title="Mark as Dispatched — deducts stock"
-                className="p-2 rounded-lg hover:bg-emerald-50 text-emerald-500 hover:text-emerald-700 transition-colors"
+                className="p-2 rounded-pill hover:bg-emerald-50 text-emerald-500 hover:text-emerald-700 transition-colors"
               >
                 <PackageCheck size={15} />
               </button>
@@ -407,7 +416,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
               <button
                 onClick={() => onEdit(sale)}
                 title="Edit sale — stock & balance re-sync"
-                className="p-2 rounded-lg hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature transition-colors"
+                className="p-2 rounded-pill hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature transition-colors"
               >
                 <Pencil size={15} />
               </button>
@@ -416,7 +425,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
               <button
                 onClick={() => onReturn(sale)}
                 title="Process Return"
-                className="p-2 rounded-lg hover:bg-rose-50 text-muted-foreground hover:text-rose-600 transition-colors"
+                className="p-2 rounded-pill hover:bg-rose-50 text-muted-foreground hover:text-rose-600 transition-colors"
               >
                 <RotateCcw size={15} />
               </button>
@@ -426,19 +435,23 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
                 onClick={() => onConvertToInvoice(sale)}
                 title={sale.invoice_id ? 'GST Invoice already issued' : 'Convert to GST Invoice'}
                 disabled={!!sale.invoice_id}
-                className={`p-2 rounded-lg transition-colors ${sale.invoice_id
+                className={`p-2 rounded-pill transition-colors ${sale.invoice_id
                   ? 'text-emerald-500 cursor-default'
                   : 'text-muted-foreground hover:bg-blue-50 hover:text-blue-600'}`}
               >
                 <FileText size={15} />
               </button>
             )}
-            <button onClick={() => onPrint(sale)} title="Print / View" className="p-2 rounded-lg hover:bg-card text-muted-foreground hover:text-foreground transition-colors">
-              <Printer size={15} />
-            </button>
-            <button onClick={() => onDelete(sale.id)} title="Delete" className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors">
-              <Trash2 size={15} />
-            </button>
+            <Tooltip label="Print / View">
+              <button onClick={() => onPrint(sale)} aria-label="Print / View" className="p-2 rounded-pill hover:bg-card text-muted-foreground hover:text-foreground transition-colors">
+                <Printer size={15} />
+              </button>
+            </Tooltip>
+            <Tooltip label="Hold to delete bill">
+              <HoldButton onConfirm={() => onDelete(sale.id)} title="Hold 1.5s to delete this bill" className="p-2 rounded-pill hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors">
+                <Trash2 size={15} />
+              </HoldButton>
+            </Tooltip>
           </div>
         </td>
       </tr>
@@ -448,7 +461,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
   const StatusTab = ({ k, label, count }) => (
     <button
       onClick={() => setStatusFilter(k)}
-      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+      className={`px-3.5 py-1.5 rounded-pill text-xs font-semibold transition-colors ${
         statusFilter === k
           ? 'bg-ink-primary text-surface'
           : 'bg-card text-muted-foreground hover:text-foreground border border-border/60'
@@ -464,7 +477,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
   const DateTab = ({ k, label }) => (
     <button
       onClick={() => setDateFilter(k)}
-      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+      className={`px-3 py-1.5 rounded-pill text-xs font-semibold transition-colors ${
         dateFilter === k
           ? 'bg-accent-signature text-button-text'
           : 'bg-card text-muted-foreground hover:text-foreground border border-border/60'
@@ -556,7 +569,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           <button
             onClick={handleExport}
             disabled={!sortedSales.length}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-card border border-border/60 text-ink-secondary hover:text-foreground hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold bg-card border border-border/60 text-ink-secondary hover:text-foreground hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Export CSV"
           >
             <Download size={13} /> Export
@@ -608,6 +621,8 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
                 clientBills={clientBills}
                 settleInput={settleInput}
                 setSettleInput={setSettleInput}
+                settleMethod={settleMethod}
+                setSettleMethod={setSettleMethod}
                 onSettle={onSettle ? handleSettle : null}
                 onPrint={() => onPrint(detailSale)}
               />
@@ -639,7 +654,7 @@ const SummaryCard = ({ label, value, sub, tone }) => {
 const SaleDetail = ({
   sale, clientName, cashier, productNameOf, outstanding,
   clientName2, clientOutstanding = 0, clientBills = 0,
-  settleInput, setSettleInput, onSettle, onPrint
+  settleInput, setSettleInput, settleMethod = 'CASH', setSettleMethod, onSettle, onPrint
 }) => {
   const items = Array.isArray(sale.items) ? sale.items : [];
   const status = (sale.paymentStatus ?? sale.status ?? 'PENDING').toUpperCase();
@@ -765,11 +780,22 @@ const SaleDetail = ({
               value={settleInput}
               onChange={e => setSettleInput(e.target.value)}
               placeholder="Amount"
-              className="flex-1 px-3 py-2.5 rounded-lg border border-border text-sm font-semibold"
+              className="flex-1 min-w-0 px-3 py-2.5 rounded-lg border border-border text-sm font-semibold"
             />
+            <select
+              value={settleMethod}
+              onChange={e => setSettleMethod?.(e.target.value)}
+              aria-label="How it was paid"
+              title="How it was paid"
+              className="px-2 py-2.5 rounded-lg border border-border text-sm font-semibold bg-white"
+            >
+              <option value="CASH">Cash</option>
+              <option value="UPI">UPI</option>
+              <option value="BANK">Bank</option>
+            </select>
             <button
               onClick={onSettle}
-              className="px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
+              className="px-4 py-2.5 rounded-pill bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
             >
               <CheckCircle2 size={14} /> Record Payment
             </button>
@@ -777,7 +803,7 @@ const SaleDetail = ({
         )}
         <button
           onClick={onPrint}
-          className="px-4 py-2.5 rounded-lg bg-ink-primary text-surface text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1.5"
+          className="px-4 py-2.5 rounded-pill bg-ink-primary text-surface text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1.5"
         >
           <Printer size={14} /> Print
         </button>

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -8,6 +7,9 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
 import 'package:mobile_app/features/returns/presentation/purchase_return_form_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/widgets/motion/copy_button.dart';
 
 class PurchaseDetailScreen extends ConsumerWidget {
   final Purchase purchase;
@@ -78,7 +80,8 @@ class PurchaseDetailScreen extends ConsumerWidget {
             scrolledUnderElevation: 0,
             leading: Padding(
               padding: const EdgeInsets.all(8),
-              child: GestureDetector(
+              child: AppTappable(
+   ripple: false,
                 onTap: () => Navigator.pop(context),
                 child: Container(
                   decoration: BoxDecoration(
@@ -89,28 +92,21 @@ class PurchaseDetailScreen extends ConsumerWidget {
                   child: const Icon(LucideIcons.arrowLeft,
                       size: 20, color: AppColors.inkPrimary),
                 ),
-              ),
+ ),
             ),
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   purchase.poNumber,
-                  style: GoogleFonts.manrope(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                  style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
                     color: AppColors.inkPrimary,
-                    letterSpacing: 0.5,
-                  ),
+                    letterSpacing: 0.5),
                 ),
                 Text(
                   'PURCHASE ORDER',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.inkTertiary,
-                    letterSpacing: 1.5,
-                  ),
+                  style: AppText.label.copyWith(color: AppColors.inkTertiary,
+                    letterSpacing: 1.5),
                 ),
               ],
             ),
@@ -118,31 +114,16 @@ class PurchaseDetailScreen extends ConsumerWidget {
               // Copy PO number
               Padding(
                 padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-                child: GestureDetector(
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: purchase.poNumber));
-                    HapticFeedback.lightImpact();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Copied ${purchase.poNumber}',
-                            style: GoogleFonts.manrope(color: AppColors.inkPrimary)),
-                        backgroundColor: AppColors.primaryContainer,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [AppColors.cardShadow],
-                    ),
-                    child: const Icon(LucideIcons.copy,
-                        size: 16, color: AppColors.inkSecondary),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [AppColors.cardShadow],
+                  ),
+                  child: CopyButton(
+                    text: purchase.poNumber,
+                    size: 16,
+                    color: AppColors.inkSecondary,
                   ),
                 ),
               ),
@@ -192,10 +173,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                                 ),
                                 Text(
                                   'Order Date: ${_fmtDate(purchase.date)}',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    color: Colors.white.withValues(alpha: 0.7),
-                                  ),
+                                  style: AppText.caption.copyWith(color: Colors.white.withValues(alpha: 0.7)),
                                 ),
                               ],
                             ),
@@ -210,11 +188,8 @@ class PurchaseDetailScreen extends ConsumerWidget {
                             ),
                             child: Text(
                               status,
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: statusColor,
-                              ),
+                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                                color: statusColor),
                             ),
                           ),
                         ],
@@ -228,10 +203,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                       // Amount
                       Text(
                         'Total Amount',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: Colors.white.withValues(alpha: 0.65),
-                        ),
+                        style: AppText.caption.copyWith(color: Colors.white.withValues(alpha: 0.65)),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -300,11 +272,8 @@ class PurchaseDetailScreen extends ConsumerWidget {
                         ),
                         child: Text(
                           status,
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: statusColor,
-                          ),
+                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                            color: statusColor),
                         ),
                       ),
                     ),
@@ -343,8 +312,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                           children: [
                             Text(
                               'Order Total',
-                              style: GoogleFonts.manrope(
-                                  fontSize: 13, color: AppColors.inkTertiary),
+                              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                             ),
                             Text(
                               '₹${purchase.totalAmount.toStringAsFixed(2)}',
@@ -369,11 +337,8 @@ class PurchaseDetailScreen extends ConsumerWidget {
                         ),
                         child: Text(
                           status == 'RECEIVED' ? 'PAID' : 'UNPAID',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: statusColor,
-                          ),
+                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                            color: statusColor),
                         ),
                       ),
                     ],
@@ -448,11 +413,8 @@ class PurchaseDetailScreen extends ConsumerWidget {
                             icon: Icon(a.icon, size: 14, color: a.color),
                             label: Text(
                               a.label,
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: a.color,
-                              ),
+                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                                color: a.color),
                             ),
                             style: OutlinedButton.styleFrom(
                               backgroundColor: a.color.withValues(alpha: 0.08),
@@ -469,11 +431,8 @@ class PurchaseDetailScreen extends ConsumerWidget {
                           icon: const Icon(LucideIcons.rotateCcw, size: 14, color: AppColors.danger),
                           label: Text(
                             'Process Return',
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.danger,
-                            ),
+                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                              color: AppColors.danger),
                           ),
                           style: OutlinedButton.styleFrom(
                             backgroundColor: AppColors.danger.withValues(alpha: 0.08),
@@ -606,8 +565,7 @@ class _StatusTimeline extends StatelessWidget {
                       ),
                       Text(
                         step.sub,
-                        style: GoogleFonts.manrope(
-                            fontSize: 13, color: AppColors.inkTertiary),
+                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                       ),
                     ],
                   ),
@@ -624,12 +582,9 @@ class _StatusTimeline extends StatelessWidget {
                   ),
                   child: Text(
                     'CURRENT',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                       color: AppColors.primary,
-                      letterSpacing: 1,
-                    ),
+                      letterSpacing: 1),
                   ),
                 ),
             ],
@@ -654,12 +609,9 @@ class _SectionLabel extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           title,
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
             color: AppColors.inkTertiary,
-            letterSpacing: 1.3,
-          ),
+            letterSpacing: 1.3),
         ),
       ],
     );
@@ -733,8 +685,7 @@ class _InfoRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: GoogleFonts.manrope(
-                        fontSize: 13, color: AppColors.inkTertiary)),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                 const SizedBox(height: 2),
                 valueWidget ??
                     Text(

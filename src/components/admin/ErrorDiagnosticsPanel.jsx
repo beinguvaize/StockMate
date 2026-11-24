@@ -223,7 +223,7 @@ const ErrorDiagnosticsPanel = () => {
                   <td className="px-6 py-4 text-right">
                     <button 
                       onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
-                      className="p-2 hover:bg-black/5 rounded-full text-muted-foreground transition-all"
+                      className="p-2 hover:bg-black/5 rounded-pill text-muted-foreground transition-all"
                     >
                       {expandedRow === log.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </button>

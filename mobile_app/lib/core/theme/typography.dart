@@ -118,6 +118,66 @@ class AppText {
     fontFeatures: const [FontFeature.tabularFigures()],
   );
 
+  /// The running total at the till. Bigger than every other role on purpose:
+  /// a cashier reads this across a counter, and the customer often reads it
+  /// upside down from the other side. `moneyLarge` at 32 is a reporting
+  /// figure; this is a point-of-sale one.
+  ///
+  /// Added rather than reused because the scale had no role this large and
+  /// the header above says to add a token when none fits. Forcing the till
+  /// total down to 32 would have shrunk it by 40%.
+  static TextStyle get moneyHero => GoogleFonts.manrope(
+    fontSize: 52,
+    fontWeight: FontWeight.w800,
+    height: 1,
+    letterSpacing: -1,
+    color: AppColors.onSurface,
+    fontFeatures: const [FontFeature.tabularFigures()],
+  );
+
+  /// The headline figure ON the dark Today card. Between moneyLarge at 32
+  /// and moneyHero at 52, because it is neither: it is read at arm's length
+  /// like a report, but it is the one number the screen exists to show, so
+  /// it outranks every reporting figure on it.
+  ///
+  /// The colour is deliberately absent -- this style is only ever drawn on
+  /// the inverse surface, and the caller supplies onSurfaceInverse.
+  static TextStyle get moneyCard => GoogleFonts.manrope(
+    fontSize: 36,
+    fontWeight: FontWeight.w800,
+    height: 1.05,
+    letterSpacing: -1.2,
+    fontFeatures: const [FontFeature.tabularFigures()],
+  );
+
+  /// A large numeric entry field — the quantity keypad. Sized for thumb
+  /// entry rather than for reading, which is why it is its own role and not
+  /// a money one: it is an input, and it is not currency.
+  static TextStyle get numericEntry => GoogleFonts.manrope(
+    fontSize: 48,
+    fontWeight: FontWeight.w700,
+    height: 1,
+    color: AppColors.onSurface,
+    fontFeatures: const [FontFeature.tabularFigures()],
+  );
+
+  /// Section label — uppercase, tracked, above a group of rows.
+  ///
+  /// The approved screens set this at 12px. It is 13 here, deliberately: the
+  /// header of this file states that nothing goes below caption at 13,
+  /// because "on a phone held at arm's length in a shop, a 9px quantity is
+  /// not information". Uppercase, w700 and the tracking already separate it
+  /// from body text; shrinking it as well would buy nothing and cost the
+  /// floor. The mockups were corrected to match this, not the other way
+  /// round.
+  static TextStyle get eyebrow => GoogleFonts.manrope(
+    fontSize: 13,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+    letterSpacing: 0.6,
+    color: AppColors.inkTertiary,
+  );
+
   /// Builds the Material text theme from the scale above, so a widget that
   /// reaches for `Theme.of(context).textTheme` lands on the same six roles
   /// rather than on Material's defaults.

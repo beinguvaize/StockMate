@@ -6,7 +6,9 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
+import '../../../core/widgets/app_surfaces.dart';
 
 class AddSupplierScreen extends ConsumerStatefulWidget {
   final Supplier? supplier; // null = create, non-null = edit
@@ -160,12 +162,8 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
             ),
             Text(
               'CRM',
-              style: GoogleFonts.manrope(
-                color: AppColors.secondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -208,19 +206,15 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
             Center(
               child: Text(
                 'SUPPLIER',
-                style: GoogleFonts.manrope(
-                  color: AppColors.inkSecondary,
-                  fontSize: 13,
+                style: AppText.label.copyWith(color: AppColors.inkSecondary,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 2,
-                ),
+                  letterSpacing: 2),
               ),
             ),
             const SizedBox(height: 28),
 
             // Entity info
-            _SectionHeader(
-                title: 'ENTITY INFO', icon: LucideIcons.building2),
+            SectionHeading('ENTITY INFO', icon: LucideIcons.building2),
             const SizedBox(height: 12),
             _buildField(
               label: 'Supplier / Company Name',
@@ -239,8 +233,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
             const SizedBox(height: 28),
 
             // Contact details
-            _SectionHeader(
-                title: 'CONTACT DETAILS', icon: LucideIcons.phone),
+            SectionHeading('CONTACT DETAILS', icon: LucideIcons.phone),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -277,7 +270,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
             const SizedBox(height: 28),
 
             // Notes — internal supplier remarks (matches web 'notes' column).
-            _SectionHeader(title: 'NOTES', icon: LucideIcons.stickyNote),
+            SectionHeading('NOTES', icon: LucideIcons.stickyNote),
             const SizedBox(height: 12),
             _buildField(
               label: 'Internal notes',
@@ -319,11 +312,8 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEdit ? 'SAVE CHANGES' : 'ADD SUPPLIER',
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          letterSpacing: 1,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          letterSpacing: 1),
                       ),
                     ],
                   ),
@@ -372,12 +362,8 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
             fontSize: 14,
           ),
           labelText: label,
-          labelStyle: GoogleFonts.manrope(
-            color: AppColors.inkSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
+          labelStyle: AppText.label.copyWith(color: AppColors.inkSecondary,
+            letterSpacing: 0.5),
           floatingLabelBehavior: FloatingLabelBehavior.always,
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
@@ -391,34 +377,3 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 14, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: GoogleFonts.manrope(
-            color: AppColors.primary,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-          ),
-        ),
-      ],
-    );
-  }
-}

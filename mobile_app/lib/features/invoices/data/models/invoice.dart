@@ -11,6 +11,8 @@ class Invoice {
   final String? dueDate;      // YYYY-MM-DD — used for overdue detection
   final double grandTotal;    // total including tax
   final double paidAmount;    // amount already paid (partial or full)
+  /// Bill-level discount in money, when the source sale carried one.
+  final double discount;
   /// Actual tender, when recorded. Null on historical sales and on
   /// anything rung from a phone older than v1.5.73.
   final double? amountReceived;
@@ -52,6 +54,7 @@ class Invoice {
     this.dueDate,
     this.grandTotal = 0,
     this.paidAmount = 0,
+    this.discount = 0,
     this.amountReceived,
     this.paymentStatus = 'UNPAID',
     this.taxableAmount,
@@ -122,6 +125,7 @@ class Invoice {
       // balance due (was zeroed for anything not fully PAID — the Record
       // Payment sheet then showed the full total, not the remaining due).
       paidAmount:    s.paidAmount ?? ((s.paymentStatus?.toUpperCase() == 'PAID') ? total : 0.0),
+      discount:      s.discount ?? 0.0,
       amountReceived: s.amountReceived,
       paymentStatus: s.paymentStatus?.toUpperCase() ?? 'UNPAID',
       taxableAmount: taxable,

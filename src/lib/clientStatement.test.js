@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildClientStatement, closingBalance, parseItems } from './clientStatement';
+import { buildClientStatement, closingBalance, parseItems, runningTotalOfShown } from './clientStatement';
 
 /**
  * THOLIKUZHI VEG SHOP, exactly as production holds it on 7 Aug 2026.
@@ -280,5 +280,168 @@ describe('showing every bill, settled or not', () => {
     const rows = buildClientStatement({ client, sales: [sale], invoices: [inv], includeSettled: true });
     expect(rows.reduce((t, r) => t + r.debit, 0)).toBe(500);
     expect(rows[rows.length - 1].balance).toBe(0);
+  });
+});
+
+
+describe('runningTotalOfShown', () => {
+  // The rows a filtered statement shows. Balances are the WHOLE-ledger
+  // figures each row carries -- deliberately jumping around, because bills
+  // sit between these payments and are not on screen. That jumping is the
+  // thing this function exists to stop showing.
+  const payments = [
+    { id: 'p1', credit: 2030, debit: 0, balance: 3175 },
+    { id: 'p2', credit: 1145, debit: 0, balance: 2030 },
+    { id: 'p3', credit: 1700, debit: 0, balance: 5825 },
+    { id: 'p4', credit: 20,   debit: 0, balance: 5805 },
+  ];
+
+  it('accumulates only the column the filter is about', () => {
+    const { byId } = runningTotalOfShown(payments, 'PAYMENT');
+    expect(byId.get('p1')).toBe(2030);
+    expect(byId.get('p2')).toBe(3175);
+    expect(byId.get('p3')).toBe(4875);
+    expect(byId.get('p4')).toBe(4895);
+  });
+
+  it('never goes backwards, which the balance column did', () => {
+    // p2 -> p3 rose from 2,030 to 5,825 on the balance because a bill landed
+    // in between. A total of what is shown cannot do that.
+    const { byId } = runningTotalOfShown(payments, 'PAYMENT');
+    const seq = payments.map(r => byId.get(r.id));
+    for (let i = 1; i < seq.length; i++) expect(seq[i]).toBeGreaterThanOrEqual(seq[i - 1]);
+  });
+
+  it('totals what was shown', () => {
+    expect(runningTotalOfShown(payments, 'PAYMENT').total).toBe(4895);
+  });
+
+  it('accumulates debits for the bills filter', () => {
+    const bills = [
+      { id: 'b1', debit: 500, credit: 0 },
+      { id: 'b2', debit: 250, credit: 0 },
+    ];
+    const { byId, total } = runningTotalOfShown(bills, 'SALE');
+    expect(byId.get('b1')).toBe(500);
+    expect(byId.get('b2')).toBe(750);
+    expect(total).toBe(750);
+  });
+
+  it('is keyed by id so newest-first does not run the totals backwards', () => {
+    const { byId } = runningTotalOfShown(payments, 'PAYMENT');
+    // Rendering reversed must still show p4 as the largest cumulative figure.
+    const reversed = [...payments].reverse();
+    expect(byId.get(reversed[0].id)).toBe(4895);
+    expect(byId.get(reversed[reversed.length - 1].id)).toBe(2030);
+  });
+
+  it('is safe on empty and malformed rows', () => {
+    expect(runningTotalOfShown([], 'PAYMENT').total).toBe(0);
+    expect(runningTotalOfShown().total).toBe(0);
+    expect(runningTotalOfShown([{ id: 'x' }], 'PAYMENT').total).toBe(0);
+    expect(runningTotalOfShown([{ id: 'y', credit: '250' }], 'PAYMENT').total).toBe(250);
+  });
+});
+
+
+describe('a sale receipt names the method the customer actually used', () => {
+  const client = { id: 'C1' };
+  const saleOn = (method) => ([{
+    id: 'SALE-77', shopId: 'C1', clientId: 'C1', date: '2026-09-03',
+    totalAmount: 500, paidAmount: 500,
+    paymentMethod: method, paymentStatus: 'PAID', items: '[]',
+  }]);
+  const creditRowFor = (method) =>
+    buildClientStatement({ client, sales: saleOn(method), includeSettled: true })
+      .find(r => r.type === 'PAYMENT');
+
+  it('says UPI for a UPI sale', () => {
+    // It said "Payment (Cash)" for every counter sale regardless of method,
+    // so a card or UPI sale appeared on the customer's own statement as cash.
+    expect(creditRowFor('UPI').description).toContain('Payment (UPI)');
+  });
+
+  it('says Card for a card sale', () => {
+    expect(creditRowFor('CARD').description).toContain('Payment (Card)');
+  });
+
+  it('still says Cash for a cash sale', () => {
+    expect(creditRowFor('CASH').description).toContain('Payment (Cash)');
+  });
+
+  it('renders an unmapped method as a word, not a constant', () => {
+    expect(creditRowFor('CREDIT_SALE').description).toContain('Payment (Credit sale)');
+  });
+
+  it('falls back to Cash when the sale carries no method at all', () => {
+    expect(creditRowFor(undefined).description).toContain('Payment (Cash)');
+  });
+});
+
+describe('an invoice whose sale is no longer loaded', () => {
+  // Both sales and invoices arrive capped at the 500 most recent rows, and
+  // there are far more sales than invoices, so an old invoice routinely
+  // outlives its sale. The statement then knew the bill and not the payment.
+  const client = { id: 'C1', name: 'Kuzhivila Store' };
+
+  const paidInvoice = (id, total) => ({
+    id, client_id: 'C1', sale_id: `SAL-${id}`, invoice_number: id,
+    invoice_date: '2026-05-16', grand_total: total,
+    paid_amount: 0, payment_status: 'PAID',
+  });
+
+  it('credits a counter-settled bill even with no sale to read it from', () => {
+    const rows = buildClientStatement({
+      client,
+      sales: [],                       // the 500-row window has moved past May
+      invoices: [paidInvoice('INV-A', 12340)],
+      paymentHistory: [],
+      saleReceipts: [],
+      includeSettled: true,
+    });
+    const debit  = rows.reduce((s, r) => s + (r.debit || 0), 0);
+    const credit = rows.reduce((s, r) => s + (r.credit || 0), 0);
+    expect(debit).toBe(12340);
+    expect(credit).toBe(12340);
+    expect(rows[rows.length - 1].balance).toBe(0);
+  });
+
+  it('leaves the closing balance at what is genuinely owed', () => {
+    // The real shape of the bug: five settled May bills (27,970) plus one
+    // September credit sale part-paid, which is the only real debt.
+    const settled = [
+      paidInvoice('INV-1', 360), paidInvoice('INV-2', 12340),
+      paidInvoice('INV-3', 650), paidInvoice('INV-4', 1500),
+      paidInvoice('INV-5', 13120),
+    ];
+    const open = {
+      id: 'INV-6', client_id: 'C1', sale_id: 'SAL-6', invoice_number: 'INV-0171',
+      invoice_date: '2026-09-19', grand_total: 9480,
+      paid_amount: 2125, payment_status: 'PARTIAL',
+    };
+    const rows = buildClientStatement({
+      client, sales: [], invoices: [...settled, open],
+      paymentHistory: [{ id: 'P1', client_id: 'C1', date: '2026-09-26', amount: 2125, payment_method: 'CASH' }],
+      saleReceipts: [], includeSettled: true,
+    });
+    expect(rows[rows.length - 1].balance).toBe(9480 - 2125);
+  });
+
+  it('does not credit a part-paid invoice twice', () => {
+    // PARTIAL is not the counter-settled shape, so the receipt in
+    // client_payments stays the only credit.
+    const rows = buildClientStatement({
+      client, sales: [],
+      invoices: [{
+        id: 'INV-9', client_id: 'C1', sale_id: 'SAL-9', invoice_number: 'INV-9',
+        invoice_date: '2026-09-19', grand_total: 1000,
+        paid_amount: 400, payment_status: 'PARTIAL',
+      }],
+      paymentHistory: [{ id: 'P9', client_id: 'C1', date: '2026-09-20', amount: 400, payment_method: 'CASH' }],
+      saleReceipts: [], includeSettled: true,
+    });
+    const credit = rows.reduce((s, r) => s + (r.credit || 0), 0);
+    expect(credit).toBe(400);
+    expect(rows[rows.length - 1].balance).toBe(600);
   });
 });

@@ -1,10 +1,13 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
+import 'package:mobile_app/features/dashboard/presentation/widgets/dash_common.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ── Role routing ──────────────────────────────────────────────────────────────
 
@@ -120,11 +123,11 @@ Future<void> _resolveAndOpenVanSale(
 Future<void> _showSaleTypeSheet(BuildContext context) {
   return showModalBottomSheet(
     context: context,
-    backgroundColor: AppColors.surface,
+    // The sheet floats: rounded on all four corners with a gap to the screen
+    // edge, as on the approved board (sales-03). The card draws itself.
+    backgroundColor: Colors.transparent,
+    elevation: 0,
     useRootNavigator: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
     builder: (_) => _SaleTypeSheet(parentContext: context),
   );
 }
@@ -176,56 +179,80 @@ class _SaleTypeSheetState extends State<_SaleTypeSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20, 24, 20, MediaQuery.of(context).viewInsets.bottom + 40,
+    final mq = MediaQuery.of(context);
+    return Container(
+      margin: EdgeInsets.fromLTRB(
+          8, 0, 8, 8 + mq.viewInsets.bottom + mq.padding.bottom),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: DashColors.card,
+        borderRadius: BorderRadius.circular(30),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Handle
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(99),
+          Row(
+            children: [
+              Expanded(
+                child: Text('New Sale',
+                    style: DashText.tight(17, w: FontWeight.w700)),
               ),
-            ),
+              AppTappable(
+                ripple: false,
+                onTap: () => Navigator.of(context).pop(),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Center(
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: const BoxDecoration(
+                          color: DashColors.well, shape: BoxShape.circle),
+                      child: const Icon(LucideIcons.x,
+                          size: 16, color: Color(0xFF4A5057)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          Text(
-            'New Sale',
-            style: GoogleFonts.manrope(
-              fontSize: 22, fontWeight: FontWeight.w800,
-              color: AppColors.inkPrimary, letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Where should stock be deducted from?',
-            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
-          ),
-          const SizedBox(height: 24),
-
-          _SaleTile(
-            icon: LucideIcons.shoppingBag,
-            iconColor: AppColors.primary,
-            title: 'POS Sale',
-            subtitle: 'Stock deducted from warehouse',
-            onTap: _goPOS,
-          ),
+          const SizedBox(height: 6),
+          Container(
+              height: 1,
+              color: DashColors.sep),
           const SizedBox(height: 12),
-          _SaleTile(
-            icon: LucideIcons.truck,
-            iconColor: AppColors.secondary,
-            title: 'Van Sale',
-            subtitle: 'Stock deducted from vehicle',
-            loading: _loadingVan,
-            onTap: _loadingVan ? null : _goVan,
+          Text('Where should stock be deducted from?',
+              style: DashText.inter(13, c: const Color(0xFF6E737A))),
+          const SizedBox(height: 12),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _SaleTile(
+                    icon: LucideIcons.store,
+                    filled: true,
+                    title: 'POS Sale',
+                    subtitle: 'Stock deducted from warehouse',
+                    onTap: _goPOS,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _SaleTile(
+                    icon: LucideIcons.truck,
+                    filled: false,
+                    title: 'Van Sale',
+                    subtitle: 'Stock deducted from vehicle',
+                    loading: _loadingVan,
+                    onTap: _loadingVan ? null : _goVan,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
         ],
       ),
     );
@@ -234,9 +261,10 @@ class _SaleTypeSheetState extends State<_SaleTypeSheet> {
 
 // ── Tile ──────────────────────────────────────────────────────────────────────
 
+/// One of the two choices. [filled] is the amber POS tile; the other is grey.
 class _SaleTile extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
+  final bool filled;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
@@ -244,7 +272,7 @@ class _SaleTile extends StatelessWidget {
 
   const _SaleTile({
     required this.icon,
-    required this.iconColor,
+    required this.filled,
     required this.title,
     required this.subtitle,
     this.onTap,
@@ -253,54 +281,60 @@ class _SaleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final fg = filled ? Colors.white : DashColors.ink;
+    final chip = filled ? const Color(0x38FFFFFF) : DashColors.card;
+    return AppTappable(
+      ripple: false,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(18),
+        constraints: const BoxConstraints(minHeight: 150),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.canvas,
+          color: filled ? DashColors.amber : const Color(0xFFF6F5F3),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 48, height: 48,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
+                color: chip,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(icon, size: 22, color: iconColor),
+              child: Icon(icon,
+                  size: 22,
+                  color: filled ? Colors.white : const Color(0xFF2563EB)),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.manrope(
-                      fontSize: 16, fontWeight: FontWeight.w700,
-                      color: AppColors.inkPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13, color: AppColors.inkSecondary,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 14),
+            Text(title, style: DashText.tight(16, c: fg)),
+            const SizedBox(height: 3),
+            Text(
+              subtitle,
+              style: DashText.inter(12,
+                      c: filled
+                          ? const Color(0xE0FFFFFF)
+                          : const Color(0xFF7A8088))
+                  .copyWith(height: 1.35),
+            ),
+            const SizedBox(height: 14),
+            const Spacer(),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(color: chip, shape: BoxShape.circle),
+                child: loading
+                    ? Padding(
+                        padding: const EdgeInsets.all(7),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: fg),
+                      )
+                    : Icon(LucideIcons.arrowRight, size: 16, color: fg),
               ),
             ),
-            if (loading)
-              const SizedBox(
-                width: 18, height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.secondary),
-              )
-            else
-              const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.inkTertiary),
           ],
         ),
       ),
@@ -347,7 +381,8 @@ class _VehiclePicker extends StatelessWidget {
             final id    = v['id'] as String;
             final name  = (v['name'] as String?) ?? 'Vehicle';
             final plate = (v['plate'] ?? v['plateNumber']) as String? ?? '';
-            return GestureDetector(
+            return AppTappable(
+   ripple: false,
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -384,16 +419,12 @@ class _VehiclePicker extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(name,
-                            style: GoogleFonts.manrope(
-                              fontSize: 15, fontWeight: FontWeight.w700,
-                              color: AppColors.inkPrimary,
-                            ),
+                            style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                              color: AppColors.inkPrimary),
                           ),
                           if (plate.isNotEmpty)
                             Text(plate,
-                              style: GoogleFonts.manrope(
-                                fontSize: 13, color: AppColors.inkTertiary,
-                              ),
+                              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                             ),
                         ],
                       ),
@@ -402,7 +433,7 @@ class _VehiclePicker extends StatelessWidget {
                   ],
                 ),
               ),
-            );
+ );
           }),
         ],
       ),

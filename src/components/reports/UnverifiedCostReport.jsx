@@ -151,11 +151,11 @@ const UnverifiedCostReport = () => {
     <>
       <div className="no-print flex items-center justify-end gap-2 mb-3">
         <button onClick={() => refetch?.()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border text-[11px] font-semibold text-ink-secondary hover:bg-card transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-[11px] font-semibold text-ink-secondary hover:bg-card transition-colors">
           <RefreshCw size={13} /> Refresh
         </button>
         <button onClick={exportExcel}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors">
           <Download size={13} /> Excel
         </button>
       </div>

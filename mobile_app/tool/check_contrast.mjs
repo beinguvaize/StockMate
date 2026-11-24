@@ -63,6 +63,43 @@ const PAIRS = [
   ['outline', 'canvas', 3, 'control border'],
   ['slate600', 'canvas', 4.5, 'slate body text'],
   ['slate500', 'canvas', 4.5, 'slate muted text'],
+
+  // Brand fill: the literal logo orange. White on it is 2.25:1, which is why
+  // the logo's own navy is the ink and white is never used.
+  ['onBrandFill', 'brandFill', 4.5, 'ink on the logo orange'],
+  ['onSurface', 'brandFill', 4.5, 'body ink on the logo orange'],
+
+  // Inverse surface — where money lives.
+  ['onSurfaceInverse', 'surfaceInverse', 4.5, 'text on the dark card'],
+  ['onSurfaceInverse', 'surfaceInverseDeep', 4.5, 'text on the dark card, deep end'],
+  ['onSurfaceInverseMuted', 'surfaceInverse', 4.5, 'muted label on the dark card'],
+  ['brandFill', 'surfaceInverse', 3, 'brand accent on the dark card'],
+  ['successOnInverse', 'surfaceInverse', 4.5, 'profit figure on the dark card'],
+  ['errorOnInverse', 'surfaceInverse', 4.5, 'loss figure on the dark card'],
+  ['successOnInverse', 'surfaceInverseDeep', 4.5, 'profit figure, deep end'],
+  ['errorOnInverse', 'surfaceInverseDeep', 4.5, 'loss figure, deep end'],
+
+  // Warm ground carries the same text as the white one.
+  ['onSurface', 'canvasWarm', 4.5, 'body text on the warm ground'],
+  ['onSurfaceVariant', 'canvasWarm', 4.5, 'secondary text on the warm ground'],
+  ['inkTertiary', 'canvasWarm', 4.5, 'muted text on the warm ground'],
+  ['primary', 'canvasWarm', 4.5, 'brand text on the warm ground'],
+
+  // Account category headings are 13px tracked text, so they are body text
+  // for contrast purposes and need 4.5, not the 3 a chip or icon would.
+  ['accountCash', 'canvasWarm', 4.5, 'cash heading on the warm ground'],
+  ['accountBank', 'canvasWarm', 4.5, 'bank heading on the warm ground'],
+  ['accountUpi', 'canvasWarm', 4.5, 'upi heading on the warm ground'],
+
+  // Invoice status labels are 13px text carrying the state, so they need the
+  // body-text ratio on the warm ground, not the 3:1 a dot alone would.
+  ['error', 'canvasWarm', 4.5, 'overdue label on the warm ground'],
+  ['warning', 'canvasWarm', 4.5, 'partial label on the warm ground'],
+
+  // Inventory leans on both of these at 13px and neither had been measured.
+  ['success', 'canvasWarm', 4.5, 'healthy margin on the warm ground'],
+  ['warning', 'warningContainer', 4.5, 'low-stock tile, ink on its own fill'],
+  // 'Other' uses inkSecondary, an alias for onSurfaceVariant, measured above.
 ];
 
 let failures = 0;

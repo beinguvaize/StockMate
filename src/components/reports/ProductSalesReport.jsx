@@ -14,6 +14,7 @@ import ReportHeader from './ReportHeader';
 import { SectionHead } from './ReportBits'; // local KPI variant kept (truncate)
 import { presetRange, isCountableSale } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
+import { useLinkedRange } from '../../lib/linkedRange';
 
 const KPI = ({ label, value, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
   <div className="bg-card rounded-[10px] border border-border/60 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
@@ -29,8 +30,9 @@ const KPI = ({ label, value, icon: Icon, color = 'var(--color-accent-signature)'
 );
 
 const ProductSalesReport = () => {
-  const [preset, setPreset]       = useState('TODAY');
-  const [range,  setRange]        = useState(() => presetRange('TODAY'));
+  const linked = useLinkedRange();
+  const [preset, setPreset] = useState(linked ? 'CUSTOM' : 'TODAY');
+  const [range, setRange] = useState(() => (linked ? { start: linked.from, end: linked.to } : presetRange('TODAY')));
   const [customStart, setCustomStart] = useState('');
   const [customEnd,   setCustomEnd]   = useState('');
   const [showCustom,  setShowCustom]  = useState(false);
@@ -211,7 +213,7 @@ const ProductSalesReport = () => {
               <div className="text-[10px] text-muted-foreground tabular-nums">{selectedProduct.sku || '—'} · list {formatCurrency(selectedProduct.sellingPrice || 0)}</div>
             </div>
             <button onClick={() => setProductId('')}
-              className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50">
+              className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-pill hover:bg-red-50">
               Change
             </button>
           </div>

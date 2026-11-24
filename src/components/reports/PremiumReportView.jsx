@@ -28,6 +28,7 @@ import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 const COLOR_HEX = {
   indigo: 'var(--color-accent-signature)', emerald: '#10b981', amber: '#f59e0b', rose: '#ef4444',
   orange: '#f97316', sky: '#0ea5e9', violet: '#8b5cf6', blue: '#3b82f6',
+  slate: 'var(--color-ink-tertiary)',
 };
 const PIE_COLORS = ['var(--color-accent-signature)', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
@@ -86,7 +87,7 @@ const KPI = ({ card, loading }) => {
       </div>
       {loading
         ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-        : <div className="tabular-nums text-2xl font-semibold text-foreground tabular-nums leading-none truncate">
+        : <div className={`tabular-nums font-semibold text-foreground leading-none ${String(kpiDisplay(card.label, card.value)).length > 10 ? 'text-[14px] sm:text-2xl' : 'text-2xl truncate'}`}>
             {kpiDisplay(card.label, card.value)}
           </div>
       }
@@ -204,7 +205,7 @@ const ChartPanel = ({ config, loading }) => {
 /* ════════════════════════════════════════════════════════════════════════════
    MAIN
    ════════════════════════════════════════════════════════════════════════════ */
-const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow = null }) => {
+const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow = null, initialTabId = null }) => {
   const { hasPermission } = useAuth();
   const { businessProfile, currentTenant } = useTenant();
   const [exportOpen, setExportOpen] = useState(false);
@@ -220,7 +221,8 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
     [tabs, hasPermission]
   );
 
-  const [activeId, setActiveId] = useState(allowedTabs[0]?.id);
+  const [activeId, setActiveId] = useState(
+    allowedTabs.some((t) => t.id === initialTabId) ? initialTabId : allowedTabs[0]?.id);
   const activeTab = useMemo(
     () => allowedTabs.find(t => t.id === activeId) || allowedTabs[0],
     [activeId, allowedTabs]
@@ -302,7 +304,7 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
           <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
             {PRESETS.map(p => (
               <button key={p.id} onClick={() => dateWindow.headerProps.onPreset(p.id)}
-                className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                className={`px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
                   dateWindow.preset === p.id
                     ? 'bg-card text-foreground font-semibold shadow-sm'
                     : 'text-muted-foreground font-medium hover:text-foreground'}`}>
@@ -317,7 +319,7 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
           <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
             {allowedTabs.map(t => (
               <button key={t.id} onClick={() => setActiveId(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
                   activeTab.id === t.id
                     ? 'bg-card text-foreground font-semibold shadow-sm'
                     : 'text-muted-foreground font-medium hover:text-foreground'
@@ -330,7 +332,7 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
 
         <div className="relative no-print" ref={exportMenuRef}>
           <button onClick={() => setExportOpen(o => !o)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md shadow-accent-signature/25 transition-all">
+            className="flex items-center gap-2 px-4 py-2 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md transition-all">
             <Download size={13} /> Export <ChevronDown size={12} className={`transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
           </button>
           {exportOpen && (
@@ -365,7 +367,10 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
           <SectionHead title={activeTab.label} sub={`${(activeTab.data || []).length} records`} />
         </div>
         <div className="p-4">
+          {/* key: columns, sort and paging belong to a tab. Without it the table
+              kept the first tab's column list and lost the second tab's. */}
           <ReportTable
+            key={activeTab.id}
             columns={activeTab.columns || []}
             data={activeTab.data || []}
             loading={loading}

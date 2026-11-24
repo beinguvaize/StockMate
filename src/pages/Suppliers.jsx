@@ -261,14 +261,14 @@ const Suppliers = () => {
    <div className="flex items-center gap-2">
      {!isViewOnly() && (
        <button
-         className="h-10 px-4 rounded-xl bg-white border border-black/10 text-ink-primary text-[13px] font-bold flex items-center gap-2 hover:bg-black/[0.03] transition-all"
+         className="h-10 px-4 rounded-pill bg-white border border-black/10 text-ink-primary text-[13px] font-bold flex items-center gap-2 hover:bg-black/[0.03] transition-all"
          onClick={() => { window.location.href = '/bulk-add?type=suppliers'; }}>
          Bulk Import
        </button>
      )}
      {!isViewOnly() && (
        <button data-testid="onboard-partner-btn"
-         className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all"
+         className="h-10 px-4 rounded-pill bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all"
          onClick={() => setIsAdding(true)}>
          <Plus size={15} strokeWidth={2.6} /> Add supplier
        </button>
@@ -299,7 +299,7 @@ const Suppliers = () => {
  <h1 className="text-lg font-semibold text-ink-primary leading-none mb-1">Add Supplier</h1>
  <p className="text-[10px] font-semibold text-ink-secondary opacity-60">Register a new supplier</p>
  </div>
- <button className="w-7 h-7 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer" onClick={() => setIsAdding(false)}>
+ <button className="w-7 h-7 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer" onClick={() => setIsAdding(false)}>
  <X size={14} />
  </button>
  </div>
@@ -351,7 +351,7 @@ const Suppliers = () => {
             <p className="text-[10px] font-semibold text-ink-secondary opacity-60">Update supplier details</p>
           </div>
           <button 
-            className="w-7 h-7 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer" 
+            className="w-7 h-7 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer" 
             onClick={() => {
               setEditingSupplier(null);
               setFormData({ name: '', contact_person: '', phone: '', email: '', address: '', notes: ''});

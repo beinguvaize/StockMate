@@ -216,14 +216,14 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
           type="button"
           onClick={onCancel}
           disabled={submitting}
-          className="flex-1 px-4 py-2.5 rounded-xl bg-black/5 hover:bg-black/10 text-sm font-semibold text-foreground disabled:opacity-50"
+          className="flex-1 px-4 py-2.5 rounded-pill bg-black/5 hover:bg-black/10 text-sm font-semibold text-foreground disabled:opacity-50"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={submitting}
-          className="flex-1 px-4 py-2.5 rounded-xl bg-accent-signature text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50"
+          className="flex-1 px-4 py-2.5 rounded-pill bg-accent-signature text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50"
         >
           {submitting ? 'Converting…' : 'Issue GST Invoice'}
         </button>

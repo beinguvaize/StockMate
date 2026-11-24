@@ -89,7 +89,7 @@ export const EmptyState = ({
     {action && (
       <button
         onClick={action.onClick}
-        className="mt-5 inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-accent-signature text-white text-xs font-bold hover:bg-accent-signature-hover shadow-md shadow-accent-signature/25 transition-colors"
+        className="mt-5 inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-accent-signature text-white text-xs font-bold hover:bg-accent-signature-hover shadow-md transition-colors"
       >
         {action.icon}{action.label}
       </button>
@@ -113,7 +113,7 @@ export const ErrorState = ({
     {onRetry && (
       <button
         onClick={onRetry}
-        className="mt-5 inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-white border border-black/[0.08] text-ink-primary text-xs font-bold hover:bg-black/[0.03] transition-colors"
+        className="mt-5 inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-white border border-black/[0.08] text-ink-primary text-xs font-bold hover:bg-black/[0.03] transition-colors"
       >
         <RefreshCcw size={14} /> Retry
       </button>

@@ -126,7 +126,7 @@ const GSTR2BReconReport = () => {
         </div>
         <input ref={fileRef} type="file" accept=".json,application/json" onChange={onFile} className="hidden" />
         <button onClick={() => fileRef.current?.click()}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-ink-primary text-white text-[11px] font-semibold hover:opacity-90 transition-colors">
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-pill bg-ink-primary text-white text-[11px] font-semibold hover:opacity-90 transition-colors">
           <Upload size={14} /> Upload GSTR-2B JSON
         </button>
       </div>

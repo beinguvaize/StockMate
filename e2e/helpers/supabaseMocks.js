@@ -51,8 +51,16 @@ export const MOCK_TENANT = {
 };
 
 export const MOCK_PRODUCTS = [
-  { id: 'PROD-001', name: 'Widget A', sku: 'WGT-001', category: 'General', stock: 100, sellingPrice: 50, costPrice: 30, taxRate: 18, tenant_id: TENANT_ID },
-  { id: 'PROD-002', name: 'Gadget B', sku: 'GDG-002', category: 'General', stock: 50,  sellingPrice: 120, costPrice: 80, taxRate: 18, tenant_id: TENANT_ID },
+  // Widget A carries a 13-digit EAN that begins with a zero, because that is
+  // the case the till used to get wrong: the label on the shelf is the
+  // 12-digit UPC-A form and an exact string compare never matched it.
+  { id: 'PROD-001', name: 'Widget A', sku: 'WGT-001', barcode: '0012345678905', category: 'General', stock: 100, sellingPrice: 50, costPrice: 30, taxRate: 18, tenant_id: TENANT_ID },
+  { id: 'PROD-002', name: 'Gadget B', sku: 'GDG-002', barcode: '8901234567890', category: 'General', stock: 50,  sellingPrice: 120, costPrice: 80, taxRate: 18, tenant_id: TENANT_ID },
+  // Shares the 12-digit substring with Widget A's barcode ('...12345678905').
+  // That is what makes the UPC case a real miss rather than one the old fuzzy
+  // fallback happened to cover: with two substring matches it resolved to
+  // NEITHER and the scan silently did nothing.
+  { id: 'PROD-003', name: 'Doohickey C', sku: 'DOO-003', barcode: '912345678905', category: 'General', stock: 25, sellingPrice: 75, costPrice: 40, taxRate: 18, tenant_id: TENANT_ID },
 ];
 
 export const MOCK_CLIENTS = [
@@ -62,8 +70,52 @@ export const MOCK_CLIENTS = [
 
 export const MOCK_SUPPLIER = { id: 'SUP-001', name: 'Supplier X', tenant_id: TENANT_ID };
 
+// Purchases in the three states the list has to tell apart: fully settled,
+// part paid, and nothing paid and overdue. With an empty fixture the whole
+// screen rendered as an empty state and could not be looked at.
+const _day = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+export const MOCK_PURCHASES = [
+  { id: 'PUR-1', supplier_id: 'SUP-001', supplier_name: 'Hassan Kouser Sivakasi', linked_product_id: 'PROD-001',
+    date: _day(2), created_at: _day(2) + 'T09:12:00.000Z', payment_type: 'CASH',
+    total_amount: 13800, paid_amount: 13800, quantity: 150, status: 'RECEIVED', tenant_id: TENANT_ID },
+  { id: 'PUR-2', supplier_id: 'SUP-001', supplier_name: 'Reno John', linked_product_id: 'PROD-002',
+    date: _day(5), created_at: _day(5) + 'T11:04:00.000Z', payment_type: 'CREDIT',
+    total_amount: 32320, paid_amount: 12000, quantity: 43, status: 'RECEIVED', tenant_id: TENANT_ID },
+  { id: 'PUR-3', supplier_id: 'SUP-001', supplier_name: 'Astra Bio Carry Bags', linked_product_id: 'PROD-001',
+    date: _day(48), created_at: _day(48) + 'T10:00:00.000Z', payment_type: 'CREDIT',
+    total_amount: 9300, paid_amount: 0, quantity: 30, status: 'PENDING', tenant_id: TENANT_ID },
+  // Two rows written seconds apart by the multi-item form, so they group into
+  // ONE bill with two lines. Without a multi-line bill in the fixtures the
+  // expanded child rows never render in a test, and a column-count mismatch
+  // between a bill row and its lines ships unseen -- which is exactly what
+  // happened when the table went from six columns to seven.
+  { id: 'PUR-4', supplier_id: 'SUP-001', supplier_name: 'Madeena Agency', linked_product_id: 'PROD-001',
+    date: _day(9), created_at: _day(9) + 'T14:20:10.000Z', payment_type: 'CREDIT',
+    total_amount: 11000, paid_amount: 4000, quantity: 100, status: 'RECEIVED', tenant_id: TENANT_ID },
+  { id: 'PUR-5', supplier_id: 'SUP-001', supplier_name: 'Madeena Agency', linked_product_id: 'PROD-002',
+    date: _day(9), created_at: _day(9) + 'T14:20:11.700Z', payment_type: 'CREDIT',
+    total_amount: 6250, paid_amount: 0, quantity: 25, status: 'RECEIVED', tenant_id: TENANT_ID },
+];
+
+// Two daily-wage staff, because the payroll attendance grid only renders when
+// a tenant has them -- with the old empty fixture that whole screen was
+// untestable, and a test written against it passed by returning early.
+export const MOCK_EMPLOYEES = [
+  { id: 'EMP-001', name: 'Akbar',    pay_type: 'DAILY', daily_rate: 900, salary: 0, status: 'ACTIVE', tenant_id: TENANT_ID },
+  { id: 'EMP-002', name: 'Nadirsha', pay_type: 'DAILY', daily_rate: 900, salary: 0, status: 'ACTIVE', tenant_id: TENANT_ID },
+];
+
 export const MOCK_INVENTORY_BALANCES = [
   { product_id: 'PROD-001', location_id: '00000000-0000-0000-0000-000000000001', quantity: 75, tenant_id: TENANT_ID }
+];
+
+// Two places, because a shop with one cannot transfer anything and the screen
+// that moves stock between them has nothing to render. Deliberately NO second
+// balance row: the inventory page sums balances per product, and adding one
+// would change the 75 that the stock-override test exists to pin.
+export const MOCK_INVENTORY_LOCATIONS = [
+  { id: '00000000-0000-0000-0000-000000000001', name: 'Main Warehouse', type: 'WAREHOUSE', address: '', tenant_id: TENANT_ID, deleted_at: null },
+  { id: '00000000-0000-0000-0000-000000000002', name: 'Second Counter', type: 'WAREHOUSE', address: '', tenant_id: TENANT_ID, deleted_at: null },
 ];
 
 // ─── Auth session injected into localStorage ──────────────────────────────────
@@ -145,17 +197,18 @@ export async function seedAppCache(page, isStaff = false) {
       'ledgr_sales':            entry([]),
       'ledgr_expenses':         entry([]),
       'ledgr_users':            entry([isStaff ? MOCK_STAFF_USER : MOCK_USER]),
-      'ledgr_employees':        entry([]),
+      'ledgr_employees':        entry(MOCK_EMPLOYEES),
       'ledgr_payroll':          entry([]),
       'ledgr_business_profile': entry({ id: 'BP-1', name: 'Test Co', currency: 'USD', currencySymbol: '$', tenant_id: TENANT_ID }),
       'ledgr_day_book':         entry([]),
       'ledgr_client_payments':  entry([]),
       'ledgr_vehicles':         entry([]),
       'ledgr_routes':           entry([]),
-      'ledgr_purchases':        entry([]),
+      'ledgr_purchases':        entry(MOCK_PURCHASES),
       'ledgr_suppliers':        entry([MOCK_SUPPLIER]),
       'ledgr_movement_log':     entry([]),
       'ledgr_inventory_balances': entry(MOCK_INVENTORY_BALANCES),
+      'ledgr_inventory_locations': entry(MOCK_INVENTORY_LOCATIONS),
       'ledgr_invoices':         entry([]),
     },
   });
@@ -204,7 +257,7 @@ export async function setupMocks(page, isStaff = false) {
     clients:             MOCK_CLIENTS,
     sales:               [],
     expenses:            [],
-    employees:           [],
+    employees:           MOCK_EMPLOYEES,
     payroll:             [],
     business_profile:    [{ id: 'BP-1', name: 'Test Co', currency: 'USD', currencySymbol: '$', tenant_id: TENANT_ID }],
     day_book:            [],
@@ -213,9 +266,9 @@ export async function setupMocks(page, isStaff = false) {
     vehicles:            [],
     movement_log:        [],
     routes:              [],
-    inventory_locations: [],
+    inventory_locations: MOCK_INVENTORY_LOCATIONS,
     inventory_balances:  MOCK_INVENTORY_BALANCES,
-    purchases:           [],
+    purchases:           MOCK_PURCHASES,
     invoices:            [],
     audit_log:           [],
     suppliers:           [MOCK_SUPPLIER],
@@ -234,7 +287,11 @@ export async function setupMocks(page, isStaff = false) {
         return;
       }
       // GET → return fixture array (or single object for business_profile maybeSingle)
-      const isSingle = url.includes('limit=1') || table === 'business_profile';
+      // `limit=1` means maybeSingle. It must be the WHOLE value: a paged read
+      // asks for limit=1000, and `'limit=1000'.includes('limit=1')` is true, so
+      // the mock answered every paged query with a single object where the
+      // client expected an array -- and the screen rendered empty.
+      const isSingle = /[?&]limit=1(&|$)/.test(url) || table === 'business_profile';
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -10,6 +11,7 @@ import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/theme/typography.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile_app/features/auth/presentation/phone_login_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 // Keystore-backed credential storage for the "Remember me" + biometric
 // unlock features. Both rely on the device hardware-backed keystore so the
@@ -29,6 +31,9 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
+  // Android has fingerprint; Face ID is Apple's name.
+  static String get _bioName => Platform.isAndroid ? 'fingerprint' : 'Face ID';
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _biometric = BiometricService();
@@ -67,7 +72,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _tryBiometricUnlock() async {
     if (!_biometricAvailable) return;
     final ok = await _biometric.authenticate(
-      reason: 'Unlock LedgrPro with biometrics',
+      reason: 'Unlock bookledger with biometrics',
     );
     if (!mounted || !ok) return;
     await _handleLogin();
@@ -189,7 +194,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: AppColors.canvasWarm,
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
@@ -264,18 +269,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             }),
                             visualDensity: VisualDensity.compact,
                             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            activeColor: AppColors.primaryContainer,
+                            activeColor: AppColors.brandFill,
+                            checkColor: AppColors.onBrandFill,
                           ),
                           const SizedBox(width: 4),
                           Expanded(
-                            child: GestureDetector(
+                            child: AppTappable(
+   ripple: false,
                               onTap: () => setState(() {
                                 _rememberMe = !_rememberMe;
                                 if (!_rememberMe) _biometricEnabled = false;
                               }),
                               child: Text('Remember me on this device',
                                   style: AppText.body),
-                            ),
+ ),
                           ),
                         ],
                       ),
@@ -292,14 +299,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   : null,
                               visualDensity: VisualDensity.compact,
                               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              activeColor: AppColors.primaryContainer,
+                              activeColor: AppColors.brandFill,
+                            checkColor: AppColors.onBrandFill,
                             ),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
                                 _rememberMe
-                                    ? 'Unlock with Face ID / fingerprint'
-                                    : 'Unlock with Face ID (enable Remember me first)',
+                                    ? 'Unlock with $_bioName'
+                                    : 'Unlock with $_bioName (enable Remember me first)',
                                 style: AppText.body.copyWith(
                                   color: _rememberMe
                                       ? AppColors.onSurface
@@ -344,8 +352,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.onPrimary,
+                            backgroundColor: AppColors.brandFill,
+                            foregroundColor: AppColors.onBrandFill,
                             elevation: 0,
                             shape: const RoundedRectangleBorder(
                                 borderRadius: Radii.rSm),
@@ -355,7 +363,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   height: 20,
                                   width: 20,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: AppColors.onPrimary),
+                                      strokeWidth: 2, color: AppColors.onBrandFill),
                                 )
                               : Text('Sign in',
                                   style: AppText.label.copyWith(
@@ -475,6 +483,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     TextInputType? keyboardType,
     Widget? suffix,
   }) {
+    // The label sits ABOVE the field rather than inside it. A placeholder
+    // leaves the moment you type, so the one time you most need to know
+    // which box you are in -- halfway through filling it -- is the one time
+    // the answer is gone. It also gives the field a real label for a screen
+    // reader instead of a hint.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(hint.toUpperCase(), style: AppText.eyebrow),
+        const SizedBox(height: Gap.xs),
+        _field(
+          controller: controller,
+          hint: hint,
+          icon: icon,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          suffix: suffix,
+        ),
+      ],
+    );
+  }
+
+  Widget _field({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool obscureText = false,
+    TextInputType? keyboardType,
+    Widget? suffix,
+  }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
@@ -498,7 +536,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         focusedBorder: const OutlineInputBorder(
           borderRadius: Radii.rSm,
-          borderSide: BorderSide(color: AppColors.onSurface, width: 1.5),
+          // AppColors.primary, not brandFill: this is a 2px stroke, and
+          // brandFill against the canvas is 2.25:1, under the 3:1 a boundary
+          // needs. The fill colour and the stroke colour are not the same job.
+          borderSide: BorderSide(color: AppColors.primary, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(vertical: 16),
       ),

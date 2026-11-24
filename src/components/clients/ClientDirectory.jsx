@@ -95,7 +95,7 @@ const ClientDirectory = ({
             <button
               key={f}
               onClick={() => setStatusFilter(f)}
-              className={`px-4 py-1.5 rounded-lg text-[12px] font-bold capitalize transition-all ${
+              className={`px-4 py-1.5 rounded-pill text-[12px] font-bold capitalize transition-all ${
                 statusFilter === f ? 'bg-white text-ink-primary shadow-sm' : 'text-muted-foreground hover:text-ink-primary'
               }`}
             >
@@ -110,7 +110,7 @@ const ClientDirectory = ({
             <button
               key={k}
               onClick={() => setDueFilter?.(k)}
-              className={`px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
+              className={`px-4 py-1.5 rounded-pill text-[12px] font-bold transition-all ${
                 dueFilter === k
                   ? (k === 'DUE' ? 'bg-white text-red-600 shadow-sm' : k === 'CLEARED' ? 'bg-white text-emerald-600 shadow-sm' : 'bg-white text-ink-primary shadow-sm')
                   : 'text-muted-foreground hover:text-ink-primary'
@@ -136,14 +136,14 @@ const ClientDirectory = ({
 
           <button
             onClick={() => navigate('/bulk-add?type=clients')}
-            className="h-10 px-4 rounded-xl bg-white border border-black/10 text-ink-primary text-[13px] font-bold flex items-center gap-2 hover:bg-black/[0.03] transition-all"
+            className="h-10 px-4 rounded-pill bg-white border border-black/10 text-ink-primary text-[13px] font-bold flex items-center gap-2 hover:bg-black/[0.03] transition-all"
           >
             Bulk Add
           </button>
           {(topMetrics?.pendingCollections > 0) && (
             <button
               onClick={() => navigate('/clients/collect')}
-              className="h-10 px-4 rounded-xl bg-emerald-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-emerald-700 transition-all"
+              className="h-10 px-4 rounded-pill bg-emerald-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-emerald-700 transition-all"
             >
               <CreditCard size={15} strokeWidth={2.6} /> Collect Cash
             </button>
@@ -152,7 +152,7 @@ const ClientDirectory = ({
           {hasPermission('clients', 'edit') && (
             <button
               onClick={openAdd}
-              className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all"
+              className="h-10 px-4 rounded-pill bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all"
             >
               <Plus size={15} strokeWidth={2.6} /> New client
             </button>
@@ -283,7 +283,7 @@ const ClientDirectory = ({
                     <button
                       onClick={() => goToSettle(client.id)}
                       title="Settle account"
-                      className="h-7 px-3 rounded-lg bg-ink-primary text-white text-[11px] font-bold hover:bg-black transition-all"
+                      className="h-7 px-3 rounded-pill bg-ink-primary text-white text-[11px] font-bold hover:bg-black transition-all"
                     >
                       Settle
                     </button>
@@ -292,14 +292,14 @@ const ClientDirectory = ({
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => openEdit(client)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-all"
+                        className="w-7 h-7 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted transition-all"
                         title="Edit"
                       >
                         <Edit3 size={12} />
                       </button>
                       <button
                         onClick={() => { if (window.confirm('Delete this client?')) handleDelete(client.id); }}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-all"
+                        className="w-7 h-7 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-all"
                         title="Delete"
                       >
                         <Trash2 size={12} />

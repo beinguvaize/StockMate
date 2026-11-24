@@ -207,7 +207,7 @@ const PayHistory = ({ payrollRecords, currencySymbol, openPayRun, deletePayrollR
                               <button
                                 onClick={e => { e.stopPropagation(); setSlipTarget({ run: record, items: [item] }); }}
                                 title={`Salary slip for ${item.employeeName}`}
-                                className="w-7 h-7 rounded-lg border border-black/10 inline-flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:bg-canvas transition-colors"
+                                className="w-7 h-7 rounded-xl border border-black/10 inline-flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:bg-canvas transition-colors"
                               >
                                 <FileText size={12} />
                               </button>

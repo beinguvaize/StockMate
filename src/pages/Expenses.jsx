@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect} from 'react';
+import Button from '../shared/Button';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
+import { describeRecurring, recurringTemplateFor, scheduleLine, paymentLabel, WEEKDAYS } from '../lib/recurring';
 import { useFinance } from '../hooks/useFinance';
 import { useInventory } from '../hooks/useInventory';
 import { useAccounts, accountForMethod } from '../hooks/useAccounts';
@@ -101,6 +103,7 @@ const Expenses = () => {
    if (sortKey === key) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); }
    else { setSortKey(key); setSortDir(key === 'amount' ? 'desc' : 'desc'); }
  };
+ const [repeatHint, setRepeatHint] = useState('');
  const [isAdding, setIsAdding] = useState(false);
  const [editingExpense, setEditingExpense] = useState(null);
  const [saving, setSaving] = useState(false);
@@ -111,7 +114,7 @@ const Expenses = () => {
    category: 'Other',
    date: todayISOInAppTZ(),
    payment_method: 'CASH',
-   repeat_monthly: false,
+   repeat: 'NONE', weekdays: [1, 2, 3, 4, 5, 6, 7],
    gst_claimable: false,
    gst_rate: '18',
    vendor_gstin: '',
@@ -294,21 +297,21 @@ const Expenses = () => {
    ? await updateExpense({ ...expenseData, id: editingExpense.id })
    : await addExpense(expenseData);
 
- // When "Repeat monthly" is on for a NEW expense, also create a
- // recurring template. The day-of-month is taken from the chosen date;
- // the nightly generator clones it every following month. The expense
- // just logged covers the current month, so the template won't double-
- // generate today (its last_generated stays null until the next run on
- // a matching day, and the guard skips the current month after that).
- if (!error && !editingExpense && formData.repeat_monthly) {
-   const dom = parseInt((formData.date || todayISOInAppTZ()).split('-')[2], 10) || 1;
+ // When Repeat is on for a NEW expense, also create a recurring template.
+ // The expense just logged covers its own date; the nightly job (pg_cron,
+ // generate_due_recurring_expenses) carries on from the day after.
+ if (!error && !editingExpense && formData.repeat !== 'NONE') {
    const { error: tplErr } = await addRecurringTemplate({
-     note: note, amount, category: formData.category,
-     payment_method: formData.payment_method, day_of_month: dom,
+     note: note, amount, category: formData.category, payment_method: formData.payment_method,
+     // Carried onto every logged copy: store, P&L flag and GST.
+     location_id: expenseData.location_id, exclude_from_pl: !!formData.exclude_from_pl,
+     gst_rate, gst_amount, vendor_gstin,
+     ...recurringTemplateFor({ frequency: formData.repeat, weekdays: formData.weekdays, date: formData.date, today: todayISOInAppTZ() }),
    });
    if (tplErr) {
      setSaving(false);
-     setFormError('Expense saved, but recurring setup failed: ' + (tplErr.message || ''));
+     console.error('[expenses] recurring setup failed', tplErr);
+     setFormError('Expense saved, but the repeat could not be set up: ' + (tplErr.message || 'unknown error'));
      return;
    }
  }
@@ -326,7 +329,7 @@ const Expenses = () => {
 
  setIsAdding(false);
  setEditingExpense(null);
- setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false, gst_claimable: false, gst_rate: '18', vendor_gstin: '', location_id: '', exclude_from_pl: false });
+ setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat: 'NONE', weekdays: [1, 2, 3, 4, 5, 6, 7], gst_claimable: false, gst_rate: '18', vendor_gstin: '', location_id: '', exclude_from_pl: false });
 };
 
  const handleEdit = (expense) => {
@@ -338,7 +341,7 @@ const Expenses = () => {
      category: expense.category || 'Other',
      date: expense.date ? expense.date.split('T')[0] : todayISOInAppTZ(),
      payment_method: expense.payment_method || 'CASH',
-     repeat_monthly: false, // editing an existing one-off never re-arms recurring
+     repeat: 'NONE', weekdays: [1, 2, 3, 4, 5, 6, 7], // editing an existing one-off never re-arms recurring
      gst_claimable: !!expense.vendor_gstin || Number(expense.gst_amount) > 0,
      gst_rate: expense.gst_rate ? String(expense.gst_rate) : '18',
      vendor_gstin: expense.vendor_gstin || '',
@@ -353,7 +356,7 @@ const Expenses = () => {
    setEditingExpense(null);
    setFormError('');
    setSaving(false);
-   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false, gst_claimable: false, gst_rate: '18', vendor_gstin: '', location_id: '', exclude_from_pl: false });
+   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat: 'NONE', weekdays: [1, 2, 3, 4, 5, 6, 7], gst_claimable: false, gst_rate: '18', vendor_gstin: '', location_id: '', exclude_from_pl: false });
  };
 
  useEffect(() => {
@@ -379,9 +382,9 @@ const Expenses = () => {
  </div>
  <div className="flex items-center gap-2">
  {hasPermission('ADD_EXPENSE') && (
- <button className="flex items-center gap-2 text-xs font-black px-4 py-2.5 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white shadow-md shadow-accent-signature/25 transition-colors" onClick={() => setIsAdding(true)}>
+ <Button variant="amber" size="sm" onClick={() => setIsAdding(true)} className="gap-2">
  <Plus size={14} strokeWidth={2.5} /> Add Expense
- </button>
+ </Button>
  )}
  </div>
  </div>
@@ -407,12 +410,12 @@ const Expenses = () => {
        { k: 'week', label: 'Week' }, { k: 'month', label: 'Month' }, { k: 'lastmonth', label: 'Last Mo' },
      ].map(({ k, label }) => (
        <button key={k} onClick={() => setFilterType(k)}
-         className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors ${filterType === k ? 'bg-accent-signature text-white shadow-sm shadow-accent-signature/20' : 'text-muted-foreground hover:text-ink-primary'}`}>
+         className={`h-7 px-3 rounded-pill text-[11px] font-semibold whitespace-nowrap transition-colors ${filterType === k ? 'bg-accent-signature text-white' : 'text-ink-secondary hover:text-ink-primary'}`}>
          {label}
        </button>
      ))}
      <button onClick={() => setFilterType('range')}
-       className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors ${filterType === 'range' ? 'bg-accent-signature text-white shadow-sm shadow-accent-signature/20' : 'text-muted-foreground hover:text-ink-primary'}`}>
+       className={`h-7 px-3 rounded-pill text-[11px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors ${filterType === 'range' ? 'bg-accent-signature text-white' : 'text-ink-secondary hover:text-ink-primary'}`}>
        <Calendar size={12} /> Range
      </button>
    </div>
@@ -442,14 +445,14 @@ const Expenses = () => {
  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-black/[0.06] flex-wrap">
    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-1">Category</span>
    <button onClick={() => setCategoryFilter('ALL')}
-     className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors ${categoryFilter === 'ALL' ? 'bg-accent-signature text-white border-accent-signature' : 'bg-white border-black/10 text-muted-foreground hover:border-black/25'}`}>
+     className={`h-7 px-3 rounded-pill text-[11px] font-semibold border transition-colors ${categoryFilter === 'ALL' ? 'bg-accent-signature text-white border-accent-signature' : 'bg-surface border-black/10 text-ink-secondary hover:border-black/25'}`}>
      All
    </button>
    {Object.entries(categoryBreakdown)
      .sort((a, b) => b[1].total - a[1].total)
      .map(([cat, info]) => (
      <button key={cat} onClick={() => setCategoryFilter(cat === categoryFilter ? 'ALL' : cat)}
-       className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-accent-signature text-white border-accent-signature' : 'bg-white border-black/10 text-muted-foreground hover:border-black/25'}`}>
+       className={`h-7 px-3 rounded-pill text-[11px] font-semibold border transition-colors inline-flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-accent-signature text-white border-accent-signature' : 'bg-surface border-black/10 text-ink-secondary hover:border-black/25'}`}>
        {cat}
        <span className={` tabular-nums ${categoryFilter === cat ? 'text-white/70' : 'text-accent-signature/70'}`}>
          {businessProfile?.currencySymbol || '₹'}{Math.round(info.total).toLocaleString('en-IN')}
@@ -477,38 +480,47 @@ const Expenses = () => {
    <button
      onClick={exportCSV}
      disabled={filteredExpenses.length === 0}
-     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/10 hover:bg-accent-signature/10 hover:border-accent-signature/25 text-muted-foreground hover:text-accent-signature-hover text-[10px] font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+     className="inline-flex items-center gap-1.5 h-7 px-3 rounded-pill border border-black/10 hover:bg-black/[0.04] hover:border-black/20 text-ink-secondary hover:text-ink-primary text-[10px] font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
    >
      <Download size={13} /> Export
    </button>
  </div>
  </div>
 
- {/* Recurring templates — active monthly auto-logs. Toggle pause or
-     remove. The nightly job clones each on its day-of-month. */}
+ {/* Recurring templates — daily or monthly auto-logs. Pause or remove.
+     The nightly job logs each one on its days. */}
  {recurringTemplates && recurringTemplates.length > 0 && (
    <div className="mb-3 rounded-2xl border border-black/5 bg-white p-4">
      <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">
        Recurring · {recurringTemplates.length}
      </div>
-     <div className="flex flex-wrap gap-2">
+     <div className="grid gap-2 sm:grid-cols-2" data-testid="recurring-list">
        {recurringTemplates.map(t => (
-         <div key={t.id} className={`flex items-center gap-2 rounded-pill border px-3 py-1.5 text-xs ${t.active ? 'border-accent-signature/40 bg-accent-signature/10' : 'border-black/10 bg-muted opacity-60'}`}>
-           <span className="font-bold text-ink-primary">{t.note || t.category}</span>
-           <span className="tabular-nums text-accent-signature-hover">{formatCurrency(t.amount)}</span>
-           <span className="text-[9px] text-muted-foreground">day {Math.min(t.day_of_month, 28)} · {t.payment_method}</span>
-           <button
-             type="button"
-             title={t.active ? 'Pause' : 'Resume'}
-             onClick={() => setRecurringActive(t.id, !t.active)}
-             className="text-[9px] font-bold uppercase text-accent-signature hover:underline"
-           >{t.active ? 'Pause' : 'Resume'}</button>
-           <button
-             type="button"
-             title="Remove"
-             onClick={() => { if (window.confirm('Remove this recurring expense?')) deleteRecurringTemplate(t.id); }}
-             className="text-muted-foreground hover:text-red-500"
-           >✕</button>
+         <div key={t.id} data-testid="recurring-item"
+           className={`rounded-xl border px-3 py-2.5 text-xs ${t.active ? 'border-accent-signature/40 bg-accent-signature/5' : 'border-black/10 bg-muted'}`}>
+           <div className="flex items-baseline justify-between gap-3">
+             <span className={`font-bold truncate ${t.active ? 'text-ink-primary' : 'text-ink-secondary'}`}>{t.note || t.category}</span>
+             <span className="tabular-nums font-semibold text-ink-primary shrink-0">{formatCurrency(t.amount)}</span>
+           </div>
+           <div className="mt-1 flex items-center justify-between gap-2">
+             <span className="text-[12px] text-ink-secondary">
+               {t.active ? '' : 'Paused · '}{describeRecurring(t)} · {paymentLabel(t.payment_method)}
+             </span>
+             <span className="flex items-center gap-1 shrink-0">
+               <button type="button" onClick={() => setRecurringActive(t.id, !t.active)}
+                 className="h-7 px-2.5 rounded-pill text-[12px] font-semibold text-accent-text hover:bg-accent-signature/10">
+                 {t.active ? 'Pause' : 'Resume'}
+               </button>
+               <button type="button" aria-label={`Remove ${t.note || t.category}`}
+                 onClick={() => { if (window.confirm('Remove this recurring expense?')) deleteRecurringTemplate(t.id); }}
+                 className="w-7 h-7 rounded-xl grid place-items-center text-muted-foreground hover:text-red-500 hover:bg-red-50">✕</button>
+             </span>
+           </div>
+           {t.last_error && (
+             <p className="mt-1.5 text-[12px] font-semibold text-[color:var(--color-neg)]" title={t.last_error}>
+               Couldn’t log{t.last_error_at ? ` on ${new Date(t.last_error_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}: {t.last_error.slice(0, 120)}
+             </p>
+           )}
          </div>
        ))}
      </div>
@@ -572,7 +584,7 @@ const Expenses = () => {
  {hasPermission('EDIT_EXPENSE') && (
  <button
  aria-label="Edit expense"
- className="w-8 h-8 rounded-lg bg-canvas text-muted-foreground flex items-center justify-center hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"
+ className="w-8 h-8 rounded-xl bg-canvas text-muted-foreground flex items-center justify-center hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"
  onClick={() => handleEdit(expense)}
  >
  <FileText size={14} />
@@ -581,7 +593,7 @@ const Expenses = () => {
  {hasPermission('DELETE_EXPENSE') && (
  <button
  aria-label="Delete expense"
- className="w-8 h-8 rounded-lg bg-canvas text-muted-foreground flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
+ className="w-8 h-8 rounded-xl bg-canvas text-muted-foreground flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
  onClick={() => { if(window.confirm('Delete record?')) deleteExpense(expense.id); }}
  >
  <X size={14} />
@@ -733,7 +745,7 @@ const Expenses = () => {
    <button
      onClick={handleCloseModal}
      aria-label="Close"
-     className="w-9 h-9 rounded-full border border-black/8 flex items-center justify-center hover:bg-black/5 transition-colors cursor-pointer text-muted-foreground"
+     className="w-9 h-9 rounded-xl border border-black/8 flex items-center justify-center hover:bg-black/5 transition-colors cursor-pointer text-muted-foreground"
    >
      <X size={16} />
    </button>
@@ -795,7 +807,7 @@ const Expenses = () => {
            setFormData(f => ({ ...f, category: name }));
            setNewCategory('');
          }}
-         className="px-3 py-1.5 rounded-lg bg-accent-signature/10 text-accent-signature text-xs font-bold disabled:opacity-40"
+         className="px-3 py-1.5 rounded-pill bg-accent-signature/10 text-accent-signature text-xs font-bold disabled:opacity-40"
        >Add</button>
      </div>
    </div>
@@ -871,7 +883,7 @@ const Expenses = () => {
        role="switch"
        aria-checked={formData.gst_claimable}
        onClick={() => setFormData({ ...formData, gst_claimable: !formData.gst_claimable })}
-       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.gst_claimable ? 'bg-accent-signature' : 'bg-black/15'}`}
+       className={`relative w-11 h-6 rounded-xl transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.gst_claimable ? 'bg-accent-signature' : 'bg-black/15'}`}
      >
        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.gst_claimable ? 'translate-x-5' : 'translate-x-0'}`} />
      </button>
@@ -936,37 +948,82 @@ const Expenses = () => {
      role="switch"
      aria-checked={formData.exclude_from_pl}
      onClick={() => setFormData({ ...formData, exclude_from_pl: !formData.exclude_from_pl })}
-     className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-violet-500/20 shrink-0 ${formData.exclude_from_pl ? 'bg-violet-500' : 'bg-black/15'}`}
+     className={`relative w-11 h-6 rounded-xl transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-violet-500/20 shrink-0 ${formData.exclude_from_pl ? 'bg-violet-500' : 'bg-black/15'}`}
    >
      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.exclude_from_pl ? 'translate-x-5' : 'translate-x-0'}`} />
    </button>
  </label>
 
- {/* ── Repeat monthly (new expense only) ──────────────── */}
- {!editingExpense && (
-   <label className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl border border-black/8 bg-white cursor-pointer hover:border-black/15 transition-colors">
-     <div className="flex items-center gap-3">
-       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.repeat_monthly ? 'bg-accent-signature/10 text-accent-signature' : 'bg-canvas text-muted-foreground'}`}>
-         <Calendar size={16} />
-       </div>
-       <div>
-         <div className="text-sm font-bold text-ink-primary">Repeat monthly</div>
-         <div className="text-[11px] text-muted-foreground">
-           Auto-logs on day {parseInt((formData.date || '').split('-')[2], 10) || 1} every month
+ {/* ── Repeat (new expense only) ──────────────────────── */}
+ {!editingExpense && (() => {
+   const today = todayISOInAppTZ();
+   const plan = { ...recurringTemplateFor({ frequency: formData.repeat, weekdays: formData.weekdays, date: formData.date || today, today }),
+     asked_day: (formData.date || today).split('-')[2] };
+   const opts = [['NONE', 'No'], ['DAILY', 'Daily'], ['MONTHLY', 'Monthly']];
+   const pick = (k) => { setRepeatHint(''); setFormData({ ...formData, repeat: k }); };
+   const onKey = (e) => {
+     const idx = opts.findIndex(([k]) => k === formData.repeat);
+     const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+     if (!step) return;
+     e.preventDefault();
+     const group = e.currentTarget;
+     const next = opts[(idx + step + opts.length) % opts.length][0];
+     pick(next);
+     setTimeout(() => group.querySelector(`[data-k="${next}"]`)?.focus(), 0);
+   };
+   return (
+   <div className="px-4 py-3.5 rounded-xl border border-black/8 bg-white" data-testid="repeat-control">
+     <div className="flex flex-col gap-3 min-[480px]:flex-row min-[480px]:items-center min-[480px]:justify-between">
+       <div className="flex items-center gap-3 min-w-0">
+         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.repeat !== 'NONE' ? 'bg-accent-signature/10 text-accent-signature' : 'bg-canvas text-muted-foreground'}`}>
+           <Calendar size={16} />
+         </div>
+         <div className="min-w-0">
+           <div className="text-sm font-bold text-ink-primary">Repeat</div>
+           <div className="text-[12px] text-muted-foreground" data-testid="repeat-line">
+             {formData.repeat === 'NONE' ? 'Log this once' : scheduleLine({ ...plan, frequency: formData.repeat })}
+           </div>
          </div>
        </div>
+       <div className="inline-flex h-9 p-0.5 rounded-pill bg-canvas border border-black/10 shrink-0 self-start min-[480px]:self-auto"
+         role="radiogroup" aria-label="Repeat" onKeyDown={onKey}>
+         {opts.map(([k, label]) => {
+           const on = formData.repeat === k;
+           return (
+             <button key={k} data-k={k} type="button" role="radio" aria-checked={on} tabIndex={on ? 0 : -1}
+               onClick={() => pick(k)}
+               className={`px-3.5 rounded-pill text-[12.5px] transition-[background-color,color] duration-(--dur-hover) ${on ? 'bg-white text-ink-primary font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-ink-primary'}`}>
+               {label}
+             </button>
+           );
+         })}
+       </div>
      </div>
-     <button
-       type="button"
-       role="switch"
-       aria-checked={formData.repeat_monthly}
-       onClick={() => setFormData({ ...formData, repeat_monthly: !formData.repeat_monthly })}
-       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.repeat_monthly ? 'bg-accent-signature' : 'bg-black/15'}`}
-     >
-       <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.repeat_monthly ? 'translate-x-5' : 'translate-x-0'}`} />
-     </button>
-   </label>
- )}
+     {formData.repeat === 'DAILY' && (
+       <>
+         <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Days to log">
+           {WEEKDAYS.map(w => {
+             const on = formData.weekdays.includes(w.n);
+             return (
+               <button key={w.n} type="button" aria-pressed={on}
+                 onClick={() => {
+                   const next = on ? formData.weekdays.filter(d => d !== w.n) : [...formData.weekdays, w.n];
+                   if (!next.length) { setRepeatHint('Keep at least one day'); return; }
+                   setRepeatHint('');
+                   setFormData({ ...formData, weekdays: next });
+                 }}
+                 className={`h-8 min-w-[44px] px-2 rounded-pill text-[12px] border transition-[background-color,color,border-color] duration-(--dur-hover) ${on ? 'border-ink-primary bg-ink-primary text-white font-semibold' : 'border-black/15 text-muted-foreground hover:text-ink-primary'}`}>
+                 {w.short}
+               </button>
+             );
+           })}
+         </div>
+         {repeatHint && <p className="mt-2 text-[12px] text-muted-foreground" role="status">{repeatHint}</p>}
+       </>
+     )}
+   </div>
+   );
+ })()}
 
  {formError && (
    <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold" role="alert">
@@ -979,7 +1036,7 @@ const Expenses = () => {
    <button type="button" className="px-6 py-3.5 rounded-pill border border-black/10 font-bold text-ink-primary text-xs uppercase tracking-wide hover:bg-black/5 transition-colors cursor-pointer disabled:opacity-50" onClick={handleCloseModal} disabled={saving}>
      Cancel
    </button>
-   <button type="submit" disabled={saving} className="flex-1 h-[52px] text-xs uppercase tracking-widest font-black flex items-center justify-center gap-2.5 px-6 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white shadow-md shadow-accent-signature/25 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+   <button type="submit" disabled={saving} className="flex-1 h-[52px] text-xs uppercase tracking-widest font-black flex items-center justify-center gap-2.5 px-6 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white shadow-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
      {saving ? 'Saving…' : (editingExpense ? 'Save Changes' : 'Log Expense')}
      {!saving && <Save size={16} />}
    </button>

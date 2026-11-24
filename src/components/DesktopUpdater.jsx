@@ -107,13 +107,13 @@ const DesktopUpdater = () => {
         <div className="flex gap-2 px-4 pb-4">
           <button
             onClick={restart}
-            className="flex-1 h-10 rounded-xl bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all"
+            className="flex-1 h-10 rounded-pill bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all"
           >
             Restart & Update
           </button>
           <button
             onClick={() => setStatus(null)}
-            className="h-10 px-4 rounded-xl border border-black/10 text-xs font-bold text-muted-foreground hover:bg-canvas transition-all"
+            className="h-10 px-4 rounded-pill border border-black/10 text-xs font-bold text-muted-foreground hover:bg-canvas transition-all"
           >
             Later
           </button>

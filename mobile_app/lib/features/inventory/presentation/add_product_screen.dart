@@ -9,6 +9,9 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/widgets/barcode_scanner_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import '../../../core/widgets/app_surfaces.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
   final Product? product; // non-null = edit mode
@@ -264,12 +267,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             ),
             Text(
               'INVENTORY MANAGEMENT',
-              style: GoogleFonts.manrope(
-                color: AppColors.secondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -280,7 +279,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Product identity section
-            _SectionHeader(title: 'PRODUCT IDENTITY', icon: LucideIcons.package),
+            SectionHeading('PRODUCT IDENTITY', icon: LucideIcons.package),
             const SizedBox(height: 12),
             _buildField(
               label: 'Product Name',
@@ -308,7 +307,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                GestureDetector(
+                AppTappable(
+                  ripple: false,
                   onTap: _assignBarcode,
                   child: Container(
                     height: 48, padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -318,13 +318,13 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text('Assign',
-                        style: GoogleFonts.manrope(
-                            fontSize: 13, fontWeight: FontWeight.w800,
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w800,
                             color: AppColors.onPrimaryContainer)),
                   ),
                 ),
                 const SizedBox(width: 6),
-                GestureDetector(
+                AppTappable(
+                  ripple: false,
                   onTap: _scanBarcodeIntoField,
                   child: Container(
                     height: 48, width: 48,
@@ -348,7 +348,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             const SizedBox(height: 28),
 
             // Pricing section
-            _SectionHeader(title: 'PRICING', icon: LucideIcons.indianRupee),
+            SectionHeading('PRICING', icon: LucideIcons.indianRupee),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -403,7 +403,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             const SizedBox(height: 28),
 
             // Stock section
-            _SectionHeader(title: 'STOCK & UNIT', icon: LucideIcons.layers),
+            SectionHeading('STOCK & UNIT', icon: LucideIcons.layers),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -471,11 +471,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                       const SizedBox(width: 8),
                       Text(
                         _isEditMode ? 'SAVE CHANGES' : 'ADD TO INVENTORY',
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          letterSpacing: 1,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          letterSpacing: 1),
                       ),
                     ],
                   ),
@@ -519,12 +516,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             fontSize: 14,
           ),
           labelText: label,
-          labelStyle: GoogleFonts.manrope(
-            color: AppColors.inkSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
+          labelStyle: AppText.label.copyWith(color: AppColors.inkSecondary,
+            letterSpacing: 0.5),
           floatingLabelBehavior: FloatingLabelBehavior.always,
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
@@ -563,12 +556,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.manrope(
-                    color: AppColors.inkSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
+                  style: AppText.label.copyWith(color: AppColors.inkSecondary,
+                    letterSpacing: 0.5),
                 ),
                 DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
@@ -595,34 +584,3 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 14, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: GoogleFonts.manrope(
-            color: AppColors.primary,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-          ),
-        ),
-      ],
-    );
-  }
-}

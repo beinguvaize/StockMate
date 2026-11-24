@@ -60,7 +60,7 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹', p
         <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 rounded-pill bg-foreground text-background font-semibold text-xs hover:opacity-90">
           <Printer size={14} /> PRINT
         </button>
-        <button onClick={onClose} className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center hover:bg-red-50 hover:text-red-500">
+        <button onClick={onClose} className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center hover:bg-red-50 hover:text-red-500">
           <X size={16} />
         </button>
       </div>

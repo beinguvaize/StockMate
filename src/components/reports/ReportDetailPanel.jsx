@@ -73,7 +73,7 @@ const ReportDetailPanel = ({
           </div>
           <button 
             onClick={onClose}
-            className="w-10 h-10 rounded-full border border-border/60 flex items-center justify-center hover:bg-canvas transition-all text-foreground"
+            className="w-10 h-10 rounded-xl border border-border/60 flex items-center justify-center hover:bg-canvas transition-all text-foreground"
           >
             <X size={20} />
           </button>

@@ -7,6 +7,9 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
 import 'package:mobile_app/features/returns/presentation/providers/returns_provider.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class PurchaseReturnFormScreen extends ConsumerStatefulWidget {
   final Purchase purchase;
@@ -184,7 +187,8 @@ class _PurchaseReturnFormScreenState
         surfaceTintColor: Colors.transparent,
         leading: Padding(
           padding: const EdgeInsets.all(8),
-          child: GestureDetector(
+          child: AppTappable(
+   ripple: false,
             onTap: () => Navigator.pop(context),
             child: Container(
               decoration: BoxDecoration(
@@ -195,7 +199,7 @@ class _PurchaseReturnFormScreenState
               child: const Icon(LucideIcons.arrowLeft,
                   size: 20, color: AppColors.inkPrimary),
             ),
-          ),
+ ),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,12 +215,9 @@ class _PurchaseReturnFormScreenState
             ),
             Text(
               'DEBIT NOTE',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                 color: AppColors.inkTertiary,
-                letterSpacing: 1.5,
-              ),
+                letterSpacing: 1.5),
             ),
           ],
         ),
@@ -299,11 +300,8 @@ class _PurchaseReturnFormScreenState
                     : Text(
                         'RETURN ${_step == 1.0 ? _returnQty.toStringAsFixed(0) : _returnQty.toStringAsFixed(2)} UNITS'
                         ' · ₹${returnValue.toStringAsFixed(2)}',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1,
-                        ),
+                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                          letterSpacing: 1),
                       ),
               ),
             ),
@@ -328,12 +326,9 @@ class _SectionLabel extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           title,
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
             color: AppColors.inkTertiary,
-            letterSpacing: 1.3,
-          ),
+            letterSpacing: 1.3),
         ),
       ],
     );
@@ -476,23 +471,17 @@ class _ReturnQtyCard extends StatelessWidget {
                     step == 1.0
                         ? returnQty.toStringAsFixed(0)
                         : returnQty.toStringAsFixed(2),
-                    style: GoogleFonts.manrope(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w900,
+                    style: AppText.numericEntry.copyWith(fontWeight: FontWeight.w900,
                       color: returnQty > 0
                           ? AppColors.danger
                           : AppColors.inkTertiary,
-                      letterSpacing: -2,
-                    ),
+                      letterSpacing: -2),
                   ),
                   Text(
                     'UNITS',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                       color: AppColors.inkTertiary,
-                      letterSpacing: 1.5,
-                    ),
+                      letterSpacing: 1.5),
                   ),
                 ],
               ),
@@ -562,11 +551,8 @@ class _ReturnQtyCard extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     'Return Value: ₹${returnValue.toStringAsFixed(2)}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.danger,
-                    ),
+                    style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w800,
+                      color: AppColors.danger),
                   ),
                 ],
               ),
@@ -583,10 +569,7 @@ class _ReturnQtyCard extends StatelessWidget {
               const SizedBox(width: 5),
               Text(
                 'Max returnable: $maxLabel units',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: AppColors.inkTertiary,
-                ),
+                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
               ),
             ],
           ),
@@ -610,7 +593,8 @@ class _StepButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: () {
         if (onTap != null) {
           HapticFeedback.lightImpact();
@@ -618,7 +602,7 @@ class _StepButton extends StatelessWidget {
         }
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
+        duration: Motion.durationOf(context, const Duration(milliseconds: 140)),
         width: 48,
         height: 48,
         decoration: BoxDecoration(
@@ -636,7 +620,7 @@ class _StepButton extends StatelessWidget {
           color: active ? AppColors.danger : AppColors.inkTertiary,
         ),
       ),
-    );
+ );
   }
 }
 
@@ -665,7 +649,8 @@ class _DetailsCard extends StatelessWidget {
       child: Column(
         children: [
           // ── Date row ──────────────────────────────────────────────────────
-          GestureDetector(
+          AppTappable(
+            ripple: false,
             onTap: onDateTap,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -687,8 +672,7 @@ class _DetailsCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Return Date',
-                            style: GoogleFonts.manrope(
-                                fontSize: 13, color: AppColors.inkTertiary)),
+                            style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                         const SizedBox(height: 2),
                         Text(
                           fmtDate(date),
@@ -737,8 +721,7 @@ class _DetailsCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Reason (optional)',
-                          style: GoogleFonts.manrope(
-                              fontSize: 13, color: AppColors.inkTertiary)),
+                          style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                       const SizedBox(height: 4),
                       TextField(
                         controller: reasonController,
@@ -752,10 +735,7 @@ class _DetailsCard extends StatelessWidget {
                         decoration: InputDecoration(
                           hintText:
                               'Damaged goods, wrong item, over-delivery...',
-                          hintStyle: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: AppColors.inkTertiary.withValues(alpha: 0.5),
-                          ),
+                          hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary.withValues(alpha: 0.5)),
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: EdgeInsets.zero,
@@ -806,8 +786,7 @@ class _InfoRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: GoogleFonts.manrope(
-                        fontSize: 13, color: AppColors.inkTertiary)),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                 const SizedBox(height: 2),
                 Text(
                   value,

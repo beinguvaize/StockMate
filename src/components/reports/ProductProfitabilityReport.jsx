@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
 import useDateWindow from './useDateWindow';
+import { useLinkedRange } from '../../lib/linkedRange';
 import PLTieOut from './PLTieOut';
 import PremiumReportView from './PremiumReportView';
 import {
@@ -44,7 +45,9 @@ const marginTier = (pct) => {
 const ProductProfitabilityReport = () => {
   // Financial year to date by default. The dated queries below passed
   // dateColumn without filters, so they read the whole table each load.
-  const win = useDateWindow('YEAR');
+  // ?from=&to= (an Ask answer's link) opens on the answer's own dates.
+  const linked = useLinkedRange();
+  const win = useDateWindow('YEAR', linked);
   const { data: products, loading: productsLoading } = useReportData({
     table: 'products',
     select: '*',
@@ -507,7 +510,7 @@ const ProductProfitabilityReport = () => {
 
   return (
     <div>
-      <PremiumReportView dateWindow={win} title="Product Profitability" tabs={tabs} />
+      <PremiumReportView dateWindow={win} title="Product Profitability" subtitle={linked ? win.subtitle : undefined} tabs={tabs} />
       {/* all-time report — reconcile against the P&L over all time */}
       <PLTieOut from="2000-01-01" to="2100-01-01" revenue={totals.revenue} cogs={totals.cogs}
         note="SKU rows are pre-discount — small differences are bill discounts and returns." />

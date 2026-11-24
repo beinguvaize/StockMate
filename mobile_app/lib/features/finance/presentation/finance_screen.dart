@@ -7,6 +7,8 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/finance/data/models/expense.dart';
 import 'package:mobile_app/features/finance/presentation/add_expense_screen.dart';
 import 'package:mobile_app/features/finance/presentation/providers/finance_provider.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 /// Expenses — list only. Defaults to TODAY's expenses (matches web app).
 /// Amber/mono design (approved sample "B Pro List").
@@ -229,10 +231,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                 )),
             const Spacer(),
             Text(_periodLabel(_period).toLowerCase(),
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: AppColors.inkTertiary,
-                )),
+                style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
           ],
         ),
         const SizedBox(height: 12),
@@ -240,27 +239,26 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
         TextField(
           controller: _searchCtrl,
           onChanged: (v) => setState(() => _search = v),
-          style: GoogleFonts.manrope(
-              fontSize: 13, fontWeight: FontWeight.w600),
+          style: AppText.label,
           decoration: InputDecoration(
             isDense: true,
             hintText: 'Search note or category…',
-            hintStyle: GoogleFonts.manrope(
-                fontSize: 13, color: AppColors.inkTertiary),
+            hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
             prefixIcon: const Icon(LucideIcons.search,
                 size: 16, color: AppColors.inkTertiary),
             prefixIconConstraints:
                 const BoxConstraints(minWidth: 38, minHeight: 0),
             suffixIcon: _search.isEmpty
                 ? null
-                : GestureDetector(
+                : AppTappable(
+   ripple: false,
                     onTap: () {
                       _searchCtrl.clear();
                       setState(() => _search = '');
                     },
                     child: const Icon(LucideIcons.x,
                         size: 15, color: AppColors.inkTertiary),
-                  ),
+ ),
             contentPadding: const EdgeInsets.symmetric(vertical: 11),
             filled: true,
             fillColor: Colors.white,
@@ -313,12 +311,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                   letterSpacing: 1.2,
-                  color: AppColors.inkTertiary,
-                )),
+                  color: AppColors.inkTertiary)),
             const SizedBox(height: 3),
             Text(value,
                 style: GoogleFonts.manrope(
@@ -347,7 +342,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
         itemBuilder: (_, i) {
           final p = items[i];
           final sel = p == _period;
-          return GestureDetector(
+          return AppTappable(
+   ripple: false,
             onTap: () => setState(() => _period = p),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -362,14 +358,11 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
               ),
               child: Text(
                 _periodLabel(p),
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: sel ? Colors.white : AppColors.inkSecondary,
-                ),
+                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                  color: sel ? Colors.white : AppColors.inkSecondary),
               ),
             ),
-          );
+ );
         },
       ),
     );
@@ -393,7 +386,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
               : rows
                   .where((e) => (e.category ?? 'Other') == c)
                   .fold(0.0, (s, e) => s + (e.amount ?? 0));
-          return GestureDetector(
+          return AppTappable(
+   ripple: false,
             onTap: () => setState(() => _category = c),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -410,14 +404,11 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                 c == 'ALL'
                     ? 'All'
                     : '$c${sum != null ? '  ${_money(sum)}' : ''}',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: sel ? Colors.white : AppColors.inkSecondary,
-                ),
+                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                  color: sel ? Colors.white : AppColors.inkSecondary),
               ),
             ),
-          );
+ );
         },
       ),
     );
@@ -437,17 +428,11 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(_fmtDate(date).toUpperCase(),
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkTertiary,
-                    )),
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                      color: AppColors.inkTertiary)),
                 Text(_money(groupTotal),
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkSecondary,
-                    )),
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                      color: AppColors.inkSecondary)),
               ],
             ),
           ),
@@ -502,22 +487,16 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                     (e.note != null && e.note!.isNotEmpty)
                         ? e.note!
                         : (e.category ?? 'Expense'),
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkPrimary,
-                    ),
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                      color: AppColors.inkPrimary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${e.category ?? 'Other'} · Cash'.toUpperCase(),
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      letterSpacing: 0.8,
-                      color: AppColors.inkTertiary,
-                    ),
+                    style: AppText.caption.copyWith(letterSpacing: 0.8,
+                      color: AppColors.inkTertiary),
                   ),
                 ],
               ),
@@ -526,11 +505,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
             Text.rich(TextSpan(children: [
               TextSpan(
                   text: '₹',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: _amber400,
-                  )),
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                    color: _amber400)),
               TextSpan(
                   text: (e.amount ?? 0).toStringAsFixed(0),
                   style: GoogleFonts.manrope(
@@ -561,8 +537,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
               )),
           const SizedBox(height: 4),
           Text('Tap + to log one',
-              style: GoogleFonts.manrope(
-                  fontSize: 13, color: AppColors.inkTertiary)),
+              style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
         ],
       ),
     );
@@ -629,12 +604,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
             const SizedBox(height: 4),
             Text(
               '₹${expense.amount?.toStringAsFixed(0) ?? "0"}',
-              style: GoogleFonts.manrope(
-                fontSize: 32,
-                fontWeight: FontWeight.w700,
+              style: AppText.display.copyWith(fontWeight: FontWeight.w700,
                 color: _amber600,
-                letterSpacing: -0.5,
-              ),
+                letterSpacing: -0.5),
             ),
             const SizedBox(height: 20),
             const Divider(height: 1),
@@ -687,15 +659,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
           Icon(icon, size: 16, color: AppColors.inkTertiary),
           const SizedBox(width: 10),
           Text('$label: ',
-              style: GoogleFonts.manrope(
-                  fontSize: 13, color: AppColors.inkTertiary)),
+              style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
           Expanded(
             child: Text(value,
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.inkPrimary,
-                ),
+                style: AppText.label.copyWith(color: AppColors.inkPrimary),
                 overflow: TextOverflow.ellipsis),
           ),
         ],
@@ -723,11 +690,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
               Icon(icon, size: 18, color: color),
               const SizedBox(width: 8),
               Text(label,
-                  style: GoogleFonts.manrope(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  )),
+                  style: AppText.bodyStrong.copyWith(color: color)),
             ],
           ),
         ),

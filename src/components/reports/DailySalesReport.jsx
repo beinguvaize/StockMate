@@ -9,6 +9,7 @@ import ReportHeader from './ReportHeader';
 import ReportFilterRow from './ReportFilterRow';
 import { isCountableSale, presetRange } from './reportUtils';
 import DailySalesDetail from './DailySalesDetail';
+import { useLinkedRange } from '../../lib/linkedRange';
 
 /** Counts per option value, so the dropdowns show how much is behind each. */
 const tally = (rows, pick) => {
@@ -26,8 +27,9 @@ const toOptions = (m, label = (k) => k) =>
     .map(([value, n]) => ({ value, label: `${label(value)} (${n})` }));
 
 const DailySalesReport = () => {
-  const [preset, setPreset] = useState('TODAY');
-  const [range, setRange] = useState(() => presetRange('TODAY'));
+  const linked = useLinkedRange();
+  const [preset, setPreset] = useState(linked ? 'CUSTOM' : 'TODAY');
+  const [range, setRange] = useState(() => (linked ? { start: linked.from, end: linked.to } : presetRange('TODAY')));
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [showCustom, setShowCustom] = useState(false);

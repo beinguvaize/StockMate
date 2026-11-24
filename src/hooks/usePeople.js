@@ -3,6 +3,7 @@ import { supabase, restInsert, restUpdate, restRpc } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { normalizeNumericRows } from '../lib/numeric';
 import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate, isElectron } from '../lib/offline/hookAdapter';
+import { fetchAllPages } from '../lib/fetchAllPages';
 import { generateUUID } from '../lib/utils';
 
 const DEFAULT_PERMISSIONS = {
@@ -46,22 +47,22 @@ export const usePeople = (tenantId) => {
       const [cliCached, supCached, empCached, userCached] = await Promise.all([
         readCacheThenRevalidate(
           'clients',
-          () => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+          () => fetchAllPages(() => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name'), { label: 'clients' }),
           (rows) => setClients(normalizeNumericRows(rows, CLIENT_NUMERIC)),
         ),
         readCacheThenRevalidate(
           'suppliers',
-          () => supabase.from('suppliers').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+          () => fetchAllPages(() => supabase.from('suppliers').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name'), { label: 'suppliers' }),
           (rows) => setSuppliers(normalizeNumericRows(rows, SUPPLIER_NUMERIC)),
         ),
         readCacheThenRevalidate(
           'employees',
-          () => supabase.from('employees').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+          () => fetchAllPages(() => supabase.from('employees').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name'), { label: 'employees' }),
           (rows) => setEmployees(normalizeNumericRows(rows, EMPLOYEE_NUMERIC)),
         ),
         readCacheThenRevalidate(
           'users',
-          () => supabase.from('users').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
+          () => fetchAllPages(() => supabase.from('users').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'), { label: 'users' }),
           (rows) => setUsers(rows),
         ),
       ]);

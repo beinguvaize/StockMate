@@ -194,7 +194,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
  <div className="flex items-center gap-4">
  <button 
  onClick={() => downloadCSV(deadStock, 'dead_stock_report', businessProfile.name)}
- className="flex items-center gap-2 px-6 py-3 bg-ink-primary text-accent-signature rounded-full text-[10px] font-semibold hover:bg-black transition-all shadow-premium"
+ className="flex items-center gap-2 px-6 py-3 bg-ink-primary text-accent-signature rounded-pill text-[10px] font-semibold hover:bg-black transition-all shadow-premium"
  >
  <Download size={16} />
  Export Dead Stock
@@ -204,7 +204,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
  <button
  key={days}
  onClick={() => setDeadStockThreshold(days)}
- className={`px-5 py-2 rounded-full text-[9px] font-semibold transition-all ${
+ className={`px-5 py-2 rounded-pill text-[9px] font-semibold transition-all ${
  deadStockThreshold === days ? 'bg-ink-primary text-primary-foreground shadow-lg' : 'text-[#4b5563] hover:bg-canvas'
 }`}
  >

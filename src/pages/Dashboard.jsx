@@ -16,6 +16,7 @@ import { useOperations } from '../hooks/useOperations';
 import { useAccounts } from '../hooks/useAccounts';
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, ArrowUpRight, ArrowDownRight, LayoutDashboard, Activity, Users, Calendar} from 'lucide-react';
 import { useNavigate} from 'react-router-dom';
+import useFirstOpenToday from '../components/motion/useFirstOpenToday';
 import DailyRevenueTrendChart from '../components/DailyRevenueTrendChart';
 import { todayISOInAppTZ, formatDate, parseLocalDate } from '../lib/utils';
 import { realtimeEnabled } from '../lib/realtime';
@@ -96,6 +97,7 @@ const ExpenseCategoryBarChart = React.memo(({ data, currencySymbol }) => (
 ));
 
 const Dashboard = () => {
+  const firstOpenToday = useFirstOpenToday('dashboard'); // motion only on the first open of the day
   const { currentTenant, currentTenantId, businessProfile } = useTenant();
   const slug = currentTenant?.slug || '';
   const { products, inventoryBalances, refetch: refetchInventory, loading: invLoading, error: invError } = useInventory(currentTenantId);
@@ -562,7 +564,7 @@ const Dashboard = () => {
       <div className="flex flex-wrap items-stretch gap-3">
         <button 
           onClick={() => navigate('/inventory')}
-          className="btn-signature pl-6 pr-2 py-2 rounded-full shadow-lg hover:shadow-accent-signature/20 text-[12px]"
+          className="btn-signature pl-6 pr-2 py-2 rounded-full shadow-lg hover: text-[12px]"
         >
           <span>DEPLOY INVENTORY</span>
           <div className="icon-nest !w-10 !h-10 ml-4">
@@ -571,7 +573,7 @@ const Dashboard = () => {
         </button>
         <button 
           onClick={() => navigate('/reports')}
-          className="px-8 flex items-center justify-center rounded-full font-bold text-[11px] tracking-wide text-ink-primary bg-white border border-border shadow-sm hover:bg-white hover:shadow-premium transition-all uppercase"
+          className="px-8 flex items-center justify-center rounded-pill font-bold text-[11px] tracking-wide text-ink-primary bg-white border border-border shadow-sm hover:bg-white hover:shadow-premium transition-all uppercase"
         >
           ANALYTICS BROWSER
         </button>
@@ -601,7 +603,7 @@ const Dashboard = () => {
  <button
    onClick={refetchAll}
    title="Refresh all data"
-   className={`w-8 h-8 flex items-center justify-center rounded-full border border-black/10 hover:bg-black/5 transition-all text-muted-foreground ${isLoading ? 'animate-spin opacity-50 pointer-events-none' : ''}`}
+   className={`w-8 h-8 flex items-center justify-center rounded-xl border border-black/10 hover:bg-black/5 transition-all text-muted-foreground ${isLoading ? 'animate-spin opacity-50 pointer-events-none' : ''}`}
  >
    <Activity size={14} />
  </button>
@@ -644,9 +646,10 @@ const Dashboard = () => {
    const d = typeof m.delta === 'number' ? m.delta : null;
    return (
    <div key={i} role="button" tabIndex={0}
+     style={firstOpenToday ? { '--stagger-i': i } : undefined}
      onClick={() => m.to && navigate(m.to)}
      onKeyDown={(e) => { if (m.to && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); navigate(m.to); } }}
-     className="bg-white rounded-2xl border border-black/[0.07] shadow-sm p-4 flex flex-col gap-2 hover:shadow-md hover:border-black/15 transition-all cursor-pointer">
+     className={`bg-white rounded-2xl border border-black/[0.07] shadow-sm p-4 flex flex-col gap-2 hover:shadow-md hover:border-black/15 transition-all cursor-pointer${firstOpenToday ? ' first-open' : ''}`}>
      <div className="flex items-center justify-between">
        <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${chip}`}>{m.icon}</span>
        {d !== null && (
@@ -1056,7 +1059,7 @@ const Dashboard = () => {
                })()}
              </p>
            </div>
-           <button onClick={(e) => { e.stopPropagation(); navigate('/purchases'); }} className="ml-3 shrink-0 text-[9px] font-black uppercase tracking-widest text-red-600 bg-red-50 border border-red-100 hover:bg-red-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+           <button onClick={(e) => { e.stopPropagation(); navigate('/purchases'); }} className="ml-3 shrink-0 text-[9px] font-black uppercase tracking-widest text-red-600 bg-red-50 border border-red-100 hover:bg-red-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-pill">
              Restock
            </button>
          </div>
@@ -1092,7 +1095,7 @@ const Dashboard = () => {
              </div>
              <div className="flex items-center gap-2 shrink-0 ml-3">
                <span className="text-xs font-black text-accent-signature tabular-nums">₹{pending.toLocaleString()}</span>
-               <button onClick={() => navigate('/payroll')} className="text-[9px] font-black uppercase tracking-widest text-accent-signature-hover bg-accent-signature/10 border border-accent-signature/15 hover:bg-accent-signature hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+               <button onClick={() => navigate('/payroll')} className="text-[9px] font-black uppercase tracking-widest text-accent-signature-hover bg-accent-signature/10 border border-accent-signature/15 hover:bg-accent-signature hover:text-white transition-colors px-2.5 py-1.5 rounded-pill">
                  Pay
                </button>
              </div>
@@ -1132,7 +1135,7 @@ const Dashboard = () => {
                </div>
                <div className="flex items-center gap-2 shrink-0 ml-3">
                  <span className={`text-xs font-black tabular-nums ${amtColor}`}>₹{Math.round(out).toLocaleString()}</span>
-                 <button onClick={(e) => { e.stopPropagation(); navigate(`/clients?client=${client.id}`); }} className="text-[9px] font-black uppercase tracking-widest text-accent-signature bg-accent-signature/10 border border-accent-signature/15 hover:bg-accent-signature hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+                 <button onClick={(e) => { e.stopPropagation(); navigate(`/clients?client=${client.id}`); }} className="text-[9px] font-black uppercase tracking-widest text-accent-signature bg-accent-signature/10 border border-accent-signature/15 hover:bg-accent-signature hover:text-white transition-colors px-2.5 py-1.5 rounded-pill">
                    Collect
                  </button>
                </div>

@@ -153,7 +153,7 @@ const Estimates = () => {
           <h1 className="text-xl font-extrabold text-ink-primary leading-none">Estimates<span className="text-accent-signature">.</span></h1>
           <span className="text-[11px] font-semibold text-muted-foreground hidden sm:block">Quotations · convert to sale</span>
         </div>
-        <button onClick={() => navigate('/documents/new?type=QUOTATION')} className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover">
+        <button onClick={() => navigate('/documents/new?type=QUOTATION')} className="h-10 px-4 rounded-pill bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover">
           <Plus size={15} strokeWidth={2.6} /> New estimate
         </button>
       </div>
@@ -171,12 +171,12 @@ const Estimates = () => {
               <div className="text-right tabular-nums text-[13px] font-bold">{cur}{Math.round(e.grand_total).toLocaleString('en-IN')}</div>
               <div className="md:text-center"><span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${STATUS_STYLE[e.status] || STATUS_STYLE.DRAFT}`}>{e.status}</span></div>
               <div className="flex items-center justify-end gap-1" onClick={ev => ev.stopPropagation()}>
-                <button onClick={() => shareWhatsApp(e)} title="WhatsApp" className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600"><MessageCircle size={15} /></button>
-                {e.status === 'DRAFT' && <button onClick={() => setStatus(e.id, 'SENT')} title="Mark sent" className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600"><Send size={14} /></button>}
-                {['DRAFT','SENT'].includes(e.status) && <button onClick={() => setStatus(e.id, 'ACCEPTED')} title="Accept" className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600"><CheckCircle2 size={15} /></button>}
-                {e.status !== 'CONVERTED' && <button onClick={() => openEdit(e)} title="Edit" className="p-1.5 rounded-lg hover:bg-black/5 text-muted-foreground hover:text-ink-primary"><Edit3 size={14} /></button>}
-                {e.status !== 'CONVERTED' && <button onClick={() => convert(e)} title="Convert to sale" className="p-1.5 rounded-lg hover:bg-purple-50 text-purple-600"><ArrowRight size={15} /></button>}
-                <button onClick={() => { if (window.confirm(`Delete estimate ${e.estimate_number}?`)) remove(e.id); }} title="Delete" className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
+                <button onClick={() => shareWhatsApp(e)} title="WhatsApp" className="p-1.5 rounded-pill hover:bg-emerald-50 text-emerald-600"><MessageCircle size={15} /></button>
+                {e.status === 'DRAFT' && <button onClick={() => setStatus(e.id, 'SENT')} title="Mark sent" className="p-1.5 rounded-pill hover:bg-blue-50 text-blue-600"><Send size={14} /></button>}
+                {['DRAFT','SENT'].includes(e.status) && <button onClick={() => setStatus(e.id, 'ACCEPTED')} title="Accept" className="p-1.5 rounded-pill hover:bg-emerald-50 text-emerald-600"><CheckCircle2 size={15} /></button>}
+                {e.status !== 'CONVERTED' && <button onClick={() => openEdit(e)} title="Edit" className="p-1.5 rounded-pill hover:bg-black/5 text-muted-foreground hover:text-ink-primary"><Edit3 size={14} /></button>}
+                {e.status !== 'CONVERTED' && <button onClick={() => convert(e)} title="Convert to sale" className="p-1.5 rounded-pill hover:bg-purple-50 text-purple-600"><ArrowRight size={15} /></button>}
+                <button onClick={() => { if (window.confirm(`Delete estimate ${e.estimate_number}?`)) remove(e.id); }} title="Delete" className="p-1.5 rounded-pill hover:bg-red-50 text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
               </div>
             </div>
           ))}
@@ -195,7 +195,7 @@ const Estimates = () => {
                   <p className="text-[11px] font-semibold text-muted-foreground mt-1">Quotation · no stock or payment impact</p>
                 </div>
               </div>
-              <button onClick={() => { setAdding(false); reset(); }} className="w-8 h-8 rounded-lg hover:bg-black/5 text-muted-foreground hover:text-ink-primary flex items-center justify-center"><X size={18} /></button>
+              <button onClick={() => { setAdding(false); reset(); }} className="w-8 h-8 rounded-xl hover:bg-black/5 text-muted-foreground hover:text-ink-primary flex items-center justify-center"><X size={18} /></button>
             </div>
 
             {/* Body — scrolls internally; header + footer stay pinned */}
@@ -276,8 +276,8 @@ const Estimates = () => {
             {/* Sticky footer */}
             <div className="flex items-center gap-2 justify-end px-6 py-4 border-t border-black/5 bg-white">
               {saveErr && <span className="mr-auto text-[12px] font-semibold text-red-600 truncate">{saveErr}</span>}
-              <button onClick={() => { setAdding(false); reset(); }} className="h-11 px-5 rounded-xl border border-black/10 text-[13px] font-bold text-ink-secondary hover:bg-black/5">Cancel</button>
-              <button onClick={save} disabled={saving || !lines.length} className="h-11 px-6 rounded-xl bg-accent-signature text-white text-[13px] font-bold disabled:opacity-40 hover:bg-accent-signature-hover flex items-center gap-2 transition-colors"><FileText size={15} /> {saving ? 'Saving…' : editingId ? 'Update estimate' : 'Save estimate'}</button>
+              <button onClick={() => { setAdding(false); reset(); }} className="h-11 px-5 rounded-pill border border-black/10 text-[13px] font-bold text-ink-secondary hover:bg-black/5">Cancel</button>
+              <button onClick={save} disabled={saving || !lines.length} className="h-11 px-6 rounded-pill bg-accent-signature text-white text-[13px] font-bold disabled:opacity-40 hover:bg-accent-signature-hover flex items-center gap-2 transition-colors"><FileText size={15} /> {saving ? 'Saving…' : editingId ? 'Update estimate' : 'Save estimate'}</button>
             </div>
           </div>
         </div>,

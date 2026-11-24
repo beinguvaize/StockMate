@@ -99,7 +99,7 @@ const SyncStatusButton = () => {
               </div>
             </div>
             <button type="button" onClick={() => setAutoSync(!autoSync)}
-              className={`relative w-9 h-5 rounded-full transition-colors ${autoSync ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+              className={`relative w-9 h-5 rounded-xl transition-colors ${autoSync ? 'bg-emerald-500' : 'bg-gray-300'}`}>
               <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${autoSync ? 'translate-x-4' : ''}`} />
             </button>
           </div>
@@ -113,7 +113,7 @@ const SyncStatusButton = () => {
           <button type="button"
             onClick={() => { setMenuOpen(false); online && !syncing && syncNow(); }}
             disabled={!online || syncing}
-            className="w-full mt-1 px-3 py-2 rounded-lg bg-ink-primary text-white text-[11px] font-black uppercase tracking-widest disabled:opacity-40">
+            className="w-full mt-1 px-3 py-2 rounded-pill bg-ink-primary text-white text-[11px] font-black uppercase tracking-widest disabled:opacity-40">
             Sync Now
           </button>
 
@@ -122,7 +122,7 @@ const SyncStatusButton = () => {
               setMenuOpen(false);
               navigate(tenantSlug ? `/${tenantSlug}/sync-diagnostics` : '/sync-diagnostics');
             }}
-            className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-black/10 text-[11px] font-black uppercase tracking-widest hover:bg-canvas/40">
+            className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 rounded-pill border border-black/10 text-[11px] font-black uppercase tracking-widest hover:bg-canvas/40">
             <Activity size={12} /> View Diagnostics
           </button>
         </div>

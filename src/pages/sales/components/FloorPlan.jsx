@@ -87,9 +87,9 @@ const FloorPlan = ({ tables, openTabs, tabTotal, onOpenTable, updateTable, addTa
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="inline-flex p-1 bg-black/[0.06] rounded-xl">
           <button onClick={() => setDesigning(false)}
-            className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold ${!designing ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Service</button>
+            className={`px-4 py-1.5 rounded-pill text-[12px] font-semibold ${!designing ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Service</button>
           <button onClick={() => setDesigning(true)}
-            className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold ${designing ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Design</button>
+            className={`px-4 py-1.5 rounded-pill text-[12px] font-semibold ${designing ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Design</button>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Area</span>
@@ -99,9 +99,9 @@ const FloorPlan = ({ tables, openTabs, tabTotal, onOpenTable, updateTable, addTa
           </select>
           {designing && (
             <>
-              <button onClick={() => addShape('sq')} className="h-9 px-3 rounded-lg bg-card border border-border text-[12px] font-semibold hover:border-accent-signature/70 flex items-center gap-1.5"><Square size={13} /> Square</button>
-              <button onClick={() => addShape('rect')} className="h-9 px-3 rounded-lg bg-card border border-border text-[12px] font-semibold hover:border-accent-signature/70 flex items-center gap-1.5"><RectangleHorizontal size={13} /> Rectangle</button>
-              <button onClick={() => addShape('rd')} className="h-9 px-3 rounded-lg bg-card border border-border text-[12px] font-semibold hover:border-accent-signature/70 flex items-center gap-1.5"><Circle size={13} /> Round</button>
+              <button onClick={() => addShape('sq')} className="h-9 px-3 rounded-pill bg-card border border-border text-[12px] font-semibold hover:border-accent-signature/70 flex items-center gap-1.5"><Square size={13} /> Square</button>
+              <button onClick={() => addShape('rect')} className="h-9 px-3 rounded-pill bg-card border border-border text-[12px] font-semibold hover:border-accent-signature/70 flex items-center gap-1.5"><RectangleHorizontal size={13} /> Rectangle</button>
+              <button onClick={() => addShape('rd')} className="h-9 px-3 rounded-pill bg-card border border-border text-[12px] font-semibold hover:border-accent-signature/70 flex items-center gap-1.5"><Circle size={13} /> Round</button>
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><Save size={12} /> auto-saved</span>
             </>
           )}
@@ -144,7 +144,7 @@ const FloorPlan = ({ tables, openTabs, tabTotal, onOpenTable, updateTable, addTa
               )}
               {designing && (
                 <button onClick={(e) => { e.stopPropagation(); if (window.confirm(`Remove "${t.label}"?`)) deleteTable(t.id); }}
-                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-card border border-border grid place-items-center text-[10px] text-muted-foreground hover:text-red-500">×</button>
+                  className="absolute -top-2 -right-2 w-5 h-5 rounded-xl bg-card border border-border grid place-items-center text-[10px] text-muted-foreground hover:text-red-500">×</button>
               )}
             </div>
           );

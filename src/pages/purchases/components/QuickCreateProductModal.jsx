@@ -44,7 +44,7 @@ const QuickCreateProductModal = ({ barcode, initialName, onSave, onCancel, loadi
 
         {/* Header */}
         <div className="flex items-center gap-4 px-6 py-4 border-b border-border/60 bg-card shrink-0">
-          <button onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-full border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
+          <button onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-xl border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
             <X size={16} />
           </button>
           <div className="flex items-center gap-2 min-w-0">
@@ -110,11 +110,11 @@ const QuickCreateProductModal = ({ barcode, initialName, onSave, onCancel, loadi
 
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onCancel}
-              className="flex-1 h-10 rounded-xl border border-border/60 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:bg-canvas transition-colors">
+              className="flex-1 h-10 rounded-pill border border-border/60 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:bg-canvas transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={loading}
-              className="flex-1 h-10 flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-xl text-[10px] font-semibold uppercase tracking-widest hover:bg-black transition-colors disabled:opacity-40">
+              className="flex-1 h-10 flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-pill text-[10px] font-semibold uppercase tracking-widest hover:bg-black transition-colors disabled:opacity-40">
               <CheckCircle2 size={12} />
               {loading ? 'Creating…' : 'Create & Select'}
             </button>

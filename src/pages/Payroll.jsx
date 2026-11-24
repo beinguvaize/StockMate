@@ -17,6 +17,9 @@ import { salariedBasePay } from '../lib/monthlyPay';
 import { statutoryDeductions, PT_STATES } from '../lib/statutory';
 import { needsOverlapConfirmation } from '../lib/payrollPeriods';
 import { iso } from '../lib/reportPeriods';
+import { classifyWriteFailure } from '../lib/writeOutcome';
+import { useSearchParams } from 'react-router-dom';
+import { useLinkedRange } from '../lib/linkedRange';
 
 // HOURLY is gone. It never computed by the hour -- openPayRun paid hourly staff
 // by the DAY off daily_rate, and hoursWorked was the constant 160 everywhere --
@@ -46,13 +49,27 @@ const Payroll = () => {
 
   const isViewOnly = () => false;
 
-  const [activeTab, setActiveTab] = useState('EMPLOYEES');
+  // An Ask answer links here as ?tab=ATTENDANCE&from=..&to=.., so the grid
+  // opens on the answer's own month and shows the same figures.
+  const [searchParams] = useSearchParams();
+  const linked = useLinkedRange();
+  const linkedTab = ['EMPLOYEES', 'ATTENDANCE', 'HISTORY'].includes(searchParams.get('tab')) ? searchParams.get('tab') : null;
+  const [activeTab, setActiveTab] = useState(linkedTab || 'EMPLOYEES');
   const [showForm, setShowForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [showPayRunModal, setShowPayRunModal] = useState(false);
-  const [payRunMonth, setPayRunMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [payRunMonth, setPayRunMonth] = useState(() => linked?.from.slice(0, 7) ?? new Date().toISOString().slice(0, 7)); // YYYY-MM
+  // A second link while this screen is open moves it too.
+  useEffect(() => {
+    if (linkedTab) setActiveTab(linkedTab);
+    // Moving the month reloads attendance and drops unsaved marks, so ask
+    // first, as the screen's own month arrows do.
+    if (linked && linked.from.slice(0, 7) !== payRunMonth && confirmLeaveMonth()) {
+      setPayRunMonth(linked.from.slice(0, 7));
+    }
+  }, [linkedTab, linked?.from]); // eslint-disable-line react-hooks/exhaustive-deps
   const [payRunItems, setPayRunItems] = useState([]);
   // MONTHLY | WEEKLY | CUSTOM. CUSTOM exists because neither of the other two
   // matches how wages are actually paid here: 28 salary payouts so far, at gaps
@@ -75,7 +92,14 @@ const Payroll = () => {
   // Edits not yet written. A day mapped to null means "clear this one".
   const [pendingAtt, setPendingAtt] = useState({});
   const [attSaving, setAttSaving] = useState(false);
-  const [attSaveError, setAttSaveError] = useState(null);
+  // The whole outcome of the last failed save, not just its text: whether the
+  // write MAY have landed decides what this screen is allowed to claim and
+  // which button it offers. See lib/writeOutcome.js.
+  const [attSaveError, setAttSaveError] = useState(null); // { kind, title, detail, maySaved }
+  // Not every message in that bar is a failed write. A validation message and
+  // a failed LOAD both leave the buffer exactly as it was and say nothing
+  // about whether anything reached the server.
+  const attNotice = (title, detail = '') => ({ kind: 'NOTICE', maySaved: false, title, detail });
   const [attPicker, setAttPicker] = useState(null); // { empId, day, dayNum, rate } — open cell
   // The picker is rendered through a portal, because its cell sits inside an
   // overflow-hidden card AND an overflow-x-auto scroller — an absolutely
@@ -252,7 +276,7 @@ const Payroll = () => {
    */
   const applyRateToPresentDays = (empId, value) => {
     const rate = parseFloat(value);
-    if (!(rate > 0)) { setAttSaveError('Enter a rate above zero to apply.'); return; }
+    if (!(rate > 0)) { setAttSaveError(attNotice('Enter a rate above zero to apply.')); return; }
 
     const days = attendance[empId] || {};
     let set = 0, skipped = 0;
@@ -266,9 +290,9 @@ const Payroll = () => {
     }
 
     if (!set) {
-      setAttSaveError(skipped
+      setAttSaveError(attNotice(skipped
         ? `Every present day already has its own rate (${skipped}).`
-        : 'No days marked Present this month yet.');
+        : 'No days marked Present this month yet.'));
       return;
     }
 
@@ -296,9 +320,14 @@ const Payroll = () => {
     const { success, error } = await saveAttendanceBatch(marks, clears);
     setAttSaving(false);
     if (!success) {
-      // Say what actually went wrong. A bare "failed to save" is how the schema
-      // mismatch behind all of this went unnoticed for weeks.
-      setAttSaveError(error?.message || 'Could not save attendance');
+      // Say what actually went wrong, and be honest about whether it went
+      // wrong at all. A transport failure proves nothing: a real batch for a
+      // real shop committed four rows in Postgres while the browser was
+      // showing "Not saved · TypeError: Failed to fetch". The buffer is kept
+      // either way -- re-saving is an upsert on (tenant_id, employee_id, day)
+      // and costs nothing, while discarding edits the server already holds is
+      // the one move that loses work.
+      setAttSaveError(classifyWriteFailure(error, { noun: 'attendance save' }));
       return;
     }
 
@@ -742,18 +771,27 @@ const Payroll = () => {
     return () => { document.body.style.overflow = 'unset'; };
   }, [showForm, showPayRunModal, showSalaryModal, deleteConfirm]);
 
-  // Load attendance whenever the active month changes
-  useEffect(() => {
+  /**
+   * Re-read the month from the server and show what is actually there.
+   *
+   * This is both the month-change load and the way out of an unconfirmed
+   * save: when the app cannot tell whether a write landed, the only honest
+   * answer is to go and look. It drops the pending buffer, which is correct
+   * HERE and nowhere else -- the server's answer is now the truth on screen.
+   */
+  const reloadAttendance = useCallback(async () => {
     if (!currentTenantId) return;
     setAttLoading(true);
-    loadAttendance(attYear, attMonth).then(map => {
-      if (map?.error) { setAttSaveError(map.error.message || 'Could not load attendance'); setSavedAtt({}); }
-      else setSavedAtt(map);
-      setPendingAtt({});
-      setAttPicker(null);
-      setAttLoading(false);
-    });
-  }, [attYear, attMonth, currentTenantId]);
+    const map = await loadAttendance(attYear, attMonth);
+    if (map?.error) { setAttSaveError(attNotice('Could not load attendance', map.error.message)); setSavedAtt({}); }
+    else { setSavedAtt(map); setAttSaveError(null); }
+    setPendingAtt({});
+    setAttPicker(null);
+    setAttLoading(false);
+  }, [currentTenantId, attYear, attMonth, loadAttendance]);
+
+  // Load attendance whenever the active month changes
+  useEffect(() => { reloadAttendance(); }, [reloadAttendance]);
 
   // Buffered work that disappears without a word is worse than no buffer.
   useEffect(() => {
@@ -846,11 +884,11 @@ const Payroll = () => {
       <div className="flex flex-col gap-6">
         {/* Month navigator */}
         <div className="flex items-center gap-3 self-start bg-white border border-black/8 rounded-pill px-4 py-2 shadow-sm">
-          <button onClick={goPrevMonth} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-ink-primary">
+          <button onClick={goPrevMonth} className="w-6 h-6 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-ink-primary">
             <ChevronLeft size={14} />
           </button>
           <span className="text-sm font-semibold text-ink-primary min-w-[160px] text-center">{monthLabel}</span>
-          <button onClick={goNextMonth} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-ink-primary">
+          <button onClick={goNextMonth} className="w-6 h-6 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-ink-primary">
             <ChevronRight size={14} />
           </button>
         </div>
@@ -872,14 +910,28 @@ const Payroll = () => {
 
         {/* Save bar. Nothing in this grid is written until this is pressed. */}
         {(pendingCount > 0 || attSaveError) && (
-          <div className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-2.5 ${
-            attSaveError ? 'bg-red-50 border-red-200' : 'bg-accent-signature/10 border-accent-signature/25'
+          <div data-testid="att-save-bar" className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-2.5 ${
+            !attSaveError ? 'bg-accent-signature/10 border-accent-signature/25'
+              : attSaveError.maySaved ? 'bg-amber-50 border-amber-200'   // unknown, not lost
+              : 'bg-red-50 border-red-200'
           }`}>
             <div className="min-w-0">
               {attSaveError ? (
                 <>
-                  <span className="text-[12px] font-bold text-red-700">Not saved</span>
-                  <span className="text-[11px] text-red-600 ml-2">{attSaveError}</span>
+                  <span className={`text-[12px] font-bold ${attSaveError.maySaved ? 'text-amber-800' : 'text-red-700'}`}>
+                    {attSaveError.title}
+                  </span>
+                  <span className={`text-[11px] ml-2 ${attSaveError.maySaved ? 'text-amber-800/90' : 'text-red-600'}`}>
+                    {attSaveError.detail}
+                  </span>
+                  {/* The sentence that stops someone discarding committed work. */}
+                  {attSaveError.maySaved && (
+                    <p data-testid="att-unconfirmed-note" className="text-[11px] text-amber-800/90 mt-0.5">
+                      The connection dropped before the server answered, so this may already
+                      be saved. Check what the server has, or save again — re-saving the same
+                      days changes nothing.
+                    </p>
+                  )}
                 </>
               ) : (
                 <>
@@ -891,13 +943,23 @@ const Payroll = () => {
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={discardAtt} disabled={attSaving}
-                className="px-3 py-1.5 rounded-lg border border-black/10 bg-white text-[11px] font-bold text-ink-secondary hover:text-ink-primary disabled:opacity-50 transition-all">
-                Discard
-              </button>
-              <button onClick={saveAttendance} disabled={attSaving || !pendingCount}
-                className="px-4 py-1.5 rounded-lg bg-ink-primary text-white text-[11px] font-bold hover:bg-black disabled:opacity-50 transition-all">
-                {attSaving ? 'Saving…' : `Save ${pendingCount || ''}`.trim()}
+              {/* After an unconfirmed save, Discard is the one button that can
+                  lose work -- it would throw away edits the database may
+                  already hold. It is replaced, not merely demoted. */}
+              {attSaveError?.maySaved ? (
+                <button data-testid="att-check-server" onClick={reloadAttendance} disabled={attSaving || attLoading}
+                  className="px-3 py-1.5 rounded-pill border border-black/10 bg-white text-[11px] font-bold text-ink-secondary hover:text-ink-primary disabled:opacity-50 transition-all">
+                  {attLoading ? 'Checking…' : 'Check the server'}
+                </button>
+              ) : (
+                <button data-testid="att-discard" onClick={discardAtt} disabled={attSaving}
+                  className="px-3 py-1.5 rounded-pill border border-black/10 bg-white text-[11px] font-bold text-ink-secondary hover:text-ink-primary disabled:opacity-50 transition-all">
+                  Discard
+                </button>
+              )}
+              <button data-testid="att-save" onClick={saveAttendance} disabled={attSaving || !pendingCount}
+                className="px-4 py-1.5 rounded-pill bg-ink-primary text-white text-[11px] font-bold hover:bg-black disabled:opacity-50 transition-all">
+                {attSaving ? 'Saving…' : attSaveError?.maySaved ? `Save again ${pendingCount || ''}`.trim() : `Save ${pendingCount || ''}`.trim()}
               </button>
             </div>
           </div>
@@ -926,8 +988,12 @@ const Payroll = () => {
                         </th>
                       );
                     })}
-                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-14">Days</th>
-                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-24">Still due</th>
+                    {/* Pinned, like the name is. A 31-day month is wider than
+                        any laptop, so the two numbers a person opened this
+                        screen FOR -- days worked and money owed -- were the
+                        first things to scroll off the right edge. */}
+                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-14 sticky right-24 bg-canvas z-10">Days</th>
+                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-muted-foreground uppercase w-24 sticky right-0 bg-canvas z-10 border-l border-black/5">Still due</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
@@ -976,7 +1042,15 @@ const Payroll = () => {
                           const hasCustomRate = attEntry?.custom_rate != null;
                           const isDirty = pendingAtt[emp.id] && dateStr in pendingAtt[emp.id];
                           const isOpen  = attPicker?.empId === emp.id && attPicker?.day === dateStr;
-                          const rateShown = hasCustomRate ? attEntry.custom_rate : null;
+                          // A day carrying the SAME rate as the employee is not
+                          // an exception to anything. Applying a rate to the month
+                          // writes custom_rate on every present day, so half the
+                          // row ended up ringed blue and labelled 900 while the
+                          // other half was a plain tick -- two cells that both mean
+                          // Rs 900, drawn as though they differed.
+                          const rateDiffers = hasCustomRate
+                            && Math.round(attEntry.custom_rate) !== Math.round(emp.daily_rate || 0);
+                          const rateShown = rateDiffers ? attEntry.custom_rate : null;
                           const paidRun = dayInPaidWindow(emp.id, dateStr);
                           return (
                             // Paid and weekend are both a background on this cell,
@@ -986,13 +1060,14 @@ const Payroll = () => {
                             // window. Pick one: paid is the more important fact.
                             <td key={d} className={`p-0.5 text-center align-top ${paidRun ? 'bg-emerald-50/70' : isWeekend ? 'bg-orange-50/60' : ''}`}>
                               <button
+                                data-testid="att-day"
                                 onClick={(e) => {
                                   if (isOpen) { setAttPicker(null); return; }
                                   attAnchorRef.current = e.currentTarget;
                                   setAttPicker({ empId: emp.id, day: dateStr, dayNum: d, rate: emp.daily_rate || 0 });
                                 }}
                                 className={`w-8 rounded text-[10px] font-bold transition-all cursor-pointer leading-none py-1 ${statusStyle(status)} ${
-                                  hasCustomRate ? 'ring-1 ring-blue-400' : ''
+                                  rateDiffers ? 'ring-1 ring-blue-400' : ''
                                 } ${isDirty ? 'outline outline-2 outline-offset-1 outline-accent-signature' : ''} ${isOpen ? 'ring-2 ring-ink-primary' : ''}`}
                                 title={paidRun
                                   ? `${dateStr} — inside the ${describePeriod(paidRun.period)} run, paid ${sym}${Number(paidRun.amount).toLocaleString('en-IN')}${paidRun.processed_at ? ' on ' + new Date(paidRun.processed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}`
@@ -1011,8 +1086,8 @@ const Payroll = () => {
                             </td>
                           );
                         })}
-                        <td className="px-3 py-2 text-right text-xs font-bold text-ink-primary tabular-nums">{days}</td>
-                        <td className="px-3 py-2 text-right align-top tabular-nums">
+                        <td className="px-3 py-2 text-right text-xs font-bold text-ink-primary tabular-nums sticky right-24 bg-white z-10">{days}</td>
+                        <td className="px-3 py-2 text-right align-top tabular-nums sticky right-0 bg-white z-10 border-l border-black/5">
                           {/* Wage earned, then what is actually still owed. Showing
                               only the first is what made an already-paid month look
                               unpaid. */}
@@ -1141,7 +1216,7 @@ const Payroll = () => {
                 {[['PRESENT','Present','✓'],['ABSENT','Absent','✗'],['HALF_DAY','Half day','½']].map(([val, label, icon]) => (
                   <button key={val}
                     onClick={() => { setAttStatus(attPicker.empId, attPicker.day, val); setAttPicker(null); }}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-pill text-[11px] font-semibold transition-all ${
                       st === val ? 'bg-ink-primary text-white' : 'text-ink-primary hover:bg-black/5'
                     }`}>
                     <span className="w-4 text-center">{icon}</span>{label}
@@ -1163,7 +1238,7 @@ const Payroll = () => {
                     />
                     <button
                       onClick={() => { clearAtt(attPicker.empId, attPicker.day); setAttPicker(null); }}
-                      className="w-full mt-1.5 px-2 py-1.5 rounded-lg text-[11px] font-semibold text-red-600 hover:bg-red-50 transition-all text-left">
+                      className="w-full mt-1.5 px-2 py-1.5 rounded-pill text-[11px] font-semibold text-red-600 hover:bg-red-50 transition-all text-left">
                       Clear this day
                     </button>
                   </>
@@ -1187,7 +1262,7 @@ const Payroll = () => {
   <h2 className="text-xl font-semibold text-ink-primary">Record Payment</h2>
   <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-6 uppercase">Pay Employee Salary</p>
   </div>
-  <button onClick={() => setShowSalaryModal(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-primary transition-all">
+  <button onClick={() => setShowSalaryModal(false)} className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-primary transition-all">
   <X size={16} />
   </button>
   </div>
@@ -1226,7 +1301,7 @@ const Payroll = () => {
         <h2 className="text-base font-semibold text-ink-primary">{editingEmployee ? 'Edit employee' : 'Add employee'}</h2>
         <p className="text-[11px] text-muted-foreground mt-0.5">{editingEmployee ? 'Update staff member details' : 'New staff member will be added to payroll'}</p>
       </div>
-      <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary">
+      <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary">
         <X size={15} />
       </button>
     </div>
@@ -1341,7 +1416,7 @@ const Payroll = () => {
           {PAY_TYPES.map(t => (
             <button key={t} type="button"
               onClick={() => setEmpForm({...empForm, payType: t})}
-              className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${empForm.payType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
+              className={`flex-1 py-1.5 rounded-pill text-[11px] font-semibold transition-all cursor-pointer ${empForm.payType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
               {t === 'MONTHLY' ? 'Monthly' : t === 'DAILY' ? 'Daily' : 'Weekly'}
             </button>
           ))}
@@ -1533,7 +1608,7 @@ const Payroll = () => {
     {/* Footer */}
     <div className="px-6 py-4 border-t border-black/8 flex gap-3 justify-end shrink-0">
       <button type="button" onClick={() => setShowForm(false)}
-        className="px-5 py-2 rounded-lg border border-black/10 text-sm font-medium text-ink-secondary hover:bg-black/5 transition-all cursor-pointer">
+        className="px-5 py-2 rounded-pill border border-black/10 text-sm font-medium text-ink-secondary hover:bg-black/5 transition-all cursor-pointer">
         Cancel
       </button>
       <button form="emp-form-inner" type="submit" onClick={handleSubmit} disabled={isSaving}
@@ -1577,7 +1652,7 @@ const Payroll = () => {
         <div className="flex bg-canvas rounded-lg border border-black/8 p-0.5 gap-0.5">
           {[['MONTHLY','Monthly'], ['WEEKLY','Weekly'], ['CUSTOM','Custom']].map(([t, label]) => (
             <button key={t} type="button" onClick={() => setPayPeriodType(t)}
-              className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${payPeriodType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
+              className={`px-3 py-1.5 rounded-pill text-[11px] font-semibold transition-all cursor-pointer ${payPeriodType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}>
               {label}
             </button>
           ))}
@@ -1614,7 +1689,7 @@ const Payroll = () => {
             </div>
           </div>
         )}
-        <button onClick={() => setShowPayRunModal(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary">
+        <button onClick={() => setShowPayRunModal(false)} className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary">
           <X size={15} />
         </button>
       </div>
@@ -1778,7 +1853,7 @@ const Payroll = () => {
   </button>
   <button 
   onClick={() => handleDelete(deleteConfirm)}
-  className="px-8 py-2 rounded-pill bg-red-500 text-white font-semibold text-xs hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+  className="px-8 py-2 rounded-pill bg-red-500 text-white font-semibold text-xs hover:bg-red-600 transition-all shadow-lg"
   >
   DELETE
   </button>

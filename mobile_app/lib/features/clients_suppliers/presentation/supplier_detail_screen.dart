@@ -9,6 +9,8 @@ import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart'
 import 'package:mobile_app/features/clients_suppliers/presentation/add_supplier_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ─── Supplier transactions provider ──────────────────────────────────────────
 // Provider key: "supplierId|supplierName"
@@ -132,7 +134,8 @@ class SupplierDetailScreen extends ConsumerWidget {
             scrolledUnderElevation: 0,
             leading: Padding(
               padding: const EdgeInsets.all(8),
-              child: GestureDetector(
+              child: AppTappable(
+   ripple: false,
                 onTap: () => Navigator.pop(context),
                 child: Container(
                   decoration: BoxDecoration(
@@ -142,12 +145,13 @@ class SupplierDetailScreen extends ConsumerWidget {
                   ),
                   child: const Icon(LucideIcons.arrowLeft, size: 20, color: AppColors.inkPrimary),
                 ),
-              ),
+ ),
             ),
             actions: [
               Padding(
                 padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-                child: GestureDetector(
+                child: AppTappable(
+   ripple: false,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -172,16 +176,13 @@ class SupplierDetailScreen extends ConsumerWidget {
                         const SizedBox(width: 6),
                         Text(
                           'Edit',
-                          style: GoogleFonts.manrope(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: Colors.white,
-                          ),
+                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                            color: Colors.white),
                         ),
                       ],
                     ),
                   ),
-                ),
+ ),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -282,7 +283,7 @@ class SupplierDetailScreen extends ConsumerWidget {
                   Center(
                     child: Text(
                       'Supplier added ${_fmtDate(supplier.createdAt!.toIso8601String())}',
-                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                      style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                     ),
                   ),
                 ],
@@ -366,12 +367,9 @@ class _HeroSection extends StatelessWidget {
                   ),
                   child: Text(
                     'SUPPLIER',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                       color: AppColors.warning,
-                      letterSpacing: 1.5,
-                    ),
+                      letterSpacing: 1.5),
                   ),
                 ),
               ],
@@ -385,7 +383,7 @@ class _HeroSection extends StatelessWidget {
                   const SizedBox(width: 5),
                   Text(
                     supplier.contactPerson!,
-                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                   ),
                 ],
               ),
@@ -482,7 +480,8 @@ class _ActionBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
@@ -506,16 +505,13 @@ class _ActionBtn extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               label,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.inkPrimary,
-              ),
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                color: AppColors.inkPrimary),
             ),
             const SizedBox(height: 2),
             Text(
               sublabel,
-              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -523,7 +519,7 @@ class _ActionBtn extends StatelessWidget {
           ],
         ),
       ),
-    );
+ );
   }
 }
 
@@ -578,10 +574,7 @@ class _BalanceCard extends StatelessWidget {
               children: [
                 Text(
                   'Credit Due',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.inkTertiary,
-                  ),
+                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                 ),
                 const SizedBox(height: 2),
                 Row(
@@ -607,12 +600,9 @@ class _BalanceCard extends StatelessWidget {
                         ),
                         child: Text(
                           isOwed ? 'UNPAID' : 'CLEARED',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                             color: color,
-                            letterSpacing: 1.2,
-                          ),
+                            letterSpacing: 1.2),
                         ),
                       ),
                     ),
@@ -664,8 +654,7 @@ class _SupplierStatsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: GoogleFonts.manrope(
-                  fontSize: 13, fontWeight: FontWeight.w700,
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                   color: AppColors.inkTertiary, letterSpacing: 1.2)),
           const SizedBox(height: 4),
           Text(value,
@@ -730,12 +719,9 @@ class _InfoSection extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               title,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                 color: AppColors.inkTertiary,
-                letterSpacing: 1.3,
-              ),
+                letterSpacing: 1.3),
             ),
           ],
         ),
@@ -827,10 +813,7 @@ class _InfoTileRow extends StatelessWidget {
                 children: [
                   Text(
                     tile.label,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: AppColors.inkTertiary,
-                    ),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -869,12 +852,9 @@ class _TransactionSection extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               'PURCHASE HISTORY',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
                 color: AppColors.inkTertiary,
-                letterSpacing: 1.3,
-              ),
+                letterSpacing: 1.3),
             ),
           ],
         ),
@@ -927,19 +907,13 @@ class _TransactionSection extends StatelessWidget {
                         Expanded(
                           child: Text(
                             '${txns.length} order${txns.length == 1 ? '' : 's'}',
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              color: AppColors.inkTertiary,
-                            ),
+                            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                           ),
                         ),
                         Text(
                           'Total: ₹${_compactNum(total)}',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.inkPrimary,
-                          ),
+                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                            color: AppColors.inkPrimary),
                         ),
                       ],
                     ),
@@ -981,7 +955,7 @@ class _TransactionSection extends StatelessWidget {
           error: (e, _) => Padding(
             padding: const EdgeInsets.all(16),
             child: Text('Error loading transactions: $e',
-                style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 13)),
+                style: AppText.caption.copyWith(color: AppColors.danger)),
           ),
         ),
       ],
@@ -1024,15 +998,12 @@ class _TxnTile extends StatelessWidget {
               children: [
                 Text(
                   txn.poNumber,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkPrimary,
-                  ),
+                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                    color: AppColors.inkPrimary),
                 ),
                 Text(
                   _fmtDate(txn.date),
-                  style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                 ),
               ],
             ),
@@ -1052,20 +1023,14 @@ class _TxnTile extends StatelessWidget {
                   ),
                   child: Text(
                     txn.paymentType!,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: txn.paymentType == 'CASH' ? AppColors.primary : AppColors.warning,
-                    ),
+                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                      color: txn.paymentType == 'CASH' ? AppColors.primary : AppColors.warning),
                   ),
                 ),
               Text(
                 '₹${txn.amount.toStringAsFixed(0)}',
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.inkPrimary,
-                ),
+                style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                  color: AppColors.inkPrimary),
               ),
             ],
           ),

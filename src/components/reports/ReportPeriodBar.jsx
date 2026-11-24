@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useLinkedRange } from '../../lib/linkedRange';
 
 // Shared report period selector — preset pills (This Month / Last Month /
 // This FY / This Year / All Time) + a from/to date range. Lifted from the
@@ -24,8 +25,11 @@ export const buildReportPresets = () => {
 // preset (This Month suits GST monthly returns).
 export const useReportPeriod = (defaultPreset = 'THIS_MONTH') => {
   const presets = useMemo(buildReportPresets, []);
-  const [preset, setPreset] = useState(defaultPreset);
+  // A link that names its period wins over the default preset.
+  const linked = useLinkedRange();
+  const [preset, setPreset] = useState(linked ? '' : defaultPreset);
   const [range, setRange] = useState(() => {
+    if (linked) return { from: linked.from, to: linked.to };
     const p = presets.find((x) => x.id === defaultPreset) || presets[0];
     return { from: p.from, to: p.to };
   });

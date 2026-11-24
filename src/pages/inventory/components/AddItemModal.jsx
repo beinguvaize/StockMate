@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { validateItemPricing, stockFieldsFor, isServiceForm, defaultProductType } from '../../../lib/itemForm';
 import { ImagePlus, CheckCircle2, Percent, Camera, Images, Upload, X, Loader2, Wand2 } from 'lucide-react';
-import { ean13CheckDigit } from '../../../lib/labelPrint';
+import { ean13CheckDigit, genInternalBarcode } from '../../../lib/labelPrint';
 import Modal from '../../../shared/Modal';
 import Button from '../../../shared/Button';
 import { TAX_SLABS, TAX_SLABS_WITH_CESS, UNITS } from '../../../lib/constants';
 import { uploadProductImage, listTenantProductImages } from '../../../lib/supabase';
 import { useTenant } from '../../../context/TenantContext';
+import { PACK_KEYS, fieldsFor, cleanAttributes, validateAttributes } from '../../../lib/sectorFields';
 
 const DEFAULT_CATEGORIES = [
   'Electronics', 'Clothing & Apparel', 'Food & Beverages', 'Pharmaceuticals',
@@ -15,9 +16,14 @@ const DEFAULT_CATEGORIES = [
   'Sports & Fitness', 'Automotive', 'Other'
 ];
 
-const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId }) => {
-  const { businessType } = useTenant();
+const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId, existingBarcodes }) => {
+  const { businessType, isModuleOn } = useTenant();
   const isResto = businessType === 'RESTAURANT';
+
+  // Capability packs are module toggles, so the same switch that shows a
+  // feature in the nav decides whether its fields appear on this form.
+  const activePacks = PACK_KEYS.filter(k => isModuleOn(k));
+  const packFields = fieldsFor(activePacks);
 
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
@@ -27,6 +33,9 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     food_type: '', is_available: true, station: '', modifier_groups: [],   // menu (restaurant)
     duration_min: '',   // service catalog
     track_serial: false,   // serialized stock (IMEI / serial per unit)
+    // Sector pack fields live flat on the form for editing and are folded
+    // into `attributes` on save. See src/lib/sectorFields.js.
+    attributes: {},
   });
   // Base units in one packet (0.25 KG for a 250 g pack). 0 when the product
   // is not sold by an alternate unit.
@@ -106,6 +115,11 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         lowStockThreshold: editingProduct.lowStockThreshold || 10,
         barcode: editingProduct.barcode || '',
         modifier_groups: Array.isArray(editingProduct.modifier_groups) ? editingProduct.modifier_groups : [],
+        // jsonb, and NOT NULL only from this migration forward — a row written
+        // before it arrives as null, so an editor must not spread undefined
+        // into the inputs.
+        attributes: (editingProduct.attributes && typeof editingProduct.attributes === 'object')
+          ? editingProduct.attributes : {},
       });
       setImagePreview(editingProduct.image || null);
     } else {
@@ -120,6 +134,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         food_type: '', is_available: true, station: '', modifier_groups: [],
         duration_min: '',
         track_serial: false,
+        attributes: {},
       });
       setImagePreview(null);
     }
@@ -168,6 +183,9 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       // made every save fail with an error naming a field that was not on
       // screen, and since service mode covers EVERY item in a SERVICES tenant,
       // that tenant could not add a single thing to its catalogue.
+      const attrError = validateAttributes(formData.attributes, activePacks);
+      if (attrError) { setSaveError(attrError); setUploading(false); return; }
+
       const priceError = validateItemPricing({ ...formData, businessType });
       if (priceError) {
         setSaveError(priceError);
@@ -213,6 +231,11 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         modifier_groups: Array.isArray(formData.modifier_groups) ? formData.modifier_groups : [],
         duration_min: Number(formData.duration_min) || null,
         track_serial: isService ? false : !!formData.track_serial,
+        // Only keys the enabled packs declare, coerced, with blanks omitted
+        // rather than stored as ''. A pack that is switched off contributes
+        // nothing -- but note this also means turning a pack off stops SAVING
+        // its fields while leaving whatever is already on the row untouched.
+        attributes: cleanAttributes(formData.attributes, activePacks),
       };
 
       // Bound the save so a stalled request can't leave the button stuck on
@@ -253,11 +276,11 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     >
       {(() => {
         const inputCls = "w-full bg-card border border-border rounded-xl px-3.5 py-3 text-xs font-semibold text-foreground placeholder:text-muted-foreground placeholder:font-medium outline-none transition-all hover:border-border focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 shadow-sm";
-        const labelCls = "block text-[10px] font-semibold text-ink-secondary uppercase tracking-wider mb-2";
+        const labelCls = "block text-[11px] font-semibold text-ink-secondary mb-2";
         const Section = ({ children }) => (
           <div className="flex items-center gap-2 pt-1.5">
             <span className="w-1 h-3.5 rounded-full bg-accent-signature" />
-            <span className="text-[11px] font-semibold text-foreground uppercase tracking-widest">{children}</span>
+            <span className="text-[11px] font-semibold text-foreground">{children}</span>
           </div>
         );
         const c = parseFloat(formData.costPrice);
@@ -291,7 +314,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       setFormData({ ...formData, sku });
                     }}
                     title="Auto-generate a SKU"
-                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
+                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-pill border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
                     <Wand2 size={13} /> Assign
                   </button>
                 </div>
@@ -322,12 +345,21 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
                   <button type="button"
                     onClick={() => {
-                      // Internal EAN-13: GS1 in-store prefix 21 + random body + check digit
-                      const body = '21' + String(Math.floor(Math.random() * 1e10)).padStart(10, '0');
-                      setFormData({ ...formData, barcode: body + ean13CheckDigit(body) });
+                      // genInternalBarcode, not a second copy of the same
+                      // arithmetic. This button rolled its own random body and
+                      // checked it against nothing, so it could hand a product
+                      // a code another product already carried -- and a
+                      // duplicate barcode at the counter rings up the wrong
+                      // item, which is the one failure a barcode exists to
+                      // prevent. The shared generator retries against the
+                      // codes already in use.
+                      setFormData({
+                        ...formData,
+                        barcode: genInternalBarcode(existingBarcodes || new Set()),
+                      });
                     }}
                     title="Auto-generate an EAN-13 barcode"
-                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
+                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-pill border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
                     <Wand2 size={13} /> Assign
                   </button>
                 </div>
@@ -354,7 +386,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 role="switch"
                 aria-checked={!!formData.track_serial}
                 onClick={() => setFormData({ ...formData, track_serial: !formData.track_serial })}
-                className={`relative w-10 h-6 rounded-full transition-colors ${formData.track_serial ? 'bg-accent-signature' : 'bg-gray-300'}`}
+                className={`relative w-10 h-6 rounded-xl transition-colors ${formData.track_serial ? 'bg-accent-signature' : 'bg-gray-300'}`}
               >
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-card shadow transition-transform ${formData.track_serial ? 'translate-x-4' : ''}`} />
               </button>
@@ -382,7 +414,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                           key={o.v}
                           type="button"
                           onClick={() => setFormData({ ...formData, food_type: formData.food_type === o.v ? '' : o.v })}
-                          className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border text-xs font-semibold transition-all ${
+                          className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-pill border text-xs font-semibold transition-all ${
                             formData.food_type === o.v
                               ? 'border-accent-signature bg-accent-signature/10 text-foreground'
                               : 'border-border text-muted-foreground hover:border-black/20'
@@ -455,6 +487,34 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               </>
             )}
 
+            {/* Sector pack fields — rendered from src/lib/sectorFields.js, so a
+                new pack is an entry in that registry rather than more JSX
+                here. A service holds no parts catalog. */}
+            {packFields.length > 0 && !isService && (
+              <>
+                <Section>Catalog details</Section>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {packFields.map(f => (
+                    <div key={f.key}>
+                      <label className={labelCls}>{f.label}</label>
+                      <input
+                        type={f.type === 'number' ? 'number' : 'text'}
+                        {...(f.min != null ? { min: f.min } : {})}
+                        className={inputCls}
+                        placeholder={f.placeholder || ''}
+                        value={formData.attributes?.[f.key] ?? ''}
+                        onChange={e => setFormData(d => ({
+                          ...d,
+                          attributes: { ...(d.attributes || {}), [f.key]: e.target.value },
+                        }))}
+                      />
+                      {f.hint && <p className="text-[11px] text-ink-tertiary mt-1">{f.hint}</p>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
             {/* Service details — services vertical */}
             {isService && (
               <>
@@ -506,13 +566,13 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 per-KG price becomes 120. Nothing extra is stored. */}
             {!isService && packConv > 0 && (
               <div className="mt-3 rounded-xl border border-accent-signature/25 bg-accent-signature/[0.04] p-3.5">
-                <div className="text-[10px] font-bold text-accent-signature-hover uppercase tracking-wider mb-2.5">
+                <div className="text-[11px] font-bold text-accent-signature-hover mb-2.5">
                   Per {formData.secondary_unit} · 1 {formData.secondary_unit} = {Number(packConv.toFixed(4))} {formData.unit}
                 </div>
                 <div className={`grid grid-cols-1 ${subUnit ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-3`}>
                   {subUnit && (
                     <div>
-                      <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                      <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
                         Pack size ({subUnit})
                       </label>
                       <input type="number" step="1" min="0" placeholder="250"
@@ -533,13 +593,13 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     </div>
                   )}
                   <div>
-                    <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Costs you</div>
+                    <div className="text-[11px] font-semibold text-muted-foreground mb-1">Costs you</div>
                     <div className="text-[15px] font-bold tabular-nums text-foreground h-9 flex items-center">
                       ₹{((parseFloat(formData.costPrice) || 0) * packConv).toFixed(2)}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
                       Sell at (₹ / {formData.secondary_unit})
                     </label>
                     <input type="number" step="0.01" placeholder="0.00"
@@ -559,13 +619,13 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       }} />
                   </div>
                   <div>
-                    <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Margin</div>
+                    <div className="text-[11px] font-semibold text-muted-foreground mb-1">Margin</div>
                     <div className={`text-[15px] font-bold tabular-nums h-9 flex items-center ${marginColor}`}>
                       {showMargin ? `${margin.toFixed(1)}%` : '—'}
                     </div>
                   </div>
                 </div>
-                <div className="text-[10px] text-muted-foreground mt-2">
+                <div className="text-[11px] text-muted-foreground mt-2">
                   Margin is the same per {formData.unit} or per {formData.secondary_unit} — it is a ratio.
                 </div>
 
@@ -589,18 +649,18 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   const isWeight = ['KG', 'LITRE'].includes(String(formData.unit || '').toUpperCase());
                   return (
                     <div className="mt-3 pt-3 border-t border-accent-signature/20">
-                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                      <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">
                         Not sure of the pack size? Enter what you want to charge
                       </div>
                       <div className="flex flex-wrap items-end gap-2">
                         <div className="w-28">
-                          <label className="block text-[9px] font-semibold text-muted-foreground uppercase mb-1">Sell at ₹</label>
+                          <label className="block text-[9px] font-semibold text-muted-foreground mb-1">Sell at ₹</label>
                           <input type="number" step="0.01" placeholder="30" value={wantPrice}
                             onChange={e => setWantPrice(e.target.value)}
                             className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[13px] font-semibold tabular-nums outline-none focus:border-accent-signature/50" />
                         </div>
                         <div className="w-24">
-                          <label className="block text-[9px] font-semibold text-muted-foreground uppercase mb-1">Margin % on cost</label>
+                          <label className="block text-[9px] font-semibold text-muted-foreground mb-1">Margin % on cost</label>
                           <input type="number" step="1" placeholder="25" value={wantMargin}
                             onChange={e => setWantMargin(e.target.value)}
                             className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[13px] font-semibold tabular-nums outline-none focus:border-accent-signature/50" />
@@ -632,14 +692,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                                 packSizeRef.current = true;
                                 setPackSize(subUnit ? String(Math.round(size * 1000)) : '');
                               }}
-                              className="h-8 px-3 rounded-lg bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-bold transition-colors">
+                              className="h-8 px-3 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-bold transition-colors">
                               Use this
                             </button>
                           </>
                         )}
                       </div>
                       {size > 0 && (
-                        <div className="text-[10px] text-muted-foreground mt-1.5 tabular-nums">
+                        <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">
                           That pack costs ₹{(size * cost).toFixed(2)} and sells at ₹{price.toFixed(2)} — ₹{(price / size).toFixed(2)} per {formData.unit}.
                         </div>
                       )}
@@ -652,7 +712,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             {!isService && (
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Price tiers</span>
+                  <span className="text-[11px] font-semibold text-muted-foreground">Price tiers</span>
                   <label className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
                     <input type="checkbox" checked={!!formData.price_inclusive}
                       onChange={e => setFormData({ ...formData, price_inclusive: e.target.checked })} />
@@ -723,7 +783,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {showMargin && (
                 <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3 shadow-sm self-end">
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Current Margin</span>
+                  <span className="text-[11px] font-semibold text-muted-foreground">Current Margin</span>
                   <span className={`text-sm font-semibold tabular-nums ${marginColor}`}>
                     {margin.toFixed(1)}%{margin < 0 ? ' · loss' : margin < 10 ? ' · low' : ''}
                   </span>
@@ -737,7 +797,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     onChange={e => setFormData({ ...formData, min_margin: e.target.value })} />
                   <Percent size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1">POS warns / blocks if margin drops below this</p>
+                <p className="text-[11px] text-muted-foreground mt-1">POS warns / blocks if margin drops below this</p>
               </div>
             </div>
             </>)}
@@ -753,7 +813,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 ].map(s => (
                   <button key={s.id} type="button"
                     onClick={() => setFormData({ ...formData, tax_status: s.id, ...(s.id !== 'TAXABLE' ? { taxRate: 0, cess_rate: 0 } : {}) })}
-                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                    className={`px-3 py-2 rounded-pill text-xs font-semibold border transition-all ${
                       (formData.tax_status || 'TAXABLE') === s.id
                         ? 'bg-accent-signature text-button-text border-accent-signature shadow-md'
                         : 'bg-card border-border text-muted-foreground hover:border-accent-signature/40'
@@ -784,7 +844,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     <option key={i} value={i}>{s.label}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-muted-foreground mt-1">GST + Compensation Cess. Applied on invoice & POS checkout.</p>
+                <p className="text-[11px] text-muted-foreground mt-1">GST + Compensation Cess. Applied on invoice & POS checkout.</p>
               </div>
 
               {/* HSN for goods, SAC for services — one column, see lib/hsn.js.
@@ -801,7 +861,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   maxLength={8}
                   className="w-full px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground focus:outline-none focus:border-accent-signature/40"
                 />
-                <p className="text-[10px] text-muted-foreground mt-1">
+                <p className="text-[11px] text-muted-foreground mt-1">
                   {isService
                     ? 'Services use a 6-digit SAC. Required for the GSTR-1 summary (Table 12).'
                     : 'Required for GSTR-1 HSN summary (Table 12).'}
@@ -822,7 +882,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       <button
                         type="button"
                         onClick={() => { setImagePreview(null); setImageFile(null); setFormData(f => ({ ...f, image: '' })); }}
-                        className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 text-white hover:bg-black"
+                        className="absolute top-1 right-1 bg-black/60 rounded-pill p-0.5 text-white hover:bg-black"
                       >
                         <X size={10} />
                       </button>
@@ -837,18 +897,18 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-pill bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
                   >
                     <Upload size={13} /> Upload New Photo
                   </button>
                   <button
                     type="button"
                     onClick={openPhotoLib}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-pill bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
                   >
                     <Images size={13} /> Choose from Library
                   </button>
-                  <p className="text-[10px] text-muted-foreground">Max 5 MB · JPG, PNG, WEBP</p>
+                  <p className="text-[11px] text-muted-foreground">Max 5 MB · JPG, PNG, WEBP</p>
                 </div>
 
                 <input
@@ -864,7 +924,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               {showPhotoLib && (
                 <div className="mt-3 bg-card border border-border shadow-sm rounded-xl p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Recent Photos</span>
+                    <span className="text-[11px] font-semibold text-muted-foreground">Recent Photos</span>
                     <button type="button" onClick={() => setShowPhotoLib(false)}>
                       <X size={14} className="text-muted-foreground hover:text-foreground" />
                     </button>
@@ -903,7 +963,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <button
                     type="button"
                     onClick={() => { fileInputRef.current?.click(); setShowPhotoLib(false); }}
-                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-border text-[10px] font-semibold text-muted-foreground hover:border-accent-signature hover:text-accent-signature transition-colors"
+                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-pill border border-dashed border-border text-[11px] font-semibold text-muted-foreground hover:border-accent-signature hover:text-accent-signature transition-colors"
                   >
                     <Upload size={11} /> Upload new photo
                   </button>

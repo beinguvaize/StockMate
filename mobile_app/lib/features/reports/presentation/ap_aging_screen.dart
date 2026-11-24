@@ -10,6 +10,8 @@ import 'package:mobile_app/features/reports/presentation/widgets/date_range_chip
 import 'package:mobile_app/features/reports/presentation/widgets/report_kpi_tile.dart';
 import 'package:mobile_app/features/reports/presentation/widgets/simple_bar_chart.dart';
 import 'package:mobile_app/features/reports/utils/financial_calcs.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ---------------------------------------------------------------------------
 // Private data classes
@@ -96,11 +98,8 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
       ),
       child: Text(
         label,
-        style: GoogleFonts.manrope(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
+        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+          color: color),
       ),
     );
   }
@@ -169,10 +168,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                 alignment: Alignment.centerLeft,
                 child: Text(
                   '${sorted.length} outstanding bill${sorted.length == 1 ? '' : 's'}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.inkSecondary,
-                  ),
+                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                 ),
               ),
             ),
@@ -198,28 +194,18 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                             children: [
                               Text(
                                 row.id,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.inkPrimary,
-                                ),
+                                style: AppText.label.copyWith(color: AppColors.inkPrimary),
                               ),
                               const SizedBox(height: 2),
                               if (row.billDate != null)
                                 Text(
                                   'Bill: ${_fmtDate(row.billDate!)}',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    color: AppColors.inkSecondary,
-                                  ),
+                                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                                 ),
                               if (impliedDue != null)
                                 Text(
                                   'Due: ${_fmtDate(impliedDue)}',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    color: AppColors.inkSecondary,
-                                  ),
+                                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                                 ),
                             ],
                           ),
@@ -464,12 +450,8 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                     children: [
                       Text(
                         'HOW OVERDUE',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.2,
-                          color: AppColors.inkSecondary,
-                        ),
+                        style: AppText.label.copyWith(letterSpacing: 1.2,
+                          color: AppColors.inkSecondary),
                       ),
                       const SizedBox(height: 12),
                       SimpleBarChart(
@@ -506,10 +488,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                       Expanded(
                         child: Text(
                           'Counted from bill date + 30 days to pay',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: AppColors.inkSecondary,
-                          ),
+                          style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                         ),
                       ),
                     ],
@@ -526,14 +505,8 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                   ),
                   child: TabBar(
                     controller: _tabController,
-                    labelStyle: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    unselectedLabelStyle: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                    ),
+                    labelStyle: AppText.label,
+                    unselectedLabelStyle: AppText.caption,
                     labelColor: AppColors.primary,
                     unselectedLabelColor: AppColors.inkSecondary,
                     indicatorColor: AppColors.primary,
@@ -579,7 +552,8 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
         final nonZeroBuckets = agingBuckets
             .where((b) => (supplier.buckets[b] ?? 0) > 0)
             .toList();
-        return GestureDetector(
+        return AppTappable(
+   ripple: false,
           onTap: () => _showSupplierBills(context, supplier),
           child: Container(
             padding: const EdgeInsets.all(14),
@@ -607,11 +581,8 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                     ),
                     Text(
                       compactINR(supplier.total),
-                      style: GoogleFonts.manrope(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.danger,
-                      ),
+                      style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                        color: AppColors.danger),
                     ),
                     const SizedBox(width: 6),
                     Icon(LucideIcons.chevronRight,
@@ -632,7 +603,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
               ],
             ),
           ),
-        );
+ );
       },
     );
   }
@@ -673,28 +644,18 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                   children: [
                     Text(
                       row.id,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.inkPrimary,
-                      ),
+                      style: AppText.label.copyWith(color: AppColors.inkPrimary),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       row.supplierName,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        color: AppColors.inkSecondary,
-                      ),
+                      style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                     ),
                     if (row.billDate != null) ...[
                       const SizedBox(height: 1),
                       Text(
                         'Bill: ${_fmtDate(row.billDate!)}',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: AppColors.inkTertiary,
-                        ),
+                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                       ),
                     ],
                   ],
@@ -717,10 +678,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                       if (row.daysOverdue > 0) ...[
                         Text(
                           '${row.daysOverdue}d',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: AppColors.inkSecondary,
-                          ),
+                          style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                         ),
                         const SizedBox(width: 6),
                       ],
@@ -765,10 +723,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
             Text(
               'All bills are settled or on cash terms',
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: AppColors.inkSecondary,
-              ),
+              style: AppText.caption.copyWith(color: AppColors.inkSecondary),
             ),
           ],
         ),

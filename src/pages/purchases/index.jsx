@@ -1,25 +1,28 @@
-import React, { useState, useMemo } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Calendar, ChevronRight } from 'lucide-react';
-import Button from '../../shared/Button';
+import { Plus, Banknote, Printer } from 'lucide-react';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
 import { PageSkeleton } from '../../components/ui/States';
-import { formatCurrency, formatDate, generateRef } from '../../lib/utils';
-import { groupPurchasesIntoBills, filterBills, paidOf, dueOf as billDueOf, isCreditType } from '../../lib/bills';
-import { buildVoucherModel } from './lib/voucher';
+import { formatCurrency, formatDate, generateRef, todayISOInAppTZ } from '../../lib/utils';
+import { groupPurchasesIntoBills, dueOf as billDueOf, isCreditType } from '../../lib/bills';
+import { buildVoucherModel, voucherNo } from './lib/voucher';
+import { decorateBills, lineDeltas, allocatePayment, fmtDate } from './lib/register';
+import { classifyWriteFailure } from '../../lib/writeOutcome';
 import { voucherHtml } from './lib/voucherHtml';
 import PurchaseForm from './components/PurchaseForm';
 import BillEditForm from './components/BillEditForm';
 import BillPaymentsModal from './components/BillPaymentsModal';
 import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
+import PriceHistory from './components/PriceHistory';
+import BillRegister from './components/BillRegister';
 
 const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
@@ -28,51 +31,45 @@ const PurchasesPage = () => {
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
   const { purchases, purchaseReturns, suppliers, add: addPurchase, editPurchaseBill, supplierPayments, editSupplierPayment, deleteSupplierPayment, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
-  const { products, inventoryLocations, loading: prodLoading, updateProduct, addProduct } = useInventory(currentTenantId);
+  const { products, inventoryLocations, loading: prodLoading, addProduct, setSellingPrice } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
   const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' | 'returns'
   const [showAddModal, setShowAddModal] = useState(false);
+  // Inventory side panel "Reorder" lands here as ?reorder=<productId>: open the
+  // new-purchase form with that product on its first line, then drop the param.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [reorderId, setReorderId] = useState(null);
+  useEffect(() => {
+    const id = searchParams.get('reorder');
+    if (!id) return;
+    setReorderId(id);
+    setShowAddModal(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('reorder');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+  const wasOpen = React.useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !showAddModal) setReorderId(null);
+    wasOpen.current = showAddModal;
+  }, [showAddModal]);
   const [editBillTarget, setEditBillTarget] = useState(null); // whole bill being edited
-  const [menuBill, setMenuBill] = useState(null);       // bill whose header menu is open
   const [billSaving, setBillSaving] = useState(false);
   const [paymentsTarget, setPaymentsTarget] = useState(null); // bill whose payments are open
   const [returnTarget, setReturnTarget] = useState(null); // purchase being returned
   const [returnLoading, setReturnLoading] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
 
-  // ── Filter / sort ──────────────────────────────────────────────────────────
-  const [search, setSearch]   = useState('');
-  const [fSupplier, setFSup]  = useState('ALL');
-  const [fPay, setFPay]       = useState('ALL');   // ALL | CASH | CREDIT
-  const [fStatus, setFStatus] = useState('ALL');   // ALL | PENDING | ORDERED | RECEIVED | CANCELLED
-  const [sortBy, setSortBy]   = useState('DATE_DESC'); // DATE_DESC | DATE_ASC | AMT_DESC | AMT_ASC
-  const [onlyUnpaid, setOnlyUnpaid] = useState(false); // quick chip: credit purchases still owing
-  // Date now lives in the row gutter, so grouping by it as well would say the
-  // same thing twice and cost a row each time.
-  const [groupBy, setGroupBy] = useState('NONE'); // NONE | SUPPLIER | DATE
-  const [expandedBill, setExpandedBill] = useState(null); // bill id whose products are open
-  // Row density. 52-56px is the readable default for an enterprise table and
-  // 40-44px the compact one; compact drops the supplier line and the settlement
-  // caption, which is what actually sets the height floor.
-  const [dense, setDense] = useState(false);
-
   // ── Pay / Duplicate / Print targets ─────────────────────────────────────────
   const [payTarget, setPayTarget] = useState(null);
   const [payAmount, setPayAmount] = useState('');
   const [payMethod, setPayMethod] = useState('CASH');
-  const [payDate, setPayDate]     = useState(() => new Date().toISOString().slice(0, 10));
+  const [payDate, setPayDate]     = useState(() => todayISOInAppTZ());
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [dupTarget, setDupTarget]   = useState(null); // purchase to duplicate (prefill single form)
   const [printTarget, setPrintTarget] = useState(null);
-  const [menuRow, setMenuRow]       = useState(null); // row whose ⋯ menu is open (portaled)
-  const [menuPos, setMenuPos]       = useState({ top: 0, left: 0 });
-  const openMenu = (e, pur) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    setMenuPos({ top: r.bottom + 4, left: Math.max(8, r.right - 160) });
-    setMenuRow(pur);
-  };
-
+  const [historyProduct, setHistoryProduct] = useState(null); // product whose price history is open
   // Credit terms, paid and due all come from src/lib/bills.js so this screen and
   // the supplier ledger cannot disagree about what is owed.
   const _credit = isCreditType;
@@ -146,11 +143,6 @@ const PurchasesPage = () => {
     return m;
   }, [products]);
 
-  // A voucher covers the bill a line belongs to. Printing from a product row
-  // must produce the whole document, not that row's share of it.
-  const billOfLine = (line) =>
-    (allBills || []).find(b => b.lines.some(l => l.id === line?.id)) || null;
-
   // The voucher needs the whole product, not just its name — hsn_code, unit and
   // taxRate all appear on the printed document.
   const productById = useMemo(() => {
@@ -159,86 +151,21 @@ const PurchasesPage = () => {
     return m;
   }, [products]);
 
-  // Bills first, then filter whole bills.
-  //
-  // Filtering the product rows first and grouping after left a bill missing any
-  // line the filter rejected: ticking "Unpaid" showed SAJJAD's 1 Aug bill as
-  // Rs 10,260 with Rs 3,260 paid, because its three settled lines were gone
-  // before the total was added up. It is Rs 28,770 with Rs 21,770 paid.
-  const allBills = useMemo(
-    () => groupPurchasesIntoBills(purchases || []).map(b => ({
-      ...b,
-      __bill: true,
-      notes: b.lines.map(l => l.notes).filter(Boolean).join(' · '),
-    })),
-    [purchases]);
-
-  const filteredBills = useMemo(() => {
-    const rows = filterBills(allBills, {
-      q: search,
-      supplierId: fSupplier,
-      pay: fPay,
-      status: fStatus,
-      onlyUnpaid,
-      productNameOf: (id) => productNameById[id] || '',
-    });
-    const qtyOf = (b) => b.lines.reduce((s2, l) => s2 + Number(l.quantity || 0), 0);
-    return [...rows].sort((a, b) => {
-      if (sortBy === 'AMT_DESC') return b.total - a.total;
-      if (sortBy === 'AMT_ASC')  return a.total - b.total;
-      if (sortBy === 'QTY_DESC') return qtyOf(b) - qtyOf(a);
-      if (sortBy === 'QTY_ASC')  return qtyOf(a) - qtyOf(b);
-      if (sortBy === 'DATE_ASC') return String(a.date).localeCompare(String(b.date));
-      return String(b.date).localeCompare(String(a.date)); // DATE_DESC
-    });
-  }, [allBills, search, fSupplier, fPay, fStatus, sortBy, onlyUnpaid, productNameById]);
-
-  // Count for the Unpaid chip badge — bills still carrying a balance.
-  const unpaidCount = useMemo(() => allBills.filter(b => b.due > 0.5).length, [allBills]);
-
-  // Age of a bill in days, and whether one still owing is overdue (>30 days).
-  const ageDays = (p) => {
-    const d = new Date(p.date);
-    if (isNaN(d)) return 0;
-    return Math.floor((Date.now() - d.getTime()) / 86400000);
-  };
-
-  const displayRows = useMemo(() => {
-    // Mark the first bill of each date so the gutter prints the date once and
-    // the rest of that day's bills read as a block. This is what replaces the
-    // full-width date header rows.
-    const withDayMarks = (rows) => {
-      let last = null;
-      return rows.map((b) => {
-        const first = b.date !== last;
-        last = b.date;
-        return first ? { ...b, __firstOfDay: true } : b;
-      });
-    };
-
-    if (groupBy === 'NONE') return withDayMarks(filteredBills);
-    const byDate = groupBy === 'DATE';
-    const map = new Map();
-    filteredBills.forEach(b => {
-      const key = byDate ? (b.date || '—') : (b.supplier_id || b.supplier_name || '—');
-      if (!map.has(key)) {
-        map.set(key, {
-          name: byDate ? (b.date || 'No date') : (b.supplier_name || 'Unknown supplier'),
-          isDate: byDate, rows: [], total: 0, due: 0,
-        });
-      }
-      const g = map.get(key);
-      g.rows.push(b);
-      g.total += b.total;
-      g.due += b.due;
-    });
-    const out = [];
-    for (const [key, g] of map) {
-      out.push({ __group: true, key, name: g.name, isDate: g.isDate, count: g.rows.length, total: g.total, due: g.due });
-      withDayMarks(g.rows).forEach(r => out.push(r));
-    }
-    return out;
-  }, [filteredBills, groupBy]);
+  // Every bill, from the one definition of a bill (src/lib/bills.js), then
+  // given what the register needs: due date, state, price movement per line,
+  // and how it was paid. The register filters and totals whole bills, so a
+  // part-matching bill never loses lines before it is added up.
+  const today = todayISOInAppTZ();
+  const allBills = useMemo(() => groupPurchasesIntoBills(purchases || []), [purchases]);
+  const deltas = useMemo(() => lineDeltas(purchases || []), [purchases]);
+  const registerBills = useMemo(() => decorateBills(allBills, {
+    suppliers: suppliers || [],
+    payments: supplierPayments || [],
+    deltas,
+    productById,
+    homeStateCode: String(businessProfile?.gst_no || '').slice(0, 2),
+    today,
+  }), [allBills, suppliers, supplierPayments, deltas, productById, businessProfile, today]);
 
   // Professional, self-contained printable purchase voucher (own CSS — the
   // print window has none of the app's styles).
@@ -268,38 +195,92 @@ const PurchasesPage = () => {
     w.document.close();
   };
 
+  // Pay one bill, or several of one supplier's bills from the register's bulk
+  // bar. The money is spread oldest bill first, and within a bill oldest line
+  // first, never past what a line owes; each slice is recorded against its own
+  // purchase row by settle_purchase_payment, so balances move on the server.
+  const openPay = (bills) => {
+    const list = [...bills].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    if (!list.length) return;
+    const total = list.reduce((s2, b) => s2 + b.total, 0);
+    const paid = list.reduce((s2, b) => s2 + b.paid, 0);
+    setPayTarget({
+      id: list[0].id,
+      bills: list,
+      lines: list.flatMap(b => b.lines),
+      supplier_id: list[0].supplier_id,
+      supplier_name: list[0].supplier_name,
+      total_amount: total,
+      paid_amount: paid,
+    });
+    setPayAmount((Math.round((total - paid) * 100) / 100).toFixed(2));
+    setPayMethod('CASH');
+    setPayDate(todayISOInAppTZ());
+  };
+
   const submitPay = async () => {
     if (!payTarget) return;
     const amt = Number(payAmount);
     if (!(amt > 0)) { addNotification('Enter a valid amount', 'error'); return; }
+    const due = dueOf(payTarget);
+    if (amt > due + 0.005) { addNotification(`That is more than the ${formatCurrency(due)} due`, 'error'); return; }
     // Confirm before paying a supplier — blocks the thread so a double-tap can't
     // fire two payments.
     if (!window.confirm(`Pay ${formatCurrency(amt)} to ${payTarget.supplier_name || 'supplier'} (${payMethod})?`)) return;
     setPaySubmitting(true);
-    const { error } = await payPurchase({ supplierId: payTarget.supplier_id, purchaseId: payTarget.id, amount: amt, method: payMethod, date: payDate });
+    const slices = allocatePayment(payTarget.lines || [payTarget], amt);
+    const planned = Math.round(slices.reduce((s2, x) => s2 + x.amount, 0) * 100) / 100;
+    if (Math.abs(planned - amt) > 0.005) {
+      setPaySubmitting(false);
+      addNotification(`Only ${formatCurrency(planned)} of ${formatCurrency(amt)} can be placed against these bills. Nothing was recorded.`, 'error');
+      return;
+    }
+    let done = 0;
+    let failure = null;
+    for (const sl of slices) {
+      const { error } = await payPurchase({ supplierId: payTarget.supplier_id, purchaseId: sl.purchaseId, amount: sl.amount, method: payMethod, date: payDate });
+      if (error) { failure = error; break; }
+      done += sl.amount;
+    }
     setPaySubmitting(false);
-    if (error) { addNotification(`Payment failed: ${error.message}`, 'error'); return; }
     // The Cash/Bank posting is NOT done here any more.
     // trg_supplier_payments_post_ledger writes it from the payment row itself,
     // which covers every path that records one -- this button, the supplier
     // ledger, the bulk FIFO settle, offline replay and mobile. Posting here as
     // well would book the same money out twice. (Only 11 of 34 payments ever
     // reached an account, precisely because this was the one path that did it.)
-    addNotification('Payment recorded', 'success');
+    if (failure) {
+      // Never swallowed: say what went through and what did not. A dropped
+      // connection may still have recorded the last slice, so it is not
+      // reported as unsaved.
+      console.error('[purchases] payment failed after', done, failure);
+      const outcome = classifyWriteFailure(failure, { noun: 'payment' });
+      const head = done > 0 ? `${formatCurrency(done)} of ${formatCurrency(amt)} was recorded. ` : '';
+      addNotification(`${head}${outcome.title}: ${outcome.detail}`, 'error');
+      // The dialog's lines and due are now stale; close it so a retry starts
+      // from the bills as they stand.
+      setPayTarget(null); setPayAmount('');
+      return;
+    }
+    addNotification(`Payment of ${formatCurrency(amt)} recorded`, 'success');
     setPayTarget(null); setPayAmount('');
   };
 
-  // ── WAC helper ──────────────────────────────────────────────────────────────
-  const updateWAC = async (productId, qty, unitCost) => {
-    const product = products.find(p => p.id === productId);
-    if (!product || unitCost <= 0) return;
-    const oldStock = Number(product.stock) || 0;
-    const oldCost  = Number(product.costPrice) || 0;
-    const denom    = oldStock + qty;
-    const newCost  = denom > 0 ? (oldStock * oldCost + qty * unitCost) / denom : unitCost;
-    const rounded  = Math.round(newCost * 100) / 100;
-    if (rounded !== oldCost) await updateProduct(product.id, { costPrice: rounded });
-  };
+  // The WAC helper that used to live here is gone, and must not come back.
+  //
+  // It blended the new line's rate into the product's previous cost, weighted
+  // by the stock figure in the React copy of that product -- a row already one
+  // purchase out of date -- and wrote the result immediately after
+  // addPurchase. process_purchase had just set that same column from the
+  // actual open batches, so the client's answer landed on top of the
+  // database's and won.
+  //
+  // Two writers, two definitions of "cost", last one wins. That is how the
+  // item screen came to show Rs 5.50 for stock that cost Rs 7.82, and a
+  // 35.3 % margin on units being sold at a Rs 0.50 loss.
+  //
+  // recompute_product_cost is now the only writer, and consume_fifo calls it
+  // too, so the figure tracks the shelf rather than only tracking purchases.
 
   // ── Quick-create product from barcode ──────────────────────────────────────
   const handleCreateProduct = async (productData) => {
@@ -309,11 +290,12 @@ const PurchasesPage = () => {
   };
 
   // ── Multi-item purchase save ─────────────────────────────────────────────────
-  const handleSaveMultiPurchase = async ({ header, items }) => {
+  const handleSaveMultiPurchase = async ({ header, items, priceUpdates = [] }) => {
     setAddLoading(true);
     const supplierName = suppliers.find(s => s.id === header.supplier_id)?.name || '';
     let failed = 0;
     let firstError = '';
+    const expiryMissed = [];
 
     // A part payment has to be spread across the bill's lines, because each
     // product becomes its own purchases row. Fill the lines in order until the
@@ -349,7 +331,8 @@ const PurchasesPage = () => {
         userId:            currentUser?.id,
         locationId:        header.location_id || null,
       };
-      const { error } = await addPurchase(payload);
+      const { error, queued } = await addPurchase(payload);
+      if (queued && item.expiry_date) expiryMissed.push(`${productNameById[item.linked_product_id] || item.linked_product_id} (${fmtDate(item.expiry_date)})`);
       if (error) {
         // Surface the real reason — swallowing it turned a hard DB error
         // ("function is not unique") into a bare "N item(s) failed to save".
@@ -358,22 +341,19 @@ const PurchasesPage = () => {
         failed++;
         continue;
       }
-      await updateWAC(item.linked_product_id, item.quantity, item.unit_price);
-      // Expiry tracking: a dated batch per line when expiry was provided.
-      if (item.expiry_date) {
+      // Expiry: process_purchase has already created this line's batch. Stamp
+      // the expiry on THAT batch. This used to insert a second batch for the
+      // same stock -- 13 purchases at one shop held 134 units in batches for
+      // 67 bought, which skews FIFO cost and the average cost.
+      if (item.expiry_date && !queued) {
         const { supabase } = await import('../../lib/supabase');
-        await supabase.from('product_batches').insert({
-          tenant_id: currentTenantId,
-          product_id: item.linked_product_id,
-          purchase_id: payload.id,
-          supplier_id: header.supplier_id,
-          received_date: header.date,
-          unit_cost: item.unit_price,
-          qty_received: item.quantity,
-          qty_remaining: item.quantity,
-          expiry_date: item.expiry_date,
-          warehouse_id: header.location_id || null,
-        });
+        const { error: expErr, count } = await supabase.from('product_batches')
+          .update({ expiry_date: item.expiry_date }, { count: 'exact' })
+          .eq('purchase_id', payload.id).eq('tenant_id', currentTenantId);
+        if (expErr || !count) {
+          console.error('[purchase] expiry not recorded for', payload.id, expErr);
+          expiryMissed.push(`${productNameById[item.linked_product_id] || item.linked_product_id} (${fmtDate(item.expiry_date)})`);
+        }
       }
     }
     // The money-OUT for a non-credit purchase is posted by the database, in
@@ -382,9 +362,39 @@ const PurchasesPage = () => {
     // never moved the cash with it, and only this one screen did it at all.
     // Posting from here as well would now double the money out — the same
     // mistake the supplier-payment trigger already caused once.
+    // New selling prices chosen on the price-change step. Only once the whole
+    // bill is in: a half-saved bill must not leave prices raised for stock
+    // that never arrived.
+    let priceFailed = [];
+    if (failed === 0) {
+      for (const u of priceUpdates) {
+        const { error } = await setSellingPrice(u.productId, u.sellingPrice);
+        if (error) {
+          console.error('[purchase] selling price update failed for', u.productId, error);
+          priceFailed.push(`${u.name}: ${error.message || String(error)}`);
+        }
+      }
+    }
     setAddLoading(false);
-    if (failed > 0) alert(`${failed} item(s) failed to save.${firstError ? `\n\nReason: ${firstError}` : ''}`);
-    else setShowAddModal(false);
+    if (expiryMissed.length) {
+      // Never silent: the purchase is saved, its expiry date is not.
+      const many = expiryMissed.length > 1;
+      addNotification(`Purchase saved, but the expiry date was not recorded for ${expiryMissed.join(', ')}. ${many ? 'These batches' : 'This batch'} will show no expiry; keep a note of the ${many ? 'dates' : 'date'}.`, 'error', 0); // stays until closed
+    }
+    if (failed > 0) {
+      alert(`${failed} item(s) failed to save.${firstError ? `\n\nReason: ${firstError}` : ''}`
+        + (priceUpdates.length ? '\n\nSelling prices were not changed.' : ''));
+    } else if (priceFailed.length) {
+      alert(`The purchase is saved, but these selling prices were not updated:\n\n${priceFailed.join('\n')}`);
+      setShowAddModal(false);
+    } else {
+      if (priceUpdates.length) {
+        addNotification?.(`Selling price updated for ${priceUpdates.length} item${priceUpdates.length > 1 ? 's' : ''}`, 'success');
+      }
+      // Let the Save button's "Saved" tick be seen before the dialog closes.
+      setTimeout(() => setShowAddModal(false), 700);
+    }
+    return { ok: failed === 0 };
   };
 
   // Duplicate → create a brand-new purchase from a prefilled single form.
@@ -408,7 +418,6 @@ const PurchasesPage = () => {
     });
     setAddLoading(false);
     if (error) { addNotification('Duplicate failed: ' + error.message, 'error'); return; }
-    if (qty > 0 && data.linked_product_id) await updateWAC(data.linked_product_id, qty, Number(data.unit_price) || total / qty);
     addNotification('Purchase duplicated', 'success');
     setDupTarget(null);
   };
@@ -447,34 +456,6 @@ const PurchasesPage = () => {
     } finally {
       setReturnLoading(false);
     }
-  };
-
-  // ── Purchases table ──────────────────────────────────────────────────────────
-  // Date moves to a gutter that prints once per day, so the full-width date
-  // header rows can go -- at 55 bills those cost about 30 rows of pure
-  // scrolling. Qty and ref fold into the line under the product, which leaves
-  // room for settlement to be shown as paid-against-due rather than three
-  // stacked strings.
-  const headers = [
-    { label: 'Date' },
-    { label: 'Product / supplier' },
-    { label: 'Settlement' },
-    { label: 'Amount', className: 'text-right' },
-    { label: 'Status', className: 'text-center' },
-    { label: '', className: 'text-right' },
-  ];
-  const PUR_COLS = 6;
-
-  // Two-letter supplier initials for the neutral avatar.
-  const initialsOf = (name) => (name || '?')
-    .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
-  const shortDate = (d) => { const x = new Date(d); return isNaN(x) ? '' : x.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }); };
-
-  const _STATUS_STYLES = {
-    PENDING:   { bg: 'bg-accent-signature/10',   text: 'text-accent-signature-hover',   border: 'border-accent-signature/25',   label: 'Pending'   },
-    ORDERED:   { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    label: 'Ordered'   },
-    RECEIVED:  { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Received'  },
-    CANCELLED: { bg: 'bg-muted',   text: 'text-muted-foreground',    border: 'border-border',    label: 'Cancelled' },
   };
 
   // ── Returns table ────────────────────────────────────────────────────────────
@@ -522,413 +503,73 @@ const PurchasesPage = () => {
     );
   };
 
-  // Subtotal band between groups. Date groups lead with a calendar glyph and
-  // the full date; supplier groups with the supplier's initials.
-  const renderGroupHeader = (g) => (
-    <tr key={`g-${g.key}`} className="bg-canvas/70 border-y border-black/[0.04]">
-      <td colSpan={PUR_COLS} className="px-4 py-2">
-        <div className="flex items-center gap-2.5">
-          {g.isDate ? (
-            <div className="w-6 h-6 rounded-md bg-card border border-border/60 flex items-center justify-center text-muted-foreground shrink-0"><Calendar size={12} /></div>
-          ) : (
-            <div className="w-6 h-6 rounded-md bg-card border border-border/60 flex items-center justify-center text-[10px] font-semibold text-muted-foreground shrink-0">{initialsOf(g.name)}</div>
-          )}
-          <span className="text-xs font-semibold text-foreground truncate" title={g.name}>{g.isDate ? formatDate(g.name) : g.name}</span>
-          <span className="text-[11px] text-muted-foreground">{g.count} bill{g.count === 1 ? '' : 's'}</span>
-          <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
-            {formatCurrency(g.total)}
-            {g.due > 0.5
-              ? <> · <span className="text-[color:var(--color-neg)]">{formatCurrency(g.due)} due</span></>
-              : <> · settled</>}
-          </span>
-        </div>
-      </td>
-    </tr>
-  );
-
-  const renderRow = (row) => {
-    if (row.__group) return renderGroupHeader(row);
-    const bill = row;
-    const supplier = suppliers.find(s => s.id === bill.supplier_id);
-    const credit = _credit(bill.payment_type);
-    const due = bill.due;
-    const paid = bill.paid;
-    const multi = bill.lines.length > 1;
-    const expanded = expandedBill === bill.id;
-    const overdue = due > 0.5 && ageDays(bill) > 30;
-    const names = bill.lines.map(l => productNameById[l.linked_product_id]).filter(Boolean);
-    const qtyTotal = bill.lines.reduce((s, l) => s + Number(l.quantity || 0), 0);
-    // Comfortable lands ~54px, compact ~42px — the readable and dense ends of
-    // the range for a table this long.
-    const pad = dense ? 'px-4 py-1.5' : 'px-4 py-2.5';
-
-    return (
-      <React.Fragment key={bill.id}>
-      <tr
-        className={`transition-colors ${multi ? 'cursor-pointer' : ''} ${expanded ? 'bg-canvas' : 'hover:bg-canvas'}`}
-        onClick={() => multi && setExpandedBill(expanded ? null : bill.id)}
-        style={overdue ? { boxShadow: 'inset 2px 0 0 0 var(--color-neg)' } : undefined}>
-        {/* Date gutter — printed once per day, so a run of bills on one date
-            reads as a block without a header row costing a whole row of height. */}
-        <td className={`${pad} align-middle whitespace-nowrap`}>
-          <div className={row.__firstOfDay ? '' : 'invisible'}>
-            <div className="text-[12.5px] font-semibold text-foreground leading-tight">{shortDate(bill.date)}</div>
-            {!dense && <div className="text-[10.5px] text-muted-foreground">{String(bill.date).slice(0, 4)}</div>}
-          </div>
-        </td>
-        {/* Avatar + what was bought + supplier */}
-        <td className={`${pad} max-w-[280px]`}>
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-md bg-canvas border border-border/60 flex items-center justify-center text-[10px] font-semibold text-muted-foreground shrink-0">
-              {initialsOf(supplier?.name || bill.supplier_name)}
-            </div>
-            <div className="min-w-0">
-              <div className="text-[13.5px] font-semibold text-foreground truncate flex items-center gap-1.5" title={names.join(', ')}>
-                {multi
-                  ? <ChevronRight size={12} className={`shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`} />
-                  : <span className="w-3 h-3 shrink-0" aria-hidden />}
-                <span className="truncate">{names[0] || 'Unknown Product'}</span>
-                {multi && (
-                  <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-black/[0.06] text-ink-secondary">
-                    +{bill.lines.length - 1}
-                  </span>
-                )}
-              </div>
-              {/* Supplier, quantity and ref on one quiet line. They were three
-                  separate columns; none of them is what you scan for. */}
-              {!dense && (
-                <div className="text-[11.5px] text-muted-foreground truncate mt-0.5"
-                     title={supplier?.name || bill.supplier_name || ''}>
-                  <span className="text-ink-secondary">{supplier?.name || bill.supplier_name || '—'}</span>
-                  {' · '}{qtyTotal}{multi ? ` in ${bill.lines.length}` : ''}
-                  {' · '}<span className="tabular-nums text-[10px] opacity-70">{bill.id.split('-').pop()}</span>
-                  {bill.bill_no ? <span className="opacity-70"> · bill {bill.bill_no}</span> : null}
-                </div>
-              )}
-            </div>
-          </div>
-        </td>
-        {/* Settlement — a meter reads paid against due before any number does.
-            This was three stacked strings (label, paid, due) in a narrow cell;
-            the proportion is the thing you actually want at a glance. */}
-        <td className={pad}>
-          {(() => {
-            const pct = bill.total > 0 ? Math.max(0, Math.min(100, (paid / bill.total) * 100)) : 0;
-            const settled = due <= 0.5;
-            const label = settled ? (credit ? 'Paid' : (bill.payment_type || 'Cash'))
-              : (paid > 0.5 ? `${formatCurrency(paid)} paid` : (credit ? 'Credit · nothing paid' : 'Unpaid'));
-            return (
-              <div className="min-w-[150px]">
-                <div className="h-[5px] rounded-full bg-black/[0.07] overflow-hidden">
-                  <div className="h-full rounded-full transition-all"
-                       style={{ width: `${pct}%`, background: 'var(--color-pos)' }} />
-                </div>
-                <div className={`flex items-center justify-between gap-2 ${dense ? 'sr-only' : 'mt-1'}`}>
-                  <span className="text-[11px] text-muted-foreground truncate">{label}</span>
-                  {settled
-                    ? <span className="text-[11px] font-semibold text-[color:var(--color-pos)]">Settled</span>
-                    : <span className="text-[11px] font-semibold text-[color:var(--color-neg)] whitespace-nowrap">
-                        {formatCurrency(due)} due{overdue ? ` · ${ageDays(bill)}d` : ''}
-                      </span>}
-                </div>
-              </div>
-            );
-          })()}
-        </td>
-        {/* Total */}
-        <td className={`${pad} text-right whitespace-nowrap`}>
-          <div className="tabular-nums text-[14px] font-semibold text-foreground">{formatCurrency(bill.total)}</div>
-          {!dense && due > 0.5 && (
-            <div className="text-[10.5px] text-muted-foreground mt-0.5">
-              {paid > 0.5 ? `${Math.round((paid / bill.total) * 100)}% settled` : 'all outstanding'}
-            </div>
-          )}
-        </td>
-        {/* Status select — drives every line of the bill together */}
-        <td className={`${pad} text-center`} onClick={(e) => e.stopPropagation()}>
-          {(() => {
-            const st = (bill.status || 'RECEIVED').toUpperCase();
-            const s = _STATUS_STYLES[st] || _STATUS_STYLES.RECEIVED;
-            return (
-              <select
-                value={st}
-                onChange={(e) => bill.lines.forEach(l => updatePurchaseStatus(l.id, e.target.value))}
-                className={`text-[10px] font-medium px-2.5 py-1 rounded-pill border outline-none cursor-pointer ${s.bg} ${s.text} ${s.border}`}
-              >
-                <option value="PENDING">Pending</option>
-                <option value="ORDERED">Ordered</option>
-                <option value="RECEIVED">Received</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-            );
-          })()}
-        </td>
-        {/* Actions */}
-        <td className={`${pad} text-right`} onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-1.5 justify-end">
-            {/* Paying is per line, because the money lands on separate purchase
-                rows. A single-line bill is the common case and behaves as
-                before; a multi-line one opens to pay each line. */}
-            {due > 0.5 && !multi && (
-              <button
-                onClick={() => { setPayTarget(bill.lines[0]); setPayAmount(String(due)); setPayMethod('CASH'); }}
-                title={`Due ${formatCurrency(due)}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
-              >
-                <Banknote size={12} /> Pay
-              </button>
-            )}
-            {due > 0.5 && multi && (
-              <button
-                onClick={() => setExpandedBill(expanded ? null : bill.id)}
-                title="Open the bill to pay a line"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
-              >
-                <Banknote size={12} /> Pay lines
-              </button>
-            )}
-            {/* Edit, Return and Delete act on a single purchase row, but a bill
-                can hold several. Firing them at lines[0] silently targeted the
-                first product and left the rest unreachable -- a Return would
-                open on the wrong item and move real stock. So the menu only
-                sits on the header when the bill IS one line; otherwise it opens
-                the bill, where each line carries its own menu. */}
-            <button
-              onClick={(e) => {
-                if (!multi) { openMenu(e, bill.lines[0]); return; }
-                // A multi-line bill gets its OWN menu. Firing the line actions at
-                // lines[0] is what silently targeted the first product before, so
-                // this menu offers only what is meaningful for a whole bill.
-                e.stopPropagation();
-                const r = e.currentTarget.getBoundingClientRect();
-                setMenuBill({ bill, x: r.right, y: r.bottom });
-              }}
-              title={multi ? 'Bill actions' : 'More'}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
-            >
-              <MoreVertical size={16} />
-            </button>
-          </div>
-        </td>
-      </tr>
-
-      {/* The bill's lines, as real rows of THIS table.
-          They were a nested <table> inside one full-width cell, so their
-          columns were independent of the parent's: product names started at the
-          far left while the bill's product sat 260px in, and the amounts landed
-          in a different place to the Amount column above them. Emitting them as
-          siblings makes every column line up by construction rather than by
-          matching widths twice. */}
-      {expanded && bill.lines.map((l, i) => {
-        const prod = products.find(x => x.id === l.linked_product_id);
-        const lineAmt = Number(l.total_amount || 0);
-        const lineQty = Number(l.quantity || 0);
-        const lineDue = Math.max(0, lineAmt - paidOf(l));
-        const last = i === bill.lines.length - 1;
-        return (
-          <tr key={l.id} className="bg-canvas/60">
-            {/* Gutter carries the grouping rule instead of a box around the set */}
-            <td className={`${pad} border-l-2 border-accent-signature`}>
-              {i === 0 && (
-                <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {bill.lines.length} items
-                </span>
-              )}
-            </td>
-            {/* Indented to start where the parent's product text starts:
-                28px avatar + 10px gap. */}
-            <td className={`${pad} max-w-[280px]`}>
-              <div className="pl-[38px] min-w-0">
-                <div className="text-[12.5px] font-medium text-foreground truncate">
-                  {prod?.name || l.notes || '—'}
-                </div>
-                <div className="text-[11px] text-muted-foreground truncate">
-                  {lineQty} {prod?.unit || 'pcs'} × {formatCurrency(lineQty > 0 ? lineAmt / lineQty : 0)}
-                  {' · '}<span className="tabular-nums text-[10px] opacity-70">{l.id.split('-').pop()}</span>
-                </div>
-              </div>
-            </td>
-            <td className={pad}>
-              {lineDue > 0.5 ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold tabular-nums text-[color:var(--color-neg)]">
-                    {formatCurrency(lineDue)} due
-                  </span>
-                  <button
-                    onClick={() => { setPayTarget(l); setPayAmount(String(lineDue)); setPayMethod('CASH'); }}
-                    className="px-2 py-0.5 rounded-md text-[10px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
-                  >Pay</button>
-                </div>
-              ) : (
-                <span className="text-[11px] font-medium text-[color:var(--color-pos)]">Settled</span>
-              )}
-            </td>
-            <td className={`${pad} text-right tabular-nums text-[12.5px] font-semibold text-foreground whitespace-nowrap`}>
-              {formatCurrency(lineAmt)}
-            </td>
-            <td className={`${pad} text-center`}>
-              {last && (
-                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                  bill {formatCurrency(bill.total)}
-                </span>
-              )}
-            </td>
-            <td className={`${pad} text-right`} onClick={(e) => e.stopPropagation()}>
-              <button
-                onClick={(e) => openMenu(e, l)}
-                title={`Edit, return or delete ${prod?.name || 'this product'}`}
-                className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
-              >
-                <MoreVertical size={14} />
-              </button>
-            </td>
-          </tr>
-        );
-      })}
-      </React.Fragment>
-    );
-  };
-
   if (purLoading || prodLoading) return <PageSkeleton cards={3} rows={8} />;
 
   return (
-    <div className="animate-fade-in flex flex-col gap-6">
-      <div className="flex justify-between items-center pb-3 border-b border-border/60">
-        <div>
+    // Capped and centred. A row of this table is four columns the eye has to
+    // pair up -- item with its amount -- and on a 2000px monitor there was
+    // 1,300px of nothing between them. The cap is on the whole page rather
+    // than the table alone, so the header does not span a width the rows
+    // deliberately refuse.
+    <div className="flex flex-col gap-6 max-w-[1180px] mx-auto w-full">
+      {/* One quiet title row. The register below carries its own tabs, so
+          Purchases / Returns is a small segmented switch beside the title
+          rather than a second tab strip with a divider of its own. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex items-center gap-3 min-w-0">
           <h1 className="text-base font-semibold text-foreground tracking-tight">Purchases</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Inward stock from suppliers</p>
-        </div>
-        <button onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
-          <Plus size={14} /> New purchase
-        </button>
-      </div>
-
-      {/* ── Summary strip ── */}
-      {activeTab === 'purchases' && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/60 rounded-lg overflow-hidden border border-border/60">
-          {[
-            { label: 'This month', value: formatCurrency(summary.month) },
-            { label: 'Purchases', value: summary.count },
-            { label: 'Payable', value: formatCurrency(summary.payable), cls: summary.payable > 0 ? 'text-[color:var(--color-neg)]' : 'text-foreground' },
-            {
-              label: 'ITC this month',
-              value: formatCurrency(summary.itc),
-              cls: 'text-[color:var(--color-pos)]',
-              // Say why the figure is lower than the month's spend suggests,
-              // rather than leaving it looking like data went missing.
-              note: summary.itcUnverified > 0
-                ? `+${formatCurrency(summary.itcUnverified)} pending — ${summary.missingGstinSuppliers} supplier${summary.missingGstinSuppliers === 1 ? '' : 's'} have no GSTIN on file`
-                : null,
-            },
-          ].map((m, i) => (
-            <div key={i} className="bg-card px-4 py-3">
-              <div className="text-[11px] font-medium text-muted-foreground">{m.label}</div>
-              <div className={`text-[19px] font-semibold tabular-nums tracking-tight mt-0.5 ${m.cls || 'text-foreground'}`}>{m.value}</div>
-              {m.note && (
-                <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{m.note}</div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Tab switcher ── */}
-      <div className="flex items-center bg-muted rounded-lg p-0.5 w-fit">
-        <button
-          onClick={() => setActiveTab('purchases')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] transition-colors ${
-            activeTab === 'purchases'
-              ? 'bg-card text-foreground font-semibold shadow-sm'
-              : 'text-muted-foreground font-medium hover:text-foreground'
-          }`}
-        >
-          <ShoppingCart size={11} /> Purchases
-          <span className="ml-1 text-[9px] font-semibold bg-black/5 rounded px-1.5 py-0.5">{purchases.length}</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('returns')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] transition-colors ${
-            activeTab === 'returns'
-              ? 'bg-card text-rose-600 font-semibold shadow-sm'
-              : 'text-muted-foreground font-medium hover:text-foreground'
-          }`}
-        >
-          <ArrowLeftRight size={11} /> Returns
-          <span className={`ml-1 text-[9px] font-semibold rounded px-1.5 py-0.5 ${purchaseReturns.length > 0 ? 'bg-rose-100 text-rose-600' : 'bg-black/5'}`}>
-            {purchaseReturns.length}
-          </span>
-        </button>
-      </div>
-
-      {/* ── Filter / sort bar (purchases tab) ── */}
-      {activeTab === 'purchases' && (
-        <div className="flex flex-wrap items-center gap-2 bg-card border border-border/60 rounded-xl p-2">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search product / ref / supplier / notes…"
-              className="w-full h-9 pl-9 pr-3 bg-card border border-border rounded-lg text-[12px] font-semibold outline-none focus:border-accent-signature/70" />
+          <div className="inline-flex h-8 p-0.5 rounded-md bg-canvas border border-border/60" role="group" aria-label="Show">
+            {[['purchases', 'Bills', purchases.length], ['returns', 'Returns', purchaseReturns.length]].map(([k, label, n]) => (
+              <button key={k} type="button" onClick={() => setActiveTab(k)} aria-pressed={activeTab === k}
+                className={`px-2.5 rounded text-[12px] inline-flex items-center gap-1.5 transition-[background-color,color] duration-(--dur-hover) ${
+                  activeTab === k ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+                {label}<span className="text-[11px] tabular-nums text-muted-foreground">{n}</span>
+              </button>
+            ))}
           </div>
-          <select value={fSupplier} onChange={e => setFSup(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
-            <option value="ALL">All suppliers</option>
-            {(suppliers || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <select value={fPay} onChange={e => setFPay(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
-            <option value="ALL">All payment</option><option value="CASH">Cash</option><option value="CREDIT">Credit</option>
-          </select>
-          <select value={fStatus} onChange={e => setFStatus(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
-            <option value="ALL">All status</option><option value="PENDING">Pending</option><option value="ORDERED">Ordered</option><option value="RECEIVED">Received</option><option value="CANCELLED">Cancelled</option>
-          </select>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
-            <option value="DATE_DESC">Newest</option><option value="DATE_ASC">Oldest</option>
-            <option value="AMT_DESC">Amount ↓</option><option value="AMT_ASC">Amount ↑</option>
-            <option value="QTY_DESC">Qty ↓</option><option value="QTY_ASC">Qty ↑</option>
-          </select>
-          {/* Quick chip — jump straight to bills still owing. */}
-          <button
-            onClick={() => setOnlyUnpaid(v => !v)}
-            className={`h-9 px-3 rounded-lg text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-colors ${
-              onlyUnpaid ? 'bg-[color:var(--color-neg)]/10 border-[color:var(--color-neg)]/30 text-[color:var(--color-neg)]'
-                         : 'border-border text-muted-foreground hover:text-foreground'}`}
-          >
-            Unpaid
-            {unpaidCount > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${onlyUnpaid ? 'bg-[color:var(--color-neg)]/15' : 'bg-black/5'}`}>{unpaidCount}</span>
-            )}
-          </button>
-          {/* Density — a documented personalisation for long tables. Compact
-              drops the supplier line and the settlement caption, which is what
-              sets the height floor, not the padding. */}
-          <button
-            onClick={() => setDense(v => !v)}
-            title={dense ? 'Comfortable rows' : 'Compact rows — more per screen'}
-            className={`h-9 px-3 rounded-lg text-[12px] font-semibold border transition-colors ${
-              dense ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
-                    : 'border-border text-muted-foreground hover:text-foreground'}`}
-          >
-            {dense ? 'Comfortable' : 'Compact'}
-          </button>
-          {/* Group control — flat by default, or by supplier. */}
-          <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
-            title="Group the list"
-            className={`h-9 px-2 border rounded-lg text-[12px] font-semibold ${
-              groupBy !== 'NONE' ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
-                                 : 'border-border text-muted-foreground'}`}>
-            <option value="DATE">Group by date</option>
-            <option value="SUPPLIER">Group by supplier</option>
-            <option value="NONE">No grouping</option>
-          </select>
-          {/* Counted in bills, which is what the rows now are. */}
-          <span className="text-[11px] font-semibold text-muted-foreground ml-auto">{filteredBills.length} of {allBills.length} bills</span>
         </div>
-      )}
+
+        <div className="flex items-center gap-6">
+          {activeTab === 'purchases' && (
+            // What is owed lives in the register's Due tab, with the overdue part
+            // as its own red figure. A big red Payable here said the same number
+            // again and painted all of it red, overdue or not.
+            <div className="hidden lg:flex items-baseline gap-3 text-[12px] text-muted-foreground">
+              <span><span className="tabular-nums font-semibold text-foreground">{formatCurrency(summary.month)}</span> this month</span>
+              <span><span className="tabular-nums font-semibold text-[color:var(--color-pos)]">{formatCurrency(summary.itc)}</span> ITC
+                {summary.itcUnverified > 0 && (
+                  <span title={`${summary.missingGstinSuppliers} supplier${summary.missingGstinSuppliers === 1 ? '' : 's'} have no GSTIN on file`}>
+                    {' '}· +{formatCurrency(summary.itcUnverified)} pending
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+          <button onClick={() => setShowAddModal(true)} aria-label="New purchase"
+            className="flex items-center gap-1.5 h-8 px-3 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 transition-[background-color,transform] duration-150 active:scale-[0.98] shrink-0">
+            <Plus size={14} /><span className="hidden sm:inline">New purchase</span>
+          </button>
+        </div>
+      </div>
 
       {activeTab === 'purchases' && (
-        <Table
-          headers={headers}
-          rows={displayRows}
-          renderRow={renderRow}
-          emptyMessage="No purchases match the filters"
+        <BillRegister
+          bills={registerBills}
+          today={today}
+          suppliers={suppliers}
+          productById={productById}
+          voucherNoOf={voucherNo}
+          onNew={() => setShowAddModal(true)}
+          onPay={(b) => openPay([b])}
+          onBulkPay={(bs) => openPay(bs)}
+          onVoucher={(b) => setPrintTarget(b)}
+          onPayments={(b) => setPaymentsTarget(b)}
+          onEdit={(b) => setEditBillTarget(b)}
+          onHistory={(l) => setHistoryProduct(products.find(x => x.id === l.linked_product_id) || { id: l.linked_product_id, name: productNameById[l.linked_product_id] })}
+          onDuplicate={(l) => setDupTarget(l)}
+          onReturn={(l) => setReturnTarget({ purchase: l, product: products.find(x => x.id === l.linked_product_id), supplier: suppliers.find(s => s.id === l.supplier_id) })}
+          onDelete={(l) => handleDeletePurchase(l)}
+          onSetStatus={(b, st) => b.lines.forEach(l => updatePurchaseStatus(l.id, st))}
         />
       )}
       {activeTab === 'returns' && (
@@ -938,59 +579,6 @@ const PurchasesPage = () => {
           renderRow={renderReturnRow}
           emptyMessage="No purchase returns yet"
         />
-      )}
-
-      {/* Row ⋯ menu — portaled to body so the table's overflow can't clip it */}
-      {menuRow && createPortal(
-        <>
-          <div className="fixed inset-0 z-[9998]" onClick={() => setMenuRow(null)} />
-          <div className="fixed z-[9999] w-44 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left }}>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground"><Printer size={13} /> Voucher</button>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground"><Copy size={13} /> Duplicate</button>
-            {/* A one-line bill IS a bill. Editing it through the same form as a
-                multi-line one means one write path (edit_purchase_bill, one
-                transaction) instead of two that can disagree -- which is how a
-                line came to leave its own bill in the first place. */}
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setEditBillTarget(billOfLine(p)); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-blue-600"><Pencil size={13} /> Edit</button>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setReturnTarget({ purchase: p, product: products.find(x => x.id === p.linked_product_id), supplier: suppliers.find(s => s.id === p.supplier_id) }); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-rose-600"><RotateCcw size={13} /> Return</button>
-            <div className="h-px bg-black/5 my-1" />
-            <button onClick={() => { const p = menuRow; setMenuRow(null); handleDeletePurchase(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-50 text-red-600"><Trash2 size={13} /> Delete</button>
-          </div>
-        </>,
-        document.body
-      )}
-
-      {/* Bill ⋯ menu — only the actions that mean something for a WHOLE bill.
-          Return and Delete stay on the lines: they move stock for one product,
-          and a bill-level version of either would have to pick a line. */}
-      {menuBill && createPortal(
-        <>
-          <div className="fixed inset-0 z-[9998]" onClick={() => setMenuBill(null)} />
-          <div className="fixed z-[9999] w-52 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold"
-            style={{ top: menuBill.y + 4, left: Math.max(8, menuBill.x - 208) }}>
-            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              {menuBill.bill.lines.length} lines · {formatCurrency(menuBill.bill.total)}
-            </div>
-            <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setEditBillTarget(b); }}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-blue-600">
-              <Pencil size={13} /> Edit whole bill
-            </button>
-            <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setPaymentsTarget(b); }}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground">
-              <Banknote size={13} /> Payments
-            </button>
-            <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setPrintTarget(b); }}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground">
-              <Printer size={13} /> Voucher
-            </button>
-            <div className="h-px bg-black/5 my-1" />
-            <button onClick={() => { const b = menuBill.bill; setMenuBill(null); setExpandedBill(b.id); }}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-muted-foreground">
-              Open lines — to return or delete one
-            </button>
-          </div>
-        </>,
-        document.body
       )}
 
       {/* Edit whole bill */}
@@ -1003,17 +591,69 @@ const PurchasesPage = () => {
             products={products}
             productNameById={productNameById}
             payments={supplierPayments}
+            purchases={purchases}
             saving={billSaving}
             onCancel={() => setEditBillTarget(null)}
             onSave={async (payload) => {
               setBillSaving(true);
               try {
+                // Lines split on whether they already exist. edit_purchase_bill
+                // refuses an id it does not know -- deliberately, because a
+                // partial payload used to orphan lines on the old header -- so
+                // added lines cannot go through it and are inserted the way any
+                // purchase is, by process_purchase.
+                const keptLines = payload.lines.filter(l => l.id);
+                const newLines  = payload.lines.filter(l => !l.id);
+
                 const { error } = await withTimeout(editPurchaseBill({
                   ...payload,
+                  lines: keptLines,
                   userId: currentUser?.id,
                   accountId: accountForMethod(payAccounts, payload.paymentType),
                 }), 20000, 'Save bill');
                 if (error) throw error;
+
+                // Added lines, after the edit. Before it, they would be part of
+                // the bill the RPC then checks its payload against, and it would
+                // refuse the save for lines it had just been given.
+                const billId = payload.billId;
+                const supplierName = suppliers.find(s2 => s2.id === payload.supplierId)?.name || '';
+                for (const l of newLines) {
+                  const newId = generateRef('PUR');
+                  const { error: addErr } = await addPurchase({
+                    id: newId,
+                    linked_product_id: l.linked_product_id,
+                    supplier_id: payload.supplierId,
+                    supplier_name: supplierName,
+                    quantity: l.quantity,
+                    unit_cost: l.unit_cost,
+                    total_amount: l.total_amount,
+                    payment_type: payload.paymentType,
+                    date: payload.date,
+                    notes: l.notes,
+                    bill_no: payload.billNo || null,
+                    userId: currentUser?.id,
+                  });
+                  if (addErr) throw addErr;
+
+                  // The one write not inside an RPC. process_purchase does the
+                  // money -- stock, batch, ledger -- but knows nothing about
+                  // bills, and the row's own trigger only joins a bill created
+                  // in the last ten minutes, so an older bill would get a line
+                  // of its own instead. bill_id is a grouping column, not a
+                  // figure; if this fails the line still exists and is visible,
+                  // just under its own heading, which is recoverable in a way
+                  // that losing it would not be.
+                  const { supabase } = await import('../../lib/supabase');
+                  const { error: joinErr } = await supabase.from('purchases')
+                    .update({ bill_id: billId })
+                    .eq('id', newId).eq('tenant_id', currentTenantId);
+                  if (joinErr) {
+                    addNotification(
+                      `The line saved but did not join this bill (${joinErr.message}). It is on the Purchases list as its own bill.`,
+                      'error');
+                  }
+                }
 
                 // A part payment is recorded AFTER the bill saves, and as a real
                 // payment via settle_purchase_payment -- never by writing
@@ -1070,15 +710,23 @@ const PurchasesPage = () => {
         )}
       </Modal>
 
+      {/* What this item has cost, purchase by purchase. */}
+      <Modal isOpen={!!historyProduct} onClose={() => setHistoryProduct(null)}
+        title="Price history" subtitle={historyProduct?.name || ''}>
+        {historyProduct && <PriceHistory product={historyProduct} purchases={purchases} />}
+      </Modal>
+
       {/* Add Purchase Modal — multi-line */}
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Purchase" subtitle="One supplier · multiple products · single submit">
+      <Modal isOpen={showAddModal} onClose={() => { setShowAddModal(false); setReorderId(null); }} title="Add Purchase" subtitle="One supplier · multiple products · single submit">
         <MultiPurchaseForm
           products={products}
           suppliers={suppliers}
           warehouses={warehouses}
+          purchases={purchases}
           onSave={handleSaveMultiPurchase}
           loading={addLoading}
           onCreateProduct={handleCreateProduct}
+          initialProductId={reorderId}
         />
       </Modal>
 
@@ -1089,6 +737,7 @@ const PurchasesPage = () => {
           <PurchaseForm
             products={products}
             suppliers={suppliers}
+            purchases={purchases}
             onSave={handleDuplicateSave}
             loading={addLoading}
             initialData={{ ...dupTarget, date: new Date().toISOString().slice(0, 10) }}
@@ -1096,31 +745,56 @@ const PurchasesPage = () => {
         )}
       </Modal>
 
-      {/* Pay Purchase Modal */}
-      <Modal isOpen={!!payTarget} onClose={() => setPayTarget(null)} title="Record Payment" subtitle={payTarget ? `#${payTarget.id.split('-').pop()} · ${payTarget.supplier_name || ''}` : ''}>
-        {payTarget && (
-          <div className="flex flex-col gap-3">
-            <div className="flex justify-between text-[13px]"><span className="font-semibold text-muted-foreground">Order total</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.total_amount)}</span></div>
-            <div className="flex justify-between text-[13px]"><span className="font-semibold text-muted-foreground">Already paid</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.paid_amount || 0)}</span></div>
-            <div className="flex justify-between text-[13px] pt-2 border-t border-border/60"><span className="font-semibold">Due</span><span className="tabular-nums font-semibold text-red-600">{formatCurrency(dueOf(payTarget))}</span></div>
-            <label className="block"><span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-widest">Amount</span>
-              <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[14px] tabular-nums font-semibold outline-none focus:border-accent-signature/70" autoFocus />
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block"><span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-widest">Method</span>
-                <select value={payMethod} onChange={e => setPayMethod(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[13px] font-semibold">
-                  <option value="CASH">Cash</option><option value="BANK">Bank</option><option value="UPI">UPI</option>
-                </select>
+      {/* Pay one bill, or several of one supplier's bills. Same rules as the
+          register: red only for what is overdue, labels in sentence case. */}
+      <Modal isOpen={!!payTarget} onClose={() => setPayTarget(null)} title="Record payment"
+        subtitle={payTarget ? `${payTarget.bills?.length > 1 ? `${payTarget.bills.length} bills` : (payTarget.bills?.[0]?.bill_no || voucherNo(payTarget.bills?.[0] || payTarget))} · ${payTarget.supplier_name || ''}` : ''}>
+        {payTarget && (() => {
+          const due = dueOf(payTarget);
+          const overdue = (payTarget.bills || []).reduce((s2, b) => s2 + (b.overdue || 0), 0);
+          const lbl = 'text-[12px] font-medium text-muted-foreground';
+          return (
+            <div className="flex flex-col gap-3" data-testid="pay-dialog">
+              {payTarget.bills?.length > 1 && (
+                <div className="rounded-lg border border-border/60 divide-y divide-border/60 text-[12.5px]">
+                  {payTarget.bills.map(b => (
+                    <div key={b.id} className="flex justify-between gap-3 px-3 py-2">
+                      <span className="truncate"><span className="font-semibold">{b.bill_no || voucherNo(b)}</span>
+                        <span className="text-muted-foreground"> · {formatDate(b.date)}</span></span>
+                      <span className={`tabular-nums font-semibold ${b.state === 'over' ? 'text-[color:var(--color-neg)]' : ''}`}>{formatCurrency(b.due)}</span>
+                    </div>
+                  ))}
+                  <p className="px-3 py-2 text-[12px] text-muted-foreground">A part payment settles the oldest bill first.</p>
+                </div>
+              )}
+              <div className="flex justify-between text-[13px]"><span className={lbl}>{payTarget.bills?.length > 1 ? 'Bills total' : 'Bill total'}</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.total_amount)}</span></div>
+              <div className="flex justify-between text-[13px]"><span className={lbl}>Already paid</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.paid_amount || 0)}</span></div>
+              <div className="flex justify-between text-[13px] pt-2 border-t border-border/60">
+                <span className="font-semibold">Due</span>
+                <span className="text-right">
+                  <span className="tabular-nums font-semibold">{formatCurrency(due)}</span>
+                  {overdue > 0.005 && <span className="block text-[12px] font-semibold text-[color:var(--color-neg)]">{Math.abs(overdue - due) < 0.005 ? 'all overdue' : `${formatCurrency(overdue)} overdue`}</span>}
+                </span>
+              </div>
+              <label className="block"><span className={lbl}>Amount</span>
+                <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-lg text-[14px] tabular-nums font-semibold outline-none focus:border-accent-signature/70" autoFocus />
               </label>
-              <label className="block"><span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-widest">Date</span>
-                <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[13px] font-semibold" />
-              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block"><span className={lbl}>Method</span>
+                  <select value={payMethod} onChange={e => setPayMethod(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-lg text-[13px] font-semibold">
+                    <option value="CASH">Cash</option><option value="BANK">Bank</option><option value="UPI">UPI</option>
+                  </select>
+                </label>
+                <label className="block"><span className={lbl}>Date</span>
+                  <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-lg text-[13px] font-semibold" />
+                </label>
+              </div>
+              <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold disabled:opacity-40 hover:bg-primary/90 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98] disabled:active:scale-100 flex items-center justify-center gap-2">
+                <Banknote size={15} /> {paySubmitting ? 'Recording…' : 'Record payment'}
+              </button>
             </div>
-            <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold disabled:opacity-40 hover:bg-primary/90 flex items-center justify-center gap-2">
-              <Banknote size={15} /> {paySubmitting ? 'Recording…' : 'Record payment'}
-            </button>
-          </div>
-        )}
+          );
+        })()}
       </Modal>
 
       {/* View / Print voucher */}
@@ -1197,7 +871,7 @@ const PurchasesPage = () => {
               )}
 
               <button onClick={() => printVoucher(printTarget)}
-                className="mt-3 w-full h-11 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2">
+                className="mt-3 w-full h-11 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2">
                 <Printer size={15} /> Print voucher
               </button>
             </div>

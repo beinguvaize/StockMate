@@ -228,13 +228,13 @@ const VanSaleBuilder = ({
           <div className="px-6 pb-6 space-y-2">
             <button
               onClick={() => { setReceipt(null); }}
-              className="w-full py-3 rounded-2xl bg-emerald-500 text-white font-black text-sm hover:bg-emerald-600 transition-all"
+              className="w-full py-3 rounded-pill bg-emerald-500 text-white font-black text-sm hover:bg-emerald-600 transition-all"
             >
               New Sale
             </button>
             <button
               onClick={onClose}
-              className="w-full py-3 rounded-2xl border border-black/8 text-ink-secondary font-semibold text-sm hover:bg-canvas transition-all"
+              className="w-full py-3 rounded-pill border border-black/8 text-ink-secondary font-semibold text-sm hover:bg-canvas transition-all"
             >
               Done
             </button>
@@ -346,7 +346,7 @@ const VanSaleBuilder = ({
                 ].map(({ key, label, icon }) => (
                   <button key={key} type="button"
                     onClick={() => setPaymentMethod(key)}
-                    className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                    className={`p-4 rounded-pill border-2 transition-all flex flex-col items-center gap-2 ${
                       paymentMethod === key
                         ? 'border-accent-signature bg-accent-signature/5'
                         : 'border-black/8 bg-white hover:border-black/15'
@@ -365,7 +365,7 @@ const VanSaleBuilder = ({
                     if (selectedClientId === 'WALKIN') { addNotification('Select a client before choosing Credit.', 'info'); return; }
                     setPaymentMethod('CREDIT');
                   }}
-                  className={`col-span-2 p-4 rounded-2xl border-2 transition-all flex items-center justify-center gap-3 ${
+                  className={`col-span-2 p-4 rounded-pill border-2 transition-all flex items-center justify-center gap-3 ${
                     selectedClientId === 'WALKIN'
                       ? 'opacity-40 cursor-not-allowed border-black/8 bg-white'
                       : paymentMethod === 'CREDIT'
@@ -396,7 +396,7 @@ const VanSaleBuilder = ({
             <button
               onClick={handleConfirm}
               disabled={isSubmitting || !cart.length}
-              className="w-full h-14 rounded-2xl bg-ink-primary text-white font-black text-sm flex items-center justify-center gap-2 hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/20"
+              className="w-full h-14 rounded-pill bg-ink-primary text-white font-black text-sm flex items-center justify-center gap-2 hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/20"
             >
               {isSubmitting
                 ? <><span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> Processing…</>
@@ -439,7 +439,7 @@ const VanSaleBuilder = ({
             <div className="flex-1" />
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:border-black/20 transition-all"
+              className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:border-black/20 transition-all"
             >
               <X size={14} />
             </button>
@@ -645,7 +645,7 @@ const VanSaleBuilder = ({
                           <button
                             type="button"
                             onClick={() => { setSelectedClientId('WALKIN'); setClientSearch(''); setClientDropOpen(false); }}
-                            className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center text-muted-foreground hover:bg-black/10 shrink-0"
+                            className="w-6 h-6 rounded-xl bg-black/5 flex items-center justify-center text-muted-foreground hover:bg-black/10 shrink-0"
                           >
                             <X size={10} />
                           </button>
@@ -725,7 +725,7 @@ const VanSaleBuilder = ({
                 <button
                   disabled={!cart.length}
                   onClick={() => setShowCheckout(true)}
-                  className="w-full h-14 rounded-xl bg-ink-primary text-white font-black text-sm flex items-center justify-center gap-2 hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/20"
+                  className="w-full h-14 rounded-pill bg-ink-primary text-white font-black text-sm flex items-center justify-center gap-2 hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/20"
                 >
                   <ArrowRight size={16} /> Checkout
                 </button>

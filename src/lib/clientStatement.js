@@ -22,6 +22,11 @@
 
 const num = (v) => Number(v || 0);
 
+/** CREDIT_SALE -> "Credit sale", for a method the map does not name. */
+const titleCase = (v) => String(v)
+  .toLowerCase().replace(/_/g, ' ')
+  .replace(/^./, (c) => c.toUpperCase());
+
 export const METHOD_LABEL = {
   CASH: 'Cash', CARD: 'Card', UPI: 'UPI',
   BANK: 'Bank Transfer', CHEQUE: 'Cheque',
@@ -163,7 +168,43 @@ export function buildClientStatement({
       // Fall back to the sale's own paidAmount: a POS-settled invoice carries 0
       // while the sale it came from holds the money.
       const orphanPaid = num(inv.paid_amount) || salePaidMap[inv.sale_id] || 0;
-      if (orphanPaid > 0 && saleMethod !== 'CREDIT' && saleMethod !== '') {
+
+      // ...and when the sale is not loaded at all, fall back to what the
+      // INVOICE says about itself.
+      //
+      // Both sales and invoices arrive capped at the 500 most recent rows, and
+      // there are far more sales than invoices, so an old invoice routinely
+      // outlives the sale it came from. The method is then unknown, the guard
+      // below refused to credit anything, and the bill stood on the statement
+      // as a debit with no payment under it -- a settled bill shown as money
+      // owed.
+      //
+      // On KUZHIVILA STORE that was five invoices from May, ₹27,970, which is
+      // exactly the gap between the balance this statement closed at and the
+      // outstanding figure in its own header. Two numbers for one thing, on one
+      // screen.
+      //
+      // Only the one shape is safe to assume: PAID with paid_amount 0 is the
+      // signature of a sale settled at the counter, where the money sits on the
+      // sale row. A CREDIT sale is never that -- settle_client_payment writes
+      // paid_amount on it -- so this cannot double-credit a receipt that also
+      // appears in client_payments.
+      const settledAtCounter =
+        saleMethod === ''
+        && String(inv.payment_status || '').toUpperCase() === 'PAID'
+        && num(inv.paid_amount) === 0;
+
+      if (settledAtCounter) {
+        rows.push({
+          id: `${inv.id}-settled`,
+          date: invDate,
+          created_at: inv.created_at,
+          description: `Payment — Invoice #${n}`,
+          debit: 0,
+          credit: num(inv.grand_total),
+          type: 'PAYMENT',
+        });
+      } else if (orphanPaid > 0 && saleMethod !== 'CREDIT' && saleMethod !== '') {
         // Keep the historical `<invoice>-orphan` id when there is a single
         // credit, so nothing downstream keyed on that shape changes for the
         // common case; only a split sale gains suffixed ids.
@@ -207,9 +248,15 @@ export function buildClientStatement({
         items: parseItems(s.items),
       });
       if (paid > 0) {
+        // The method the customer ACTUALLY paid by. This said "Payment (Cash)"
+        // for every counter sale regardless -- a card or UPI sale appeared on
+        // the customer's own statement as cash, which is not a cosmetic
+        // difference when someone is reconciling a card settlement against it.
+        const m = saleMethodMap[s.id];
+        const label = METHOD_LABEL[m] || (m ? titleCase(m) : 'Cash');
         rows.push(...creditRows(
           s.id, paid, saleDate, s.created_at,
-          `Payment (Cash) — Sale #${String(s.id).split('-').pop()}`,
+          `Payment (${label}) — Sale #${String(s.id).split('-').pop()}`,
         ));
       }
     });
@@ -241,4 +288,33 @@ export function buildClientStatement({
 /** Closing balance — what the client still owes. */
 export function closingBalance(rows = []) {
   return rows.length ? rows[rows.length - 1].balance : 0;
+}
+
+
+/**
+ * A running total of the rows a FILTER is showing, and their sum.
+ *
+ * Every statement row carries the running balance of the whole ledger. That is
+ * the right number on an unfiltered view and unreadable on a filtered one: the
+ * bills that moved the balance are off screen, so three payments in a row can
+ * leave it HIGHER than it started. The page used to explain that in small
+ * print rather than fix it.
+ *
+ * Recomputing a BALANCE over the visible rows would be worse -- it would show
+ * a figure the client never owed. This is not that. It accumulates only the
+ * column the filter is about, which is simply true of the rows on screen:
+ * "paid so far", "billed so far".
+ *
+ * Returns a Map keyed by row id, so the caller can render newest-first without
+ * the totals running backwards, plus the final sum.
+ */
+export function runningTotalOfShown(rows = [], kind = 'PAYMENT') {
+  const field = kind === 'PAYMENT' ? 'credit' : 'debit';
+  const byId = new Map();
+  let total = 0;
+  for (const r of rows) {
+    total += Number(r?.[field] || 0);
+    byId.set(r?.id, total);
+  }
+  return { byId, total };
 }

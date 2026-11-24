@@ -9,6 +9,10 @@ import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/returns/presentation/providers/returns_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
+import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/features/dashboard/presentation/widgets/dash_common.dart';
+import 'package:mobile_app/widgets/motion/save_button.dart';
+import 'package:mobile_app/widgets/motion/slide_to_confirm.dart';
 
 // ─── Item parse helper (mirrors _parseItems in invoice_detail_screen.dart) ────
 
@@ -257,369 +261,379 @@ class _SalesReturnFormScreenState
 
   // ── Build ──────────────────────────────────────────────────────────────────
 
+  // Laid out to the approved board "Sales return" (sales-16).
   @override
   Widget build(BuildContext context) {
     final invoice = widget.invoice;
     final returnTotal = _returnTotal;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final picked = _returnQtys.values.where((q) => q > 0).length;
+    final units = _returnQtys.values.fold<double>(0, (s, q) => s + q);
+    final unitsText = units % 1 == 0
+        ? units.toInt().toString()
+        : units.toStringAsFixed(2);
+    final unitWord = units == 1 ? 'unit' : 'units';
+    const line = Color(0xFFF0EFED);
+    const grey = Color(0xFF7A8088);
+
+    Widget fieldLabel(String t) => Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(t,
+              style: DashText.tight(13,
+                  w: FontWeight.w600, c: const Color(0xFF30343A), ls: 0)),
+        );
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft,
-              size: 20, color: Color(0xFF1E293B)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Process Return',
-              style: GoogleFonts.manrope(
-                color: const Color(0xFF1E293B),
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-              ),
-            ),
-            Text(
-              'Credit Note',
-              style: GoogleFonts.manrope(
-                color: const Color(0xFF94A3B8),
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      backgroundColor: DashColors.card,
+      body: SafeArea(
+        bottom: false,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Section 1: Original Sale header ─────────────────────────
-            _SectionLabel('ORIGINAL SALE'),
-            const SizedBox(height: 8),
-            _card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // ── Top bar ─────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Row(
                 children: [
-                  Text(
-                    invoice.displayNumber,
-                    style: GoogleFonts.manrope(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.inkPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(LucideIcons.user,
-                          size: 13, color: Color(0xFF94A3B8)),
-                      const SizedBox(width: 6),
-                      Text(
-                        invoice.displayClientName,
-                        style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.inkSecondary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(LucideIcons.calendar,
-                          size: 13, color: Color(0xFF94A3B8)),
-                      const SizedBox(width: 6),
-                      Text(
-                        _fmtDateDisplay(invoice.invoiceDate ?? ''),
-                        style: GoogleFonts.manrope(
-                            fontSize: 13, color: AppColors.inkTertiary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Divider(color: Color(0xFFE2E8F0)),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total',
-                        style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.inkSecondary),
-                      ),
-                      Text(
-                        '₹${invoice.grandTotal.toStringAsFixed(2)}',
-                        style: GoogleFonts.manrope(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                          letterSpacing: -0.5,
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.pop(context),
+                    child: SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Center(
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: const BoxDecoration(
+                              color: Color(0xFFF1F1F1),
+                              shape: BoxShape.circle),
+                          child: const Icon(LucideIcons.chevronLeft,
+                              size: 20, color: DashColors.ink),
                         ),
                       ),
-                    ],
+                    ),
                   ),
+                  Expanded(
+                    child: Text('Process Return',
+                        textAlign: TextAlign.center,
+                        style: DashText.tight(17, w: FontWeight.w600)),
+                  ),
+                  const SizedBox(width: 44),
                 ],
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            // ── Section 2: Return Items ──────────────────────────────────
-            _SectionLabel('SELECT ITEMS TO RETURN'),
-            const SizedBox(height: 8),
-            _card(
-              child: _parsedItems.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        'No item details available',
-                        style: GoogleFonts.manrope(
-                            fontSize: 13, color: AppColors.inkTertiary),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ── The sale being returned ─────────────────────
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7F7F6),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    )
-                  : Column(
-                      children: [
-                        ...List.generate(_parsedItems.length, (i) {
-                          final item = _parsedItems[i];
-                          final qty = _returnQtys[i] ?? 0;
-                          final maxQty = item.quantity.toDouble();
-                          final isSelected = qty > 0;
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                                color: Color(0xFFFFF3D6),
+                                shape: BoxShape.circle),
+                            child: Text(
+                                _initialsOf(invoice.displayClientName),
+                                style: DashText.tight(13,
+                                    c: const Color(0xFF30343A), ls: 0)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(invoice.displayClientName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: DashText.tight(14.5,
+                                        w: FontWeight.w600)),
+                                const SizedBox(height: 1),
+                                Text(
+                                  '${invoice.displayNumber} · ${_fmtDateDisplay(invoice.invoiceDate ?? '')} · credit note',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: DashText.inter(12,
+                                      w: FontWeight.w400, c: grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(Money.inr(invoice.grandTotal),
+                                  style: DashText.tight(15, ls: 0)),
+                              Text('sale total',
+                                  style: DashText.inter(11.5,
+                                      w: FontWeight.w400, c: grey)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
 
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            margin: EdgeInsets.only(
-                                bottom: i < _parsedItems.length - 1 ? 10 : 0),
-                            padding: const EdgeInsets.all(12),
+                    // ── What is coming back? ────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('WHAT IS COMING BACK?', style: _eyebrow),
+                          Text('$picked of ${_parsedItems.length}',
+                              style: _eyebrow),
+                        ],
+                      ),
+                    ),
+                    if (_parsedItems.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+                        child: Text('No item details on this bill.',
+                            style: DashText.inter(13)),
+                      ),
+                    for (int i = 0; i < _parsedItems.length; i++)
+                      Builder(builder: (_) {
+                        final item = _parsedItems[i];
+                        final qty = _returnQtys[i] ?? 0;
+                        final maxQty = item.quantity.toDouble();
+                        final isSelected = qty > 0;
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          // Tapping the row ticks it at one unit, or unticks it.
+                          onTap: () => setState(() => _returnQtys[i] =
+                              isSelected ? 0 : (maxQty >= 1 ? 1 : maxQty)),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 11),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppColors.primaryContainer
-                                      .withValues(alpha: 0.15)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary.withValues(alpha: 0.3)
-                                    : Colors.transparent,
-                              ),
+                                  ? const Color(0xFFFFFBF3)
+                                  : DashColors.card,
+                              border: const Border(
+                                  bottom: BorderSide(color: line)),
                             ),
                             child: Row(
                               children: [
-                                // Item info
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isSelected
+                                        ? const Color(0xFFF09935)
+                                        : null,
+                                    border: isSelected
+                                        ? null
+                                        : Border.all(
+                                            color: const Color(0xFFCFCFCF),
+                                            width: 1.5),
+                                  ),
+                                  child: isSelected
+                                      ? const Icon(LucideIcons.check,
+                                          size: 14, color: Colors.white)
+                                      : null,
+                                ),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
+                                      Text(item.name,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: DashText.tight(14.5,
+                                              w: FontWeight.w600)),
+                                      const SizedBox(height: 1),
                                       Text(
-                                        item.name,
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.inkPrimary,
-                                        ),
+                                        item.rate > 0
+                                            ? '${Money.inrExact(item.rate)} each · up to ${formatQty(maxQty, item.unit)}'
+                                            : 'up to ${formatQty(maxQty, item.unit)}',
+                                        style: DashText.inter(12,
+                                            w: FontWeight.w400, c: grey),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Max: ${item.quantity.toInt()}',
-                                        style: GoogleFonts.manrope(
-                                            fontSize: 13,
-                                            color: AppColors.inkTertiary),
-                                      ),
-                                      if (item.rate > 0)
-                                        Text(
-                                          '₹${item.rate.toStringAsFixed(2)}/unit',
-                                          style: GoogleFonts.manrope(
-                                              fontSize: 13,
-                                              color: AppColors.inkTertiary),
-                                        ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                // [-] qty [+] stepper
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _StepBtn(
-                                      icon: LucideIcons.minus,
-                                      onTap: qty > 0
-                                          ? () => setState(
-                                              () => _returnQtys[i] = qty - 1)
-                                          : null,
+                                if (isSelected)
+                                  Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF3DC),
+                                      borderRadius: BorderRadius.circular(999),
                                     ),
-                                    SizedBox(
-                                      width: 40,
-                                      child: Text(
-                                        // Was qty.toInt() — truncated the display
-                                        // while line 173 sent the true double.
-                                        formatQty(qty, item.unit),
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: isSelected
-                                              ? AppColors.primary
-                                              : AppColors.inkPrimary,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _StepBtn(
+                                          icon: LucideIcons.minus,
+                                          filled: false,
+                                          onTap: () => setState(
+                                              () => _returnQtys[i] = qty - 1 < 0 ? 0 : qty - 1),
                                         ),
-                                      ),
+                                        ConstrainedBox(
+                                          constraints: const BoxConstraints(
+                                              minWidth: 30),
+                                          child: Text(
+                                            formatQty(qty, item.unit),
+                                            textAlign: TextAlign.center,
+                                            style: DashText.tight(14.5, ls: 0),
+                                          ),
+                                        ),
+                                        _StepBtn(
+                                          icon: LucideIcons.plus,
+                                          filled: true,
+                                          onTap: qty < maxQty
+                                              ? () => setState(() =>
+                                                  _returnQtys[i] =
+                                                      qty + 1 > maxQty
+                                                          ? maxQty
+                                                          : qty + 1)
+                                              : null,
+                                        ),
+                                      ],
                                     ),
-                                    _StepBtn(
-                                      icon: LucideIcons.plus,
-                                      onTap: qty < maxQty
-                                          ? () => setState(
-                                              () => _returnQtys[i] = qty + 1)
-                                          : null,
-                                    ),
-                                  ],
-                                ),
+                                  ),
                               ],
                             ),
-                          );
-                        }),
-                        // ── Live return total bar ───────────────────────
-                        if (_parsedItems.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          const Divider(color: Color(0xFFE2E8F0)),
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Return Total',
-                                style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.inkSecondary),
+                          ),
+                        );
+                      }),
+
+                    // ── Return date ─────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          fieldLabel('Return date'),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: _pickDate,
+                            child: Container(
+                              height: 50,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF4F4F3),
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                              Text(
-                                '₹${returnTotal.toStringAsFixed(2)}',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.5,
-                                  color: returnTotal > 0
-                                      ? AppColors.danger
-                                      : AppColors.inkTertiary,
-                                ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(_fmtDateDisplay(_date),
+                                        style: DashText.tight(15.5,
+                                            w: FontWeight.w600, ls: 0)),
+                                  ),
+                                  const Icon(LucideIcons.calendar,
+                                      size: 16, color: grey),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
+
+                    // ── Reason ──────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          fieldLabel('Reason (optional)'),
+                          Container(
+                            constraints: const BoxConstraints(minHeight: 50),
+                            alignment: Alignment.centerLeft,
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF4F4F3),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: TextField(
+                              controller: _reason,
+                              minLines: 1,
+                              maxLines: 3,
+                              style: DashText.tight(15.5,
+                                  w: FontWeight.w600, ls: 0),
+                              cursorColor: DashColors.amber,
+                              decoration: InputDecoration(
+                                isCollapsed: true,
+                                hintText: 'e.g. damaged pack',
+                                hintStyle: DashText.tight(15.5,
+                                    w: FontWeight.w500,
+                                    c: const Color(0xFF8A9099),
+                                    ls: 0),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                filled: false,
+                                contentPadding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
 
-            const SizedBox(height: 20),
-
-            // ── Section 3: Details ───────────────────────────────────────
-            _SectionLabel('RETURN DETAILS'),
-            const SizedBox(height: 8),
-            _card(
+            // ── Dock: total and the slide ───────────────────────────
+            Container(
+              padding: EdgeInsets.fromLTRB(16, 10, 16, 18 + bottomInset),
+              decoration: const BoxDecoration(
+                color: DashColors.card,
+                border: Border(top: BorderSide(color: line)),
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Date row
-                  InkWell(
-                    onTap: _pickDate,
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainer,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: Colors.black.withValues(alpha: 0.06)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(LucideIcons.calendar,
-                              size: 16, color: AppColors.inkSecondary),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Return Date',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.inkTertiary,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _fmtDateDisplay(_date),
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.inkPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(LucideIcons.chevronRight,
-                              size: 16, color: Color(0xFF94A3B8)),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Reason field
                   Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 6),
-                    child: Text(
-                      'REASON FOR RETURN',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.inkTertiary,
-                        letterSpacing: 1,
-                      ),
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                              'Return total · $unitsText $unitWord',
+                              style: DashText.tight(13.5,
+                                  w: FontWeight.w500,
+                                  c: DashColors.mute,
+                                  ls: 0)),
+                        ),
+                        Text(Money.inrExact(returnTotal),
+                            style: DashText.tight(21,
+                                w: FontWeight.w800, ls: -0.03)),
+                      ],
                     ),
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainer,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: Colors.black.withValues(alpha: 0.06)),
-                    ),
-                    child: TextField(
-                      controller: _reason,
-                      maxLines: 3,
-                      style: GoogleFonts.manrope(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.inkPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
-                        hintText: 'Reason for return (optional)',
-                        hintStyle: GoogleFonts.manrope(
-                          color:
-                              AppColors.inkTertiary.withValues(alpha: 0.6),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
+                  SlideToConfirm(
+                    label: units > 0
+                        ? 'Slide to return $unitsText $unitWord'
+                        : 'Pick what is coming back',
+                    semanticsLabel: 'Process return',
+                    enabled: returnTotal > 0,
+                    status: _isLoading ? SaveStatus.saving : SaveStatus.idle,
+                    errorText: null,
+                    onComplete: _submit,
                   ),
                 ],
               ),
@@ -627,127 +641,51 @@ class _SalesReturnFormScreenState
           ],
         ),
       ),
-
-      // ── Section 4: Submit button (floating bottom bar) ─────────────────
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.fromLTRB(
-          16,
-          12,
-          16,
-          MediaQuery.of(context).padding.bottom + 16,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 16,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SizedBox(
-          height: 56,
-          child: ElevatedButton(
-            onPressed: (returnTotal > 0 && !_isLoading) ? _submit : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  returnTotal > 0 ? AppColors.danger : const Color(0xFFCBD5E1),
-              disabledBackgroundColor: const Color(0xFFCBD5E1),
-              foregroundColor: Colors.white,
-              disabledForegroundColor: Colors.white,
-              shape: const StadiumBorder(),
-              elevation: 0,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(
-                    'PROCESS RETURN · ₹${returnTotal.toStringAsFixed(2)}',
-                    style: GoogleFonts.manrope(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      letterSpacing: 0.8,
-                      color: Colors.white,
-                    ),
-                  ),
-          ),
-        ),
-      ),
     );
   }
 }
 
-// ─── Section label (matches invoice_detail_screen style) ──────────────────────
+final _eyebrow = DashText.tight(11,
+    w: FontWeight.w600, c: const Color(0xFF8A9099), ls: 0.07);
 
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: GoogleFonts.manrope(
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
-        color: AppColors.inkTertiary,
-        letterSpacing: 1.5,
-      ),
-    );
-  }
+String _initialsOf(String name) {
+  final w = name.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+  if (w.isEmpty) return '?';
+  if (w.length == 1) return w.first.characters.take(2).toString().toUpperCase();
+  return (w[0].characters.first + w[1].characters.first).toUpperCase();
 }
 
-// ─── Card wrapper (white, rounded-16, shadow) ─────────────────────────────────
-
-Widget _card({required Widget child}) {
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [AppColors.cardShadow],
-    ),
-    child: child,
-  );
-}
-
-// ─── Stepper button ───────────────────────────────────────────────────────────
-
+/// Round − / + inside the quantity pill. Drawn 30px; the pill pads it out.
 class _StepBtn extends StatelessWidget {
   final IconData icon;
+  final bool filled;
   final VoidCallback? onTap;
-
-  const _StepBtn({required this.icon, this.onTap});
+  const _StepBtn({required this.icon, required this.filled, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return SizedBox(
-      width: 32,
-      height: 32,
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          padding: EdgeInsets.zero,
-          shape: const CircleBorder(),
-          side: BorderSide(
-            color: enabled
-                ? AppColors.outline.withValues(alpha: 0.5)
-                : const Color(0xFFE2E8F0),
+    final on = onTap != null;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: 38,
+        height: 38,
+        child: Center(
+          child: Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: filled
+                  ? (on ? const Color(0xFFF09935) : const Color(0xFFE6E5E3))
+                  : DashColors.card,
+            ),
+            child: Icon(icon,
+                size: 15,
+                color: filled ? Colors.white : const Color(0xFF30343A)),
           ),
-          foregroundColor: enabled
-              ? AppColors.inkPrimary
-              : AppColors.inkTertiary,
         ),
-        child: Icon(icon, size: 14),
       ),
     );
   }

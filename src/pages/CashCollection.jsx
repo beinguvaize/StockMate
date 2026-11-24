@@ -132,7 +132,7 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
             const active = method === m.id;
             return (
               <button key={m.id} type="button" onClick={() => setMethod(m.id)} aria-pressed={active}
-                className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                className={`flex items-center gap-1.5 rounded-pill border px-3 py-2 text-sm font-semibold transition ${
                   active
                     ? 'border-accent-signature/70 bg-accent-signature/10 text-accent-signature-hover'
                     : 'border-black/10 bg-white text-ink-primary/60 hover:border-black/20'
@@ -184,7 +184,7 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
                 : <><CheckCircle2 className="h-4 w-4" />Confirm</>}
             </button>
             <button type="button" onClick={() => setConfirming(false)} disabled={submitting}
-              className="rounded-xl border border-black/10 px-4 py-2.5 text-sm font-semibold text-ink-primary/60 transition hover:bg-black/5 disabled:opacity-50"
+              className="rounded-pill border border-black/10 px-4 py-2.5 text-sm font-semibold text-ink-primary/60 transition hover:bg-black/5 disabled:opacity-50"
             >
               ← Edit
             </button>
@@ -199,7 +199,7 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
             <CheckCircle2 className="h-4 w-4" />Record Payment
           </button>
           <button type="button" onClick={onCancel}
-            className="rounded-xl border border-black/10 px-4 py-2.5 text-sm font-semibold text-ink-primary/60 transition hover:bg-black/5"
+            className="rounded-pill border border-black/10 px-4 py-2.5 text-sm font-semibold text-ink-primary/60 transition hover:bg-black/5"
           >
             Cancel
           </button>
@@ -221,7 +221,7 @@ function DueRow({ client, onExpand }) {
         {formatCurrency(client.outstanding_balance)}
       </p>
       <button type="button" onClick={() => onExpand(client.id)}
-        className="flex shrink-0 items-center gap-1 rounded-xl bg-accent-signature/10 px-3 py-2 text-sm font-bold text-accent-signature-hover transition hover:bg-accent-signature/15"
+        className="flex shrink-0 items-center gap-1 rounded-pill bg-accent-signature/10 px-3 py-2 text-sm font-bold text-accent-signature-hover transition hover:bg-accent-signature/15"
       >
         Collect <ChevronRight className="h-4 w-4" />
       </button>
@@ -357,7 +357,7 @@ export default function CashCollection() {
           />
           {search && (
             <button type="button" onClick={() => setSearch('')} aria-label="Clear search"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1 text-ink-primary/40 transition hover:bg-black/5"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-pill p-1 text-ink-primary/40 transition hover:bg-black/5"
             >
               <X className="h-4 w-4" />
             </button>

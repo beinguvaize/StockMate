@@ -19,6 +19,9 @@ class Sale {
   final String? status;
   final DateTime? createdAt;
   final String? invoiceId; // back-link if this sale has been converted to a GST invoice
+  /// Null for a sale the server has. 'pending' = rung on this phone and still
+  /// queued; 'refused' = the server said no on replay (NOT in the books).
+  final String? syncState;
 
   Sale({
     required this.id,
@@ -39,7 +42,10 @@ class Sale {
     this.status,
     this.createdAt,
     this.invoiceId,
+    this.syncState,
   });
+
+  bool get isUnsynced => syncState == 'pending' || syncState == 'refused';
 
   /// Resolved display name — checks customerName, then customerInfo.name, then fallback.
   String get displayCustomerName =>
@@ -69,6 +75,7 @@ class Sale {
       status: json['status'] as String?,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
       invoiceId: json['invoice_id'] as String?,
+      syncState: json['_sync'] == 'synced' ? null : json['_sync'] as String?,
     );
   }
 }

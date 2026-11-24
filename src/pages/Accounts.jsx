@@ -78,8 +78,8 @@ const Accounts = () => {
           <p className="text-[12px] text-muted-foreground mt-1">Accounts, balances and money movement</p>
         </div>
         <div className="ml-auto flex gap-2">
-          <button onClick={() => setModal('transfer')} className="px-3 py-2 rounded-lg text-[12px] font-semibold border border-black/10 text-ink-secondary hover:bg-black/5 transition-colors"><ArrowRightLeft size={14} className="inline -mt-0.5 mr-1.5" />Transfer</button>
-          <button onClick={() => setModal('add')} className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity"><Plus size={14} className="inline -mt-0.5 mr-1" />Add account</button>
+          <button onClick={() => setModal('transfer')} className="px-3 py-2 rounded-pill text-[12px] font-semibold border border-black/10 text-ink-secondary hover:bg-black/5 transition-colors"><ArrowRightLeft size={14} className="inline -mt-0.5 mr-1.5" />Transfer</button>
+          <button onClick={() => setModal('add')} className="px-4 py-2 rounded-pill text-[12px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity"><Plus size={14} className="inline -mt-0.5 mr-1" />Add account</button>
         </div>
       </div>
 
@@ -96,7 +96,7 @@ const Accounts = () => {
           <p className="text-sm font-medium text-[color:var(--color-neg)]">Could not load accounts</p>
           <p className="text-xs text-muted-foreground mt-1">{error.message || String(error)}</p>
           <button onClick={refetch}
-            className="mt-3 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground">
+            className="mt-3 px-3 py-1.5 rounded-pill border border-border text-xs font-semibold text-muted-foreground hover:text-foreground">
             Try again
           </button>
         </div>
@@ -151,7 +151,7 @@ const Accounts = () => {
                   )}
                 </button>
                 {isLoan && ls.outstanding > 0 && (
-                  <button onClick={() => setEmiFor(a)} className="mt-3 w-full py-2 rounded-lg text-[11px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity">Pay EMI {inr(ls.emi)}</button>
+                  <button onClick={() => setEmiFor(a)} className="mt-3 w-full py-2 rounded-pill text-[11px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity">Pay EMI {inr(ls.emi)}</button>
                 )}
                 {!isLoan && (
                   <div className="mt-3 flex gap-2">
@@ -162,14 +162,14 @@ const Accounts = () => {
                           if (error) addNotification('Failed: ' + error.message, 'error');
                           else addNotification(`${a.name} set as default ${a.type.toLowerCase()}`, 'success');
                         }}
-                        className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-black/10 text-muted-foreground hover:bg-black/5 transition-colors"
+                        className="flex-1 py-1.5 rounded-pill text-[11px] font-semibold border border-black/10 text-muted-foreground hover:bg-black/5 transition-colors"
                       >
                         Set as default
                       </button>
                     )}
                     <button
                       onClick={() => setEditAcc(a)}
-                      className={`${a.is_default ? 'flex-1' : ''} px-3 py-1.5 rounded-lg border border-black/10 text-muted-foreground hover:bg-black/5 transition-colors flex items-center justify-center gap-1.5`}
+                      className={`${a.is_default ? 'flex-1' : ''} px-3 py-1.5 rounded-pill border border-black/10 text-muted-foreground hover:bg-black/5 transition-colors flex items-center justify-center gap-1.5`}
                       title="Edit account"
                     >
                       <Pencil size={13} />
@@ -189,9 +189,9 @@ const Accounts = () => {
           <div className="flex items-center gap-2 px-4 py-3 border-b border-black/5">
             <div className="font-black text-[13px] text-ink-primary">{activeAcc?.name} · {activeLoan ? 'repayment history' : 'ledger'}</div>
             <span className="ml-auto tabular-nums font-black text-[15px]">{activeLoan ? inr(activeLoan.outstanding) : inr(mergedBalance(active))}</span>
-            {!activeLoan && <button onClick={() => setModal('txn')} className="ml-3 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-black/10 hover:bg-black/5"><Plus size={12} className="inline -mt-0.5 mr-1" />Entry</button>}
-            {activeLoan && activeLoan.outstanding > 0 && <button onClick={() => setEmiFor(activeAcc)} className="ml-3 px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-accent-signature text-white">Pay</button>}
-            <button onClick={() => setActive(null)} className="p-1.5 rounded-lg hover:bg-black/5"><X size={15} /></button>
+            {!activeLoan && <button onClick={() => setModal('txn')} className="ml-3 px-2.5 py-1.5 rounded-pill text-[11px] font-bold border border-black/10 hover:bg-black/5"><Plus size={12} className="inline -mt-0.5 mr-1" />Entry</button>}
+            {activeLoan && activeLoan.outstanding > 0 && <button onClick={() => setEmiFor(activeAcc)} className="ml-3 px-2.5 py-1.5 rounded-pill text-[11px] font-black bg-accent-signature text-white">Pay</button>}
+            <button onClick={() => setActive(null)} className="p-1.5 rounded-pill hover:bg-black/5"><X size={15} /></button>
           </div>
           {activeLoan ? (
             <>
@@ -222,7 +222,7 @@ const Accounts = () => {
               <div className="flex gap-1.5 px-4 pt-3 pb-1">
                 {[['ALL', 'All'], ['UPI', 'UPI only'], ['DIRECT', 'Bank/other']].map(([k, label]) => (
                   <button key={k} onClick={() => setLedgerFilter(k)}
-                    className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${ledgerFilter === k ? 'bg-ink-primary text-white border-ink-primary' : 'border-black/10 text-muted-foreground hover:bg-black/5'}`}>
+                    className={`px-2.5 py-1 rounded-pill text-[10px] font-semibold border transition-colors ${ledgerFilter === k ? 'bg-ink-primary text-white border-ink-primary' : 'border-black/10 text-muted-foreground hover:bg-black/5'}`}>
                     {label}
                   </button>
                 ))}
@@ -353,7 +353,7 @@ const AddAccountModal = ({ onClose, onSave, accounts = [] }) => {
       <div className="flex gap-1.5 flex-wrap">
         {TYPES.map((t) => (
           <button key={t.id} onClick={() => setF({ ...f, type: t.id })}
-            className={`px-3 py-1.5 rounded-lg text-[12px] font-bold border ${f.type === t.id ? 'bg-accent-signature text-white border-accent-signature' : 'border-black/10 text-muted-foreground'}`}>{t.label}</button>
+            className={`px-3 py-1.5 rounded-pill text-[12px] font-bold border ${f.type === t.id ? 'bg-accent-signature text-white border-accent-signature' : 'border-black/10 text-muted-foreground'}`}>{t.label}</button>
         ))}
       </div>
       {(f.type === 'BANK') && (
@@ -407,7 +407,7 @@ const TxnModal = ({ accountName, onClose, onSave }) => {
       <div className="flex gap-2">
         {['IN', 'OUT'].map((d) => (
           <button key={d} onClick={() => setF({ ...f, direction: d })}
-            className={`flex-1 py-2 rounded-lg text-[12px] font-black border ${f.direction === d ? (d === 'IN' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-rose-600 text-white border-rose-600') : 'border-black/10 text-muted-foreground'}`}>
+            className={`flex-1 py-2 rounded-pill text-[12px] font-black border ${f.direction === d ? (d === 'IN' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-rose-600 text-white border-rose-600') : 'border-black/10 text-muted-foreground'}`}>
             {d === 'IN' ? 'Money in' : 'Money out'}</button>
         ))}
       </div>
@@ -486,12 +486,12 @@ const EditAccountModal = ({ account, accounts, onClose, onSave, onDelete }) => {
           <div className="mt-3 border border-rose-200 bg-rose-50 rounded-lg p-3">
             <p className="text-[11px] text-rose-700 font-medium mb-2">Delete "{account.name}"? Transaction history stays, but the account is removed from the list.</p>
             <div className="flex gap-2">
-              <button onClick={() => setConfirmDelete(false)} className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-black/10 text-ink-secondary hover:bg-black/5">Cancel</button>
-              <button onClick={onDelete} className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold bg-rose-600 text-white hover:opacity-90">Delete account</button>
+              <button onClick={() => setConfirmDelete(false)} className="flex-1 py-1.5 rounded-pill text-[11px] font-semibold border border-black/10 text-ink-secondary hover:bg-black/5">Cancel</button>
+              <button onClick={onDelete} className="flex-1 py-1.5 rounded-pill text-[11px] font-semibold bg-rose-600 text-white hover:opacity-90">Delete account</button>
             </div>
           </div>
         ) : (
-          <button onClick={() => setConfirmDelete(true)} className="mt-3 w-full py-2 rounded-lg text-[11px] font-semibold text-rose-500 border border-rose-200 hover:bg-rose-50 transition-colors flex items-center justify-center gap-1.5">
+          <button onClick={() => setConfirmDelete(true)} className="mt-3 w-full py-2 rounded-pill text-[11px] font-semibold text-rose-500 border border-rose-200 hover:bg-rose-50 transition-colors flex items-center justify-center gap-1.5">
             <Trash2 size={13} /> Delete account
           </button>
         )

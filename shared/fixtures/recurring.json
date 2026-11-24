@@ -1,0 +1,591 @@
+{
+ "_about": "Shared contract for recurring expenses. Web: src/lib/recurring.js (describeRecurring, recurringTemplateFor, ordinal, nextRun, scheduleLine, paymentLabel), tested by src/lib/recurring.test.js. Mobile: mobile_app/lib/features/finance/data/recurring.dart, tested by mobile_app/test/recurring_contract_test.dart. Both suites read THIS file; add a case here, never to one suite only. In templateFor, 'expect' is matched key by key (keys not listed are not checked). templateThenNextRun feeds recurringTemplateFor's result into nextRun. Dates are YYYY-MM-DD; 2026-10-28 is a Wednesday.",
+ "describe": [
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": null
+   },
+   "expect": "Every day"
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ]
+   },
+   "expect": "Every day"
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ]
+   },
+   "expect": "Every day except Sun"
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ]
+   },
+   "expect": "Every day except Sat and Sun"
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     5,
+     1,
+     3
+    ]
+   },
+   "expect": "Mon, Wed, Fri"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 5
+   },
+   "expect": "Monthly on the 5th"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 31
+   },
+   "expect": "Monthly on the 28th"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 22
+   },
+   "expect": "Monthly on the 22nd"
+  },
+  {
+   "input": {
+    "frequency": "daily",
+    "weekdays": []
+   },
+   "expect": "Every day"
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     7,
+     7,
+     6,
+     0,
+     9
+    ]
+   },
+   "expect": "Sat, Sun"
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     2,
+     3,
+     4,
+     5,
+     6
+    ]
+   },
+   "expect": "Every day except Mon and Sun"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": "05"
+   },
+   "expect": "Monthly on the 5th"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": null
+   },
+   "expect": "Monthly on the 1st"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 0
+   },
+   "expect": "Monthly on the 1st"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 1
+   },
+   "expect": "Monthly on the 1st"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 3
+   },
+   "expect": "Monthly on the 3rd"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 11
+   },
+   "expect": "Monthly on the 11th"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 12
+   },
+   "expect": "Monthly on the 12th"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 13
+   },
+   "expect": "Monthly on the 13th"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 21
+   },
+   "expect": "Monthly on the 21st"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 23
+   },
+   "expect": "Monthly on the 23rd"
+  }
+ ],
+ "templateFor": [
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "date": "2026-10-28",
+    "today": "2026-10-28"
+   },
+   "expect": {
+    "frequency": "DAILY",
+    "weekdays": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "day_of_month": 28,
+    "start_date": "2026-10-28",
+    "last_generated": "2026-10-28"
+   }
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "date": "2026-10-10",
+    "today": "2026-10-28"
+   },
+   "expect": {
+    "last_generated": "2026-10-28"
+   }
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "date": "2026-10-28",
+    "today": "2026-10-28"
+   },
+   "expect": {
+    "weekdays": null
+   }
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "weekdays": [
+     1
+    ],
+    "date": "2026-10-05",
+    "today": "2026-10-28"
+   },
+   "expect": {
+    "frequency": "MONTHLY",
+    "weekdays": null,
+    "day_of_month": 5
+   }
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "date": "2026-10-31",
+    "today": "2026-10-28"
+   },
+   "expect": {
+    "frequency": "MONTHLY",
+    "weekdays": null,
+    "day_of_month": 28,
+    "start_date": "2026-10-31",
+    "last_generated": "2026-10-31"
+   }
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     6,
+     6,
+     7
+    ],
+    "date": "2026-10-10",
+    "today": "2026-10-28"
+   },
+   "expect": {
+    "frequency": "DAILY",
+    "weekdays": [
+     6,
+     7
+    ],
+    "day_of_month": 10,
+    "start_date": "2026-10-10",
+    "last_generated": "2026-10-28"
+   }
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [],
+    "date": null,
+    "today": "2026-10-28"
+   },
+   "expect": {
+    "frequency": "DAILY",
+    "weekdays": null,
+    "day_of_month": 28,
+    "start_date": "2026-10-28",
+    "last_generated": "2026-10-28"
+   }
+  }
+ ],
+ "ordinal": [
+  {
+   "n": 1,
+   "expect": "1st"
+  },
+  {
+   "n": 2,
+   "expect": "2nd"
+  },
+  {
+   "n": 3,
+   "expect": "3rd"
+  },
+  {
+   "n": 4,
+   "expect": "4th"
+  },
+  {
+   "n": 10,
+   "expect": "10th"
+  },
+  {
+   "n": 11,
+   "expect": "11th"
+  },
+  {
+   "n": 12,
+   "expect": "12th"
+  },
+  {
+   "n": 13,
+   "expect": "13th"
+  },
+  {
+   "n": 21,
+   "expect": "21st"
+  },
+  {
+   "n": 22,
+   "expect": "22nd"
+  },
+  {
+   "n": 23,
+   "expect": "23rd"
+  },
+  {
+   "n": 28,
+   "expect": "28th"
+  },
+  {
+   "n": 101,
+   "expect": "101st"
+  },
+  {
+   "n": 111,
+   "expect": "111th"
+  },
+  {
+   "n": 112,
+   "expect": "112th"
+  }
+ ],
+ "nextRun": [
+  {
+   "input": {
+    "frequency": "DAILY",
+    "last_generated": "2026-10-28"
+   },
+   "expect": "2026-10-29"
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "last_generated": "2026-10-31"
+   },
+   "expect": "2026-11-02"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 28,
+    "last_generated": "2026-10-28"
+   },
+   "expect": "2026-11-28"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 31,
+    "last_generated": "2026-10-29"
+   },
+   "expect": "2026-11-28"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 5,
+    "last_generated": "2026-10-28"
+   },
+   "expect": "2026-11-05"
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     7
+    ],
+    "last_generated": "2026-12-31"
+   },
+   "expect": "2027-01-03"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 15,
+    "last_generated": "2026-12-20"
+   },
+   "expect": "2027-01-15"
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "last_generated": "2026-10-24T18:30:00Z"
+   },
+   "expect": "2026-10-26"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 28,
+    "last_generated": "2027-02-27"
+   },
+   "expect": "2027-02-28"
+  }
+ ],
+ "templateThenNextRun": [
+  {
+   "input": {
+    "frequency": "DAILY",
+    "date": "2026-11-03",
+    "today": "2026-10-28"
+   },
+   "expect": "2026-11-04"
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "date": "2026-10-10",
+    "today": "2026-10-28"
+   },
+   "expect": "2026-10-29"
+  }
+ ],
+ "scheduleLine": [
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "last_generated": "2026-10-29"
+   },
+   "expect": "Every day except Sun · next Fri 30 Oct"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 28,
+    "asked_day": 29,
+    "last_generated": "2026-10-29"
+   },
+   "expect": "Monthly on the 28th (29th–31st aren't in every month) · next Sat 28 Nov"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 28,
+    "asked_day": "31",
+    "last_generated": "2026-10-31"
+   },
+   "expect": "Monthly on the 28th (29th–31st aren't in every month) · next Sat 28 Nov"
+  },
+  {
+   "input": {
+    "frequency": "MONTHLY",
+    "day_of_month": 28,
+    "asked_day": 28,
+    "last_generated": "2026-10-28"
+   },
+   "expect": "Monthly on the 28th · next Sat 28 Nov"
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": null,
+    "asked_day": 30,
+    "last_generated": "2026-10-28"
+   },
+   "expect": "Every day · next Thu 29 Oct"
+  },
+  {
+   "input": {
+    "frequency": "DAILY",
+    "weekdays": [
+     1,
+     3,
+     5
+    ],
+    "last_generated": "2026-10-30"
+   },
+   "expect": "Mon, Wed, Fri · next Mon 2 Nov"
+  }
+ ],
+ "paymentLabel": [
+  {
+   "input": "CASH",
+   "expect": "Cash"
+  },
+  {
+   "input": "BANK",
+   "expect": "Bank"
+  },
+  {
+   "input": "UPI",
+   "expect": "UPI"
+  },
+  {
+   "input": "upi",
+   "expect": "UPI"
+  },
+  {
+   "input": "CARD",
+   "expect": "Card"
+  },
+  {
+   "input": null,
+   "expect": "Cash"
+  },
+  {
+   "input": "CHEQUE",
+   "expect": "Cheque"
+  },
+  {
+   "input": "cheque",
+   "expect": "Cheque"
+  },
+  {
+   "input": "",
+   "expect": "Cash"
+  },
+  {
+   "input": "WALLET",
+   "expect": "WALLET"
+  }
+ ]
+}

@@ -160,7 +160,8 @@ Most SMBs also juggle **separate apps** for billing, inventory, expenses, payrol
 1. Internet drops mid-shift.
 2. Cashier rings sale → `placeSale` calls `process_sale` RPC.
 3. Network fails → `isOfflineError` catches → `queueMutation` puts payload in IndexedDB outbox → `decrementCachedStock` updates local cache → UI shows sale in history immediately.
-4. Internet returns → `OfflineContext` fires `syncNow()` → outbox flushes oldest-first → supabase RPC succeeds (idempotent on `p_id`) → row removed from outbox → pending count drops to 0.
+4. Internet returns → `OfflineContext` fires `syncNow()` → outbox flushes oldest-first → supabase RPC succeeds → row removed from outbox → pending count drops to 0.
+   `process_sale`, `process_sales_return` and `settle_client_payment` are idempotent on `p_id` as of 20261012 — before that they were not, and this document said they were. A replayed sale raised a unique violation and ended `FAILED`; a replayed receipt **allocated the payment a second time**, marking bills PAID that the customer had not paid. `edit_sale` needs no guard: it reverses stock from the stored sale and re-applies `p_items`, so a replay nets to zero. `adjust_inventory_atomic` is still **not** replay-safe — it is a delta with no op id, and making it safe needs a new parameter and the old signature dropped in the same breath.
 
 ### 8.3 Stuck queue recovery (no admin SQL needed)
 1. Owner sees "3 PENDING" badge that won't clear.

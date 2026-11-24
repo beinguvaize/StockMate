@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'providers/cash_collection_provider.dart';
 
@@ -50,7 +53,7 @@ class _CashCollectionScreenState extends ConsumerState<CashCollectionScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Confirm Payment', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 17, color: AppColors.inkPrimary)),
+        title: Text('Confirm Payment', style: AppText.heading.copyWith(fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,7 +153,7 @@ class _CashCollectionScreenState extends ConsumerState<CashCollectionScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Cash Collection', style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
-            Text(dateLabel, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+            Text(dateLabel, style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
           ],
         ),
         actions: [
@@ -167,7 +170,7 @@ class _CashCollectionScreenState extends ConsumerState<CashCollectionScreen> {
                   ),
                   Text(
                     '$_sessionCount client${_sessionCount == 1 ? '' : 's'}',
-                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                   ),
                 ],
               ),
@@ -266,10 +269,10 @@ class _ConfirmRow extends StatelessWidget {
       children: [
         SizedBox(
           width: 60,
-          child: Text(label, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkTertiary)),
+          child: Text(label, style: AppText.label.copyWith(color: AppColors.inkTertiary)),
         ),
         Expanded(
-          child: Text(value, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: valueColor ?? AppColors.inkPrimary)),
+          child: Text(value, style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: valueColor ?? AppColors.inkPrimary)),
         ),
       ],
     );
@@ -305,7 +308,7 @@ class _ClientCollectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedOpacity(
       opacity: isDone ? 0.55 : 1,
-      duration: const Duration(milliseconds: 200),
+      duration: Motion.durationOf(context, Motion.base),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
@@ -318,7 +321,8 @@ class _ClientCollectionCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            GestureDetector(
+            AppTappable(
+              ripple: false,
               onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.all(14),
@@ -348,15 +352,15 @@ class _ClientCollectionCard extends StatelessWidget {
                         children: [
                           Text(client.name, style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.inkPrimary), overflow: TextOverflow.ellipsis),
                           if (isDone)
-                            Text('Collected', style: GoogleFonts.manrope(fontSize: 13, color: const Color(0xFF16A34A), fontWeight: FontWeight.w600))
+                            Text('Collected', style: AppText.label.copyWith(color: const Color(0xFF16A34A)))
                           else if (client.phone != null)
-                            Text(client.phone!, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                            Text(client.phone!, style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                         ],
                       ),
                     ),
                     Text(
                       '₹${client.outstandingBalance.toStringAsFixed(0)}',
-                      style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w700, color: isDone ? const Color(0xFF16A34A) : AppColors.inkPrimary),
+                      style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: isDone ? const Color(0xFF16A34A) : AppColors.inkPrimary),
                     ),
                     if (!isDone) ...[
                       const SizedBox(width: 8),
@@ -382,7 +386,7 @@ class _ClientCollectionCard extends StatelessWidget {
                       style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700),
                       decoration: InputDecoration(
                         labelText: 'Amount (₹)',
-                        labelStyle: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                        labelStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
                         filled: true,
                         fillColor: AppColors.canvas,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -396,7 +400,8 @@ class _ClientCollectionCard extends StatelessWidget {
                         final sel = method == m;
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: GestureDetector(
+                          child: AppTappable(
+   ripple: false,
                             onTap: () => onMethodChange(m),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -405,9 +410,9 @@ class _ClientCollectionCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(color: sel ? AppColors.primary : AppColors.outlineVariant),
                               ),
-                              child: Text(m, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppColors.inkSecondary)),
+                              child: Text(m, style: AppText.label.copyWith(color: sel ? Colors.white : AppColors.inkSecondary)),
                             ),
-                          ),
+ ),
                         );
                       }).toList(),
                     ),
@@ -415,7 +420,8 @@ class _ClientCollectionCard extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: GestureDetector(
+                          child: AppTappable(
+   ripple: false,
                             onTap: isSubmitting ? null : onRecord,
                             child: Container(
                               height: 44,
@@ -429,10 +435,11 @@ class _ClientCollectionCard extends StatelessWidget {
                                     : Text('Record Payment', style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
                               ),
                             ),
-                          ),
+ ),
                         ),
                         const SizedBox(width: 10),
-                        GestureDetector(
+                        AppTappable(
+                          ripple: false,
                           onTap: onSkip,
                           child: Container(
                             height: 44, width: 70,
@@ -441,7 +448,7 @@ class _ClientCollectionCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(color: AppColors.outlineVariant),
                             ),
-                            child: Center(child: Text('Skip', style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkSecondary))),
+                            child: Center(child: Text('Skip', style: AppText.label.copyWith(color: AppColors.inkSecondary))),
                           ),
                         ),
                       ],

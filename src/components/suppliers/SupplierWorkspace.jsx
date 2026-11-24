@@ -171,7 +171,7 @@ const SupplierWorkspace = ({
             <div className="flex items-center gap-1 p-1 rounded-lg bg-muted shrink-0">
               {FILTERS.map(f => (
                 <button key={f.id} onClick={() => setFilter(f.id)}
-                  className={`px-3 py-1.5 rounded-md text-[12px] font-semibold transition-colors ${
+                  className={`px-3 py-1.5 rounded-pill text-[12px] font-semibold transition-colors ${
                     filter === f.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                   {f.label}
                 </button>
@@ -222,7 +222,7 @@ const SupplierWorkspace = ({
                         </td>
                         <td className="px-4 py-3 text-right">
                           <button onClick={(e) => { e.stopPropagation(); navigate(`/suppliers/ledger/${s.id}`); }}
-                            className={`h-8 px-3 rounded-lg text-[12px] font-bold transition-colors ${
+                            className={`h-8 px-3 rounded-pill text-[12px] font-bold transition-colors ${
                               s._payable > 0.01
                                 ? (on ? 'bg-accent-signature text-white hover:bg-accent-signature-hover'
                                       : 'border border-border text-ink-secondary hover:bg-muted')
@@ -272,11 +272,11 @@ const SupplierWorkspace = ({
 
             <div className="flex gap-2 mt-3">
               <button onClick={() => navigate(`/suppliers/ledger/${selected.id}`)}
-                className="flex-1 h-9 rounded-lg bg-accent-signature hover:bg-accent-signature-hover text-white text-[13px] font-bold transition-colors">
+                className="flex-1 h-9 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[13px] font-bold transition-colors">
                 {selected._payable > 0.01 ? 'Record payment' : 'Open ledger'}
               </button>
               <button onClick={() => navigate('/purchases')}
-                className="h-9 px-3 rounded-lg border border-border text-[13px] font-semibold text-ink-secondary hover:bg-muted transition-colors">
+                className="h-9 px-3 rounded-pill border border-border text-[13px] font-semibold text-ink-secondary hover:bg-muted transition-colors">
                 New bill
               </button>
             </div>
@@ -340,13 +340,13 @@ const SupplierWorkspace = ({
                   <div className="flex items-center gap-2 pt-2">
                     {hasPermission?.('suppliers', 'edit') && (
                       <button onClick={() => openEdit?.(selected)}
-                        className="h-8 px-3 rounded-lg border border-border text-[12px] font-semibold text-ink-secondary hover:bg-muted inline-flex items-center gap-1.5">
+                        className="h-8 px-3 rounded-pill border border-border text-[12px] font-semibold text-ink-secondary hover:bg-muted inline-flex items-center gap-1.5">
                         <Edit3 size={12} /> Edit
                       </button>
                     )}
                     {hasPermission?.('suppliers', 'delete') && (
                       <button onClick={() => handleDelete?.(selected)}
-                        className="h-8 px-3 rounded-lg border border-red-200 text-[12px] font-semibold text-red-600 hover:bg-red-50 inline-flex items-center gap-1.5">
+                        className="h-8 px-3 rounded-pill border border-red-200 text-[12px] font-semibold text-red-600 hover:bg-red-50 inline-flex items-center gap-1.5">
                         <Trash2 size={12} /> Delete
                       </button>
                     )}
@@ -364,7 +364,7 @@ const SupplierWorkspace = ({
             <div className="text-[12px] text-muted-foreground mt-1">Pick one from the list to see its bills and payments.</div>
             {hasPermission?.('suppliers', 'create') && (
               <button onClick={openAdd}
-                className="mt-3 h-9 px-4 rounded-lg bg-accent-signature hover:bg-accent-signature-hover text-white text-[13px] font-bold inline-flex items-center gap-1.5">
+                className="mt-3 h-9 px-4 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[13px] font-bold inline-flex items-center gap-1.5">
                 <Plus size={14} /> Add supplier
               </button>
             )}

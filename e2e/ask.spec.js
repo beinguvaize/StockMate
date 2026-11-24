@@ -1,0 +1,715 @@
+import { test, expect } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { setupMocks, seedAppCache, TENANT_SLUG, MOCK_STAFF_USER, MOCK_TENANT } from './helpers/supabaseMocks.js';
+import { buildCard } from '../supabase/functions/ai-ask/cards.ts';
+import { ASK_HINDI } from '../src/lib/askLanguages.js';
+
+/**
+ * Ask, the panel over mockups/ai-chat.html v2. ai-ask is mocked from the same
+ * registry, strings and card builder the function uses, so these fail if the
+ * screen and the contract drift apart.
+ */
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+test.use({ storageState: path.join(__dirname, '.auth/user.json') });
+
+const read = (p) => JSON.parse(fs.readFileSync(path.join(__dirname, '..', p), 'utf8'));
+const registry = read('shared/ai_chat/questions.json');
+const strings = read('shared/ai_chat/strings.json');
+
+const FIGURES = {
+  sales_today: {
+    period_from: '2026-11-18', period_to: '2026-11-18', as_of: '2026-11-18T10:42:00Z',
+    gross_sales: 184620, bill_count: 23, average_bill: 8026.96, returns_amount: 1850,
+    by_method: [{ method: 'CREDIT', amount: 78600 }, { method: 'UPI', amount: 106020 }],
+    previous_gross_sales: 162400, change_pct: 13.7,
+  },
+};
+const SCREEN = { key: 'reports_daily_sales', fallback_key: 'sales', mobile: true, params: { from: '2026-11-18', to: '2026-11-18' } };
+
+const listOf = (lang, state = 'on', usage = { used: 63, limit: 100, resets_on: '2026-12-01' }) => ({
+  contract_version: 1, state, plan: 'PRO', lang, languages: registry.languages, strings: strings[lang], usage,
+  questions: registry.questions.filter((q) => !q.hidden).map((q) => ({ id: q.id, category: q.category, label: q.label[lang], screen_key: q.screen.key, fallback_screen_key: q.screen.fallback_key, mobile: q.screen.mobile })),
+});
+
+const answerOf = (lang, { text = 'You sold ₹1,84,620.00 today across 23 bills.', reason = null, empty = false } = {}) => ({
+  contract_version: 1, text, reason, reason_message: null, as_of: FIGURES.sales_today.as_of, label: 'x',
+  figures: FIGURES.sales_today, card: buildCard('sales_today', FIGURES.sales_today, strings[lang], empty), screen: SCREEN, usage: null,
+});
+
+async function open(page, { list = (b) => listOf(b.lang ?? 'en'), answer = (b) => answerOf(b.lang), width = 1440, height = 900, beta = true, path: at = 'dashboard' } = {}) {
+  await seedAppCache(page);
+  await setupMocks(page);
+  // The rollout flag is per tenant; these tests switch it on for the mock shop.
+  await page.route('**/rest/v1/tenants*', (r) => r.fulfill({ status: 200, contentType: 'application/json',
+    body: JSON.stringify([{ ...MOCK_TENANT, settings: beta ? { ai_chat_available: true } : {} }]) }));
+  const calls = { list: [], ask: [], enabled: [] };
+  await page.route('**/functions/v1/ai-ask', (r) => {
+    const body = r.request().postDataJSON();
+    const out = body.action === 'list' ? (calls.list.push(body), list(body)) : (calls.ask.push(body), answer(body));
+    const status = out.__status ?? 200;
+    return r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(out) });
+  });
+  await page.route('**/rest/v1/rpc/ai_set_enabled', (r) => {
+    calls.enabled.push(r.request().postDataJSON());
+    return r.fulfill({ status: 200, contentType: 'application/json', body: 'true' });
+  });
+  await page.setViewportSize({ width, height });
+  await page.goto(`/${TENANT_SLUG}/${at}`);
+  return calls;
+}
+
+const openPanel = async (page) => {
+  await page.getByTestId('ask-entry').click();
+  await expect(page.getByTestId('ask-panel')).toBeVisible();
+};
+const question = (page, id) => page.locator(`[data-q="${id}"]`);
+// Questions sit under one open category at a time; open the right one first.
+const openCat = async (page, cat) => {
+  const head = page.locator(`[data-cat="${cat}"]`).first();
+  if ((await head.getAttribute('aria-expanded')) !== 'true') await head.click();
+};
+const pick = async (page, id) => {
+  await openCat(page, registry.questions.find((q) => q.id === id).category);
+  await question(page, id).click();
+};
+
+test('Ask stays off until the owner turns it on, and shows what is sent', async ({ page }) => {
+  let on = false;
+  const calls = await open(page, { list: (b) => listOf(b.lang ?? 'en', on ? 'on' : 'off') });
+  await page.route('**/rest/v1/rpc/ai_set_enabled', (r) => {
+    on = true; calls.enabled.push(r.request().postDataJSON());
+    return r.fulfill({ status: 200, contentType: 'application/json', body: 'true' });
+  });
+  await openPanel(page);
+  const panel = page.getByTestId('ask-panel');
+  await expect(panel).toContainText('Turn on Ask for your shop');
+  await expect(panel).toContainText('Never sent');
+  await expect(panel).toContainText("sent to Google's Gemini API");
+  await expect(panel).toContainText('Do not turn this on if you treat your sales, stock or dues figures as confidential.');
+  // Three paragraphs, the product named Ask throughout.
+  await expect(page.getByTestId('ask-consent').locator('p')).toHaveCount(3);
+  await expect(page.getByTestId('ask-consent')).toContainText('after Google separates it from our Google account, API key and project');
+  await expect(page.getByTestId('ask-consent')).not.toContainText('AI answers');
+  await expect(page.getByTestId('ask-list')).toHaveCount(0);
+  expect(calls.ask).toHaveLength(0);
+
+  await panel.getByRole('button', { name: 'Turn on', exact: true }).click();
+  await expect(page.getByTestId('ask-list')).toBeVisible();
+  expect(calls.enabled).toEqual([{ p_enabled: true }]);
+});
+
+test('questions sit under category headings, with the month usage line', async ({ page }) => {
+  await open(page);
+  await openPanel(page);
+  const list = page.getByTestId('ask-list');
+  for (const h of ['Sales', 'Stock', 'Purchases & suppliers', 'Dues', 'Cash', 'GST']) await expect(list.getByText(h, { exact: true })).toBeVisible();
+  // One category open at a time: every heading is a button, and only the open
+  // category's questions are in the list.
+  const shown = registry.questions.filter((q) => !q.hidden);
+  await expect(list.locator('[data-cat]')).toHaveCount(new Set(shown.map((q) => q.category)).size);
+  await expect(list.locator('[data-q]')).toHaveCount(shown.filter((q) => q.category === 'sales').length);
+  await expect(question(page, 'expiring_stock')).toHaveCount(0);
+  await expect(page.getByTestId('ask-usage')).toHaveText('63 of 100 explanations used in November. Figures never count.');
+});
+
+test('an answer leads with the true number, then the AI text, then the figures and the link', async ({ page }) => {
+  const calls = await open(page);
+  await openPanel(page);
+  await pick(page, 'sales_today');
+  const ans = page.getByTestId('ask-answer');
+  await expect(page.getByTestId('ask-hero')).toHaveText('₹1,84,620.00');
+  await expect(ans).toContainText('Sold today, 23 bills');
+  await expect(ans).toContainText('▲ 13.7% vs ₹1,62,400.00 last Wednesday');
+  await expect(page.getByTestId('ask-ai-text')).toContainText('Written by AI from the figures below');
+  await expect(ans).toContainText('From your books');
+  await expect(ans.getByText('Total sold')).toBeVisible();
+  await expect(ans).toContainText('₹1,06,020.00');
+
+  const y = async (l) => (await l.boundingBox()).y;
+  const order = [await y(page.getByTestId('ask-hero')), await y(page.getByTestId('ask-ai-text')), await y(ans.getByText('From your books'))];
+  expect([...order].sort((a, b) => a - b)).toEqual(order);
+
+  // The client sends only these. Never a tenant, a date or a prompt.
+  expect(Object.keys(calls.ask[0]).sort()).toEqual(['action', 'lang', 'question_id']);
+  await expect(ans.getByRole('button', { name: /Open Daily Sales/ })).toBeVisible();
+});
+
+test('the link opens the matching report', async ({ page }) => {
+  await open(page);
+  await openPanel(page);
+  await pick(page, 'sales_today');
+  await page.getByRole('button', { name: /Open Daily Sales/ }).click();
+  await expect(page).toHaveURL(/reports\?tab=DAILY_SALES/);
+  await expect(page.getByTestId('ask-panel')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Daily Sales/ }).first()).toBeVisible();
+});
+
+test('every failure keeps the figures and says what happened, in the same slot', async ({ page }) => {
+  const cases = [
+    ['guard_rejected', 'a number in it did not match your books'],
+    ['model_error', 'could not be written just now'],
+    ['ai_not_configured', 'Explanations are not set up yet'],
+    ['rate_limited', 'Too many questions in one minute'],
+    ['provider_busy', 'did not use one of your explanations'],
+  ];
+  let reason = cases[0][0];
+  await open(page, { answer: (b) => answerOf(b.lang, { text: null, reason }) });
+  await openPanel(page);
+  for (const [r, words] of cases) {
+    reason = r;
+    await pick(page, 'cash_bank');
+    await pick(page, 'sales_today');
+    const slot = page.getByTestId('ask-reason');
+    await expect(slot).toHaveAttribute('data-reason', r);
+    await expect(slot).toContainText(words);
+    await expect(page.getByTestId('ask-hero')).toHaveText('₹1,84,620.00');
+    await expect(page.getByTestId('ask-ai-text')).toHaveCount(0);
+  }
+});
+
+test('a used-up quota keeps the figures and says when it returns', async ({ page }) => {
+  await open(page, {
+    list: (b) => listOf(b.lang ?? 'en', 'on', { used: 100, limit: 100, resets_on: '2026-12-01' }),
+    answer: (b) => answerOf(b.lang, { text: null, reason: 'quota_reached' }),
+  });
+  await openPanel(page);
+  await expect(page.getByTestId('ask-usage')).toContainText('All 100 explanations used in November');
+  await pick(page, 'sales_today');
+  await expect(page.getByTestId('ask-reason')).toContainText('They return on 1 Dec');
+  await expect(page.getByTestId('ask-hero')).toHaveText('₹1,84,620.00');
+  await expect(page.getByRole('button', { name: 'See plans' })).toBeVisible();
+});
+
+test('no data shows the fixed line, with no AI slot', async ({ page }) => {
+  await open(page, { answer: (b) => answerOf(b.lang, { text: strings.en.no_data, reason: 'no_data', empty: true }) });
+  await openPanel(page);
+  await pick(page, 'sales_today');
+  await expect(page.getByTestId('ask-answer')).toContainText('No sales recorded yet today.');
+  await expect(page.getByTestId('ask-ai-text')).toHaveCount(0);
+  await expect(page.getByTestId('ask-reason')).toHaveCount(0);
+});
+
+test('a failed read shows no number at all, and can be tried again', async ({ page }) => {
+  let fail = true;
+  const calls = await open(page, { answer: (b) => (fail ? { __status: 500, contract_version: 1, reason: 'read_failed' } : answerOf(b.lang)) });
+  await openPanel(page);
+  await pick(page, 'sales_today');
+  await expect(page.getByTestId('ask-error')).toContainText('Nothing is shown rather than a wrong number.');
+  await expect(page.getByTestId('ask-panel')).not.toContainText('₹');
+  fail = false;
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByTestId('ask-hero')).toHaveText('₹1,84,620.00');
+  expect(calls.ask).toHaveLength(2);
+});
+
+test('Hindi: labels, sentences and months in Hindi, digits stay Western', async ({ page }) => {
+  test.skip(!ASK_HINDI, 'Hindi is paused until its strings are reviewed');
+  const calls = await open(page);
+  await openPanel(page);
+  await page.getByRole('button', { name: 'हिन्दी' }).click();
+  const panel = page.getByTestId('ask-panel');
+  await expect(panel).toHaveAttribute('lang', 'hi');
+  await expect(question(page, 'sales_today')).toHaveText('आज मैंने कितनी बिक्री की?');
+  await expect(page.getByTestId('ask-usage')).toHaveText('नवंबर में 100 में से 63 व्याख्याएँ इस्तेमाल हुईं। आँकड़ों की गिनती नहीं होती।');
+  await pick(page, 'sales_today');
+  await expect(panel).toContainText('आज की बिक्री, 23 बिल');
+  await expect(panel).toContainText('नवंबर');
+  expect(calls.ask[0].lang).toBe('hi');
+  expect(await page.evaluate(() => /[०-९]/.test(document.querySelector('[data-testid="ask-panel"]').innerText))).toBe(false);
+});
+
+test.describe('as staff', () => {
+  test.use({ storageState: path.join(__dirname, '.auth/staff.json') });
+  test('a staff user has no entry point', async ({ page }) => {
+    await seedAppCache(page, true);
+    await setupMocks(page, true);
+    // setupMocks answers the users table with the owner whoever signs in.
+    await page.route('**/rest/v1/users*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([MOCK_STAFF_USER]) }));
+    // Flag on, so only the owner check can be what hides the entry.
+    await page.route('**/rest/v1/tenants*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ ...MOCK_TENANT, settings: { ai_chat_available: true } }]) }));
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/${TENANT_SLUG}/dashboard`);
+    await expect(page.getByRole('link', { name: /Dashboard/ }).first()).toBeVisible();
+    await expect(page.getByTestId('ask-entry')).toHaveCount(0);
+  });
+});
+
+test('the server refusal reads plainly, if a non-owner ever reaches the panel', async ({ page }) => {
+  await open(page, { list: () => ({ __status: 403, contract_version: 1, reason: 'not_owner' }) });
+  await openPanel(page);
+  await expect(page.getByTestId('ask-panel')).toContainText('Ask is for the shop owner');
+  await expect(page.getByTestId('ask-list')).toHaveCount(0);
+});
+
+test('Needs internet: the cached list stays and cannot be tapped, and nothing is worked out', async ({ page, context }) => {
+  const calls = await open(page);
+  await openPanel(page);
+  await expect(question(page, 'sales_today')).toBeEnabled();
+  await page.keyboard.press('Escape');
+  await context.setOffline(true);
+  await openPanel(page);
+  await expect(page.getByTestId('ask-panel')).toContainText('Needs internet');
+  await expect(question(page, 'sales_today')).toBeDisabled();
+  expect(calls.ask).toHaveLength(0);
+  await context.setOffline(false);
+});
+
+test('Escape closes the panel on web', async ({ page }) => {
+  await open(page);
+  await openPanel(page);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('ask-panel')).toHaveCount(0);
+});
+
+test('phone: Back returns to the list where the owner left it, and nothing scrolls sideways', async ({ page }) => {
+  await open(page, { width: 390, height: 600 });
+  await page.locator('button.md\\:hidden').first().click();
+  await page.getByTestId('ask-entry-mobile').click();
+  const panel = page.getByTestId('ask-panel');
+  await expect(panel).toBeVisible();
+  await openCat(page, 'sales');
+  await expect(question(page, 'sales_today')).toBeAttached();
+
+  const scroller = panel.locator('.ask-b');
+  await scroller.evaluate((el) => { el.scrollTop = 200; });
+  const before = await scroller.evaluate((el) => el.scrollTop);
+  expect(before).toBeGreaterThan(50);
+
+  await question(page, 'sales_today').scrollIntoViewIfNeeded();
+  const at = await scroller.evaluate((el) => el.scrollTop);
+  await pick(page, 'sales_today');
+  await expect(page.getByTestId('ask-hero')).toHaveText('₹1,84,620.00');
+  await expect(panel.locator('.dock').getByRole('button', { name: /Open Daily Sales/ })).toBeVisible();
+  await expect(panel).toContainText('Also ask');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+
+  await panel.getByRole('button', { name: 'Back' }).click();
+  await expect(question(page, 'sales_today')).toBeVisible();
+  await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBe(at);
+});
+
+test('with the rollout flag off, owners see no entry and no Settings card', async ({ page }) => {
+  await open(page, { beta: false, path: 'settings' });
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByTestId('ask-entry')).toHaveCount(0);
+  await expect(page.getByTestId('ask-settings')).toHaveCount(0);
+});
+
+test('Settings: Turn on opens the consent screen; only that screen turns it on', async ({ page }) => {
+  let on = false;
+  const calls = await open(page, { path: 'settings', list: (b) => listOf(b.lang ?? 'en', on ? 'on' : 'off') });
+  await page.route('**/rest/v1/rpc/ai_set_enabled', (r) => {
+    const body = r.request().postDataJSON(); calls.enabled.push(body); on = body.p_enabled;
+    return r.fulfill({ status: 200, contentType: 'application/json', body: String(on) });
+  });
+  const card = page.getByTestId('ask-settings');
+  await expect(page.getByTestId('ask-settings-state')).toHaveText('Ask is off');
+  await card.getByRole('button', { name: 'Turn on' }).click();
+  await expect(page.getByTestId('ask-panel')).toContainText('Turn on Ask for your shop');
+  expect(calls.enabled).toHaveLength(0);                 // nothing turned on yet
+
+  await page.getByTestId('ask-panel').getByRole('button', { name: 'Turn on', exact: true }).click();
+  await expect(page.getByTestId('ask-list')).toBeVisible();
+  await expect(page.getByTestId('ask-settings-state')).toHaveText('Ask is on');
+  await page.keyboard.press('Escape');
+
+  await card.getByRole('button', { name: 'Turn off' }).click();   // off is direct
+  await expect(page.getByTestId('ask-settings-state')).toHaveText('Ask is off');
+  expect(calls.enabled).toEqual([{ p_enabled: true }, { p_enabled: false }]);
+});
+
+const LINKED = [
+  ['sales_today', 'reports_daily_sales', 'DAILY_SALES', '2026-11-07', '2026-11-07'],
+  ['profit_month', 'reports_financials', 'FINANCIALS', '2026-11-01', '2026-11-07'],
+  ['top_items', 'reports_product_sales', 'PRODUCT_SALES', '2026-11-01', '2026-11-07'],
+  ['gst_collected', 'reports_gstr3b', 'GSTR3B', '2026-11-01', '2026-11-07'],
+  ['gst_gaps', 'reports_purchase_register', 'PURCHASE_REGISTER', '2026-10-01', '2026-11-07'],
+  ['gst_itc_month', 'reports_purchase_register', 'PURCHASE_REGISTER', '2026-11-01', '2026-11-07'],
+  ['purchases_month', 'reports_purchase_register', 'PURCHASE_REGISTER', '2026-11-01', '2026-11-07'],
+  ['sales_week', 'reports_daily_sales', 'DAILY_SALES', '2026-11-09', '2026-11-11'],
+  ['best_customers', 'reports_sales_by_party', 'SALES_BY_PARTY', '2026-11-01', '2026-11-07'],
+];
+for (const [qid, key, tab, from, to] of LINKED) {
+  test(`${qid}: the link opens ${tab} on the answer's own dates`, async ({ page }) => {
+    await open(page, { answer: (b) => ({ ...answerOf(b.lang), screen: { key, fallback_key: null, mobile: true, params: { from, to } } }) });
+    await openPanel(page);
+    await pick(page, qid);
+    await page.getByTestId('ask-answer').getByRole('button', { name: /^Open / }).click();
+    await expect(page).toHaveURL(new RegExp(`tab=${tab}&from=${from}&to=${to}`));
+    // The report shows the same period: in its date fields or its period line.
+    await expect.poll(() => page.evaluate(([f, t]) => {
+      const inputs = [...document.querySelectorAll('input[type="date"]')].map((i) => i.value);
+      const text = document.body.innerText;
+      return (inputs.includes(f) && inputs.includes(t)) || (text.includes(f) && text.includes(t));
+    }, [from, to])).toBe(true);
+  });
+}
+
+test('dead_stock: the link opens the Dead Stock Index itself', async ({ page }) => {
+  await open(page, { answer: (b) => ({ ...answerOf(b.lang), screen: { key: 'reports_inventory_dead', fallback_key: 'inventory', mobile: true, params: {} } }) });
+  await openPanel(page);
+  await pick(page, 'dead_stock');
+  await page.getByTestId('ask-answer').getByRole('button', { name: /Open Dead Stock/ }).click();
+  await expect(page).toHaveURL(/tab=INVENTORY&sub=DEAD_STOCK/);
+  await expect(page.getByText('Unproductive Asset')).toBeVisible();
+});
+
+test('fast_movers_low: the rule is on the card, and the link opens Fast / Slow Movers', async ({ page }) => {
+  const f = { period_from: '2026-10-12', period_to: '2026-11-11', as_of: 'x', window_days: 30, top_n: 15, cover_days: 7, top_count: 15, items_low: 1,
+    items: [{ product_name: 'Frootty plate 12"', unit: 'PCS', rank: 4, units_sold: 407, stock: 43, threshold: 10, days_left: 3, reason: 'days' }] };
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('fast_movers_low', f, strings.en),
+    screen: { key: 'reports_product_movement', fallback_key: 'inventory', mobile: false, params: { from: '2026-10-12', to: '2026-11-11' } } }) });
+  await openPanel(page);
+  await pick(page, 'fast_movers_low');
+  const ans = page.getByTestId('ask-answer');
+  await expect(ans).toContainText('Running low among your top 15 sellers since 12 Oct');
+  await expect(ans).toContainText('or it has 7 days or fewer left');
+  await expect(ans).toContainText('3 days');
+  await ans.getByRole('button', { name: /Open Fast \/ Slow Movers/ }).click();
+  await expect(page).toHaveURL(/tab=PRODUCT_MOVEMENT$/);
+  await expect(page.getByText('Fast Moving Products')).toBeVisible();
+});
+
+test('a language switch keeps the question, and one tap asks it again', async ({ page }) => {
+  test.skip(!ASK_HINDI, 'Hindi is paused until its strings are reviewed');
+  const calls = await open(page);
+  await openPanel(page);
+  await pick(page, 'sales_today');
+  await expect(page.getByTestId('ask-hero')).toBeVisible();
+  await page.getByRole('button', { name: 'हिन्दी' }).click();
+  await expect(page.getByTestId('ask-stale')).toContainText('आज मैंने कितनी बिक्री की?');
+  await expect(question(page, 'sales_today')).toHaveAttribute('aria-current', 'true');
+  expect(calls.ask).toHaveLength(1);                     // never re-asked on its own
+  await page.getByRole('button', { name: 'हिन्दी में फिर पूछें' }).click();
+  await expect(page.getByTestId('ask-hero')).toBeVisible();
+  expect(calls.ask.map((c) => c.lang)).toEqual(['en', 'hi']);
+});
+
+test('a lost connection and a server failure read differently', async ({ page }) => {
+  let mode = 'conn';
+  await open(page);
+  await page.route('**/functions/v1/ai-ask', async (r) => {
+    const body = r.request().postDataJSON();
+    if (body.action === 'list') return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(listOf('en')) });
+    if (mode === 'conn') return r.abort('internetdisconnected');
+    return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ contract_version: 1, reason: 'read_failed' }) });
+  });
+  await openPanel(page);
+  await pick(page, 'sales_today');
+  await expect(page.getByTestId('ask-error')).toContainText('Connection lost.');
+  mode = 'server';
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByTestId('ask-error')).toContainText('The server could not read your books.');
+  await expect(page.getByTestId('ask-error')).not.toContainText('Connection lost.');
+});
+
+test('Settings: the Ask card sits in the same column as the cards above it', async ({ page }) => {
+  await open(page, { path: 'settings', list: (b) => listOf(b.lang ?? 'en', 'off') });
+  const card = page.getByTestId('ask-settings');
+  await expect(card).toBeVisible();
+  const above = page.locator('main section').first();
+  const [a, c] = [await above.boundingBox(), await card.boundingBox()];
+  expect(Math.abs(a.width - c.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(a.x - c.x)).toBeLessThanOrEqual(1);
+});
+
+test('gst_collected says what its sales row is, and why GSTR-3B can differ by paise', async ({ page }) => {
+  const f = { period_from: '2026-05-01', period_to: '2026-05-31', as_of: 'x', output_gst: 12381.21, taxable_sales: 147678.79,
+    last_month_output_gst: 0, last_month_from: '2026-04-01', last_month_to: '2026-04-30', tax_mode: 'EXCLUSIVE',
+    gstr3b_gst: 12381.5, bill_rounding: 6.79, gstr3b_books_gst: 12381.21, gstr3b_bill_count: 149 };
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('gst_collected', f, strings.en),
+    screen: { key: 'reports_gstr3b', fallback_key: null, mobile: true, params: { from: '2026-05-01', to: '2026-05-31' } } }) });
+  await openPanel(page);
+  await pick(page, 'gst_collected');
+  const ans = page.getByTestId('ask-answer');
+  await expect(ans).toContainText('Sales after returns, before GST');
+  await expect(ans).toContainText('GSTR-3B shows ₹0.29 more GST: it rounds CGST and SGST for each tax rate on a bill; your bills round GST once per bill.');
+  await expect(ans).toContainText('₹6.79 of bill totals is rounding not recorded as round-off');
+  await expect(ans.getByRole('button', { name: /Open GSTR-3B/ })).toBeVisible();
+});
+
+test('cash_bank with a loan account says exactly why the Accounts screen reads differently', async ({ page }) => {
+  const f = { period_from: '2026-11-09', period_to: '2026-11-09', as_of: 'x', total_balance: 117846.08, cash_total: 215695.51,
+    bank_total: -97849.43, today_in: 0, today_out: 0, loan_total: -250000,
+    accounts: [{ account_id: 'A1', label: 'Cash', type: 'CASH', balance: 215695.51 }, { account_id: 'A2', label: 'SBI', type: 'BANK', balance: -97849.43 }] };
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('cash_bank', f, strings.en),
+    screen: { key: 'accounts', fallback_key: 'dashboard', mobile: true, params: {} } }) });
+  await openPanel(page);
+  await pick(page, 'cash_bank');
+  await expect(page.getByTestId('ask-answer'))
+    .toContainText('The Accounts screen total also includes loan accounts, which owe ₹2,50,000.00, so it reads -₹1,32,153.92.');
+  await expect(page.getByTestId('ask-hero')).toHaveText('₹1,17,846.08');
+});
+
+test('purchases: the category sits after Stock, and cost_up draws was, now and the rise', async ({ page }) => {
+  const f = { period_from: '2026-08-13', period_to: '2026-11-11', as_of: 'x', items_up: 1, items_compared: 3,
+    items: [{ product_id: 'P1', product_name: 'Tie Salt', unit: 'PCS', old_cost: 1.01, new_cost: 1.5, pct_rise: 48.51, old_date: '2026-11-09', new_date: '2026-11-09' }] };
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('cost_up', f, strings.en),
+    screen: { key: 'purchases', fallback_key: null, mobile: false, params: { from: '2026-08-13', to: '2026-11-11' } } }) });
+  await openPanel(page);
+  const list = page.getByTestId('ask-list');
+  const y = async (t) => (await list.getByText(t, { exact: true }).boundingBox()).y;
+  expect(await y('Stock')).toBeLessThan(await y('Purchases & suppliers'));
+  expect(await y('Purchases & suppliers')).toBeLessThan(await y('Dues'));
+  await pick(page, 'cost_up');
+  const ans = page.getByTestId('ask-answer');
+  await expect(ans).toContainText('Cost more on the latest purchase, of 3 compared since 13 Aug');
+  await expect(ans).toContainText('Tie Salt (PCS)');
+  await expect(ans).toContainText('₹1.01');
+  await expect(ans).toContainText('₹1.50');
+  await expect(ans).toContainText('48.5%');
+  await expect(ans).toContainText("in the item's base unit");
+  await ans.getByRole('button', { name: /Open Purchases/ }).click();
+  await expect(page).toHaveURL(/\/purchases$/);
+});
+
+test('while the answer is written, the panel says what it is doing', async ({ page }) => {
+  let release;
+  const held = new Promise((res) => { release = res; });
+  await open(page, { list: (b) => listOf(b.lang ?? 'en', 'on') });
+  await page.route('**/functions/v1/ai-ask', async (r) => {
+    const body = r.request().postDataJSON();
+    if (body.action === 'list') return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(listOf('en', 'on')) });
+    await held;
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(answerOf('en')) });
+  });
+  await expect(page.getByTestId('ask-entry')).toHaveAttribute('title', 'Ask AI');
+  await openPanel(page);
+  await pick(page, 'sales_today');
+  const loading = page.getByTestId('ask-loading');
+  await expect(loading.getByRole('status')).toHaveText(strings.en.ui.reading);
+  await expect(loading.locator('.orb')).toBeVisible();
+  if (process.env.ASK_SHOTS) await page.screenshot({ path: `${process.env.ASK_SHOTS}/ask-reading.png` });
+  await expect(loading.getByRole('status')).toHaveText(strings.en.ui.writing, { timeout: 3000 });
+  if (process.env.ASK_SHOTS) await loading.screenshot({ path: `${process.env.ASK_SHOTS}/ask-writing.png` });
+  release();
+  await expect(page.getByTestId('ask-hero')).toBeVisible();
+  await expect(loading).toHaveCount(0);
+});
+
+test('while Hindi is paused, the panel is English-only even for an owner who picked Hindi', async ({ page }) => {
+  test.skip(ASK_HINDI, 'Hindi is on');
+  await page.addInitScript(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('ask.lang.')) localStorage.setItem(k, 'hi'); });
+  const calls = await open(page);
+  await openPanel(page);
+  await expect(page.getByTestId('ask-panel')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('group', { name: 'Language' })).toHaveCount(0);
+  expect(calls.list.every((c) => c.lang === 'en')).toBe(true);
+});
+
+// ── Expenses ───────────────────────────────────────────────────────────────
+test('Expenses: the category shows, and its card renders from buildCard with the report link', async ({ page }) => {
+  const f = { period_from: '2026-11-01', period_to: '2026-11-10', as_of: 'x', total: 15190, entry_count: 28,
+    categories: [{ category: 'Salary', amount: 7200, entry_count: 8 }, { category: 'Food', amount: 4990, entry_count: 12 },
+      { category: 'Petrol', amount: 3000, entry_count: 8 }],
+    category_count: 3, drawings_total: 0, drawings_count: 0,
+    previous_total: 29762, previous_entry_count: 42, previous_from: '2026-10-01', previous_to: '2026-10-10', change_pct: -49 };
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('expenses_month', f, strings.en),
+    screen: { key: 'reports_expenses', fallback_key: null, mobile: false, params: { from: '2026-11-01', to: '2026-11-10' } } }) });
+  await openPanel(page);
+  const list = page.getByTestId('ask-list');
+  await expect(list.getByText('Expenses', { exact: true })).toBeVisible();
+  await openCat(page, 'expenses');
+  for (const id of ['expenses_month', 'top_expenses', 'expenses_vs_last']) await expect(question(page, id)).toBeVisible();
+  await pick(page, 'expenses_month');
+  const ans = page.getByTestId('ask-answer');
+  await expect(page.getByTestId('ask-hero')).toHaveText('₹15,190.00');
+  await expect(ans).toContainText('Spent, 1 to 10 Nov, 28 entries');
+  await expect(ans).toContainText('▼ 49.0% vs ₹29,762.00 for 1 to 10 Oct');
+  await expect(ans).toContainText('Total spent');
+  await ans.getByRole('button', { name: /Open Expenses report/ }).click();
+  await expect(page).toHaveURL(/tab=EXPENSES&from=2026-11-01&to=2026-11-10/);
+  await expect(page.getByText('2026-11-01 → 2026-11-10')).toBeVisible();
+});
+
+// ── Dues and cash (ask-dues-cash) ───────────────────────────────────────────
+const CASH_TODAY = {
+  period_from: '2026-11-11', period_to: '2026-11-11', as_of: 'x', money_in: 26959, money_out: 36335, net: -9376,
+  in_by_type: [{ type: 'SALE', amount: 16265 }, { type: 'PAYMENT', amount: 10694 }],
+  out_by_type: [{ type: 'PURCHASE', amount: 33455 }, { type: 'EXPENSE', amount: 2880 }],
+  accounts: [{ account_id: 'A1', label: 'Cash', type: 'CASH', money_in: 17395, money_out: 36335 }],
+  daybook_in: 17395, daybook_out: 36335,
+  unlisted: [{ type: 'PAYMENT', mode: 'CREDIT_SALE', direction: 'IN', amount: 9564 }], residual_in: 0, residual_out: 0,
+};
+
+test('cash_today names what the Day Book leaves out, and links to it', async ({ page }) => {
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: CASH_TODAY, card: buildCard('cash_today', CASH_TODAY, strings.en),
+    screen: { key: 'daybook', fallback_key: null, mobile: true, params: { from: '2026-11-11', to: '2026-11-11' } } }) });
+  await openPanel(page);
+  await expect(page.getByTestId('ask-list').getByText('Cash', { exact: true })).toBeVisible();
+  await pick(page, 'cash_today');
+  const ans = page.getByTestId('ask-answer');
+  await expect(page.getByTestId('ask-hero')).toHaveText('-₹9,376.00');
+  await expect(ans).toContainText('The Day Book shows ₹17,395.00 in and ₹36,335.00 out today.');
+  await expect(ans).toContainText('Customer payments by Credit sale, ₹9,564.00 in.');
+  await ans.getByRole('button', { name: /Open Day Book/ }).click();
+  await expect(page).toHaveURL(/\/daybook/);
+});
+
+for (const [qid, from, to] of [['credit_sales_month', '2026-11-01', '2026-11-11'], ['payment_mix_month', '2026-11-01', '2026-11-11']]) {
+  test(`${qid}: the link opens the Business Report on the answer's own dates`, async ({ page }) => {
+    await open(page, { answer: (b) => ({ ...answerOf(b.lang), screen: { key: 'reports_business', fallback_key: 'sales', mobile: false, params: { from, to } } }) });
+    await openPanel(page);
+    await pick(page, qid);
+    await page.getByTestId('ask-answer').getByRole('button', { name: /Open Business Report/ }).click();
+    await expect(page).toHaveURL(new RegExp(`tab=BUSINESS&from=${from}&to=${to}`));
+    await expect(page.getByText(`${from} → ${to}`)).toBeVisible();
+  });
+}
+
+test('dues_overdue: the link opens Customer Aging', async ({ page }) => {
+  await open(page, { answer: (b) => ({ ...answerOf(b.lang), screen: { key: 'reports_customer_aging', fallback_key: 'clients', mobile: false, params: {} } }) });
+  await openPanel(page);
+  await pick(page, 'dues_overdue');
+  await page.getByTestId('ask-answer').getByRole('button', { name: /Open Customer Aging/ }).click();
+  await expect(page).toHaveURL(/tab=AR_AGING/);
+});
+
+test('gst_by_rate shows a rate that was never set as its own row, with no screen link', async ({ page }) => {
+  const f = { period_from: '2026-05-01', period_to: '2026-05-31', as_of: 'x', tax_mode: 'NONE', bill_count: 76, line_count: 206,
+    sales_gst: 0, rows_gst: 0, not_set_lines: 206, not_set_bills: 76, not_set_taxable: 110009, no_lines_bills: 0, no_lines_value: 0,
+    rates: [{ rate: null, rate_not_set: true, lines: 206, bills: 76, taxable: 110009, gst: 0 }], output_gst: 0, returns_gst: 0 };
+  await open(page, { answer: () => ({ ...answerOf('en'), figures: f, card: buildCard('gst_by_rate', f, strings.en),
+    screen: { key: null, fallback_key: null, mobile: false, params: { from: '2026-05-01', to: '2026-05-31' } } }) });
+  await openPanel(page);
+  await pick(page, 'gst_by_rate');
+  const ans = page.getByTestId('ask-answer');
+  await expect(ans).toContainText('Rate not set');
+  await expect(ans).toContainText('206 lines worth ₹1,10,009.00 have no GST rate set');
+  await expect(ans).toContainText('GSTR-3B counts a line with no rate set as 18%');
+  await expect(ans.getByRole('button', { name: /^Open / })).toHaveCount(0);
+});
+
+test('categories open one at a time, and the open one follows the question asked', async ({ page }) => {
+  await open(page);
+  await openPanel(page);
+  const opened = page.locator('[data-cat][aria-expanded="true"]');
+  await expect(opened).toHaveCount(1);
+  await expect(page.locator('[data-cat="sales"]')).toHaveAttribute('aria-expanded', 'true');
+  await expect(question(page, 'gst_gaps')).toHaveCount(0);
+  await openCat(page, 'gst');
+  await expect(opened).toHaveCount(1);
+  await expect(page.locator('[data-cat="gst"]')).toHaveAttribute('aria-expanded', 'true');
+  await expect(question(page, 'sales_today')).toHaveCount(0);
+  await page.locator('[data-cat="gst"]').click();
+  await expect(opened).toHaveCount(0);
+  if (process.env.ASK_SHOTS) {
+    await openCat(page, 'stock');
+    await page.getByTestId('ask-panel').screenshot({ path: `${process.env.ASK_SHOTS}/ask-categories.png` });
+  }
+});
+
+// ── Staff (ask-staff) ───────────────────────────────────────────────────────
+test('Staff: the category shows, its card renders with stand-in names swapped back, and the link opens Payroll attendance on that month', async ({ page }) => {
+  const f = {
+    period_from: '2026-10-01', period_to: '2026-10-31', as_of: 'x',
+    daily_staff: 2, daily_earned: 25200, daily_paid: 25200, daily_due: 0, due_total: 0, staff_due: 0, overpaid: 0, staff_overpaid: 0,
+    monthly_staff: 0, monthly_salaries: 0, monthly_paid: 0, monthly_unpaid_staff: 0,
+    paid_total: 25200, run_count: 14, paid_people: 2, other_paid: 0, other_people: 0, staff_count: 2,
+    staff: [
+      { employee_id: 'E1', name: 'Test Staff One', pay_type: 'DAILY', days: 14, earned: 12600, salary: null, paid: 12600, due: 0 },
+      { employee_id: 'E2', name: 'Test Staff Two', pay_type: 'DAILY', days: 14, earned: 12600, salary: null, paid: 12600, due: 0 },
+    ],
+    due_staff: [],
+  };
+  await open(page, { answer: () => ({ ...answerOf('en', { text: 'You paid Test Staff One and Test Staff Two ₹25,200 in all.' }), figures: f,
+    card: buildCard('payroll_month', f, strings.en),
+    screen: { key: 'payroll_attendance', fallback_key: null, mobile: false, params: { from: '2026-10-01', to: '2026-10-31' } } }) });
+  await openPanel(page);
+  const list = page.getByTestId('ask-list');
+  await expect(list.getByText('Staff', { exact: true })).toBeVisible();
+  await openCat(page, 'staff');
+  for (const id of ['payroll_month', 'salary_due', 'attendance_today', 'attendance_month']) await expect(question(page, id)).toBeVisible();
+  // Staff sits after Expenses and before Dues.
+  const cats = await list.locator('[data-cat]').evaluateAll((els) => els.map((e) => e.dataset.cat));
+  expect(cats.indexOf('staff')).toBe(cats.indexOf('expenses') + 1);
+  expect(cats.indexOf('dues')).toBe(cats.indexOf('staff') + 1);
+  await question(page, 'payroll_month').click();
+  const ans = page.getByTestId('ask-answer');
+  await expect(page.getByTestId('ask-hero')).toHaveText('₹25,200.00');
+  await expect(ans).toContainText('Paid to staff, 1 to 31 Oct, 14 pay runs');
+  await expect(ans).toContainText('Test Staff One');
+  await ans.getByRole('button', { name: /Open Payroll attendance/ }).click();
+  await expect(page).toHaveURL(/\/payroll\?tab=ATTENDANCE&from=2026-10-01&to=2026-10-31/);
+  await expect(page.getByText('October 2026', { exact: true })).toBeVisible();
+});
+
+// ── Profit tips (ask-profit-tips) ───────────────────────────────────────────
+const TIPS = {
+  period_from: '2026-10-17', period_to: '2026-11-16', as_of: 'x', findings_found: 3,
+  findings: [
+    { key: 'dead_stock', amount: 36887, kind: 'money', screen: 'reports_inventory_dead', items: 11, since: '2026-10-17', product_name: 'Test Steel Tray', top_value: 9600 },
+    { key: 'dues_over_60', amount: 14398.04, kind: 'money', screen: 'reports_customer_aging', over_days: 60, customers_over: 7, bills_over: 12, oldest_days: 159,
+      aged_61_90: 7845, aged_91_120: 4593.04, aged_over_120: 1960 },
+    { key: 'below_cost', amount: 167.5, kind: 'money', screen: 'reports_product_margins', product_name: 'Test Paper Cup', unit: 'PKT', units_sold: 50,
+      avg_sell_price: 31.65, revenue: 1582.5, cogs: 1750, gross_profit: -167.5, margin_pct: -10.58, items: 1 },
+  ],
+  customers: [{ name: 'Test Customer One', amount_over: 4200, oldest_days: 159 }],
+  categories: [],
+};
+const tipsAnswer = (reason = null, text = null, figures = TIPS, empty = false) => ({
+  ...answerOf('en', { text, reason }), figures, card: buildCard('profit_tips', figures, strings.en, empty),
+  screen: { key: null, fallback_key: null, mobile: false, params: { from: '2026-10-17', to: '2026-11-16' } },
+});
+
+test('profit_tips: first in Sales; with figures only, every finding shows with its amount and its own link', async ({ page }) => {
+  await open(page, { answer: () => tipsAnswer('ai_off') });
+  await openPanel(page);
+  await openCat(page, 'sales');
+  await expect(page.getByTestId('ask-list').locator('[data-q]').first()).toHaveAttribute('data-q', 'profit_tips');
+  await pick(page, 'profit_tips');
+  const ans = page.getByTestId('ask-answer');
+  await expect(page.getByTestId('ask-reason')).toHaveAttribute('data-reason', 'ai_off');
+  await expect(page.getByTestId('ask-hero')).toContainText('3');
+  await expect(ans).toContainText('Unsold since 17 Oct: 11 items, the most in Test Steel Tray (₹9,600.00)');
+  await expect(ans).toContainText('₹36,887.00');
+  await expect(ans).toContainText('Unpaid for over 60 days: 7 customers, the most Test Customer One (₹4,200.00, 159 days)');
+  await expect(ans).toContainText('Sold below cost: Test Paper Cup, sold for ₹1,582.50 against a cost of ₹1,750.00');
+  await expect(ans).toContainText('Ideas from your own books, not guarantees.');
+  await expect(ans).toContainText('Customer Aging shows this as 61–90 days ₹7,845.00');
+  const links = ans.getByTestId('ask-row-link');
+  await expect(links).toHaveCount(3);
+  await expect(links.nth(0)).toHaveText(/Open Dead Stock/);
+  await expect(links.nth(1)).toHaveText(/Open Customer Aging/);
+  // No single screen holds every finding: no main link under the card.
+  await expect(ans.locator('.golink')).toHaveCount(0);
+  await links.nth(2).click();
+  await expect(page).toHaveURL(/tab=PROFITABILITY&from=2026-10-17&to=2026-11-16/);
+  await expect(page.getByText('2026-10-17 → 2026-11-16')).toBeVisible();
+});
+
+test('profit_tips: a row link opens Customer Aging; nothing to suggest shows a friendly line', async ({ page }) => {
+  let none = false;
+  await open(page, { answer: () => (none
+    ? { ...tipsAnswer('no_data', strings.en.no_data, { ...TIPS, findings: [], findings_found: 0, customers: [] }, true) }
+    : tipsAnswer(null, 'Follow up with Test Customer One on ₹4,200, unpaid for 159 days. These are ideas from your books, not guarantees.')) });
+  await openPanel(page);
+  await pick(page, 'profit_tips');
+  const ans = page.getByTestId('ask-answer');
+  await expect(page.getByTestId('ask-ai-text')).toContainText('Follow up with Test Customer One');
+  await ans.getByTestId('ask-row-link').nth(1).click();
+  await expect(page).toHaveURL(/tab=AR_AGING/);
+
+  none = true;
+  await openPanel(page);
+  await pick(page, 'profit_tips');
+  await expect(page.getByTestId('ask-answer')).toContainText(strings.en.no_data_by_question.profit_tips);
+  await expect(page.getByTestId('ask-row-link')).toHaveCount(0);
+});
+
+test('profit_tips: on a phone the rows and their links still show', async ({ page }) => {
+  await open(page, { answer: () => tipsAnswer('ai_off'), width: 390, height: 844 });
+  await page.locator('button.md\\:hidden').first().click();
+  await page.getByTestId('ask-entry-mobile').click();
+  await expect(page.getByTestId('ask-panel')).toBeVisible();
+  await pick(page, 'profit_tips');
+  const ans = page.getByTestId('ask-answer');
+  await expect(ans).toContainText('Test Steel Tray');
+  await expect(ans.getByTestId('ask-row-link')).toHaveCount(3);
+  // No sideways scroll on the answer.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  expect(await page.getByTestId('ask-panel').locator('.ask-b').evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+  if (process.env.ASK_SHOTS) await page.getByTestId('ask-panel').screenshot({ path: `${process.env.ASK_SHOTS}/ask-profit-tips-phone.png` });
+});

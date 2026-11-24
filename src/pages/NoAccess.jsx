@@ -54,7 +54,7 @@ const NoAccess = () => {
         <div className="grid grid-cols-1 gap-4">
           <button 
             onClick={() => logout()}
-            className="group w-full h-16 bg-white hover:bg-white/90 text-[#141c1a] font-bold font-sora rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+            className="group w-full h-16 bg-white hover:bg-white/90 text-[#141c1a] font-bold font-sora rounded-pill shadow-xl transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
           >
             <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span className="text-sm tracking-tight uppercase">Switch Account / Sign Out</span>
@@ -68,7 +68,7 @@ const NoAccess = () => {
               await logout();
               goHref('/login');
             }}
-            className="w-full h-16 bg-accent-signature/10 border border-accent-signature/20 text-accent-signature font-bold font-sora rounded-2xl hover:bg-accent-signature/20 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+            className="w-full h-16 bg-accent-signature/10 border border-accent-signature/20 text-accent-signature font-bold font-sora rounded-pill hover:bg-accent-signature/20 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
           >
             <RefreshCcw className="w-5 h-5 animate-spin" />
             <span className="text-sm tracking-tight uppercase">Emergency Platform Sync</span>

@@ -140,7 +140,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
               <div className="text-[11px] opacity-70">{vanName} · {loadList.length} products</div>
             </div>
             <button onClick={onClose}
-              className="shrink-0 px-6 h-11 rounded-xl bg-white text-emerald-700 font-black text-sm hover:bg-white/90 transition-all">
+              className="shrink-0 px-6 h-11 rounded-pill bg-white text-emerald-700 font-black text-sm hover:bg-white/90 transition-all">
               Done
             </button>
           </div>
@@ -185,7 +185,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
           </div>
           <div className="flex-1" />
           <button onClick={onClose}
-            className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:border-black/20 transition-all">
+            className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:border-black/20 transition-all">
             <X size={14} />
           </button>
         </div>
@@ -322,7 +322,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
               <button
                 disabled={!loadList.length || submitting}
                 onClick={handleConfirm}
-                className="w-full h-14 rounded-xl bg-ink-primary text-white font-black text-sm flex items-center justify-center gap-2 hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/20">
+                className="w-full h-14 rounded-pill bg-ink-primary text-white font-black text-sm flex items-center justify-center gap-2 hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/20">
                 {submitting
                   ? <><span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> Working…</>
                   : <><ArrowRight size={16} /> {L.cta} ({totalUnits})</>

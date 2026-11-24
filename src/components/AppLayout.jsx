@@ -2,22 +2,111 @@ import React, { useState, useRef, useCallback} from 'react';
 import { NavLink, Outlet, Navigate, useNavigate, useParams, useLocation} from 'react-router-dom';
 import logoClear from '/logo-clear.png';
 import logoWhite from '/logo-white.png';
+import markClear from '/mark.png';
+import markWhite from '/ledgrpro-mark-white.png';
 import { useBilling } from '../hooks/useBilling';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import SyncStatusButton from './SyncStatusButton';
 import TrialBanner from './TrialBanner';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode} from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode, PanelLeft} from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { getDefaultAvatar } from '../lib/supabase';
 import NotificationStack from './NotificationStack';
 import GlobalLoading from './GlobalLoading';
 import AvatarPicker from './AvatarPicker';
 import SyncStatus from './SyncStatus';
+import OfflineGraceBanner from './OfflineGraceBanner';
+import OfflineLockScreen from './OfflineLockScreen';
+import { useOfflineGrace } from '../lib/offline/useOfflineGrace';
+
+// Lazy: the panel, its Hindi font and its strings load only when it is opened.
+const AskPanel = React.lazy(() => import('./ask/AskPanel'));
 
 // Brand logo — dark wordmark on light themes, white logo on the dark theme.
 const isDarkTheme = () => typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
 const brandLogo = () => isDarkTheme() ? logoWhite : logoClear;
+// The square mark, for the 68px rail. The wordmark does not survive being
+// scaled to fit there -- it becomes a smear the width of a favicon.
+const brandMark = () => isDarkTheme() ? markWhite : markClear;
+
+// ── Rail width ───────────────────────────────────────────────────────────
+// The rail is rendered by Navbar and the page is inset by AppLayout, so both
+// need the same answer. A tiny subscribed store rather than a context: this
+// is one boolean, and a provider for it would be more machinery than the
+// thing it carries.
+//
+// Below RAIL_AUTO_COLLAPSE_BELOW the rail collapses on its own. 1280 is where
+// 248px of navigation stops being a reasonable share of the window: a laptop
+// at 1280 still has a readable invoice table beside it, one at 1152 does not.
+const RAIL_AUTO_COLLAPSE_BELOW = 1280;
+
+// Bump when the meaning of a stored choice changes; the old answer is dropped
+// once and the width decides again until the user re-chooses.
+//
+// 2 is the release that added auto-collapse. Every answer stored before it was
+// made against a rail that had no automatic behaviour to opt out of, so it is
+// not a choice ABOUT this -- it is just where that person happened to leave a
+// button. Honouring those would have shipped the feature to nobody: everyone
+// already using the app has pressed that toggle at least once.
+const RAIL_CHOICE_EPOCH = '2';
+
+const railListeners = new Set();
+
+// null until the user presses the toggle. A stored answer outranks the width
+// forever after: someone who collapsed the rail on a wide screen meant it, and
+// someone who opened it on a narrow one should not have it shut again by the
+// next resize. Read once -- re-reading storage on every resize event would be
+// synchronous I/O in a handler that fires continuously while a window drags.
+let railUserChoice = (() => {
+  try {
+    if (localStorage.getItem('nav_rail_epoch') !== RAIL_CHOICE_EPOCH) {
+      localStorage.removeItem('nav_rail_collapsed');
+      localStorage.setItem('nav_rail_epoch', RAIL_CHOICE_EPOCH);
+      return null;
+    }
+    const v = localStorage.getItem('nav_rail_collapsed');
+    return v === '1' ? true : v === '0' ? false : null;
+  } catch { return null; }   // private window: no preference, follow the width
+})();
+
+const narrowViewport = () =>
+  typeof window !== 'undefined' && window.innerWidth < RAIL_AUTO_COLLAPSE_BELOW;
+
+let railIsCollapsed = railUserChoice ?? narrowViewport();
+
+const setRail = (next) => {
+  if (next === railIsCollapsed) return;
+  railIsCollapsed = next;
+  railListeners.forEach(fn => fn(railIsCollapsed));
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', () => {
+    if (railUserChoice !== null) return;   // the user has decided; stop following
+    setRail(narrowViewport());
+  });
+}
+
+export const useRail = () => {
+  const [railCollapsed, setLocal] = React.useState(railIsCollapsed);
+  React.useEffect(() => {
+    const fn = (v) => setLocal(v);
+    railListeners.add(fn);
+    return () => { railListeners.delete(fn); };
+  }, []);
+  const toggleRail = React.useCallback(() => {
+    // Pressing the toggle is the user deciding, so the width stops being
+    // consulted from here on -- in this tab immediately, and in the next one
+    // via storage.
+    railUserChoice = !railIsCollapsed;
+    // Wrapped: storage throws in a private window, and a rail that cannot be
+    // collapsed there would be worse than one that forgets.
+    try { localStorage.setItem('nav_rail_collapsed', railUserChoice ? '1' : '0'); } catch { /* private window */ }
+    setRail(railUserChoice);
+  }, []);
+  return { railCollapsed, toggleRail };
+};
 
 const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  const config = {
@@ -86,12 +175,41 @@ const Navbar = () => {
  const { tenantSlug } = useParams();
  const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
  const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
+ // Remembered per browser: a shop on a small laptop collapses once, not
+ // every morning. Wrapped because storage throws in private windows.
+ const { railCollapsed, toggleRail } = useRail();
+ const [isRailUserOpen, setIsRailUserOpen] = React.useState(false);
+ const railUserRef = useRef(null);
+ React.useEffect(() => {
+   if (!isRailUserOpen) return;
+   const onDown = (e) => { if (!railUserRef.current?.contains(e.target)) setIsRailUserOpen(false); };
+   const onEsc  = (e) => { if (e.key === 'Escape') setIsRailUserOpen(false); };
+   document.addEventListener('mousedown', onDown);
+   document.addEventListener('keydown', onEsc);
+   return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onEsc); };
+ }, [isRailUserOpen]);
+
+ // Hovering a collapsed rail peeks it open. The rail is `fixed` and the page's
+ // inset is driven by the STORED width, not this one, so a peek overlays the
+ // page instead of reflowing it -- no table re-wraps because a pointer crossed
+ // 68px. Focus opens it too, or the labels would be unreachable by keyboard.
+ const [peek, setPeek] = React.useState(false);
+ const narrow = railCollapsed && !peek;
  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+ const [askOpen, setAskOpen] = React.useState(false);
  const dropdownRef = React.useRef(null);
  const moreMenuRef = React.useRef(null);
 
  const roles = currentUser?.roles || (currentUser?.role ? [currentUser?.role] : ['STAFF']);
  const isOwner = roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN');
+ // Rollout flag per tenant (settings.ai_chat_available), set by the team, off by
+ // default: merged code shows owners nothing until a shop is switched on.
+ const canAsk = isOwner && currentTenant?.settings?.ai_chat_available === true;
+ React.useEffect(() => {
+   const open = () => { if (canAsk) setAskOpen(true); };
+   window.addEventListener('ask:open', open);
+   return () => window.removeEventListener('ask:open', open);
+ }, [canAsk]);
  const isGlobalAdmin = roles.includes('GLOBAL_ADMIN');
  const basePath = tenantSlug ? `/${tenantSlug}` : '';
 
@@ -155,46 +273,220 @@ const Navbar = () => {
  return () => document.removeEventListener('mousedown', handleClickOutside);
 }, []);
 
- const renderNavItem = (item, onClick = null) => {
+ // ── Sidebar row ──────────────────────────────────────────────────────────
+ // The same item shape the pill nav used, drawn as a row. Every gate is
+ // unchanged: `hidden` has already removed role- and vertical-blocked items
+ // upstream, and `locked` still renders an inert row with the upgrade spark
+ // rather than a link, so a plan-gated screen cannot be reached by clicking.
+ //
+ // `collapsed` drops the label and centres the glyph; the title attribute
+ // becomes the only name the item has, so it is set in both states.
+ // Ask opens a panel over the page rather than a route, so the dashboard stays
+ // visible behind it. Owners only: the server refuses anyone else anyway.
+ const askEntry = (collapsed) => canAsk && (
+   <button type="button" onClick={() => setAskOpen(true)} title="Ask AI" data-testid="ask-entry"
+     className={`group flex items-center ${collapsed ? 'justify-center w-10 h-10' : 'w-full gap-3 px-3 py-2'} rounded-pill text-[13.5px] text-ink-secondary font-medium hover:bg-black/[0.04] hover:text-ink-primary transition-all duration-150 active:scale-[0.98]`}>
+     <span className="shrink-0 opacity-70"><Sparkles size={20} /></span>
+     {!collapsed && <span className="truncate">Ask AI</span>}
+   </button>
+ );
+
+ const renderSideItem = (item, { collapsed = false, onClick = null } = {}) => {
+   const body = (isActive) => (
+     <>
+       <span className={`shrink-0 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-accent-signature' : 'opacity-70'}`}>
+         {item.icon}
+       </span>
+       {!collapsed && <span className="truncate">{item.label}</span>}
+       {!collapsed && item.locked && <Sparkles size={12} className="text-accent-signature/70 ml-auto shrink-0" />}
+     </>
+   );
+
    if (item.locked) {
      return (
        <div
          key={item.path}
-         className="flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold text-muted-foreground cursor-not-allowed relative group"
          title={`Upgrade to access ${item.label}`}
+         className={`group flex items-center ${collapsed ? 'justify-center w-10 h-10' : 'gap-3 px-3 py-2'} rounded-[9px] text-[13.5px] font-medium text-muted-foreground cursor-not-allowed`}
        >
-         <span className="opacity-40">{item.icon}</span>
-         {item.label}
-         <Sparkles size={12} className="text-accent-signature/70 ml-0.5" />
+         {body(false)}
        </div>
      );
    }
+
    return (
      <NavLink
        key={item.path}
        to={item.path}
        onClick={onClick}
-       className={({ isActive}) => `flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
-         isActive 
-         ? 'bg-ink-primary text-white shadow-md' 
-         : 'text-ink-secondary hover:text-ink-primary hover:bg-muted'
+       title={item.label}
+       className={({ isActive }) => `group flex items-center ${collapsed ? 'justify-center w-10 h-10' : 'gap-3 px-3 py-2'} rounded-[9px] text-[13.5px] transition-all duration-150 active:scale-[0.98] ${
+         isActive
+           ? 'bg-black/[0.055] text-ink-primary font-semibold'
+           : 'text-ink-secondary font-medium hover:bg-black/[0.035] hover:text-ink-primary'
        }`}
      >
-       {({ isActive}) => (
-         <>
-           <span className={isActive ? 'text-white/60' : 'opacity-70'}>{item.icon}</span>
-           {item.label}
-         </>
-       )}
+       {({ isActive }) => body(isActive)}
      </NavLink>
    );
  };
 
  return (
  <>
- <header className="sticky top-0 z-50 bg-canvas/80 backdrop-blur-md border-b border-black/5">
- <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12">
- <div className="flex items-center justify-between h-16 md:h-20 gap-3 min-w-0">
+ {/* ── Sidebar ───────────────────────────────────────────────────────────
+     Desktop only; the phone keeps the drawer below, which was already the
+     right shape for a small screen.
+
+     Everything the "More" menu used to hide now sits under a heading. That
+     menu held TEN of the app's twenty screens -- Estimates, Manufacturing,
+     Day Book, Cash & Bank, Reports and the rest -- behind a control that
+     gave no hint of what was in it. */}
+ <aside
+   onMouseEnter={() => railCollapsed && setPeek(true)}
+   onMouseLeave={() => setPeek(false)}
+   onFocus={() => railCollapsed && setPeek(true)}
+   onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setPeek(false); }}
+   className={`hidden md:flex fixed inset-y-0 left-0 z-50 flex-col bg-surface border-r border-black/5 transition-[width] duration-200 ease-out motion-reduce:transition-none ${narrow ? 'w-[68px]' : 'w-[248px]'} ${railCollapsed && peek ? 'shadow-2xl' : ''}`}
+ >
+   <div className={`flex items-center h-16 shrink-0 ${narrow ? 'justify-center px-0' : 'px-5 gap-2'}`}>
+     {narrow
+       ? <img src={brandMark()} alt="bookledger" className="w-9 h-9 object-contain" />
+       : <img src={brandLogo()} alt="bookledger" className="object-contain h-8 w-auto max-w-[140px]" />}
+   </div>
+
+   {currentTenant && !narrow && (
+     <div className="px-4 pb-3 shrink-0">
+       <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-canvas border border-black/5 min-w-0">
+         <span className="text-[11px] font-bold text-ink-secondary uppercase tracking-wide truncate flex-1 min-w-0">{currentTenant.name}</span>
+         <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+           currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
+           currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
+           'bg-muted text-muted-foreground'
+         }`}>{currentTenant.plan}</span>
+       </div>
+     </div>
+   )}
+
+   <nav aria-label="Main" data-rail
+        style={{ maskImage: 'linear-gradient(to bottom, #000 calc(100% - 16px), transparent)', WebkitMaskImage: 'linear-gradient(to bottom, #000 calc(100% - 16px), transparent)' }}
+        className={`flex-1 overflow-y-auto custom-scrollbar pb-3 flex flex-col gap-0.5 ${narrow ? 'items-center px-3' : 'px-4'}`}>
+     {primaryNavItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
+
+     {moreNavItems.filter(i => !i.hidden).length > 0 && (
+       narrow
+         ? <span className="w-6 h-px bg-black/10 my-2" />
+         : <div className="mt-4 mb-1 px-3 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Books</div>
+     )}
+     {moreNavItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
+     {askEntry(narrow)}
+   </nav>
+
+   {/* Who you are signed in as. It used to sit at the far right of a header
+       that held nothing else, so a 64px band ran across every screen to
+       carry one avatar. In the rail it sits with the other things that are
+       about you rather than about the page, and the band is gone. */}
+   <div className={`shrink-0 border-t border-black/5 pt-3 ${narrow ? 'px-3' : 'px-4'}`} ref={railUserRef}>
+     {/* Sync status is a pill and a button; neither fits 68px, and both hung
+         over the rail's edge when it was collapsed. The rail opens on hover,
+         so the status is one pointer away rather than gone. */}
+     {!narrow && (
+       <div className="flex items-center justify-between gap-2">
+         <SyncStatusButton />
+         <SyncStatus />
+       </div>
+     )}
+
+     <button
+       type="button"
+       onClick={() => setIsRailUserOpen(o => !o)}
+       aria-haspopup="menu"
+       aria-expanded={isRailUserOpen}
+       title={currentUser?.name || 'Account'}
+       className={`w-full flex items-center rounded-pill transition-colors duration-150 hover:bg-black/[0.035] ${narrow ? 'justify-center p-1' : 'mt-2 gap-3 p-1.5'}`}
+     >
+       <span className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-black/5 shrink-0">
+         <img
+           src={currentUser?.avatar_url || getDefaultAvatar(currentUser?.name || currentUser?.email || 'user')}
+           alt=""
+           className="w-full h-full object-cover"
+         />
+       </span>
+       {!narrow && (
+         <span className="min-w-0 flex-1 text-left">
+           <span className="block text-[13px] font-semibold text-ink-primary truncate">{currentUser?.name || 'Member'}</span>
+           <span className="block text-[10.5px] text-muted-foreground truncate">{currentUser?.email}</span>
+         </span>
+       )}
+       {!narrow && <ChevronDown size={14} className={`shrink-0 opacity-50 transition-transform ${isRailUserOpen ? 'rotate-180' : ''}`} />}
+     </button>
+
+     {isRailUserOpen && (
+       /* Opens upward: the button sits at the bottom of the window, so a
+          menu dropping down would open off-screen. */
+       <div className="absolute bottom-3 left-full ml-2 w-60 bg-surface rounded-2xl border border-black/5 shadow-2xl p-3 z-[100] animate-in fade-in slide-in-from-left-2 duration-200">
+         <button
+           onClick={() => { setIsRailUserOpen(false); setShowAvatarPicker(true); }}
+           className="w-full flex items-center gap-3 p-2 rounded-pill hover:bg-canvas transition-colors text-left"
+         >
+           <span className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-black/5 shrink-0 group">
+             <img
+               src={currentUser?.avatar_url || getDefaultAvatar(currentUser?.name || currentUser?.email || 'user')}
+               alt=""
+               className="w-full h-full object-cover"
+             />
+             <span className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center">
+               <Upload size={12} className="text-white" />
+             </span>
+           </span>
+           <span className="min-w-0">
+             <span className="block text-[13px] font-semibold text-ink-primary truncate">{currentUser?.name || 'Member'}</span>
+             <span className="block text-[10.5px] text-muted-foreground truncate">Change photo</span>
+           </span>
+         </button>
+
+         {isGlobalAdmin && (
+           <NavLink
+             to="/nexus-hq"
+             onClick={() => setIsRailUserOpen(false)}
+             className="mt-2 w-full flex items-center gap-3 px-3 py-2 text-[13px] font-medium text-purple-600 hover:bg-purple-50 rounded-pill transition-colors"
+           >
+             <Shield size={15} /> The Nexus Console
+           </NavLink>
+         )}
+
+         <button
+           onClick={logout}
+           className="mt-1 w-full flex items-center gap-3 px-3 py-2 text-[13px] font-medium text-red-600 hover:bg-red-50 rounded-pill transition-colors"
+         >
+           <LogOut size={15} /> Log out
+         </button>
+       </div>
+     )}
+   </div>
+
+   <div className={`shrink-0 py-3 flex flex-col gap-0.5 ${narrow ? 'items-center px-3' : 'px-4'}`}>
+     {adminItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
+     <button
+       type="button"
+       onClick={toggleRail}
+       aria-label={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+       title={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+       className={`group flex items-center rounded-pill text-[13.5px] font-medium text-ink-secondary hover:bg-black/[0.035] hover:text-ink-primary transition-all duration-150 active:scale-[0.98] ${narrow ? 'justify-center w-10 h-10' : 'gap-3 px-3 py-2'}`}
+     >
+       <span className="shrink-0 opacity-70 transition-transform duration-200 group-hover:-translate-x-0.5">
+         <PanelLeft size={20} />
+       </span>
+       {!narrow && <span>{railCollapsed ? 'Expand' : 'Collapse'}</span>}
+     </button>
+   </div>
+ </aside>
+
+ {/* Phone only. The desktop header carried a hamburger the rail replaces,
+     a logo the rail already shows, and one avatar -- 64px of chrome on every
+     screen for nothing the rail could not hold. */}
+ <header className="md:hidden sticky top-0 z-40 bg-canvas/85 backdrop-blur-md border-b border-black/5">
+ <div className="px-4 sm:px-6 lg:px-8">
+ <div className="flex items-center justify-between h-16 gap-3 min-w-0">
  {/* Mobile Hamburger */}
  <button 
  onClick={() => setIsMobileMenuOpen(true)} 
@@ -206,75 +498,23 @@ const Navbar = () => {
  {/* Branding — min-w-0 so a long tenant name truncates instead of widening
       the header past the window. */}
  <div className="flex items-center gap-4 min-w-0">
- <div className="flex items-center animate-in fade-in duration-700">
+ {/* On desktop the mark lives at the top of the rail; repeating it here
+     would be the same logo twice on one screen. */}
+ <div className="flex items-center animate-in fade-in duration-700 md:hidden">
    <img src={brandLogo()} alt="bookledger" className="h-8 w-auto max-w-[150px] object-contain shrink-0 block" />
  </div>
+ {/* The tenant name and plan live in the rail on desktop. Kept here for
+     the phone, which has no rail -- on md+ this would sit behind it, and
+     did, until the rail collapsed and it reappeared half-covered. */}
  {currentTenant && (
-   <div className="hidden md:flex items-center gap-2">
+   <div className="flex md:hidden items-center gap-2 min-w-0">
      <div className="w-px h-6 bg-black/10"></div>
-     <span className="text-[11px] font-bold text-ink-secondary uppercase tracking-wide leading-tight">{currentTenant.name}</span>
-     <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-       currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
-       currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
-       'bg-muted text-muted-foreground'
-     }`}>{currentTenant.plan}</span>
+     <span className="text-[11px] font-bold text-ink-secondary uppercase tracking-wide leading-tight truncate">{currentTenant.name}</span>
    </div>
  )}
  </div>
 
- {/* Pill Navigation — Desktop Only */}
- <div className="hidden md:flex items-center space-x-1 bg-white p-1.5 rounded-full shadow-sm border border-black/5">
- {primaryNavItems.filter(i => !i.hidden).map((item) => renderNavItem(item))}
-
- {/* More Dropdown */}
- <div className="relative" ref={moreMenuRef}>
- <button
- onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
- className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
- activeInMore 
- ? 'bg-ink-primary text-white shadow-md' 
- : 'text-ink-secondary hover:text-ink-primary hover:bg-muted'
-}`}
- >
- <span className={activeInMore ? 'text-white/60' : 'opacity-70'}><Menu size={18} /></span>
- More
- <ChevronDown size={14} className={`transition-transform duration-200 ${isMoreMenuOpen ? 'rotate-180' : ''}`} />
- </button>
-
- {isMoreMenuOpen && (
- <div className="absolute top-full right-0 mt-3 w-56 bg-surface rounded-xl border border-black/5 shadow-2xl p-2 animate-in fade-in slide-in-from-top-2 duration-200 z-[110]">
- {moreNavItems.filter(i => !i.hidden).map((item) => {
-   if (item.locked) {
-     return (
-       <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium text-muted-foreground cursor-not-allowed">
-         <span className="opacity-40">{item.icon}</span>
-         {item.label}
-         <Sparkles size={12} className="text-accent-signature/70 ml-auto" />
-       </div>
-     );
-   }
-   return (
-     <NavLink
-       key={item.path}
-       to={item.path}
-       onClick={() => setIsMoreMenuOpen(false)}
-       className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium transition-all ${
-         isActive 
-         ? 'bg-canvas text-ink-primary font-bold shadow-sm' 
-         : 'text-ink-secondary hover:bg-canvas/50 hover:text-ink-primary'
-       }`}
-     >
-       <span className="opacity-60">{item.icon}</span>
-       {item.label}
-     </NavLink>
-   );
- })}
- </div>
- )}
- </div>
- </div>
-
- {/* Right Section: Sync Status & User Profile */}
+  {/* Right Section: Sync Status & User Profile */}
  <div className="flex items-center gap-3 sm:gap-4">
  <SyncStatusButton />
  <SyncStatus />
@@ -282,7 +522,7 @@ const Navbar = () => {
  <div className="relative" ref={dropdownRef}>
  <button
    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-   className="flex items-center gap-3 px-3 py-1.5 rounded-full bg-white border border-black/5 shadow-sm hover:shadow-md transition-all group"
+   className="flex items-center gap-3 px-3 py-1.5 rounded-pill bg-white border border-black/5 shadow-sm hover:shadow-md transition-all group"
  >
    <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-black/5 flex-shrink-0">
      <img
@@ -345,7 +585,7 @@ const Navbar = () => {
          )}
        </div>
      </div>
-     <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-all">
+     <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-pill transition-all">
        <LogOut size={16} /> Logout
      </button>
    </div>
@@ -360,6 +600,11 @@ const Navbar = () => {
  </header>
 
  {/* Mobile Navigation Drawer */}
+ {askOpen && (
+   <React.Suspense fallback={null}>
+     <AskPanel onClose={() => setAskOpen(false)} />
+   </React.Suspense>
+ )}
  {isMobileMenuOpen && (
  <div className="fixed inset-0 z-[200] md:hidden">
  {/* Backdrop */}
@@ -398,6 +643,12 @@ const Navbar = () => {
  {/* Nav Items */}
  <nav className="flex-1 overflow-y-auto py-3 px-3">
  <p className="text-[9px] font-semibold text-ink-secondary opacity-[0.85] px-3 mb-2">Navigation</p>
+ {canAsk && (
+   <button type="button" data-testid="ask-entry-mobile" onClick={() => { setIsMobileMenuOpen(false); setAskOpen(true); }}
+     className="w-full flex items-center gap-3 px-4 py-3 rounded-pill text-sm font-semibold text-ink-secondary hover:bg-canvas mb-0.5">
+     <span className="opacity-[0.85]"><Sparkles size={20} /></span>Ask AI
+   </button>
+ )}
  {allNavItems.filter(i => !i.hidden).map(item => {
    if (item.locked) {
      return (
@@ -472,7 +723,7 @@ const Navbar = () => {
    {/* Mobile avatar row */}
    <button
      onClick={() => { setIsMobileMenuOpen(false); setShowAvatarPicker(true); }}
-     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-canvas transition-all"
+     className="w-full flex items-center gap-3 px-4 py-3 rounded-pill hover:bg-canvas transition-all"
    >
      <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-black/5 flex-shrink-0">
        <img
@@ -488,7 +739,7 @@ const Navbar = () => {
    </button>
    <button
      onClick={() => { logout(); setIsMobileMenuOpen(false);}}
-     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 rounded-xl transition-all"
+     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 rounded-pill transition-all"
    >
      <LogOut size={18} /> Logout
    </button>
@@ -508,7 +759,7 @@ const KioskBar = ({ onExit }) => (
       <SyncStatusButton />
       <button
         onClick={onExit}
-        className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-ink-primary text-white hover:opacity-80 transition-opacity"
+        className="flex items-center gap-1.5 px-3 py-1 rounded-pill text-xs font-semibold bg-ink-primary text-white hover:opacity-80 transition-opacity"
       >
         ← Exit POS
       </button>
@@ -536,10 +787,11 @@ const MainContent = ({ kioskMode = false }) => {
         kioskMode
           ? 'p-0 overflow-hidden'
           : isSales
-          ? 'px-4 sm:px-6 lg:px-8 py-2 md:py-4'
-          : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-2 md:py-6'
+          ? 'px-4 sm:px-6 lg:px-8 py-2 md:pt-6 md:pb-4'
+          : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-2 md:pt-8 md:pb-6'
       }`}
     >
+      <OfflineGraceBanner />
       {/* One message about status, never two. The trial banner and the billing
           banner read from different tables that disagree -- only four tenants
           have a subscription row, and Aisha Store's says her trial expired in
@@ -562,7 +814,13 @@ const MainContent = ({ kioskMode = false }) => {
 };
 
 const AppLayout = () => {
-  const { currentUser, loading: authLoading } = useAuth();
+  const { currentUser, loading: authLoading, offlineLock: startLock } = useAuth();
+  // The start-up check only runs at launch; this catches a desktop left open
+  // offline past its window (re-checked hourly by useOfflineGrace).
+  const grace = useOfflineGrace();
+  const offlineLock = startLock || ((grace?.expired || grace?.clockBack)
+    ? { reason: grace.clockBack ? 'clock' : 'expired', graceDays: grace.graceDays, daysOffline: grace.daysOffline }
+    : null);
   const { currentTenant, isImpersonating, stopImpersonating, loading: tenantLoading } = useTenant();
   const navigate = useNavigate();
   // Apply saved theme on every page load
@@ -587,6 +845,7 @@ const AppLayout = () => {
   // Desktop one-time bulk pull-down splash. After the first online sign-in
   // we download every tenant table into IDB so subsequent launches render
   // every tab instantly from cache. Lazy import keeps the web bundle lean.
+  const { railCollapsed } = useRail();
   const [bulkSyncDismissed, setBulkSyncDismissed] = React.useState(false);
   const [Splash, setSplash] = React.useState(null);
   React.useEffect(() => {
@@ -600,6 +859,8 @@ const AppLayout = () => {
   if (authLoading || tenantLoading) {
     return <GlobalLoading />;
   }
+
+  if (offlineLock) return <OfflineLockScreen lock={offlineLock} />;
 
   return (
     <div className="min-h-screen bg-canvas font-inter selection:bg-accent-signature/30 flex flex-col relative">
@@ -616,7 +877,7 @@ const AppLayout = () => {
             <span>Viewing as: {currentTenant?.name}</span>
             <button
               onClick={stopImpersonating}
-              className="bg-white text-accent-signature px-3 py-1 rounded-lg hover:bg-accent-signature/10 transition-all shadow-sm active:scale-[0.98] font-semibold border border-accent-signature/20"
+              className="bg-white text-accent-signature px-3 py-1 rounded-pill hover:bg-accent-signature/10 transition-all shadow-sm active:scale-[0.98] font-semibold border border-accent-signature/20"
             >
               Exit View
             </button>
@@ -626,7 +887,13 @@ const AppLayout = () => {
       {kioskMode ? <KioskBar onExit={handleExitPOS} /> : <Navbar />}
       <NotificationStack />
 
-      <MainContent kioskMode={kioskMode} />
+      {/* Inset by the rail's width on desktop. The rail is `fixed`, so the
+          page has to be moved out from under it; a flex row here would have
+          meant rebuilding the kiosk bar and the mobile drawer around it for
+          no gain. Kiosk (full-screen POS) has no rail and no inset. */}
+      <div className={kioskMode ? 'flex flex-col flex-1' : `flex flex-col flex-1 transition-[padding] duration-200 ease-out ${railCollapsed ? 'md:pl-[68px]' : 'md:pl-[248px]'}`}>
+        <MainContent kioskMode={kioskMode} />
+      </div>
 
       {Splash && !bulkSyncDismissed && currentTenant?.id && (
         <Splash tenantId={currentTenant.id} onDone={() => setBulkSyncDismissed(true)} />

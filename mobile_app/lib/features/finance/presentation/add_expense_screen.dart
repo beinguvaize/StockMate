@@ -1,5 +1,9 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+import 'package:uuid/uuid.dart';
+import 'package:mobile_app/features/finance/data/recurring.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -11,6 +15,8 @@ import 'package:mobile_app/features/finance/data/models/expense.dart';
 import 'package:mobile_app/features/finance/presentation/providers/finance_provider.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final Expense? expense; // non-null = edit mode
@@ -33,7 +39,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   bool _gstClaimable = false;
   String _gstRate = '18';
   late final TextEditingController _gstinController;
-  bool _repeatMonthly = false;
+  // Repeat: NONE | DAILY | MONTHLY. Daily can skip weekdays (ISO 1 = Mon …
+  // 7 = Sun); all seven chosen is stored as "every day".
+  String _repeat = 'NONE';
+  Set<int> _weekdays = {1, 2, 3, 4, 5, 6, 7};
+  bool _keepOneDay = false; // tried to turn off the last selected day
   bool _excludeFromPl = false;
   String? _storeId; // store/till this expense was paid from (multi-store)
 
@@ -58,12 +68,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final e = widget.expense;
     _noteController = TextEditingController(text: e?.note ?? '');
     _amountController = TextEditingController(
-      text: e?.amount != null ? e!.amount!.toStringAsFixed(0) : '',
+      text: e?.amount != null ? expenseAmountText(e!.amount!) : '',
     );
     _selectedCategory = e?.category ?? 'Other';
+    // A new expense defaults to today in IST, the shop's day (the web's
+    // todayISOInAppTZ), whatever zone the phone is set to.
     _selectedDate = e?.date != null
-        ? DateTime.tryParse(e!.date!) ?? DateTime.now()
-        : DateTime.now();
+        ? DateTime.tryParse(e!.date!) ?? DateTime.parse(todayIst())
+        : DateTime.parse(todayIst());
     _excludeFromPl = e?.excludeFromPl ?? false;
     _gstinController = TextEditingController();
   }
@@ -74,6 +86,108 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     _amountController.dispose();
     _gstinController.dispose();
     super.dispose();
+  }
+
+  // ── Amount figure sizing ──
+  // The amount is drawn at 56 and shrinks, never rendering smaller than 28,
+  // so a long figure on a narrow phone or under a large system font stays
+  // whole instead of silently scrolling its first digits out of sight
+  // (₹12,34,567 read as 2,34,567). Only past the floor does the field scroll.
+  static const _amountMaxSize = 56.0;
+  static const _amountMinRendered = 28.0;
+  static const _amountHint = '0.00';
+
+  // ₹, its offset and the letter spacing all scale with the figure, so the
+  // row keeps the proportions it has at 56.
+  TextStyle _rupeeStyle(double size) => GoogleFonts.publicSans(
+        fontSize: 24 * size / _amountMaxSize,
+        fontWeight: FontWeight.w300,
+        color: AppColors.inkTertiary,
+      );
+
+  TextStyle _amountStyle(double size) => GoogleFonts.publicSans(
+        fontSize: size,
+        fontWeight: FontWeight.w800,
+        color: AppColors.inkPrimary,
+        letterSpacing: -2 * size / _amountMaxSize,
+        height: 1,
+      );
+
+  TextStyle _amountHintStyle(double size) => GoogleFonts.publicSans(
+        fontSize: size,
+        fontWeight: FontWeight.w800,
+        color: AppColors.inkTertiary.withValues(alpha: 0.25),
+        letterSpacing: -2 * size / _amountMaxSize,
+      );
+
+  Size _measure(String s, TextStyle style, TextScaler scaler) {
+    final painter = TextPainter(
+      text: TextSpan(text: s, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    final size = painter.size;
+    painter.dispose();
+    return size;
+  }
+
+  /// The largest size, up to 56, at which [text] fits beside ₹ in
+  /// [maxWidth]. Each candidate is laid out with the real text scaler and
+  /// bisected, because Android 14 scales large text non-linearly: shrinking
+  /// in proportion to one measurement at 56 picks a size that still scrolls.
+  double _amountFontSize(BuildContext context, String text, double maxWidth) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final shown = text.isEmpty ? _amountHint : text;
+    bool fits(double size) {
+      final style =
+          text.isEmpty ? _amountHintStyle(size) : _amountStyle(size);
+      // The field's 280dp cap, or what the row has after ₹ and its 6dp
+      // gap, less a little for the cursor.
+      final room = (maxWidth - _measure('₹', _rupeeStyle(size), scaler).width - 6)
+              .clamp(0.0, 280.0) -
+          4;
+      return _measure(shown, style, scaler).width <= room;
+    }
+
+    if (fits(_amountMaxSize)) return _amountMaxSize;
+    // The floor is on the rendered size: under a 2x font a nominal 28 would
+    // draw 56 tall and still scroll.
+    var lo = 1.0, hi = _amountMinRendered;
+    if (scaler.scale(_amountMinRendered) <= _amountMinRendered) {
+      lo = _amountMinRendered;
+    } else {
+      for (var i = 0; i < 10; i++) {
+        final mid = (lo + hi) / 2;
+        if (scaler.scale(mid) >= _amountMinRendered) {
+          hi = mid;
+        } else {
+          lo = mid;
+        }
+      }
+      lo = hi;
+    }
+    if (!fits(lo)) return lo;
+    hi = _amountMaxSize;
+    for (var i = 0; i < 8; i++) {
+      final mid = (lo + hi) / 2;
+      if (fits(mid)) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
+  }
+
+  /// The amount row's height at the full 56, held while the figure shrinks
+  /// so the form below does not climb as a long figure is typed.
+  double _amountRowHeight(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final figure = _measure('0', _amountStyle(_amountMaxSize), scaler).height;
+    final rupee =
+        12 + _measure('₹', _rupeeStyle(_amountMaxSize), scaler).height;
+    return figure > rupee ? figure : rupee;
   }
 
   Future<void> _pickDate() async {
@@ -178,7 +292,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   String _dateLabel() {
-    final today = DateTime.now();
+    final today = DateTime.parse(todayIst());
     final isToday = today.year == _selectedDate.year &&
         today.month == _selectedDate.month &&
         today.day == _selectedDate.day;
@@ -219,6 +333,17 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           : 0;
       final g = _gstinController.text.trim().toUpperCase();
       vendorGstin = g.isEmpty ? null : g;
+    }
+
+    // A repeat is set up online only (v1). Refuse before saving anything, so
+    // the person can retry online without logging the expense twice.
+    if (!_isEditMode && _repeat != 'NONE') {
+      final conn = await Connectivity().checkConnectivity();
+      if (conn == ConnectivityResult.none) {
+        setState(() => _formError =
+            'You are offline. Repeat not set up — try again online, or set Repeat to No to log this once.');
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -275,22 +400,56 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
         final queued = await ref.read(syncServiceProvider).upsertOnlineOrQueue('expenses', row);
 
-        // Repeat monthly → create a recurring template (online best-effort;
-        // the nightly job clones it each month). Mirrors the web flow.
-        if (_repeatMonthly) {
-          try {
-            await supabase.from('recurring_expense_templates').insert({
-              'id': 'RET-${DateTime.now().millisecondsSinceEpoch}',
-              'tenant_id': tenantCtx.tenantId,
-              'note': note,
-              'amount': amount,
-              'category': _selectedCategory,
-              'payment_method': _paymentMethod,
-              'frequency': 'MONTHLY',
-              'day_of_month': _selectedDate.day.clamp(1, 28),
-              'active': true,
-            });
-          } catch (_) {/* non-fatal — expense still saved */}
+        // Repeat → insert the template row; the database's nightly job
+        // (generate_due_recurring_expenses) logs it from the day after. Same
+        // fields as the web (shared contract: data/recurring.dart). Never
+        // silent: whatever goes wrong is said on screen.
+        String? repeatProblem;
+        String? repeatLabel;
+        if (_repeat != 'NONE') {
+          if (queued) {
+            // The expense went to the offline queue, so the connection
+            // dropped mid-save. Don't attach a template to a queued expense.
+            repeatProblem =
+                'Expense saved offline. Repeat not set up — try again online.';
+          } else {
+            final tpl = recurringTemplateRow(
+              id: 'RET-${const Uuid().v4()}',
+              tenantId: tenantCtx.tenantId,
+              note: note,
+              amount: amount,
+              category: _selectedCategory,
+              paymentMethod: _paymentMethod,
+              // The same values the expense was saved with (row above).
+              locationId: row['location_id'] as String?,
+              excludeFromPl: row['exclude_from_pl'] as bool,
+              gstRate: row['gst_rate'] as double?,
+              gstAmount: row['gst_amount'] as double?,
+              vendorGstin: row['vendor_gstin'] as String?,
+              frequency: _repeat,
+              weekdays: _weekdays,
+              date: row['date'] as String,
+              today: todayIst(),
+            );
+            try {
+              await supabase
+                  .from('recurring_expense_templates')
+                  .insert(tpl)
+                  .timeout(const Duration(seconds: 10));
+              repeatLabel = describeRecurringRow(tpl);
+            } on PostgrestException catch (e) {
+              debugPrint('[expenses] recurring setup rejected: $e');
+              repeatProblem =
+                  'Expense saved, but the repeat could not be set up: ${e.message}';
+            } catch (e) {
+              // A dropped connection may still have created it. The raw error
+              // (a timeout or socket message) is logged, not shown.
+              debugPrint('[expenses] recurring setup unconfirmed: $e');
+              repeatProblem =
+                  "Expense saved, but we couldn't confirm the repeat was set up. "
+                  "Check the Expenses page on the web; if it isn't listed, set the repeat up again.";
+            }
+          }
         }
 
         if (mounted) {
@@ -299,10 +458,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(queued
-                  ? 'Saved offline — will sync when online'
-                  : 'Expense logged'),
-              backgroundColor: AppColors.secondary,
+              content: Text(repeatProblem ??
+                  (queued
+                      ? 'Saved offline — will sync when online'
+                      : repeatLabel != null
+                          ? 'Expense logged · Repeats: $repeatLabel'
+                          : 'Expense logged')),
+              backgroundColor:
+                  repeatProblem != null ? AppColors.danger : AppColors.secondary,
+              duration: Duration(seconds: repeatProblem != null ? 10 : 4),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -316,6 +480,129 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // Repeat: No / Daily / Monthly, with weekday chips for Daily. The label is
+  // the shared describeRecurring, so it reads exactly as the web's.
+  /// Pills of equal visible width in a row, with the gap between two of
+  /// them split across their own tap areas so the gap is never a dead zone.
+  /// Edge slots carry only an inner half-gap, so they are sized to match.
+  Widget _gaplessRow({
+    required double gap,
+    required List<Widget Function(EdgeInsets gap)> children,
+  }) {
+    final n = children.length;
+    final half = gap / 2;
+    return LayoutBuilder(builder: (context, c) {
+      final visible = (c.maxWidth - gap * (n - 1)) / n;
+      return Row(children: [
+        for (var i = 0; i < n; i++)
+          SizedBox(
+            width: visible + (i > 0 ? half : 0) + (i < n - 1 ? half : 0),
+            child: children[i](EdgeInsets.only(
+                left: i > 0 ? half : 0, right: i < n - 1 ? half : 0)),
+          ),
+      ]);
+    });
+  }
+
+  Widget _repeatControl() {
+    // The line states the real next date by the database's rule, and flags
+    // a 29th-31st pick being capped to the 28th (shared scheduleLine).
+    final date = _selectedDate.toIso8601String().split('T')[0];
+    final sub = _repeat == 'NONE'
+        ? 'Log this once'
+        : scheduleLine({
+            ...recurringTemplateFor(
+                frequency: _repeat, weekdays: _weekdays, date: date, today: todayIst()),
+            'asked_day': _selectedDate.day,
+          });
+
+    // `gap` is padding INSIDE the tappable: the space between two pills
+    // belongs to them, so a tap there is never a dead zone.
+    Widget pill(String label, bool on, VoidCallback onTap,
+            {String? semantics, EdgeInsets gap = EdgeInsets.zero}) =>
+        Semantics(
+          button: true,
+          selected: on,
+          label: semantics ?? label,
+          child: AppTappable(
+            ripple: false,
+            onTap: onTap,
+            child: Padding(
+              padding: gap,
+              child: Container(
+              // Size to the label (or to the slot an Expanded gives it).
+              // `alignment` here would make every pill as wide as its parent
+              // allows -- inside a Wrap that was one weekday per line.
+              constraints: const BoxConstraints(minHeight: 44),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: on ? AppColors.primary.withValues(alpha: 0.12) : Colors.white,
+                border: Border.all(color: on ? AppColors.primary : AppColors.outlineVariant),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                widthFactor: 1,
+                heightFactor: 1,
+                child: Text(label, maxLines: 1, style: GoogleFonts.publicSans(
+                  fontSize: 13, fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                  color: on ? AppColors.primary : AppColors.inkSecondary)),
+              ),
+            ),
+            ),
+          ),
+        );
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.outlineVariant),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Repeat', style: GoogleFonts.publicSans(
+            fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
+          const SizedBox(height: 2),
+          Text(sub, key: const Key('repeat-label'), style: GoogleFonts.publicSans(
+            fontSize: 13, color: AppColors.inkTertiary)),
+          const SizedBox(height: 10),
+          _gaplessRow(gap: 6, children: [
+            for (final (k, label) in const [('NONE', 'No'), ('DAILY', 'Daily'), ('MONTHLY', 'Monthly')])
+              (gap) => pill(label, _repeat == k, () => setState(() => _repeat = k),
+                  semantics: 'Repeat $label', gap: gap),
+          ]),
+          if (_repeat == 'DAILY') ...[
+            const SizedBox(height: 10),
+            // One row of seven, Mon first, the same order as the web.
+            _gaplessRow(gap: 4, children: [
+              for (final w in weekdays)
+                (gap) => pill(w.short, _weekdays.contains(w.n), () {
+                  final next = {..._weekdays};
+                  if (!next.remove(w.n)) next.add(w.n);
+                  // At least one day: an empty list would mean "every
+                  // day". Say so instead of ignoring the tap.
+                  setState(() {
+                    _keepOneDay = next.isEmpty;
+                    if (next.isNotEmpty) _weekdays = next;
+                  });
+                }, semantics: '${w.short}, ${_weekdays.contains(w.n) ? 'on' : 'off'}', gap: gap),
+            ]),
+            if (_keepOneDay) ...[
+              const SizedBox(height: 8),
+              // Secondary text, like "Log this once". Red is kept for money
+              // that is overdue or lost.
+              Text('Keep at least one day', key: const Key('keep-one-day'),
+                  style: GoogleFonts.publicSans(
+                    fontSize: 13, color: AppColors.inkTertiary)),
+            ],
+          ],
+        ],
+      ),
+    );
   }
 
   @override
@@ -374,23 +661,34 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             ),
                           ),
                           const SizedBox(height: 14),
-                          Row(
+                          ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: _amountController,
+                            builder: (context, value, _) =>
+                                LayoutBuilder(builder: (context, box) {
+                            final size = _amountFontSize(
+                                context, value.text, box.maxWidth);
+                            return ConstrainedBox(
+                            constraints: BoxConstraints(
+                                minHeight: _amountRowHeight(context)),
+                            child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
-                                padding: const EdgeInsets.only(top: 12),
-                                child: Text(
-                                  '₹',
-                                  style: GoogleFonts.publicSans(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w300,
-                                    color: AppColors.inkTertiary,
-                                  ),
-                                ),
+                                padding: EdgeInsets.only(
+                                    top: 12 * size / _amountMaxSize),
+                                child: Text('₹', style: _rupeeStyle(size)),
                               ),
                               const SizedBox(width: 6),
-                              ConstrainedBox(
+                              // Flexible so the 280dp cap gives way to the
+                              // room actually left on a narrow phone or under
+                              // a large font. The figure shrinks to fit that
+                              // room (see _amountFontSize) and only scrolls
+                              // once it reaches the floor size.
+                              Flexible(
+                                child: ConstrainedBox(
                                 constraints: const BoxConstraints(maxWidth: 280),
                                 child: IntrinsicWidth(
                                   child: TextField(
@@ -398,34 +696,29 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                     inputFormatters: [
                                       FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                                      const ExpenseAmountFormatter(),
                                     ],
                                     cursorColor: AppColors.primary,
                                     textAlign: TextAlign.center,
-                                    style: GoogleFonts.publicSans(
-                                      fontSize: 56,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.inkPrimary,
-                                      letterSpacing: -2,
-                                      height: 1,
-                                    ),
+                                    style: _amountStyle(size),
                                     decoration: InputDecoration(
                                       isDense: true,
                                       contentPadding: EdgeInsets.zero,
                                       border: InputBorder.none,
                                       enabledBorder: InputBorder.none,
                                       focusedBorder: InputBorder.none,
-                                      hintText: '0.00',
-                                      hintStyle: GoogleFonts.publicSans(
-                                        fontSize: 56,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.inkTertiary.withValues(alpha: 0.25),
-                                        letterSpacing: -2,
-                                      ),
+                                      hintText: _amountHint,
+                                      hintStyle: _amountHintStyle(size),
                                     ),
                                   ),
                                 ),
+                                ),
                               ),
                             ],
+                          ),
+                          ),
+                          );
+                          }),
                           ),
                           const SizedBox(height: 22),
                           // Decorative accent bar (h-1 w-12, primary @ 20%)
@@ -473,9 +766,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     // ── DATE FIELD ──────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
-                      child: GestureDetector(
+                      child: AppTappable(
+   ripple: false,
                         onTap: _pickDate,
-                        behavior: HitTestBehavior.opaque,
                         child: _iconField(
                           label: 'DATE',
                           icon: LucideIcons.calendar,
@@ -491,7 +784,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             ),
                           ),
                         ),
-                      ),
+ ),
                     ),
 
                     // ── PAID VIA ────────────────────────────────────
@@ -504,27 +797,58 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             fontSize: 13, fontWeight: FontWeight.w800,
                             letterSpacing: 1, color: AppColors.inkTertiary)),
                           const SizedBox(height: 8),
-                          Row(children: [
-                            for (final m in const ['CASH','UPI','BANK','CARD'])
-                              Expanded(child: Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: GestureDetector(
+                          // Four across when the widest label fits, else
+                          // two by two, else one per row: a large system font
+                          // would otherwise clip CASH to CAS.
+                          LayoutBuilder(builder: (context, box) {
+                            const methods = ['CASH', 'UPI', 'BANK', 'CARD'];
+                            final style = GoogleFonts.publicSans(
+                                fontSize: 13, fontWeight: FontWeight.w800);
+                            final scaler = MediaQuery.textScalerOf(context);
+                            var widest = 0.0;
+                            for (final m in methods) {
+                              final tp = TextPainter(
+                                text: TextSpan(text: m, style: style),
+                                textDirection: TextDirection.ltr,
+                                textScaler: scaler,
+                              )..layout();
+                              if (tp.width > widest) widest = tp.width;
+                              tp.dispose();
+                            }
+                            const gap = 6.0, pad = 8.0 * 2 + 2;
+                            var perRow = 4;
+                            while (perRow > 1 &&
+                                (box.maxWidth - gap * (perRow - 1)) / perRow <
+                                    widest + pad) {
+                              perRow ~/= 2;
+                            }
+                            Widget chip(String m) => AppTappable(
+                                  ripple: false,
                                   onTap: () => setState(() => _paymentMethod = m),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
                                       color: _paymentMethod == m ? AppColors.primary.withValues(alpha: 0.12) : Colors.white,
                                       border: Border.all(color: _paymentMethod == m ? AppColors.primary : AppColors.outlineVariant),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: Text(m, style: GoogleFonts.publicSans(
-                                      fontSize: 13, fontWeight: FontWeight.w800,
+                                    child: Text(m, maxLines: 1, softWrap: false, style: style.copyWith(
                                       color: _paymentMethod == m ? AppColors.primary : AppColors.inkSecondary)),
                                   ),
-                                ),
-                              )),
-                          ]),
+                                );
+                            return Column(children: [
+                              for (var r = 0; r < methods.length; r += perRow) ...[
+                                if (r > 0) const SizedBox(height: gap),
+                                Row(children: [
+                                  for (var i = r; i < r + perRow; i++) ...[
+                                    if (i > r) const SizedBox(width: gap),
+                                    Expanded(child: chip(methods[i])),
+                                  ],
+                                ]),
+                              ],
+                            ]);
+                          }),
                         ],
                       ),
                     ),
@@ -555,7 +879,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 for (final r in const ['5','12','18','28'])
                                   Expanded(child: Padding(
                                     padding: const EdgeInsets.only(right: 6),
-                                    child: GestureDetector(
+                                    child: AppTappable(
+   ripple: false,
                                       onTap: () => setState(() => _gstRate = r),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -569,7 +894,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                           fontSize: 13, fontWeight: FontWeight.w800,
                                           color: _gstRate == r ? AppColors.primary : AppColors.inkSecondary)),
                                       ),
-                                    ),
+ ),
                                   )),
                               ]),
                               const SizedBox(height: 10),
@@ -625,25 +950,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       ),
                     ),
 
-                    // ── REPEAT MONTHLY (add mode only) ──────────────
+                    // ── REPEAT (add mode only) ──────────────────────
                     if (!_isEditMode) Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.outlineVariant),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: SwitchListTile(
-                          value: _repeatMonthly,
-                          onChanged: (v) => setState(() => _repeatMonthly = v),
-                          activeThumbColor: AppColors.primary,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-                          title: Text('Repeat monthly', style: GoogleFonts.publicSans(
-                            fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
-                          subtitle: Text('Auto-logs on day ${_selectedDate.day.clamp(1, 28)} every month', style: GoogleFonts.publicSans(
-                            fontSize: 13, color: AppColors.inkTertiary)),
-                        ),
-                      ),
+                      child: _repeatControl(),
                     ),
 
                     // ── NOT A BUSINESS EXPENSE (drawing / loan / capital) ──
@@ -713,19 +1023,22 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           const _CatTile('Add', '__ADD__', LucideIcons.plus,
                               custom: false, isAdd: true),
                         ];
-                        return GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 5,
-                            mainAxisSpacing: 14,
-                            crossAxisSpacing: 8,
-                            childAspectRatio: 0.78,
-                          ),
-                          itemCount: tiles.length,
-                          itemBuilder: (_, i) {
-                            final t = tiles[i];
+                        // Fixed-width tiles in a Wrap, not a fixed-ratio grid:
+                        // the row height follows the icon and label, so a
+                        // 320-360dp phone or a larger system font never
+                        // overflows the cell. The icon shrinks only when the
+                        // column is narrower than its 56dp.
+                        return LayoutBuilder(builder: (context, box) {
+                          const columns = 5;
+                          const gap = 8.0;
+                          final tileWidth =
+                              ((box.maxWidth - gap * (columns - 1)) / columns)
+                                  .floorToDouble();
+                          final iconSize = tileWidth < 56 ? tileWidth : 56.0;
+                          return Wrap(
+                            spacing: gap,
+                            runSpacing: 14,
+                            children: tiles.map((t) {
                             final selected =
                                 !t.isAdd && _selectedCategory == t.value;
                             return GestureDetector(
@@ -739,13 +1052,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               onLongPress: t.custom
                                   ? () => _deleteCategoryDialog(t.value)
                                   : null,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              child: SizedBox(
+                                width: tileWidth,
+                                child: Column(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   AnimatedContainer(
-                                    duration: const Duration(milliseconds: 180),
-                                    width: 56,
-                                    height: 56,
+                                    duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
+                                    width: iconSize,
+                                    height: iconSize,
                                     decoration: BoxDecoration(
                                       color: selected
                                           ? AppColors.primary
@@ -799,10 +1114,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                     ),
                                   ),
                                 ],
+                                ),
                               ),
                             );
-                          },
-                        );
+                            }).toList(),
+                          );
+                        });
                       }),
                     ),
 
@@ -953,8 +1270,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             ),
           ),
         ),
+        // A floor, not a fixed height: a large system font wraps the date
+        // or grows the line, and a fixed 56 cut it off at the baseline.
         Container(
-          height: 56,
+          constraints: const BoxConstraints(minHeight: 56),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -998,4 +1317,26 @@ class _CatTile {
   final bool isAdd; // the trailing "+ Add" tile
   const _CatTile(this.label, this.value, this.icon,
       {this.custom = false, this.isAdd = false});
+}
+
+/// The amount as the field shows it: up to two decimals, no trailing zeros,
+/// so an edit opens on 150.5 rather than rounding it to 151.
+String expenseAmountText(double amount) {
+  final fixed = amount.toStringAsFixed(2);
+  return fixed.replaceFirst(RegExp(r'\.?0+$'), '');
+}
+
+/// Keeps the amount field to a figure `double.tryParse` reads as entered:
+/// at most nine rupee digits, one dot and two paise digits. An edit that
+/// breaks the shape is dropped and the previous text stays.
+class ExpenseAmountFormatter extends TextInputFormatter {
+  const ExpenseAmountFormatter();
+
+  static final _shape = RegExp(r'^\d{0,9}(\.\d{0,2})?$');
+
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    return _shape.hasMatch(newValue.text) ? newValue : oldValue;
+  }
 }

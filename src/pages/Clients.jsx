@@ -56,7 +56,7 @@ const Clients = () => {
  const [dueFilter, setDueFilter] = useState('ALL'); // ALL | DUE | CLEARED
  const [isAdding, setIsAdding] = useState(false);
  const [editingClient, setEditingClient] = useState(null);
- const EMPTY_FORM = { name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', pin_code: '', status: 'ACTIVE', client_type: 'B2C', price_tier: 'RETAIL', credit_days: 0 };
+ const EMPTY_FORM = { name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', pin_code: '', status: 'ACTIVE', client_type: 'B2C', price_tier: 'RETAIL', credit_days: 0, credit_limit: 0 };
  const [formData, setFormData] = useState(EMPTY_FORM);
  const [deleteConfirm, setDeleteConfirm] = useState(null);
  const [deleteError, setDeleteError] = useState('');
@@ -150,6 +150,7 @@ const Clients = () => {
    client_type: client.client_type || 'B2C',
    price_tier:  client.price_tier  || 'RETAIL',
    credit_days: client.credit_days ?? 0,
+   credit_limit: client.credit_limit ?? 0,
  });
  setIsAdding(true);
 };
@@ -211,7 +212,7 @@ const Clients = () => {
  <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Clients<span className="text-accent-signature">.</span></h1>
  <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">Customer network & accounts</span>
  <button onClick={() => { window.location.href = '/bulk-add?type=clients'; }}
-   className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white border border-black/[0.08] text-ink-primary text-[11px] font-bold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
+   className="inline-flex items-center gap-1.5 h-8 px-3 rounded-pill bg-white border border-black/[0.08] text-ink-primary text-[11px] font-bold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
    Bulk Import
  </button>
  </div>
@@ -241,7 +242,7 @@ const Clients = () => {
        <button
          type="button"
          onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
-         className="w-9 h-9 flex items-center justify-center rounded-full border border-black/8 hover:bg-canvas transition-all text-ink-primary shrink-0"
+         className="w-9 h-9 flex items-center justify-center rounded-xl border border-black/8 hover:bg-canvas transition-all text-ink-primary shrink-0"
        >
          <ChevronLeft size={18} />
        </button>
@@ -256,7 +257,7 @@ const Clients = () => {
        <button
          type="button"
          onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
-         className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-muted-foreground shrink-0"
+         className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-muted-foreground shrink-0"
        >
          <X size={16} />
        </button>
@@ -408,7 +409,7 @@ const Clients = () => {
                          key={opt.val}
                          type="button"
                          onClick={() => setFormData({ ...formData, client_type: opt.val })}
-                         className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                         className={`flex items-start gap-3 p-4 rounded-pill border-2 text-left transition-all ${
                            formData.client_type === opt.val
                              ? 'border-ink-primary bg-ink-primary'
                              : 'border-black/8 bg-canvas hover:border-black/20'
@@ -448,6 +449,24 @@ const Clients = () => {
                          <option key={d} value={d}>{d === 0 ? 'Cash on delivery' : `Net ${d} days`}</option>
                        ))}
                      </select>
+                   </div>
+                   {/* The column, the utilisation bar and the "Approved Credit
+                       Limit" report column have all existed for months with no
+                       way to SET the number they display. This is that input.
+                       0 is no limit, which is what every client in production
+                       is on, and is what the POS treats as unlimited. */}
+                   <div>
+                     <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Credit Limit</label>
+                     <input
+                       type="number" min="0" step="1" inputMode="decimal"
+                       className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30"
+                       placeholder="0 — no limit"
+                       value={formData.credit_limit}
+                       onChange={e => setFormData({ ...formData, credit_limit: e.target.value === '' ? 0 : Number(e.target.value) })}
+                     />
+                     <p className="text-[10px] text-muted-foreground mt-1">
+                       Leave 0 for no limit. Above this, a credit sale is refused at the till.
+                     </p>
                    </div>
                  </div>
                </div>
@@ -541,7 +560,7 @@ const Clients = () => {
              <button
                type="button"
                onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
-               className="w-full py-3 rounded-xl border border-black/10 text-xs font-semibold text-muted-foreground hover:bg-black/5 transition-all"
+               className="w-full py-3 rounded-pill border border-black/10 text-xs font-semibold text-muted-foreground hover:bg-black/5 transition-all"
              >
                Cancel
              </button>

@@ -317,7 +317,7 @@ const Orders = () => {
           <span className="text-[11px] font-semibold text-muted-foreground hidden sm:block">Track orders you fulfil later — confirm → dispatch → deliver → invoice</span>
         </div>
         <button onClick={openNew}
-          className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all shrink-0">
+          className="h-10 px-4 rounded-pill bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all shrink-0">
           <Plus size={15} strokeWidth={2.6} /> New order
         </button>
       </div>
@@ -344,7 +344,7 @@ const Orders = () => {
         {/* All tab */}
         <button
           onClick={() => setActiveStage('ALL')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[10px] font-black transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-pill border text-[10px] font-black transition-all whitespace-nowrap ${
             activeStage === 'ALL'
               ? 'bg-ink-primary text-surface border-ink-primary'
               : 'bg-white border-black/5 text-muted-foreground hover:border-black/15'
@@ -362,7 +362,7 @@ const Orders = () => {
               {idx > 0 && <ArrowRight size={10} className="text-muted-foreground shrink-0" />}
               <button
                 onClick={() => setActiveStage(stage.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[10px] font-black transition-all whitespace-nowrap ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-pill border text-[10px] font-black transition-all whitespace-nowrap ${
                   active ? `${st.badge} shadow-sm` : 'bg-white border-black/5 text-muted-foreground hover:border-black/15'
                 }`}
               >
@@ -401,7 +401,7 @@ const Orders = () => {
               Delivered → Invoiced</b>, then convert to a sale.
             </p>
             <p className="text-[12px] text-muted-foreground mt-3">For instant counter sales, use <b>Sales</b> instead.</p>
-            <button onClick={openNew} className="mt-5 h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold hover:bg-accent-signature-hover inline-flex items-center gap-2">
+            <button onClick={openNew} className="mt-5 h-10 px-4 rounded-pill bg-accent-signature text-white text-[13px] font-bold hover:bg-accent-signature-hover inline-flex items-center gap-2">
               <Plus size={15} strokeWidth={2.6} /> Create first order
             </button>
           </div>
@@ -484,7 +484,7 @@ const Orders = () => {
                     <button
                       onClick={() => handleAdvance(order)}
                       disabled={isSaving}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black hover:opacity-90 transition-all disabled:opacity-50 ${stage.next === 'INVOICED' ? 'bg-accent-signature text-white' : 'bg-ink-primary text-surface'}`}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[9px] font-black hover:opacity-90 transition-all disabled:opacity-50 ${stage.next === 'INVOICED' ? 'bg-accent-signature text-white' : 'bg-ink-primary text-surface'}`}
                     >
                       {isSaving ? '...' : (stage.next === 'INVOICED' ? '₹ Convert to sale' : `→ ${stageOf(stage.next).label}`)}
                     </button>
@@ -495,7 +495,7 @@ const Orders = () => {
                     <button
                       onClick={() => toggleDelivery(order)}
                       title={order._delivery_required ? 'Remove delivery flag' : 'Mark for van delivery'}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[9px] font-black transition-all ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-pill border text-[9px] font-black transition-all ${
                         order._delivery_required
                           ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
                           : 'bg-canvas border-black/10 text-muted-foreground hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
@@ -627,7 +627,7 @@ const Orders = () => {
                 </p>
               </div>
               <button
-                className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
+                className="w-10 h-10 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
                 onClick={() => { setShowModal(false); setEditingOrder(null); setForm(EMPTY_FORM); }}
               >
                 <X size={18} />
@@ -663,7 +663,7 @@ const Orders = () => {
                         <button
                           key={t} type="button"
                           onClick={() => setForm(prev => ({ ...prev, orderType: t }))}
-                          className={`flex-1 py-2.5 rounded-xl border-2 text-xs font-black transition-all ${
+                          className={`flex-1 py-2.5 rounded-pill border-2 text-xs font-black transition-all ${
                             form.orderType === t
                               ? 'border-ink-primary bg-ink-primary text-surface'
                               : 'border-black/10 bg-canvas text-ink-primary hover:border-black/20'
@@ -776,7 +776,7 @@ const Orders = () => {
 
                         {/* Remove */}
                         <button type="button" onClick={() => removeItem(idx)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all shrink-0">
+                          className="w-7 h-7 rounded-xl flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all shrink-0">
                           <X size={12} />
                         </button>
                       </div>
@@ -801,7 +801,7 @@ const Orders = () => {
               <div className="px-8 py-5 border-t border-black/5 bg-canvas/50 shrink-0 flex gap-3">
                 <button
                   type="button"
-                  className="flex-1 py-3 rounded-xl border border-black/10 font-semibold text-xs text-ink-primary hover:bg-black/5 transition-all"
+                  className="flex-1 py-3 rounded-pill border border-black/10 font-semibold text-xs text-ink-primary hover:bg-black/5 transition-all"
                   onClick={() => { setShowModal(false); setEditingOrder(null); setForm(EMPTY_FORM); }}
                 >
                   Cancel

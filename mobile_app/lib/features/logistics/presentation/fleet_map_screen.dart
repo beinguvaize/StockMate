@@ -7,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 /// FleetMapScreen — last-known location of each vehicle on an OSM map.
 /// Positions are captured at delivery events (dispatch, stop completed),
@@ -116,20 +117,13 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
           children: [
             Text(
               'Fleet Map',
-              style: GoogleFonts.manrope(
-                fontWeight: FontWeight.w800,
-                fontSize: 17,
-                color: AppColors.inkPrimary,
-              ),
+              style: AppText.heading.copyWith(fontWeight: FontWeight.w800,
+                color: AppColors.inkPrimary),
             ),
             Text(
               'LAST-KNOWN VEHICLE LOCATIONS',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
-                letterSpacing: 1.2,
-              ),
+              style: AppText.label.copyWith(color: AppColors.secondary,
+                letterSpacing: 1.2),
             ),
           ],
         ),
@@ -185,11 +179,8 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
                                             v.name,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: GoogleFonts.manrope(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w800,
-                                              color: Colors.white,
-                                            ),
+                                            style: AppText.label.copyWith(fontWeight: FontWeight.w800,
+                                              color: Colors.white),
                                           ),
                                         ),
                                         const Icon(LucideIcons.mapPin,
@@ -230,10 +221,7 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
                               Text(
                                 'Locations are recorded when drivers\ndispatch routes and complete stops.',
                                 textAlign: TextAlign.center,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  color: AppColors.inkTertiary,
-                                ),
+                                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                               ),
                             ],
                           ),
@@ -263,17 +251,11 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
                                           size: 18, color: AppColors.primary),
                                       title: Text(
                                         v.name,
-                                        style: GoogleFonts.manrope(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13,
-                                        ),
+                                        style: AppText.label.copyWith(fontWeight: FontWeight.w700),
                                       ),
                                       trailing: Text(
                                         _ago(v.at),
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          color: AppColors.inkTertiary,
-                                        ),
+                                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                                       ),
                                     ))
                                 .toList(),

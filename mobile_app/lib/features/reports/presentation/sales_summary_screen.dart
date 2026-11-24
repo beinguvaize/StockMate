@@ -10,6 +10,7 @@ import 'package:mobile_app/features/reports/presentation/widgets/date_range_chip
 import 'package:mobile_app/features/reports/presentation/widgets/report_kpi_tile.dart';
 import 'package:mobile_app/features/reports/presentation/widgets/simple_bar_chart.dart';
 import 'package:mobile_app/features/reports/utils/financial_calcs.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class SalesSummaryScreen extends ConsumerStatefulWidget {
   const SalesSummaryScreen({super.key});
@@ -97,7 +98,7 @@ class _SalesSummaryView extends ConsumerWidget {
           child: Text(
             'Failed to load sales\n$e',
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 13),
+            style: AppText.caption.copyWith(color: AppColors.danger),
           ),
         ),
         data: (sales) => _SalesBody(sales: sales),
@@ -302,10 +303,7 @@ class _SaleCard extends StatelessWidget {
               children: [
                 Text(
                   date,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.inkTertiary,
-                  ),
+                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -321,10 +319,7 @@ class _SaleCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '$itemCount item${itemCount == 1 ? '' : 's'}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.inkSecondary,
-                  ),
+                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                 ),
               ],
             ),
@@ -336,11 +331,8 @@ class _SaleCard extends StatelessWidget {
             children: [
               Text(
                 compactINR(totalAmount),
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF16A34A),
-                ),
+                style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
+                  color: const Color(0xFF16A34A)),
               ),
               const SizedBox(height: 6),
               Row(
@@ -406,11 +398,7 @@ class _Pill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.manrope(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: foreground,
-        ),
+        style: AppText.label.copyWith(color: foreground),
       ),
     );
   }
@@ -424,12 +412,9 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: GoogleFonts.manrope(
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
+      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
-        color: AppColors.inkTertiary,
-      ),
+        color: AppColors.inkTertiary),
     );
   }
 }

@@ -124,7 +124,7 @@ const ExpiryReport = () => {
           <button
             onClick={(e) => { e.stopPropagation(); writeOff(r); }}
             title="Remove this expired stock and book the loss"
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-pill text-[10px] font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
           >
             <Trash2 size={11} /> Write off
           </button>
@@ -139,7 +139,7 @@ const ExpiryReport = () => {
     <>
       <div className="no-print flex items-center justify-end gap-2 mb-3">
         <button onClick={exportExcel}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors">
           <Download size={13} /> Excel
         </button>
       </div>

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { loadEnv } from 'vite';
 
 /**
  * Playwright config — smoke suite only.
@@ -10,7 +11,29 @@ import { defineConfig, devices } from '@playwright/test';
  * All Supabase REST / Auth calls are intercepted via page.route() in
  * e2e/helpers/supabaseMocks.js so tests run without network access and
  * without real credentials or seeded data.
+ *
+ * THE MOCKS ONLY WORK IF THIS AGREES WITH THE APP ABOUT THE SUPABASE URL.
+ * page.route() matches on an absolute URL, so supabaseMocks.js builds its
+ * patterns from VITE_SUPABASE_URL — but nothing here ever loaded .env, so in
+ * the Playwright process that variable was undefined and the helper fell back
+ * to a hardcoded default. The app, which DOES read .env through Vite, was
+ * meanwhile calling a different project entirely.
+ *
+ * The patterns therefore never matched: every authenticated test sent
+ * owner@test.com / password123 to the REAL Supabase project in .env, was told
+ * "Invalid login credentials", and timed out waiting for a dashboard. The
+ * whole authenticated suite has been failing, against production, since
+ * whenever the two URLs diverged.
+ *
+ * Loading the env the same way Vite does makes them agree by construction
+ * rather than by two copies staying in step.
  */
+const env = loadEnv('', process.cwd(), 'VITE_');
+if (env.VITE_SUPABASE_URL) {
+  // Trimmed: .env carries a space after the `=`, which survives into the value
+  // and would break exact-prefix URL matching.
+  process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL.trim();
+}
 export default defineConfig({
   testDir: './e2e',
 

@@ -36,8 +36,11 @@ class Gap {
 class Radii {
   static const double xs = 6;
   static const double sm = 10;
-  static const double md = 14;
-  static const double lg = 20;
+  // md and lg tightened from 14 and 20 to match the approved screens, where
+  // 10 and 12 carry almost every card and 16 the largest panels. A 20px
+  // radius on a 390pt-wide card reads soft; these read like a tool.
+  static const double md = 12;
+  static const double lg = 16;
   static const double xl = 28;
   static const double pill = 999;
 
@@ -72,4 +75,27 @@ class Motion {
 
   /// Slight overshoot. Use sparingly, for confirmation moments.
   static const Curve emphasis = Curves.easeOutBack;
+
+  /// Durations that respect the OS "reduce motion" setting.
+  ///
+  /// Nothing in this app checked `MediaQuery.disableAnimations`, so a user who
+  /// has asked their phone to stop moving things still got all 31 animated
+  /// widgets. On iOS that switch is often on for vestibular reasons -- motion
+  /// that is pleasant for most people makes some people ill.
+  ///
+  /// Reduced motion means FEWER and GENTLER, not none. Returning zero would
+  /// make state changes snap so hard they read as glitches, so this collapses
+  /// to a single frame at 60fps: the change is still perceptible as a change,
+  /// but nothing travels across the screen.
+  static Duration durationOf(BuildContext context, Duration preferred) =>
+      MediaQuery.maybeDisableAnimationsOf(context) == true
+          ? const Duration(milliseconds: 16)
+          : preferred;
+
+  /// The curve to use when motion is reduced -- linear, because an easing
+  /// curve over 16ms is indistinguishable from linear and costs a lookup.
+  static Curve curveOf(BuildContext context, Curve preferred) =>
+      MediaQuery.maybeDisableAnimationsOf(context) == true
+          ? Curves.linear
+          : preferred;
 }

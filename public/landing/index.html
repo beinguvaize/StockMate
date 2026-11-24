@@ -13,20 +13,11 @@
 <meta name="twitter:title" content="bookledger — GST Billing &amp; Inventory Software"/>
 <meta name="twitter:description" content="GST invoices, POS, inventory, van sales — one platform for Indian retailers &amp; distributors."/>
 <meta name="twitter:image" content="https://bookledger.in/og.webp"/>
+<link rel="stylesheet" href="tw.css?v=00e960bc83"/>
 <link rel="icon" href="favicon-256.png"/>
 <link rel="canonical" href="https://bookledger.in/"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
-<script>
-  tailwind.config = { theme: { extend: {
-    colors: {
-      primary: '#1A1815', secondary: '#6b6660', surface: '#FBFAF7',
-      canvas: '#FFFFFF', line: '#E9E6DF', accent: '#D97706', 'accent-700': '#B45309',
-    },
-    fontFamily: { sans: ['Manrope','sans-serif'], mono: ['JetBrains Mono','monospace'] },
-  }}}
-</script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&family=Caveat:wght@600&display=swap" rel="stylesheet"/>
 <style>
   @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
   .logo-track{display:flex;width:max-content;animation:scroll 32s linear infinite}
@@ -38,7 +29,7 @@
 {"@context":"https://schema.org","@graph":[
 {"@type":"Organization","@id":"https://bookledger.in/#org","name":"bookledger","url":"https://bookledger.in/","logo":"https://bookledger.in/bookledger-logo.png","description":"GST billing, inventory and POS software for Indian retailers and distributors.","areaServed":{"@type":"Country","name":"India"}},
 {"@type":"WebSite","@id":"https://bookledger.in/#site","url":"https://bookledger.in/","name":"bookledger","publisher":{"@id":"https://bookledger.in/#org"},"inLanguage":"en-IN"},
-{"@type":"SoftwareApplication","name":"bookledger","operatingSystem":"Android, iOS, Windows, macOS, Web","applicationCategory":"BusinessApplication","description":"Create GST invoices, track stock, recover dues and export GSTR reports. Works offline. Free mobile app.","url":"https://bookledger.in/","publisher":{"@id":"https://bookledger.in/#org"},"offers":{"@type":"Offer","price":"0","priceCurrency":"INR","description":"Free plan. Paid plans from Rs 2,999/year."},"featureList":["GST invoicing with CGST/SGST/IGST and HSN","Offline billing and automatic sync","Inventory and batch tracking","Point of sale","GSTR-1 and GSTR-3B export","Client dues and collections","Van sales and logistics"]},
+{"@type":"SoftwareApplication","name":"bookledger","operatingSystem":"Android, iOS, Windows, macOS, Web","applicationCategory":"BusinessApplication","description":"Create GST invoices, track stock, recover dues and export GSTR reports. Works offline. Free mobile app.","url":"https://bookledger.in/","publisher":{"@id":"https://bookledger.in/#org"},"offers":{"@type":"Offer","price":"0","priceCurrency":"INR","description":"Free plan. Paid plans from Rs 1,999/year."},"featureList":["GST invoicing with CGST/SGST/IGST and HSN","Offline billing and automatic sync","Inventory and batch tracking","Point of sale","GSTR-1 and GSTR-3B export","Client dues and collections","Van sales and logistics"]},
 {"@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"Does it really work offline?","acceptedAnswer":{"@type":"Answer","text":"Yes. Sales, billing and stock all run fully offline. An outbox queues every change and syncs automatically when you reconnect - nothing is lost."}},
 {"@type":"Question","name":"Is it GST compliant?","acceptedAnswer":{"@type":"Answer","text":"CGST/SGST/IGST, HSN, inclusive/exclusive tax, and GSTR-1/3B exports are built in. Invoices follow Indian GST formatting."}},
@@ -50,312 +41,575 @@
 <script>document.documentElement.classList.add('js')</script>
 </head>
 <body class="bg-canvas text-primary font-sans antialiased">
-
-<!-- Nav -->
-<nav class="bg-canvas/80 backdrop-blur-md border-b border-line w-full sticky top-0 z-50">
-  <div class="flex justify-between items-center w-full px-6 lg:px-8 py-4 max-w-[1200px] mx-auto">
+<nav class="bg-canvas/85 backdrop-blur-md w-full sticky top-0 z-50">
+  <div class="flex justify-between items-center w-full px-6 lg:px-10 py-4 max-w-[1320px] mx-auto">
     <a href="/" class="flex items-center gap-2.5">
-      <img src="bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/>
+      <img src="bookledger-logo.png" alt="bookledger" class="h-9 w-auto"/>
     </a>
-    <div class="hidden md:flex gap-7 items-center">
-      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="features.html">Features</a>
-      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
-      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="download.html">Download</a>
-      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="integrations.html">Integrations</a>
-      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="about.html">About</a>
+    <div class="hidden lg:flex gap-9 items-center">
+      <a class="relative text-[15px] font-semibold text-accent-text py-1.5" href="/" aria-current="page">
+        Home
+        <span class="absolute left-0 -bottom-0.5 h-[3px] w-full rounded-full bg-accent" aria-hidden="true"></span>
+      </a>
+      <a class="text-[15px] font-medium text-secondary hover:text-primary transition-colors" href="features.html">Features</a>
+      <a class="text-[15px] font-medium text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
+      <a class="text-[15px] font-medium text-secondary hover:text-primary transition-colors" href="about.html">About</a>
+      <a class="text-[15px] font-medium text-secondary hover:text-primary transition-colors" href="contact.html">Contact</a>
     </div>
-    <div class="hidden md:flex gap-3 items-center">
-      <a href="https://app.bookledger.in/login" class="text-sm font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
-      <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-700 transition-colors">Get Started</a>
+    <div class="hidden lg:flex gap-3 items-center">
+      <a href="https://app.bookledger.in/login" class="text-[15px] font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
+      <a href="https://app.bookledger.in/register" class="group inline-flex items-center gap-2 bg-accent-solid text-white text-[15px] font-semibold px-6 py-3 rounded-full hover:bg-accent-hover transition-[background-color,transform] duration-150 active:scale-[0.98]">
+        Get Started Free
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-0.5"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
     </div>
-    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+    <a href="https://app.bookledger.in/register" class="lg:hidden bg-accent-solid text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+    <button id="navToggle" type="button" class="lg:hidden inline-flex items-center justify-center w-11 h-11 -mr-2 rounded-full text-primary hover:bg-surface transition-colors" aria-label="Menu" aria-expanded="false" aria-controls="navPanel">
+      <svg data-icon="open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      <svg data-icon="close" hidden width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div id="navPanel" hidden class="lg:hidden border-t border-line bg-canvas">
+    <div class="px-6 py-2 max-w-[1200px] mx-auto flex flex-col">
+      <a class="flex items-center min-h-[44px] px-2 text-base font-medium text-secondary hover:text-primary border-b border-line" href="features.html">Features</a>
+      <a class="flex items-center min-h-[44px] px-2 text-base font-medium text-secondary hover:text-primary border-b border-line" href="pricing.html">Pricing</a>
+      <a class="flex items-center min-h-[44px] px-2 text-base font-medium text-secondary hover:text-primary border-b border-line" href="about.html">About</a>
+      <a class="flex items-center min-h-[44px] px-2 text-base font-medium text-secondary hover:text-primary border-b border-line" href="contact.html">Contact</a>
+      <a class="flex items-center min-h-[44px] px-2 text-base font-semibold text-primary" href="https://app.bookledger.in/login">Sign in</a>
+    </div>
   </div>
 </nav>
-
 <main class="w-full">
 
-  <!-- Title + device trio -->
-  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 pt-24 lg:pt-32 pb-12">
-    <div class="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 items-center">
-      <div>
-        <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">GST Billing · Inventory · POS · Offline</span>
-        <h1 class="mt-5 text-4xl md:text-6xl font-light text-primary max-w-4xl leading-[1.05] tracking-tight">
-          Run your shop on one<br/>quiet, fast, offline ledger.
+  <!-- 1 · The shop, full bleed ────────────────────────────────────────────
+       The photograph is not a card sitting on the page; it IS the right half
+       of the page, running to the top and the right edge, and dissolving into
+       the ground under the words. That dissolve is why the headline can sit
+       over it without a scrim: by the time the type starts, the picture has
+       already become the page. -->
+  <section data-reveal="off" class="relative overflow-hidden bg-canvas flex flex-col lg:block">
+
+    <!-- The picture, bled to the edges on a desktop and sitting in the flow
+         on a phone -- ONE element either way. It was two <img>s behind
+         `lg:hidden` and `hidden lg:block`, which hides an image but does not
+         stop it downloading: every desktop visit pulled the phone crop as
+         well, and every phone pulled the 186KB desktop crop it would never
+         show. <picture> makes the browser choose one before it fetches. -->
+    <div class="relative order-2 lg:order-none lg:absolute lg:inset-y-0 lg:right-0 lg:w-[63%] mt-9 lg:mt-0">
+      <picture>
+        <source media="(min-width: 1024px)" srcset="retailer-counter.jpg" width="1500" height="1000"/>
+        <img src="retailer-counter-wide.jpg" width="1100" height="550"
+             alt="A shop owner at the counter of their grocery store, working on a laptop running bookledger, with a card machine and phone beside them."
+             class="w-full aspect-[2/1] lg:aspect-auto lg:h-full object-cover lg:object-[35%_center]"
+             fetchpriority="high" decoding="async"/>
+      </picture>
+      <!-- The fades belong to the bled layout only; on a phone the picture is
+           a plain band and has nothing to dissolve into. -->
+      <div class="hidden lg:block absolute inset-y-0 left-0 w-[52%] bg-gradient-to-r from-canvas via-canvas/92 to-transparent" aria-hidden="true"></div>
+      <div class="hidden lg:block absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-canvas to-transparent" aria-hidden="true"></div>
+    </div>
+
+    <div class="relative order-1 lg:order-none w-full max-w-[1320px] mx-auto px-6 lg:px-10 pt-12 lg:pt-16 pb-0 lg:pb-14">
+      <div class="lg:w-[53%] stage">
+
+        <span class="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/[0.08] px-4 py-2 text-[13px] font-semibold text-accent-text">
+          <span class="grid place-items-center w-5 h-5 rounded-full bg-accent/15 mono text-[11px]">₹</span>
+          Built for Indian Retail Businesses
+        </span>
+
+        <h1 class="mt-7 text-[2.4rem] sm:text-[3.2rem] lg:text-[3.4rem] xl:text-[4rem] font-extrabold tracking-[-0.035em] leading-[1.06]">
+          <span class="block">Simplify Your Retail</span>
+          <span class="relative inline-block whitespace-normal sm:whitespace-nowrap text-accent-bright">
+            Business Operations
+            <svg class="hidden sm:block absolute left-0 -bottom-1.5 w-full h-[16px] overflow-visible" viewBox="0 0 320 16" fill="none" preserveAspectRatio="none" aria-hidden="true">
+              <path class="underline-draw" d="M3 10.5C56 4.6 120 2.8 182 4.4c41 1.1 88 3.6 135 6.9" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" opacity="0.45"/>
+            </svg>
+          </span>
         </h1>
-        <p class="mt-6 max-w-2xl text-base text-secondary leading-relaxed font-light">
-          Create GST invoices, track stock in real time, recover dues, and file GSTR — on web, desktop and a free mobile app. Works offline, syncs when you're back.
+
+        <p class="mt-7 max-w-[34rem] text-[17px] lg:text-[18px] leading-relaxed text-secondary">
+          <strong class="font-bold text-primary">bookledger is a modern,</strong> all-in-one SaaS platform for Indian
+          retailers — manage your POS, inventory, billing, expenses, receivables, payroll, GST and more,
+          all in one place.
         </p>
-        <div class="mt-8 flex flex-wrap items-center gap-3">
-          <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-6 py-3 rounded-full hover:bg-accent-700 transition-colors shadow-lg shadow-accent/20">Try free for 60 days</a>
-          <a href="features.html" class="text-sm font-semibold text-primary px-6 py-3 rounded-full border border-line hover:bg-surface transition-colors">See features</a>
-          <span class="text-xs text-secondary font-light">No credit card required</span>
+
+        <div class="mt-9 flex flex-wrap items-center gap-4">
+          <a href="https://app.bookledger.in/register"
+             class="group inline-flex items-center gap-2.5 bg-accent-solid text-white text-[16px] font-bold px-8 py-4 rounded-full shadow-[0_14px_34px_-14px_rgba(180,83,9,0.7)] hover:bg-accent-hover transition-[background-color,transform] duration-150 active:scale-[0.98]">
+            Start Free for 60 Days
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="transition-transform duration-200 group-hover:translate-x-1"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+          </a>
+          <a href="features.html"
+             class="inline-flex items-center gap-2.5 bg-canvas text-[16px] font-bold px-7 py-4 rounded-full border border-line hover:border-secondary transition-[border-color,transform] duration-150 active:scale-[0.98]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M10 8.2l6 3.8-6 3.8z" fill="currentColor" stroke="none"/></svg>
+            See How It Works
+          </a>
         </div>
+        <p class="mt-3.5 text-[13px] text-secondary">No card needed. The Android app stays free.</p>
       </div>
 
-      <!-- One ledger on every screen: laptop, tablet & phone -->
-      <div class="relative mt-4 lg:mt-0 w-full" aria-hidden="true">
-        <img src="hero-devices.jpg" alt="bookledger running on laptop, tablet and mobile"
-             class="w-full h-auto select-none pointer-events-none mix-blend-multiply"
-             loading="eager" fetchpriority="high"/>
-      </div>
+    </div>
+
+    <div class="order-3 lg:order-none relative w-full max-w-[1320px] mx-auto px-6 lg:px-10 pb-10 lg:pb-14 lg:-mt-6">
+    <!-- Five capabilities in one rule-separated row, the way a spec strip
+           reads: scanned across, not read down. -->
+      <ul class="settle mt-10 lg:mt-14 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 lg:w-[62%] gap-y-7 lg:divide-x lg:divide-line">
+        <li class="lg:px-5 lg:first:pl-0">
+          <span class="grid place-items-center w-11 h-11 rounded-full bg-accent/[0.1] text-accent-text">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.6 12.4a1.6 1.6 0 001.6 1.3h8.4a1.6 1.6 0 001.6-1.3L21 7H6"/></svg>
+          </span>
+          <span class="block mt-3 text-[14.5px] font-bold leading-tight">POS &amp; Billing</span>
+          <span class="block mt-1 text-[12.5px] text-secondary leading-tight">Fast &amp; reliable</span>
+        </li>
+        <li class="lg:px-5">
+          <span class="grid place-items-center w-11 h-11 rounded-full bg-accent/[0.1] text-accent-text">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+          </span>
+          <span class="block mt-3 text-[14.5px] font-bold leading-tight">Inventory</span>
+          <span class="block mt-1 text-[12.5px] text-secondary leading-tight">Real-time stock</span>
+        </li>
+        <li class="lg:px-5">
+          <span class="grid place-items-center w-11 h-11 rounded-full bg-accent/[0.1] text-accent-text">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9.5 12.5h5M9.5 16.5h5"/></svg>
+          </span>
+          <span class="block mt-3 text-[14.5px] font-bold leading-tight">Expenses &amp; Receivables</span>
+          <span class="block mt-1 text-[12.5px] text-secondary leading-tight">Better cash flow</span>
+        </li>
+        <li class="lg:px-5">
+          <span class="grid place-items-center w-11 h-11 rounded-full bg-accent/[0.1] text-accent-text">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0111 0"/><path d="M16 8.2a3 3 0 010 5.6M18.5 5.5a6 6 0 010 11"/></svg>
+          </span>
+          <span class="block mt-3 text-[14.5px] font-bold leading-tight">Payroll</span>
+          <span class="block mt-1 text-[12.5px] text-secondary leading-tight">Your team, simplified</span>
+        </li>
+        <li class="lg:px-5">
+          <span class="grid place-items-center w-11 h-11 rounded-full bg-accent/[0.1] text-accent-text">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5L5 19"/><circle cx="7.5" cy="7.5" r="2.6"/><circle cx="16.5" cy="16.5" r="2.6"/></svg>
+          </span>
+          <span class="block mt-3 text-[14.5px] font-bold leading-tight">GST &amp; Reports</span>
+          <span class="block mt-1 text-[12.5px] text-secondary leading-tight">Stay compliant</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- One insight, shaped like a reading rather than a dashboard. -->
+    <div class="float-card hidden lg:flex absolute top-28 right-10 xl:right-16 items-center gap-3.5 rounded-2xl bg-canvas/95 backdrop-blur-sm border border-line shadow-[0_20px_50px_-20px_rgba(26,24,21,0.4)] pl-3.5 pr-5 py-3">
+      <span class="grid place-items-center w-11 h-11 rounded-full bg-accent/[0.12] text-accent-text shrink-0">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 3 7-8"/><path d="M21 7v5h-5"/></svg>
+      </span>
+      <span>
+        <span class="block text-[12.5px] font-semibold text-secondary leading-none">Today's Sales</span>
+        <span class="flex items-baseline gap-2 mt-1.5">
+          <span class="mono text-[22px] font-extrabold leading-none">₹24,580</span>
+          <span class="text-[13px] font-bold text-ok leading-none">↑ 18%</span>
+        </span>
+      </span>
     </div>
   </section>
 
-  <!-- Hero product mockup (real UI, not stock art) -->
-  <section data-reveal="off" class="px-6 lg:px-8 pb-24">
-    <div class="max-w-[1080px] mx-auto rounded-[20px] bg-canvas border border-line shadow-2xl overflow-hidden">
-      <!-- window chrome -->
-      <div class="flex items-center gap-2 px-4 py-3 border-b border-line bg-surface">
-        <span class="w-3 h-3 rounded-full bg-line"></span><span class="w-3 h-3 rounded-full bg-line"></span><span class="w-3 h-3 rounded-full bg-line"></span>
-        <div class="ml-3 flex items-center gap-2 text-[11px] mono text-secondary"><img src="ledgrpro-logo.png" alt="" class="h-4 w-auto"/> · Dashboard</div>
-        <span class="ml-auto text-[10px] mono px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold">● Synced</span>
-      </div>
-      <div class="p-5 lg:p-7 bg-surface">
-        <!-- KPI strip -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-px bg-line rounded-xl overflow-hidden border border-line mb-5">
-          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Today Sales</div><div class="mono text-xl font-bold mt-1.5"><span class="text-accent/60 text-sm">₹</span>84,200</div><div class="text-[10px] font-bold text-emerald-600 mt-1">▲ 12%</div></div>
-          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Stock Value</div><div class="mono text-xl font-bold mt-1.5"><span class="text-accent/60 text-sm">₹</span>1,21,326</div><div class="text-[10px] font-bold text-secondary mt-1">21 SKUs</div></div>
-          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Outstanding</div><div class="mono text-xl font-bold mt-1.5 text-accent"><span class="text-accent/60 text-sm">₹</span>22,150</div><div class="text-[10px] font-bold text-secondary mt-1">5 clients</div></div>
-          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Today Expenses</div><div class="mono text-xl font-bold mt-1.5"><span class="text-accent/60 text-sm">₹</span>10,740</div><div class="text-[10px] font-bold text-rose-500 mt-1">▼ 4%</div></div>
+  <!-- 2 · What the strip under a hero is for: the three things someone needs
+       to hear before they click, and nothing that has to be believed on
+       faith. -->
+  <section data-reveal="off" class="bg-surface border-y border-line">
+    <div class="max-w-[1320px] mx-auto px-6 lg:px-10 py-6">
+      <div class="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-0">
+        <div class="grid sm:grid-cols-3 gap-6 lg:gap-0 flex-1 lg:divide-x lg:divide-line">
+          <div class="flex items-center gap-3 lg:px-7 lg:first:pl-0">
+            <span class="grid place-items-center w-10 h-10 rounded-full bg-canvas border border-line text-accent-text shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 3v6c0 4.6-3.1 8.2-7.5 9.4C7.6 20.2 4.5 16.6 4.5 12V6z"/><path d="M9.3 12.2l1.9 1.9 3.6-3.8"/></svg>
+            </span>
+            <span>
+              <span class="block text-[14px] font-bold leading-tight">Secure &amp; reliable</span>
+              <span class="block text-[12.5px] text-secondary leading-tight mt-0.5">Your data, encrypted and backed up</span>
+            </span>
+          </div>
+          <div class="flex items-center gap-3 lg:px-7">
+            <span class="grid place-items-center w-10 h-10 rounded-full bg-canvas border border-line text-accent-text shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>
+            </span>
+            <span>
+              <span class="block text-[14px] font-bold leading-tight">Easy to use</span>
+              <span class="block text-[12.5px] text-secondary leading-tight mt-0.5">Billing on day one, no training</span>
+            </span>
+          </div>
+          <div class="flex items-center gap-3 lg:px-7">
+            <span class="grid place-items-center w-10 h-10 rounded-full bg-canvas border border-line text-accent-text shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13v-1a8 8 0 0116 0v1"/><rect x="2.5" y="13" width="4.5" height="6" rx="1.6"/><rect x="17" y="13" width="4.5" height="6" rx="1.6"/><path d="M19 19v.8a2.7 2.7 0 01-2.7 2.7H13"/></svg>
+            </span>
+            <span>
+              <span class="block text-[14px] font-bold leading-tight">Dedicated support</span>
+              <span class="block text-[12.5px] text-secondary leading-tight mt-0.5">Talk to the people who built it</span>
+            </span>
+          </div>
         </div>
-        <div class="grid lg:grid-cols-[1.4fr_1fr] gap-5">
-          <!-- chart card -->
-          <div class="rounded-xl bg-canvas border border-line p-5">
-            <div class="flex items-center justify-between mb-4"><span class="text-sm font-semibold">Sales this week</span><span class="mono text-[11px] text-secondary">// 7d</span></div>
-            <div class="flex items-end gap-2.5 h-32">
-              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:46%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Mon</span></div>
-              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:68%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Tue</span></div>
-              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:54%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Wed</span></div>
-              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:82%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Thu</span></div>
-              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:72%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Fri</span></div>
-              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:96%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Sat</span></div>
-              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:60%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Sun</span></div>
-            </div>
-          </div>
-          <!-- recent invoices -->
-          <div class="rounded-xl bg-canvas border border-line overflow-hidden">
-            <div class="px-4 py-3 border-b border-line"><span class="mono text-[11px] font-bold text-accent">$ invoices --recent</span></div>
-            <div class="divide-y divide-line text-sm">
-              <div class="flex items-center justify-between px-4 py-2.5"><div><div class="font-semibold">Sharma Kirana</div><div class="mono text-[10px] text-secondary">INV/2026/0231</div></div><div class="text-right"><div class="mono font-bold"><span class="text-accent/60">₹</span>12,400</div><span class="text-[9px] font-bold text-emerald-600 uppercase">Paid</span></div></div>
-              <div class="flex items-center justify-between px-4 py-2.5"><div><div class="font-semibold">Lakshmi Stores</div><div class="mono text-[10px] text-secondary">INV/2026/0230</div></div><div class="text-right"><div class="mono font-bold"><span class="text-accent/60">₹</span>33,200</div><span class="text-[9px] font-bold text-amber-700 uppercase">Pending</span></div></div>
-              <div class="flex items-center justify-between px-4 py-2.5"><div><div class="font-semibold">Walk-in</div><div class="mono text-[10px] text-secondary">INV/2026/0229</div></div><div class="text-right"><div class="mono font-bold"><span class="text-accent/60">₹</span>880</div><span class="text-[9px] font-bold text-emerald-600 uppercase">Paid</span></div></div>
-            </div>
-          </div>
+
+        <!-- The one hand-written mark on the page, so it reads as a note left
+             on the site rather than a badge printed on it. -->
+        <div class="flex items-center gap-2.5 lg:pl-9 shrink-0">
+          <svg width="34" height="26" viewBox="0 0 34 26" fill="none" class="text-accent shrink-0" aria-hidden="true">
+            <path d="M2 4c2.4 8.5 9 14.4 18 16.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="0.1 5"/>
+            <path d="M14 20.8l6.6 1.4-2.2-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="script text-[19px] leading-tight text-primary">Made in India,<br/>for Indian shops</span>
         </div>
       </div>
     </div>
   </section>
-
-  <!-- Download strip -->
-  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 pb-16">
-    <div class="rounded-2xl border border-line bg-surface px-6 py-5 flex flex-col md:flex-row items-center justify-between gap-4">
-      <div class="text-sm text-secondary font-light">
-        <span class="font-semibold text-primary">Runs everywhere.</span>
-        Free Android app · offline Windows &amp; Mac desktop apps · web browser.
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <a href="download.html" class="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full border border-line hover:bg-canvas transition-colors"><span class="material-symbols-outlined" style="font-size:16px">smartphone</span> Android</a>
-        <a href="download.html" class="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full border border-line hover:bg-canvas transition-colors"><span class="material-symbols-outlined" style="font-size:16px">desktop_windows</span> Windows</a>
-        <a href="download.html" class="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full border border-line hover:bg-canvas transition-colors"><span class="material-symbols-outlined" style="font-size:16px">laptop_mac</span> macOS</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Trust roll -->
-  <section class="w-full overflow-hidden py-8 mb-12 border-y border-line bg-surface">
-    <div class="logo-track opacity-60">
-      <div class="flex items-center gap-20 pr-20 text-secondary">
-        <span class="text-sm font-bold tracking-wide">GST READY</span>
-        <span class="text-sm font-light tracking-[0.2em]">OFFLINE POS</span>
-        <span class="text-sm font-medium">FIFO INVENTORY</span>
-        <span class="text-sm font-semibold uppercase">VAN SALES</span>
-        <span class="text-sm tracking-wide">FREE MOBILE APP</span>
-        <span class="text-sm font-bold">GSTR EXPORT</span>
-      </div>
-      <div class="flex items-center gap-20 pr-20 text-secondary">
-        <span class="text-sm font-bold tracking-wide">GST READY</span>
-        <span class="text-sm font-light tracking-[0.2em]">OFFLINE POS</span>
-        <span class="text-sm font-medium">FIFO INVENTORY</span>
-        <span class="text-sm font-semibold uppercase">VAN SALES</span>
-        <span class="text-sm tracking-wide">FREE MOBILE APP</span>
-        <span class="text-sm font-bold">GSTR EXPORT</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- Split feature section -->
-  <section class="w-full bg-surface border-y border-line">
-    <div class="flex flex-col lg:flex-row w-full min-h-[640px] max-w-[1200px] mx-auto">
-
-      <!-- Left: app card mock -->
-      <div class="w-full lg:w-3/5 relative flex items-center justify-center overflow-hidden group p-6 lg:p-10">
-        <img src="app-screenshot.webp" alt="bookledger app" class="absolute inset-0 w-full h-full object-cover opacity-10 transition-transform duration-1000 group-hover:scale-105"/>
-        <div class="absolute inset-0 bg-gradient-to-r from-surface/90 to-transparent"></div>
-        <div class="relative z-10 w-full max-w-xl bg-canvas/95 backdrop-blur-xl border border-line rounded-2xl overflow-hidden shadow-2xl transition-transform duration-500 group-hover:-translate-y-1">
-          <div class="px-5 py-4 border-b border-line flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-accent"></span>
-              <h4 class="text-sm font-semibold tracking-wide">New Invoice</h4>
-            </div>
-            <span class="mono text-[11px] text-secondary">INV/2026/0231</span>
-          </div>
-          <div class="p-6 space-y-5">
-            <div class="grid grid-cols-2 gap-5">
-              <div><label class="text-[10px] font-semibold text-secondary mb-1.5 block tracking-wider uppercase">Client</label><div class="bg-surface rounded-lg px-3 h-10 flex items-center text-sm border border-line">Sharma Kirana</div></div>
-              <div><label class="text-[10px] font-semibold text-secondary mb-1.5 block tracking-wider uppercase">GSTIN</label><div class="bg-surface rounded-lg px-3 h-10 flex items-center text-sm mono border border-line">33QKYP…1Z7</div></div>
-            </div>
-            <div class="rounded-lg border border-line divide-y divide-line">
-              <div class="flex items-center justify-between px-3 py-2.5 text-sm"><span>Aashirvaad Atta 5kg ×4</span><span class="mono font-semibold">₹4,800</span></div>
-              <div class="flex items-center justify-between px-3 py-2.5 text-sm"><span>Food Container ×20</span><span class="mono font-semibold">₹1,300</span></div>
-            </div>
-            <div class="flex items-center justify-between pt-1">
-              <span class="text-[11px] font-bold uppercase tracking-widest text-secondary">Total · incl GST</span>
-              <span class="mono text-2xl font-bold"><span class="text-accent/50 text-lg mr-0.5">₹</span>6,100</span>
-            </div>
-            <div class="flex justify-end gap-3 items-center pt-1">
-              <button class="text-sm font-semibold text-secondary hover:text-primary">Save draft</button>
-              <button class="bg-accent text-white text-sm px-5 py-2.5 rounded-full font-bold hover:bg-accent-700 transition-colors">Create &amp; print</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right: reveal list -->
-      <div class="w-full lg:w-2/5 bg-canvas border-l border-line p-6 lg:p-10 flex flex-col">
-        <div class="flex items-center gap-3 mb-5">
-          <span class="material-symbols-outlined text-accent" style="font-size:26px">insights</span>
-          <h2 class="text-3xl font-light tracking-tight">One platform, end to end</h2>
-        </div>
-        <p class="text-secondary text-sm mb-10 leading-relaxed font-light max-w-md">
-          From the counter to the books — billing, stock, collections and compliance stay in sync across every device, online or off.
-        </p>
-        <div class="space-y-1 mt-auto">
-          <div class="group cursor-pointer">
-            <div class="border-t border-line pt-6 pb-4 relative overflow-hidden">
-              <div class="absolute top-0 left-0 h-[2px] bg-accent w-1/3 transition-all duration-500 group-hover:w-full"></div>
-              <h3 class="text-lg font-medium mb-2">Bill in seconds</h3>
-              <div class="reveal"><p class="text-sm text-secondary overflow-hidden leading-relaxed pr-4 font-light">GST-correct invoices, POS receipts and UPI QR — print or share instantly, even offline.</p></div>
-            </div>
-          </div>
-          <div class="group cursor-pointer">
-            <div class="border-t border-line pt-6 pb-4 relative overflow-hidden">
-              <div class="absolute top-0 left-0 h-[2px] bg-accent w-0 transition-all duration-500 group-hover:w-full"></div>
-              <h3 class="text-lg font-medium text-secondary group-hover:text-primary mb-2 transition-colors">Track every unit</h3>
-              <div class="reveal"><p class="text-sm text-secondary overflow-hidden leading-relaxed pr-4 font-light">FIFO costing, batches, low-stock alerts and multi-store inventory that always ties out.</p></div>
-            </div>
-          </div>
-          <div class="group cursor-pointer">
-            <div class="border-t border-line pt-6 pb-4 relative overflow-hidden">
-              <div class="absolute top-0 left-0 h-[2px] bg-accent w-0 transition-all duration-500 group-hover:w-full"></div>
-              <h3 class="text-lg font-medium text-secondary group-hover:text-primary mb-2 transition-colors">Recover &amp; report</h3>
-              <div class="reveal"><p class="text-sm text-secondary overflow-hidden leading-relaxed pr-4 font-light">Track dues, send reminders, settle payments and export GSTR-ready reports in a click.</p></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- Features grid -->
-  <section id="features" class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24">
-    <div class="max-w-2xl">
-      <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Everything you need</span>
-      <h2 class="mt-4 text-3xl md:text-4xl font-light tracking-tight">A complete back office, not a billing toy.</h2>
-      <p class="mt-4 text-secondary font-light leading-relaxed">Eight tightly-integrated modules. One ledger of truth. Built for Indian retailers, distributors and van-sales operations.</p>
-    </div>
-    <div class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-line rounded-2xl overflow-hidden border border-line">
-      <!-- feature cards -->
-      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">receipt_long</span>
-        <h3 class="mt-4 text-lg font-medium">GST Billing &amp; Invoices</h3>
-        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">CGST/SGST/IGST, inclusive or exclusive, HSN, e-invoice numbering. Print or share — even offline.</p>
-      </div>
-      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">point_of_sale</span>
-        <h3 class="mt-4 text-lg font-medium">Offline POS</h3>
-        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Fast counter sales with discounts, hold/park, UPI QR and a dual-screen customer display.</p>
-      </div>
-      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">inventory_2</span>
-        <h3 class="mt-4 text-lg font-medium">Inventory &amp; FIFO</h3>
-        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Batches, FIFO/WAC costing, low-stock alerts and multi-store stock that always ties out.</p>
-      </div>
-      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">groups</span>
-        <h3 class="mt-4 text-lg font-medium">Clients &amp; Receivables</h3>
-        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Track dues, ageing, statements and settle payments — recover money faster.</p>
-      </div>
-      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">payments</span>
-        <h3 class="mt-4 text-lg font-medium">Expenses &amp; ITC</h3>
-        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Recurring expenses, payment methods, input-tax-credit capture and per-store spend.</p>
-      </div>
-      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">menu_book</span>
-        <h3 class="mt-4 text-lg font-medium">Day Book &amp; Cash</h3>
-        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Daily cash position, opening/closing, bank reconciliation — per store.</p>
-      </div>
-      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">local_shipping</span>
-        <h3 class="mt-4 text-lg font-medium">Van Sales &amp; Routes</h3>
-        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Load vehicles, dispatch routes, sell on the move and reconcile back at the warehouse.</p>
-      </div>
-      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">monitoring</span>
-        <h3 class="mt-4 text-lg font-medium">Reports &amp; GSTR</h3>
-        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">28 reports — Balance Sheet, P&amp;L, Trial Balance, ageing, GSTR-1/3B — export to Excel &amp; PDF.</p>
-      </div>
-      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
-        <span class="material-symbols-outlined text-accent" style="font-size:24px">badge</span>
-        <h3 class="mt-4 text-lg font-medium">Payroll &amp; Staff</h3>
-        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Employees, attendance-based pay runs and salary tracking built in.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Device band -->
-  <section class="w-full bg-primary text-white">
-    <div class="max-w-[1200px] mx-auto px-6 lg:px-8 py-20 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-10 items-center">
+  <!-- 3 · Why bookledger — the app in a hand, beside the reasons ──────────── -->
+  <section class="max-w-[1320px] mx-auto px-6 lg:px-10 py-20 lg:py-28">
+    <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
       <div>
-        <h2 class="text-3xl md:text-4xl font-light tracking-tight">Web, desktop &amp; a free mobile app — fully offline.</h2>
-        <p class="mt-4 text-white/60 font-light leading-relaxed max-w-xl">Ring sales on the counter, bill from your phone on the road, and reconcile on desktop. An offline-first sync engine queues everything and reconciles the moment you're back online — no sale ever lost.</p>
-        <a href="https://app.bookledger.in/register" class="inline-block mt-7 bg-accent text-white text-sm font-semibold px-6 py-3 rounded-full hover:bg-accent-700 transition-colors">Get the apps</a>
+        <span class="text-[12px] font-bold uppercase tracking-[0.16em] text-accent-text">Why bookledger</span>
+        <h2 class="mt-4 text-[2rem] lg:text-[2.6rem] font-extrabold tracking-[-0.03em] leading-[1.1]">
+          Everything You Need<br/>to Grow Your Retail Business
+        </h2>
+        <p class="mt-5 max-w-[32rem] text-[16px] leading-relaxed text-secondary">
+          From daily sales to tax filing, bookledger gives you the tools to stay organised, save time
+          and focus on what matters most — growing your business.
+        </p>
+
+        <a href="features.html"
+           class="mt-8 inline-flex items-center gap-2 bg-accent-solid text-white text-[15px] font-bold px-7 py-3.5 rounded-full hover:bg-accent-hover transition-[background-color,transform] duration-150 active:scale-[0.98]">
+          Explore Features
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+        </a>
+
+        <ul class="mt-10 grid sm:grid-cols-2 gap-x-8 gap-y-6">
+          <li class="flex items-start gap-3">
+            <span class="grid place-items-center w-10 h-10 rounded-full bg-accent/[0.1] text-accent-text shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            </span>
+            <span>
+              <span class="block text-[15px] font-bold leading-tight">Save Time</span>
+              <span class="block text-[13px] text-secondary leading-snug mt-0.5">Automate daily operations</span>
+            </span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="grid place-items-center w-10 h-10 rounded-full bg-accent/[0.1] text-accent-text shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 3v6c0 4.6-3.1 8.2-7.5 9.4C7.6 20.2 4.5 16.6 4.5 12V6z"/><path d="M9.3 12.2l1.9 1.9 3.6-3.8"/></svg>
+            </span>
+            <span>
+              <span class="block text-[15px] font-bold leading-tight">Reduce Errors</span>
+              <span class="block text-[13px] text-secondary leading-snug mt-0.5">Accurate &amp; real-time data</span>
+            </span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="grid place-items-center w-10 h-10 rounded-full bg-accent/[0.1] text-accent-text shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 3 6-7"/><path d="M21 8v5h-5"/><path d="M3 21h18"/></svg>
+            </span>
+            <span>
+              <span class="block text-[15px] font-bold leading-tight">Make Better Decisions</span>
+              <span class="block text-[13px] text-secondary leading-snug mt-0.5">Powerful reports &amp; insights</span>
+            </span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="grid place-items-center w-10 h-10 rounded-full bg-accent/[0.1] text-accent-text shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>
+            </span>
+            <span>
+              <span class="block text-[15px] font-bold leading-tight">Grow Faster</span>
+              <span class="block text-[13px] text-secondary leading-snug mt-0.5">Built for your success</span>
+            </span>
+          </li>
+        </ul>
       </div>
-      <div class="flex gap-8">
-        <div class="text-center"><span class="material-symbols-outlined" style="font-size:34px">desktop_windows</span><div class="mt-2 text-xs text-white/50 uppercase tracking-widest">Web · Desktop</div></div>
-        <div class="text-center"><span class="material-symbols-outlined" style="font-size:34px">smartphone</span><div class="mt-2 text-xs text-white/50 uppercase tracking-widest">iOS · Android</div></div>
-        <div class="text-center"><span class="material-symbols-outlined" style="font-size:34px">cloud_off</span><div class="mt-2 text-xs text-white/50 uppercase tracking-widest">Offline</div></div>
+
+      <div class="relative">
+        <img src="app-phone.jpg" width="1200" height="800" loading="lazy" decoding="async"
+             alt="The bookledger mobile app showing today's sales, an hourly sales chart and quick actions for a new sale, inventory, expenses and reports."
+             class="w-full rounded-[22px]"/>
       </div>
     </div>
   </section>
 
-  <!-- Stats -->
-  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 py-20">
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-px bg-line rounded-2xl overflow-hidden border border-line text-center">
-      <div class="bg-canvas py-8"><div class="mono text-3xl font-bold">28</div><div class="mt-1 text-xs uppercase tracking-widest text-secondary">Reports</div></div>
-      <div class="bg-canvas py-8"><div class="mono text-3xl font-bold">3</div><div class="mt-1 text-xs uppercase tracking-widest text-secondary">Platforms</div></div>
-      <div class="bg-canvas py-8"><div class="mono text-3xl font-bold">100%</div><div class="mt-1 text-xs uppercase tracking-widest text-secondary">Offline-ready</div></div>
-      <div class="bg-canvas py-8"><div class="mono text-3xl font-bold">30</div><div class="mt-1 text-xs uppercase tracking-widest text-secondary">Day free trial</div></div>
-    </div>
-  </section>
+  <!-- 4 · What it does, in six ─────────────────────────────────────────────── -->
+  <section id="features" class="bg-surface border-y border-line">
+    <div class="max-w-[1320px] mx-auto px-6 lg:px-10 py-20 lg:py-24">
+      <span class="text-[12px] font-bold uppercase tracking-[0.16em] text-accent-text">Core features</span>
+      <h2 class="mt-4 text-[2rem] lg:text-[2.6rem] font-extrabold tracking-[-0.03em] leading-[1.1]">
+        Powerful Features for<br/>Every Part of Your Business
+      </h2>
+      <p class="mt-4 text-[16px] text-secondary max-w-[46rem]">
+        Everything you need in one platform — simple, powerful and built for Indian retailers.
+      </p>
 
-  <!-- How it works -->
-  <section class="w-full bg-surface border-y border-line">
-    <div class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24">
-      <h2 class="text-3xl md:text-4xl font-light tracking-tight max-w-xl">Live in three steps.</h2>
-      <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-10">
-        <div><div class="mono text-accent text-sm font-bold">01</div><h3 class="mt-3 text-lg font-medium">Create your workspace</h3><p class="mt-2 text-sm text-secondary font-light leading-relaxed">Sign up, add your business &amp; GSTIN. Two minutes, no card.</p></div>
-        <div><div class="mono text-accent text-sm font-bold">02</div><h3 class="mt-3 text-lg font-medium">Add products &amp; clients</h3><p class="mt-2 text-sm text-secondary font-light leading-relaxed">Import your catalogue and parties, or start from a sale.</p></div>
-        <div><div class="mono text-accent text-sm font-bold">03</div><h3 class="mt-3 text-lg font-medium">Bill, track, report</h3><p class="mt-2 text-sm text-secondary font-light leading-relaxed">Run sales, watch stock and cash, file GSTR — all in sync.</p></div>
+      <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div class="bg-canvas border border-line rounded-2xl p-6">
+          <span class="grid place-items-center w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.6 12.4a1.6 1.6 0 001.6 1.3h8.4a1.6 1.6 0 001.6-1.3L21 7H6"/></svg>
+          </span>
+          <h3 class="mt-4 text-[17px] font-bold">POS &amp; Billing</h3>
+          <p class="mt-2 text-[14px] text-secondary leading-relaxed">Quick billing, multiple payment modes, custom discounts and more.</p>
+        </div>
+
+        <div class="bg-canvas border border-line rounded-2xl p-6">
+          <span class="grid place-items-center w-11 h-11 rounded-xl bg-indigo-50 text-indigo-700">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+          </span>
+          <h3 class="mt-4 text-[17px] font-bold">Inventory Management</h3>
+          <p class="mt-2 text-[14px] text-secondary leading-relaxed">Track stock in real-time, avoid stockouts and overstocking.</p>
+        </div>
+
+        <div class="bg-canvas border border-line rounded-2xl p-6">
+          <span class="grid place-items-center w-11 h-11 rounded-xl bg-amber-50 text-accent-text">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a2 2 0 010 4h-3a2 2 0 000 4h4"/></svg>
+          </span>
+          <h3 class="mt-4 text-[17px] font-bold">Expenses &amp; Receivables</h3>
+          <p class="mt-2 text-[14px] text-secondary leading-relaxed">Manage daily expenses, track receivables and keep your cash flow healthy.</p>
+        </div>
+
+        <div class="bg-canvas border border-line rounded-2xl p-6">
+          <span class="grid place-items-center w-11 h-11 rounded-xl bg-sky-50 text-sky-700">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0111 0"/><path d="M16 8.2a3 3 0 010 5.6M18.5 5.5a6 6 0 010 11"/></svg>
+          </span>
+          <h3 class="mt-4 text-[17px] font-bold">Payroll</h3>
+          <p class="mt-2 text-[14px] text-secondary leading-relaxed">Handle your team, salaries and attendance with ease.</p>
+        </div>
+
+        <div class="bg-canvas border border-line rounded-2xl p-6">
+          <span class="grid place-items-center w-11 h-11 rounded-xl bg-rose-50 text-rose-700">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5L5 19"/><circle cx="7.5" cy="7.5" r="2.6"/><circle cx="16.5" cy="16.5" r="2.6"/></svg>
+          </span>
+          <h3 class="mt-4 text-[17px] font-bold">GST &amp; Reports</h3>
+          <p class="mt-2 text-[14px] text-secondary leading-relaxed">Generate reports, file GST and stay compliant.</p>
+        </div>
+
+        <div class="bg-canvas border border-line rounded-2xl p-6">
+          <span class="grid place-items-center w-11 h-11 rounded-xl bg-violet-50 text-violet-700">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+          </span>
+          <h3 class="mt-4 text-[17px] font-bold">Business Insights</h3>
+          <p class="mt-2 text-[14px] text-secondary leading-relaxed">Get real-time insights to make smarter decisions.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Pricing preview -->
-  <section id="pricing" class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24">
+  <!-- 5 · Built for Indian retailers ───────────────────────────────────────── -->
+  <section class="max-w-[1320px] mx-auto px-6 lg:px-10 py-20 lg:py-24">
+    <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <div>
+        <span class="text-[12px] font-bold uppercase tracking-[0.16em] text-accent-text">Built for Indian retailers</span>
+        <h2 class="mt-4 text-[2rem] lg:text-[2.6rem] font-extrabold tracking-[-0.03em] leading-[1.1]">
+          From the Counter<br/>to the Return
+        </h2>
+        <p class="mt-5 max-w-[32rem] text-[16px] leading-relaxed text-secondary">
+          From a single kirana shop to a chain of stores, bookledger handles the whole day: ringing up a
+          sale, knowing what is on the shelf, chasing what is owed, and filing what is due.
+        </p>
+        <a href="https://app.bookledger.in/register"
+           class="mt-8 inline-flex items-center gap-2 bg-accent-solid text-white text-[15px] font-bold px-7 py-3.5 rounded-full hover:bg-accent-hover transition-[background-color,transform] duration-150 active:scale-[0.98]">
+          Start Free for 60 Days
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+
+      <div class="relative">
+        <img src="shopkeeper.jpg" width="1400" height="933" loading="lazy" decoding="async"
+             alt="A shop owner standing at the counter of their grocery store, laptop and card machine beside them."
+             class="w-full rounded-[22px] shadow-[0_28px_70px_-32px_rgba(26,24,21,0.35)]"/>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · What our customers say ───────────────────────────────────────────
+       The quotes are real ones or there is no section. Each <figure> inside
+       the track is one testimonial, authored as ordinary HTML so it is in the
+       page source for a crawler rather than injected from a data blob. Adding
+       one is copying a figure; the arrows, the dots and the counter all read
+       the track and need no edit.
+
+       An EMPTY track hides the whole section. That is the point: a
+       testimonial carousel with invented customers in it is worse than no
+       carousel, and a page that silently shows a placeholder quote is how an
+       invented customer ships. -->
+  <section id="testimonials" data-carousel class="max-w-[1320px] mx-auto px-6 lg:px-10 py-20 lg:py-24" hidden>
+    <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <div>
+        <span class="text-[12px] font-bold uppercase tracking-[0.16em] text-accent-text">What our customers say</span>
+        <h2 class="mt-4 text-[2rem] lg:text-[2.6rem] font-extrabold tracking-[-0.03em] leading-[1.1]">
+          Real People.<br class="hidden sm:block"/> Real Businesses.
+        </h2>
+        <p class="mt-5 max-w-[32rem] text-[16px] leading-relaxed text-secondary">
+          Hear from Indian retailers who are already running their shop on bookledger.
+        </p>
+
+        <!-- One grid, two arrangements. On a phone the card takes the full
+             width and the arrows drop beneath it beside the dots: flanking a
+             375px column with two 44px buttons left the quote about thirty
+             characters wide, which set a four-line quote as fourteen lines.
+             From sm up it is the design's row -- arrow, card, arrow -- with the
+             dots centred underneath. One pair of buttons either way; duplicating
+             them per breakpoint would announce two "next" controls. -->
+        <div class="mt-9 grid grid-cols-[auto_1fr_auto] items-center gap-x-3 sm:gap-x-4 gap-y-5">
+          <!-- 44px, so they clear the 24x24 floor with room for a thumb at the
+               counter. -->
+          <button type="button" data-carousel-prev
+                  class="col-start-1 row-start-2 sm:row-start-1 shrink-0 grid place-items-center w-11 h-11 rounded-full bg-surface border border-line text-secondary
+                         hover:text-primary hover:bg-canvas transition-[background-color,color,transform] duration-150 active:scale-[0.96]
+                         disabled:opacity-40 disabled:pointer-events-none"
+                  aria-label="Previous testimonial">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+          </button>
+
+          <div data-carousel-track
+               class="col-span-3 row-start-1 sm:col-span-1 sm:col-start-2 min-w-0 bg-canvas border border-line rounded-2xl p-6 lg:p-7 shadow-[0_18px_50px_-32px_rgba(26,24,21,0.45)]"
+               aria-live="polite">
+
+
+
+
+            <!-- One <figure> per testimonial. Real quote, real name, real town.
+                 Nothing invented goes in here.
+
+            <figure>
+              <div class="flex gap-4">
+                <svg width="34" height="26" viewBox="0 0 34 26" fill="currentColor" class="shrink-0 text-accent/35" aria-hidden="true"><path d="M0 26V14.6C0 6.6 4.6 1.3 13 0l1.6 4.2C9.9 5.6 7.4 8 7.3 11.4H13V26H0zm20 0V14.6C20 6.6 24.6 1.3 33 0l1.6 4.2C29.9 5.6 27.4 8 27.3 11.4H33V26H20z"/></svg>
+                <blockquote class="text-[15.5px] leading-relaxed text-secondary">
+                  Their words, as they wrote them.
+                </blockquote>
+              </div>
+              <figcaption class="mt-5 flex items-center gap-3">
+                <img src="" width="80" height="80" loading="lazy" decoding="async" alt=""
+                     class="w-10 h-10 rounded-full object-cover outline outline-1 outline-black/10"/>
+                <span>
+                  <span class="block text-[14px] font-bold leading-tight">Their name</span>
+                  <span class="block text-[13px] text-secondary leading-snug mt-0.5">What they do, their town</span>
+                </span>
+              </figcaption>
+            </figure>
+
+                 -->
+          </div>
+
+          <button type="button" data-carousel-next
+                  class="col-start-3 row-start-2 sm:row-start-1 shrink-0 grid place-items-center w-11 h-11 rounded-full bg-surface border border-line text-secondary
+                         hover:text-primary hover:bg-canvas transition-[background-color,color,transform] duration-150 active:scale-[0.96]
+                         disabled:opacity-40 disabled:pointer-events-none"
+                  aria-label="Next testimonial">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+
+          <!-- Dots are built from the track, so they cannot disagree with it. -->
+          <div data-carousel-dots
+               class="col-start-2 row-start-2 sm:col-start-1 sm:col-span-3 sm:row-start-2 flex justify-center gap-2"></div>
+        </div>
+      </div>
+
+      <div class="relative">
+        <!-- The peach panel behind the photo, offset and tilted the other way.
+             Decoration only: it carries no text, so accent at 3.19:1 is the
+             right value for it. -->
+        <div class="absolute inset-0 -rotate-2 translate-x-3 translate-y-3 rounded-[26px] bg-accent/15" aria-hidden="true"></div>
+        <img src="shopkeeper-2.jpg" width="760" height="1016" loading="lazy" decoding="async"
+             alt="A shop owner standing with her arms folded in front of her stocked grocery shelves."
+             class="relative w-full rounded-[22px] rotate-1 outline outline-1 outline-black/10 shadow-[0_28px_70px_-32px_rgba(26,24,21,0.35)]"/>
+
+        <!-- The hand-written mark over the photograph.
+             Markup, not pixels. It was baked into the photo as supplied, which
+             is why shopkeeper-2.jpg was cropped to remove it: a number set in a
+             JPEG cannot be edited, cannot be read by a screen reader, and is
+             soft on a Retina display at this size. Here the figure lives in one
+             text node and the photo stays a photo.
+             The number is a claim about the business, and the business makes
+             it; this file only sets it. Change it in the <strong> below. -->
+        <figure class="absolute right-2 sm:right-[-26px] top-[44%] w-[48%] sm:w-[38%] min-w-[150px] max-w-[178px] rotate-[-4deg]">
+          <div class="bg-canvas rounded-xl shadow-[0_16px_40px_-16px_rgba(26,24,21,0.4)] px-4 py-3 text-center">
+            <figcaption class="script text-[20px] sm:text-[23px] leading-[1.15] text-primary">
+              Trusted by <strong class="font-semibold">100+</strong><br/>Retailers
+            </figcaption>
+            <!-- The swash under it, drawn rather than underlined: a text-decoration
+                 would sit level and read as a link. -->
+            <svg class="mt-1 w-[72%] mx-auto text-accent" height="7" viewBox="0 0 120 7" fill="none" aria-hidden="true">
+              <path d="M2 4.6C22 1.9 52 1.2 78 2.4c14 .6 28 1.8 40 2.6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <!-- Three rays off the corner, as in the design. Decoration, so they
+               are hidden from the accessibility tree along with everything else
+               that only repeats the caption.
+
+               They are also the reason the badge sits INSIDE the photo on a
+               phone rather than overhanging it: the rays plus the overhang put
+               5px past the viewport at 375, and five pixels of sideways scroll
+               on a whole page is a real bug for one decorative mark. -->
+          <svg class="hidden sm:block absolute -right-4 top-1/2 -translate-y-1/2 text-accent" width="17" height="34" viewBox="0 0 17 34" fill="none" aria-hidden="true">
+            <path d="M2 6l7 3M2 17h8M2 28l7-3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+<section class="ruled bg-surface">
+    <div class="max-w-[1080px] mx-auto px-6 lg:px-8 py-12 flex flex-wrap items-baseline gap-x-10 gap-y-4">
+      <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-text">Runs everywhere</span>
+      <p class="text-base font-light text-secondary">
+        <strong class="font-semibold text-primary">Free Android app</strong> · offline
+        <strong class="font-semibold text-primary">Windows</strong> and
+        <strong class="font-semibold text-primary">macOS</strong> desktop apps · any web browser.
+        One account, the same books on all of them.
+      </p>
+    </div>
+  </section>
+
+  <!-- 5 · Figures, set like figures -->
+  <section class="ruled">
+    <div class="max-w-[1080px] mx-auto px-6 lg:px-8 py-16 grid grid-cols-2 md:grid-cols-4 gap-y-10 gap-x-6">
+      <div><div class="mono text-4xl font-semibold tracking-tight">28</div><div class="mt-2 text-xs uppercase tracking-widest text-secondary">Reports built in</div></div>
+      <div><div class="mono text-4xl font-semibold tracking-tight">3</div><div class="mt-2 text-xs uppercase tracking-widest text-secondary">Platforms, one account</div></div>
+      <div><div class="mono text-4xl font-semibold tracking-tight">100%</div><div class="mt-2 text-xs uppercase tracking-widest text-secondary">Of billing works offline</div></div>
+      <div><div class="mono text-4xl font-semibold tracking-tight">60</div><div class="mt-2 text-xs uppercase tracking-widest text-secondary">Day free trial</div></div>
+    </div>
+  </section>
+
+
+  <!-- Trust. Every line here is a claim the security page already makes; this
+       is that page surfaced, not a new promise. The support details were
+       real and buried on /contact -- an SMB buyer in India messages before
+       they sign up, and WhatsApp is how. -->
+  <section class="ruled bg-surface">
+    <div class="max-w-[1180px] mx-auto px-6 lg:px-8 py-14">
+      <div class="grid gap-10 lg:grid-cols-[1.15fr_1fr]">
+
+        <div>
+          <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-text">Your books, your data</span>
+          <h2 class="mt-4 text-2xl md:text-3xl font-light tracking-tight leading-tight">Separated, encrypted, and backed up every day.</h2>
+          <div class="mt-7 grid sm:grid-cols-3 gap-6">
+            <div>
+              <h3 class="text-sm font-semibold">Walled off</h3>
+              <p class="mt-2 text-[13px] text-secondary font-light leading-relaxed">Every business is kept separate. No other account can reach your records.</p>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold">Encrypted in transit</h3>
+              <p class="mt-2 text-[13px] text-secondary font-light leading-relaxed">Everything you send and receive is scrambled end to end.</p>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold">Backed up daily</h3>
+              <p class="mt-2 text-[13px] text-secondary font-light leading-relaxed">Automatic every day, so a bad afternoon is not a lost year.</p>
+            </div>
+          </div>
+          <a class="mt-6 inline-flex items-center min-h-[32px] text-[13px] font-semibold text-accent-text hover:text-accent-hover underline underline-offset-4" href="security.html">How we handle your data</a>
+        </div>
+
+        <div class="rounded-2xl border border-line bg-canvas p-7">
+          <h3 class="text-sm font-semibold">Talk to a person first</h3>
+          <p class="mt-2 text-[13px] text-secondary font-light leading-relaxed">
+            Ask before you sign up. We reply within a business day, usually sooner.
+          </p>
+          <div class="mt-5 flex flex-col gap-1">
+            <a class="inline-flex items-center min-h-[38px] text-sm font-semibold text-primary hover:text-accent-hover" href="https://wa.me/919495770736">WhatsApp +91 94957 70736</a>
+            <a class="inline-flex items-center min-h-[38px] text-sm text-secondary hover:text-primary" href="mailto:hello@bookledger.in">hello@bookledger.in</a>
+            <span class="inline-flex items-center min-h-[38px] text-sm text-secondary font-light">Mon–Sat · 9am–7pm IST</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+<section id="pricing" class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24">
     <div class="text-center max-w-2xl mx-auto">
-      <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Simple pricing</span>
+      <span class="text-sm font-semibold text-accent-text">Simple pricing</span>
       <h2 class="mt-4 text-3xl md:text-4xl font-light tracking-tight">Plans that grow with your shop.</h2>
       <p class="mt-4 text-secondary font-light">Start free for 60 days. The mobile app stays free, forever.</p>
     </div>
@@ -366,55 +620,56 @@
         <div class="mt-3 mono text-3xl font-bold">₹0</div>
         <p class="mt-2 text-sm text-secondary font-light">One shop, the essentials.</p>
         <ul class="mt-5 space-y-2 text-sm text-secondary font-light flex-1">
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Billing, inventory, POS, day book</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> 1 user · 1 store</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Free mobile app</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Billing, inventory, POS, day book</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> 1 user · 1 store</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Free mobile app</li>
         </ul>
         <a href="https://app.bookledger.in/register?plan=free" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full border border-line hover:bg-surface transition-colors">Start free</a>
       </div>
       <!-- Growth -->
       <div class="rounded-2xl border border-line bg-canvas p-7 flex flex-col">
         <div class="text-sm font-semibold uppercase tracking-widest text-secondary">Growth</div>
-        <div class="mt-3 mono text-3xl font-bold">₹2,999<span class="text-base font-normal text-secondary">/yr</span></div>
+        <div class="mt-3 mono text-3xl font-bold">₹1,999<span class="text-base font-normal text-secondary">/yr</span></div>
         <p class="mt-2 text-sm text-secondary font-light">A busy shop on full GST.</p>
         <ul class="mt-5 space-y-2 text-sm text-secondary font-light flex-1">
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Everything in Free +</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Purchases, suppliers, estimates</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> All reports, GSTR, payroll · 3 users</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Everything in Free +</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Purchases, suppliers, estimates</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> All reports, GSTR, payroll · 3 users</li>
         </ul>
         <a href="https://app.bookledger.in/register?plan=growth" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full border border-line hover:bg-surface transition-colors">Start free trial</a>
       </div>
       <!-- Pro (featured) -->
       <div class="rounded-2xl border-2 border-accent bg-canvas p-7 flex flex-col shadow-lg shadow-accent/10 relative">
-        <span class="absolute -top-3 left-7 bg-accent text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Most popular</span>
-        <div class="text-sm font-semibold uppercase tracking-widest text-accent">Pro</div>
-        <div class="mt-3 mono text-3xl font-bold">₹5,999<span class="text-base font-normal text-secondary">/yr</span></div>
+        <span class="absolute -top-3 left-7 bg-accent-solid text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Most popular</span>
+        <div class="text-sm font-semibold uppercase tracking-widest text-accent-text">Pro</div>
+        <div class="mt-3 mono text-3xl font-bold">₹2,999<span class="text-base font-normal text-secondary">/yr</span></div>
         <p class="mt-2 text-sm text-secondary font-light">Multi-store, manufacturing, field sales.</p>
         <ul class="mt-5 space-y-2 text-sm text-secondary font-light flex-1">
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Everything in Growth +</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Multi-store, manufacturing, van sales</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Restaurant &amp; services, e-invoice · 5 users</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Everything in Growth +</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Multi-store, manufacturing, van sales</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Restaurant &amp; services, e-invoice · 5 users</li>
         </ul>
-        <a href="https://app.bookledger.in/register?plan=pro" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full bg-accent text-white hover:bg-accent-700 transition-colors">Start free trial</a>
+        <a href="https://app.bookledger.in/register?plan=pro" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full bg-accent-solid text-white hover:bg-accent-hover transition-colors">Start free trial</a>
       </div>
       <!-- Enterprise -->
       <div class="rounded-2xl border border-line bg-canvas p-7 flex flex-col">
         <div class="text-sm font-semibold uppercase tracking-widest text-secondary">Enterprise</div>
-        <div class="mt-3 mono text-3xl font-bold">Custom</div>
+        <div class="mt-3 mono text-3xl font-bold">₹3,999<span class="text-base font-normal text-secondary">/yr</span></div>
         <p class="mt-2 text-sm text-secondary font-light">Chains &amp; multi-location teams.</p>
         <ul class="mt-5 space-y-2 text-sm text-secondary font-light flex-1">
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Everything in Pro +</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Unlimited users &amp; stores, audit log</li>
-          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> API access &amp; white-label</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Everything in Pro +</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> Unlimited users &amp; stores, audit log</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent-text" style="font-size:16px">check</span> API access &amp; white-label</li>
         </ul>
-        <a href="contact.html" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full border border-line hover:bg-surface transition-colors">Contact sales</a>
+        <a href="https://app.bookledger.in/register?plan=enterprise" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full border border-line hover:bg-surface transition-colors">Start free trial</a>
       </div>
     </div>
-    <p class="mt-6 text-center text-xs text-secondary font-light">Prices exclusive of GST. <a href="pricing.html" class="text-accent hover:underline">Compare all features →</a></p>
+    <p class="mt-6 text-center text-xs text-secondary font-light">Prices exclusive of GST. <a href="pricing.html" class="inline-flex items-center min-h-[32px] text-accent-text hover:underline">Compare all features →</a></p>
   </section>
 
   <!-- FAQ -->
-  <section class="w-full bg-surface border-y border-line">
+  
+<section class="w-full bg-surface border-y border-line">
     <div class="max-w-[760px] mx-auto px-6 lg:px-8 py-24">
       <h2 class="text-3xl md:text-4xl font-light tracking-tight text-center">Questions, answered.</h2>
       <div class="mt-10 divide-y divide-line">
@@ -439,27 +694,75 @@
   </section>
 
   <!-- CTA -->
-  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24 text-center">
-    <h2 class="text-3xl md:text-4xl font-light tracking-tight">Start billing in five minutes.</h2>
-    <p class="mt-4 text-secondary font-light">Free for 60 days. Free mobile app forever. No card needed.</p>
-    <a href="https://app.bookledger.in/register" class="inline-block mt-8 bg-accent text-white text-sm font-semibold px-7 py-3.5 rounded-full hover:bg-accent-700 transition-colors shadow-lg shadow-accent/20">Create your workspace</a>
-  </section>
-</main>
+  
 
-<!-- Footer -->
-<footer class="bg-canvas border-t border-line w-full">
-  <div class="flex flex-col md:flex-row justify-between items-center w-full px-6 lg:px-8 py-8 max-w-[1200px] mx-auto gap-4">
-    <div class="flex items-center gap-2"><img src="bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/></div>
-    <div class="flex flex-wrap justify-center gap-5">
-      <a class="text-xs text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
-      <a class="text-xs text-secondary hover:text-primary transition-colors" href="security.html">Security</a>
-      <a class="text-xs text-secondary hover:text-primary transition-colors" href="privacy.html">Privacy</a>
-      <a class="text-xs text-secondary hover:text-primary transition-colors" href="terms.html">Terms</a>
-      <a class="text-xs text-secondary hover:text-primary transition-colors" href="contact.html">Contact</a>
+  <!-- 7 · One way out -->
+  <section class="ruled bg-surface">
+    <div class="max-w-[1080px] mx-auto px-6 lg:px-8 py-20 text-center">
+      <h2 class="text-3xl md:text-4xl font-light tracking-tight">Start billing in five minutes.</h2>
+      <p class="mt-4 text-base text-secondary font-light">Free for 60 days. The mobile app stays free. No card needed.</p>
+      <a href="https://app.bookledger.in/register" class="mt-8 inline-block bg-accent-solid text-white text-sm font-semibold px-7 py-3 rounded-full hover:bg-accent-hover transition-colors">Create your workspace</a>
     </div>
-    <div class="text-xs text-secondary font-light">© 2026 bookledger. Built for Indian business.</div>
+  </section>
+
+</main>
+<footer class="bg-canvas border-t border-line w-full">
+  <div class="max-w-[1200px] mx-auto px-6 lg:px-8 py-12">
+    <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
+      <div class="lg:col-span-1">
+        <img src="bookledger-logo.png" alt="bookledger" class="h-8 w-auto"/>
+        <p class="mt-4 text-[13px] text-secondary font-light leading-relaxed">
+          GST billing, stock and books for Indian shops — built to keep working when the line drops.
+        </p>
+      </div>
+      <div>
+        <h3 class="text-[11px] font-bold uppercase tracking-widest text-primary">Product</h3>
+        <div class="mt-3 flex flex-col">
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="features.html">Features</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="download.html">Download</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="integrations.html">Integrations</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="changelog.html">Changelog</a>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-[11px] font-bold uppercase tracking-widest text-primary">Guides</h3>
+        <div class="mt-3 flex flex-col">
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="blog.html">All guides</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="blog/how-to-file-gstr-1.html">How to file GSTR-1</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="blog/why-your-itc-was-rejected.html">Why ITC gets rejected</a>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-[11px] font-bold uppercase tracking-widest text-primary">Company</h3>
+        <div class="mt-3 flex flex-col">
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="about.html">About</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="careers.html">Careers</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="contact.html">Contact</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="security.html">Security</a>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-[11px] font-bold uppercase tracking-widest text-primary">Talk to us</h3>
+        <div class="mt-3 flex flex-col">
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="https://wa.me/919495770736">WhatsApp +91 94957 70736</a>
+          <a class="inline-flex items-center min-h-[30px] text-[13px] text-secondary hover:text-primary transition-colors" href="mailto:hello@bookledger.in">hello@bookledger.in</a>
+          <span class="inline-flex items-center min-h-[30px] text-[13px] text-secondary font-light">Mon–Sat · 9am–7pm IST</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-10 pt-6 border-t border-line flex flex-col sm:flex-row justify-between gap-3">
+      <div class="text-xs text-secondary font-light">© 2026 bookledger. Built for Indian business.</div>
+      <div class="flex flex-wrap gap-5">
+        <a class="inline-flex items-center min-h-[30px] text-xs text-secondary hover:text-primary" href="privacy.html">Privacy</a>
+        <a class="inline-flex items-center min-h-[30px] text-xs text-secondary hover:text-primary" href="terms.html">Terms</a>
+      </div>
+    </div>
   </div>
 </footer>
 
 <script defer src="reveal.js"></script>
+<script src="nav.js" defer></script>
+<script src="testimonials.js" defer></script>
 </body></html>

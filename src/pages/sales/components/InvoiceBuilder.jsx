@@ -1,7 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { parseScaleBarcode, quantityFrom } from '../../../lib/scaleBarcode';
+import { buildCatalogIndex, resolveScan, resolvePlu } from '../../../lib/pos/catalog';
+import { cameraScanSupported } from '../../../lib/pos/cameraScan';
+import ScanSheet from '../../../components/pos/ScanSheet';
 import { useDialogClose } from '../../../hooks/useDialogClose';
 import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
 import Button from '../../../shared/Button';
+import QtyField from './QtyField';
 import { allowsFraction, qtyStep, qtyMin, qtyStepButton, clampQty, formatQty, formatQtyWithUnit, subQtyLabel, exceedsStock } from '../../../lib/units';
 import { checkoutMoney } from '../lib/checkoutMoney';
 import { formatCurrency, generateRef } from '../../../lib/utils';
@@ -12,6 +17,10 @@ import { useAuth } from '../../../context/AuthContext';
 import { supabase, restInsert } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 import CashBillPrint from './CashBillPrint';
+import CopyButton from '../../../components/motion/CopyButton';
+import SaveButton, { useSaveStatus } from '../../../components/motion/SaveButton';
+import RollingNumber from '../../../components/motion/RollingNumber';
+import FieldError, { useShake } from '../../../components/motion/FieldError';
 
 // Restaurant modifier picker — choose options for a dish before it hits the cart.
 const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' }) => {
@@ -55,7 +64,7 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
                   const on = !!sel[g.id]?.[o.name];
                   return (
                     <button key={o.name} type="button" onClick={() => toggle(g, o.name)}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-pill border text-sm transition-all ${
                         on ? 'border-accent-signature bg-accent-signature/10' : 'border-border hover:border-black/20'
                       }`}>
                       <span className="font-semibold text-foreground">{o.name}</span>
@@ -69,7 +78,7 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
         </div>
         <div className="p-4 border-t border-border/60">
           <button onClick={() => onConfirm(chosen)}
-            className="w-full h-11 rounded-xl bg-accent-signature text-white text-sm font-semibold hover:bg-accent-signature-hover transition-all flex items-center justify-center gap-2">
+            className="w-full h-11 rounded-pill bg-accent-signature text-white text-sm font-semibold hover:bg-accent-signature-hover transition-all flex items-center justify-center gap-2">
             Add · <span className="tabular-nums">{currencySymbol}{total}</span>
           </button>
         </div>
@@ -81,6 +90,10 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
 const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [], stores = [],
   // Table POS (restaurant) — bind this builder to a table's running tab.
   initialCart = null, onCartChange = null, tableLabel = null, onSendKOT = null, businessType = null,
+  // Weighing-scale labels. A capability pack, passed in like businessType so
+  // this component keeps taking its vertical context from its caller rather
+  // than reaching for the tenant itself.
+  scaleOn = false,
   editId = null, editMeta = null, onEditDone = null, onRecordPayment = null }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
   const noGst        = taxMode === 'NONE'; // not filing GST — no tax split, price is final
@@ -185,6 +198,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     address: '', zone: '', date: '', notes: '', fee: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const saveState = useSaveStatus();
   const [clientSearch, setClientSearch]     = useState('');
   const [clientDropOpen, setClientDropOpen] = useState(false);
   const clientDropRef = useRef(null);
@@ -200,16 +214,19 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [savingCust, setSavingCust] = useState(false);
   const [newCust, setNewCust] = useState({ type: 'B2C', name: '', phone: '', aadhaar: '', gstin: '' });
 
+  const [custErr, setCustErr] = useState('');
+  const custShake = useShake(custErr);
+  useEffect(() => { setCustErr(''); }, [newCust]);
   const saveNewCustomer = async () => {
     const name = newCust.name.trim();
     const phone = newCust.phone.trim();
-    if (!name) { addNotification('Customer name required', 'error'); return; }
-    if (!phone) { addNotification('Phone number required', 'error'); return; }
+    if (!name) { setCustErr('Customer name is required.'); return; }
+    if (!phone) { setCustErr('Phone number is required.'); return; }
     if (newCust.type === 'B2B' && newCust.gstin.trim() && newCust.gstin.trim().length !== 15) {
-      addNotification('GSTIN must be 15 characters', 'error'); return;
+      setCustErr(`GSTIN must be 15 characters (you entered ${newCust.gstin.trim().length}).`); return;
     }
     if (newCust.type === 'B2C' && newCust.aadhaar.trim() && newCust.aadhaar.replace(/\s/g, '').length !== 12) {
-      addNotification('Aadhaar must be 12 digits', 'error'); return;
+      setCustErr('Aadhaar must be 12 digits.'); return;
     }
     setSavingCust(true);
     const id = 'CLI-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -350,6 +367,23 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     return Array.from(set).sort();
   }, [products]);
 
+  /**
+   * The scan lookup, built once per catalogue change.
+   *
+   * It replaces two linear passes over every product per scan, each of which
+   * lowercased both sides on every candidate. It also resolves a 12-digit UPC
+   * label against a product entered in 13-digit EAN form, which the exact
+   * string compare could not -- that was reported at the counter as "not in
+   * the catalog" for something on the shelf.
+   */
+  const catalogIndex = useMemo(() => buildCatalogIndex(products), [products]);
+
+  // The camera scanner. Offered only where it can actually work: on a desktop
+  // till with a scanner gun the button would be a dead end, and the gun
+  // already types into the box beside it.
+  const [scanOpen, setScanOpen] = useState(false);
+  const canCameraScan = useMemo(() => cameraScanSupported(), []);
+
   const filteredProducts = useMemo(() => {
     // RAW materials are consume-only (manufacturing) — never sold at POS.
     let sellable = products.filter(p => p.product_type !== 'RAW');
@@ -377,29 +411,51 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     return [...ranked, ...filler].slice(0, 6);
   }, [products, warehouseStock, topSellingIds]);
 
-  // Called when scanner (or user) presses Enter in search box
-  const handleSearchEnter = (e) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    const q = searchTerm.trim();
+  /**
+   * One code in, one cart line out.
+   *
+   * Extracted from the Enter handler so the CAMERA scanner commits through
+   * exactly this path. Two code paths for "a barcode arrived" is how a scan
+   * and a keystroke come to resolve to different products -- the scale-label
+   * branch in particular is easy to leave out of a second copy.
+   */
+  const commitCode = (raw) => {
+    const q = String(raw ?? '').trim();
     if (!q) return;
 
-    // Exact barcode match first (fastest for scanner)
-    const exactBarcode = products.find(
-      p => p.barcode && p.barcode.toLowerCase() === q.toLowerCase()
-    );
-    if (exactBarcode) {
-      addToCart(exactBarcode);
-      setSearchTerm('');
-      return;
+    // A weighing-scale label, before anything else: it looks like a barcode
+    // but the last digits are a weight or a price, so matching it against
+    // products.barcode would never hit and the cashier would be left keying
+    // the quantity in by hand -- the step the scale exists to remove.
+    if (scaleOn) {
+      const weighed = parseScaleBarcode(q);
+      if (weighed) {
+        // The PLU is matched against barcode OR sku, because shops put it in
+        // whichever field they already use.
+        const item = resolvePlu(catalogIndex, weighed.itemCode);
+        if (!item) {
+          addNotification(`Scale item ${weighed.itemCode} is not in the catalog`, 'error');
+          setSearchTerm('');
+          return;
+        }
+        const qty = quantityFrom(weighed, tierPrice(item, allClients.find(c => c.id === selectedClientId)?.price_tier));
+        if (qty == null || !(qty > 0)) {
+          // A price-embedded label with no unit price cannot yield a
+          // quantity. Say so rather than adding zero of something.
+          addNotification(`${item.name}: set a selling price before scanning a priced label`, 'error');
+          setSearchTerm('');
+          return;
+        }
+        addToCart(item, undefined, qty);
+        setSearchTerm('');
+        return;
+      }
     }
 
-    // Exact SKU match
-    const exactSku = products.find(
-      p => p.sku && p.sku.toLowerCase() === q.toLowerCase()
-    );
-    if (exactSku) {
-      addToCart(exactSku);
+    // Barcode, then SKU — one Map hit each, not a pass over the catalogue.
+    const scanned = resolveScan(catalogIndex, q);
+    if (scanned) {
+      addToCart(scanned);
       setSearchTerm('');
       return;
     }
@@ -408,7 +464,21 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     if (filteredProducts.length === 1) {
       addToCart(filteredProducts[0]);
       setSearchTerm('');
+      return;
     }
+
+    // Nothing matched. A typed search can simply stand (the list is already
+    // filtered), but a SCAN that resolves to nothing has to say so -- the
+    // camera gives no other feedback, and silence reads as "it did not see it"
+    // when the truth is "this code is not in the catalogue".
+    if (scanOpen) addNotification(`No product with code ${q}`, 'error');
+  };
+
+  // Called when a scanner gun (or the cashier) presses Enter in the search box.
+  const handleSearchEnter = (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    commitCode(searchTerm);
   };
 
   // Editing a sale: its original quantities are still deducted from current
@@ -443,7 +513,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   // combos lives on separate lines (and identical combos stack).
   const lineUid = (productId, modLabel) => modLabel ? `${productId}#${modLabel}` : productId;
 
-  const addToCart = (product, mods) => {
+  // `exactQty` is for a weighed line: a scale label carries the weight of
+  // that particular piece, so the quantity is not 1 and is not a step from 1.
+  const addToCart = (product, mods, exactQty) => {
     const groups = Array.isArray(product.modifier_groups) ? product.modifier_groups : [];
     // Open the picker for dishes with modifiers (unless options already chosen).
     if (mods === undefined && groups.length > 0) { setModPicker({ product }); return; }
@@ -496,8 +568,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         name: product.name,
         basePrice: base,
         price: (Number(base) || 0) + addPrice,
-        sellUnit: packs ? 'ALT' : 'BASE',
-        quantity: packs ? conv : 1,
+        // A weighed line is always in the BASE unit -- the scale weighed
+        // kilograms, not packets.
+        sellUnit: exactQty != null ? 'BASE' : (packs ? 'ALT' : 'BASE'),
+        quantity: exactQty != null ? exactQty : (packs ? conv : 1),
         taxRate: product.taxRate || 0,
         cess: Number(product.cess_rate ?? product.cess ?? 0),
         hsn_code: product.hsn_code || product.hsn || '',
@@ -715,6 +789,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       return;
     }
     setIsSubmitting(true);
+    saveState.start();
     try {
       const isCreditSale = paymentMethod === 'CREDIT';
       // Resolve effective paid amount + payment status from cashier input.
@@ -749,9 +824,19 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         }
         return out;
       });
+      // The actual cash handed over (may exceed the bill -> change, or be
+      // applied to previous dues). paidAmount is capped at the bill, so without
+      // this the real tender is lost on reprint.
+      //
+      // Computed here rather than after the sale so it can ride along on the
+      // payload: a sale queued offline has no second chance to send it.
+      const tendered = explicitPaid !== null
+        ? explicitPaid
+        : (isCreditSale ? 0 : total);
       const saleData = {
         id: saleId,
         clientId: selectedClientId,
+        amountReceived: tendered,
         items: itemsWithSerials,
         totalAmount: total,
         subtotal: taxableAmount,
@@ -774,60 +859,65 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       };
       const result = await onPlaceSale(saleData);
       if (result && result.error) {
-        const msg = result.error.message || 'Sale could not be recorded';
-        addNotification(`Checkout failed: ${msg}`, 'error');
+        const raw = result.error.message || 'Sale could not be recorded';
+        // process_sale raises a MARKER followed by a readable sentence. The
+        // marker is for code; the cashier gets the sentence. Both of these are
+        // REFUSALS rather than failures -- the bill is fine, the shop's own
+        // rule says this one cannot go through -- so the cart and the modal
+        // stay exactly as they are and the cashier decides what to do.
+        const REFUSALS = [
+          ['CREDIT_LIMIT_EXCEEDED', 'Credit limit reached'],
+          ['NEGATIVE_STOCK_BLOCKED', 'Not enough stock'],
+        ];
+        const hit = REFUSALS.find(([marker]) => raw.includes(marker));
+        const msg = hit
+          ? raw.replace(new RegExp(`^.*${hit[0]}:\\s*`), '')
+          : raw;
+        addNotification(hit ? `${hit[1]} — ${msg}` : `Checkout failed: ${msg}`, 'error');
+        saveState.fail();
         return; // keep cart + modal so user can retry
       }
-      // Persist the actual amount the customer handed over (may exceed the
-      // bill → change, or applied to previous dues). paidAmount is capped at
-      // the bill, so without this the real tender is lost on reprint.
+      // Persist the tender computed above.
       //
       // This used to run only when the cashier typed into "Amount received",
       // which is the slow path — on a normal cash sale the field is left blank
       // and the column was never written at all (populated on 1 of 437 sales
       // for one live tenant). The tender is known in that case: a non-credit
       // sale is paid in full, a credit sale tenders nothing at the till.
-      const tendered = explicitPaid !== null
-        ? explicitPaid
-        : (isCreditSale ? 0 : total);
-      try {
-        const { supabase } = await import('../../../lib/supabase');
-        const { error: arErr } = await supabase
-          .from('sales').update({ amount_received: tendered }).eq('id', saleId);
-        // Non-fatal (the sale itself is already recorded) but never silent —
-        // a swallowed failure here is exactly how the column went empty.
-        if (arErr) console.error('[SALE] amount_received save failed:', arErr.message, arErr);
-      } catch (e) {
-        console.error('[SALE] amount_received save threw:', e);
+      //
+      // SKIPPED when the sale was queued rather than sent. There is no row on
+      // the server to update yet, so this awaited a call that could not
+      // succeed: the cashier waited for it to fail and the tender was lost
+      // anyway. A queued sale carries amountReceived on its payload instead,
+      // and placeSale queues the update alongside the sale (see useSales.js).
+      if (!result?.queued) {
+        try {
+          const { supabase } = await import('../../../lib/supabase');
+          const { error: arErr } = await supabase
+            .from('sales').update({ amount_received: tendered }).eq('id', saleId);
+          // Non-fatal (the sale itself is already recorded) but never silent —
+          // a swallowed failure here is exactly how the column went empty.
+          if (arErr) console.error('[SALE] amount_received save failed:', arErr.message, arErr);
+        } catch (e) {
+          console.error('[SALE] amount_received save threw:', e);
+        }
       }
       // Money received → the DB trigger trg_sales_post_ledger posts the
       // account_transactions IN entry server-side now (idempotent on sale id),
       // so web, desktop AND mobile sales all hit Cash & Bank identically.
       // No client-side posting — doing both double-counted the sale.
-      // Persist sold serials (non-fatal — the sale itself already succeeded).
-      if (serialLines.length > 0) {
-        try {
-          const serialRows = [];
-          serialLines.forEach(l =>
-            (lineImeis[l.uid] || []).map(s => s.trim()).filter(Boolean).forEach(serial =>
-              serialRows.push({
-                id: 'SN-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7),
-                tenant_id: currentTenantId,
-                product_id: l.productId,
-                serial,
-                status: 'SOLD',
-                sale_id: result.id || saleId,
-              })
-            )
-          );
-          if (serialRows.length) {
-            const { error: snErr } = await restInsert('serial_numbers', serialRows);
-            if (snErr) addNotification('Sale saved, but serials not logged: ' + snErr.message, 'error');
-          }
-        } catch (snEx) {
-          addNotification('Sale saved, but serials not logged: ' + (snEx.message || snEx), 'error');
-        }
-      }
+      // Serials are NOT written from here.
+      //
+      // This used to insert into `serial_numbers` and had never once succeeded:
+      // it sent `serial` and `sale_id` where the columns are `serial_number`
+      // and `sold_in_id`, and status 'SOLD' where the constraint wants
+      // lowercase. All of it inside a non-fatal catch, so every failure was
+      // swallowed into a toast nobody saw, and the table holds zero rows.
+      //
+      // The server already does this properly: write_sale_lines reads `imeis`
+      // off each item in p_items and inserts one sale_item_serials row per
+      // unit, in the same transaction as the sale. A second client-side write
+      // could only ever disagree with it. The IMEI report reads that table.
       addNotification(
         editId
           ? `Sale updated: ${formatCurrency(total)}`
@@ -859,6 +949,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       const excessApplicable  = postClientId !== 'WALKIN' && amtNum > total && postOutstanding > 0
         ? Math.min(amtNum - total, postOutstanding) : 0;
 
+      saveState.ok();
       setLineImeis({});
       setCart([]);
       setDiscount('');
@@ -885,6 +976,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       }
     } catch (err) {
       addNotification(`Checkout error: ${err.message || err}`, 'error');
+      saveState.fail();
     } finally {
       setIsSubmitting(false);
     }
@@ -932,10 +1024,25 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             onChange={e => setSearchTerm(e.target.value)}
             onKeyDown={handleSearchEnter}
           />
-          <ScanBarcode
-            size={18}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-          />
+          {canCameraScan ? (
+            <button
+              type="button"
+              onClick={() => setScanOpen(true)}
+              aria-label="Scan a barcode with the camera"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center
+                         rounded-xl text-muted-foreground hover:text-foreground hover:bg-canvas
+                         transition-[background-color,color,transform] duration-150 active:scale-[0.96]"
+            >
+              <ScanBarcode size={18} />
+            </button>
+          ) : (
+            // No camera API here -- a scanner gun types into this box instead,
+            // so the icon stays as a hint about what the field accepts.
+            <ScanBarcode
+              size={18}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
+          )}
         </div>
 
         {/* Category chips + list/grid toggle */}
@@ -957,11 +1064,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           )}
           <div className="flex items-center bg-card border border-border rounded-lg p-0.5 shrink-0 ml-auto">
             <button onClick={() => setViewMode('list')} aria-label="List view"
-              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
+              className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
               <List size={15} />
             </button>
             <button onClick={() => setViewMode('grid')} aria-label="Grid view"
-              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
+              className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
               <LayoutGrid size={15} />
             </button>
           </div>
@@ -1010,18 +1117,18 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 cartQty > 0 ? (
                   <div className="mt-auto flex items-center justify-between gap-1">
                     <button type="button" onClick={() => updateQuantity(product.id, -1)}
-                      className="w-8 h-8 rounded-lg bg-card border border-border text-foreground flex items-center justify-center hover:bg-black/5">
+                      className="w-8 h-8 rounded-xl bg-card border border-border text-foreground flex items-center justify-center hover:bg-black/5">
                       <Minus size={14} />
                     </button>
                     <span className="text-sm font-semibold text-foreground tabular-nums">{cartQty}</span>
                     <button type="button" onClick={() => addToCart(product)}
-                      className="w-8 h-8 rounded-lg bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90">
+                      className="w-8 h-8 rounded-xl bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90">
                       <Plus size={14} />
                     </button>
                   </div>
                 ) : (
                   <button type="button" onClick={() => addToCart(product)}
-                    className="mt-auto w-full py-2 rounded-lg bg-canvas hover:bg-accent-signature hover:text-button-text text-xs font-semibold text-foreground transition-colors flex items-center justify-center gap-1.5">
+                    className="mt-auto w-full py-2 rounded-pill bg-canvas hover:bg-accent-signature hover:text-button-text text-xs font-semibold text-foreground transition-colors flex items-center justify-center gap-1.5">
                     <Plus size={14} /> Add
                   </button>
                 )
@@ -1117,13 +1224,13 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     <button
                       type="button"
                       onClick={() => updateQuantity(product.id, -1)}
-                      className="w-7 h-7 rounded-lg bg-card border border-border text-foreground flex items-center justify-center hover:bg-black/5"
+                      className="w-7 h-7 rounded-xl bg-card border border-border text-foreground flex items-center justify-center hover:bg-black/5"
                     ><Minus size={13} /></button>
                     <span className="w-6 text-center text-sm font-semibold text-foreground tabular-nums">{cartQty}</span>
                     <button
                       type="button"
                       onClick={() => updateQuantity(product.id, 1)}
-                      className="w-7 h-7 rounded-lg bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90"
+                      className="w-7 h-7 rounded-xl bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90"
                     ><Plus size={13} /></button>
                   </div>
                 ) : (
@@ -1131,7 +1238,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     type="button"
                     onClick={e => { e.stopPropagation(); addToCart(product); }}
                     aria-label={`Add ${product.name}`}
-                    className="w-7 h-7 rounded-lg bg-canvas text-muted-foreground flex items-center justify-center opacity-60 group-hover:opacity-100 hover:bg-accent-signature hover:text-button-text transition-all flex-shrink-0"
+                    className="w-7 h-7 rounded-xl bg-canvas text-muted-foreground flex items-center justify-center opacity-60 group-hover:opacity-100 hover:bg-accent-signature hover:text-button-text transition-all flex-shrink-0"
                   ><Plus size={14} /></button>
                 )
               )}
@@ -1199,7 +1306,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
         {/* Column headers */}
         {cart.length > 0 && (
-          <div className="grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-border/60">
+          <div className="grid grid-cols-[1fr_120px_80px_64px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-border/60">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Product</span>
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest text-center">Qty</span>
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest text-right">Unit Price</span>
@@ -1217,7 +1324,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               <div
                 key={k}
                 data-cart-row={k}
-                className={`grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 items-center px-4 py-2.5 border-b border-border/60 last:border-0 transition-colors ${
+                className={`grid grid-cols-[1fr_120px_80px_64px_20px] gap-2 items-center px-4 py-2.5 border-b border-border/60 last:border-0 transition-colors ${
                   belowCost ? 'bg-red-50/60' : 'hover:bg-canvas/40'
                 }`}
               >
@@ -1247,46 +1354,23 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   )}
                 </div>
 
-                {/* Qty stepper + gram gloss stacked in ONE grid cell — the
-                    gloss used to be a separate grid child, which stole the price
-                    column and pushed the remove button onto its own line. */}
+                {/* Quantity. The control is its own component because what
+                    was here -- a number input with the browser's spinners, a
+                    20px stepper either side, and a write-through that deleted
+                    the line the moment the box read 0 -- was three problems in
+                    one cell. See QtyField. */}
                 <div className="flex flex-col items-center gap-0.5">
-                <div className="flex items-center justify-center gap-0.5 bg-card border border-border rounded-lg p-0.5">
-                  <button
-                    onClick={() => updateQuantity(k, -1)}
-                    className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-foreground shrink-0"
-                  >
-                    <Minus size={9} strokeWidth={3} />
-                  </button>
-                  {/* Without a step the browser defaults to 1 and rejects 0.25
-                      outright. Weight units get gram precision; pieces stay whole. */}
-                  <input
-                    type="number"
-                    min={qtyMin(dispUnit(item))}
-                    step={qtyStep(dispUnit(item))}
-                    inputMode={allowsFraction(dispUnit(item)) ? 'decimal' : 'numeric'}
+                  <QtyField
                     value={toDispQty(item)}
-                    onChange={e => setQuantityDirect(k, e.target.value)}
-                    className={`${allowsFraction(dispUnit(item)) ? 'w-14' : 'w-8'} text-center text-sm font-semibold text-foreground bg-transparent outline-none tabular-nums`}
+                    unit={dispUnit(item)}
+                    onStep={(d) => updateQuantity(k, d)}
+                    onCommit={(text) => setQuantityDirect(k, text)}
                   />
-                  {/* Unit beside the number — base or the alt (packet) label. */}
-                  {String(dispUnit(item) ?? '').trim() && (
-                    <span className="text-[10px] text-muted-foreground shrink-0 leading-none">
-                      {String(dispUnit(item)).trim()}
-                    </span>
+                  {!isAlt(item) && subQtyLabel(item.quantity, unitOf(item.productId)) && (
+                    <div className="text-[10px] text-muted-foreground tabular-nums leading-none">
+                      {subQtyLabel(item.quantity, unitOf(item.productId))}
+                    </div>
                   )}
-                  <button
-                    onClick={() => updateQuantity(k, 1)}
-                    className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-foreground shrink-0"
-                  >
-                    <Plus size={9} strokeWidth={3} />
-                  </button>
-                </div>
-                {!isAlt(item) && subQtyLabel(item.quantity, unitOf(item.productId)) && (
-                  <div className="text-[10px] text-muted-foreground tabular-nums leading-none">
-                    {subQtyLabel(item.quantity, unitOf(item.productId))}
-                  </div>
-                )}
                 </div>
 
                 {/* Unit price input */}
@@ -1334,7 +1418,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         key={p.id}
                         type="button"
                         onClick={() => addToCart(p)}
-                        className="px-3 py-2.5 rounded-xl border border-border bg-card hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-colors text-left"
+                        className="px-3 py-2.5 rounded-pill border border-border bg-card hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-colors text-left"
                       >
                         <div className="text-xs font-semibold text-foreground truncate">{p.name}</div>
                         <div className="text-[11px] font-semibold text-muted-foreground tabular-nums mt-0.5">{formatCurrency(p.sellingPrice)}</div>
@@ -1374,7 +1458,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     <button
                       type="button"
                       onClick={() => { setSelectedClientId('WALKIN'); setClientSearch(''); setClientDropOpen(false); }}
-                      className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center text-muted-foreground hover:bg-black/10 shrink-0"
+                      className="w-6 h-6 rounded-xl bg-black/5 flex items-center justify-center text-muted-foreground hover:bg-black/10 shrink-0"
                     >
                       <X size={10} />
                     </button>
@@ -1476,7 +1560,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       <div className="flex gap-1 bg-card rounded-lg p-0.5 border border-border/60">
                         {[['B2C', 'Individual'], ['B2B', 'Business']].map(([v, label]) => (
                           <button key={v} type="button" onClick={() => setNewCust(n => ({ ...n, type: v }))}
-                            className={`flex-1 h-7 rounded-md text-[11px] font-semibold transition-all ${newCust.type === v ? 'bg-accent-signature text-button-text' : 'text-muted-foreground'}`}>
+                            className={`flex-1 h-7 rounded-pill text-[11px] font-semibold transition-all ${newCust.type === v ? 'bg-accent-signature text-button-text' : 'text-muted-foreground'}`}>
                             {label}
                           </button>
                         ))}
@@ -1496,11 +1580,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                           placeholder="GSTIN (optional, 15 chars)"
                           className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
                       )}
+                      <div key={custShake ? custErr : 'ok'} className={custShake}><FieldError message={custErr} /></div>
                       <div className="flex gap-2 pt-0.5">
                         <button type="button" onClick={() => setShowAddCust(false)}
-                          className="flex-1 h-8 rounded-lg text-[11px] font-semibold text-muted-foreground border border-border hover:bg-card">Cancel</button>
+                          className="flex-1 h-8 rounded-pill text-[11px] font-semibold text-muted-foreground border border-border hover:bg-card">Cancel</button>
                         <button type="button" onClick={saveNewCustomer} disabled={savingCust}
-                          className="flex-1 h-8 rounded-lg text-[11px] font-semibold bg-accent-signature text-button-text disabled:opacity-50">
+                          className="flex-1 h-8 rounded-pill text-[11px] font-semibold bg-accent-signature text-button-text disabled:opacity-50">
                           {savingCust ? 'Saving…' : 'Save & select'}
                         </button>
                       </div>
@@ -1517,7 +1602,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               <div className="flex gap-1 flex-1">
                 {[0, 5, 10].map(pct => (
                   <button key={pct} type="button" onClick={() => setServiceChargePct(pct)}
-                    className={`flex-1 h-8 rounded-lg text-[12px] font-semibold transition-all ${
+                    className={`flex-1 h-8 rounded-pill text-[12px] font-semibold transition-all ${
                       Number(serviceChargePct) === pct ? 'bg-accent-signature text-white' : 'bg-black/[0.04] text-muted-foreground hover:text-foreground'
                     }`}>
                     {pct === 0 ? 'None' : `${pct}%`}
@@ -1578,7 +1663,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             )}
             <div className="flex justify-between text-xl font-semibold text-foreground pt-2 border-t border-border/60">
               <span>Total</span>
-              <span className="tabular-nums">{formatCurrency(total)}</span>
+              <RollingNumber text={formatCurrency(total)} />
             </div>
             {taxInclusive && (
               <p className="text-[10px] text-muted-foreground font-medium text-right">
@@ -1803,7 +1888,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       key={key}
                       type="button"
                       onClick={() => setFulfillmentType(key)}
-                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                      className={`p-4 rounded-pill border-2 transition-all flex flex-col items-center gap-2 ${
                         fulfillmentType === key
                           ? 'border-accent-signature bg-accent-signature/5'
                           : 'border-border bg-card hover:border-black/15'
@@ -1836,7 +1921,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         <button
                           type="button"
                           onClick={() => setDeliveryDetails(p => ({ ...p, address: client.address }))}
-                          className="w-full mb-2 flex items-center gap-2 p-2.5 rounded-xl bg-accent-signature/5 border border-accent-signature/20 text-left hover:bg-accent-signature/10 transition-all"
+                          className="w-full mb-2 flex items-center gap-2 p-2.5 rounded-pill bg-accent-signature/5 border border-accent-signature/20 text-left hover:bg-accent-signature/10 transition-all"
                         >
                           <MapPin size={11} className="text-accent-signature shrink-0" />
                           <div className="min-w-0">
@@ -1946,7 +2031,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                           setPaymentMethod(type);
                           setPaymentAccountId(defaultAcc ? defaultAcc.id : null);
                         }}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-pill border-2 transition-all ${
                           isActive
                             ? 'border-accent-signature bg-accent-signature/5'
                             : 'border-border bg-card hover:border-black/15'
@@ -1972,7 +2057,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         return (
                           <button key={a.id} type="button"
                             onClick={() => setPaymentAccountId(a.id)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] font-semibold border transition-all ${
                               isSelected
                                 ? 'border-accent-signature text-accent-signature bg-accent-signature/5'
                                 : 'border-border text-muted-foreground hover:border-black/20 bg-card'
@@ -1997,7 +2082,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     if (selectedClientId === 'WALKIN') { addNotification('Select a client before choosing Credit.', 'info'); return; }
                     setPaymentMethod('CREDIT');
                   }}
-                  className={`mt-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 transition-all ${
+                  className={`mt-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-pill border-2 transition-all ${
                     selectedClientId === 'WALKIN'
                       ? 'opacity-40 cursor-not-allowed border-border bg-card'
                       : paymentMethod === 'CREDIT'
@@ -2052,7 +2137,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       {formatCurrency(total)}
                     </div>
                     <div className="text-[10px] text-muted-foreground">
-                      UPI: <b>{upiId}</b>
+                      UPI: <b>{upiId}</b><CopyButton value={upiId} label="Copy UPI ID" size={12} className="ml-1 align-middle" />
                       {selectedUpiAcc && <span className="text-muted-foreground"> · {selectedUpiAcc.name}</span>}
                     </div>
                     <button
@@ -2088,18 +2173,17 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               </div>
 
               {/* Confirm */}
-              <Button
+              <SaveButton
                 onClick={handleCompleteSale}
                 disabled={isSubmitting || cart.length === 0}
                 className="w-full !h-14 !rounded-2xl !text-sm"
                 icon={Check}
-              >
-                {/* Say what pressing this does, not just the bill amount. When
-                    there is change to hand back, that is the cashier's next
-                    physical action and it belongs on the button. */}
-                {isSubmitting
-                  ? 'Processing…'
-                  : money.tone === 'change'
+                status={saveState.status}
+                savingLabel="Processing"
+                /* Say what pressing this does, not just the bill amount. When
+                   there is change to hand back, that is the cashier's next
+                   physical action and it belongs on the button. */
+                idleLabel={money.tone === 'change'
                     ? `Complete · return ${formatCurrency(money.value)}`
                     : money.tone === 'change-or-credit'
                       /* Not "return": the next screen offers to put this
@@ -2107,13 +2191,17 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                          refund here gets the cash counted out first. */
                       ? `Complete · ${formatCurrency(money.value)} over`
                       : `Confirm & Pay ${formatCurrency(total)}`}
-              </Button>
+              />
             </div>
           </div>
         </div>
       </div>
     )}
   </div>
+
+    {/* The camera scanner. Commits through commitCode, exactly as a typed
+        code does, and stays open so a basket can be scanned in one go. */}
+    <ScanSheet open={scanOpen} onClose={() => setScanOpen(false)} onCode={commitCode} />
     </>
   );
 };
@@ -2128,22 +2216,35 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
   const [collectAmt, setCollectAmt]   = useState(outstanding.toFixed(2));
   const [method, setMethod]           = useState(paymentMethod === 'CREDIT' ? 'CASH' : paymentMethod);
   const [busy, setBusy]               = useState(false);
+  const [collectErr, setCollectErr]   = useState('');
+  const collectState = useSaveStatus();
   const today = new Date().toISOString().slice(0, 10);
   const fmt   = (v) => `${currency}${Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const collect = async (amount) => {
     if (!amount || amount <= 0) { onClose(); return; }
     setBusy(true);
-    await onRecordPayment(clientId, amount, today, 'Collected at POS', [], method);
+    setCollectErr('');
+    collectState.start();
+    let r;
+    try { r = await onRecordPayment(clientId, amount, today, 'Collected at POS', [], method); }
+    catch (e) { r = { success: false, error: e }; }
     setBusy(false);
-    onClose();
+    if (r && r.success === false) {
+      // Real reason, dialog stays open so the cashier can retry.
+      setCollectErr(`Payment not recorded: ${r.error?.message || r.error || 'unknown error'}`);
+      collectState.fail();
+      return;
+    }
+    collectState.ok();
+    setTimeout(onClose, 700);
   };
 
   const methods = ['CASH', 'UPI', 'BANK'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+      <div className="dialog-pop bg-card rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
 
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-border/60">
@@ -2171,7 +2272,7 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
               <button
                 onClick={() => collect(excess)}
                 disabled={busy}
-                className="w-full text-left rounded-2xl border-2 border-signature p-4 hover:bg-signature/5 transition-colors disabled:opacity-50"
+                className="w-full text-left rounded-pill border-2 border-signature p-4 hover:bg-signature/5 transition-colors disabled:opacity-50"
               >
                 <p className="font-semibold text-sm text-foreground">Apply {fmt(excess)} to outstanding</p>
                 <p className="text-xs text-ink-secondary mt-0.5">
@@ -2183,7 +2284,7 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
               <button
                 onClick={onClose}
                 disabled={busy}
-                className="w-full text-left rounded-2xl border border-border p-4 hover:bg-canvas transition-colors disabled:opacity-50"
+                className="w-full text-left rounded-pill border border-border p-4 hover:bg-canvas transition-colors disabled:opacity-50"
               >
                 <p className="font-semibold text-sm text-foreground">Give {fmt(excess)} as change</p>
                 <p className="text-xs text-ink-secondary mt-0.5">Outstanding stays {fmt(outstanding)}</p>
@@ -2218,7 +2319,7 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
                     <button
                       key={m}
                       onClick={() => setMethod(m)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                      className={`flex-1 py-2 rounded-pill text-xs font-semibold transition-colors ${
                         method === m
                           ? 'bg-signature text-white'
                           : 'bg-canvas border border-border text-ink-secondary'
@@ -2235,18 +2336,20 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
                 <button
                   onClick={onClose}
                   disabled={busy}
-                  className="flex-1 py-3 rounded-2xl border border-border text-sm font-semibold text-ink-secondary hover:bg-canvas transition-colors"
+                  className="flex-1 py-3 rounded-pill border border-border text-sm font-semibold text-ink-secondary hover:bg-canvas transition-colors"
                 >
                   Skip
                 </button>
-                <button
+                <SaveButton
                   onClick={() => collect(Math.min(parseFloat(collectAmt) || 0, outstanding))}
                   disabled={busy || !parseFloat(collectAmt)}
-                  className="flex-2 flex-grow py-3 rounded-2xl bg-signature text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
-                >
-                  {busy ? 'Recording…' : `Collect ${fmt(Math.min(parseFloat(collectAmt)||0, outstanding))}`}
-                </button>
+                  status={collectState.status}
+                  savingLabel="Recording"
+                  idleLabel={`Collect ${fmt(Math.min(parseFloat(collectAmt)||0, outstanding))}`}
+                  className="flex-2 flex-grow"
+                />
               </div>
+              <FieldError message={collectErr} />
             </>
           )}
         </div>

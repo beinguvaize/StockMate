@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 class ReportKpiTile extends StatelessWidget {
   final String label;
@@ -37,31 +37,20 @@ class ReportKpiTile extends StatelessWidget {
             children: [
               Text(
                 label.toUpperCase(),
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
-                  color: AppColors.inkSecondary,
-                ),
+                style: AppText.label.copyWith(letterSpacing: 1.2,
+                  color: AppColors.inkSecondary),
               ),
               const SizedBox(height: 8),
               Text(
                 value,
-                style: GoogleFonts.manrope(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: valueColor,
-                  letterSpacing: -0.5,
-                ),
+                style: AppText.title.copyWith(color: valueColor,
+                  letterSpacing: -0.5),
               ),
               if (subtitle != null) ...[
                 const SizedBox(height: 4),
                 Text(
                   subtitle!,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.inkSecondary,
-                  ),
+                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                 ),
               ],
             ],

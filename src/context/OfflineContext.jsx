@@ -25,6 +25,7 @@ import {
 import { probeConnectivity } from '../lib/supabase.js';
 import { pendingCount as outboxPendingCount } from '../lib/offline/outbox.js';
 import { isElectron } from '../lib/offline/hookAdapter.js';
+import { localFirstEnabled } from '../lib/offline/mode.js';
 
 const AUTO_SYNC_LS_KEY = 'ledgr.autoSync';
 
@@ -161,13 +162,16 @@ export function OfflineProvider({ children }) {
     return () => clearInterval(poll);
   }, []);
 
-  // ── Start / stop the sync engine — desktop only ──
+  // ── Start / stop the sync engine — wherever this install bills locally ──
   // Restarts whenever the autoSync toggle changes so the new interval
   // (or its absence) takes effect immediately.
+  //
+  // This used to re-sniff the user agent inline, which made it a THIRD copy of
+  // "is this desktop" with its own slightly different rule (no window.electron
+  // check). It now asks the same gate as the hooks: a web tenant in the rollout
+  // gets the engine, a tenant outside it gets exactly what it had before.
   useEffect(() => {
-    const isDesktop =
-      typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent);
-    if (!isDesktop) return;
+    if (!localFirstEnabled()) return;
 
     try {
       startSync(onSyncComplete, { intervalMs: autoSync ? AUTO_SYNC_INTERVAL_MS : 0 });

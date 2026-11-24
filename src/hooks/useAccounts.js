@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, restInsert, restUpdate } from '../lib/supabase';
 import { isElectron, queueMutation, upsertCachedRow, fetchWithCache } from '../lib/offline/hookAdapter';
+import { fetchAllPages } from '../lib/fetchAllPages';
 
 // Resolve which account a payment lands in.
 // Pass an account ID directly (from dynamic POS buttons) → returns it as-is
@@ -89,12 +90,19 @@ export function useAccounts(tenantId) {
     // indefinitely instead of showing an empty state or an error.
     try {
       const [accRes, txRes] = await Promise.all([
-        fetchWithCache('accounts', () =>
+        fetchWithCache('accounts', () => fetchAllPages(() =>
           supabase.from('accounts').select('*').is('deleted_at', null)
-            .eq('tenant_id', tenantId).order('created_at')),
-        fetchWithCache('account_transactions', () =>
+            .eq('tenant_id', tenantId).order('created_at'), { label: 'accounts' })),
+        // The ledger is the read most likely to be truncated and the one where
+        // truncation is least visible: every balance on the Accounts screen is a
+        // sum over these rows, so the newest 1000 produced a confidently wrong
+        // number rather than a short list. The largest tenant already holds 1,670.
+        // Paged to the shared ceiling, which warns rather than truncating in
+        // silence -- the real fix is a server-side aggregate, recorded in the
+        // plan as such, not a bigger download.
+        fetchWithCache('account_transactions', () => fetchAllPages(() =>
           supabase.from('account_transactions').select('*')
-            .eq('tenant_id', tenantId).order('date', { ascending: false })),
+            .eq('tenant_id', tenantId).order('date', { ascending: false }), { label: 'account_transactions' })),
       ]);
       // Cached rows are whole-table, so re-apply what the query would have done.
       setAccounts((accRes.data || []).filter(a => a.tenant_id === tenantId && !a.deleted_at));

@@ -16,20 +16,29 @@ import 'package:mobile_app/features/reports/presentation/expenses_report_screen.
 import 'package:mobile_app/features/reports/presentation/purchases_report_screen.dart';
 import 'package:mobile_app/features/reports/presentation/gstr1_screen.dart';
 import 'package:mobile_app/features/reports/presentation/gstr3b_screen.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
+import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import '../../../core/widgets/app_surfaces.dart';
+import 'package:mobile_app/core/utils/money.dart';
 
 // ---------------------------------------------------------------------------
 // Internal summary provider (kept for overview KPIs)
 // ---------------------------------------------------------------------------
 class _ReportSummary {
   final double totalSales;
+  final double totalCogs;
   final double totalExpenses;
   final double totalPurchases;
+  final double totalReturns;
   final double netProfit;
 
   const _ReportSummary({
     required this.totalSales,
+    required this.totalCogs,
     required this.totalExpenses,
     required this.totalPurchases,
+    required this.totalReturns,
     required this.netProfit,
   });
 }
@@ -39,27 +48,53 @@ final _reportSummaryProvider = FutureProvider.family<_ReportSummary,
   final start = params.range.start.toIso8601String().split('T').first;
   final end = params.range.end.toIso8601String().split('T').first;
 
+  // Every one of these used to rely on RLS alone. params.tenantId was
+  // accepted and then never used, so the filter that the rest of the app
+  // applies everywhere was the one thing this screen left to the server.
+  final tenantId = params.tenantId;
+
   final salesData = await supabase
       .from('sales')
-      .select('totalAmount').isFilter('deleted_at', null)
+      .select('totalAmount, totalCogs').isFilter('deleted_at', null)
+      .eq('tenant_id', tenantId)
       .gte('date', start)
       .lte('date', end);
 
   final expensesData = await supabase
       .from('expenses')
       .select('amount').isFilter('deleted_at', null)
+      .eq('tenant_id', tenantId)
       .gte('date', start)
       .lte('date', end);
 
   final purchasesData = await supabase
       .from('purchases')
       .select('total_amount').isFilter('deleted_at', null)
+      .eq('tenant_id', tenantId)
       .gte('date', start)
       .lte('date', end);
 
+  double totalReturns = 0;
+  try {
+    final returnsData = await supabase
+        .from('sales_returns')
+        .select('total_amount').isFilter('deleted_at', null)
+        .eq('tenant_id', tenantId)
+        .gte('date', start)
+        .lte('date', end);
+    for (final row in returnsData as List) {
+      totalReturns += (row['total_amount'] as num? ?? 0).toDouble();
+    }
+  } catch (_) {
+    // Shown as a line, never part of the headline, so a failure here must not
+    // take the whole report down with it.
+  }
+
   double totalSales = 0;
+  double totalCogs = 0;
   for (final row in salesData as List) {
     totalSales += (row['totalAmount'] as num? ?? 0).toDouble();
+    totalCogs += (row['totalCogs'] as num? ?? 0).toDouble();
   }
   double totalExpenses = 0;
   for (final row in expensesData as List) {
@@ -72,9 +107,26 @@ final _reportSummaryProvider = FutureProvider.family<_ReportSummary,
 
   return _ReportSummary(
     totalSales: totalSales,
+    totalCogs: totalCogs,
     totalExpenses: totalExpenses,
     totalPurchases: totalPurchases,
-    netProfit: totalSales - totalExpenses - totalPurchases,
+    totalReturns: totalReturns,
+    // Revenue less the cost of what was SOLD, less expenses.
+    //
+    // This subtracted PURCHASES, which is stock BOUGHT -- money that has left
+    // the till but is still sitting on the shelf as an asset, not a cost. On
+    // FUTURE DISPO this month that reported a ₹17,611 PROFIT for a month that
+    // actually ran a ₹14,076 LOSS: wrong by ₹31,687 and, worse, wrong in SIGN.
+    //
+    // sales.totalCogs is the settled source of truth for cost of goods (batch
+    // FIFO with a costPrice fallback) and is what the web P&L uses, so mobile
+    // and web now answer the same question the same way.
+    //
+    // Returns are reported as a line but deliberately left OUT of this figure:
+    // return COGS is a known open question in the GL/P&L reconciliation, and
+    // folding an unsettled number into the headline would be trading one
+    // wrong profit for another.
+    netProfit: totalSales - totalCogs - totalExpenses,
   );
 });
 
@@ -154,51 +206,32 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   String _fmt(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-  String _compact(double v) {
-    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(1)}Cr';
-    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(1)}L';
-    if (v >= 1000) return '₹${(v / 1000).toStringAsFixed(1)}K';
-    return '₹${v.toStringAsFixed(0)}';
-  }
 
   @override
   Widget build(BuildContext context) {
     final tenantAsync = ref.watch(tenantContextProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: AppColors.canvasWarm,
       appBar: AppBar(
-        backgroundColor: AppColors.canvas,
+        backgroundColor: AppColors.canvasWarm,
         elevation: 0,
         scrolledUnderElevation: 0,
         iconTheme: const IconThemeData(color: AppColors.inkPrimary),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Reports',
-              style: GoogleFonts.manrope(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-                color: AppColors.inkPrimary,
-              ),
-            ),
-            Text(
-              'BUSINESS ANALYTICS',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
-                letterSpacing: 1.5,
-              ),
-            ),
+            // Just the title. The period is on the pill beside it and again
+            // on the card below; printing it a third time here only made the
+            // header wide enough to ellipsize the copy that was legible.
+            Text('Reports', style: AppText.title),
           ],
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: GestureDetector(
+            child: AppTappable(
+   ripple: false,
               onTap: _pickDateRange,
               child: Container(
                 padding:
@@ -216,16 +249,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     const SizedBox(width: 6),
                     Text(
                       '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
+                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
+                        color: AppColors.primary),
                     ),
                   ],
                 ),
               ),
-            ),
+ ),
           ),
         ],
       ),
@@ -250,13 +280,25 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   // -------------------------------------------------------
                   // Net profit hero
                   // -------------------------------------------------------
+                  // The card no longer changes colour with the result.
+                  //
+                  // It was amber when in profit and a red wash when not, so the
+                  // surface itself passed judgement before the figure was read
+                  // — and a loss arrived looking like an error state rather
+                  // than a number. It is now the same dark ground every other
+                  // headline figure uses, and only the FIGURE carries the
+                  // sign: green in profit, red in loss. Contrast on the dark
+                  // card is 8.52:1 green and 5.37:1 red, both past AA, which
+                  // neither reading had on the amber tint.
                   Container(
                     padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: summary.netProfit >= 0
-                          ? AppColors.primaryContainer
-                          : AppColors.danger.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppColors.surfaceInverse, AppColors.surfaceInverseDeep],
+                      ),
+                      borderRadius: Radii.rLg,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,80 +311,85 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                   : LucideIcons.trendingDown,
                               size: 16,
                               color: summary.netProfit >= 0
-                                  ? AppColors.inkPrimary
-                                  : AppColors.danger,
+                                  ? AppColors.successOnInverse
+                                  : AppColors.errorOnInverse,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               'NET PROFIT / LOSS',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.5,
-                                color: summary.netProfit >= 0
-                                    ? AppColors.inkPrimary.withValues(alpha: 0.6)
-                                    : AppColors.danger,
+                              style: AppText.label.copyWith(
+                                letterSpacing: 0.6,
+                                color: AppColors.onSurfaceInverseMuted,
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '${summary.netProfit >= 0 ? '+' : ''}${_compact(summary.netProfit)}',
-                          style: GoogleFonts.manrope(
+                          // _compact prints ₹-19062. The one figure the whole
+                          // screen exists for was the only one not grouped.
+                          // The sign leads, so it reads -₹19,062 rather than
+                          // ₹-19,062.
+                          '${summary.netProfit < 0 ? '-' : '+'}'
+                          '${Money.inr(summary.netProfit.abs())}',
+                          style: AppText.moneyHero.copyWith(
                             fontSize: 40,
-                            fontWeight: FontWeight.w900,
-                            color: summary.netProfit >= 0
-                                ? AppColors.inkPrimary
-                                : AppColors.danger,
                             letterSpacing: -2,
+                            color: summary.netProfit >= 0
+                                ? AppColors.successOnInverse
+                                : AppColors.errorOnInverse,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: summary.netProfit >= 0
-                                ? AppColors.inkPrimary.withValues(alpha: 0.5)
-                                : AppColors.danger.withValues(alpha: 0.7),
-                          ),
+                          style: AppText.caption
+                              .copyWith(color: AppColors.onSurfaceInverseMuted),
+                        ),
+
+                        // The figures that MAKE the number above, on the same
+                        // card as the number. They were three separate tiles
+                        // below it, so the headline and its own arithmetic
+                        // were different objects and the bars had nothing to
+                        // be read against. Each bar is a share of revenue,
+                        // which is what makes their lengths comparable.
+                        const SizedBox(height: Gap.lg),
+                        _PlBar(
+                          label: 'Revenue',
+                          value: summary.totalSales,
+                          of: summary.totalSales,
+                          tint: AppColors.successOnInverse,
+                        ),
+                        _PlBar(
+                          label: 'COGS',
+                          value: summary.totalCogs,
+                          of: summary.totalSales,
+                          tint: AppColors.brandFill,
+                        ),
+                        _PlBar(
+                          label: 'Expenses',
+                          value: summary.totalExpenses,
+                          of: summary.totalSales,
+                          tint: AppColors.errorOnInverse,
+                        ),
+                        _PlBar(
+                          label: 'Returns',
+                          value: summary.totalReturns,
+                          of: summary.totalSales,
+                          tint: AppColors.onSurfaceInverseMuted,
+                        ),
+                        // Stock BOUGHT, not stock sold. It is not part of the
+                        // profit above and is labelled so it cannot be read
+                        // as though it were -- subtracting it is exactly the
+                        // bug this screen used to ship.
+                        _PlBar(
+                          label: 'Stock bought',
+                          value: summary.totalPurchases,
+                          of: summary.totalSales,
+                          tint: AppColors.onSurfaceInverseMuted,
                         ),
                       ],
                     ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // -------------------------------------------------------
-                  // Overview breakdown
-                  // -------------------------------------------------------
-                  _SectionHeader(
-                      title: 'BREAKDOWN', icon: LucideIcons.barChart2),
-                  const SizedBox(height: 12),
-
-                  _MetricCard(
-                    label: 'Total Sales',
-                    value: _compact(summary.totalSales),
-                    icon: LucideIcons.shoppingCart,
-                    color: AppColors.success,
-                    subtitle: 'Revenue from all sales',
-                  ),
-                  const SizedBox(height: 10),
-                  _MetricCard(
-                    label: 'Total Expenses',
-                    value: _compact(summary.totalExpenses),
-                    icon: LucideIcons.receipt,
-                    color: AppColors.danger,
-                    subtitle: 'Operational costs',
-                  ),
-                  const SizedBox(height: 10),
-                  _MetricCard(
-                    label: 'Total Purchases',
-                    value: _compact(summary.totalPurchases),
-                    icon: LucideIcons.shoppingBag,
-                    color: AppColors.warning,
-                    subtitle: 'Procurement spend',
                   ),
 
                   const SizedBox(height: 28),
@@ -350,8 +397,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   // -------------------------------------------------------
                   // Report hub grid
                   // -------------------------------------------------------
-                  _SectionHeader(
-                      title: 'DETAILED REPORTS', icon: LucideIcons.layoutGrid),
+                  SectionHeading('DETAILED REPORTS', icon: LucideIcons.layoutGrid),
                   const SizedBox(height: 12),
 
                   ..._reportHubItems.map((item) => Padding(
@@ -395,7 +441,8 @@ class _HubCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+   ripple: false,
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => item.screenBuilder()),
@@ -434,10 +481,7 @@ class _HubCard extends StatelessWidget {
                   ),
                   Text(
                     item.subtitle,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: AppColors.inkSecondary,
-                    ),
+                    style: AppText.caption.copyWith(color: AppColors.inkSecondary),
                   ),
                 ],
               ),
@@ -454,116 +498,14 @@ class _HubCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+ );
   }
 }
 
 // ---------------------------------------------------------------------------
 // Shared helper widgets
 // ---------------------------------------------------------------------------
-class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final String subtitle;
 
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.manrope(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: AppColors.inkPrimary,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: AppColors.inkSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            value,
-            style: GoogleFonts.manrope(
-              fontWeight: FontWeight.w900,
-              fontSize: 20,
-              color: color,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 14, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-            color: AppColors.primary,
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _UpgradeBanner extends StatelessWidget {
   @override
@@ -586,11 +528,8 @@ class _UpgradeBanner extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               'Upgrade Required',
-              style: GoogleFonts.manrope(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
-              ),
+              style: AppText.title.copyWith(fontWeight: FontWeight.w900,
+                letterSpacing: -0.5),
             ),
             const SizedBox(height: 8),
             Text(
@@ -601,6 +540,85 @@ class _UpgradeBanner extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// One line of the P&L, on the dark card
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PlBar extends StatelessWidget {
+  final String label;
+  final double value;
+
+  /// Revenue. Every bar is drawn as a share of it, so their lengths can be
+  /// compared to each other and to the top line.
+  final double of;
+  final Color tint;
+
+  const _PlBar({
+    required this.label,
+    required this.value,
+    required this.of,
+    required this.tint,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final frac = of <= 0 ? 0.0 : (value / of).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.only(top: Gap.sm),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 86,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.caption
+                  .copyWith(color: AppColors.onSurfaceInverseMuted),
+            ),
+          ),
+          Gap.w8,
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: SizedBox(
+                height: 6,
+                child: Stack(
+                  children: [
+                    const ColoredBox(
+                      color: AppColors.outlineInverse,
+                      child: SizedBox(width: double.infinity, height: 6),
+                    ),
+                    FractionallySizedBox(
+                      widthFactor: frac,
+                      child: ColoredBox(
+                        color: tint,
+                        child: const SizedBox(height: 6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Gap.w8,
+          SizedBox(
+            width: 92,
+            child: Text(
+              Money.inr(value),
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.label
+                  .copyWith(color: AppColors.onSurfaceInverse),
+            ),
+          ),
+        ],
       ),
     );
   }

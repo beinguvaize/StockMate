@@ -16,6 +16,10 @@ import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/main.dart' show databaseProvider;
 import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
+import 'package:mobile_app/core/utils/stock_levels.dart';
+import 'package:mobile_app/widgets/motion/motion_refresh.dart';
+import 'package:mobile_app/widgets/motion/motion_sheet.dart';
+import 'package:mobile_app/widgets/motion/pressable.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   /// Whether this screen supplies its own Add button.
@@ -54,10 +58,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   // ── Bottom sheet ────────────────────────────────────────────────────────────
 
   void _showProductSheet(BuildContext context, Product product) {
-    showModalBottomSheet(
+    showMotionSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (_) => _ProductDetailSheet(product: product),
     ).then((_) {
       // Refresh list after any action taken in the sheet
@@ -72,17 +74,25 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     // productsProvider while this screen is visible.
     ref.watch(productsRealtimeSubscriberProvider);
 
-    final filters = ['All', 'Low Stock', 'Out of Stock'];
+    const filters = ['All', 'Low', 'Out'];
+
+    // Header figures come from the whole stock list, not the searched one.
+    final all = ref.watch(productsProvider).valueOrNull ?? const [];
+    final stockValue = all.fold<double>(
+      0,
+      (sum, p) => sum + p.stock * p.costPrice,
+    );
+    final lowCount = all.where((p) => StockLevels.isLow(p.stock)).length;
+    final outCount = all.where((p) => StockLevels.isOutOfStock(p.stock)).length;
+    final productsAsync = ref.watch(filteredProductsProvider);
+    final products = (productsAsync.valueOrNull ?? const <Product>[]).where((p) {
+      if (_filterIndex == 1) return StockLevels.isLow(p.stock);
+      if (_filterIndex == 2) return StockLevels.isOutOfStock(p.stock);
+      return true;
+    }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        toolbarHeight: 0,
-        actions: const [],
-      ),
       floatingActionButton: !widget.showAddButton
           ? null
           : FloatingActionButton(
@@ -91,419 +101,341 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 context,
                 MaterialPageRoute(builder: (_) => const AddProductScreen()),
               ).then((_) => ref.invalidate(productsProvider)),
-              // Was grey-on-pale-amber: the one button that creates a product did
-              // not look like the brand's primary action.
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.onPrimary,
+              backgroundColor: AppColors.brandFill,
+              foregroundColor: AppColors.onBrandFill,
               elevation: 3,
               shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
               child: const Icon(LucideIcons.plus, size: 26),
             ),
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Header ─────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              child: Text('Inventory', style: AppText.display),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Search bar ──────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: AppSearchField(
-                controller: _searchController,
-                hint: 'Search products, SKU…',
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Filter chips ───────────────────────────────────────
-            SizedBox(
-              height: 40,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                itemCount: filters.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 8),
-                itemBuilder: (context, i) {
-                  final isActive = _filterIndex == i;
-                  return AppTappable(
-                    ripple: false,
-                    onTap: () => setState(() => _filterIndex = i),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: Gap.lg,
-                        vertical: Gap.sm,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? AppColors.primaryContainer
-                            : AppColors.canvas,
-                        borderRadius: Radii.rPill,
-                        border: Border.all(
-                          color: isActive
-                              ? AppColors.primaryContainer
-                              : AppColors.outlineVariant,
+        child: MotionRefresh(
+          onRefresh: () async {
+            ref.invalidate(productsProvider);
+            await ref.read(productsProvider.future);
+          },
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _InvHeaderDelegate(
+                  height: 208,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, 0),
+                        child: Text(
+                          Money.inr(stockValue),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.moneyLarge.copyWith(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w600,
+                            
+                          ),
                         ),
                       ),
-                      child: Text(
-                        filters[i],
-                        style: AppText.label.copyWith(
-                          color: isActive
-                              ? AppColors.onPrimaryContainer
-                              : AppColors.onSurfaceVariant,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
+                        child: Text(
+                          'at cost · ${all.length} ${all.length == 1 ? 'item' : 'items'}',
+                          style: AppText.caption,
                         ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Product list ───────────────────────────────────────
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  ref.invalidate(productsProvider);
-                  await ref.read(productsProvider.future);
-                },
-                child: ref
-                    .watch(filteredProductsProvider)
-                    .when(
-                      data: (allProducts) {
-                        final products = allProducts.where((p) {
-                          if (_filterIndex == 1)
-                            return p.stock > 0 && p.stock <= 10;
-                          if (_filterIndex == 2) return p.stock == 0;
-                          return true;
-                        }).toList();
-
-                        final lowCount = allProducts
-                            .where((p) => p.stock <= 10)
-                            .length;
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Stats row
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: Gap.xl,
-                              ),
-                              child: IntrinsicHeight(
-                                child: Row(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    Expanded(
-                                      child: AppCard(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              'Total items',
-                                              style: AppText.caption,
-                                            ),
-                                            const SizedBox(height: Gap.xs),
-                                            // Was amber. A count of products is not a
-                                            // brand moment and not a status; ink.
-                                            Text(
-                                              '${allProducts.length}',
-                                              style: AppText.moneyLarge
-                                                  .copyWith(fontSize: 26),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    Gap.w12,
-                                    Expanded(
-                                      child: AppCard(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              'Low stock',
-                                              style: AppText.caption,
-                                            ),
-                                            const SizedBox(height: Gap.xs),
-                                            // This one keeps its colour: it is a count
-                                            // of things that need attention, which is
-                                            // what the warning token is for.
-                                            Text(
-                                              '$lowCount',
-                                              style: AppText.moneyLarge
-                                                  .copyWith(
-                                                    fontSize: 26,
-                                                    color: lowCount > 0
-                                                        ? AppColors.warning
-                                                        : AppColors.onSurface,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            // Section header
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                      if (lowCount > 0 || outCount > 0)
+                        AppTappable(
+                          ripple: false,
+                          onTap: () => setState(
+                            () => _filterIndex = _filterIndex == 0
+                                ? (lowCount > 0 ? 1 : 2)
+                                : 0,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.xs, Gap.xl, Gap.xs),
+                            child: Text.rich(
+                              TextSpan(
+                                style: AppText.caption.copyWith(fontWeight: FontWeight.w500),
                                 children: [
-                                  Text('Inventory items', style: AppText.title),
-                                  TextButton(
-                                    onPressed: () =>
-                                        setState(() => _filterIndex = 0),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: AppColors.primary,
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: Size.zero,
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
+                                  if (lowCount > 0)
+                                    TextSpan(
+                                      text: '$lowCount low',
+                                      style: const TextStyle(color: AppColors.warning),
                                     ),
-                                    child: Text(
-                                      'View all',
-                                      style: AppText.label.copyWith(
-                                        color: AppColors.primary,
-                                      ),
+                                  if (lowCount > 0 && outCount > 0)
+                                    const TextSpan(text: ' · '),
+                                  if (outCount > 0)
+                                    TextSpan(
+                                      text: '$outCount out',
+                                      style: const TextStyle(color: AppColors.danger),
                                     ),
-                                  ),
                                 ],
                               ),
                             ),
-
-                            const SizedBox(height: 12),
-
-                            // List
-                            Expanded(
-                              child: products.isEmpty
-                                  ? Center(
+                          ),
+                        ),
+                      const SizedBox(height: Gap.sm),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
+                        child: AppSearchField(
+                          controller: _searchController,
+                          hint: 'Search products, SKU…',
+                        ),
+                      ),
+                      const SizedBox(height: Gap.md),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondaryContainer,
+                            borderRadius: Radii.rPill,
+                          ),
+                          child: Row(
+                            children: [
+                              for (var i = 0; i < filters.length; i++)
+                                Expanded(
+                                  child: AppTappable(
+                                    ripple: false,
+                                    onTap: () => setState(() => _filterIndex = i),
+                                    child: AnimatedContainer(
+                                      duration: Motion.durationOf(context, Motion.base),
+                                      alignment: Alignment.center,
+                                      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+                                      decoration: BoxDecoration(
+                                        color: _filterIndex == i
+                                            ? AppColors.onSurface
+                                            : Colors.transparent,
+                                        borderRadius: Radii.rPill,
+                                      ),
                                       child: Text(
-                                        'No products found.',
-                                        style: AppText.body.copyWith(
-                                          color: AppColors.inkTertiary,
+                                        filters[i],
+                                        style: AppText.label.copyWith(
+                                          fontWeight: _filterIndex == i
+                                              ? FontWeight.w600
+                                              : FontWeight.w500,
+                                          color: _filterIndex == i
+                                              ? AppColors.canvas
+                                              : AppColors.onSurfaceVariant,
                                         ),
                                       ),
-                                    )
-                                  : ListView.separated(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        Gap.xl,
-                                        0,
-                                        Gap.xl,
-                                        100,
-                                      ),
-                                      itemCount: products.length,
-                                      separatorBuilder: (context, index) =>
-                                          const Divider(
-                                            height: 1,
-                                            thickness: 1,
-                                            color: AppColors.outlineVariant,
-                                          ),
-                                      itemBuilder: (context, index) {
-                                        final product = products[index];
-                                        final stock = product.stock.toInt();
-                                        final isLow = stock > 0 && stock <= 10;
-                                        final isOut = stock == 0;
-
-                                        Color statusColor;
-                                        String statusLabel;
-                                        if (isOut) {
-                                          statusColor = AppColors.danger;
-                                          statusLabel = 'Out of Stock';
-                                        } else if (isLow) {
-                                          statusColor = AppColors.warning;
-                                          statusLabel = 'Low Stock';
-                                        } else {
-                                          statusColor = AppColors.success;
-                                          statusLabel = 'In Stock';
-                                        }
-
-                                        // Current margin on the latest prices — sell
-                                        // vs weighted-average cost. Null when no sell
-                                        // price, so it reads "—" not a bogus 0%.
-                                        final double? marginPct =
-                                            product.sellingPrice > 0
-                                            ? (product.sellingPrice -
-                                                      product.costPrice) /
-                                                  product.sellingPrice *
-                                                  100
-                                            : null;
-                                        final Color marginColor =
-                                            marginPct == null
-                                            ? AppColors.inkTertiary
-                                            : marginPct < 0
-                                            ? AppColors.error
-                                            : marginPct < 10
-                                            ? AppColors.warning
-                                            : AppColors.success;
-
-                                        return AppTappable(
-                                          ripple: false,
-                                          onTap: () => _showProductSheet(
-                                            context,
-                                            product,
-                                          ),
-                                          child: Container(
-                                            color: AppColors.canvas,
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: Gap.md,
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                // The tile carries the stock state,
-                                                // so the row's status is readable
-                                                // from the left edge as you scan
-                                                // down, not only from a chip buried
-                                                // in the right-hand column.
-                                                IconTile(
-                                                  icon: isOut
-                                                      ? LucideIcons.packageX
-                                                      : LucideIcons.package,
-                                                  tint: statusColor,
-                                                  size: 44,
-                                                ),
-                                                Gap.w16,
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        product.name,
-                                                        style:
-                                                            AppText.bodyStrong,
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                      const SizedBox(height: 2),
-                                                      // SKU and margin share the
-                                                      // supporting line. The right
-                                                      // column was stacking price,
-                                                      // margin, a status chip and a
-                                                      // chevron into about 90px --
-                                                      // four things competing in the
-                                                      // narrowest part of the row.
-                                                      Row(
-                                                        children: [
-                                                          Flexible(
-                                                            child: Text(
-                                                              'SKU ${product.sku ?? "—"}',
-                                                              style: AppText
-                                                                  .caption,
-                                                              maxLines: 1,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                            ),
-                                                          ),
-                                                          if (marginPct !=
-                                                              null) ...[
-                                                            Text(
-                                                              '  ·  ',
-                                                              style: AppText
-                                                                  .caption,
-                                                            ),
-                                                            Text(
-                                                              '${marginPct.toStringAsFixed(0)}% margin',
-                                                              style: AppText
-                                                                  .caption
-                                                                  .copyWith(
-                                                                    color:
-                                                                        marginColor,
-                                                                  ),
-                                                            ),
-                                                          ],
-                                                        ],
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                Gap.w12,
-                                                Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.end,
-                                                  children: [
-                                                    Text(
-                                                      Money.inr(product.sellingPrice),
-                                                      style: AppText.money,
-                                                    ),
-                                                    const SizedBox(height: 4),
-                                                    Text(
-                                                      isOut
-                                                          ? statusLabel
-                                                          : '$stock in stock',
-                                                      style: AppText.caption
-                                                          .copyWith(
-                                                            color:
-                                                                isOut || isLow
-                                                                ? statusColor
-                                                                : AppColors
-                                                                      .inkTertiary,
-                                                            fontWeight:
-                                                                isOut || isLow
-                                                                ? FontWeight
-                                                                      .w600
-                                                                : FontWeight
-                                                                      .w400,
-                                                          ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                Gap.w8,
-                                                const Icon(
-                                                  LucideIcons.chevronRight,
-                                                  size: 20,
-                                                  color: AppColors.inkTertiary,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      },
                                     ),
-                            ),
-                          ],
-                        );
-                      },
-                      loading: () => const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
-                      error: (error, stack) => Center(
-                        child: Text(
-                          'Error loading inventory',
-                          style: AppText.body.copyWith(color: AppColors.error),
+                    ],
+                  ),
+                ),
+              ),
+              if (productsAsync.isLoading && !productsAsync.hasValue)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                )
+              else if (productsAsync.hasError && !productsAsync.hasValue)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text(
+                      'Error loading inventory',
+                      style: AppText.body.copyWith(color: AppColors.error),
+                    ),
+                  ),
+                )
+              else if (products.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text(
+                      'No products found.',
+                      style: AppText.body.copyWith(color: AppColors.inkTertiary),
+                    ),
+                  ),
+                )
+              else
+                SliverList.builder(
+                  itemCount: products.length,
+                  itemBuilder: (context, i) => _ProductRow(
+                    product: products[i],
+                    last: i == products.length - 1,
+                    onTap: () => _showProductSheet(context, products[i]),
+                  ),
+                ),
+              // Clear of the shell's FAB and bottom bar.
+              const SliverToBoxAdapter(child: SizedBox(height: 160)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InvHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double height;
+  final Widget child;
+  _InvHeaderDelegate({required this.height, required this.child});
+
+  @override
+  double get minExtent => height;
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      Container(
+        color: AppColors.canvas,
+        // Always ruled: overlapsContent is false for a fixed-height pinned
+        // header, so rows slid under it with no edge.
+        foregroundDecoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.outlineVariant, width: 0.5)),
+        ),
+        child: child,
+      );
+
+  @override
+  bool shouldRebuild(covariant _InvHeaderDelegate old) => true;
+}
+
+/// Margin colour: only a thin margin earns a colour.
+Color marginColor(double pct) => pct < 5
+    ? AppColors.danger
+    : pct < 15
+        ? AppColors.warning
+        : AppColors.onSurfaceVariant;
+
+/// Level bar fill: qty against twice the reorder level, capped at 1.
+double stockLevelFraction(double stock, {double reorder = StockLevels.defaultThreshold}) =>
+    reorder <= 0 ? 1 : (stock / (reorder * 2)).clamp(0.0, 1.0);
+
+class _ProductRow extends StatelessWidget {
+  final Product product;
+  final bool last;
+  final VoidCallback onTap;
+  const _ProductRow({required this.product, required this.last, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    // Stock is a REAL column: never truncate it (half a unit is not "out").
+    final stock = product.stock;
+    final isOut = StockLevels.isOutOfStock(stock);
+    final isLow = StockLevels.isLow(stock);
+    final statusColor = isOut
+        ? AppColors.danger
+        : isLow
+            ? AppColors.warning
+            : AppColors.success;
+    final unit = (product.unit ?? '').toLowerCase();
+    final double? marginPct = product.sellingPrice > 0
+        ? (product.sellingPrice - product.costPrice) / product.sellingPrice * 100
+        : null;
+
+    return Pressable(
+      child: AppTappable(
+        ripple: false,
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: Gap.xl),
+          padding: const EdgeInsets.symmetric(vertical: Gap.md),
+          decoration: BoxDecoration(
+            border: last
+                ? null
+                : const Border(bottom: BorderSide(color: AppColors.outlineVariant)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.body.copyWith(fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
                         ),
+                        const SizedBox(width: 6),
+                        // Fixed width so every row's level bar starts at the same x.
+                        SizedBox(
+                          width: isOut ? null : 72,
+                          child: Text(
+                            isOut ? 'Out of stock' : '${_qty(stock)}${unit.isEmpty ? '' : ' $unit'}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption.copyWith(
+                              color: isOut
+                                  ? AppColors.danger
+                                  : isLow
+                                      ? AppColors.warning
+                                      : AppColors.onSurfaceVariant,
+                              
+                            ),
+                          ),
+                        ),
+                        if (!isOut) ...[
+                          const SizedBox(width: 8),
+                          ClipRRect(
+                            borderRadius: Radii.rPill,
+                            child: SizedBox(
+                              width: 64,
+                              height: 3,
+                              child: TweenAnimationBuilder<double>(
+                                tween: Tween(end: stockLevelFraction(stock)),
+                                duration: Motion.durationOf(context, Motion.base),
+                                builder: (_, v, _) => LinearProgressIndicator(
+                                  value: v,
+                                  minHeight: 3,
+                                  color: statusColor,
+                                  backgroundColor: AppColors.outlineVariant,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: Gap.md),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    Money.inr(product.sellingPrice),
+                    style: AppText.body.copyWith(
+                      fontWeight: FontWeight.w500,
+                      
+                    ),
+                  ),
+                  if (marginPct != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '${marginPct.toStringAsFixed(0)}% margin',
+                      style: AppText.caption.copyWith(
+                        color: marginColor(marginPct),
+                        
                       ),
                     ),
+                  ],
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -701,8 +633,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                 children: [
                   Text(
                     widget.product.name,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
+                    style: AppText.caption.copyWith(
                       color: AppColors.inkSecondary,
                     ),
                     textAlign: TextAlign.center,
@@ -755,8 +686,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                           ),
                           Text(
                             'new stock',
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
+                            style: AppText.caption.copyWith(
                               color: AppColors.inkTertiary,
                             ),
                           ),
@@ -778,8 +708,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                   if (adjustment != 0)
                     Text(
                       '${adjustment > 0 ? "+" : ""}$adjustment from current ($currentStock)',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
+                      style: AppText.caption.copyWith(
                         color: adjustment > 0
                             ? AppColors.success
                             : AppColors.danger,
@@ -803,14 +732,12 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                         labelText: lastRef != null
                             ? 'Purchase price / unit · last paid'
                             : 'Purchase price / unit (optional)',
-                        labelStyle: GoogleFonts.manrope(
-                          fontSize: 13,
+                        labelStyle: AppText.caption.copyWith(
                           color: AppColors.inkSecondary,
                         ),
                         hintText:
                             'Cost each — blank uses saved ₹${widget.product.costPrice.toStringAsFixed(2)}',
-                        hintStyle: GoogleFonts.manrope(
-                          fontSize: 13,
+                        hintStyle: AppText.caption.copyWith(
                           color: AppColors.inkTertiary,
                         ),
                         isDense: true,
@@ -824,8 +751,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                       lastRef != null
                           ? 'Defaulted to ₹${lastCost!.toStringAsFixed(2)} — last bought ${lastDate ?? ''} on $lastRef. Change it if this lot cost something else.'
                           : 'Enter what you paid so profit on these units is exact.',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
+                      style: AppText.caption.copyWith(
                         color: AppColors.inkTertiary,
                       ),
                     ),
@@ -990,8 +916,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                     ),
                     Text(
                       'SKU: ${p.sku ?? "N/A"}',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
+                      style: AppText.caption.copyWith(
                         color: AppColors.inkTertiary,
                       ),
                     ),
@@ -1009,8 +934,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                 ),
                 child: Text(
                   statusLabel,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
+                  style: AppText.label.copyWith(
                     fontWeight: FontWeight.w700,
                     color: statusColor,
                   ),
@@ -1177,16 +1101,11 @@ class _DetailRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: AppColors.inkSecondary,
-            ),
+            style: AppText.caption.copyWith(color: AppColors.inkSecondary),
           ),
           Text(
             value,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+            style: AppText.label.copyWith(
               color: valueColor ?? AppColors.inkPrimary,
             ),
           ),
@@ -1221,3 +1140,9 @@ class _StockAdjustBtn extends StatelessWidget {
     );
   }
 }
+
+/// 8.0 prints as "8" and 8.5 as "8.5". A shop that sells by the kilo has
+/// fractional stock, and padding every whole number with ".0" makes the
+/// common case noisier to read than the rare one.
+String _qty(double v) =>
+    v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(2);

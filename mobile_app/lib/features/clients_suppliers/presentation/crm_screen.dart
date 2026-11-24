@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/widgets/motion/motion_refresh.dart';
+import 'package:mobile_app/widgets/motion/motion_sheet.dart';
+import 'package:mobile_app/widgets/motion/swipe_actions.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart';
@@ -16,6 +20,8 @@ import 'package:mobile_app/features/clients_suppliers/presentation/client_aging_
 import 'package:mobile_app/features/clients_suppliers/presentation/client_payments_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/client_statement_sheet.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/client_settlement_screen.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/theme/typography.dart';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const _kHeaderBg = Color(0xFFB35210);
@@ -181,7 +187,7 @@ class _CRMScreenState extends ConsumerState<CRMScreen>
           animation: _tabController,
           builder: (_, __) => Text(
             isClient ? 'New client' : 'New supplier',
-            style: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 13),
+            style: AppText.label,
           ),
         ),
       ),
@@ -290,7 +296,7 @@ class _CRMHeader extends StatelessWidget {
           ];
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: Motion.durationOf(context, Motion.base),
       // Was a solid amber block. Every piece of text on it failed WCAG AA —
       // title 3.19:1, the "CRM" eyebrow and stat labels 2.43:1, stat values
       // inside the translucent tiles 2.76:1. A light surface fixes all three
@@ -312,16 +318,12 @@ class _CRMHeader extends StatelessWidget {
                   children: [
                     Text(
                       'CRM',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.inkTertiary,
-                        letterSpacing: 0.08 * 10,
-                      ),
+                      style: AppText.label.copyWith(color: AppColors.inkTertiary,
+                        letterSpacing: 0.08 * 10),
                     ),
                     const SizedBox(height: 2),
                     AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
+                      duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
                       child: Text(
                         isClient ? 'Clients' : 'Suppliers',
                         key: ValueKey(isClient),
@@ -398,11 +400,8 @@ class _StatTile extends StatelessWidget {
             Expanded(
               child: Text(
                 s.label,
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.inkSecondary,
-                ),
+                style: AppText.caption.copyWith(fontWeight: FontWeight.w500,
+                  color: AppColors.inkSecondary),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -411,22 +410,16 @@ class _StatTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             s.value,
-            style: GoogleFonts.manrope(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
+            style: AppText.heading.copyWith(fontWeight: FontWeight.w600,
               color: AppColors.inkPrimary,
-              letterSpacing: -0.3,
-            ),
+              letterSpacing: -0.3),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 1),
           Text(
             s.hint,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: AppColors.inkTertiary,
-            ),
+            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -449,7 +442,7 @@ class _SearchBar extends StatelessWidget {
       style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+        hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
         prefixIcon: const Icon(LucideIcons.search, size: 16, color: AppColors.inkTertiary),
         suffixIcon: controller.text.isNotEmpty
             ? IconButton(
@@ -502,8 +495,8 @@ class _PillTabBar extends StatelessWidget {
         ),
         labelColor: AppColors.inkPrimary,
         unselectedLabelColor: AppColors.inkTertiary,
-        labelStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 13),
-        unselectedLabelStyle: GoogleFonts.manrope(fontWeight: FontWeight.w500, fontSize: 13),
+        labelStyle: AppText.label,
+        unselectedLabelStyle: AppText.caption.copyWith(fontWeight: FontWeight.w500),
         dividerColor: Colors.transparent,
         splashBorderRadius: BorderRadius.circular(8),
         tabs: const [Tab(text: 'Clients'), Tab(text: 'Supplier directory')],
@@ -570,7 +563,7 @@ class _ClientsTab extends ConsumerWidget {
                 children: [
                   Text(
                     '${filtered.length} client${filtered.length == 1 ? '' : 's'}',
-                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                   ),
                   if (totalBalance > 0)
                     Container(
@@ -582,11 +575,7 @@ class _ClientsTab extends ConsumerWidget {
                       ),
                       child: Text(
                         '₹${totalBalance.toStringAsFixed(0)} outstanding',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _kClientOrange,
-                        ),
+                        style: AppText.label.copyWith(color: _kClientOrange),
                       ),
                     )
                   else
@@ -598,11 +587,7 @@ class _ClientsTab extends ConsumerWidget {
                       ),
                       child: Text(
                         'All clear',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _kSupplierGreen,
-                        ),
+                        style: AppText.label.copyWith(color: _kSupplierGreen),
                       ),
                     ),
                 ],
@@ -611,13 +596,45 @@ class _ClientsTab extends ConsumerWidget {
 
             // ── List ───────────────────────────────────────────────────────
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(14, 4, 14, 100),
-                itemCount: filtered.length,
-                separatorBuilder: (_, __) => const Divider(height: 1, indent: 52),
-                itemBuilder: (ctx, i) => _ClientRow(
-                  client: filtered[i],
-                  onTap: () => _showClientDetail(ctx, filtered[i], ref),
+              child: MotionRefresh(
+                onRefresh: () async {
+                  ref.invalidate(clientsProvider);
+                  try {
+                    await ref.read(clientsProvider.future);
+                  } catch (_) {}
+                },
+                child: ListView.separated(
+                  physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics()),
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 100),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1, indent: 52),
+                  itemBuilder: (ctx, i) {
+                    final c = filtered[i];
+                    final phone = (c.phone ?? '').trim();
+                    return SwipeActions(
+                      openWidth: phone.isEmpty ? 80 : 160,
+                      actions: [
+                        if (phone.isNotEmpty)
+                          _SwipeAction(
+                            icon: LucideIcons.phone,
+                            label: 'Call',
+                            color: _kSupplierGreen,
+                            onTap: () => launchUrl(Uri(scheme: 'tel', path: phone)),
+                          ),
+                        _SwipeAction(
+                          icon: LucideIcons.indianRupee,
+                          label: 'Collect',
+                          color: _kClientOrange,
+                          onTap: () => _showClientDetail(ctx, c, ref),
+                        ),
+                      ],
+                      child: _ClientRow(
+                        client: c,
+                        onTap: () => _showClientDetail(ctx, c, ref),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -630,13 +647,34 @@ class _ClientsTab extends ConsumerWidget {
   }
 
   void _showClientDetail(BuildContext context, Client client, WidgetRef ref) {
-    showModalBottomSheet(
+    showMotionSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _ClientDetailSheet(client: client, ref: ref),
     );
   }
+}
+
+class _SwipeAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _SwipeAction({required this.icon, required this.label, required this.color, required this.onTap});
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: ColoredBox(
+          color: color,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: Colors.white),
+              const SizedBox(height: 2),
+              Text(label, style: AppText.caption.copyWith(color: Colors.white)),
+            ],
+          ),
+        ),
+      );
 }
 
 // ─── Client row (flat list item) ──────────────────────────────────────────────
@@ -667,7 +705,7 @@ class _ClientRow extends StatelessWidget {
               alignment: Alignment.center,
               child: Text(
                 _initials(client.name),
-                style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: fg),
+                style: AppText.label.copyWith(color: fg),
               ),
             ),
             const SizedBox(width: 11),
@@ -679,11 +717,7 @@ class _ClientRow extends StatelessWidget {
                 children: [
                   Text(
                     client.name ?? 'Unknown',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.inkPrimary,
-                    ),
+                    style: AppText.label.copyWith(color: AppColors.inkPrimary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -693,7 +727,7 @@ class _ClientRow extends StatelessWidget {
                       const Icon(LucideIcons.phone, size: 11, color: AppColors.inkTertiary),
                       const SizedBox(width: 3),
                       Text(client.phone!,
-                          style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                          style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                       const SizedBox(width: 6),
                     ],
                     if (hasGstin)
@@ -705,8 +739,7 @@ class _ClientRow extends StatelessWidget {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text('GST',
-                            style: GoogleFonts.manrope(
-                                fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF7B5D0A))),
+                            style: AppText.label.copyWith(color: const Color(0xFF7B5D0A))),
                       ),
                   ]),
                 ],
@@ -853,11 +886,7 @@ class _ClientDetailSheet extends StatelessWidget {
                               ),
                               child: Text(
                                 _accountTypeLabel(client.clientType),
-                                style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: clientType == 'B2B' ? AppColors.primary : AppColors.inkSecondary,
-                                ),
+                                style: AppText.label.copyWith(color: clientType == 'B2B' ? AppColors.primary : AppColors.inkSecondary),
                               ),
                             ),
                           ],
@@ -910,7 +939,7 @@ class _ClientDetailSheet extends StatelessWidget {
                             children: [
                               Text(
                                 balance < 0 ? 'Advance (paid extra)' : 'Outstanding balance',
-                                style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                               ),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -937,11 +966,7 @@ class _ClientDetailSheet extends StatelessWidget {
                                       ),
                                       child: Text(
                                         balance > 0 ? 'Unpaid' : 'Cleared',
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: balance > 0 ? AppColors.danger : AppColors.success,
-                                        ),
+                                        style: AppText.label.copyWith(color: balance > 0 ? AppColors.danger : AppColors.success),
                                       ),
                                     ),
                                   ),
@@ -1026,7 +1051,7 @@ class _ClientDetailSheet extends StatelessWidget {
                     const SizedBox(height: 16),
                     Text(
                       'Added ${_formatDate(client.createdAt!)}',
-                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                      style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1046,7 +1071,7 @@ class _ClientDetailSheet extends StatelessWidget {
                         },
                         icon: const Icon(LucideIcons.bookOpen, size: 14),
                         label: Text('View statement',
-                            style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600)),
+                            style: AppText.label),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           side: const BorderSide(color: AppColors.primary, width: 1),
@@ -1067,7 +1092,7 @@ class _ClientDetailSheet extends StatelessWidget {
                         },
                         icon: const Icon(LucideIcons.checkCircle2, size: 14),
                         label: Text('Collect payment',
-                            style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600)),
+                            style: AppText.label),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _kHeaderBg,
                           foregroundColor: Colors.white,
@@ -1156,7 +1181,7 @@ class _SuppliersTab extends ConsumerWidget {
                 children: [
                   Text(
                     '${filtered.length} supplier${filtered.length == 1 ? '' : 's'}',
-                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
+                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
                   ),
                   if (totalPayable > 0)
                     Container(
@@ -1168,11 +1193,7 @@ class _SuppliersTab extends ConsumerWidget {
                       ),
                       child: Text(
                         '₹${totalPayable.toStringAsFixed(0)} to pay',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _kSupplierGreen,
-                        ),
+                        style: AppText.label.copyWith(color: _kSupplierGreen),
                       ),
                     ),
                 ],
@@ -1253,8 +1274,7 @@ class _SupplierRow extends StatelessWidget {
               alignment: Alignment.center,
               child: Text(
                 _initials(supplier.name),
-                style: GoogleFonts.manrope(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: _kSupplierGreen),
+                style: AppText.label.copyWith(color: _kSupplierGreen),
               ),
             ),
             const SizedBox(width: 11),
@@ -1265,11 +1285,7 @@ class _SupplierRow extends StatelessWidget {
                 children: [
                   Text(
                     supplier.name ?? 'Unknown',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.inkPrimary,
-                    ),
+                    style: AppText.label.copyWith(color: AppColors.inkPrimary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1279,12 +1295,12 @@ class _SupplierRow extends StatelessWidget {
                       const Icon(LucideIcons.phone, size: 11, color: AppColors.inkTertiary),
                       const SizedBox(width: 3),
                       Text(supplier.phone!,
-                          style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                          style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                       const SizedBox(width: 6),
                     ],
                     if (supplier.contactPerson != null && supplier.contactPerson!.isNotEmpty)
                       Text(supplier.contactPerson!,
-                          style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                          style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                   ]),
                 ],
               ),
@@ -1295,11 +1311,7 @@ class _SupplierRow extends StatelessWidget {
               children: [
                 Text(
                   balance == 0 ? '—' : '₹${balance.toStringAsFixed(0)}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: balance > 0 ? _kSupplierGreen : AppColors.inkTertiary,
-                  ),
+                  style: AppText.label.copyWith(color: balance > 0 ? _kSupplierGreen : AppColors.inkTertiary),
                 ),
                 const SizedBox(height: 3),
                 const Icon(LucideIcons.chevronRight, size: 13, color: AppColors.inkTertiary),
@@ -1331,7 +1343,7 @@ class _AlphaHeader extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: Text(letter,
-              style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+              style: AppText.label.copyWith(color: Colors.white)),
         ),
         const SizedBox(width: 8),
         Expanded(child: Container(height: 0.5, color: AppColors.outlineVariant)),
@@ -1363,7 +1375,7 @@ class _ToolbarBtn extends StatelessWidget {
           Icon(icon, size: 14, color: AppColors.inkSecondary),
           const SizedBox(width: 5),
           Text(label,
-              style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.inkSecondary)),
+              style: AppText.caption.copyWith(fontWeight: FontWeight.w500, color: AppColors.inkSecondary)),
         ]),
       ),
     );
@@ -1382,7 +1394,7 @@ class _MiniStat extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label,
-            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+            style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
         const SizedBox(height: 2),
         Text(value,
             style: GoogleFonts.manrope(
@@ -1409,8 +1421,7 @@ class _DetailSection extends StatelessWidget {
           Icon(icon, size: 12, color: AppColors.inkTertiary),
           const SizedBox(width: 5),
           Text(title,
-              style: GoogleFonts.manrope(
-                  fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkTertiary)),
+              style: AppText.label.copyWith(color: AppColors.inkTertiary)),
         ]),
         const SizedBox(height: 8),
         Container(
@@ -1435,11 +1446,10 @@ class _DetailSection extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(row.label,
-                                style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                                style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
                             const SizedBox(height: 1),
                             Text(row.value,
-                                style: GoogleFonts.manrope(
-                                    fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.inkPrimary)),
+                                style: AppText.caption.copyWith(fontWeight: FontWeight.w500, color: AppColors.inkPrimary)),
                           ],
                         ),
                       ),
@@ -1501,11 +1511,10 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(message,
-              style: GoogleFonts.manrope(
-                  fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.inkSecondary)),
+              style: AppText.bodyStrong.copyWith(color: AppColors.inkSecondary)),
           const SizedBox(height: 3),
           Text('Tap + to add one',
-              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+              style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
         ],
       ),
     );
@@ -1522,7 +1531,7 @@ class _ErrorState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text('Error: $message',
-            style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 13),
+            style: AppText.caption.copyWith(color: AppColors.danger),
             textAlign: TextAlign.center),
       ),
     );

@@ -75,14 +75,17 @@ class _AppButtonState extends State<AppButton> {
 
   // Only pairings verified by tool/check_contrast.mjs.
   Color get _bg => switch (widget.variant) {
-        AppButtonVariant.primary => AppColors.primary,
+        // The literal logo orange. Ink on it is onBrandFill (the wordmark
+        // navy) at 6.59:1 — white would be 2.25:1, which is why the pair
+        // travels together and neither is used alone.
+        AppButtonVariant.primary => AppColors.brandFill,
         AppButtonVariant.secondary => AppColors.canvas,
         AppButtonVariant.ghost => Colors.transparent,
         AppButtonVariant.danger => AppColors.error,
       };
 
   Color get _fg => switch (widget.variant) {
-        AppButtonVariant.primary => AppColors.onPrimary,
+        AppButtonVariant.primary => AppColors.onBrandFill,
         AppButtonVariant.secondary => AppColors.onSurface,
         AppButtonVariant.ghost => AppColors.primary,
         AppButtonVariant.danger => AppColors.onPrimary,
@@ -103,9 +106,11 @@ class _AppButtonState extends State<AppButton> {
       enabled: _enabled,
       label: widget.label,
       child: AnimatedScale(
-        // The press response the app has never had.
+        // The press response the app has never had. durationOf, not the raw
+        // constant: the two shared button widgets were the last animated
+        // things in the app still ignoring the OS reduce-motion switch.
         scale: _pressed ? 0.97 : 1.0,
-        duration: Motion.fast,
+        duration: Motion.durationOf(context, Motion.fast),
         curve: Motion.standard,
         child: Material(
           color: bg,
@@ -208,7 +213,7 @@ class _AppTappableState extends State<AppTappable> {
     final enabled = widget.onTap != null;
     final content = AnimatedScale(
       scale: _pressed ? widget.pressedScale : 1.0,
-      duration: Motion.fast,
+      duration: Motion.durationOf(context, Motion.fast),
       curve: Motion.standard,
       child: widget.child,
     );

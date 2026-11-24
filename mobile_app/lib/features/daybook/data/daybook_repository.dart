@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/database/offline_reads.dart';
+import 'package:mobile_app/core/database/unsynced_sales.dart';
 import 'daybook_models.dart';
 
 class DaybookRepository {
@@ -74,6 +75,45 @@ class DaybookRepository {
       purchases = await cachedPurchasesForDate(_db, tenantId, date);
     }
 
+    // Lay this phone's queued sales and collections for the day over the top.
+    // The server copy wins when it has the row; refused ones are left out of
+    // the figures (they are not in the books) and shown in the sync sheet.
+    var unsynced = 0;
+    if (_db != null) {
+      try {
+        final saleOps = (await unsyncedOps(_db, tenantId, includeSynced: servedFromCache))
+            .where((o) => o.state != UnsyncedState.refused && o.date == date)
+            .toList();
+        sales = overlayUnsyncedSales(sales, saleOps)
+            .map((r) => r['_sync'] == 'pending'
+                ? {...r, '_note': 'Not synced yet'}
+                : r)
+            .toList();
+        unsynced += sales.where((r) => r['_sync'] == 'pending').length;
+
+        final payOps = (await unsyncedOps(_db, tenantId,
+                rpcName: 'settle_client_payment', includeSynced: servedFromCache))
+            .where((o) => o.state != UnsyncedState.refused && o.date == date);
+        final haveIds = {for (final c in collections) c['id']};
+        final extra = <Map<String, dynamic>>[];
+        for (final op in payOps) {
+          if (haveIds.contains(op.opId)) continue;
+          extra.add({
+            'id': op.opId,
+            'amount': op.payload['p_amount'],
+            'payment_method': op.payload['p_method'],
+            'notes': op.state == UnsyncedState.pending ? 'Not synced yet' : null,
+            'client_id': op.payload['p_client_id'],
+            'created_at': op.createdAt.toUtc().toIso8601String(),
+          });
+          if (op.state == UnsyncedState.pending) unsynced++;
+        }
+        collections = [...collections, ...extra];
+      } catch (e) {
+        debugPrint('[daybook] outbox overlay failed: $e');
+      }
+    }
+
     const bankMethods = ['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS', 'CARD', 'CHEQUE'];
 
     // Compute aggregates
@@ -131,7 +171,9 @@ class DaybookRepository {
         type: isCredit ? EntryType.creditSale : EntryType.income,
         category: 'Sale',
         title: custName != null ? 'Sale to $custName' : 'Sale',
-        note: itemSummary,
+        note: s['_note'] != null
+            ? [s['_note'], itemSummary].whereType<String>().join(' · ')
+            : itemSummary,
         method: methodKindFromString(method),
         methodLabel: method,
         amount: amt,
@@ -194,6 +236,7 @@ class DaybookRepository {
 
     return DayBookLedger(
       fromCache: servedFromCache,
+      unsyncedEntries: unsynced,
       date: date,
       openingBal: openingBal,
       cashSales: cashSales, bankSales: bankSales, creditSales: creditSales,

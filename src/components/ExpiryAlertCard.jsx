@@ -54,7 +54,7 @@ const ExpiryAlertCard = () => {
       // In-app navigation. goHref() sets window.location and reloads the whole
       // SPA, which is right for an impersonation switch but heavy for a card.
       onClick={() => navigate('/reports')}
-      className="w-full text-left flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-red-50 border border-red-200 hover:bg-red-100/60 transition-colors"
+      className="w-full text-left flex items-center gap-3 px-5 py-3.5 rounded-pill bg-red-50 border border-red-200 hover:bg-red-100/60 transition-colors"
     >
       <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
         <AlertTriangle size={17} className="text-red-600" />

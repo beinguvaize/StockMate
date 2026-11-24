@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>bookledger — GST billing that keeps working offline</title>
+<meta name="description" content="Bill, track stock, chase dues and file GSTR on web, desktop and a free Android app. Works offline, syncs when you're back. Free for 60 days."/>
+<meta name="robots" content="noindex"/>
+<link rel="canonical" href="https://bookledger.in/v3"/>
+<link rel="icon" href="favicon-256.png"/>
+<link rel="stylesheet" href="dark.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body class="bg-ground text-ink font-sans antialiased">
+
+<nav class="sticky top-0 z-50 w-full border-b border-edge bg-ground/80 backdrop-blur-md">
+  <div class="max-w-[1180px] mx-auto px-6 lg:px-8 py-4 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2.5"><img src="bookledger-logo-white.png" alt="bookledger" class="h-7 w-auto"/></a>
+    <div class="hidden md:flex gap-7 items-center">
+      <a class="text-sm font-medium text-ink-2 hover:text-ink transition-colors" href="features.html">Features</a>
+      <a class="text-sm font-medium text-ink-2 hover:text-ink transition-colors" href="pricing.html">Pricing</a>
+      <a class="text-sm font-medium text-ink-2 hover:text-ink transition-colors" href="download.html">Download</a>
+      <a class="text-sm font-medium text-ink-2 hover:text-ink transition-colors" href="about.html">About</a>
+    </div>
+    <div class="flex gap-3 items-center">
+      <a href="https://app.bookledger.in/login" class="hidden md:inline text-sm font-semibold text-ink-2 hover:text-ink transition-colors">Sign in</a>
+      <a href="https://app.bookledger.in/register" class="bg-accent text-on-accent text-sm font-bold px-5 py-2 rounded-full hover:bg-accent-hi transition-colors">Start free</a>
+    </div>
+  </div>
+</nav>
+
+<main class="w-full">
+
+  <!-- Hero -->
+  <section class="relative glow overflow-hidden">
+    <div class="relative z-10 max-w-[1180px] mx-auto px-6 lg:px-8 pt-20 lg:pt-28 pb-20">
+      <div class="max-w-[720px] stage">
+        <span class="mono inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent"></span> Works offline · GST ready
+        </span>
+        <h1 class="mt-6 text-[2.9rem] md:text-[4.4rem] font-semibold tracking-[-0.035em] leading-[0.98]">
+          The internet goes down.<br/><span class="text-accent">Your counter doesn't.</span>
+        </h1>
+        <p class="mt-7 max-w-[34rem] text-lg text-ink-2 leading-relaxed">
+          Bill, track stock, chase dues and file GSTR — on web, desktop and a free Android app.
+          Sales keep going when the line drops, and sync the moment it returns.
+        </p>
+        <div class="mt-9 flex flex-wrap items-center gap-4">
+          <a href="https://app.bookledger.in/register" class="bg-accent text-on-accent text-sm font-bold px-6 py-3.5 rounded-full hover:bg-accent-hi transition-colors">Try free for 60 days</a>
+          <a href="features.html" class="text-sm font-semibold px-6 py-3.5 rounded-full border border-edge-strong text-ink hover:bg-panel transition-colors">See what it does</a>
+          <span class="text-xs text-ink-3">No card. The mobile app stays free.</span>
+        </div>
+      </div>
+
+      <!-- The product -->
+      <div class="settle mt-14 rounded-[22px] bg-panel border border-edge lift overflow-hidden">
+        <div class="flex items-center gap-2 px-5 py-3.5 border-b border-edge">
+          <span class="w-2.5 h-2.5 rounded-full bg-edge-strong/40"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-edge-strong/40"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-edge-strong/40"></span>
+          <span class="ml-3 text-[11px] mono text-ink-3">Sunrise Traders · Dashboard</span>
+          <span class="ml-auto text-[10px] mono font-bold px-2 py-0.5 rounded-full bg-ok/10 text-ok">● Synced</span>
+        </div>
+
+        <div class="p-5 lg:p-7">
+          <div class="grid sm:grid-cols-3 gap-px bg-edge rounded-2xl overflow-hidden border border-edge">
+            <div class="bg-panel-2 px-5 py-4">
+              <div class="text-[10px] uppercase tracking-widest text-ink-3 font-bold">Today</div>
+              <div class="mono text-2xl font-bold mt-2"><span class="text-accent text-base">₹</span>84,200</div>
+              <div class="text-[11px] font-bold text-ok mt-1.5">▲ 12%</div>
+            </div>
+            <div class="bg-panel-2 px-5 py-4">
+              <div class="text-[10px] uppercase tracking-widest text-ink-3 font-bold">Outstanding</div>
+              <div class="mono text-2xl font-bold mt-2"><span class="text-accent text-base">₹</span>22,150</div>
+              <div class="text-[11px] font-bold text-ink-3 mt-1.5">5 clients</div>
+            </div>
+            <div class="bg-panel-2 px-5 py-4">
+              <div class="text-[10px] uppercase tracking-widest text-ink-3 font-bold">Stock value</div>
+              <div class="mono text-2xl font-bold mt-2"><span class="text-accent text-base">₹</span>1,21,326</div>
+              <div class="text-[11px] font-bold text-ink-3 mt-1.5">21 SKUs</div>
+            </div>
+          </div>
+
+          <div class="mt-5 rounded-2xl border border-edge bg-panel-2 overflow-hidden">
+            <div class="px-5 py-3 border-b border-edge flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-widest text-ink-3">Today's bills</span>
+              <span class="text-[11px] mono text-ink-3">4 · ₹54,930</span>
+            </div>
+            <div class="divide-y divide-edge">
+              <div class="px-5 py-3 flex items-center justify-between text-[13px]"><span>Sharma Kirana</span><span class="mono font-semibold">₹12,400</span></div>
+              <div class="px-5 py-3 flex items-center justify-between text-[13px]"><span>Anwar Traders</span><span class="mono font-semibold">₹1,450</span></div>
+              <div class="px-5 py-3 flex items-center justify-between text-[13px]"><span>Lakshmi Stores</span><span class="mono font-semibold">₹33,200 <span class="text-[10px] font-bold text-accent ml-1">CREDIT</span></span></div>
+              <div class="px-5 py-3 flex items-center justify-between text-[13px]"><span>Malik Provisions</span><span class="mono font-semibold">₹7,880 <span class="text-[10px] font-bold text-ok ml-1">SYNCED</span></span></div>
+            </div>
+          </div>
+          <p class="mt-4 text-[11px] text-ink-3">Illustrative figures.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modules -->
+  <section class="border-t border-edge">
+    <div class="max-w-[1180px] mx-auto px-6 lg:px-8 py-20">
+      <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Nine modules, one ledger</span>
+      <h2 class="mt-4 text-3xl md:text-[2.6rem] font-semibold tracking-[-0.025em] max-w-[640px] leading-tight">A back office, not a billing toy.</h2>
+      <p class="mt-5 max-w-[46rem] text-base text-ink-2 leading-relaxed">
+        Every module writes to the same books, so the day book, the stock and the GSTR export cannot disagree.
+      </p>
+      <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="rounded-2xl bg-panel border border-edge p-6"><h3 class="font-semibold">GST billing &amp; invoices</h3><p class="mt-2 text-[13px] text-ink-2 leading-relaxed">CGST/SGST/IGST, HSN, e-invoice numbering. Print or send on WhatsApp.</p></div>
+        <div class="rounded-2xl bg-panel border border-edge p-6"><h3 class="font-semibold">Offline POS</h3><p class="mt-2 text-[13px] text-ink-2 leading-relaxed">Counter sales, discounts, hold and park, UPI QR, customer screen.</p></div>
+        <div class="rounded-2xl bg-panel border border-edge p-6"><h3 class="font-semibold">Inventory &amp; FIFO</h3><p class="mt-2 text-[13px] text-ink-2 leading-relaxed">Batches, FIFO or weighted-average costing, multi-store stock that ties out.</p></div>
+        <div class="rounded-2xl bg-panel border border-edge p-6"><h3 class="font-semibold">Clients &amp; receivables</h3><p class="mt-2 text-[13px] text-ink-2 leading-relaxed">Dues, ageing, statements — the udhaar book, with a memory.</p></div>
+        <div class="rounded-2xl bg-panel border border-edge p-6"><h3 class="font-semibold">Day book &amp; cash</h3><p class="mt-2 text-[13px] text-ink-2 leading-relaxed">Opening and closing cash, bank reconciliation, one day at a time.</p></div>
+        <div class="rounded-2xl bg-panel border border-edge p-6"><h3 class="font-semibold">Reports &amp; GSTR</h3><p class="mt-2 text-[13px] text-ink-2 leading-relaxed">28 reports — balance sheet, P&amp;L, ageing, GSTR-1 and 3B — exportable.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Figures -->
+  <section class="border-t border-edge bg-panel">
+    <div class="max-w-[1180px] mx-auto px-6 lg:px-8 py-16 grid grid-cols-2 md:grid-cols-4 gap-y-10">
+      <div><div class="mono text-4xl font-bold tracking-tight text-accent">28</div><div class="mt-2 text-xs uppercase tracking-widest text-ink-3">Reports built in</div></div>
+      <div><div class="mono text-4xl font-bold tracking-tight text-accent">3</div><div class="mt-2 text-xs uppercase tracking-widest text-ink-3">Platforms, one account</div></div>
+      <div><div class="mono text-4xl font-bold tracking-tight text-accent">100%</div><div class="mt-2 text-xs uppercase tracking-widest text-ink-3">Of billing works offline</div></div>
+      <div><div class="mono text-4xl font-bold tracking-tight text-accent">60</div><div class="mt-2 text-xs uppercase tracking-widest text-ink-3">Day free trial</div></div>
+    </div>
+  </section>
+
+  <!-- Trust + support -->
+  <section class="border-t border-edge">
+    <div class="max-w-[1180px] mx-auto px-6 lg:px-8 py-20 grid gap-10 lg:grid-cols-[1.15fr_1fr]">
+      <div>
+        <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Your books, your data</span>
+        <h2 class="mt-4 text-2xl md:text-3xl font-semibold tracking-[-0.02em] leading-tight">Separated, encrypted, backed up daily.</h2>
+        <div class="mt-8 grid sm:grid-cols-3 gap-6">
+          <div><h3 class="text-sm font-semibold">Walled off</h3><p class="mt-2 text-[13px] text-ink-2 leading-relaxed">Every business kept separate. No other account reaches your records.</p></div>
+          <div><h3 class="text-sm font-semibold">Encrypted in transit</h3><p class="mt-2 text-[13px] text-ink-2 leading-relaxed">Everything you send and receive is scrambled end to end.</p></div>
+          <div><h3 class="text-sm font-semibold">Backed up daily</h3><p class="mt-2 text-[13px] text-ink-2 leading-relaxed">Automatic every day, so a bad afternoon is not a lost year.</p></div>
+        </div>
+        <a class="mt-7 inline-flex items-center min-h-[32px] text-[13px] font-semibold text-accent hover:text-accent-hi underline underline-offset-4" href="security.html">How we handle your data</a>
+      </div>
+      <div class="rounded-2xl bg-panel border border-edge p-7 lift">
+        <h3 class="text-sm font-semibold">Talk to a person first</h3>
+        <p class="mt-2 text-[13px] text-ink-2 leading-relaxed">Ask before you sign up. We reply within a business day, usually sooner.</p>
+        <div class="mt-5 flex flex-col">
+          <a class="inline-flex items-center min-h-[40px] text-sm font-semibold text-ink hover:text-accent" href="https://wa.me/919495770736">WhatsApp +91 94957 70736</a>
+          <a class="inline-flex items-center min-h-[40px] text-sm text-ink-2 hover:text-ink" href="mailto:hello@bookledger.in">hello@bookledger.in</a>
+          <span class="inline-flex items-center min-h-[40px] text-sm text-ink-3">Mon–Sat · 9am–7pm IST</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Close -->
+  <section class="border-t border-edge relative glow overflow-hidden">
+    <div class="relative z-10 max-w-[1180px] mx-auto px-6 lg:px-8 py-24 text-center">
+      <h2 class="text-3xl md:text-[2.8rem] font-semibold tracking-[-0.03em]">Start billing in five minutes.</h2>
+      <p class="mt-4 text-base text-ink-2">Free for 60 days. The mobile app stays free. No card needed.</p>
+      <a href="https://app.bookledger.in/register" class="mt-9 inline-block bg-accent text-on-accent text-sm font-bold px-8 py-3.5 rounded-full hover:bg-accent-hi transition-colors">Create your workspace</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-edge">
+  <div class="max-w-[1180px] mx-auto px-6 lg:px-8 py-10 flex flex-col sm:flex-row justify-between gap-4">
+    <img src="bookledger-logo-white.png" alt="bookledger" class="h-7 w-auto"/>
+    <div class="flex flex-wrap gap-6">
+      <a class="text-xs text-ink-3 hover:text-ink" href="pricing.html">Pricing</a>
+      <a class="text-xs text-ink-3 hover:text-ink" href="security.html">Security</a>
+      <a class="text-xs text-ink-3 hover:text-ink" href="privacy.html">Privacy</a>
+      <a class="text-xs text-ink-3 hover:text-ink" href="contact.html">Contact</a>
+    </div>
+    <div class="text-xs text-ink-3">© 2026 bookledger. Built for Indian business.</div>
+  </div>
+</footer>
+</body></html>
