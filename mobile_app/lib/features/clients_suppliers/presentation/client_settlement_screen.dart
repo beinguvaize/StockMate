@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/features/clients_suppliers/data/party_aging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
-import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/sales/data/models/sale.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
 
 class ClientSettlementScreen extends ConsumerStatefulWidget {
   final Client client;
@@ -271,14 +268,8 @@ class _ClientSettlementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '₹${amt.toStringAsFixed(2)} payment recorded',
-              style: GoogleFonts.manrope(color: AppColors.inkPrimary),
-            ),
-            backgroundColor: AppColors.primaryContainer,
+            content: Text('${Money.inr(amt)} payment recorded'),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
           ),
         );
         Navigator.pop(context);
@@ -287,8 +278,11 @@ class _ClientSettlementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
+            content: Text(
+                'The payment may not have saved. Check the client before trying again. ($e)'),
+            backgroundColor: Bl.redDeep,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 8),
           ),
         );
       }
@@ -299,631 +293,550 @@ class _ClientSettlementScreenState
 
   // ─── build ────────────────────────────────────────────────────────────────
 
+  static const _methods = [
+    ('CASH', 'Cash', BlIcons.cash),
+    (
+      'UPI',
+      'UPI',
+      '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2z"/>'
+    ),
+    ('BANK', 'Bank', BlIcons.bank),
+    (
+      'CHEQUE',
+      'Cheque',
+      '<path d="M3 7h18v10H3z"/><path d="M6 13h6M14 13l2 1.5 3-3"/>'
+    ),
+  ];
+
+  static int _daysOld(String? iso) {
+    final d = iso == null ? null : DateTime.tryParse(iso);
+    if (d == null) return 0;
+    final n = DateTime.now().difference(d).inDays;
+    return n < 0 ? 0 : n;
+  }
+
   @override
   Widget build(BuildContext context) {
     final client = widget.client;
-    final invoicesAsync = ref.watch(invoicesProvider);
-    final salesAsync = ref.watch(recentSalesProvider);
+    final name = client.name ?? 'Unnamed';
     final outstanding = client.outstandingBalance ?? 0.0;
+    final sales = ref.watch(recentSalesProvider).valueOrNull ?? const <Sale>[];
+    final unpaid = _unpaidInvoices(
+        ref.watch(invoicesProvider).valueOrNull ?? const <Invoice>[], sales);
+    // Same count and age the Clients list shows for this client.
+    final aging = clientAging(sales, DateTime.now())[client.id];
+    final billCount = aging?.unpaidBills ?? unpaid.length;
+    final oldest = aging?.oldestDays ??
+        unpaid.fold<int>(0, (m, inv) {
+          final d = _daysOld(inv.invoiceDate);
+          return d > m ? d : m;
+        });
+    final amount =
+        double.tryParse(_amountController.text.replaceAll(',', '').trim()) ?? 0;
+    final after = (outstanding - amount).clamp(0, double.infinity).toDouble();
+    final allSelected = unpaid.isNotEmpty &&
+        unpaid.every((inv) => _selectedInvoiceIds.contains(inv.id));
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft,
-              size: 20, color: AppColors.inkPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Collect Payment',
-              style: GoogleFonts.manrope(
-                color: AppColors.inkPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-            Text(
-              client.name ?? '',
-              style: AppText.label.copyWith(color: AppColors.secondary,
-                letterSpacing: 1.5),
-            ),
-          ],
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      backgroundColor: Bl.white,
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Section 1 — Client summary card ──────────────────────
-            _ClientSummaryCard(
-              client: client,
-              outstanding: outstanding,
-              unpaidCount: _unpaidInvoices(
-                invoicesAsync.valueOrNull ?? const <Invoice>[],
-                salesAsync.valueOrNull ?? const <Sale>[],
-              ).length,
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Section 2 — Payment form ──────────────────────────────
-            _SectionCard(
-              icon: LucideIcons.creditCard,
-              title: 'PAYMENT DETAILS',
-              children: [
-                // Date row
-                AppTappable(
-                  ripple: false,
-                  onTap: _pickDate,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.canvas,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: Colors.black.withValues(alpha: 0.06)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(LucideIcons.calendar,
-                            size: 16, color: AppColors.primary),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _formatDate(_date),
-                            style: GoogleFonts.manrope(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.inkPrimary,
+            const BlBackHeader(title: 'Collect Payment'),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: BlEntrance.all([
+                    // ── Who, and how much they owe ───────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 6, 18, 0),
+                      child: Row(
+                        children: [
+                          BlTintAvatar(name, size: 44),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        Bl.tight(15, w: FontWeight.w600)),
+                                const SizedBox(height: 1),
+                                Text(
+                                    billCount == 0
+                                        ? 'No unpaid bills listed'
+                                        : '$billCount unpaid bill${billCount == 1 ? '' : 's'} · oldest $oldest days',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Bl.inter(12.5,
+                                        c: const Color(0xFF7A8088))),
+                              ],
                             ),
                           ),
-                        ),
-                        const Icon(LucideIcons.chevronDown,
-                            size: 16, color: AppColors.inkTertiary),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                // Amount label
-                _FieldLabel(text: 'AMOUNT', required: true),
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.canvas,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: Colors.black.withValues(alpha: 0.06)),
-                  ),
-                  child: TextField(
-                    controller: _amountController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.inkPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                      prefixText: '₹ ',
-                      prefixStyle: GoogleFonts.manrope(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                      hintText: '0.00',
-                      hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                    ),
-                  ),
-                ),
-
-                if (outstanding > 0) ...[
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        _amountController.text =
-                            outstanding.toStringAsFixed(2);
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        'Fill full outstanding (₹${outstanding.toStringAsFixed(2)})',
-                        style: AppText.label.copyWith(color: AppColors.primary),
-                      ),
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 14),
-
-                // Payment method chips
-                _FieldLabel(text: 'PAYMENT METHOD'),
-                const SizedBox(height: 6),
-                _MethodSelector(
-                  selected: _method,
-                  onChanged: (m) => setState(() => _method = m),
-                ),
-
-                const SizedBox(height: 14),
-
-                // Notes
-                _FieldLabel(text: 'NOTES'),
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.canvas,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: Colors.black.withValues(alpha: 0.06)),
-                  ),
-                  child: TextField(
-                    controller: _notesController,
-                    maxLines: 2,
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.inkPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                      hintText: 'Notes (optional)',
-                      hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Section 3 — Invoice selection ─────────────────────────
-            invoicesAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (err, _) => const SizedBox.shrink(),
-              data: (allInvoices) {
-                final sales = salesAsync.valueOrNull ?? const <Sale>[];
-                final unpaid = _unpaidInvoices(allInvoices, sales);
-                if (unpaid.isEmpty) return const SizedBox.shrink();
-
-                final selTotal = _selectedTotal(unpaid);
-                final allSelected = unpaid.every(
-                    (inv) => _selectedInvoiceIds.contains(inv.id));
-
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: Colors.black.withValues(alpha: 0.05)),
-                    boxShadow: [AppColors.cardShadow],
-                  ),
-                  child: Theme(
-                    data: Theme.of(context)
-                        .copyWith(dividerColor: Colors.transparent),
-                    child: ExpansionTile(
-                      tilePadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
-                      leading: Icon(LucideIcons.fileText,
-                          size: 14, color: AppColors.primary),
-                      title: Text(
-                        'APPLY TO INVOICES (OPTIONAL)',
-                        style: AppText.label.copyWith(fontWeight: FontWeight.w800,
-                          letterSpacing: 1.5,
-                          color: AppColors.inkPrimary),
-                      ),
-                      iconColor: AppColors.inkSecondary,
-                      collapsedIconColor: AppColors.inkTertiary,
-                      children: [
-                        // Divider + select all
-                        Container(
-                          height: 1,
-                          color: Colors.black.withValues(alpha: 0.05),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                          child: Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
+                              Text(Money.inr(outstanding.abs()),
+                                  style: Bl.tight(20,
+                                      w: FontWeight.w700,
+                                      ls: -0.02,
+                                      c: outstanding > 0.5
+                                          ? Bl.redDeep
+                                          : Bl.ink)),
                               Text(
-                                '${unpaid.length} unpaid bill${unpaid.length == 1 ? '' : 's'}',
-                                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    if (allSelected) {
-                                      _selectedInvoiceIds = {};
-                                    } else {
-                                      _selectedInvoiceIds = unpaid
-                                          .map((inv) => inv.id)
-                                          .toSet();
-                                    }
-                                  });
-                                },
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: Text(
-                                  allSelected ? 'Deselect All' : 'Select All',
-                                  style: AppText.label.copyWith(color: AppColors.primary),
-                                ),
-                              ),
+                                  outstanding > 0.5
+                                      ? 'owes you'
+                                      : outstanding < -0.5
+                                          ? 'paid in advance'
+                                          : 'settled',
+                                  style: Bl.inter(11.5,
+                                      c: const Color(0xFF7A8088))),
                             ],
                           ),
-                        ),
+                        ],
+                      ),
+                    ),
 
-                        // Invoice rows
-                        ...unpaid.map((inv) {
-                          final checked =
-                              _selectedInvoiceIds.contains(inv.id);
-                          return CheckboxListTile(
-                            value: checked,
-                            onChanged: (v) {
-                              setState(() {
-                                if (v == true) {
-                                  _selectedInvoiceIds.add(inv.id);
-                                } else {
-                                  _selectedInvoiceIds.remove(inv.id);
-                                }
-                              });
-                            },
-                            activeColor: AppColors.primary,
-                            checkColor: Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 0),
-                            title: Text(
-                              inv.displayNumber,
-                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                color: AppColors.inkPrimary),
-                            ),
-                            subtitle: Text(
-                              inv.dueDate != null
-                                  ? 'Due ${_formatDate(inv.dueDate!)}'
-                                  : 'No due date',
-                              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                            ),
-                            secondary: Text(
-                              '₹${inv.outstanding.toStringAsFixed(2)}',
-                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                color: AppColors.danger),
-                            ),
-                          );
-                        }),
-
-                        // Summary
-                        if (_selectedInvoiceIds.isNotEmpty) ...[
-                          Container(
-                            height: 1,
-                            color: Colors.black.withValues(alpha: 0.05),
-                          ),
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 10),
-                            child: Row(
+                    // ── Amount and date ──────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 13,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(LucideIcons.checkCircle,
-                                    size: 14, color: AppColors.success),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Selected: ${_selectedInvoiceIds.length} '
-                                  'invoice${_selectedInvoiceIds.length == 1 ? '' : 's'} '
-                                  '· ₹${selTotal.toStringAsFixed(2)}',
-                                  style: AppText.label.copyWith(color: AppColors.inkSecondary),
+                                Text('Amount received',
+                                    style: Bl.tight(13,
+                                        w: FontWeight.w600,
+                                        ls: 0,
+                                        c: Bl.ink3)),
+                                const SizedBox(height: 6),
+                                Container(
+                                  height: 50,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14),
+                                  decoration: BoxDecoration(
+                                    color: Bl.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border:
+                                        Border.all(color: Bl.brand, width: 2),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Text('₹ ',
+                                          style: Bl.tight(15.5,
+                                              w: FontWeight.w600, ls: 0)),
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _amountController,
+                                          keyboardType: const TextInputType
+                                              .numberWithOptions(
+                                              decimal: true),
+                                          cursorColor: Bl.brand,
+                                          onChanged: (_) => setState(() {}),
+                                          style: Bl.tight(15.5,
+                                              w: FontWeight.w600, ls: 0),
+                                          decoration: InputDecoration(
+                                            isCollapsed: true,
+                                            filled: false,
+                                            border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            hintText: '0',
+                                            hintStyle: Bl.tight(15.5,
+                                                w: FontWeight.w500,
+                                                ls: 0,
+                                                c: const Color(0xFFA8ADB4)),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 10,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Date',
+                                    style: Bl.tight(13,
+                                        w: FontWeight.w600,
+                                        ls: 0,
+                                        c: Bl.ink3)),
+                                const SizedBox(height: 6),
+                                Semantics(
+                                  button: true,
+                                  label: 'Date, ${_formatDate(_date)}',
+                                  excludeSemantics: true,
+                                  child: BlTap(
+                                    onTap: _pickDate,
+                                    child: Container(
+                                      height: 50,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14),
+                                      decoration: BoxDecoration(
+                                          color: Bl.wellSoft,
+                                          borderRadius:
+                                              BorderRadius.circular(14)),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              alignment:
+                                                  Alignment.centerLeft,
+                                              child: Text(
+                                                  _formatDate(_date),
+                                                  style: Bl.tight(15.5,
+                                                      w: FontWeight.w600,
+                                                      ls: 0)),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          const BlIcon(
+                                              '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+                                              size: 16,
+                                              color: Color(0xFF7A8088)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                         ],
-                        const SizedBox(height: 8),
-                      ],
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
+                    if (outstanding > 0)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 1, 18, 0),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: BlTap(
+                            label: 'Fill the full amount owed',
+                            onTap: () => setState(() =>
+                                _amountController.text =
+                                    outstanding.toStringAsFixed(2)),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 7),
+                              child: Container(
+                                height: 30,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF8EC),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                      color: const Color(0xFFF0C48A)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('Full ${Money.inr(outstanding)}',
+                                        style: Bl.tight(12.5,
+                                            w: FontWeight.w600,
+                                            ls: 0,
+                                            c: const Color(0xFFB86A0A))),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
 
-            const SizedBox(height: 16),
+                    // ── How it was paid ──────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 7, 18, 0),
+                      child: Row(
+                        children: [
+                          for (final (key, label, icon) in _methods) ...[
+                            if (key != 'CASH') const SizedBox(width: 8),
+                            Expanded(
+                              child: Semantics(
+                                button: true,
+                                selected: _method == key,
+                                label: label,
+                                excludeSemantics: true,
+                                child: BlTap(
+                                  onTap: () => setState(() => _method = key),
+                                  child: Container(
+                                    height: 64,
+                                    decoration: BoxDecoration(
+                                        color: _method == key
+                                            ? Bl.brand
+                                            : Bl.wellSoft,
+                                        borderRadius:
+                                            BorderRadius.circular(14)),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        BlIcon(icon,
+                                            size: 20,
+                                            color: _method == key
+                                                ? Bl.white
+                                                : Bl.ink3),
+                                        const SizedBox(height: 5),
+                                        Text(label,
+                                            style: Bl.tight(12.5,
+                                                w: FontWeight.w600,
+                                                ls: 0,
+                                                c: _method == key
+                                                    ? Bl.white
+                                                    : Bl.ink3)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: BlField(
+                        label: 'Notes (optional)',
+                        hint: 'e.g. cheque number',
+                        controller: _notesController,
+                        capitalization: TextCapitalization.sentences,
+                      ),
+                    ),
+
+                    // ── Which bills it pays ──────────────────────────────
+                    if (unpaid.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 10, 10, 0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                                child: Text('APPLY TO BILLS (OPTIONAL)',
+                                    style: Bl.eyebrow)),
+                            BlTap(
+                              onTap: () => setState(() {
+                                _selectedInvoiceIds = allSelected
+                                    ? {}
+                                    : unpaid.map((inv) => inv.id).toSet();
+                              }),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 10),
+                                child: Text(
+                                    allSelected
+                                        ? 'Clear all'
+                                        : 'Select all',
+                                    style: Bl.tight(12.5,
+                                        w: FontWeight.w600,
+                                        ls: 0,
+                                        c: const Color(0xFFB86A0A))),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      for (var i = 0; i < unpaid.length; i++)
+                        () {
+                          final inv = unpaid[i];
+                          final on = _selectedInvoiceIds.contains(inv.id);
+                          final days = _daysOld(inv.invoiceDate);
+                          return Semantics(
+                            checked: on,
+                            label:
+                                '${inv.displayNumber}, ${Money.inr(inv.outstanding)}',
+                            excludeSemantics: true,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => setState(() {
+                                if (on) {
+                                  _selectedInvoiceIds.remove(inv.id);
+                                } else {
+                                  _selectedInvoiceIds.add(inv.id);
+                                }
+                              }),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 18, vertical: 10),
+                                decoration: i == unpaid.length - 1
+                                    ? null
+                                    : const BoxDecoration(
+                                        border: Border(
+                                            bottom:
+                                                BorderSide(color: Bl.sep))),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 22,
+                                      height: 22,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: on ? Bl.brand : null,
+                                        borderRadius:
+                                            BorderRadius.circular(7),
+                                        border: on
+                                            ? null
+                                            : Border.all(
+                                                width: 1.5,
+                                                color: const Color(
+                                                    0xFFCFCFCF)),
+                                      ),
+                                      child: on
+                                          ? const BlIcon(BlIcons.check,
+                                              size: 13,
+                                              color: Bl.white,
+                                              stroke: 3)
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(inv.displayNumber,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: Bl.tight(14,
+                                                  w: FontWeight.w600)),
+                                          const SizedBox(height: 1),
+                                          Text(
+                                              inv.dueDate != null
+                                                  ? 'Due ${_formatDate(inv.dueDate!)}'
+                                                  : 'No due date',
+                                              style: Bl.inter(12,
+                                                  c: const Color(
+                                                      0xFF7A8088))),
+                                        ],
+                                      ),
+                                    ),
+                                    days > 60
+                                        ? BlStatusPill.red('$days days')
+                                        : days > 30
+                                            ? BlStatusPill.yellow(
+                                                '$days days')
+                                            : BlStatusPill.green(
+                                                '$days days'),
+                                    const SizedBox(width: 10),
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                          minWidth: 58),
+                                      child: Text(
+                                          Money.inr(inv.outstanding),
+                                          textAlign: TextAlign.right,
+                                          style: Bl.tight(14,
+                                              w: FontWeight.w600)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }(),
+                      if (_selectedInvoiceIds.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 6, 18, 0),
+                          child: Text(
+                              'Ticked bills come to ${Money.inr(_selectedTotal(unpaid))}.',
+                              style: Bl.inter(12, c: Bl.mute)),
+                        ),
+                    ],
+
+                    // ── What this leaves ─────────────────────────────────
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFECEBE9)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text('Receiving now',
+                                    style: Bl.inter(13,
+                                        w: FontWeight.w500)),
+                              ),
+                              Text(Money.inr(amount),
+                                  style: Bl.inter(13,
+                                      w: FontWeight.w600,
+                                      c: const Color(0xFF17663A))),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text('Still due after this',
+                                    style: Bl.inter(13,
+                                        w: FontWeight.w600,
+                                        c: after > 0
+                                            ? const Color(0xFFB86A0A)
+                                            : const Color(0xFF17663A))),
+                              ),
+                              Text(Money.inr(after),
+                                  style: Bl.inter(13,
+                                      w: FontWeight.w600,
+                                      c: after > 0
+                                          ? const Color(0xFFB86A0A)
+                                          : const Color(0xFF17663A))),
+                            ],
+                          ),
+                          if (amount > outstanding + 0.005 && outstanding >= 0)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text('Kept as advance',
+                                        style: Bl.inter(13,
+                                            w: FontWeight.w500)),
+                                  ),
+                                  Text(Money.inr(amount - outstanding),
+                                      style: Bl.inter(13,
+                                          w: FontWeight.w600, c: Bl.ink)),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+              child: BlSlide(
+                _isLoading
+                    ? 'Recording'
+                    : amount > 0
+                        ? 'Slide to record ${Money.inr(amount)}'
+                        : 'Enter the amount received',
+                enabled: amount > 0 && !_isLoading,
+                onConfirmed: _submit,
+              ),
+            ),
           ],
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _submit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryContainer,
-              foregroundColor: AppColors.inkPrimary,
-              disabledBackgroundColor:
-                  AppColors.primaryContainer.withValues(alpha: 0.4),
-              elevation: 0,
-              minimumSize: const Size.fromHeight(56),
-              shape: const StadiumBorder(),
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        color: AppColors.inkPrimary, strokeWidth: 2.5),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(LucideIcons.checkCircle, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        'RECORD PAYMENT',
-                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                          letterSpacing: 1),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Client summary card ──────────────────────────────────────────────────────
-
-class _ClientSummaryCard extends StatelessWidget {
-  final Client client;
-  final double outstanding;
-  final int unpaidCount;
-
-  const _ClientSummaryCard({
-    required this.client,
-    required this.outstanding,
-    required this.unpaidCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: avatarBg(client.name),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              initials(client.name),
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: avatarColor(client.name),
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          // Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  client.name ?? 'Unknown Client',
-                  style: GoogleFonts.manrope(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$unpaidCount unpaid bill${unpaidCount == 1 ? '' : 's'}',
-                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                ),
-              ],
-            ),
-          ),
-          // Outstanding balance
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '₹${outstanding.abs().toStringAsFixed(2)}',
-                style: GoogleFonts.manrope(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: outstanding > 0 ? AppColors.danger : AppColors.success,
-                ),
-              ),
-              Text(
-                outstanding < 0 ? 'advance' : 'outstanding',
-                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Section card wrapper ─────────────────────────────────────────────────────
-
-class _SectionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final List<Widget> children;
-
-  const _SectionCard({
-    required this.icon,
-    required this.title,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            decoration: BoxDecoration(
-              border: Border(
-                  bottom: BorderSide(
-                      color: Colors.black.withValues(alpha: 0.05))),
-            ),
-            child: Row(
-              children: [
-                Icon(icon, size: 14, color: AppColors.primary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: AppText.label.copyWith(fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5,
-                    color: AppColors.inkPrimary),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: children,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Field label ──────────────────────────────────────────────────────────────
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-  final bool required;
-  const _FieldLabel({required this.text, this.required = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6, left: 2),
-      child: RichText(
-        text: TextSpan(children: [
-          TextSpan(
-            text: text.toUpperCase(),
-            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-              color: AppColors.inkTertiary,
-              letterSpacing: 1),
-          ),
-          if (required)
-            TextSpan(
-              text: ' *',
-              style: AppText.label.copyWith(fontWeight: FontWeight.w900,
-                color: AppColors.primary),
-            ),
-        ]),
-      ),
-    );
-  }
-}
-
-// ─── Payment method selector ──────────────────────────────────────────────────
-
-class _MethodSelector extends StatelessWidget {
-  final String selected;
-  final ValueChanged<String> onChanged;
-
-  const _MethodSelector({
-    required this.selected,
-    required this.onChanged,
-  });
-
-  static const methods = ['CASH', 'BANK', 'UPI', 'CHEQUE'];
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: methods.map((m) {
-        final isSelected = m == selected;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(
-                right: m == methods.last ? 0 : 8),
-            child: AppTappable(
-   ripple: false,
-              onTap: () => onChanged(m),
-              child: AnimatedContainer(
-                duration: Motion.durationOf(context, const Duration(milliseconds: 140)),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primaryContainer
-                      : AppColors.canvas,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isSelected
-                        ? AppColors.primaryContainer
-                        : Colors.black.withValues(alpha: 0.1),
-                    width: 1.5,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  m,
-                  style: AppText.label.copyWith(fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                    color: isSelected
-                        ? AppColors.inkPrimary
-                        : AppColors.inkSecondary),
-                ),
-              ),
- ),
-          ),
-        );
-      }).toList(),
     );
   }
 }
