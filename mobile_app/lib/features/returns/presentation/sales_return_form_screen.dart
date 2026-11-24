@@ -605,6 +605,7 @@ class _SalesReturnFormScreenState
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
