@@ -19,6 +19,7 @@ import 'package:mobile_app/core/database/unsynced_sales.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/features/dashboard/presentation/widgets/dash_common.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider, databaseProvider;
 
 /// Online as the outbox's own transport sees it (so tests can fake it).
@@ -121,9 +122,9 @@ class UnsyncedSalesSheet extends ConsumerStatefulWidget {
         context: context,
         isScrollControlled: true,
         useRootNavigator: true,
-        backgroundColor: AppColors.canvas,
-        shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        // The sheet floats, rounded on all corners, and draws its own card.
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         builder: (_) => const UnsyncedSalesSheet(),
       );
 
@@ -167,6 +168,7 @@ class _UnsyncedSalesSheetState extends ConsumerState<UnsyncedSalesSheet> {
     if (ok == true) await ref.read(syncServiceProvider).discardJob(op.jobId);
   }
 
+  // Laid out to the approved board "Sales on this phone" (sales-11).
   @override
   Widget build(BuildContext context) {
     final online = ref.watch(syncOnlineProvider).valueOrNull ?? true;
@@ -174,72 +176,127 @@ class _UnsyncedSalesSheetState extends ConsumerState<UnsyncedSalesSheet> {
     final refused = ops.where((o) => o.state == UnsyncedState.refused).toList();
     final pending = ops.where((o) => o.state == UnsyncedState.pending).toList();
     final otherRefused = (ref.watch(refusedJobCountProvider).valueOrNull ?? 0) - refused.length;
+    final mq = MediaQuery.of(context);
+    final canSync = online && !_syncing && pending.isNotEmpty;
 
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.75,
-      maxChildSize: 0.95,
-      minChildSize: 0.4,
-      builder: (_, ctrl) => ListView(
-        controller: ctrl,
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+    final status = online
+        ? (pending.isEmpty
+            ? 'Online · everything rung on this phone has reached the server'
+            : 'Online · ${pending.length} waiting to send, in the order they were made')
+        : 'Offline · keep selling. Bills are saved on this phone and sent '
+            'automatically when the internet is back';
+
+    return Container(
+      margin: EdgeInsets.fromLTRB(8, 0, 8, 8 + mq.padding.bottom),
+      constraints: BoxConstraints(
+          maxHeight: mq.size.height - mq.padding.top - mq.padding.bottom - 24),
+      decoration: BoxDecoration(
+        color: DashColors.card,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(
-            child: Container(width: 40, height: 4,
-                decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(2))),
-          ),
-          const SizedBox(height: 16),
-          Text('Sales on this phone', style: AppText.title),
+          Text('Sales on this phone', style: DashText.tight(19, ls: -0.02)),
           const SizedBox(height: 4),
-          Text(
-            online
-                ? (pending.isEmpty
-                    ? 'Online. Everything rung on this phone has reached the server.'
-                    : 'Online. ${pending.length} waiting to send, in the order they were made.')
-                : 'Offline. Keep selling: bills are saved on this phone and sent '
-                    'automatically when the internet is back.',
-            style: AppText.caption,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: online
+                        ? const Color(0xFF1E9E5A)
+                        : const Color(0xFF8A9099),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(status,
+                    style: DashText.inter(12.5, c: const Color(0xFF6E737A))),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              key: const Key('sync-now'),
-              onPressed: (!online || _syncing || pending.isEmpty) ? null : _syncNow,
-              icon: _syncing
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.sync, size: 18),
-              label: Text(online ? 'Sync now' : 'Sync now (needs internet)'),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.only(top: 12),
+              children: [
+                for (final op in refused)
+                  _RefusedCard(
+                    op: op,
+                    onRetry: online
+                        ? () => ref.read(syncServiceProvider).retryJob(op.jobId)
+                        : null,
+                    onDiscard: () => _discard(op),
+                  ),
+                if (otherRefused > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      '$otherRefused other change${otherRefused == 1 ? '' : 's'} refused. '
+                      'See Settings › Sync diagnostics.',
+                      style: DashText.inter(12, c: const Color(0xFFB91C1C)),
+                    ),
+                  ),
+                if (pending.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, bottom: 8),
+                    child: Text('Waiting to sync',
+                        style: DashText.tight(12.5, w: FontWeight.w600, ls: 0)),
+                  ),
+                  for (final op in pending) _PendingRow(op: op),
+                ],
+                if (ops.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    child: Center(
+                        child: Text('Nothing waiting.',
+                            style: DashText.inter(13))),
+                  ),
+              ],
             ),
           ),
-          if (refused.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Text('Refused by the server — not in the books',
-                style: AppText.label.copyWith(color: AppColors.error, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            for (final op in refused)
-              _RefusedCard(
-                op: op,
-                onRetry: online ? () => ref.read(syncServiceProvider).retryJob(op.jobId) : null,
-                onDiscard: () => _discard(op),
+          const SizedBox(height: 14),
+          Opacity(
+            opacity: canSync ? 1 : 0.45,
+            child: GestureDetector(
+              key: const Key('sync-now'),
+              behavior: HitTestBehavior.opaque,
+              onTap: canSync ? _syncNow : null,
+              child: Container(
+                height: 52,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: DashColors.amber,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_syncing) ...[
+                      const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white)),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(online ? 'Sync now' : 'Sync now (needs internet)',
+                        style: DashText.tight(15.5, c: Colors.white)),
+                  ],
+                ),
               ),
-          ],
-          if (otherRefused > 0) ...[
-            const SizedBox(height: 8),
-            Text('$otherRefused other change${otherRefused == 1 ? '' : 's'} refused — '
-                'see Settings › Sync diagnostics.',
-                style: AppText.caption.copyWith(color: AppColors.error)),
-          ],
-          if (pending.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Text('Waiting to sync', style: AppText.label.copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            for (final op in pending) _PendingRow(op: op),
-          ],
-          if (ops.isEmpty) ...[
-            const SizedBox(height: 24),
-            Center(child: Text('Nothing waiting.', style: AppText.caption)),
-          ],
+            ),
+          ),
         ],
       ),
     );
@@ -251,10 +308,14 @@ String _what(UnsyncedOp op) => op.rpcName == 'process_sale' ? 'Bill ${op.opId}' 
 double _amount(UnsyncedOp op) =>
     ((op.payload['p_total_amount'] ?? op.payload['p_amount']) as num?)?.toDouble() ?? 0;
 
+/// "22 Nov, 4:10 pm", the one date form the app uses.
 String _when(DateTime d) {
   final l = d.toLocal();
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${two(l.day)}/${two(l.month)} ${two(l.hour)}:${two(l.minute)}';
+  const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+             'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  final h12 = l.hour % 12 == 0 ? 12 : l.hour % 12;
+  final min = l.minute.toString().padLeft(2, '0');
+  return '${l.day} ${m[l.month - 1]}, $h12:$min ${l.hour < 12 ? 'am' : 'pm'}';
 }
 
 class _RefusedCard extends StatelessWidget {
@@ -263,43 +324,92 @@ class _RefusedCard extends StatelessWidget {
   final VoidCallback onDiscard;
   const _RefusedCard({required this.op, required this.onRetry, required this.onDiscard});
 
+  Widget _button(String label,
+      {required VoidCallback? onTap, required Color fill, required Color ink}) {
+    return Opacity(
+      opacity: onTap == null ? 0.45 : 1,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+              color: fill, borderRadius: BorderRadius.circular(999)),
+          child: Text(label,
+              style: DashText.tight(14.5, w: FontWeight.w600, c: ink, ls: 0)),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final info = describeRefusal(op.lastError, rpcName: op.rpcName);
+    const red = Color(0xFFB91C1C);
     return Container(
       key: Key('refused-${op.jobId}'),
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
       decoration: BoxDecoration(
-        color: AppColors.errorContainer,
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFFFF7F7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF5C2C2)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(child: Text(_what(op), style: AppText.bodyStrong)),
-          Text(Money.inrExact(_amount(op)), style: AppText.money),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+                color: const Color(0xFFFDE2E2),
+                borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.warning_amber_rounded, size: 18, color: red),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Refused by the server · not in the books',
+                  style: DashText.tight(14.5, w: FontWeight.w600, c: red, ls: 0)),
+              const SizedBox(height: 6),
+              Row(children: [
+                Expanded(
+                    child: Text(_what(op),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: DashText.tight(13.5, w: FontWeight.w600, ls: 0))),
+                const SizedBox(width: 8),
+                Text(Money.inrExact(_amount(op)),
+                    style: DashText.tight(13.5, w: FontWeight.w600, ls: 0)),
+              ]),
+              const SizedBox(height: 4),
+              Text(info.title,
+                  style: DashText.inter(13,
+                      w: FontWeight.w600, c: const Color(0xFF30343A))),
+              const SizedBox(height: 1),
+              Text(info.reason,
+                  style: DashText.inter(13, c: const Color(0xFF30343A))),
+              const SizedBox(height: 4),
+              Text(info.whatToDo,
+                  style: DashText.inter(12,
+                      w: FontWeight.w400, c: const Color(0xFF6E737A))),
+              const SizedBox(height: 2),
+              Text('Rung ${_when(op.createdAt)}',
+                  style: DashText.inter(12,
+                      w: FontWeight.w400, c: const Color(0xFF7A8088))),
+            ]),
+          ),
         ]),
-        Text('Rung ${_when(op.createdAt)}', style: AppText.caption),
-        const SizedBox(height: 8),
-        Text(info.title,
-            style: AppText.label.copyWith(color: AppColors.onErrorContainer, fontWeight: FontWeight.w800)),
-        Text(info.reason, style: AppText.caption.copyWith(color: AppColors.onErrorContainer)),
-        const SizedBox(height: 6),
-        Text(info.whatToDo, style: AppText.caption),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Row(children: [
           Expanded(
-            child: OutlinedButton(
-              onPressed: onDiscard,
-              child: const Text('Discard'),
-            ),
+            child: _button('Discard',
+                onTap: onDiscard, fill: const Color(0xFFEFEEEC), ink: red),
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: FilledButton(
-              onPressed: onRetry,
-              child: Text(onRetry == null ? 'Retry (offline)' : 'Retry'),
-            ),
+            child: _button(onRetry == null ? 'Retry (offline)' : 'Retry',
+                onTap: onRetry, fill: DashColors.amber, ink: Colors.white),
           ),
         ]),
       ]),
@@ -314,24 +424,44 @@ class _PendingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final err = op.lastError;
-    return Padding(
+    return Container(
       key: Key('pending-${op.jobId}'),
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      decoration: BoxDecoration(
+        color: DashColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE6E5E3)),
+      ),
       child: Row(children: [
-        const Icon(Icons.schedule, size: 18, color: AppColors.warning),
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+              color: const Color(0xFFFFF1C9),
+              borderRadius: BorderRadius.circular(10)),
+          child: const Icon(Icons.schedule, size: 17, color: Color(0xFF8A5A00)),
+        ),
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_what(op), style: AppText.bodyStrong),
+            Text(_what(op),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: DashText.tight(14.5, w: FontWeight.w600, ls: 0)),
+            const SizedBox(height: 1),
             Text(
               err != null && err.startsWith('Sign in again')
                   ? 'Rung ${_when(op.createdAt)} · sign in again to send'
                   : 'Rung ${_when(op.createdAt)} · not synced yet',
-              style: AppText.caption,
+              style: DashText.inter(12,
+                  w: FontWeight.w400, c: const Color(0xFF7A8088)),
             ),
           ]),
         ),
-        Text(Money.inrExact(_amount(op)), style: AppText.money),
+        const SizedBox(width: 8),
+        Text(Money.inrExact(_amount(op)),
+            style: DashText.tight(14.5, w: FontWeight.w600, ls: 0)),
       ]),
     );
   }
