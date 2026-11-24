@@ -341,28 +341,6 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
   }
 }
 
-Color orderStatusColor(String status) {
-  switch (status.toUpperCase()) {
-    case 'RECEIVED':  return AppColors.success;
-    case 'ORDERED':   return AppColors.primary;
-    case 'PENDING':   return AppColors.warning;
-    case 'CANCELLED': return AppColors.inkTertiary;
-    default:          return AppColors.inkSecondary;
-  }
-}
-
-Color orderStatusBg(String status) {
-  switch (status.toUpperCase()) {
-    case 'RECEIVED':  return AppColors.success.withValues(alpha: 0.12);
-    case 'ORDERED':   return AppColors.primaryContainer.withValues(alpha: 0.35);
-    case 'PENDING':   return AppColors.warning.withValues(alpha: 0.12);
-    case 'CANCELLED': return AppColors.surfaceContainer;
-    default:          return const Color(0xFFE2E8F0);
-  }
-}
-
-// ─── Stat card ────────────────────────────────────────────────────────────────
-
 class _PurchaseCard extends StatelessWidget {
   final Purchase purchase;
   final String Function(String?) fmtDate;

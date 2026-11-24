@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/core/utils/money.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
-import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
 import 'package:mobile_app/features/returns/presentation/purchase_return_form_screen.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
-import 'package:mobile_app/widgets/motion/copy_button.dart';
 
 class PurchaseDetailScreen extends ConsumerWidget {
   final Purchase purchase;
@@ -31,7 +28,6 @@ class PurchaseDetailScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Marked as ${newStatus.toLowerCase()}'),
-            backgroundColor: AppColors.secondary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -41,8 +37,9 @@ class PurchaseDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Status update failed: $e'),
-            backgroundColor: AppColors.danger,
+            content: Text(
+                'The order may not have changed. Check it before trying again. ($e)'),
+            backgroundColor: Bl.redDeep,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 6),
           ),
@@ -61,645 +58,360 @@ class PurchaseDetailScreen extends ConsumerWidget {
     } catch (_) { return d; }
   }
 
+  Widget _line(String k, String v, {VoidCallback? onTap}) {
+    final row = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 11),
+      decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Bl.sep))),
+      child: Row(
+        children: [
+          Text(k,
+              style: Bl.inter(13.5,
+                  w: FontWeight.w500, c: const Color(0xFF7A8088))),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(v,
+                textAlign: TextAlign.right,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Bl.inter(13.5, w: FontWeight.w600, c: Bl.ink)),
+          ),
+        ],
+      ),
+    );
+    return onTap == null ? row : BlTap(onTap: onTap, child: row);
+  }
+
+  Widget _outline(String label, VoidCallback onTap, {bool danger = false}) =>
+      Expanded(
+        child: BlTap(
+          label: label,
+          onTap: onTap,
+          child: Container(
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                  color: danger
+                      ? const Color(0xFFF2B8B8)
+                      : const Color(0xFFDADADA)),
+            ),
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Bl.tight(13,
+                    w: FontWeight.w600,
+                    ls: 0,
+                    c: danger ? Bl.redDeep : Bl.ink3)),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status      = purchase.resolvedStatus;
-    final statusColor = orderStatusColor(status);
-    final statusBg    = orderStatusBg(status);
+    final status = purchase.resolvedStatus;
+    final name = purchase.supplierName ?? 'Unknown Supplier';
+    final cancelled = status == 'CANCELLED';
+    final pill = switch (status) {
+      'RECEIVED' => const BlStatusPill.green('Received'),
+      'ORDERED' => const BlStatusPill.yellow('Ordered'),
+      'CANCELLED' => const BlStatusPill.red('Cancelled'),
+      _ => const BlStatusPill.grey('Pending'),
+    };
+
+    // The one obvious next step goes on the big button; the rest sit above it.
+    final (String? primaryLabel, String? primaryTarget) = switch (status) {
+      'PENDING' => ('Mark ordered', 'ORDERED'),
+      'ORDERED' => ('Mark received', 'RECEIVED'),
+      'CANCELLED' => ('Restore order', 'ORDERED'),
+      _ => (null, null),
+    };
+    final upperStatus = purchase.status?.toUpperCase();
+    final showReturn = upperStatus == null ||
+        upperStatus == 'RECEIVED' ||
+        upperStatus == 'COMPLETED';
+
+    void openReturn() => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PurchaseReturnFormScreen(purchase: purchase),
+          ),
+        );
+
+    final secondary = <Widget>[
+      if (!cancelled && status != 'PENDING')
+        _outline('Mark pending', () => _updateStatus(context, ref, 'PENDING')),
+      if (!cancelled && status != 'ORDERED' && primaryTarget != 'ORDERED')
+        _outline('Mark ordered', () => _updateStatus(context, ref, 'ORDERED')),
+      if (!cancelled && status != 'RECEIVED' && primaryTarget != 'RECEIVED')
+        _outline(
+            'Mark received', () => _updateStatus(context, ref, 'RECEIVED')),
+      if (showReturn && primaryLabel != null)
+        _outline('Process return', openReturn),
+      if (!cancelled)
+        _outline('Cancel', () => _updateStatus(context, ref, 'CANCELLED'),
+            danger: true),
+    ];
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
-      body: CustomScrollView(
-        slivers: [
-          // ── App bar ──────────────────────────────────────────────────────
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: AppColors.canvas,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            leading: Padding(
-              padding: const EdgeInsets.all(8),
-              child: AppTappable(
-   ripple: false,
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [AppColors.cardShadow],
-                  ),
-                  child: const Icon(LucideIcons.arrowLeft,
-                      size: 20, color: AppColors.inkPrimary),
-                ),
- ),
-            ),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  purchase.poNumber,
-                  style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
-                    color: AppColors.inkPrimary,
-                    letterSpacing: 0.5),
-                ),
-                Text(
-                  'PURCHASE ORDER',
-                  style: AppText.label.copyWith(color: AppColors.inkTertiary,
-                    letterSpacing: 1.5),
-                ),
-              ],
-            ),
-            actions: [
-              // Copy PO number
-              Padding(
-                padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [AppColors.cardShadow],
-                  ),
-                  child: CopyButton(
-                    text: purchase.poNumber,
-                    size: 16,
-                    color: AppColors.inkSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // ── Body ─────────────────────────────────────────────────────────
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-
-                // ── Hero PO card ─────────────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+      backgroundColor: Bl.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            const BlBackHeader(title: 'Purchase Order'),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: BlEntrance.all([
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+                      child: Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(LucideIcons.clipboardList,
-                                size: 20, color: Colors.white),
-                          ),
+                          BlTintAvatar(name, size: 44),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Text(name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        Bl.tight(16, w: FontWeight.w600)),
+                                const SizedBox(height: 1),
                                 Text(
-                                  purchase.poNumber,
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                                Text(
-                                  'Order Date: ${_fmtDate(purchase.date)}',
-                                  style: AppText.caption.copyWith(color: Colors.white.withValues(alpha: 0.7)),
-                                ),
+                                    '${purchase.poNumber} · ${_fmtDate(purchase.date)}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Bl.inter(12.5,
+                                        c: const Color(0xFF7A8088))),
                               ],
                             ),
                           ),
-                          // Status badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: statusBg,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              status,
-                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                color: statusColor),
-                            ),
-                          ),
+                          const SizedBox(width: 8),
+                          pill,
                         ],
                       ),
-                      const SizedBox(height: 20),
-                      // Divider line
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Order total',
+                              style: Bl.inter(13, w: FontWeight.w500)),
+                          const SizedBox(height: 6),
+                          Text(
+                            Money.inr(purchase.totalAmount),
+                            style: Bl.tight(36,
+                                    w: FontWeight.w700,
+                                    ls: -0.04,
+                                    h: 1.05,
+                                    c: cancelled
+                                        ? const Color(0xFF9AA0A6)
+                                        : Bl.ink)
+                                .copyWith(
+                                    decoration: cancelled
+                                        ? TextDecoration.lineThrough
+                                        : null),
+                          ),
+                          if (!cancelled && purchase.due > 0.5) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                                '${Money.inr(purchase.due)} still to pay the supplier',
+                                style: Bl.inter(12.5,
+                                    w: FontWeight.w600, c: Bl.amberDeep)),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (!cancelled)
+                      _StatusTimeline(status: status)
+                    else
                       Container(
-                          height: 1,
-                          color: Colors.white.withValues(alpha: 0.15)),
-                      const SizedBox(height: 20),
-                      // Amount
-                      Text(
-                        'Total Amount',
-                        style: AppText.caption.copyWith(color: Colors.white.withValues(alpha: 0.65)),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '₹${purchase.totalAmount.toStringAsFixed(2)}',
-                        style: GoogleFonts.manrope(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: -1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // ── Supplier info ────────────────────────────────────────
-                _SectionLabel(
-                    title: 'SUPPLIER', icon: LucideIcons.building2),
-                const SizedBox(height: 10),
-                _InfoCard(
-                  children: [
-                    _InfoRow(
-                      icon: LucideIcons.building2,
-                      label: 'Supplier Name',
-                      value: purchase.supplierName ?? 'Unknown Supplier',
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // ── Order details ────────────────────────────────────────
-                _SectionLabel(
-                    title: 'ORDER DETAILS', icon: LucideIcons.fileText),
-                const SizedBox(height: 10),
-                _InfoCard(
-                  children: [
-                    _InfoRow(
-                      icon: LucideIcons.hash,
-                      label: 'PO Number',
-                      value: purchase.poNumber,
-                    ),
-                    _InfoRow(
-                      icon: LucideIcons.calendar,
-                      label: 'Order Date',
-                      value: _fmtDate(purchase.date),
-                    ),
-                    if (purchase.deliveryDate != null)
-                      _InfoRow(
-                        icon: LucideIcons.truck,
-                        label: 'Est. Delivery',
-                        value: _fmtDate(purchase.deliveryDate),
-                      ),
-                    _InfoRow(
-                      icon: LucideIcons.activity,
-                      label: 'Status',
-                      value: status,
-                      valueWidget: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                        margin: const EdgeInsets.fromLTRB(18, 20, 18, 0),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                            color: Bl.redSoft,
+                            borderRadius: BorderRadius.circular(16)),
                         child: Text(
-                          status,
-                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                            color: statusColor),
-                        ),
+                            'This order was cancelled. Restore it to carry on.',
+                            style: Bl.inter(13,
+                                w: FontWeight.w500, c: Bl.redDeep)),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+                      child: Column(
+                        children: [
+                          if (purchase.deliveryDate != null)
+                            _line('Est. delivery',
+                                _fmtDate(purchase.deliveryDate)),
+                          _line('Order date', _fmtDate(purchase.date)),
+                          _line('PO number', purchase.poNumber, onTap: () {
+                            Clipboard.setData(
+                                ClipboardData(text: purchase.poNumber));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('PO number copied'),
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: Duration(seconds: 2)));
+                          }),
+                          _line('Supplier', name),
+                          _line(
+                              'Payment',
+                              (purchase.paymentType ?? 'CASH')
+                                          .toUpperCase() ==
+                                      'CASH'
+                                  ? 'Cash'
+                                  : (purchase.paymentType ?? '')
+                                              .toUpperCase() ==
+                                          'BANK'
+                                      ? 'Bank'
+                                      : 'Credit'),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // ── Amount summary ───────────────────────────────────────
-                _SectionLabel(
-                    title: 'AMOUNT SUMMARY', icon: LucideIcons.indianRupee),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [AppColors.cardShadow],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryContainer.withValues(alpha: 0.25),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(LucideIcons.indianRupee,
-                            size: 20, color: AppColors.primary),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    if (secondary.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                        child: Row(
                           children: [
-                            Text(
-                              'Order Total',
-                              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                            ),
-                            Text(
-                              '₹${purchase.totalAmount.toStringAsFixed(2)}',
-                              style: GoogleFonts.manrope(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.inkPrimary,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
+                            for (var i = 0; i < secondary.length; i++) ...[
+                              if (i > 0) const SizedBox(width: 8),
+                              secondary[i],
+                            ],
                           ],
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                              color: statusColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          status == 'RECEIVED' ? 'PAID' : 'UNPAID',
-                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                            color: statusColor),
-                        ),
-                      ),
-                    ],
-                  ),
+                  ]),
                 ),
-
-                const SizedBox(height: 24),
-
-                // ── Status timeline ──────────────────────────────────────
-                _SectionLabel(
-                    title: 'ORDER TIMELINE', icon: LucideIcons.gitBranch),
-                const SizedBox(height: 10),
-                _StatusTimeline(status: status),
-
-                const SizedBox(height: 16),
-
-                // ── Status actions ──────────────────────────────────────
-                Builder(builder: (_) {
-                  final actions = <_StatusAction>[];
-                  if (status != 'PENDING' && status != 'CANCELLED') {
-                    actions.add(_StatusAction(
-                      label: 'Mark Pending',
-                      icon: LucideIcons.clock,
-                      target: 'PENDING',
-                      color: AppColors.warning,
-                    ));
-                  }
-                  if (status != 'ORDERED' && status != 'CANCELLED') {
-                    actions.add(_StatusAction(
-                      label: 'Mark Ordered',
-                      icon: LucideIcons.send,
-                      target: 'ORDERED',
-                      color: AppColors.primary,
-                    ));
-                  }
-                  if (status != 'RECEIVED' && status != 'CANCELLED') {
-                    actions.add(_StatusAction(
-                      label: 'Mark Received',
-                      icon: LucideIcons.packageCheck,
-                      target: 'RECEIVED',
-                      color: AppColors.success,
-                    ));
-                  }
-                  if (status != 'CANCELLED') {
-                    actions.add(_StatusAction(
-                      label: 'Cancel',
-                      icon: LucideIcons.x,
-                      target: 'CANCELLED',
-                      color: AppColors.danger,
-                    ));
-                  } else {
-                    actions.add(_StatusAction(
-                      label: 'Restore',
-                      icon: LucideIcons.rotateCcw,
-                      target: 'ORDERED',
-                      color: AppColors.primary,
-                    ));
-                  }
-                  final upperStatus = purchase.status?.toUpperCase();
-                  final showReturn = upperStatus == null ||
-                      upperStatus == 'RECEIVED' ||
-                      upperStatus == 'COMPLETED';
-                  if (actions.isEmpty && !showReturn) return const SizedBox.shrink();
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (actions.isNotEmpty)
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: actions.map((a) => OutlinedButton.icon(
-                            icon: Icon(a.icon, size: 14, color: a.color),
-                            label: Text(
-                              a.label,
-                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                color: a.color),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              backgroundColor: a.color.withValues(alpha: 0.08),
-                              side: BorderSide(color: a.color.withValues(alpha: 0.4), width: 1.2),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              shape: const StadiumBorder(),
-                            ),
-                            onPressed: () => _updateStatus(context, ref, a.target),
-                          )).toList(),
-                        ),
-                      if (showReturn) ...[
-                        if (actions.isNotEmpty) const SizedBox(height: 8),
-                        OutlinedButton.icon(
-                          icon: const Icon(LucideIcons.rotateCcw, size: 14, color: AppColors.danger),
-                          label: Text(
-                            'Process Return',
-                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                              color: AppColors.danger),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: AppColors.danger.withValues(alpha: 0.08),
-                            side: BorderSide(color: AppColors.danger.withValues(alpha: 0.4), width: 1.2),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            shape: const StadiumBorder(),
-                          ),
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => PurchaseReturnFormScreen(purchase: purchase),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  );
-                }),
-              ]),
+              ),
             ),
-          ),
-        ],
+            if (primaryLabel != null || showReturn)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+                child: primaryLabel != null
+                    ? BlButton(primaryLabel,
+                        onTap: () =>
+                            _updateStatus(context, ref, primaryTarget!))
+                    : BlButton('Process return',
+                        kind: BlButtonKind.soft, onTap: openReturn),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _StatusAction {
-  final String label;
-  final IconData icon;
-  final String target;
-  final Color color;
-  const _StatusAction({
-    required this.label,
-    required this.icon,
-    required this.target,
-    required this.color,
-  });
-}
-
-// ─── Status timeline ──────────────────────────────────────────────────────────
+/// Placed → Ordered → Received, as three dots on a line.
 class _StatusTimeline extends StatelessWidget {
   final String status;
   const _StatusTimeline({required this.status});
 
   static const _steps = [
-    (label: 'Order Placed', sub: 'PO created', icon: LucideIcons.clipboardList),
-    (label: 'Ordered', sub: 'Sent to supplier', icon: LucideIcons.send),
-    (label: 'Received', sub: 'Goods received', icon: LucideIcons.packageCheck),
+    ('Placed', 'PO created'),
+    ('Ordered', 'Sent to supplier'),
+    ('Received', 'Goods received'),
   ];
 
-  int get _activeStep {
-    switch (status) {
-      case 'ORDERED': return 1;
-      case 'RECEIVED': return 2;
-      default: return 0; // PENDING
-    }
-  }
+  int get _active => switch (status) {
+        'ORDERED' => 1,
+        'RECEIVED' => 2,
+        _ => 0,
+      };
 
   @override
   Widget build(BuildContext context) {
-    final active = _activeStep;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: Column(
-        children: _steps.asMap().entries.map((entry) {
-          final i = entry.key;
-          final step = entry.value;
-          final done = i <= active;
-          final isLast = i == _steps.length - 1;
+    final active = _active;
+    const green = Color(0xFF1E9E5A);
+    Widget dot(int i) {
+      if (i < active || (i == active && active == _steps.length - 1)) {
+        return Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration:
+              const BoxDecoration(color: green, shape: BoxShape.circle),
+          child: const BlIcon(BlIcons.check,
+              size: 13, color: Bl.white, stroke: 3),
+        );
+      }
+      return Container(
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          color: Bl.white,
+          shape: BoxShape.circle,
+          border: i == active
+              ? Border.all(color: Bl.brand, width: 6)
+              : Border.all(color: const Color(0xFFD4D4D4), width: 2),
+        ),
+      );
+    }
 
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left: circle + line
-              Column(
+    return Semantics(
+      label: 'Order progress: ${_steps[active].$1}',
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(18, 20, 18, 0),
+        padding: const EdgeInsets.fromLTRB(6, 16, 6, 14),
+        decoration: BoxDecoration(
+            color: Bl.tile, borderRadius: BorderRadius.circular(16)),
+        child: Stack(
+          children: [
+            // The line behind the dots: green as far as the order has got.
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 10,
+              child: Row(
                 children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: done
-                          ? AppColors.primary
-                          : AppColors.surfaceContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      step.icon,
-                      size: 16,
-                      color: done ? Colors.white : AppColors.inkTertiary,
-                    ),
+                  const Spacer(flex: 1),
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                        height: 2,
+                        color: active >= 1 ? green : const Color(0xFFDCDCDC)),
                   ),
-                  if (!isLast)
-                    Container(
-                      width: 2,
-                      height: 32,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: BoxDecoration(
-                        color: done && i < active
-                            ? AppColors.primary
-                            : AppColors.outlineVariant,
-                        borderRadius: BorderRadius.circular(1),
-                      ),
-                    ),
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                        height: 2,
+                        color: active >= 2 ? green : const Color(0xFFDCDCDC)),
+                  ),
+                  const Spacer(flex: 1),
                 ],
               ),
-              const SizedBox(width: 14),
-              // Right: label
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                      top: 6, bottom: isLast ? 0 : 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        step.label,
-                        style: GoogleFonts.manrope(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: done
-                              ? AppColors.inkPrimary
-                              : AppColors.inkTertiary,
-                        ),
-                      ),
-                      Text(
-                        step.sub,
-                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (done && i == active)
-                Container(
-                  margin: const EdgeInsets.only(top: 6),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryContainer.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'CURRENT',
-                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                      letterSpacing: 1),
-                  ),
-                ),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-// ─── Shared widgets ───────────────────────────────────────────────────────────
-class _SectionLabel extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _SectionLabel({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 13, color: AppColors.inkTertiary),
-        const SizedBox(width: 6),
-        Text(
-          title,
-          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-            color: AppColors.inkTertiary,
-            letterSpacing: 1.3),
-        ),
-      ],
-    );
-  }
-}
-
-class _InfoCard extends StatelessWidget {
-  final List<_InfoRow> children;
-  const _InfoCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: Column(
-        children: children.asMap().entries.map((entry) {
-          final i = entry.key;
-          final row = entry.value;
-          return Column(
-            children: [
-              row,
-              if (i < children.length - 1)
-                Divider(
-                  height: 1,
-                  indent: 52,
-                  endIndent: 16,
-                  color: AppColors.outlineVariant.withValues(alpha: 0.5),
-                ),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Widget? valueWidget;
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueWidget,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainer,
-              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 16, color: AppColors.inkSecondary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
               children: [
-                Text(label,
-                    style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
-                const SizedBox(height: 2),
-                valueWidget ??
-                    Text(
-                      value,
-                      style: GoogleFonts.manrope(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.inkPrimary,
-                      ),
+                for (var i = 0; i < _steps.length; i++)
+                  Expanded(
+                    child: Column(
+                      children: [
+                        dot(i),
+                        const SizedBox(height: 6),
+                        Text(_steps[i].$1,
+                            style: Bl.tight(12.5,
+                                w: FontWeight.w600,
+                                ls: 0,
+                                c: i <= active
+                                    ? Bl.ink
+                                    : const Color(0xFF9AA0A6))),
+                        const SizedBox(height: 2),
+                        Text(_steps[i].$2,
+                            textAlign: TextAlign.center,
+                            style: Bl.inter(11, c: Bl.mute)),
+                      ],
                     ),
+                  ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
