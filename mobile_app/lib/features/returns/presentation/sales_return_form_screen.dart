@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/utils/units.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/utils/money.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/returns/presentation/providers/returns_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/theme/typography.dart';
 
 // ─── Item parse helper (mirrors _parseItems in invoice_detail_screen.dart) ────
 
@@ -212,14 +210,8 @@ class _SalesReturnFormScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-            'Return processed — stock restored',
-            style: GoogleFonts.manrope(
-                color: Colors.white, fontWeight: FontWeight.w600),
-          ),
-          backgroundColor: AppColors.success,
+            'Return processed. Stock restored.'),
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
         Navigator.pop(context);
       }
@@ -227,14 +219,10 @@ class _SalesReturnFormScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-            'Return failed: $e',
-            style: GoogleFonts.manrope(
-                color: Colors.white, fontWeight: FontWeight.w600),
-          ),
-          backgroundColor: AppColors.danger,
+            'Return may not have gone through. Check Returns before trying again. ($e)'),
+          backgroundColor: Bl.redDeep,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 8),
         ));
       }
     } finally {
@@ -259,460 +247,367 @@ class _SalesReturnFormScreenState
 
   // ── Build ──────────────────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    final invoice = widget.invoice;
-    final returnTotal = _returnTotal;
+  void _setQty(int i, double v) {
+    final max = _parsedItems[i].quantity.toDouble();
+    setState(() => _returnQtys[i] = v.clamp(0, max).toDouble());
+  }
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft,
-              size: 20, color: Color(0xFF1E293B)),
-          onPressed: () => Navigator.pop(context),
+  Widget _stepBtn(String icon, String label, bool primary, VoidCallback? onTap) =>
+      BlTap(
+        label: label,
+        onTap: onTap,
+        child: Container(
+          width: 30,
+          height: 30,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+              color: primary && onTap != null ? Bl.brand : Bl.white,
+              shape: BoxShape.circle),
+          child: BlIcon(icon,
+              size: 14,
+              stroke: 2.4,
+              color: onTap == null
+                  ? Bl.faint
+                  : primary
+                      ? Bl.white
+                      : Bl.ink3),
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Process Return',
-              style: GoogleFonts.manrope(
-                color: const Color(0xFF1E293B),
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-              ),
-            ),
-            Text(
-              'Credit Note',
-              style: AppText.caption.copyWith(color: const Color(0xFF94A3B8)),
-            ),
-          ],
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      );
+
+  Widget _field(String label, Widget child, {VoidCallback? onTap}) => Padding(
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Section 1: Original Sale header ─────────────────────────
-            _SectionLabel('ORIGINAL SALE'),
-            const SizedBox(height: 8),
-            _card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    invoice.displayNumber,
-                    style: GoogleFonts.manrope(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.inkPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(LucideIcons.user,
-                          size: 13, color: Color(0xFF94A3B8)),
-                      const SizedBox(width: 6),
-                      Text(
-                        invoice.displayClientName,
-                        style: AppText.label.copyWith(color: AppColors.inkSecondary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(LucideIcons.calendar,
-                          size: 13, color: Color(0xFF94A3B8)),
-                      const SizedBox(width: 6),
-                      Text(
-                        _fmtDateDisplay(invoice.invoiceDate ?? ''),
-                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Divider(color: Color(0xFFE2E8F0)),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total',
-                        style: AppText.label.copyWith(color: AppColors.inkSecondary),
-                      ),
-                      Text(
-                        '₹${invoice.grandTotal.toStringAsFixed(2)}',
-                        style: GoogleFonts.manrope(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            Text(label,
+                style: Bl.tight(13, w: FontWeight.w600, ls: 0, c: Bl.ink3)),
+            const SizedBox(height: 6),
+            BlTap(
+              onTap: onTap,
+              child: Container(
+                height: 50,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                alignment: Alignment.centerLeft,
+                decoration: BoxDecoration(
+                    color: Bl.wellSoft,
+                    borderRadius: BorderRadius.circular(14)),
+                child: child,
               ),
             ),
+          ],
+        ),
+      );
 
-            const SizedBox(height: 20),
+  @override
+  Widget build(BuildContext context) {
+    final inv = widget.invoice;
+    final name = inv.displayClientName;
+    final initials = BlPartyAvatar.initials(name);
+    final picked = _returnQtys.values.where((q) => q > 0).length;
+    final units = _returnQtys.values.fold<double>(0, (a, q) => a + q);
+    final unitsText =
+        units == units.roundToDouble() ? units.toStringAsFixed(0) : '$units';
+    final unitWord = units == 1 ? 'unit' : 'units';
 
-            // ── Section 2: Return Items ──────────────────────────────────
-            _SectionLabel('SELECT ITEMS TO RETURN'),
-            const SizedBox(height: 8),
-            _card(
-              child: _parsedItems.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        'No item details available',
-                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                      ),
-                    )
-                  : Column(
-                      children: [
-                        ...List.generate(_parsedItems.length, (i) {
-                          final item = _parsedItems[i];
-                          final qty = _returnQtys[i] ?? 0;
-                          final maxQty = item.quantity.toDouble();
-                          final isSelected = qty > 0;
-
-                          return AnimatedContainer(
-                            duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
-                            margin: EdgeInsets.only(
-                                bottom: i < _parsedItems.length - 1 ? 10 : 0),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primaryContainer
-                                      .withValues(alpha: 0.15)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary.withValues(alpha: 0.3)
-                                    : Colors.transparent,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                // Item info
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item.name,
-                                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                          color: AppColors.inkPrimary),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Max: ${item.quantity.toInt()}',
-                                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                                      ),
-                                      if (item.rate > 0)
-                                        Text(
-                                          '₹${item.rate.toStringAsFixed(2)}/unit',
-                                          style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                // [-] qty [+] stepper
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _StepBtn(
-                                      icon: LucideIcons.minus,
-                                      onTap: qty > 0
-                                          ? () => setState(
-                                              () => _returnQtys[i] = qty - 1)
-                                          : null,
-                                    ),
-                                    SizedBox(
-                                      width: 40,
-                                      child: Text(
-                                        // Was qty.toInt() — truncated the display
-                                        // while line 173 sent the true double.
-                                        formatQty(qty, item.unit),
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.manrope(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: isSelected
-                                              ? AppColors.primary
-                                              : AppColors.inkPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                    _StepBtn(
-                                      icon: LucideIcons.plus,
-                                      onTap: qty < maxQty
-                                          ? () => setState(
-                                              () => _returnQtys[i] = qty + 1)
-                                          : null,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                        // ── Live return total bar ───────────────────────
-                        if (_parsedItems.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          const Divider(color: Color(0xFFE2E8F0)),
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Return Total',
-                                style: AppText.label.copyWith(color: AppColors.inkSecondary),
-                              ),
-                              Text(
-                                '₹${returnTotal.toStringAsFixed(2)}',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.5,
-                                  color: returnTotal > 0
-                                      ? AppColors.danger
-                                      : AppColors.inkTertiary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // ── Section 3: Details ───────────────────────────────────────
-            _SectionLabel('RETURN DETAILS'),
-            const SizedBox(height: 8),
-            _card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Date row
-                  InkWell(
-                    onTap: _pickDate,
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
+    return Scaffold(
+      backgroundColor: Bl.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            const BlBackHeader(title: 'Process Return'),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: BlEntrance.all([
+                    // ── Which bill ───────────────────────────────────────
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
+                          horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceContainer,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: Colors.black.withValues(alpha: 0.06)),
-                      ),
+                          color: Bl.tile,
+                          borderRadius: BorderRadius.circular(16)),
                       child: Row(
                         children: [
-                          const Icon(LucideIcons.calendar,
-                              size: 16, color: AppColors.inkSecondary),
-                          const SizedBox(width: 10),
+                          Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                                color: Color(0xFFFFF3D6),
+                                shape: BoxShape.circle),
+                            child: initials.isEmpty
+                                ? const BlIcon(BlIcons.person,
+                                    size: 16, color: Bl.ink3)
+                                : Text(initials,
+                                    style: Bl.tight(13,
+                                        w: FontWeight.w700,
+                                        ls: 0,
+                                        c: Bl.ink3)),
+                          ),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Text(name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        Bl.tight(14.5, w: FontWeight.w600)),
+                                const SizedBox(height: 1),
                                 Text(
-                                  'Return Date',
-                                  style: AppText.label.copyWith(color: AppColors.inkTertiary,
-                                    letterSpacing: 1),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _fmtDateDisplay(_date),
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.inkPrimary,
-                                  ),
-                                ),
+                                    [
+                                      inv.displayNumber,
+                                      if (inv.invoiceDate != null)
+                                        _fmtDateDisplay(inv.invoiceDate!),
+                                      'credit note',
+                                    ].join(' · '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Bl.inter(12,
+                                        c: const Color(0xFF7A8088))),
                               ],
                             ),
                           ),
-                          const Icon(LucideIcons.chevronRight,
-                              size: 16, color: Color(0xFF94A3B8)),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(Money.inr(inv.grandTotal),
+                                  style: Bl.tight(15, w: FontWeight.w700)),
+                              Text('sale total',
+                                  style: Bl.inter(11.5,
+                                      c: const Color(0xFF7A8088))),
+                            ],
+                          ),
                         ],
                       ),
                     ),
-                  ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                              child: Text('WHAT IS COMING BACK?',
+                                  style: Bl.eyebrow)),
+                          Text('$picked of ${_parsedItems.length}',
+                              style: Bl.eyebrow),
+                        ],
+                      ),
+                    ),
 
-                  const SizedBox(height: 12),
+                    // ── Items: tick to return, then set how many ─────────
+                    if (_parsedItems.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
+                        child: Text('No item details available',
+                            style: Bl.inter(13, c: Bl.mute)),
+                      )
+                    else
+                      Column(
+                        children: [
+                          for (var i = 0; i < _parsedItems.length; i++)
+                            () {
+                              final item = _parsedItems[i];
+                              final qty = _returnQtys[i] ?? 0;
+                              final max = item.quantity.toDouble();
+                              final on = qty > 0;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 18, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color:
+                                      on ? const Color(0xFFFFFBF3) : null,
+                                  border: const Border(
+                                      bottom: BorderSide(color: Bl.sep)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Semantics(
+                                        checked: on,
+                                        label: item.name,
+                                        child: GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: () => _setQty(
+                                              i, on ? 0 : (max < 1 ? max : 1)),
+                                          child: Padding(
+                                            padding:
+                                                const EdgeInsets.symmetric(
+                                                    vertical: 3),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 24,
+                                                  height: 24,
+                                                  alignment: Alignment.center,
+                                                  decoration: BoxDecoration(
+                                                    color: on
+                                                        ? Bl.brand
+                                                        : null,
+                                                    shape: BoxShape.circle,
+                                                    border: on
+                                                        ? null
+                                                        : Border.all(
+                                                            width: 1.5,
+                                                            color: const Color(
+                                                                0xFFCFCFCF)),
+                                                  ),
+                                                  child: on
+                                                      ? const BlIcon(
+                                                          BlIcons.check,
+                                                          size: 13,
+                                                          color: Bl.white,
+                                                          stroke: 3)
+                                                      : null,
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(item.name,
+                                                          maxLines: 2,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style: Bl.tight(14.5,
+                                                              w: FontWeight
+                                                                  .w600)),
+                                                      const SizedBox(height: 1),
+                                                      Text(
+                                                          '${Money.inr(item.rate)} each · up to ${formatQty(max, item.unit)}',
+                                                          style: Bl.inter(12,
+                                                              c: const Color(
+                                                                  0xFF7A8088))),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    if (on)
+                                      Container(
+                                        margin: const EdgeInsets.only(left: 8),
+                                        padding: const EdgeInsets.all(3),
+                                        decoration: BoxDecoration(
+                                            color: const Color(0xFFFFF3DC),
+                                            borderRadius:
+                                                BorderRadius.circular(999)),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _stepBtn(BlIcons.minus, 'One less',
+                                                false, () => _setQty(i, qty - 1)),
+                                            ConstrainedBox(
+                                              constraints: const BoxConstraints(
+                                                  minWidth: 34),
+                                              child: Text(
+                                                  formatQty(qty, item.unit),
+                                                  textAlign: TextAlign.center,
+                                                  style: Bl.tight(14.5,
+                                                      w: FontWeight.w700,
+                                                      ls: 0)),
+                                            ),
+                                            _stepBtn(
+                                                BlIcons.plus,
+                                                'One more',
+                                                true,
+                                                qty < max
+                                                    ? () => _setQty(i, qty + 1)
+                                                    : null),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            }(),
+                        ],
+                      ),
 
-                  // Reason field
+                    _field(
+                      'Return date',
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(_fmtDateDisplay(_date),
+                                style: Bl.tight(15.5,
+                                    w: FontWeight.w600, ls: 0)),
+                          ),
+                          const BlIcon(
+                              '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+                              size: 16,
+                              color: Color(0xFF7A8088)),
+                        ],
+                      ),
+                      onTap: _pickDate,
+                    ),
+                    _field(
+                      'Reason (optional)',
+                      TextField(
+                        controller: _reason,
+                        cursorColor: Bl.brand,
+                        textCapitalization: TextCapitalization.sentences,
+                        style: Bl.tight(15.5, w: FontWeight.w600, ls: 0),
+                        decoration: InputDecoration(
+                          isCollapsed: true,
+                          filled: false,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          hintText: 'e.g. damaged pack',
+                          hintStyle: Bl.tight(15.5,
+                              w: FontWeight.w500,
+                              ls: 0,
+                              c: const Color(0xFFA8ADB4)),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+              child: Column(
+                children: [
                   Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 6),
-                    child: Text(
-                      'REASON FOR RETURN',
-                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                        color: AppColors.inkTertiary,
-                        letterSpacing: 1),
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text('Return total · $unitsText $unitWord',
+                              style: Bl.tight(12.5,
+                                  w: FontWeight.w500, c: Bl.mute)),
+                        ),
+                        Text(Money.inr(_returnTotal),
+                            style:
+                                Bl.tight(18, w: FontWeight.w800, ls: -0.03)),
+                      ],
                     ),
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainer,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: Colors.black.withValues(alpha: 0.06)),
-                    ),
-                    child: TextField(
-                      controller: _reason,
-                      maxLines: 3,
-                      style: GoogleFonts.manrope(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.inkPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
-                        hintText: 'Reason for return (optional)',
-                        hintStyle: AppText.caption.copyWith(color:
-                              AppColors.inkTertiary.withValues(alpha: 0.6)),
-                      ),
-                    ),
+                  BlSlide(
+                    _isLoading
+                        ? 'Processing'
+                        : units > 0
+                            ? 'Slide to return $unitsText $unitWord'
+                            : 'Pick what is coming back',
+                    enabled: units > 0 && !_isLoading,
+                    onConfirmed: _submit,
                   ),
                 ],
               ),
             ),
           ],
         ),
-      ),
-
-      // ── Section 4: Submit button (floating bottom bar) ─────────────────
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.fromLTRB(
-          16,
-          12,
-          16,
-          MediaQuery.of(context).padding.bottom + 16,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 16,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SizedBox(
-          height: 56,
-          child: ElevatedButton(
-            onPressed: (returnTotal > 0 && !_isLoading) ? _submit : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  returnTotal > 0 ? AppColors.danger : const Color(0xFFCBD5E1),
-              disabledBackgroundColor: const Color(0xFFCBD5E1),
-              foregroundColor: Colors.white,
-              disabledForegroundColor: Colors.white,
-              shape: const StadiumBorder(),
-              elevation: 0,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(
-                    'PROCESS RETURN · ₹${returnTotal.toStringAsFixed(2)}',
-                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: Colors.white),
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Section label (matches invoice_detail_screen style) ──────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-        color: AppColors.inkTertiary,
-        letterSpacing: 1.5),
-    );
-  }
-}
-
-// ─── Card wrapper (white, rounded-16, shadow) ─────────────────────────────────
-
-Widget _card({required Widget child}) {
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [AppColors.cardShadow],
-    ),
-    child: child,
-  );
-}
-
-// ─── Stepper button ───────────────────────────────────────────────────────────
-
-class _StepBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  const _StepBtn({required this.icon, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return SizedBox(
-      width: 32,
-      height: 32,
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          padding: EdgeInsets.zero,
-          shape: const CircleBorder(),
-          side: BorderSide(
-            color: enabled
-                ? AppColors.outline.withValues(alpha: 0.5)
-                : const Color(0xFFE2E8F0),
-          ),
-          foregroundColor: enabled
-              ? AppColors.inkPrimary
-              : AppColors.inkTertiary,
-        ),
-        child: Icon(icon, size: 14),
       ),
     );
   }

@@ -506,11 +506,14 @@ Future<T?> showBlDialog<T>({
   required String title,
   required String message,
   required List<Widget> Function(BuildContext) actions,
+  bool dismissible = true,
+  bool useRootNavigator = true,
 }) {
   final reduce = MediaQuery.maybeDisableAnimationsOf(context) == true;
   return showGeneralDialog<T>(
     context: context,
-    barrierDismissible: true,
+    useRootNavigator: useRootNavigator,
+    barrierDismissible: dismissible,
     barrierLabel: 'Dismiss',
     barrierColor: Bl.shade,
     transitionDuration: reduce ? Duration.zero : const Duration(milliseconds: 240),
@@ -528,8 +531,13 @@ Future<T?> showBlDialog<T>({
               children: [
                 Text(title, style: Bl.tight(16, w: FontWeight.w700)),
                 const SizedBox(height: 8),
-                Text(message,
-                    style: Bl.inter(13, c: const Color(0xFF55595F), h: 1.5)),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Text(message,
+                        style:
+                            Bl.inter(13, c: const Color(0xFF55595F), h: 1.5)),
+                  ),
+                ),
                 const SizedBox(height: 14),
                 ...actions(ctx),
               ],
@@ -826,7 +834,15 @@ class BlPartyAvatar extends StatelessWidget {
   final double size;
   const BlPartyAvatar(this.name, {super.key, this.size = 38});
 
+  /// True for the nameless counter customer ("Walk-in", "Walk-in Customer").
+  static bool isWalkIn(String name) {
+    final n = name.trim().toLowerCase();
+    return n.isEmpty || n.startsWith('walk-in') || n.startsWith('walk in');
+  }
+
+  /// Two letters for a name; empty for a walk-in, which gets the person icon.
   static String initials(String name) {
+    if (isWalkIn(name)) return '';
     final parts =
         name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return '';
@@ -837,7 +853,7 @@ class BlPartyAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final walkIn = name.isEmpty || name.toLowerCase() == 'walk-in';
+    final walkIn = isWalkIn(name);
     return Container(
       width: size,
       height: size,

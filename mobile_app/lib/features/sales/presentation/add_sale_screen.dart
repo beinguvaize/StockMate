@@ -6,10 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mobile_app/widgets/motion/motion_curves.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/utils/money.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
@@ -285,24 +283,27 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
   /// Asks the cashier whether a UPI payment arrived when no QR sheet could
   /// be shown. The bill is voided only on an explicit "Not received".
   Future<bool?> _askUpiReceived(String why) {
-    return showDialog<bool>(
+    return showBlDialog<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (dCtx) => AlertDialog(
-        title: const Text('Did the UPI payment arrive?'),
-        content: Text('$why\n\nNot received will void this bill and return the stock.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dCtx, false),
-            child: const Text('Not received',
-                style: TextStyle(color: AppColors.error)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dCtx, true),
-            child: const Text('Payment received'),
-          ),
-        ],
-      ),
+      dismissible: false,
+      title: 'Did the UPI payment arrive?',
+      message: '$why\n\nNot received will void this bill and return the stock.',
+      actions: (dCtx) => [
+        Row(
+          children: [
+            Expanded(
+              child: BlButton('Not received',
+                  kind: BlButtonKind.danger,
+                  onTap: () => Navigator.pop(dCtx, false)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BlButton('Payment received',
+                  fontSize: 13.5, onTap: () => Navigator.pop(dCtx, true)),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -328,21 +329,15 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
   void _showError(String msg) {
     debugPrint('[SALE ERROR] $msg');
     if (!mounted) return;
-    // AlertDialog guaranteed visible — survives modal sheets, RPC errors etc
-    showDialog<void>(
+    // A dialog on the root navigator, so it shows above any open sheet.
+    showBlDialog<void>(
       context: context,
-      useRootNavigator: true,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: const Text('Sale Failed', style: TextStyle(color: AppColors.danger)),
-        content: SingleChildScrollView(child: Text(msg)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+      title: 'Sale failed',
+      message: msg,
+      actions: (ctx) => [
+        BlButton('OK',
+            kind: BlButtonKind.soft, onTap: () => Navigator.of(ctx).pop()),
+      ],
     );
   }
 
@@ -2810,41 +2805,30 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
   /// bank an overpayment by a stray tap.
   Future<bool> _confirmApply(double amount, double toDues, double advance) async {
     final name = widget.client?.name ?? 'this client';
-    final ok = await showDialog<bool>(
+    final ok = await showBlDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Receive ₹${amount.toStringAsFixed(2)}?',
-            style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w800)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+      title: 'Receive ${Money.inrExact(amount)}?',
+      message: [
+        'From $name.',
+        if (toDues > 0) '${Money.inrExact(toDues)} clears outstanding dues.',
+        if (advance > 0)
+          '${Money.inrExact(advance)} is kept as an advance and used automatically on their next credit bill.',
+      ].join('\n'),
+      actions: (ctx) => [
+        Row(
           children: [
-            Text('From $name', style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
-            const SizedBox(height: 12),
-            if (toDues > 0)
-              Text('• ₹${toDues.toStringAsFixed(2)} clears outstanding dues',
-                  style: AppText.caption),
-            if (advance > 0) ...[
-              const SizedBox(height: 4),
-              Text('• ₹${advance.toStringAsFixed(2)} kept as ADVANCE',
-                  style: AppText.label.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 2),
-              Text('  Used automatically on their next credit bill.',
-                  style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
-            ],
+            Expanded(
+              child: BlButton('Cancel',
+                  kind: BlButtonKind.soft,
+                  onTap: () => Navigator.pop(ctx, false)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BlButton('Confirm', onTap: () => Navigator.pop(ctx, true)),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.manrope(color: AppColors.inkSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Confirm', style: GoogleFonts.manrope(fontWeight: FontWeight.w800)),
-          ),
-        ],
-      ),
+      ],
     );
     return ok ?? false;
   }
