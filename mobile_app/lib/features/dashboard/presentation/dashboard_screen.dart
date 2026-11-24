@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 import 'widgets/dash_common.dart' show DashColors;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/widgets/motion/motion_curves.dart';
 import 'package:mobile_app/core/database/sync_status_pill.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/supabase/client.dart';
-import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/theme/typography.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/crm_screen.dart';
 import 'package:mobile_app/features/daybook/presentation/daybook_screen.dart';
 import 'package:mobile_app/features/finance/presentation/finance_screen.dart';
@@ -25,10 +20,8 @@ import 'package:mobile_app/features/menu/presentation/menu_screen.dart';
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
 import 'package:mobile_app/features/reports/presentation/reports_screen.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
-import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/features/sales/presentation/sale_type_sheet.dart';
 import 'package:mobile_app/features/sales/presentation/sales_screen.dart';
-import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
 import 'dashboard_home.dart';
 export 'dashboard_home.dart' show DashboardHome;
 
@@ -43,7 +36,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-typedef _NavTab = ({String feature, IconData icon, String label, Widget tab});
+typedef _NavTab = ({String feature, String icon, String label, Widget tab});
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _selectedIndex = 0;
@@ -51,11 +44,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   // Master tab list. `feature` is the RBAC key; '__menu__' is always shown.
   late final List<_NavTab> _allTabs = [
-    (feature: 'dashboard', icon: LucideIcons.layoutDashboard, label: 'Dashboard', tab: DashboardHome(onTabSwitch: _switchToFeature)),
-    (feature: 'sales',     icon: LucideIcons.shoppingCart,    label: 'Sales',     tab: const SalesScreen()),
-    (feature: 'inventory', icon: LucideIcons.package,         label: 'Inventory', tab: const InventoryScreen(showAddButton: false)),
-    (feature: 'logistics', icon: LucideIcons.truck,           label: 'My Route',  tab: const DriverRouteScreen()),
-    (feature: '__menu__',  icon: LucideIcons.moreHorizontal,  label: 'More',      tab: const MenuScreen()),
+    (feature: 'dashboard', icon: BlIcons.home, label: 'Dashboard', tab: DashboardHome(onTabSwitch: _switchToFeature)),
+    (feature: 'sales',     icon: BlIcons.receipt, label: 'Sales',     tab: const SalesScreen()),
+    (feature: 'inventory', icon: BlIcons.box, label: 'Inventory', tab: const InventoryScreen(showAddButton: false)),
+    (feature: 'logistics', icon: BlIcons.truck, label: 'My Route',  tab: const DriverRouteScreen()),
+    (feature: '__menu__',  icon: BlIcons.more, label: 'More',      tab: const MenuScreen()),
   ];
 
   // Tabs the current user may see — filtered by the shared RBAC matrix.
@@ -86,55 +79,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppColors.canvas,
+      backgroundColor: Bl.white,
+      drawerScrimColor: Bl.shade,
       drawer: const _AppDrawer(),
-      // Lift the FAB clear of the custom bottom nav bar so the "+" sits
-      // ABOVE the "More" tab instead of covering it. The nav bar is a
-      // Positioned container (not Scaffold.bottomNavigationBar), so Scaffold
-      // never auto-offsets the FAB — we pad it up by the nav height + SafeArea.
-      // Inventory used to have no visible Add button on the phone. The screen
-      // supplies one, but at the default position -- which is UNDER this nav
-      // bar, since the bar is a Positioned overlay and Scaffold therefore never
-      // offsets a FAB above it. The button was rendering and invisible.
-      // The shell owns the offset, so the shell owns the button.
-      floatingActionButton: (currentFeature == 'sales' || currentFeature == 'inventory')
-          ? Padding(
-              padding: EdgeInsets.only(
-                  bottom: 76 + MediaQuery.of(context).viewPadding.bottom),
-              child: FloatingActionButton(
-                heroTag: null,
-                tooltip: currentFeature == 'inventory' ? 'Add product' : 'New sale',
-                onPressed: () {
-                  if (currentFeature == 'inventory') {
-                    // Hold the container now: reaching for `context` inside the
-                    // .then() is across an async gap, by which point this widget
-                    // may be gone.
-                    final container =
-                        ProviderScope.containerOf(context, listen: false);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AddProductScreen()),
-                    ).then((_) => container.invalidate(productsProvider));
-                    return;
-                  }
-                  final roles = ProviderScope.containerOf(context, listen: false)
-                      .read(tenantContextProvider)
-                      .value?.roles ?? [];
-                  navigateToNewSale(context, roles);
-                },
-                // The app's single most-used action -- add a sale, or add a
-                // product -- so it carries the same fill as every other
-                // primary action. The per-screen FABs were already moved to
-                // brandFill; this is the one actually on screen, because the
-                // shell owns the offset and therefore owns the button.
-                backgroundColor: AppColors.brandFill,
-                foregroundColor: AppColors.onBrandFill,
-                elevation: 3,
-                shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
-                child: const Icon(LucideIcons.plus, size: 26),
-              ),
-            )
-          : null,
       body: Column(
         children: [
           // ── Global app bar ────────────────────────────────────────
@@ -147,6 +94,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             )
           else
             _GlobalAppBar(
+              ground: currentFeature == '__menu__' ? Bl.grey : Bl.white,
               title: tabs.isEmpty ? '' : tabs[selIdx].label,
               onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
             ),
@@ -164,83 +112,164 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                 ),
 
-          // Bottom nav
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              // A deep 60px top curve and a hairline, not a drop shadow.
-              // The bar sits ON the warm canvas rather than floating over
-              // it, which is the one place the app still spent elevation on
-              // something that never moves.
-              decoration: const BoxDecoration(
-                color: AppColors.canvas,
-                border: Border(
-                  top: BorderSide(color: AppColors.outlineVariant),
-                ),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(60)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: tabs.asMap().entries.map((e) {
-                      final i = e.key;
-                      final item = e.value;
-                      final isActive = selIdx == i;
-                      return AppTappable(
-                        onTap: () => _switchTab(i),
-                        ripple: false,
-                        pressedScale: 0.94,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AnimatedContainer(
-                              duration: Motion.base,
-                              curve: Motion.standard,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isActive ? AppColors.primaryContainer : Colors.transparent,
-                                borderRadius: BorderRadius.circular(99),
-                              ),
-                              child: Icon(
-                                item.icon,
-                                size: 22,
-                                color: isActive ? AppColors.primary : AppColors.inkTertiary,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              item.label,
-                              // 10px monospace: the five most-used labels in
-                              // the app were also the smallest text in it.
-                              style: AppText.label.copyWith(
-                                fontWeight:
-                                    isActive ? FontWeight.w700 : FontWeight.w500,
-                                color: isActive
-                                    ? AppColors.primary
-                                    : AppColors.inkTertiary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
+                // Floating tab bar, with the amber plus beside it on the
+                // two tabs that add something.
+                Positioned(
+                  left: 10,
+                  right: 10,
+                  bottom: 12 + MediaQuery.of(context).viewPadding.bottom,
+                  child: _TabBar(
+                    tabs: tabs,
+                    selected: selIdx,
+                    onSelect: _switchTab,
+                    plusLabel: currentFeature == 'inventory'
+                        ? 'Add product'
+                        : currentFeature == 'sales'
+                            ? 'New sale'
+                            : null,
+                    onPlus: () => _onPlus(currentFeature),
                   ),
                 ),
-              ),
+              ],
             ),
-              ),
-            ],
           ),
-        ),
-      ],
+        ],
       ),
     );
   }
+
+  void _onPlus(String feature) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    if (feature == 'inventory') {
+      // Hold the container now: reaching for `context` inside the .then() is
+      // across an async gap, by which point this widget may be gone.
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AddProductScreen()),
+      ).then((_) => container.invalidate(productsProvider));
+      return;
+    }
+    final roles = container.read(tenantContextProvider).value?.roles ?? [];
+    navigateToNewSale(context, roles);
+  }
+}
+
+/// The floating bottom bar from the canvas (`.tbar`): a white pill holding
+/// the tabs and, on Sales and Inventory, a round amber plus beside it.
+class _TabBar extends StatelessWidget {
+  final List<_NavTab> tabs;
+  final int selected;
+  final ValueChanged<int> onSelect;
+  final String? plusLabel;
+  final VoidCallback onPlus;
+  const _TabBar({
+    required this.tabs,
+    required this.selected,
+    required this.onSelect,
+    required this.plusLabel,
+    required this.onPlus,
+  });
+
+  static const _lift = [
+    BoxShadow(
+        color: Color(0x4D000000),
+        blurRadius: 22,
+        spreadRadius: -8,
+        offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x0D000000), spreadRadius: 1),
+  ];
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 54,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: Bl.white,
+                borderRadius: BorderRadius.circular(999),
+                boxShadow: _lift,
+              ),
+              child: Row(
+                children: [
+                  for (var i = 0; i < tabs.length; i++)
+                    Expanded(
+                      child: Semantics(
+                        button: true,
+                        selected: i == selected,
+                        label: tabs[i].label,
+                        excludeSemantics: true,
+                        child: BlTap(
+                          onTap: () => onSelect(i),
+                          child: Center(
+                            child: AnimatedContainer(
+                              duration: motionDur(context, 160),
+                              curve: MotionCurves.out,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                color: i == selected
+                                    ? const Color(0xFFEFEFEF)
+                                    : const Color(0x00EFEFEF),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  BlIcon(tabs[i].icon,
+                                      size: 17,
+                                      color: i == selected
+                                          ? Bl.ink
+                                          : const Color(0xFF6D7175)),
+                                  const SizedBox(height: 1),
+                                  Text(tabs[i].label,
+                                      maxLines: 1,
+                                      softWrap: false,
+                                      overflow: TextOverflow.visible,
+                                      textScaler: TextScaler.noScaling,
+                                      style: Bl.tight(8.5,
+                                          w: FontWeight.w600,
+                                          ls: 0,
+                                          c: i == selected
+                                              ? Bl.ink
+                                              : const Color(0xFF6D7175))),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (plusLabel != null) ...[
+            const SizedBox(width: 6),
+            BlTap(
+              label: plusLabel,
+              onTap: onPlus,
+              child: Container(
+                width: 50,
+                height: 50,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: Bl.amber,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                        color: Color(0x99B45309),
+                        blurRadius: 20,
+                        spreadRadius: -8,
+                        offset: Offset(0, 10)),
+                  ],
+                ),
+                child: const BlIcon(BlIcons.plus, size: 22, color: Bl.white),
+              ),
+            ),
+          ],
+        ],
+      );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -249,52 +278,69 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
 /// The notifications sheet, shared by the shell bar and the Dashboard header.
 void showNotificationsSheet(BuildContext context) {
-  showModalBottomSheet(
+  showBlSheet(
     context: context,
-    backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (_) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(LucideIcons.bell, size: 40, color: AppColors.inkTertiary),
-          const SizedBox(height: 16),
-          Text(
-            'No new notifications',
-            style: AppText.bodyStrong.copyWith(color: AppColors.inkSecondary),
+    builder: (_) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const BlSheetTitle('Notifications'),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 34, 10, 30),
+          child: Column(
+            children: [
+              Container(
+                width: 76,
+                height: 76,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                    color: Bl.wellSoft, shape: BoxShape.circle),
+                child: const BlIcon(BlIcons.bell,
+                    size: 30, color: Bl.mute, stroke: 1.7),
+              ),
+              const SizedBox(height: 16),
+              Text('No new notifications',
+                  style: Bl.tight(18, w: FontWeight.w700, ls: -0.02)),
+              const SizedBox(height: 6),
+              Text('You are all caught up.', style: Bl.inter(13.5, h: 1.5)),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }
 
+/// Top bar of every tab except the Dashboard (`.shp`): menu, tab name, the
+/// sync pill and the bell.
 class _GlobalAppBar extends StatelessWidget {
   final VoidCallback onMenuTap;
   final String title;
-  const _GlobalAppBar({required this.onMenuTap, required this.title});
+  final Color ground;
+  const _GlobalAppBar(
+      {required this.onMenuTap, required this.title, this.ground = Bl.white});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.canvas,
+      color: ground,
       child: SafeArea(
         bottom: false,
         child: SizedBox(
-          height: 52,
+          height: 48,
           child: Row(
             children: [
-              // Menu: a bare icon, 48dp hit area, no card behind it.
-              AppTappable(
-                ripple: false,
+              BlTap(
+                label: 'Menu',
                 onTap: onMenuTap,
                 child: const SizedBox(
-                  width: 52,
-                  height: 52,
-                  child: Icon(LucideIcons.menu, size: 22, color: AppColors.inkPrimary),
+                  width: 45,
+                  height: 48,
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 16),
+                    child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: BlIcon(BlIcons.menu, size: 20)),
+                  ),
                 ),
               ),
               Expanded(
@@ -302,22 +348,17 @@ class _GlobalAppBar extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.title.copyWith(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.onSurface,
-                  ),
+                  style: Bl.tight(20, w: FontWeight.w700, ls: -0.02),
                 ),
               ),
-              // Online / sync state (hidden when synced + online)
               const SyncStatusPill(),
-              AppTappable(
-                ripple: false,
+              BlTap(
+                label: 'Notifications',
                 onTap: () => showNotificationsSheet(context),
                 child: const SizedBox(
                   width: 52,
-                  height: 52,
-                  child: Icon(LucideIcons.bell, size: 20, color: AppColors.inkPrimary),
+                  height: 48,
+                  child: Center(child: BlIcon(BlIcons.bell, size: 20)),
                 ),
               ),
             ],
@@ -329,162 +370,169 @@ class _GlobalAppBar extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sidebar Drawer
+// Left drawer
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AppDrawer extends ConsumerWidget {
   const _AppDrawer();
 
   static const _sections = [
-    _DrawerSection(label: 'SALES & FINANCE', items: [
-      _DrawerItem(icon: LucideIcons.shoppingBag,  label: 'New Sale',      color: AppColors.primary, feature: 'sales'),
-      _DrawerItem(icon: LucideIcons.shoppingCart,  label: 'Sales History', color: AppColors.primary, feature: 'sales'),
-      _DrawerItem(icon: LucideIcons.fileText,      label: 'Invoices',      color: AppColors.primary, feature: 'invoices'),
-      _DrawerItem(icon: LucideIcons.creditCard,    label: 'Expenses',      color: AppColors.danger, feature: 'expenses'),
-      _DrawerItem(icon: LucideIcons.clipboardList, label: 'Purchases',     color: AppColors.warning, feature: 'purchases'),
-      _DrawerItem(icon: LucideIcons.bookOpen,      label: 'Day Book',      color: AppColors.info, feature: 'daybook'),
+    _DrawerSection(label: 'Sales & finance', items: [
+      _DrawerItem(id: 'new-sale', icon: BlIcons.plus, label: 'New sale', feature: 'sales'),
+      _DrawerItem(id: 'sales', icon: BlIcons.receipt, label: 'Sales history', feature: 'sales'),
+      _DrawerItem(id: 'invoices', icon: BlIcons.doc, label: 'Invoices', feature: 'invoices'),
+      _DrawerItem(id: 'expenses', icon: BlIcons.cash, label: 'Expenses', feature: 'expenses'),
+      _DrawerItem(id: 'purchases', icon: BlIcons.cart, label: 'Purchases', feature: 'purchases'),
+      _DrawerItem(id: 'daybook', icon: BlIcons.book, label: 'Day Book', feature: 'daybook'),
     ]),
-    _DrawerSection(label: 'INVENTORY & CRM', items: [
-      _DrawerItem(icon: LucideIcons.package,  label: 'Inventory', color: Color(0xFF5b5f5a), feature: 'inventory'),
-      _DrawerItem(icon: LucideIcons.users,    label: 'CRM',        color: AppColors.secondary, feature: 'clients'),
+    _DrawerSection(label: 'Inventory & clients', items: [
+      _DrawerItem(id: 'inventory', icon: BlIcons.box, label: 'Inventory', feature: 'inventory'),
+      _DrawerItem(id: 'clients', icon: BlIcons.users, label: 'Clients & Suppliers', feature: 'clients'),
     ]),
-    _DrawerSection(label: 'INSIGHTS', items: [
-      _DrawerItem(icon: LucideIcons.barChart2, label: 'Reports', color: AppColors.primary, feature: 'reports'),
+    _DrawerSection(label: 'Insights', items: [
+      _DrawerItem(id: 'reports', icon: BlIcons.chart, label: 'Reports', feature: 'reports'),
     ]),
-    _DrawerSection(label: 'WORKFORCE & OPS', items: [
-      _DrawerItem(icon: LucideIcons.users2, label: 'Payroll',  color: AppColors.secondary, feature: 'payroll'),
-      _DrawerItem(icon: LucideIcons.truck,  label: 'Vehicles', color: Color(0xFF5b5f5a), feature: 'logistics'),
+    _DrawerSection(label: 'Staff & vehicles', items: [
+      _DrawerItem(id: 'payroll', icon: BlIcons.idCard, label: 'Payroll', feature: 'payroll'),
+      _DrawerItem(id: 'vehicles', icon: BlIcons.truck, label: 'Vehicles', feature: 'logistics'),
     ]),
   ];
 
-  void _navigate(BuildContext context, String label, {List<String> roles = const []}) {
+  void _navigate(BuildContext context, String id, {List<String> roles = const []}) {
     Navigator.pop(context); // close drawer
-    if (label == 'New Sale') {
+    if (id == 'new-sale') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.mounted) navigateToNewSale(context, roles);
       });
       return;
     }
-    final Widget? screen = _screenFor(context, label);
+    final Widget? screen = _screenFor(id);
     if (screen != null) {
       Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
     }
   }
 
-  Widget? _screenFor(BuildContext context, String label) {
-    switch (label) {
-      case 'New Sale':      return const AddSaleScreen();
-      case 'Sales History': return const SalesScreen();
-      case 'Invoices':      return const InvoicesScreen();
-      case 'Expenses':      return const FinanceScreen();
-      case 'Purchases':     return const PurchasesScreen();
-      case 'Day Book':      return const DayBookScreen();
-      case 'Inventory':     return const InventoryScreen();
-      case 'CRM':           return const CRMScreen();
-      case 'Reports':       return const ReportsScreen();
-      case 'Payroll':   return const HRScreen();
-      case 'Vehicles':  return const LogisticsScreen();
-      case 'Settings':      return const SettingsScreen();
-      default:              return null;
+  Widget? _screenFor(String id) {
+    switch (id) {
+      case 'sales':     return const SalesScreen();
+      case 'invoices':  return const InvoicesScreen();
+      case 'expenses':  return const FinanceScreen();
+      case 'purchases': return const PurchasesScreen();
+      case 'daybook':   return const DayBookScreen();
+      case 'inventory': return const InventoryScreen();
+      case 'clients':   return const CRMScreen();
+      case 'reports':   return const ReportsScreen();
+      case 'payroll':   return const HRScreen();
+      case 'vehicles':  return const LogisticsScreen();
+      default:          return null;
     }
+  }
+
+  static String _role(List<String> roles) {
+    if (roles.contains('OWNER')) return 'Owner';
+    if (roles.contains('GLOBAL_ADMIN')) return 'Admin';
+    if (roles.contains('DRIVER')) return 'Driver';
+    if (roles.contains('SALES')) return 'Sales';
+    if (roles.contains('STAFF')) return 'Staff';
+    return '';
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tenantAsync = ref.watch(tenantContextProvider);
-    final roles = tenantAsync.value?.roles ?? [];
-    final plan = tenantAsync.value?.plan ?? 'FREE';
-    final permissions = tenantAsync.value?.permissions;
+    final tenant = ref.watch(tenantContextProvider).value;
+    final roles = tenant?.roles ?? [];
+    final plan = tenant?.plan ?? 'FREE';
+    final permissions = tenant?.permissions;
     // Filter drawer by RBAC — drop items and empty sections the user can't access.
     final sections = _sections
         .map((s) => _DrawerSection(
               label: s.label,
               items: s.items
-                  .where((i) =>
-                      i.feature == '__always__' ||
-                      canAccess(i.feature,
-                          roles: roles, plan: plan, permissions: permissions))
+                  .where((i) => canAccess(i.feature,
+                      roles: roles, plan: plan, permissions: permissions))
                   .toList(),
             ))
         .where((s) => s.items.isNotEmpty)
         .toList();
+    final shop = tenant?.tenant.name ?? '';
+    final role = _role(roles);
+    final who = [if (shop.isNotEmpty) shop, if (role.isNotEmpty) role].join(' · ');
 
     return Drawer(
-      backgroundColor: AppColors.surface,
+      backgroundColor: Bl.white,
+      elevation: 0,
       width: MediaQuery.of(context).size.width * 0.80,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(right: Radius.circular(26)),
+      ),
       child: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Brand header (profile card lives in the More tab) ─
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-              child: Row(
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+              decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Bl.sep))),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Image.asset('assets/images/logo_linear.png', height: 30, fit: BoxFit.contain),
-                  const Spacer(),
+                  Image.asset('assets/images/logo_linear.png',
+                      width: 150, semanticLabel: 'bookledger'),
+                  if (who.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: const BoxDecoration(
+                              color: Color(0xFF1E9E5A), shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(who,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Bl.inter(12.5, w: FontWeight.w500)),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-
-            // ── Nav sections ──────────────────────────────────────
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: sections.map((section) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final section in sections) ...[
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
-                        child: Text(
-                          section.label,
-                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
-                            color: AppColors.inkTertiary),
-                        ),
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                        child: Text(section.label.toUpperCase(),
+                            style: Bl.eyebrow),
                       ),
-                      ...section.items.map((item) => _DrawerTile(
-                        item: item,
-                        onTap: () => _navigate(context, item.label, roles: roles),
-                      )),
+                      for (final item in section.items)
+                        _DrawerTile(
+                          item: item,
+                          onTap: () => _navigate(context, item.id, roles: roles),
+                        ),
                     ],
-                  )).toList(),
+                  ],
                 ),
               ),
             ),
-
-            // ── Sign out ──────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: AppTappable(
-                ripple: false,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+              child: BlButton(
+                'Sign out',
+                kind: BlButtonKind.danger,
+                leading:
+                    const BlIcon(BlIcons.signOut, size: 16, color: Bl.redDeep),
                 onTap: () async {
                   Navigator.pop(context);
                   await supabase.auth.signOut();
                 },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.danger.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.danger.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(LucideIcons.logOut, size: 18, color: AppColors.danger),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Sign Out',
-                        style: GoogleFonts.manrope(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.danger,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ),
           ],
@@ -501,14 +549,14 @@ class _DrawerSection {
 }
 
 class _DrawerItem {
-  final IconData icon;
+  final String id;
+  final String icon;
   final String label;
-  final Color color;
-  final String feature; // RBAC key; '__always__' = always shown
+  final String feature; // RBAC key
   const _DrawerItem({
+    required this.id,
     required this.icon,
     required this.label,
-    required this.color,
     required this.feature,
   });
 }
@@ -520,36 +568,32 @@ class _DrawerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppTappable(
-      ripple: false,
+    // "New sale" is the one highlighted row.
+    final primary = item.id == 'new-sale';
+    return BlTap(
+      label: item.label,
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        height: 44,
+        margin: const EdgeInsets.symmetric(horizontal: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
+          color: primary ? const Color(0xFFFFF8EC) : null,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: item.color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(item.icon, size: 16, color: item.color),
+            BlIconTile(item.icon,
+                size: 30,
+                bg: primary ? Bl.brand : Bl.wellSoft,
+                fg: primary ? Bl.white : Bl.ink3),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Bl.tight(14.5, w: FontWeight.w600)),
             ),
-            const SizedBox(width: 14),
-            Text(
-              item.label,
-              style: GoogleFonts.manrope(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.inkPrimary,
-              ),
-            ),
-            const Spacer(),
-            Icon(LucideIcons.chevronRight, size: 14, color: AppColors.inkTertiary),
           ],
         ),
       ),

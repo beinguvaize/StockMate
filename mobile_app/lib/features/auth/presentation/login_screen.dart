@@ -3,16 +3,14 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter/services.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/auth/biometric_service.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/auth/data/auth_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/theme/typography.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile_app/features/auth/presentation/phone_login_screen.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
 
 // Keystore-backed credential storage for the "Remember me" + biometric
 // unlock features. Both rely on the device hardware-backed keystore so the
@@ -197,357 +195,306 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  void _toggleRemember() => setState(() {
+        _rememberMe = !_rememberMe;
+        if (!_rememberMe) _biometricEnabled = false;
+      });
+
+  bool get _canUnlockNow =>
+      _biometricEnabled &&
+      _emailController.text.isNotEmpty &&
+      _passwordController.text.isNotEmpty;
+
+  /// "Unlock with fingerprint". With saved sign-in details it unlocks now;
+  /// without them it switches the option on for the next sign-in.
+  void _onBiometricLink() {
+    if (_canUnlockNow) {
+      _tryBiometricUnlock();
+      return;
+    }
+    setState(() {
+      _rememberMe = true;
+      _biometricEnabled = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+          'Sign in once with your password. After that you can unlock with $_bioName.'),
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final busy = _isLoading || _isGoogleLoading;
     return Scaffold(
-      backgroundColor: AppColors.canvasWarm,
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                // ── Brand mark (centered, top) ─────────────────────
-                Image.asset(
-                  'assets/images/logo.png',
-                  height: 56,
-                  fit: BoxFit.contain,
+      backgroundColor: Bl.dark,
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Stack(
+          children: [
+            // Photo runs under the status bar and fades into the dark ground.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 250 + mq.viewPadding.top,
+              child: const Image(
+                image: AssetImage('assets/images/login_photo.jpg'),
+                fit: BoxFit.cover,
+                semanticLabel:
+                    'A shopkeeper ringing up a sale on a tablet at the counter',
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 251 + mq.viewPadding.top,
+              child: const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: [0, 0.45, 1],
+                    colors: [Color(0x400C0C0D), Color(0x1A0C0C0D), Bl.dark],
+                  ),
                 ),
-                const SizedBox(height: 6),
-                const SizedBox(height: Gap.sm),
-                Text('Business Management Suite', style: AppText.caption),
-                const SizedBox(height: 40),
-
-                // ── Login card ─────────────────────────────────────
-                // The form was inside a shadowed 24px-radius card floating on
-                // a white page -- a white card on white, visible only by its
-                // shadow, which is decoration standing in for structure. The
-                // page IS the form; the heading and the spacing say so.
-                SizedBox(
-                  width: double.infinity,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text('Welcome back', style: AppText.display),
-                      const SizedBox(height: Gap.xs),
-                      Text('Sign in to continue', style: AppText.body.copyWith(
-                          color: AppColors.inkTertiary)),
-                      const SizedBox(height: Gap.xxl),
-
-                      // Email field
-                      _buildTextField(
-                        controller: _emailController,
-                        hint: 'Email address',
-                        icon: LucideIcons.mail,
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Password field — with show/hide toggle
-                      _buildTextField(
-                        controller: _passwordController,
-                        hint: 'Password',
-                        icon: LucideIcons.lock,
-                        obscureText: !_showPassword,
-                        suffix: IconButton(
-                          icon: Icon(
-                            _showPassword ? LucideIcons.eyeOff : LucideIcons.eye,
-                            size: 18,
-                            color: AppColors.inkTertiary,
+              ),
+            ),
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, box) => SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: box.maxHeight - 12),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 120),
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Image(
+                            image: AssetImage(
+                                'assets/images/logo_linear_white.png'),
+                            width: 150,
+                            semanticLabel: 'bookledger',
                           ),
-                          tooltip: _showPassword ? 'Hide password' : 'Show password',
-                          onPressed: () => setState(() => _showPassword = !_showPassword),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Remember me
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: _rememberMe,
-                            onChanged: (v) => setState(() {
-                              _rememberMe = v ?? false;
-                              // Biometric requires saved creds.
-                              if (!_rememberMe) _biometricEnabled = false;
-                            }),
-                            visualDensity: VisualDensity.compact,
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            activeColor: AppColors.brandFill,
-                            checkColor: AppColors.onBrandFill,
+                        const SizedBox(height: 10),
+                        Text('Sign in',
+                            style: Bl.tight(28,
+                                w: FontWeight.w800, c: Bl.white, ls: -0.035)),
+                        const SizedBox(height: 2),
+                        Text('Welcome back to bookledger',
+                            style: Bl.inter(13.5, c: Bl.faint)),
+                        const SizedBox(height: 14),
+                        _darkField(
+                          controller: _emailController,
+                          hint: 'Email address',
+                          keyboardType: TextInputType.emailAddress,
+                          autofill: const [AutofillHints.email],
+                        ),
+                        const SizedBox(height: 8),
+                        _darkField(
+                          controller: _passwordController,
+                          hint: 'Password',
+                          obscure: !_showPassword,
+                          autofill: const [AutofillHints.password],
+                          onSubmitted: busy ? null : (_) => _handleLogin(),
+                          suffix: BlTap(
+                            label:
+                                _showPassword ? 'Hide password' : 'Show password',
+                            onTap: () =>
+                                setState(() => _showPassword = !_showPassword),
+                            child: SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: Center(
+                                child: BlIcon(
+                                    _showPassword
+                                        ? BlIcons.eyeOff
+                                        : BlIcons.eye,
+                                    size: 16,
+                                    color: const Color(0xFFD5D8DC)),
+                              ),
+                            ),
                           ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: AppTappable(
-   ripple: false,
-                              onTap: () => setState(() {
-                                _rememberMe = !_rememberMe;
-                                if (!_rememberMe) _biometricEnabled = false;
-                              }),
-                              child: Text('Remember me on this device',
-                                  style: AppText.body),
- ),
+                        ),
+                        Semantics(
+                          checked: _rememberMe,
+                          label: 'Remember me on this device',
+                          excludeSemantics: true,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: _toggleRemember,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(2, 12, 2, 12),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: _rememberMe
+                                          ? Bl.amber
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                          width: 1.5,
+                                          color: _rememberMe
+                                              ? Bl.amber
+                                              : const Color(0xFFC4C8CC)),
+                                    ),
+                                    child: _rememberMe
+                                        ? const BlIcon(BlIcons.check,
+                                            size: 13, color: Bl.white, stroke: 3)
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text('Remember me on this device',
+                                      style: Bl.inter(13,
+                                          w: FontWeight.w500, c: Bl.white)),
+                                ],
+                              ),
+                            ),
                           ),
-                        ],
-                      ),
-
-                      // Biometric unlock — only meaningful if device supports
-                      // it AND Remember me is on (we need saved creds).
-                      if (_biometricAvailable)
+                        ),
+                        BlButton('Sign in',
+                            loading: _isLoading,
+                            onTap: busy ? null : _handleLogin),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(4, 10, 4, 10),
+                          child: Row(
+                            children: [
+                              const Expanded(
+                                  child: ColoredBox(
+                                      color: Color(0x2EFFFFFF),
+                                      child: SizedBox(height: 1))),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                child: Text('or continue with',
+                                    style: Bl.inter(12,
+                                        c: const Color(0xFF9AA0A6))),
+                              ),
+                              const Expanded(
+                                  child: ColoredBox(
+                                      color: Color(0x2EFFFFFF),
+                                      child: SizedBox(height: 1))),
+                            ],
+                          ),
+                        ),
                         Row(
                           children: [
-                            Checkbox(
-                              value: _biometricEnabled,
-                              onChanged: _rememberMe
-                                  ? (v) => setState(() => _biometricEnabled = v ?? false)
-                                  : null,
-                              visualDensity: VisualDensity.compact,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              activeColor: AppColors.brandFill,
-                            checkColor: AppColors.onBrandFill,
-                            ),
-                            const SizedBox(width: 4),
                             Expanded(
-                              child: Text(
-                                _rememberMe
-                                    ? 'Unlock with $_bioName'
-                                    : 'Unlock with $_bioName (enable Remember me first)',
-                                style: AppText.body.copyWith(
-                                  color: _rememberMe
-                                      ? AppColors.onSurface
-                                      : AppColors.inkTertiary,
-                                ),
-                              ),
+                              child: BlButton('Google',
+                                  kind: BlButtonKind.white,
+                                  height: 44,
+                                  fontSize: 14,
+                                  loading: _isGoogleLoading,
+                                  leading: const BlMark(BlIcons.googleColor,
+                                      label: ''),
+                                  onTap: busy ? null : _handleGoogleLogin),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: BlButton('WhatsApp',
+                                  kind: BlButtonKind.white,
+                                  height: 44,
+                                  fontSize: 14,
+                                  leading: const BlMark(BlIcons.whatsappColor,
+                                      label: ''),
+                                  onTap: busy
+                                      ? null
+                                      : () => Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                                builder: (_) =>
+                                                    const PhoneLoginScreen()),
+                                          )),
                             ),
                           ],
                         ),
-
-                      const SizedBox(height: 20),
-
-                      // Quick biometric trigger — visible when saved creds
-                      // exist + user previously enabled biometric unlock.
-                      if (_biometricAvailable &&
-                          _biometricEnabled &&
-                          _emailController.text.isNotEmpty &&
-                          _passwordController.text.isNotEmpty) ...[
-                        OutlinedButton.icon(
-                          onPressed: _isLoading ? null : _tryBiometricUnlock,
-                          icon: const Icon(LucideIcons.fingerprint, size: 18),
-                          label: const Text('Unlock with biometrics'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: const BorderSide(color: AppColors.outlineVariant),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: const RoundedRectangleBorder(
-                                borderRadius: Radii.rSm),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
+                        if (_biometricAvailable)
+                          BlTap(
+                            label: 'Unlock with $_bioName',
+                            onTap: busy ? null : _onBiometricLink,
+                            child: SizedBox(
+                              height: 44,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const BlIcon(BlIcons.fingerprint,
+                                      size: 16, color: Color(0xFFF6B964)),
+                                  const SizedBox(width: 8),
+                                  Text('Unlock with $_bioName',
+                                      style: Bl.tight(13,
+                                          w: FontWeight.w600,
+                                          c: const Color(0xFFF6B964))),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          const SizedBox(height: 8),
                       ],
-
-                      // Sign In button
-                      // The primary action was filled with primaryContainer
-                      // -- pale amber, ink text -- which made the one button
-                      // the user came here to press the QUIETEST of the three
-                      // on screen. It is the brand fill now, which is also the
-                      // pairing the contrast gate covers at 5.02:1.
-                      SizedBox(
-                        height: 54,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _handleLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.brandFill,
-                            foregroundColor: AppColors.onBrandFill,
-                            elevation: 0,
-                            shape: const RoundedRectangleBorder(
-                                borderRadius: Radii.rSm),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: AppColors.onBrandFill),
-                                )
-                              : Text('Sign in',
-                                  style: AppText.label.copyWith(
-                                      fontSize: 16, color: AppColors.onPrimary)),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Passwords are the main way people get locked out of
-                      // this app. A number they already have on WhatsApp is
-                      // the fallback.
-                      SizedBox(
-                        height: 50,
-                        child: OutlinedButton.icon(
-                          onPressed: _isLoading
-                              ? null
-                              : () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const PhoneLoginScreen()),
-                                  ),
-                          icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                          label: Text('Sign in with WhatsApp',
-                              style: AppText.label.copyWith(fontSize: 15)),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.onSurface,
-                            side: const BorderSide(color: AppColors.outlineVariant),
-                            shape: const RoundedRectangleBorder(
-                                borderRadius: Radii.rSm),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // OR divider
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Divider(
-                              color: AppColors.outlineVariant.withValues(alpha: 0.6),
-                              thickness: 1,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text(
-                              'or continue with',
-                              style: AppText.caption,
-                            ),
-                          ),
-                          Expanded(
-                            child: Divider(
-                              color: AppColors.outlineVariant.withValues(alpha: 0.6),
-                              thickness: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Google OAuth button
-                      SizedBox(
-                        height: 52,
-                        child: OutlinedButton(
-                          onPressed: _isGoogleLoading ? null : _handleGoogleLogin,
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            side: const BorderSide(color: AppColors.outlineVariant),
-                            shape: const RoundedRectangleBorder(
-                                borderRadius: Radii.rSm),
-                            foregroundColor: AppColors.onSurface,
-                          ),
-                          child: _isGoogleLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.inkSecondary),
-                                )
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Text(
-                                      'G',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w900,
-                                        color: Color(0xFF4285F4),
-                                        height: 1.2,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      'Continue with Google',
-                                      style: AppText.label.copyWith(fontSize: 15),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildTextField({
+  Widget _darkField({
     required TextEditingController controller,
     required String hint,
-    required IconData icon,
-    bool obscureText = false,
+    bool obscure = false,
     TextInputType? keyboardType,
     Widget? suffix,
+    List<String>? autofill,
+    ValueChanged<String>? onSubmitted,
   }) {
-    // The label sits ABOVE the field rather than inside it. A placeholder
-    // leaves the moment you type, so the one time you most need to know
-    // which box you are in -- halfway through filling it -- is the one time
-    // the answer is gone. It also gives the field a real label for a screen
-    // reader instead of a hint.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(hint.toUpperCase(), style: AppText.eyebrow),
-        const SizedBox(height: Gap.xs),
-        _field(
-          controller: controller,
-          hint: hint,
-          icon: icon,
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          suffix: suffix,
-        ),
-      ],
-    );
-  }
-
-  Widget _field({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    bool obscureText = false,
-    TextInputType? keyboardType,
-    Widget? suffix,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      style: AppText.body,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: AppText.body.copyWith(color: AppColors.inkTertiary),
-        prefixIcon: Icon(icon, size: 20, color: AppColors.onSurfaceVariant),
-        suffixIcon: suffix,
-        // A borderless grey box does not look like somewhere you can type --
-        // it looks disabled. Outlined, like every other input in the app now.
-        filled: false,
-        border: const OutlineInputBorder(
-          borderRadius: Radii.rSm,
-          borderSide: BorderSide(color: AppColors.outlineVariant),
-        ),
-        enabledBorder: const OutlineInputBorder(
-          borderRadius: Radii.rSm,
-          borderSide: BorderSide(color: AppColors.outlineVariant),
-        ),
-        focusedBorder: const OutlineInputBorder(
-          borderRadius: Radii.rSm,
-          // AppColors.primary, not brandFill: this is a 2px stroke, and
-          // brandFill against the canvas is 2.25:1, under the 3:1 a boundary
-          // needs. The fill colour and the stroke colour are not the same job.
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+    return Container(
+      height: 46,
+      padding: EdgeInsets.only(left: 14, right: suffix == null ? 14 : 0),
+      decoration: BoxDecoration(
+        color: const Color(0x1AFFFFFF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x33FFFFFF)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              obscureText: obscure,
+              keyboardType: keyboardType,
+              autofillHints: autofill,
+              autocorrect: false,
+              enableSuggestions: false,
+              onSubmitted: onSubmitted,
+              cursorColor: Bl.brand,
+              style: Bl.inter(14, w: FontWeight.w500, c: Bl.white),
+              decoration: InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                filled: false,
+                hintText: hint,
+                hintStyle: Bl.inter(14,
+                    w: FontWeight.w500, c: const Color(0xFFD5D8DC)),
+              ),
+            ),
+          ),
+          ?suffix,
+        ],
       ),
     );
   }

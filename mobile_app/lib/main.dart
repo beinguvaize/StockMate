@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
+import 'package:mobile_app/core/design/launch_logo.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
@@ -307,11 +307,29 @@ class _TenantGateState extends ConsumerState<_TenantGate> {
   @override
   void dispose() {
     _timer?.cancel();
+    _launchTimer?.cancel();
     super.dispose();
   }
 
-  Widget get _dashboard =>
+  Widget get _shell =>
       _isDesktop ? const DesktopShell() : const DashboardScreen();
+
+  Timer? _launchTimer;
+
+  /// The shell, once the launch animation has played out. Loading is often
+  /// quicker than the animation; cutting it off halfway looks like a glitch.
+  Widget get _dashboard {
+    final left = LaunchLogo.remaining;
+    if (left == Duration.zero ||
+        MediaQuery.maybeDisableAnimationsOf(context) == true) {
+      return _shell;
+    }
+    _launchTimer ??= Timer(left + const Duration(milliseconds: 20), () {
+      _launchTimer = null;
+      if (mounted) setState(() {});
+    });
+    return const _SplashScreen();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -369,55 +387,10 @@ class _SplashScreen extends StatelessWidget {
   const _SplashScreen();
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Logo — horizontally centered
-                  Image(
-                    image: AssetImage('assets/images/logo.png'),
-                    width: 180,
-                    fit: BoxFit.contain,
-                  ),
-                  SizedBox(height: 32),
-                  CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
-                ],
-              ),
-            ),
-            // App version — pinned bottom-center, read from the build's pubspec.
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: FutureBuilder<PackageInfo>(
-                  future: PackageInfo.fromPlatform(),
-                  builder: (context, snap) {
-                    final v = snap.hasData
-                        ? 'v${snap.data!.version} (${snap.data!.buildNumber})'
-                        : '';
-                    return Text(
-                      v,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.inkTertiary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: LaunchLogo()),
+      );
 }
 
 class _ContactAdminScreen extends ConsumerWidget {

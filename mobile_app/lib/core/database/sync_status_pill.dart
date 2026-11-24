@@ -89,7 +89,7 @@ class _SyncStatusPillState extends ConsumerState<SyncStatusPill> {
       fg = const Color(0xFFD97706);
       label = '$pending to sync';
     } else {
-      fg = const Color(0xFF16A34A);
+      fg = const Color(0xFF22C55E);
       label = 'Online';
     }
 
@@ -100,34 +100,35 @@ class _SyncStatusPillState extends ConsumerState<SyncStatusPill> {
       onTap: () => (refused > 0 || pending > 0)
           ? UnsyncedSalesSheet.show(context)
           : _forceSync(offline, pending),
+      // Canvas `.sy`: grey pill, coloured dot, ink label. Vertical padding
+      // outside the pill keeps the tap area tall.
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Pulsing dot for offline/syncing, static for online
-            Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(
-                color: fg,
-                shape: BoxShape.circle,
-                boxShadow: offline || pending > 0 || refused > 0
-                    ? [BoxShadow(color: fg.withValues(alpha: 0.4), blurRadius: 4, spreadRadius: 1)]
-                    : null,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F1F1),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
               ),
-            ),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: fg,
-                letterSpacing: 0.1,
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: GoogleFonts.interTight(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF111418),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
  );
