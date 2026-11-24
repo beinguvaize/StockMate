@@ -10,7 +10,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/core/utils/money.dart';
-import 'package:mobile_app/core/widgets/app_surfaces.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
@@ -1096,6 +1095,34 @@ const _kChipText = Color(0xFF55595F);
 const _kSub = Color(0xFF7A8088);
 const _kSub2 = Color(0xFF616161);
 
+const _kTiles = [
+  Color(0xFFFFF1DE),
+  Color(0xFFE8EFFD),
+  Color(0xFFF1F1F1),
+  Color(0xFFE6F6EC),
+  Color(0xFFFDECEC),
+];
+
+/// "Basmati rice 5 kg" -> BR. One word -> its first two letters.
+String _initialsFor(String name) {
+  final words =
+      name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+  if (words.isEmpty) return '?';
+  if (words.length == 1) {
+    return words.first.characters.take(2).toString().toUpperCase();
+  }
+  return (words[0].characters.first + words[1].characters.first).toUpperCase();
+}
+
+/// Same product, same tile colour, on the grid and in the basket.
+Color _tileColorFor(String name) {
+  var sum = 0;
+  for (final u in name.codeUnits) {
+    sum += u;
+  }
+  return _kTiles[sum % _kTiles.length];
+}
+
 /// One product in the New sale grid, to the approved board (sales-04):
 /// initials tile, name, stock, price, and either an amber + or a dark stepper.
 class _ProductCard extends StatelessWidget {
@@ -1112,38 +1139,6 @@ class _ProductCard extends StatelessWidget {
     required this.onAdd,
     required this.onRemove,
   });
-
-  static const _tiles = [
-    Color(0xFFFFF1DE),
-    Color(0xFFE8EFFD),
-    Color(0xFFF1F1F1),
-    Color(0xFFE6F6EC),
-    Color(0xFFFDECEC),
-  ];
-
-  /// "Basmati rice 5 kg" -> BR. One word -> its first two letters.
-  String get _initials {
-    final words = product.name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .toList();
-    if (words.isEmpty) return '?';
-    if (words.length == 1) {
-      return words.first.characters.take(2).toString().toUpperCase();
-    }
-    return (words[0].characters.first + words[1].characters.first)
-        .toUpperCase();
-  }
-
-  /// Same product, same tile colour, every time the till opens.
-  Color get _tileColor {
-    var sum = 0;
-    for (final u in product.name.codeUnits) {
-      sum += u;
-    }
-    return _tiles[sum % _tiles.length];
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1214,10 +1209,10 @@ class _ProductCard extends StatelessWidget {
                       height: 38,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: isOut ? _kWell : _tileColor,
+                        color: isOut ? _kWell : _tileColorFor(product.name),
                         borderRadius: BorderRadius.circular(11),
                       ),
-                      child: Text(_initials,
+                      child: Text(_initialsFor(product.name),
                           style: DashText.tight(12, c: _kChipText, ls: 0)),
                     ),
                     const Spacer(),
@@ -1507,434 +1502,455 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
     _priceController.text = _dispPrice.toStringAsFixed(2);
   }
 
+  /// Owner may sell at or below cost after confirming; staff are stopped.
+  Future<bool> _confirmBelowCost() async {
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dCtx) => Dialog(
+        backgroundColor: DashColors.card,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.isOwner
+                    ? 'Selling at or below cost'
+                    : 'Blocked: at or below cost',
+                style: DashText.tight(17),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${widget.product.name} costs ₹${_cost.toStringAsFixed(2)} '
+                'but you are charging ₹${_price.toStringAsFixed(2)}.\n\n'
+                '${widget.isOwner ? 'That leaves no margin (or a loss of ₹${((_cost - _price) * _qty).toStringAsFixed(2)}). Continue only if you meant to.' : 'Selling at or below purchase cost is not allowed. Ask the owner to override, or change the price.'}',
+                style: DashText.inter(13.5, c: const Color(0xFF55595F))
+                    .copyWith(height: 1.5),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SheetButton(
+                      label: 'Change price',
+                      soft: true,
+                      onTap: () => Navigator.pop(dCtx, false),
+                    ),
+                  ),
+                  if (widget.isOwner) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _SheetButton(
+                        label: 'Sell anyway',
+                        onTap: () => Navigator.pop(dCtx, true),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return proceed == true;
+  }
+
+  // Laid out to the approved board "New sale: quantity" (sales-05).
   @override
   Widget build(BuildContext context) {
     final p = widget.product;
     final isLow = p.stock > 0 && p.stock <= 10;
+    final mq = MediaQuery.of(context);
+    final canDec = _qty > qtyMin(widget.product.unit);
+    final canInc = _qty < _maxStock;
+    final stockText =
+        p.stock.toStringAsFixed(p.stock % 1 == 0 ? 0 : 1);
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.canvas,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      margin: EdgeInsets.fromLTRB(
+          8, 0, 8, 8 + mq.viewInsets.bottom + mq.padding.bottom),
+      constraints: BoxConstraints(
+          maxHeight: mq.size.height -
+              mq.padding.top -
+              mq.viewInsets.bottom -
+              mq.padding.bottom -
+              24),
+      decoration: BoxDecoration(
+        color: DashColors.card,
+        borderRadius: BorderRadius.circular(30),
       ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── Handle + header ─────────────────────────────────
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 12, bottom: 20),
-                  width: 40,
-                  height: 4,
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Header ─────────────────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    p.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: DashText.tight(17),
+                  ),
+                ),
+                AppTappable(
+                  ripple: false,
+                  onTap: () => Navigator.pop(context),
+                  child: SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Center(
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(
+                            color: DashColors.well, shape: BoxShape.circle),
+                        child: const Icon(LucideIcons.x,
+                            size: 16, color: Color(0xFF4A5057)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Container(height: 1, color: DashColors.sep),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    p.sku != null ? 'SKU: ${p.sku}' : '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: DashText.inter(12.5, w: FontWeight.w400, c: _kSub),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppColors.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
+                    color: isLow
+                        ? const Color(0xFFFFE48A)
+                        : const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Text(
+                    isLow ? 'Low · $stockText' : 'In Stock · $stockText',
+                    style: DashText.inter(11.5,
+                        w: FontWeight.w600,
+                        c: isLow
+                            ? const Color(0xFF4F3B00)
+                            : const Color(0xFF166534)),
+                  ),
+                ),
+              ],
+            ),
+
+            // ── Quantity ───────────────────────────────────────
+            const SizedBox(height: 18),
+            Text('Adjust quantity',
+                textAlign: TextAlign.center, style: DashText.inter(12)),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AppTappable(
+                  pressedScale: 0.90,
+                  borderRadius: Radii.rPill,
+                  onTap: _decrement,
+                  child: Container(
+                    width: 46,
+                    height: 46,
+                    decoration: const BoxDecoration(
+                        color: _kWell, shape: BoxShape.circle),
+                    child: Icon(LucideIcons.minus,
+                        size: 20,
+                        color: canDec ? DashColors.ink : DashColors.faint),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Editable: the number alone can be typed over, which is
+                // quicker than tapping + forty times for a carton.
+                SizedBox(
+                  width: allowsFraction(widget.product.unit) ? 124 : 96,
+                  child: TextField(
+                    controller: _qtyController,
+                    keyboardType: allowsFraction(widget.product.unit)
+                        ? const TextInputType.numberWithOptions(decimal: true)
+                        : TextInputType.number,
+                    textAlign: TextAlign.center,
+                    inputFormatters: [
+                      // Weight units allow up to 3 dp (1 gram on a KG
+                      // product); piece units stay digits-only.
+                      if (allowsFraction(widget.product.unit))
+                        FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d*\.?\d{0,3}'))
+                      else
+                        FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    style: DashText.tight(44, ls: -0.04, h: 1),
+                    cursorColor: DashColors.amber,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      contentPadding: EdgeInsets.zero,
+                      isDense: true,
+                    ),
+                    onTap: () => _qtyController.selection = TextSelection(
+                      baseOffset: 0,
+                      extentOffset: _qtyController.text.length,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                AppTappable(
+                  pressedScale: 0.90,
+                  borderRadius: Radii.rPill,
+                  onTap: _increment,
+                  child: Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                        color: canInc ? DashColors.amber : _kWell,
+                        shape: BoxShape.circle),
+                    child: Icon(LucideIcons.plus,
+                        size: 20,
+                        color: canInc ? Colors.white : DashColors.faint),
+                  ),
+                ),
+              ],
+            ),
+            if (_dispUnit.trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(_dispUnit.trim(),
+                  textAlign: TextAlign.center, style: DashText.inter(12)),
+            ],
+            // Sell by base unit or alternate (packet).
+            if (_hasAlt)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Center(
+                  child: AppTappable(
+                    ripple: false,
+                    onTap: _toggleAlt,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _alt ? DashColors.amberSoft : DashColors.card,
+                        border: Border.all(
+                            color: _alt ? DashColors.amberSoft : _kHair),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        _alt
+                            ? 'by ${widget.product.secondaryUnit} · ${formatQty(_qty, widget.product.unit)} ${widget.product.unit ?? ''}'
+                            : 'Sell by ${widget.product.secondaryUnit}?',
+                        style: DashText.tight(12,
+                            w: FontWeight.w600,
+                            c: _alt ? DashColors.amberDeep : _kChipText,
+                            ls: 0),
+                      ),
+                    ),
                   ),
                 ),
               ),
+            if (!_alt && subQtyLabel(_qty, widget.product.unit) != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  subQtyLabel(_qty, widget.product.unit)!,
+                  textAlign: TextAlign.center,
+                  style: DashText.inter(12),
+                ),
+              ),
 
-              Row(
-                children: [
-                  AppTappable(
-                    ripple: false,
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(LucideIcons.x, size: 18, color: AppColors.inkSecondary),
+            // ── Unit price · Estimated total ───────────────────
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
+                    decoration: BoxDecoration(
+                      color: DashColors.well,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          p.name,
-                          style: GoogleFonts.manrope(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.inkPrimary,
-                            letterSpacing: -0.3,
-                          ),
+                          _alt
+                              ? 'Price / ${widget.product.secondaryUnit}'
+                              : 'Unit price',
+                          style: DashText.inter(10),
                         ),
-                        if (p.sku != null)
-                          Text(
-                            'SKU: ${p.sku}',
-                            style: AppText.caption.copyWith(color: AppColors.inkTertiary, letterSpacing: 0.3),
-                          ),
-                      ],
-                    ),
-                  ),
-                  // Stock badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: isLow
-                          ? AppColors.warning.withValues(alpha: 0.12)
-                          : AppColors.primaryContainer.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          LucideIcons.checkCircle2,
-                          size: 12,
-                          color: isLow ? AppColors.warning : AppColors.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          isLow ? 'Low (${p.stock.toInt()})' : 'In Stock',
-                          style: AppText.label.copyWith(color: isLow ? AppColors.warning : AppColors.primary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 32),
-
-              // ── Quantity stepper ──────────────────────────────────
-              Text(
-                'ADJUST QUANTITY',
-                textAlign: TextAlign.center,
-                style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkTertiary, letterSpacing: 1.5),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(color: AppColors.outlineVariant),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Decrement
-                    AppTappable(
-                      pressedScale: 0.90,
-                      borderRadius: Radii.rPill,
-                      onTap: _decrement,
-                      child: AnimatedContainer(
-                        duration: Motion.durationOf(context, Motion.fast),
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: _qty > 1
-                              ? AppColors.surfaceContainer
-                              : AppColors.outlineVariant.withValues(alpha: 0.3),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.outlineVariant),
-                        ),
-                        child: Icon(
-                          LucideIcons.minus,
-                          size: 22,
-                          color: _qty > qtyMin(widget.product.unit)
-                              ? AppColors.inkPrimary
-                              : AppColors.inkTertiary,
-                        ),
-                      ),
-                    ),
-
-                    // Quantity — editable field, with its unit beside it and
-                    // the gram equivalent underneath. The number alone gave no
-                    // clue what it counted, and "0.5" is harder to check
-                    // against a scale than "500 g".
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+                        const SizedBox(height: 1),
                         Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
                           children: [
-                    SizedBox(
-                      width: allowsFraction(widget.product.unit) ? 116 : 96,
-                      child: TextField(
-                        controller: _qtyController,
-                        keyboardType: allowsFraction(widget.product.unit)
-                            ? const TextInputType.numberWithOptions(decimal: true)
-                            : TextInputType.number,
-                        textAlign: TextAlign.center,
-                        inputFormatters: [
-                          // digitsOnly strips the decimal point outright, so the
-                          // decimal keypad above would have been useless on its
-                          // own. Weight units allow up to 3 dp (1 gram on a KG
-                          // product); piece units stay digits-only.
-                          if (allowsFraction(widget.product.unit))
-                            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}'))
-                          else
-                            FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        style: AppText.numericEntry.copyWith(color: AppColors.inkPrimary, height: 1),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                          isDense: true,
-                        ),
-                        onTap: () => _qtyController.selection = TextSelection(
-                          baseOffset: 0,
-                          extentOffset: _qtyController.text.length,
-                        ),
-                      ),
-                    ),
-                            if (_dispUnit.trim().isNotEmpty) ...[
-                              const SizedBox(width: 6),
-                              Text(
-                                _dispUnit.trim(),
-                                style: GoogleFonts.manrope(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.inkSecondary,
+                            Text('₹',
+                                style: DashText.tight(14.5,
+                                    w: FontWeight.w600, ls: 0)),
+                            Expanded(
+                              child: TextField(
+                                controller: _priceController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'^\d*\.?\d{0,2}')),
+                                ],
+                                style: DashText.tight(14.5,
+                                    w: FontWeight.w600, ls: 0),
+                                cursorColor: DashColors.amber,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  filled: false,
+                                  isDense: true,
+                                  contentPadding:
+                                      EdgeInsets.symmetric(vertical: 4),
                                 ),
                               ),
-                            ],
+                            ),
+                            const Icon(LucideIcons.pencil,
+                                size: 13, color: DashColors.mute),
                           ],
                         ),
-                        // Sell by base unit or alternate (packet).
-                        if (_hasAlt)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: AppTappable(
-                              ripple: false,
-                              onTap: _toggleAlt,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: _alt ? AppColors.primary.withValues(alpha: 0.12) : AppColors.canvas,
-                                  border: Border.all(color: _alt ? AppColors.primary : AppColors.outline),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  _alt
-                                      ? 'by ${widget.product.secondaryUnit} · ${formatQty(_qty, widget.product.unit)} ${widget.product.unit ?? ''}'
-                                      : 'Sell by ${widget.product.secondaryUnit}?',
-                                  style: AppText.label.copyWith(color: _alt ? AppColors.primary : AppColors.inkTertiary),
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (!_alt && subQtyLabel(_qty, widget.product.unit) != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              subQtyLabel(_qty, widget.product.unit)!,
-                              style: AppText.caption.copyWith(fontWeight: FontWeight.w500, color: AppColors.inkTertiary),
-                            ),
-                          ),
                       ],
                     ),
-
-                    // Increment
-                    AppTappable(
-                      pressedScale: 0.90,
-                      borderRadius: Radii.rPill,
-                      onTap: _increment,
-                      child: AnimatedContainer(
-                        duration: Motion.durationOf(context, Motion.fast),
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: _qty < _maxStock
-                              ? AppColors.primaryContainer
-                              : AppColors.outlineVariant.withValues(alpha: 0.3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          LucideIcons.plus,
-                          size: 22,
-                          color: _qty < _maxStock ? AppColors.primary : AppColors.inkTertiary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // ── Unit price field ──────────────────────────────────
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.outlineVariant),
-                  boxShadow: [AppColors.cardShadow],
-                ),
-                child: TextField(
-                  controller: _priceController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                  ],
-                  style: GoogleFonts.manrope(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: _alt ? 'PRICE / ${widget.product.secondaryUnit!.toUpperCase()}' : 'UNIT PRICE',
-                    labelStyle: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkTertiary, letterSpacing: 1),
-                    floatingLabelBehavior: FloatingLabelBehavior.always,
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.only(left: 16, right: 8, top: 4),
-                      child: Text(
-                        '₹',
-                        style: GoogleFonts.manrope(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.inkSecondary,
-                        ),
-                      ),
-                    ),
-                    prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                    suffixIcon: const Padding(
-                      padding: EdgeInsets.only(right: 16),
-                      child: Icon(LucideIcons.pencil, size: 16, color: AppColors.inkTertiary),
-                    ),
-                    suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
-                    ),
-                    enabledBorder: InputBorder.none,
                   ),
                 ),
-              ),
-
-              // Visible before the confirm dialog, so the cashier can correct
-              // the price rather than being stopped at the end.
-              if (_belowCost) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2F2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFFECACA)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(LucideIcons.alertTriangle, size: 15, color: Color(0xFFB91C1C)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Below cost — this stock cost ₹${_cost.toStringAsFixed(2)}',
-                          style: AppText.label.copyWith(color: const Color(0xFFB91C1C)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(12, 7, 12, 7),
+                    decoration: BoxDecoration(
+                      color: DashColors.well,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Estimated total', style: DashText.inter(10)),
+                        const SizedBox(height: 1),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            '₹${_total.toStringAsFixed(2)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: DashText.tight(14.5, ls: 0),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
+            ),
 
-              const SizedBox(height: 28),
-
-              // ── Estimated total ───────────────────────────────────
-              Column(
-                children: [
-                  Text(
-                    'ESTIMATED TOTAL',
-                    style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkTertiary, letterSpacing: 1.5),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          '₹',
-                          style: AppText.title.copyWith(color: AppColors.inkSecondary),
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        _total.toStringAsFixed(2),
-                        style: AppText.moneyHero.copyWith(color: AppColors.inkPrimary, height: 1, letterSpacing: -1),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 28),
-
-              // ── Add to Basket ─────────────────────────────────────
-              Pressable(child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    if (_belowCost) {
-                      final proceed = await showDialog<bool>(
-                        context: context,
-                        builder: (dCtx) => AlertDialog(
-                          title: Text(widget.isOwner
-                              ? 'Selling at or below cost'
-                              : 'Blocked: at or below cost'),
-                          content: Text(
-                            '${widget.product.name} costs ₹${_cost.toStringAsFixed(2)} '
-                            'but you are charging ₹${_price.toStringAsFixed(2)}.\n\n'
-                            '${widget.isOwner ? 'That leaves no margin (or a loss of ₹${((_cost - _price) * _qty).toStringAsFixed(2)}). Continue only if you meant to.' : 'Selling at or below purchase cost is not allowed. Ask the owner to override, or change the price.'}',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(dCtx, false),
-                              child: const Text('Change price'),
-                            ),
-                            if (widget.isOwner)
-                              TextButton(
-                                onPressed: () => Navigator.pop(dCtx, true),
-                                child: const Text('Sell anyway'),
-                              ),
-                          ],
-                        ),
-                      );
-                      if (proceed != true) return;
-                    }
-                    if (!context.mounted) return;
-                    widget.onConfirm(_qty, _price);
-                    Navigator.pop(context);
-                  },
-                  icon: const Icon(LucideIcons.shoppingBag, size: 20),
-                  label: Text(
-                    'Add to Basket',
-                    style: AppText.heading,
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondary,
-                    foregroundColor: AppColors.primaryContainer,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: const StadiumBorder(),
-                    elevation: 0,
-                  ),
+            // Visible before the confirm dialog, so the cashier can correct
+            // the price rather than being stopped at the end.
+            if (_belowCost) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              )),
-
-              const SizedBox(height: 8),
-
-              Text(
-                'Tap quantity number on card to reopen this screen',
-                textAlign: TextAlign.center,
-                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
+                child: Row(
+                  children: [
+                    const Icon(LucideIcons.alertTriangle,
+                        size: 15, color: Color(0xFFB91C1C)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Below cost: this stock cost ₹${_cost.toStringAsFixed(2)}',
+                        style: DashText.inter(12,
+                            w: FontWeight.w600, c: const Color(0xFFB91C1C)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
-          ),
+
+            // ── Add to basket ──────────────────────────────────
+            const SizedBox(height: 14),
+            Pressable(
+              child: _SheetButton(
+                label: 'Add to basket · ₹${_total.toStringAsFixed(2)}',
+                height: 52,
+                onTap: () async {
+                  if (_belowCost && !await _confirmBelowCost()) return;
+                  if (!context.mounted) return;
+                  widget.onConfirm(_qty, _price);
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Tap quantity number on card to reopen this screen',
+              textAlign: TextAlign.center,
+              style: DashText.inter(12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Pill button used inside the New sale sheets and dialogs. Amber by default,
+/// grey when [soft].
+class _SheetButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final bool soft;
+  final double height;
+  const _SheetButton({
+    required this.label,
+    required this.onTap,
+    this.soft = false,
+    this.height = 46,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppTappable(
+      ripple: false,
+      onTap: onTap,
+      child: Container(
+        height: height,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: soft ? const Color(0xFFEFEEEC) : DashColors.amber,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: DashText.tight(15,
+              w: FontWeight.w600, c: soft ? DashColors.ink : Colors.white),
         ),
       ),
     );
@@ -2142,456 +2158,450 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     if (_localCart.isEmpty && mounted) Navigator.pop(context);
   }
 
+  // Laid out to the approved board "Checkout" (sales-08).
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.92,
-      maxChildSize: 0.95,
-      minChildSize: 0.5,
-      builder: (_, ctrl) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.canvas,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          children: [
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40,
-                height: 4,
+    final mq = MediaQuery.of(context);
+    final isCredit = _selectedPayType == 'CREDIT_SALE';
+    final methods = _payMethods;
+    final active = methods.where((m) => m.key == _paymentMethod).firstOrNull;
+    final client = widget.selectedClient;
+    final due = client?.outstandingBalance ?? 0.0;
+
+    return Container(
+      margin: EdgeInsets.fromLTRB(
+          8, 0, 8, 8 + mq.viewInsets.bottom + mq.padding.bottom),
+      constraints: BoxConstraints(
+          maxHeight: mq.size.height -
+              mq.padding.top -
+              mq.viewInsets.bottom -
+              mq.padding.bottom -
+              24),
+      decoration: BoxDecoration(
+        color: DashColors.card,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Header ───────────────────────────────────────────
+          Row(
+            children: [
+              Expanded(child: Text('Checkout', style: DashText.tight(17))),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
+                  color: const Color(0xFFEBEBEB),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Text(
+                  '${_localCart.length} ${_localCart.length == 1 ? 'item' : 'items'}',
+                  style: DashText.inter(11.5,
+                      w: FontWeight.w600, c: const Color(0xFF303030)),
                 ),
               ),
-            ),
-
-            Expanded(
-              child: SingleChildScrollView(
-                controller: ctrl,
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Header ───────────────────────────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Checkout',
-                          style: GoogleFonts.manrope(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.inkPrimary,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainer,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                          child: Text(
-                            '${_localCart.length} ${_localCart.length == 1 ? 'item' : 'items'}',
-                            style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkSecondary, letterSpacing: 0.3),
-                          ),
-                        ),
-                      ],
+              const SizedBox(width: 2),
+              AppTappable(
+                ripple: false,
+                onTap: () => Navigator.pop(context),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Center(
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: const BoxDecoration(
+                          color: DashColors.well, shape: BoxShape.circle),
+                      child: const Icon(LucideIcons.x,
+                          size: 16, color: Color(0xFF4A5057)),
                     ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Container(height: 1, color: DashColors.sep),
 
-                    const SizedBox(height: 24),
-
-                    // ── What this customer already owes ───────────
-                    // Shown before the basket, because whether to extend more
-                    // credit is decided by the total exposure, not by this
-                    // bill alone. The cashier could previously only see it by
-                    // leaving checkout and opening the client.
-                    if (widget.selectedClient != null &&
-                        (widget.selectedClient!.outstandingBalance ?? 0) > 0.01) ...[
-                      Builder(builder: (_) {
-                        final due = widget.selectedClient!.outstandingBalance ?? 0.0;
-                        // _netTotal, so the figure follows any discount applied.
-                        final after = due + _netTotal;
-                        return Container(
-                          padding: const EdgeInsets.all(Gap.lg),
-                          decoration: BoxDecoration(
-                            // Was three hardcoded reds. These are the error
-                            // tokens, which the contrast gate covers.
-                            color: AppColors.errorContainer,
-                            borderRadius: Radii.rMd,
-                            border: Border.all(
-                                color: AppColors.error.withValues(alpha: 0.3)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(LucideIcons.alertCircle,
-                                  size: 20, color: AppColors.error),
-                              Gap.w12,
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${widget.selectedClient!.name ?? "Customer"} already owes',
-                                      style: AppText.caption.copyWith(
-                                          color: AppColors.onErrorContainer),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      Money.inr(due),
-                                      style: AppText.money
-                                          .copyWith(color: AppColors.error),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Gap.w12,
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    'With this bill',
-                                    style: AppText.caption.copyWith(
-                                        color: AppColors.onErrorContainer),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    Money.inr(after),
-                                    style: AppText.money.copyWith(
-                                        color: AppColors.onErrorContainer),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // ── Basket summary ────────────────────────────
-                    Text('Basket summary', style: AppText.title),
-                    const SizedBox(height: Gap.md),
-                    AppCard(
-                      padding: const EdgeInsets.all(Gap.lg),
-                      child: Column(
-                        children: _localCart.map((item) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${item.product.name} ×${formatQtyWithUnit(item.quantity, item.product.unit)}',
-                                        style: AppText.bodyStrong,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      // Paise are kept here, unlike the list
-                                      // screens: this is the bill being built,
-                                      // and a rate of 11.50 shown as 12 would
-                                      // not match the receipt that prints.
-                                      Text(
-                                        '${Money.inrExact(item.unitPrice)} each',
-                                        style: AppText.caption,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Gap.w8,
-                                Text(
-                                  Money.inrExact(item.lineTotal),
-                                  style: AppText.moneySmall,
-                                ),
-                                // Was a 24px hit area for the control that
-                                // removes a line from a bill -- small enough to
-                                // miss, and easy to hit by accident when
-                                // aiming at the line beside it.
-                                _TapTarget(
-                                  onTap: () => _removeItem(item),
-                                  child: Container(
-                                    width: 28,
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.error
-                                          .withValues(alpha: 0.1),
-                                      borderRadius: Radii.rXs,
-                                    ),
-                                    child: const Icon(
-                                      LucideIcons.x,
-                                      size: 15,
-                                      color: AppColors.error,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ── Payment method ────────────────────────────
-                    Text('Payment method', style: AppText.title),
-                    const SizedBox(height: Gap.md),
-                    ..._payMethods.map((m) => _buildPaymentOption(m)),
-
-                    const SizedBox(height: 16),
-
-                    // ── Amount paid now ──────────────────────────
-                    // Optional. Empty = full pay for CASH/UPI/BANK, 0 for CREDIT.
-                    // < total + client present → balance to client outstanding.
-                    // > total (cash) → show change due.
-                    if (_selectedPayType != 'CREDIT_SALE') ...[
-                      Text('Amount received', style: AppText.bodyStrong),
-                      const SizedBox(height: Gap.sm),
-                      TextField(
-                        controller: _amountPaidCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: 'Blank means paid in full — ${Money.inrExact(_netTotal)}',
-                          prefixText: '₹ ',
-                          filled: true,
-                          fillColor: AppColors.surfaceContainer,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      if (_effectivePaid != null) ...[
-                        const SizedBox(height: 8),
-                        _buildBalanceChip(),
-                      ],
-                      const SizedBox(height: 16),
-                    ] else ...[
-                      // Credit sale: cashier may collect a part-payment now.
-                      Text(
-                        'Part Payment Now (optional)',
-                        style: GoogleFonts.manrope(
-                          fontSize: 14, fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _amountPaidCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: 'e.g. 100 — rest goes to client credit',
-                          prefixText: '₹ ',
-                          filled: true,
-                          fillColor: AppColors.surfaceContainer,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      if (_effectivePaid != null) ...[
-                        const SizedBox(height: 8),
-                        _buildBalanceChip(),
-                      ],
-                      const SizedBox(height: 16),
-                    ],
-
-                    const SizedBox(height: 8),
-
-                    // ── Bill details ──────────────────────────────
-                    Text(
-                      'Bill Details',
-                      style: GoogleFonts.manrope(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.inkPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── What this customer already owes ─────────────
+                  // Before the basket, because whether to extend more credit
+                  // is decided by the total exposure, not by this bill alone.
+                  if (client != null && due > 0.01)
                     Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [AppColors.cardShadow],
+                        color: const Color(0xFFFFF8E1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Column(
-                        children: [
-                          _billRow(
-                              _taxMode == 'INCLUSIVE' ? 'Taxable' : 'Subtotal',
-                              '₹${_subtotal.toStringAsFixed(2)}'),
-                          // Hidden when there is no tax to show. On a tenant
-                          // with tax_mode NONE this row read "Tax (18%) ₹0.00"
-                          // on every bill — a line that can never be anything
-                          // but zero, next to a rate that is not being charged.
-                          if (_tax > 0) ...[
-                            const SizedBox(height: 10),
-                            _billRow(
-                                'Tax (${_avgTaxRate.toStringAsFixed(_avgTaxRate % 1 == 0 ? 0 : 1)}%${_taxMode == 'INCLUSIVE' ? ' incl' : ''})',
-                                '₹${_tax.toStringAsFixed(2)}'),
-                          ],
-                          const SizedBox(height: 14),
-                          // ── Discount input (flat ₹ or %) ──────────
-                          Row(
-                            children: [
-                              Text(
-                                'Discount',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.inkSecondary,
-                                ),
-                              ),
-                              const Spacer(),
-                              // ₹ / % toggle
-                              _discountModeChip('AMOUNT', '₹'),
-                              const SizedBox(width: 6),
-                              _discountModeChip('PERCENT', '%'),
-                              const SizedBox(width: 10),
-                              SizedBox(
-                                width: 76,
-                                child: TextField(
-                                  controller: _discountCtrl,
-                                  textAlign: TextAlign.right,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
-                                  decoration: InputDecoration(
-                                    hintText: '0',
-                                    isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: AppColors.outlineVariant),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: AppColors.primary),
-                                    ),
-                                  ),
-                                  onChanged: (_) => setState(() {}),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (_discountAmount > 0) ...[
-                            const SizedBox(height: 10),
-                            _billRow('Discount', '- ₹${_discountAmount.toStringAsFixed(2)}'),
-                          ],
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 10),
-                            child: Divider(color: AppColors.outlineVariant),
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Grand Total',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.inkPrimary,
-                                ),
-                              ),
-                              RollingNumber(
-                                text: '₹${_netTotal.toStringAsFixed(2)}',
-                                style: AppText.title.copyWith(fontWeight: FontWeight.w800, color: AppColors.primary, letterSpacing: -0.5),
-                              ),
-                            ],
-                          ),
-                        ],
+                      // _netTotal, so the figure follows any discount applied.
+                      child: Text(
+                        '${client.name ?? "Customer"} already owes ${Money.inr(due)} · With this bill ${Money.inr(due + _netTotal)}',
+                        style: DashText.inter(11.5, c: const Color(0xFF6B4E00)),
                       ),
                     ),
 
-                    const SizedBox(height: 32),
+                  // ── Basket summary ──────────────────────────────
+                  _sectionLabel('Basket summary'),
+                  for (final item in _localCart) _basketRow(item),
 
-                    // ── Complete Transaction ───────────────────────
-                    ValueListenableBuilder<(SaveStatus, String?)>(
-                      valueListenable: widget.saveState,
-                      builder: (_, st, __) => SaveButton(
-                        status: st.$1,
-                        errorText: st.$2,
-                        idleLabel: 'Complete Transaction',
-                        idleIcon: LucideIcons.arrowRight,
-                        background: AppColors.secondary,
-                        foreground: AppColors.primaryContainer,
-                        textStyle: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
-                        onPressed: () => widget.onComplete(_selectedPayType, _effectivePaid, _discountAmount),
-                      ),
+                  // ── Payment method ──────────────────────────────
+                  _sectionLabel('Payment method'),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var i = 0; i < methods.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 6),
+                        Expanded(child: _buildPaymentOption(methods[i])),
+                      ],
+                    ],
+                  ),
+                  if (active != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      '${active.label} · ${active.subtitle}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: DashText.inter(11.5, c: _kSub),
                     ),
                   ],
-                ),
+
+                  // ── Amount received · Discount ──────────────────
+                  // Amount: blank = full pay for cash/UPI/bank, 0 for credit.
+                  // Less than the total with a client = balance to their
+                  // account. More than the total = change due.
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: _well(
+                          label:
+                              isCredit ? 'Part payment now' : 'Amount received',
+                          child: TextField(
+                            controller: _amountPaidCtrl,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                            onChanged: (_) => setState(() {}),
+                            style: DashText.tight(13.5,
+                                w: FontWeight.w600, ls: 0),
+                            cursorColor: DashColors.amber,
+                            decoration: InputDecoration(
+                              hintText: isCredit
+                                  ? 'Optional'
+                                  : 'Blank means paid in full',
+                              hintStyle:
+                                  DashText.inter(12.5, c: DashColors.faint),
+                              prefixText:
+                                  _amountPaidCtrl.text.isEmpty ? null : '₹ ',
+                              prefixStyle: DashText.tight(13.5,
+                                  w: FontWeight.w600, ls: 0),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              filled: false,
+                              isDense: true,
+                              contentPadding:
+                                  const EdgeInsets.symmetric(vertical: 4),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        flex: 2,
+                        child: _well(
+                          label: 'Discount',
+                          trailing: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: DashColors.card,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _discountModeChip('AMOUNT', '₹'),
+                                _discountModeChip('PERCENT', '%'),
+                              ],
+                            ),
+                          ),
+                          child: TextField(
+                            controller: _discountCtrl,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                            onChanged: (_) => setState(() {}),
+                            style: DashText.tight(13.5,
+                                w: FontWeight.w600, ls: 0),
+                            cursorColor: DashColors.amber,
+                            decoration: InputDecoration(
+                              hintText: '0',
+                              hintStyle: DashText.tight(13.5,
+                                  w: FontWeight.w600, ls: 0),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              filled: false,
+                              isDense: true,
+                              contentPadding:
+                                  const EdgeInsets.symmetric(vertical: 4),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_effectivePaid != null) ...[
+                    const SizedBox(height: 8),
+                    _buildBalanceChip(),
+                  ],
+
+                  // ── Bill lines ──────────────────────────────────
+                  // Subtotal and tax only when there is tax to show: on a
+                  // shop that does not charge GST they could never differ
+                  // from the total.
+                  if (_tax > 0 || _discountAmount > 0) ...[
+                    const SizedBox(height: 10),
+                    _billRow(_taxMode == 'INCLUSIVE' ? 'Taxable' : 'Subtotal',
+                        '₹${_subtotal.toStringAsFixed(2)}'),
+                    if (_tax > 0) ...[
+                      const SizedBox(height: 6),
+                      _billRow(
+                          'Tax (${_avgTaxRate.toStringAsFixed(_avgTaxRate % 1 == 0 ? 0 : 1)}%${_taxMode == 'INCLUSIVE' ? ' incl' : ''})',
+                          '₹${_tax.toStringAsFixed(2)}'),
+                    ],
+                    if (_discountAmount > 0) ...[
+                      const SizedBox(height: 6),
+                      _billRow('Discount',
+                          '- ₹${_discountAmount.toStringAsFixed(2)}'),
+                    ],
+                  ],
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+
+          // ── Grand total + complete: always in view ───────────
+          const SizedBox(height: 12),
+          Container(height: 1, color: const Color(0xFFF0EFED)),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Text('Grand Total',
+                    style: DashText.tight(14, w: FontWeight.w600)),
+              ),
+              RollingNumber(
+                text: '₹${_netTotal.toStringAsFixed(2)}',
+                style: DashText.tight(22, ls: -0.03),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ValueListenableBuilder<(SaveStatus, String?)>(
+            valueListenable: widget.saveState,
+            builder: (_, st, _) => _SlideToComplete(
+              status: st.$1,
+              errorText: st.$2,
+              onComplete: () => widget.onComplete(
+                  _selectedPayType, _effectivePaid, _discountAmount),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // Renders Change due (paid > total) or Balance (paid < total).
-  // ₹ / % toggle chip for the discount input.
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.only(top: 14, bottom: 6),
+        child: Text(text,
+            style: DashText.tight(12.5, w: FontWeight.w600, ls: 0)),
+      );
+
+  /// Grey rounded field: small label over the value, optional control right.
+  Widget _well({required String label, required Widget child, Widget? trailing}) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
+      decoration: BoxDecoration(
+        color: DashColors.well,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: DashText.inter(10)),
+                const SizedBox(height: 1),
+                child,
+              ],
+            ),
+          ),
+          ?trailing,
+        ],
+      ),
+    );
+  }
+
+  /// One basket line: initials tile with a quantity badge, name, rate, total.
+  Widget _basketRow(CartItem item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  left: 0,
+                  top: 6,
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _tileColorFor(item.product.name),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(_initialsFor(item.product.name),
+                        style: DashText.tight(11, c: _kChipText, ls: 0)),
+                  ),
+                ),
+                Positioned(
+                  left: 22,
+                  top: 0,
+                  child: Container(
+                    height: 17,
+                    constraints: const BoxConstraints(minWidth: 17),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: DashColors.ink,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Text(formatQty(item.quantity, item.product.unit),
+                        style: DashText.tight(10, c: Colors.white, ls: 0)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.product.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: DashText.tight(13.5, w: FontWeight.w600),
+                ),
+                // Paise are kept here: this is the bill being built, and a
+                // rate of 11.50 shown as 12 would not match the receipt.
+                Text(
+                  '${Money.inrExact(item.unitPrice)} each',
+                  style: DashText.inter(11.5, w: FontWeight.w400, c: _kSub),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(Money.inrExact(item.lineTotal),
+              style: DashText.tight(13.5, w: FontWeight.w600)),
+          // Removes a line from the bill. Drawn small and grey so it is not
+          // hit by accident; the 44px hit area keeps it easy to hit on purpose.
+          _TapTarget(
+            onTap: () => _removeItem(item),
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                  color: DashColors.well, shape: BoxShape.circle),
+              child: const Icon(LucideIcons.x,
+                  size: 13, color: Color(0xFF4A5057)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ₹ / % switch for the discount field.
   Widget _discountModeChip(String mode, String label) {
     final active = _discountMode == mode;
-    return AppTappable(
-      ripple: false,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => setState(() => _discountMode = mode),
       child: Container(
-        width: 30,
         height: 30,
+        constraints: const BoxConstraints(minWidth: 30),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: active ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: active ? AppColors.primary : AppColors.outlineVariant),
+          color: active ? DashColors.ink : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           label,
-          style: GoogleFonts.manrope(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: active ? Colors.white : AppColors.inkSecondary,
-          ),
+          style: DashText.tight(12,
+              w: FontWeight.w600,
+              c: active ? Colors.white : const Color(0xFF6E737A),
+              ls: 0),
         ),
       ),
     );
   }
 
+  // Change due (paid > total) or balance going to the client (paid < total).
   Widget _buildBalanceChip() {
     final diff = _changeOrBalance; // > 0 = change, < 0 = balance
     if (diff == 0) return const SizedBox.shrink();
     final isChange = diff > 0;
-    final label = isChange ? 'Change due' : 'Balance to credit';
-    final colour = isChange ? AppColors.secondary : AppColors.danger;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: colour.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colour.withValues(alpha: 0.25)),
+        color: isChange ? DashColors.greenSoft : const Color(0xFFFEE2E2),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          Icon(isChange ? LucideIcons.coins : LucideIcons.alertCircle,
-              size: 16, color: colour),
-          const SizedBox(width: 8),
-          Text(label, style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: colour)),
-          const Spacer(),
-          Text('₹${diff.abs().toStringAsFixed(2)}',
-              style: GoogleFonts.manrope(
-                  fontSize: 14, fontWeight: FontWeight.w700, color: colour)),
+          Expanded(
+            child: Text(
+              isChange ? 'Change due' : 'Balance to credit',
+              style: DashText.inter(12,
+                  w: FontWeight.w600,
+                  c: isChange
+                      ? const Color(0xFF166534)
+                      : const Color(0xFFB91C1C)),
+            ),
+          ),
+          Text(
+            '₹${diff.abs().toStringAsFixed(2)}',
+            style: DashText.tight(13.5,
+                c: isChange
+                    ? const Color(0xFF166534)
+                    : const Color(0xFFB91C1C),
+                ls: 0),
+          ),
         ],
       ),
     );
@@ -2630,8 +2640,19 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     }
   }
 
+  /// One payment tile: icon over a short word. The account's own name and
+  /// what it means are spelled out on the line under the row.
   Widget _buildPaymentOption(_PayMethod m) {
     final isActive = _paymentMethod == m.key;
+    final short = switch (m.type) {
+      'CASH' => 'Cash',
+      'UPI' => 'UPI',
+      'BANK' => 'Bank',
+      'CARD' => 'Card',
+      'CREDIT_SALE' => 'Credit',
+      _ => m.label,
+    };
+    final fg = isActive ? Colors.white : DashColors.ink;
     return AppTappable(
       ripple: false,
       onTap: () {
@@ -2640,67 +2661,185 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
       },
       child: AnimatedContainer(
         duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(4, 10, 4, 9),
         decoration: BoxDecoration(
-          // primaryContainer is a solid amber fill — it dominated the sheet and
-          // competed with the Checkout button. A faint tint plus a definite
-          // border reads as "selected" without shouting, and keeps the label
-          // on a light background where it stays legible.
-          color: isActive
-              ? AppColors.primary.withValues(alpha: 0.08)
-              : Colors.white,
+          color: isActive ? DashColors.amber : const Color(0xFFF6F5F3),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [AppColors.cardShadow],
-          border: Border.all(
-            color: isActive ? AppColors.primary : Colors.transparent,
-            width: isActive ? 1.5 : 1,
-          ),
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? AppColors.primary.withValues(alpha: 0.15)
-                    : AppColors.surfaceContainer,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(m.icon, size: 18, color: isActive ? AppColors.primary : AppColors.inkSecondary),
+            Icon(m.icon, size: 20, color: fg),
+            const SizedBox(height: 6),
+            Text(
+              short,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: DashText.tight(12, w: FontWeight.w600, c: fg, ls: 0),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    m.label,
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      // Deeper amber: AppColors.primary measured 2.92:1 on the
-                      // selected tint, under the 4.5:1 floor for body text.
-                      color: isActive ? const Color(0xFF92400E) : AppColors.inkPrimary,
-                    ),
-                  ),
-                  Text(
-                    m.subtitle,
-                    style: AppText.caption.copyWith(// 70% opacity amber on the tint measured ~2.2:1.
-                        // Opacity on text always drifts against its surface —
-                        // use a solid colour instead.
-                        color: isActive
-                            ? const Color(0xFF92400E)
-                            : AppColors.inkTertiary),
-                  ),
-                ],
-              ),
-            ),
-            if (isActive)
-              const Icon(LucideIcons.checkCircle2, color: AppColors.primary, size: 20),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// "Slide to complete": the last step of a sale moves money, so it takes a
+/// deliberate slide rather than a tap. Shows the real save state in place.
+class _SlideToComplete extends StatefulWidget {
+  final SaveStatus status;
+  final String? errorText;
+  final VoidCallback onComplete;
+  const _SlideToComplete({
+    required this.status,
+    required this.errorText,
+    required this.onComplete,
+  });
+
+  @override
+  State<_SlideToComplete> createState() => _SlideToCompleteState();
+}
+
+class _SlideToCompleteState extends State<_SlideToComplete> {
+  static const _h = 52.0;
+  static const _thumbW = 64.0;
+  double _dx = 0;
+  bool _dragging = false;
+
+  bool get _idle => widget.status == SaveStatus.idle;
+
+  @override
+  void didUpdateWidget(covariant _SlideToComplete old) {
+    super.didUpdateWidget(old);
+    // Back to idle after a save or a failure: the thumb returns to the start.
+    if (old.status != SaveStatus.idle && _idle) _dx = 0;
+  }
+
+  void _fire() {
+    if (!_idle) return;
+    HapticFeedback.mediumImpact();
+    widget.onComplete();
+    // If nothing started (the sale was refused before saving), let go.
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted && _idle) setState(() => _dx = 0);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_idle) {
+      final saved = widget.status == SaveStatus.saved;
+      final err = widget.status == SaveStatus.error;
+      final bg = saved
+          ? const Color(0xFF1E8E5A)
+          : err
+              ? const Color(0xFFB3261E)
+              : DashColors.well;
+      final fg = (saved || err) ? Colors.white : DashColors.ink;
+      return Container(
+        constraints: const BoxConstraints(minHeight: _h),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+            color: bg, borderRadius: BorderRadius.circular(999)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (saved)
+              Icon(Icons.check_rounded, size: 20, color: fg)
+            else if (err)
+              Icon(Icons.close_rounded, size: 20, color: fg)
+            else
+              SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: fg)),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                saved
+                    ? 'Saved'
+                    : err
+                        ? (widget.errorText ?? 'Failed')
+                        : 'Saving',
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: DashText.tight(15, w: FontWeight.w600, c: fg, ls: 0),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Semantics(
+      button: true,
+      label: 'Complete sale',
+      onTap: _fire,
+      child: LayoutBuilder(builder: (context, box) {
+        final max = (box.maxWidth - _thumbW - 8).clamp(0.0, double.infinity);
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragStart: (_) => setState(() => _dragging = true),
+          onHorizontalDragUpdate: (d) =>
+              setState(() => _dx = (_dx + d.delta.dx).clamp(0.0, max)),
+          onHorizontalDragEnd: (_) {
+            final done = max > 0 && _dx >= max * 0.85;
+            setState(() {
+              _dragging = false;
+              _dx = done ? max : 0;
+            });
+            if (done) _fire();
+          },
+          child: Container(
+            height: _h,
+            decoration: BoxDecoration(
+              color: DashColors.well,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 58),
+                  child: Opacity(
+                    opacity: max > 0 ? (1 - _dx / max).clamp(0.0, 1.0) : 1,
+                    child: Text('Slide to complete',
+                        style: DashText.tight(14.5,
+                            w: FontWeight.w600, c: DashColors.mute, ls: 0)),
+                  ),
+                ),
+                AnimatedPositioned(
+                  duration: _dragging
+                      ? Duration.zero
+                      : Motion.durationOf(
+                          context, const Duration(milliseconds: 200)),
+                  left: 4 + _dx,
+                  top: 4,
+                  child: Container(
+                    width: _thumbW,
+                    height: _h - 8,
+                    decoration: BoxDecoration(
+                      color: DashColors.amber,
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: const [
+                        BoxShadow(
+                            color: Color(0x99B45309),
+                            blurRadius: 14,
+                            spreadRadius: -6,
+                            offset: Offset(0, 6)),
+                      ],
+                    ),
+                    child: const Icon(LucideIcons.chevronsRight,
+                        size: 22, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
     );
   }
 }
@@ -2718,10 +2857,8 @@ Widget _billRow(String label, String value) {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
-      Text(label,
-          style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
-      Text(value,
-          style: AppText.label.copyWith(color: AppColors.inkPrimary)),
+      Text(label, style: DashText.inter(12.5, c: _kSub)),
+      Text(value, style: DashText.tight(13, w: FontWeight.w600, ls: 0)),
     ],
   );
 }
