@@ -439,10 +439,9 @@ class InvoiceDetailScreen extends ConsumerWidget {
     final result = await showModalBottomSheet<Map<String, String?>?>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      // Floating sheet: the card draws itself.
+      backgroundColor: Colors.transparent,
+      elevation: 0,
       builder: (_) => _ConvertSheet(invoice: invoice),
     );
     if (result == null) return; // cancelled
@@ -1947,99 +1946,94 @@ class _ConvertSheetState extends ConsumerState<_ConvertSheet> {
     });
   }
 
+  // Laid out to the approved board "Issue GST Invoice" (sales-15).
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+    final mq = MediaQuery.of(context);
+    return Container(
+      margin: EdgeInsets.fromLTRB(
+          8, 0, 8, 8 + mq.viewInsets.bottom + mq.padding.bottom),
+      constraints: BoxConstraints(
+          maxHeight: mq.size.height -
+              mq.padding.top -
+              mq.viewInsets.bottom -
+              mq.padding.bottom -
+              24),
+      decoration: BoxDecoration(
+        color: DashColors.card,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+            Text('Issue GST invoice', style: DashText.tight(19, ls: -0.02)),
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF6DD),
+                borderRadius: BorderRadius.circular(12),
               ),
+              child: Text("A tax invoice needs the client's GSTIN.",
+                  style: DashText.inter(12.5, c: const Color(0xFF8A5A00))),
             ),
-            const SizedBox(height: 16),
-            Text('Issue GST Invoice',
-                style: GoogleFonts.manrope(
-                    fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
-            Text('TAX INVOICE — REQUIRES GSTIN',
-                style: GoogleFonts.manrope(
-                    fontSize: 13, fontWeight: FontWeight.w600,
-                    color: AppColors.inkTertiary, letterSpacing: 1.2)),
-            const SizedBox(height: 18),
-
-            _Field(label: 'Client Name *', ctrl: _name),
-            const SizedBox(height: 10),
-            _Field(label: 'GSTIN *', ctrl: _gstin, mono: true, hint: '29AAACR5055K1Z5'),
-            const SizedBox(height: 10),
-            _Field(label: 'Billing Address', ctrl: _address, maxLines: 2),
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(child: _Field(label: 'Phone', ctrl: _phone, keyboardType: TextInputType.phone)),
-              const SizedBox(width: 10),
-              Expanded(child: _Field(label: 'Place of Supply', ctrl: _placeOfSupply, hint: 'KL / TN / GST state code')),
-            ]),
-            const SizedBox(height: 10),
-            _Field(label: 'Due in (days)', ctrl: _dueDays, keyboardType: TextInputType.number),
-
-            if (_error != null) ...[
-              const SizedBox(height: 12),
+            _Field(label: 'Client name *', ctrl: _name),
+            _Field(label: 'GSTIN *', ctrl: _gstin, hint: '29AAACR5055K1Z5'),
+            _Field(label: 'Billing address', ctrl: _address, maxLines: 2),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                    child: _Field(
+                        label: 'Phone',
+                        ctrl: _phone,
+                        keyboardType: TextInputType.phone)),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 112,
+                  child: _Field(
+                      label: 'Due in (days)',
+                      ctrl: _dueDays,
+                      keyboardType: TextInputType.number),
+                ),
+              ],
+            ),
+            _Field(
+                label: 'Place of supply',
+                ctrl: _placeOfSupply,
+                hint: 'KL / TN / GST state code'),
+            if (_error != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                margin: const EdgeInsets.only(top: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                 decoration: BoxDecoration(
-                  color: AppColors.danger.withValues(alpha: 0.08),
+                  color: const Color(0xFFFEE2E2),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
                 ),
-                child: Row(children: [
-                  const Icon(LucideIcons.alertCircle, size: 14, color: AppColors.danger),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(_error!,
-                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.danger, fontWeight: FontWeight.w600))),
-                ]),
+                child: Text(_error!,
+                    style: DashText.inter(12.5,
+                        w: FontWeight.w600, c: const Color(0xFFB91C1C))),
               ),
-            ],
-
-            const SizedBox(height: 18),
-            Row(children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: const StadiumBorder(),
-                    side: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
-                  ),
-                  child: Text('Cancel',
-                      style: GoogleFonts.manrope(
-                          fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkSecondary)),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _DockButton(
+                      label: 'Cancel',
+                      soft: true,
+                      onTap: () => Navigator.pop(context)),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton.icon(
-                  onPressed: _submit,
-                  icon: const Icon(LucideIcons.fileText, size: 16),
-                  label: Text('Issue Invoice',
-                      style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryContainer,
-                    foregroundColor: AppColors.inkPrimary,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: const StadiumBorder(),
-                  ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _DockButton(label: 'Issue invoice', onTap: _submit),
                 ),
-              ),
-            ]),
+              ],
+            ),
           ],
         ),
       ),
@@ -2052,53 +2046,56 @@ class _Field extends StatelessWidget {
   final TextEditingController ctrl;
   final String? hint;
   final int maxLines;
-  final bool mono;
   final TextInputType? keyboardType;
   const _Field({
     required this.label,
     required this.ctrl,
     this.hint,
     this.maxLines = 1,
-    this.mono = false,
     this.keyboardType,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(label,
-              style: GoogleFonts.manrope(
-                  fontSize: 13, fontWeight: FontWeight.w700,
-                  color: AppColors.inkTertiary, letterSpacing: 1)),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-          ),
-          child: TextField(
-            controller: ctrl,
-            maxLines: maxLines,
-            keyboardType: keyboardType,
-            style: (mono
-                    ? GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700)
-                    : GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w500))
-                .copyWith(color: AppColors.inkPrimary),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              hintText: hint,
-              hintStyle: GoogleFonts.manrope(
-                  color: AppColors.inkTertiary.withValues(alpha: 0.6), fontSize: 13),
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: DashText.tight(12.5,
+                  w: FontWeight.w600, c: const Color(0xFF30343A), ls: 0)),
+          const SizedBox(height: 5),
+          Container(
+            constraints: const BoxConstraints(minHeight: 46),
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 13),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4F4F3),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: TextField(
+              controller: ctrl,
+              maxLines: maxLines,
+              minLines: 1,
+              keyboardType: keyboardType,
+              style: DashText.tight(14.5, w: FontWeight.w600, ls: 0),
+              cursorColor: DashColors.amber,
+              decoration: InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                filled: false,
+                contentPadding: const EdgeInsets.symmetric(vertical: 13),
+                hintText: hint,
+                hintStyle: DashText.tight(14.5,
+                    w: FontWeight.w500, c: const Color(0xFF8A9099), ls: 0),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
