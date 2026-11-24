@@ -9,11 +9,9 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/features/dashboard/presentation/widgets/dash_common.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'app_button.dart';
 
 class UpiQrSheet extends StatelessWidget {
   final String upiId;
@@ -43,109 +41,146 @@ class UpiQrSheet extends StatelessWidget {
     return 'upi://pay?pa=$upiId&pn=$pn&am=${amount.toStringAsFixed(2)}&cu=INR&tn=$tn';
   }
 
+  Widget _pill(String label,
+      {required VoidCallback onTap, required Color fill, required Color ink}) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        height: 46,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+            color: fill, borderRadius: BorderRadius.circular(999)),
+        child: Text(label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: DashText.tight(15, w: FontWeight.w600, c: ink, ls: 0)),
+      ),
+    );
+  }
+
+  // Laid out to the approved board "Pay with UPI" (sales-18).
   @override
   Widget build(BuildContext context) {
     final deeplink = _buildDeeplink();
+    final mq = MediaQuery.of(context);
+    const grey = Color(0xFF6E737A);
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+    return Container(
+      margin: EdgeInsets.fromLTRB(8, 0, 8, 8 + mq.padding.bottom),
+      constraints: BoxConstraints(
+          maxHeight: mq.size.height - mq.padding.top - mq.padding.bottom - 24),
+      decoration: BoxDecoration(
+        color: DashColors.card,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Drag handle
+            Row(
+              children: [
+                Expanded(
+                    child: Text('Pay with UPI', style: DashText.tight(17))),
+                // Only the preview can simply be closed. Once the sale
+                // exists the cashier must say whether the money arrived,
+                // because closing would be read as "it did not".
+                if (!confirmable)
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.pop(context),
+                    child: SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Center(
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: const BoxDecoration(
+                              color: DashColors.well, shape: BoxShape.circle),
+                          child: const Icon(LucideIcons.x,
+                              size: 16, color: Color(0xFF4A5057)),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox(height: 44),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Container(height: 1, color: DashColors.sep),
+            const SizedBox(height: 10),
+            Text(
+              'Ask the customer to scan with PhonePe, GPay, Paytm, or BHIM.',
+              style: DashText.inter(12.5, c: grey).copyWith(height: 1.45),
+            ),
+
+            // ── QR ──────────────────────────────────────────────
+            const SizedBox(height: 14),
             Center(
               child: Container(
-                width: 40, height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.inkTertiary.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(2),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFECEAE7)),
+                ),
+                child: QrImageView(
+                  data: deeplink,
+                  version: QrVersions.auto,
+                  size: 170,
+                  padding: EdgeInsets.zero,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Colors.black,
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Colors.black,
+                  ),
                 ),
               ),
             ),
-
+            const SizedBox(height: 12),
             Text(
-              'Pay with UPI',
+              '$currencySymbol${amount.toStringAsFixed(2)}',
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 22, fontWeight: FontWeight.w700,
-                color: AppColors.inkPrimary,
-              ),
+              style: DashText.tight(34, ls: -0.04),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Ask the customer to scan with PhonePe, GPay, Paytm, or BHIM.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
-            ),
-            const SizedBox(height: 20),
+            if (invoiceNo != 'PREVIEW') ...[
+              const SizedBox(height: 2),
+              Text('Invoice $invoiceNo',
+                  textAlign: TextAlign.center,
+                  style: DashText.inter(12.5, c: const Color(0xFF7A8088))),
+            ],
 
-            // QR card
+            // ── UPI ID + copy ───────────────────────────────────
             Container(
-              padding: const EdgeInsets.all(20),
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.fromLTRB(12, 9, 4, 9),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.outlineVariant),
-              ),
-              child: Column(
-                children: [
-                  QrImageView(
-                    data: deeplink,
-                    version: QrVersions.auto,
-                    size: 220,
-                    eyeStyle: const QrEyeStyle(
-                      eyeShape: QrEyeShape.square,
-                      color: Colors.black,
-                    ),
-                    dataModuleStyle: const QrDataModuleStyle(
-                      dataModuleShape: QrDataModuleShape.square,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '$currencySymbol${amount.toStringAsFixed(2)}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 28, fontWeight: FontWeight.w800,
-                      color: AppColors.inkPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  if (invoiceNo != 'PREVIEW')
-                    Text(
-                      'Invoice $invoiceNo',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13, color: AppColors.inkTertiary,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // VPA + copy
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.canvas,
+                color: DashColors.well,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  Icon(LucideIcons.atSign, size: 14, color: AppColors.inkTertiary),
-                  const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      upiId,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13, fontWeight: FontWeight.w600,
-                        color: AppColors.inkPrimary,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('UPI ID', style: DashText.inter(10)),
+                        const SizedBox(height: 1),
+                        Text(upiId,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: DashText.tight(13.5,
+                                w: FontWeight.w600, ls: 0)),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -158,75 +193,40 @@ class UpiQrSheet extends StatelessWidget {
                         ),
                       );
                     },
-                    icon: const Icon(LucideIcons.copy, size: 16),
+                    icon: const Icon(LucideIcons.copy, size: 16, color: grey),
                     tooltip: 'Copy UPI ID',
-                    visualDensity: VisualDensity.compact,
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 20),
-
-            // Preview mode (confirmable=false): single Close button. The
-            // sale isn't created yet, so there's nothing to mark paid or
-            // failed — that happens after Complete Transaction.
-            if (!confirmable)
-              ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(LucideIcons.x, size: 16),
-                label: const Text('Close'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.surfaceContainer,
-                  foregroundColor: AppColors.inkPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: const StadiumBorder(),
-                  textStyle: GoogleFonts.manrope(
-                    fontSize: 13, fontWeight: FontWeight.w700,
-                  ),
-                ),
-              )
-            else ...[
-              // Payment confirmation row: cashier asks the customer if their
-              // UPI app showed "Payment Successful", then taps the matching
-              // button. Until one is tapped the sale stays in PENDING state.
+            // Preview (confirmable = false): the sale is not created yet, so
+            // there is nothing to mark paid or failed.
+            if (confirmable) ...[
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
-                    // Both were raw Material buttons, so the two controls that
-                    // decide whether a payment landed were the only ones in
-                    // the checkout flow with no press response. AppButton
-                    // carries the scale, the ripple and the reduce-motion
-                    // handling every other button in the app has.
-                    child: AppButton(
-                      label: 'Mark Failed',
-                      icon: LucideIcons.x,
-                      variant: AppButtonVariant.danger,
-                      size: AppButtonSize.large,
-                      fullWidth: true,
-                      onPressed: () => Navigator.pop(context, false),
-                    ),
+                    child: _pill('Mark failed',
+                        onTap: () => Navigator.pop(context, false),
+                        fill: const Color(0xFFEFEEEC),
+                        ink: DashColors.red),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: AppButton(
-                      label: 'Payment Received',
-                      icon: LucideIcons.checkCircle2,
-                      size: AppButtonSize.large,
-                      fullWidth: true,
-                      onPressed: () => Navigator.pop(context, true),
-                    ),
+                    child: _pill('Payment received',
+                        onTap: () => Navigator.pop(context, true),
+                        fill: DashColors.amber,
+                        ink: Colors.white),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
-                'Mark Failed will void the sale and return stock. '
+                'Mark failed will void the sale and return stock. '
                 'The cashier can then ring a fresh transaction.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.manrope(
-                  fontSize: 13, color: AppColors.inkTertiary,
-                ),
+                style: DashText.inter(12).copyWith(height: 1.5),
               ),
             ],
           ],
@@ -254,10 +254,9 @@ class UpiQrSheet extends StatelessWidget {
       // Preview mode is freely dismissible; confirm mode forces a choice.
       isDismissible: !confirmable,
       enableDrag: !confirmable,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+      // Floating sheet: the card draws itself.
+      backgroundColor: Colors.transparent,
+      elevation: 0,
       builder: (_) => UpiQrSheet(
         upiId: upiId,
         merchantName: merchantName,
