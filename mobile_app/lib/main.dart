@@ -267,7 +267,12 @@ class AuthGateScreen extends ConsumerWidget {
         return const _TenantGate();
       },
       loading: () => const _SplashScreen(),
-      error: (_, _) => const LoginScreen(),
+      // sessionProvider no longer surfaces refresh errors, so this is only a
+      // provider that failed outright. Even then the question is whether a
+      // session is held, not whether something threw.
+      error: (_, _) => supabase.auth.currentSession != null
+          ? const _TenantGate()
+          : const LoginScreen(),
     );
   }
 }
@@ -335,7 +340,7 @@ class _TenantGateState extends ConsumerState<_TenantGate> {
         _startedTenantId = ctx.tenantId;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          ref.read(realtimeSyncProvider).start(ctx.tenantId, ref);
+          ref.read(realtimeSyncProvider).start(ctx.tenantId);
           // ignore: unawaited_futures
           ref.read(syncServiceProvider).pullSync();
           // ignore: unawaited_futures
