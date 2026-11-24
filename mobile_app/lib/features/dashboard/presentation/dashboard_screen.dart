@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'widgets/dash_common.dart' show DashColors;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/widgets/motion/motion_curves.dart';
@@ -89,7 +88,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           // the shell bar would only repeat it. Keep the status-bar inset.
           if (currentFeature == 'dashboard')
             Container(
-              color: DashColors.bg,
+              color: Bl.white,
               child: const SafeArea(bottom: false, child: SizedBox(height: 4)),
             )
           else

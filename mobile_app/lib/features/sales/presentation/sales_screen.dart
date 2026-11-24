@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/database/offline_sales_ui.dart';
-import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/utils/money.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.dart';
@@ -15,10 +12,8 @@ import 'package:mobile_app/features/returns/presentation/sales_returns_tab.dart'
 import 'package:mobile_app/features/sales/data/models/sale.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/sales/presentation/sales_view.dart';
-import 'package:mobile_app/widgets/motion/motion_curves.dart';
 
 // This font pads a tabular '1' visibly ("₹8,1 10"), so figures stay proportional.
-const _tabular = <FontFeature>[];
 
 class SalesScreen extends ConsumerStatefulWidget {
   const SalesScreen({super.key});
@@ -97,27 +92,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         ? null
         : ref.watch(salesReturnsProvider(tenantId)).valueOrNull?.length;
 
+    final returnsOpen = _historyIndex == 1;
     final tabs = SalesHistoryTabs(
       index: _historyIndex,
       returnsCount: returnsCount,
       onChanged: (i) => setState(() => _historyIndex = i),
     );
-
-    if (_historyIndex == 1) {
-      return Scaffold(
-        backgroundColor: AppColors.canvas,
-        body: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: Gap.sm),
-              tabs,
-              const SizedBox(height: Gap.lg),
-              Expanded(child: SalesReturnsTab(tenantId: tenantId)),
-            ],
-          ),
-        ),
-      );
-    }
 
     final range = _range;
     final query = (from: range.from, to: range.to, limit: _limit);
@@ -186,91 +166,94 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       items.addAll(g.sales);
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      body: SafeArea(
-        child: CustomScrollView(
-          controller: _scroll,
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            const SliverToBoxAdapter(
-              child: OfflineSalesBanner(
-                padding: EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, 4),
+    return ColoredBox(
+      color: Bl.white,
+      child: CustomScrollView(
+        controller: _scroll,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          const SliverToBoxAdapter(
+            child: OfflineSalesBanner(
+              padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
+            ),
+          ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _PinnedHeader(
+              height: returnsOpen ? 152 : 194,
+              child: _SummaryHeader(
+                total: total,
+                bills: bills,
+                due: due,
+                creditBills: creditBills,
+                period: _period,
+                onPeriod: (p) => setState(() {
+                  _period = p;
+                  _limit = salesPageSize;
+                }),
+                tabs: tabs,
+                filterIndex: _filterIndex,
+                filters: returnsOpen ? const [] : _filters,
+                onFilter: (i) => setState(() => _filterIndex = i),
               ),
             ),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _PinnedHeader(
-                height: 182,
-                child: _SummaryHeader(
-                  total: total,
-                  bills: bills,
-                  due: due,
-                  creditBills: creditBills,
-                  period: _period,
-                  onPeriod: (p) => setState(() {
-                    _period = p;
-                    _limit = salesPageSize;
-                  }),
-                  tabs: tabs,
-                  filterIndex: _filterIndex,
-                  filters: _filters,
-                  onFilter: (i) => setState(() => _filterIndex = i),
-                ),
+          ),
+          if (returnsOpen)
+            SliverToBoxAdapter(
+              child: SalesReturnsTab(tenantId: tenantId, embedded: true),
+            )
+          else if (sales == null && salesAsync.isLoading)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child:
+                    CircularProgressIndicator(color: Bl.amber, strokeWidth: 2),
               ),
-            ),
-            if (sales == null && salesAsync.isLoading)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
-              )
-            else if (sales == null && salesAsync.hasError)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(Gap.xl),
-                    child: Text(
-                      'Could not load sales. Check your internet and try again.',
-                      textAlign: TextAlign.center,
-                      style: AppText.body.copyWith(color: AppColors.error),
-                    ),
-                  ),
-                ),
-              )
-            else if (items.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
+            )
+          else if (sales == null && salesAsync.hasError)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
                   child: Text(
-                    'No sales in this period.',
-                    style: AppText.body.copyWith(color: AppColors.inkTertiary),
+                    'Could not load sales. Check your internet and try again.',
+                    textAlign: TextAlign.center,
+                    style: Bl.inter(13.5, c: Bl.redDeep, h: 1.5),
                   ),
                 ),
-              )
-            else
-              SliverList.builder(
-                itemCount: items.length,
-                itemBuilder: (context, i) {
-                  final it = items[i];
-                  if (it is DayGroup) return _DayHeader(group: it);
-                  final sale = it as Sale;
-                  final last = i + 1 >= items.length || items[i + 1] is DayGroup;
-                  return _SaleRow(
-                    sale: sale,
-                    showDivider: !last,
-                    name: _name(sale, clientById),
-                    owes: _owes(sale) && !sale.isUnsynced,
-                    due: _due(sale),
-                  );
-                },
               ),
-            // Clear of the shell's FAB and bottom bar so amounts stay visible.
-            const SliverToBoxAdapter(child: SizedBox(height: 160)),
-          ],
-        ),
+            )
+          else if (items.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: BlEmpty(
+                    icon: BlIcons.receipt, title: 'No sales in this period.'),
+              ),
+            )
+          else
+            SliverList.builder(
+              itemCount: items.length,
+              itemBuilder: (context, i) {
+                final it = items[i];
+                if (it is DayGroup) {
+                  return BlGroupHeader(it.label,
+                      trailing: Money.inr(it.total));
+                }
+                final sale = it as Sale;
+                return _SaleRow(
+                  sale: sale,
+                  name: _name(sale, clientById),
+                  owes: _owes(sale) && !sale.isUnsynced,
+                  due: _due(sale),
+                );
+              },
+            ),
+          SliverToBoxAdapter(
+              child: SizedBox(
+                  height: 96 + MediaQuery.of(context).viewPadding.bottom)),
+        ],
       ),
     );
   }
@@ -297,19 +280,19 @@ class _PinnedHeader extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
-      Container(
-        color: AppColors.canvas,
-        // Always ruled: overlapsContent is false for a fixed-height pinned
-        // header, so rows slid under it with no edge.
-        foregroundDecoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.outlineVariant, width: 0.5)),
-        ),
-        child: child,
-      );
+      ColoredBox(color: Bl.white, child: child);
 
   @override
   bool shouldRebuild(covariant _PinnedHeader old) => true;
 }
+
+String _periodPhrase(SalesPeriod p) => switch (p) {
+      SalesPeriod.today => 'Sales today',
+      SalesPeriod.yesterday => 'Sales yesterday',
+      SalesPeriod.week => 'Sales this week',
+      SalesPeriod.month => 'Sales this month',
+      SalesPeriod.all => 'All sales',
+    };
 
 class _SummaryHeader extends StatelessWidget {
   final double total, due;
@@ -340,27 +323,55 @@ class _SummaryHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, 0),
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  Money.inr(total),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.moneyLarge.copyWith(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w600,
-                    fontFeatures: _tabular,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_periodPhrase(period)} · $bills ${bills == 1 ? 'bill' : 'bills'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Bl.inter(13, w: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 6),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        Money.inr(total),
+                        maxLines: 1,
+                        style: Bl.tight(36,
+                            w: FontWeight.w700, ls: -0.04, h: 1.05),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // Line kept even when nothing is due, so the header does
+                    // not change height between periods.
+                    Text(
+                      due > 0
+                          ? '${Money.inr(due)} due · $creditBills on credit'
+                          : 'Nothing due',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Bl.inter(12.5,
+                          w: FontWeight.w600,
+                          c: due > 0 ? Bl.amberDeep : Bl.mute),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 8),
               PopupMenuButton<SalesPeriod>(
                 tooltip: 'Change period',
                 position: PopupMenuPosition.under,
-                color: AppColors.canvas,
-                elevation: 2,
+                color: Bl.white,
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 onSelected: onPeriod,
                 itemBuilder: (_) => [
                   for (final p in SalesPeriod.values)
@@ -369,26 +380,28 @@ class _SummaryHeader extends StatelessWidget {
                       height: 44,
                       child: Text(
                         p.label,
-                        style: AppText.body.copyWith(
-                          fontWeight: p == period ? FontWeight.w600 : FontWeight.w400,
-                        ),
+                        style: Bl.tight(14,
+                            w: p == period ? FontWeight.w700 : FontWeight.w500),
                       ),
                     ),
                 ],
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+                child: Container(
+                  height: 34,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                      color: Bl.well,
+                      borderRadius: BorderRadius.circular(999)),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        period.label,
-                        style: AppText.body.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const Icon(Icons.arrow_drop_down,
-                          size: 20, color: AppColors.primary),
+                      Text(period.label,
+                          style: Bl.tight(13,
+                              w: FontWeight.w600,
+                              ls: 0,
+                              c: const Color(0xFF303030))),
+                      const SizedBox(width: 5),
+                      const BlIcon(BlIcons.chevronDown,
+                          size: 16, color: Color(0xFF303030)),
                     ],
                   ),
                 ),
@@ -396,94 +409,22 @@ class _SummaryHeader extends StatelessWidget {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
-          child: Text(
-            '$bills ${bills == 1 ? 'bill' : 'bills'} · ${period.label.toLowerCase()}',
-            style: AppText.caption,
-          ),
-        ),
-        if (due > 0)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(Gap.xl, 2, Gap.xl, 0),
-            child: Text(
-              '${Money.inr(due)} due · $creditBills on credit',
-              style: AppText.caption.copyWith(
-                color: AppColors.warning,
-                fontWeight: FontWeight.w500,
-                fontFeatures: _tabular,
-              ),
-            ),
-          ),
-        const SizedBox(height: Gap.md),
+        const SizedBox(height: 14),
         tabs,
-        const SizedBox(height: Gap.xs),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
-          child: Row(
-            children: [
-              for (var i = 0; i < filters.length; i++) ...[
-                if (i > 0)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
-                    child: Text('·', style: AppText.caption),
-                  ),
-                AppTappable(
-                  ripple: false,
-                  onTap: () => onFilter(i),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: Gap.sm, vertical: Gap.md),
-                    child: AnimatedDefaultTextStyle(
-                      duration: motionDur(context, 160),
-                      curve: MotionCurves.out,
-                      style: AppText.body.copyWith(
-                        fontWeight: filterIndex == i ? FontWeight.w600 : FontWeight.w400,
-                        color: filterIndex == i
-                            ? AppColors.onSurface
-                            : AppColors.inkTertiary,
-                      ),
-                      child: Text(filters[i]),
-                    ),
-                  ),
-                ),
+        if (filters.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 5, 16, 0),
+            child: Row(
+              children: [
+                for (var i = 0; i < filters.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 6),
+                  BlOutlinePill(filters[i],
+                      selected: filterIndex == i, onTap: () => onFilter(i)),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
       ],
-    );
-  }
-}
-
-class _DayHeader extends StatelessWidget {
-  final DayGroup group;
-  const _DayHeader({required this.group});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.lg, Gap.xl, Gap.xs),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              group.label,
-              style: AppText.caption.copyWith(
-                color: AppColors.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Text(
-            Money.inr(group.total),
-            style: AppText.caption.copyWith(
-              color: AppColors.onSurfaceVariant,
-              fontFeatures: _tabular,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -493,23 +434,22 @@ class _SaleRow extends StatelessWidget {
   final String name;
   final bool owes;
   final double due;
-  final bool showDivider;
   const _SaleRow({
     required this.sale,
     required this.name,
     required this.owes,
     required this.due,
-    required this.showDivider,
   });
 
-  void _open(BuildContext context) => sale.isUnsynced
-      ? UnsyncedSalesSheet.show(context)
-      : Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => InvoiceDetailScreen(invoice: Invoice.fromSale(sale)),
-          ),
-        );
+  void _openInvoice(BuildContext context) => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => InvoiceDetailScreen(invoice: Invoice.fromSale(sale)),
+        ),
+      );
+
+  void _open(BuildContext context) =>
+      sale.isUnsynced ? UnsyncedSalesSheet.show(context) : _openInvoice(context);
 
   @override
   Widget build(BuildContext context) {
@@ -521,104 +461,94 @@ class _SaleRow extends StatelessWidget {
       methodLabel(sale.paymentMethod),
     ].where((e) => e.isNotEmpty).join(' · ');
 
-    return AppTappable(
-      ripple: false,
+    return BlTap(
       onTap: () => _open(context),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.canvas,
-          border: showDivider
-              ? const Border(
-                  bottom: BorderSide(color: AppColors.outlineVariant),
-                )
-              : null,
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: Gap.xl),
-        padding: const EdgeInsets.symmetric(vertical: Gap.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            BlPartyAvatar(name),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.body.copyWith(fontWeight: FontWeight.w500),
+                      Expanded(
+                        child: Text(name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Bl.tight(14.5, w: FontWeight.w600)),
                       ),
-                      const SizedBox(height: 2),
-                      Text(meta, style: AppText.caption, maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      const SizedBox(width: 8),
+                      Text(
+                        Money.inr(sale.totalAmount ?? 0),
+                        style: Bl.tight(14.5,
+                                w: FontWeight.w600,
+                                c: voided ? const Color(0xFF9AA0A6) : Bl.ink)
+                            .copyWith(
+                                decoration:
+                                    voided ? TextDecoration.lineThrough : null,
+                                decorationColor: const Color(0xFF9AA0A6)),
+                      ),
                     ],
                   ),
-                ),
-                const SizedBox(width: Gap.md),
-                Text(
-                  Money.inr(sale.totalAmount ?? 0),
-                  style: AppText.body.copyWith(
-                    fontWeight: FontWeight.w500,
-                    fontFeatures: _tabular,
-                    color: voided ? AppColors.inkTertiary : AppColors.onSurface,
-                    decoration: voided ? TextDecoration.lineThrough : null,
-                  ),
-                ),
-              ],
-            ),
-            if (sale.isUnsynced) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Not sent · tap to retry',
-                style: AppText.caption.copyWith(
-                  color: AppColors.danger,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ] else if (voided) ...[
-              const SizedBox(height: 4),
-              Text(
-                st == 'VOIDED' ? 'Voided' : 'Failed',
-                style: AppText.caption.copyWith(color: AppColors.danger),
-              ),
-            ] else if (owes) ...[
-              Row(
-                children: [
-                  Text(
-                    'Due ${Money.inr(due)}',
-                    style: AppText.caption.copyWith(
-                      color: AppColors.warning,
-                      fontWeight: FontWeight.w500,
-                      fontFeatures: _tabular,
-                    ),
-                  ),
-                  Text(' · ', style: AppText.caption),
-                  AppTappable(
-                    ripple: false,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            InvoiceDetailScreen(invoice: Invoice.fromSale(sale)),
+                  const SizedBox(height: 1),
+                  Text(meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Bl.inter(12, c: const Color(0xFF7A8088))),
+                  if (sale.isUnsynced)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Text('Not sent · tap to retry',
+                          style: Bl.inter(12, w: FontWeight.w600, c: Bl.red)),
+                    )
+                  else if (voided)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Text(st == 'VOIDED' ? 'Voided' : 'Failed',
+                          style: Bl.inter(12, w: FontWeight.w600, c: Bl.red)),
+                    )
+                  else if (owes)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text('Due ${Money.inr(due)}',
+                                style: Bl.inter(12,
+                                    w: FontWeight.w600, c: Bl.amberDeep)),
+                          ),
+                          BlTap(
+                            label: 'Collect from $name',
+                            onTap: () => _openInvoice(context),
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 6, left: 12),
+                              child: Container(
+                                height: 28,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 13),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                    color: Bl.amber,
+                                    borderRadius: BorderRadius.circular(999)),
+                                child: Text('Collect',
+                                    style: Bl.tight(12.5,
+                                        w: FontWeight.w600,
+                                        ls: 0,
+                                        c: Bl.white)),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Text(
-                        'Collect',
-                        style: AppText.caption.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
-            ],
+            ),
           ],
         ),
       ),

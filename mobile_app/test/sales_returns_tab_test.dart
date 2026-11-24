@@ -75,14 +75,13 @@ void main() {
       expect(find.byKey(const Key('sales-return-row-CRN-2')), findsOneWidget);
       expect(find.byKey(const Key('sales-return-row-CRN-1')), findsOneWidget);
 
-      expect(find.text('14 Jul 2026'), findsOneWidget);
       expect(find.text('Ravi Stores'), findsOneWidget);
-      expect(find.text('2 items'), findsOneWidget);
+      expect(find.text('14 Jul 2026 · 2 items'), findsOneWidget);
       expect(find.text(Money.inr(450)), findsOneWidget);
 
       // A return with no customer name is a walk-in sale, and one item is singular.
       expect(find.text('Walk-in'), findsOneWidget);
-      expect(find.text('1 item'), findsOneWidget);
+      expect(find.textContaining(' · 1 item'), findsOneWidget);
       expect(find.text(Money.inr(120)), findsOneWidget);
     },
   );

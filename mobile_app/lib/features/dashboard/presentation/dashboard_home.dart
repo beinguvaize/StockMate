@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/core/utils/money.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/widgets/banner_carousel.dart';
@@ -17,20 +18,11 @@ import 'package:mobile_app/features/reports/presentation/reports_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/sales/presentation/sale_type_sheet.dart';
 import 'package:mobile_app/widgets/motion/motion_refresh.dart';
-import 'package:mobile_app/widgets/motion/stagger_in.dart';
 
 import 'dashboard_logic.dart';
 import 'dashboard_screen.dart' show showNotificationsSheet;
 import 'providers/telemetry_provider.dart';
-import 'widgets/attention_cards.dart';
-import 'widgets/dash_common.dart';
-import 'widgets/dashboard_header.dart';
-import 'widgets/hero_total.dart';
-import 'widgets/metric_tiles.dart';
-import 'widgets/payment_split_card.dart';
-import 'widgets/quick_actions.dart';
-import 'widgets/sales_sparkline.dart';
-import 'widgets/week_card.dart';
+import 'widgets/dash_canvas.dart';
 
 /// The phone Dashboard: one calm, scrolling screen. Read-only -- every figure
 /// comes from providers that already exist; nothing here writes.
@@ -44,8 +36,6 @@ class DashboardHome extends ConsumerStatefulWidget {
 
 class _DashboardHomeState extends ConsumerState<DashboardHome>
     with WidgetsBindingObserver {
-  bool _introPending = true; // first open of the day only
-  bool _playIntro = false;
   int _periodIdx = 0;
 
   static const _periods = DashPeriod.values;
@@ -53,9 +43,6 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
   @override
   void initState() {
     super.initState();
-    claimFirstOpenToday().then((v) {
-      if (mounted) setState(() { _introPending = false; _playIntro = v; });
-    });
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -95,8 +82,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
       canAccess(feature,
           roles: ctx.roles, plan: ctx.plan, permissions: ctx.permissions);
 
-  Widget _in(int index, Widget child) => StaggerIn(
-      pending: _introPending, play: _playIntro, index: index, child: child);
+  Widget _in(int index, Widget child) => BlEntrance(index: index, child: child);
 
   static String _periodWord(DashPeriod p) => switch (p) {
         DashPeriod.today => 'today',
@@ -175,133 +161,181 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
           ]);
     final sellers = recent == null ? const <BestSeller>[] : bestSellersToday(recent, now);
 
-    final actions = <QuickAction>[
-      QuickAction(LucideIcons.plus, 'New sale', () async {
+    final owed = m?.outstandingCollections ?? 0;
+    final actions = <DashAction>[
+      DashAction(DashAction.newSale, Bl.amber, 'New sale', 'Bill a customer',
+          () async {
         await navigateToNewSale(context, ctx?.roles ?? const []);
         if (mounted) _refresh();
       }, primary: true),
       if (_can(ctx, 'clients'))
-        QuickAction(LucideIcons.arrowUp, 'Collect', () => _push(const CRMScreen())),
+        DashAction(
+            DashAction.collect,
+            Bl.green,
+            'Collect',
+            owed > 0 ? '${Money.inr(owed)} due' : 'Nothing due',
+            () => _push(const CRMScreen())),
       if (_can(ctx, 'purchases'))
-        QuickAction(LucideIcons.shoppingCart, 'Purchase',
-            () => _push(const PurchasesScreen())),
+        DashAction(DashAction.purchase, Bl.blue, 'Purchase',
+            'Stock in from a supplier', () => _push(const PurchasesScreen())),
       if (_can(ctx, 'expenses'))
-        QuickAction(LucideIcons.receipt, 'Expense', () => _push(const FinanceScreen())),
+        DashAction(DashAction.expense, const Color(0xFFD2502E), 'Expense',
+            'Log money spent', () => _push(const FinanceScreen())),
     ];
 
-    var i = 0;
     final weekHasData =
         m != null && m.weeklySales.fold<double>(0, (a, d) => a + d.amount) > 0;
+    final split = splitSegments(todaySummary.valueOrNull);
+    final splitTotal = split.fold<double>(0, (a, e) => a + e.amount);
+    final duesTotal = debtors == null
+        ? 0.0
+        : (m?.outstandingCollections ??
+            debtors.top.fold<double>(0, (a, d) => a + d.owed));
 
-    return Scaffold(
-      backgroundColor: DashColors.bg,
-      body: SafeArea(
-        top: false,
-        child: MotionRefresh(
-          onRefresh: _refresh,
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics()),
-            padding: const EdgeInsets.only(bottom: 120),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _in(i++, DashboardHeader(
-                  // `context` here is above this screen's own Scaffold, so this
-                  // opens the shell's drawer, as the old avatar button did.
-                  onMenu: () => Scaffold.of(context).openDrawer(),
-                  onBell: () => showNotificationsSheet(context),
-                  showingSavedFigures: m?.fromCache == true,
-                )),
-                if (ctx != null &&
-                    ctx.tenant.status == 'TRIAL' &&
-                    ctx.trialDaysLeft <= 7)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-                    child: TrialBanner(daysLeft: ctx.trialDaysLeft),
-                  ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14),
-                  child: ExpiryAlertCard(),
-                ),
-                const SizedBox(height: 14),
-                _in(i++, PeriodSwitch(
-                  index: _periodIdx,
-                  onChanged: (v) => setState(() => _periodIdx = v),
-                )),
-                const SizedBox(height: 16),
-                _in(i++, heroLoading
-                    ? const _HeroSkeleton()
-                    : HeroTotal(
-                        label: label,
-                        amount: amount,
-                        emptyNote: 'Not available offline',
-                      )),
-                if (period == DashPeriod.today && m != null && !empty)
-                  Center(child: _in(i++, DeltaPill(deltaPct: m.salesDeltaPct))),
-                if (period == DashPeriod.today && m != null)
-                  _in(i++, SalesSparkline(hourly: m.hourlySales, now: now)),
-                _in(i++, QuickActions(actions: actions)),
-                _in(i++, PaymentSplitCard(
-                    segments: splitSegments(todaySummary.valueOrNull))),
-                if (m != null)
-                  _in(i++, MetricTiles(
-                    m: m,
-                    onExpenses: _can(ctx, 'expenses')
-                        ? () => _push(const FinanceScreen())
-                        : null,
-                    onPurchases: _can(ctx, 'purchases')
-                        ? () => _push(const PurchasesScreen())
-                        : null,
-                    onCash: _can(ctx, 'daybook')
-                        ? () => _push(const DayBookScreen())
-                        : null,
-                    onBills: () => widget.onTabSwitch('sales'),
-                  ))
-                else if (tele.isLoading)
-                  const _TilesSkeleton(),
-                if (weekHasData) ...[
-                  _in(i++, SectionHeader('This week',
-                      link: _can(ctx, 'reports') ? 'Reports' : null,
-                      onLink: () => _push(const ReportsScreen()))),
-                  _in(i++, WeekCard(days: m.weeklySales)),
-                ],
-                if (debtors != null && debtors.count > 0) ...[
-                  _in(i++, SectionHeader('Money owed to you',
-                      link: 'All dues',
-                      onLink: () => _push(const ClientAgingScreen()))),
-                  _in(i++, DuesCard(
-                    total: m?.outstandingCollections ??
-                        debtors.top.fold<double>(0, (a, d) => a + d.owed),
-                    customers: debtors.count,
-                    top: debtors.top,
-                    onTap: () => _push(const CRMScreen()),
-                  )),
-                ],
-                if (reorder != null && reorder.top.isNotEmpty) ...[
-                  _in(i++, SectionHeader('Reorder soon',
-                      link: [
-                        if (reorder.out > 0) '${reorder.out} out',
-                        if (reorder.low > 0) '${reorder.low} low',
-                      ].join(' · '),
-                      onLink: () => widget.onTabSwitch('inventory'))),
-                  _in(i++, ReorderCard(
-                    items: reorder.top,
-                    onTap: _can(ctx, 'purchases')
-                        ? () => _push(const PurchasesScreen())
-                        : null,
-                  )),
-                ],
-                if (sellers.isNotEmpty) ...[
-                  _in(i++, const SectionHeader('Best sellers today')),
-                  _in(i++, BestSellersCard(items: sellers)),
-                ],
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(14, 24, 14, 0),
-                  child: BannerCarousel(),
-                ),
-              ],
+    final blocks = <Widget>[
+      DashPeriodPills(
+        index: _periodIdx,
+        onChanged: (v) => setState(() => _periodIdx = v),
+      ),
+      heroLoading
+          ? const _HeroSkeleton()
+          : DashHero(
+              // Rebuild (and count up again) when the period changes.
+              key: ValueKey(period),
+              label: label,
+              amount: amount,
+              deltaPct: period == DashPeriod.today && m != null && !empty
+                  ? m.salesDeltaPct
+                  : null,
             ),
+      if (period == DashPeriod.today && m != null)
+        DashHourChart(hourly: m.hourlySales, now: now),
+      DashActionTiles(actions: actions),
+      if (split.isNotEmpty) ...[
+        DashSection('How you were paid', figure: Money.inr(splitTotal)),
+        ...dashPaidRows(split),
+      ],
+      if (m != null) ...[
+        const DashSection('Today'),
+        DashTodayBox(
+          m: m,
+          onExpenses:
+              _can(ctx, 'expenses') ? () => _push(const FinanceScreen()) : null,
+          onPurchases: _can(ctx, 'purchases')
+              ? () => _push(const PurchasesScreen())
+              : null,
+          onCash:
+              _can(ctx, 'daybook') ? () => _push(const DayBookScreen()) : null,
+          onBills: () => widget.onTabSwitch('sales'),
+        ),
+      ] else if (tele.isLoading)
+        const _TilesSkeleton(),
+      if (weekHasData) ...[
+        DashSection('This week',
+            link: _can(ctx, 'reports') ? 'Reports' : null,
+            onLink: () => _push(const ReportsScreen())),
+        DashWeek(days: m.weeklySales),
+      ],
+      if (debtors != null && debtors.count > 0) ...[
+        DashSection('Money owed to you', figure: Money.inr(duesTotal)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          child: Row(
+            children: [
+              Text(
+                  '${debtors.count} ${debtors.count == 1 ? 'customer' : 'customers'} · ',
+                  style: Bl.inter(12,
+                      w: FontWeight.w500, c: const Color(0xFF7A8088))),
+              BlTap(
+                onTap: () => _push(const ClientAgingScreen()),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text('All dues',
+                      style:
+                          Bl.inter(12, w: FontWeight.w600, c: Bl.amberDeep)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        for (var k = 0; k < debtors.top.length; k++)
+          DashRow(
+            lead: DashRow.text(initials(debtors.top[k].name)),
+            title: debtors.top[k].name,
+            trailing: DashRow.amount(Money.inr(debtors.top[k].owed)),
+            chevron: true,
+            divider: k < debtors.top.length - 1,
+            onTap: () => _push(const CRMScreen()),
+          ),
+      ],
+      if (reorder != null && reorder.top.isNotEmpty) ...[
+        DashSection('Reorder soon',
+            link: [
+              if (reorder.out > 0) '${reorder.out} out',
+              if (reorder.low > 0) '${reorder.low} low',
+            ].join(' · '),
+            onLink: () => widget.onTabSwitch('inventory')),
+        for (var k = 0; k < reorder.top.length; k++)
+          DashRow(
+            lead: DashRow.text(initials(reorder.top[k].name)),
+            title: reorder.top[k].name,
+            sub: reorder.top[k].isOut
+                ? 'Out of stock'
+                : stockLeft(reorder.top[k].stock),
+            trailing: const DashReorderPill(),
+            divider: k < reorder.top.length - 1,
+            onTap: _can(ctx, 'purchases')
+                ? () => _push(const PurchasesScreen())
+                : null,
+          ),
+      ],
+      if (sellers.isNotEmpty) ...[
+        const DashSection('Best sellers today'),
+        for (var k = 0; k < sellers.length; k++)
+          DashRow(
+            lead: DashRow.text('${k + 1}'),
+            title: sellers[k].name,
+            sub: '${qtyText(sellers[k].qty)} sold',
+            trailing: DashRow.amount(Money.inr(sellers[k].revenue)),
+            divider: k < sellers.length - 1,
+          ),
+      ],
+    ];
+
+    return ColoredBox(
+      color: Bl.white,
+      child: MotionRefresh(
+        onRefresh: _refresh,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics()),
+          padding: EdgeInsets.only(
+              bottom: 96 + MediaQuery.of(context).viewPadding.bottom),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DashHeader(
+                onMenu: () => Scaffold.of(context).openDrawer(),
+                onBell: () => showNotificationsSheet(context),
+                showingSavedFigures: m?.fromCache == true,
+              ),
+              if (ctx != null &&
+                  ctx.tenant.status == 'TRIAL' &&
+                  ctx.trialDaysLeft <= 7)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+                  child: TrialBanner(daysLeft: ctx.trialDaysLeft),
+                ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14),
+                child: ExpiryAlertCard(),
+              ),
+              for (var k = 0; k < blocks.length; k++) _in(k, blocks[k]),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(14, 24, 14, 0),
+                child: BannerCarousel(),
+              ),
+            ],
           ),
         ),
       ),
@@ -313,12 +347,16 @@ class _HeroSkeleton extends StatelessWidget {
   const _HeroSkeleton();
 
   @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          _bar(120, 14),
-          const SizedBox(height: 14),
-          _bar(220, 56),
-        ],
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _bar(120, 14),
+            const SizedBox(height: 10),
+            _bar(200, 42),
+          ],
+        ),
       );
 
   static Widget _bar(double w, double h) => Container(

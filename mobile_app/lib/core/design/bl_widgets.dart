@@ -715,3 +715,136 @@ class BlEmpty extends StatelessWidget {
         ),
       );
 }
+
+/// Solid choice pill (`Sales` / `Returns`, `Today` / `Week`): 34 high, ink
+/// when selected, grey otherwise.
+class BlTabPill extends StatelessWidget {
+  final Widget child;
+  final bool selected;
+  final VoidCallback? onTap;
+  final String? label;
+  final EdgeInsets padding;
+  const BlTabPill(
+      {super.key,
+      required this.child,
+      this.selected = false,
+      this.onTap,
+      this.label,
+      this.padding = const EdgeInsets.symmetric(horizontal: 16)});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        child: BlTap(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: motionDur(context, 160),
+            curve: MotionCurves.out,
+            height: 34,
+            padding: padding,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: selected ? Bl.ink : Bl.well,
+                borderRadius: BorderRadius.circular(999)),
+            child: DefaultTextStyle.merge(
+              style: Bl.tight(13,
+                  w: FontWeight.w600,
+                  ls: 0,
+                  c: selected ? Bl.white : const Color(0xFF303030)),
+              child: child,
+            ),
+          ),
+        ),
+      );
+}
+
+/// Outline filter pill (`All` / `Credit` / `Failed`): 30 high.
+class BlOutlinePill extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+  const BlOutlinePill(this.label, {super.key, this.selected = false, this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        excludeSemantics: true,
+        child: BlTap(
+          onTap: onTap,
+          // 44dp tall tap area around the 30dp pill.
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Container(
+              height: 30,
+              padding: const EdgeInsets.symmetric(horizontal: 13),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                    width: selected ? 1.5 : 1,
+                    color: selected ? Bl.ink : const Color(0xFFD9D6D1)),
+              ),
+              child: Text(label,
+                  style: Bl.tight(12.5,
+                      w: FontWeight.w600,
+                      ls: 0,
+                      c: selected ? Bl.ink : const Color(0xFF55595F))),
+            ),
+          ),
+        ),
+      );
+}
+
+/// Uppercase group line with a figure on the right ("TODAY   ₹24,860").
+class BlGroupHeader extends StatelessWidget {
+  final String label;
+  final String? trailing;
+  const BlGroupHeader(this.label, {super.key, this.trailing});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+        child: Row(
+          children: [
+            Expanded(child: Text(label.toUpperCase(), style: Bl.eyebrow)),
+            if (trailing != null) Text(trailing!, style: Bl.eyebrow),
+          ],
+        ),
+      );
+}
+
+/// Round 38px party avatar: initials, or a person outline for a walk-in.
+class BlPartyAvatar extends StatelessWidget {
+  final String name;
+  final double size;
+  const BlPartyAvatar(this.name, {super.key, this.size = 38});
+
+  static String initials(String name) {
+    final parts =
+        name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '';
+    final a = parts.first.characters.first;
+    final b = parts.length > 1 ? parts[1].characters.first : '';
+    return (a + b).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final walkIn = name.isEmpty || name.toLowerCase() == 'walk-in';
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(color: Bl.well, shape: BoxShape.circle),
+      child: walkIn
+          ? const BlIcon(BlIcons.person, size: 16, color: Color(0xFF5C5F62))
+          : Text(initials(name),
+              style: Bl.tight(11,
+                  w: FontWeight.w700, ls: 0, c: const Color(0xFF5C5F62))),
+    );
+  }
+}

@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/utils/money.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/widgets/motion/expand_reveal.dart';
-import 'package:mobile_app/widgets/motion/motion_curves.dart';
 import 'package:mobile_app/features/returns/data/models/sales_return.dart';
 import 'package:mobile_app/features/returns/presentation/providers/returns_provider.dart';
 
@@ -28,158 +23,127 @@ class SalesHistoryTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Item 10: one highlight slides between the segments (260ms) while the
-    // label colours change in the same motion.
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
-      child: Container(
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: AppColors.secondaryContainer,
-          borderRadius: Radii.rPill,
-        ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: AnimatedAlign(
-                duration: motionDur(context, 260),
-                curve: MotionCurves.out,
-                alignment: index == 0 ? Alignment.centerLeft : Alignment.centerRight,
-                child: FractionallySizedBox(
-                  widthFactor: 0.5,
-                  // Without a height factor the empty DecoratedBox is 0px tall
-                  // and the selected pill never shows.
-                  heightFactor: 1,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.onSurface,
-                      borderRadius: Radii.rPill,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Row(
-              children: [
-                Expanded(child: _tab(context, 0, 'Sales', null)),
-                Expanded(child: _tab(context, 1, 'Returns', returnsCount)),
-              ],
-            ),
-          ],
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          _tab(0, 'Sales', null),
+          const SizedBox(width: 8),
+          _tab(1, 'Returns', returnsCount),
+        ],
       ),
     );
   }
 
-  Widget _tab(BuildContext context, int i, String label, int? count) {
+  Widget _tab(int i, String label, int? count) {
     final active = index == i;
-    final fg = active ? AppColors.canvas : AppColors.onSurfaceVariant;
-    return AppTappable(
-      ripple: false,
+    return BlTabPill(
+      selected: active,
       onTap: () => onChanged(i),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-        alignment: Alignment.center,
-        child: AnimatedDefaultTextStyle(
-          duration: motionDur(context, 260),
-          curve: MotionCurves.out,
-          style: AppText.label.copyWith(
-            color: fg,
-            fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(label),
-              if (count != null) ...[
-                const SizedBox(width: Gap.xs),
-                Text(
-                  '$count',
-                  key: Key('returns-count-$i'),
-                  style: TextStyle(color: fg.withValues(alpha: 0.7)),
-                ),
-              ],
-            ],
-          ),
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          if (count != null) ...[
+            const SizedBox(width: 5),
+            Opacity(
+              opacity: 0.7,
+              child: Text('$count', key: Key('returns-count-$i')),
+            ),
+          ],
+        ],
       ),
     );
   }
 }
 
-/// The Returns tab body: credit notes for this tenant, newest first.
+/// Which heading a return falls under.
+String returnsBucket(String date, DateTime now) {
+  final d = DateTime.tryParse(date);
+  if (d == null) return 'Earlier';
+  final today = DateTime(now.year, now.month, now.day);
+  final weekStart =
+      DateTime(today.year, today.month, today.day - (today.weekday - 1));
+  final day = DateTime(d.year, d.month, d.day);
+  if (!day.isBefore(weekStart)) return 'This week';
+  if (day.year == today.year && day.month == today.month) return 'This month';
+  return 'Earlier';
+}
+
 class SalesReturnsTab extends ConsumerWidget {
   final String? tenantId;
-  const SalesReturnsTab({super.key, required this.tenantId});
+
+  /// True inside the Sales screen, which scrolls for it. On its own the tab
+  /// scrolls itself.
+  final bool embedded;
+  const SalesReturnsTab({super.key, required this.tenantId, this.embedded = false});
+
+  Widget _centered(Widget child) => embedded
+      ? Padding(padding: const EdgeInsets.only(top: 60), child: child)
+      : Center(child: child);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    const spinner = CircularProgressIndicator(color: Bl.amber, strokeWidth: 2);
     final id = tenantId;
-    if (id == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
-    }
+    if (id == null) return _centered(const Center(child: spinner));
     final returnsAsync = ref.watch(salesReturnsProvider(id));
 
     return returnsAsync.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      ),
+      loading: () => _centered(const Center(child: spinner)),
       error: (err, stack) {
         debugPrint('[SalesReturnsTab] could not load returns: $err');
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(Gap.xl),
+        return _centered(
+          Padding(
+            padding: const EdgeInsets.all(24),
             child: Text(
               'Could not load returns. Check your internet and try again.',
               textAlign: TextAlign.center,
-              style: AppText.body.copyWith(color: AppColors.error),
+              style: Bl.inter(13.5, c: Bl.redDeep, h: 1.5),
             ),
           ),
         );
       },
       data: (returns) {
         if (returns.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  LucideIcons.undo2,
-                  size: 28,
-                  color: AppColors.inkTertiary,
-                ),
-                const SizedBox(height: Gap.sm),
-                Text('No returns yet', style: AppText.bodyStrong),
-                const SizedBox(height: 2),
-                Text(
-                  'Processed sales returns appear here.',
-                  style: AppText.caption,
-                ),
-              ],
+          return _centered(
+            const BlEmpty(
+              icon: BlIcons.receipt,
+              title: 'No returns yet',
+              message: 'Processed sales returns appear here.',
             ),
           );
         }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(Gap.xl, 0, Gap.xl, 100),
-          itemCount: returns.length,
-          separatorBuilder: (_, _) => const Divider(
-            height: 1,
-            thickness: 1,
-            color: AppColors.outlineVariant,
-          ),
-          itemBuilder: (context, i) => SalesReturnRow(
-            key: Key('sales-return-row-${returns[i].id}'),
-            ret: returns[i],
-          ),
-        );
+        final now = DateTime.now();
+        final rows = <Widget>[];
+        String? bucket;
+        for (final r in returns) {
+          final b = returnsBucket(r.date, now);
+          if (b != bucket) {
+            bucket = b;
+            final sum = returns
+                .where((x) => returnsBucket(x.date, now) == b)
+                .fold<double>(0, (a, x) => a + x.totalAmount);
+            rows.add(BlGroupHeader(b, trailing: Money.inr(sum)));
+          }
+          rows.add(SalesReturnRow(key: Key('sales-return-row-${r.id}'), ret: r));
+        }
+        rows.add(Padding(
+          padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+          child: Text('Processed sales returns appear here.',
+              textAlign: TextAlign.center, style: Bl.inter(12, c: Bl.mute)),
+        ));
+        if (embedded) {
+          return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch, children: rows);
+        }
+        return ListView(
+            padding: const EdgeInsets.only(bottom: 100), children: rows);
       },
     );
   }
 }
 
-/// One credit note. Tap to show its lines from sales_return_items.
 class SalesReturnRow extends StatefulWidget {
   final SalesReturn ret;
   const SalesReturnRow({super.key, required this.ret});
@@ -193,18 +157,8 @@ class _SalesReturnRowState extends State<SalesReturnRow> {
   bool _everOpen = false; // keep lines mounted so collapse can animate
 
   static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
 
   String _fmtDate(String dateStr) {
@@ -219,68 +173,64 @@ class _SalesReturnRowState extends State<SalesReturnRow> {
     final customer = (r.clientName == null || r.clientName!.isEmpty)
         ? 'Walk-in'
         : r.clientName!;
-    final itemCount = r.items.length;
+    final n = r.items.length;
 
-    return AppTappable(
-      ripple: false,
-      onTap: () => setState(() {
-        _open = !_open;
-        if (_open) _everOpen = true;
-      }),
-      child: Container(
-        color: AppColors.canvas,
-        padding: const EdgeInsets.symmetric(vertical: Gap.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_fmtDate(r.date), style: AppText.caption),
-                      const SizedBox(height: 2),
-                      Text(
-                        customer,
-                        style: AppText.bodyStrong,
+    return Semantics(
+      button: true,
+      expanded: _open,
+      child: BlTap(
+        onTap: () => setState(() {
+          _open = !_open;
+          if (_open) _everOpen = true;
+        }),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              BlPartyAvatar(customer),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(customer,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Bl.tight(14.5, w: FontWeight.w600)),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(Money.inr(r.totalAmount),
+                            style:
+                                Bl.tight(14.5, w: FontWeight.w600, c: Bl.red)),
+                      ],
+                    ),
+                    const SizedBox(height: 1),
+                    Text('${_fmtDate(r.date)} · $n item${n == 1 ? '' : 's'}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                        style: Bl.inter(12, c: const Color(0xFF7A8088))),
+                    if (_everOpen)
+                      ExpandReveal(
+                        expanded: _open,
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 7),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                              color: const Color(0xFFF6F5F3),
+                              borderRadius: BorderRadius.circular(10)),
+                          child: _SalesReturnLines(returnId: r.id),
+                        ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$itemCount item${itemCount == 1 ? '' : 's'}',
-                        style: AppText.caption,
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  Money.inr(r.totalAmount),
-                  style: AppText.money.copyWith(color: AppColors.error),
-                ),
-                const SizedBox(width: Gap.sm),
-                AnimatedRotation(
-                  turns: _open ? 0.5 : 0,
-                  duration: motionDur(context, 220),
-                  curve: MotionCurves.out,
-                  child: const Icon(
-                    LucideIcons.chevronDown,
-                    size: 16,
-                    color: AppColors.inkTertiary,
-                  ),
-                ),
-              ],
-            ),
-            if (_everOpen)
-              ExpandReveal(
-                expanded: _open,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: Gap.md),
-                  child: _SalesReturnLines(returnId: r.id),
+                  ],
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -296,14 +246,14 @@ class _SalesReturnLines extends ConsumerWidget {
     final linesAsync = ref.watch(salesReturnItemsProvider(returnId));
     return linesAsync.when(
       loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: Gap.sm),
+        padding: EdgeInsets.symmetric(vertical: 8),
         child: Center(
           child: SizedBox(
             width: 18,
             height: 18,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: AppColors.primary,
+              color: Bl.amber,
             ),
           ),
         ),
@@ -312,36 +262,37 @@ class _SalesReturnLines extends ConsumerWidget {
         debugPrint('[SalesReturnLines] could not load lines: $err');
         return Text(
           'Could not load items. Check your internet and try again.',
-          style: AppText.label.copyWith(color: AppColors.error),
+          style: Bl.inter(12, c: Bl.redDeep),
         );
       },
       data: (lines) {
         if (lines.isEmpty) {
-          return Text('No items recorded.', style: AppText.caption);
+          return Text('No items recorded.', style: Bl.inter(12, c: const Color(0xFF55595F)));
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final line in lines)
               Padding(
-                padding: const EdgeInsets.only(bottom: Gap.xs),
+                padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
                         line.productName,
-                        style: AppText.body,
+                        style: Bl.inter(12, w: FontWeight.w500, c: const Color(0xFF55595F)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: Gap.sm),
+                    const SizedBox(width: 8),
                     Text(
                       '${_qty(line.quantity)} x ${Money.inr(line.rate)}',
-                      style: AppText.caption,
+                      style: Bl.inter(12, w: FontWeight.w500, c: const Color(0xFF55595F)),
                     ),
-                    const SizedBox(width: Gap.sm),
-                    Text(Money.inr(line.lineTotal), style: AppText.label),
+                    const SizedBox(width: 8),
+                    Text(Money.inr(line.lineTotal),
+                        style: Bl.inter(12, w: FontWeight.w600, c: Bl.ink)),
                   ],
                 ),
               ),
