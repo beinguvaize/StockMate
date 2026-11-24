@@ -218,13 +218,40 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
     return { error };
   };
 
-  const settlePayment = async (saleId, amount) => {
-     // ... logic to update paidAmount and status
-     const { error } = await restRpc('settle_sale_payment', {
-        p_sale_id: saleId,
-        p_amount: amount,
-        p_tenant_id: tenantId
-     });
+  // Record money received against one sale. `method` is how it arrived
+  // (CASH | UPI | BANK); the server posts it to that method's account.
+  //
+  // A credit sale to a saved client is a client payment: settle_client_payment
+  // allocates it oldest bill first, posts Cash & Bank and recalculates what
+  // the client owes. Any other sale goes through settle_sale_payment, and the
+  // sale-ledger trigger posts what just arrived. Nothing is posted from here.
+  const settlePayment = async (saleId, amount, method = null) => {
+     const sale = (data || []).find((s) => s.id === saleId);
+     const saleMethod = String(sale?.paymentMethod ?? sale?.payment_method ?? '').toUpperCase();
+     const clientId = sale?.customerInfo?.id ?? sale?.shopId ?? sale?.shop_id ?? null;
+     const how = method ? String(method).toUpperCase() : null;
+
+     let error;
+     if (saleMethod.startsWith('CREDIT') && clientId) {
+       ({ error } = await restRpc('settle_client_payment', {
+         p_id: generateRef('CP'),
+         p_tenant_id: tenantId,
+         p_client_id: clientId,
+         p_amount: amount,
+         p_date: todayISOInAppTZ(),
+         p_method: how || 'CASH',
+         p_notes: null,
+         p_recorded_by: currentUser?.id || null,
+       }));
+     } else {
+       ({ error } = await restRpc('settle_sale_payment', {
+         p_sale_id: saleId,
+         p_amount: amount,
+         p_tenant_id: tenantId,
+         p_method: how,
+         p_date: todayISOInAppTZ(),
+       }));
+     }
      if (!error) await fetchSales();
      return { error };
   };

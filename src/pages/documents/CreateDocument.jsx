@@ -220,9 +220,10 @@ const CreateDocument = () => {
             && Math.max(0, (Number(s.totalAmount) || 0) - (Number(s.paidAmount) || 0)) > 0.5)
           .sort((a, b) => new Date(a.date) - new Date(b.date));
         if (!open.length) return fail('No open invoice for this party to settle.');
-        res = await settleSale(open[0].id, Number(payAmount));
+        // The server posts this to the chosen method's account. Posting it
+        // again from here would count the same rupees twice.
+        res = await settleSale(open[0].id, Number(payAmount), payMethod);
         if (res?.error) return fail(res.error.message);
-        await postIncome(Number(payAmount), 'PAYMENT', open[0].id);
         addNotification(`Payment of ${inr(payAmount)} recorded`, 'success');
         return navigate('/clients');
       }

@@ -112,6 +112,12 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
   const [sort, setSort] = useState({ key: 'date', dir: 'desc' });
   const [detailSale, setDetailSale] = useState(null);
   const [settleInput, setSettleInput] = useState('');
+  // How the money being recorded arrived. Opens on the sale's own method.
+  const [settleMethod, setSettleMethod] = useState('CASH');
+  const methodFor = (sale) => {
+    const m = String(sale?.paymentMethod ?? sale?.payment_method ?? '').toUpperCase();
+    return m === 'UPI' || m === 'BANK' ? m : 'CASH';
+  };
 
   // ---------- Lookups ----------
   const getClientId = (sale) => sale.shopId ?? sale.shop_id ?? sale.clientId ?? null;
@@ -274,7 +280,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
     if (!amt || amt <= 0) return alert('Enter positive amount');
     const out = outstandingOf(detailSale);
     if (amt > out) return alert(`Max payable: ${formatCurrency(out)}`);
-    const { error } = await onSettle(detailSale.id, amt);
+    const { error } = await onSettle(detailSale.id, amt, settleMethod);
     if (error) return alert('Settle failed: ' + error.message);
     setSettleInput('');
     setDetailSale(null);
@@ -313,7 +319,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
     return (
       <tr
         key={sale.id}
-        onClick={() => setDetailSale(sale)}
+        onClick={() => { setDetailSale(sale); setSettleMethod(methodFor(sale)); }}
         className="group hover:bg-canvas/70 transition-colors cursor-pointer"
       >
         <td className="px-4 py-4">
@@ -390,7 +396,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
             {!paid && !voided && onSettle && (
               <button
-                onClick={() => { setDetailSale(sale); setSettleInput(String(outstanding)); }}
+                onClick={() => { setDetailSale(sale); setSettleInput(String(outstanding)); setSettleMethod(methodFor(sale)); }}
                 title="Settle Payment"
                 className="p-2 rounded-pill hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600 transition-colors"
               >
@@ -615,6 +621,8 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
                 clientBills={clientBills}
                 settleInput={settleInput}
                 setSettleInput={setSettleInput}
+                settleMethod={settleMethod}
+                setSettleMethod={setSettleMethod}
                 onSettle={onSettle ? handleSettle : null}
                 onPrint={() => onPrint(detailSale)}
               />
@@ -646,7 +654,7 @@ const SummaryCard = ({ label, value, sub, tone }) => {
 const SaleDetail = ({
   sale, clientName, cashier, productNameOf, outstanding,
   clientName2, clientOutstanding = 0, clientBills = 0,
-  settleInput, setSettleInput, onSettle, onPrint
+  settleInput, setSettleInput, settleMethod = 'CASH', setSettleMethod, onSettle, onPrint
 }) => {
   const items = Array.isArray(sale.items) ? sale.items : [];
   const status = (sale.paymentStatus ?? sale.status ?? 'PENDING').toUpperCase();
@@ -772,8 +780,19 @@ const SaleDetail = ({
               value={settleInput}
               onChange={e => setSettleInput(e.target.value)}
               placeholder="Amount"
-              className="flex-1 px-3 py-2.5 rounded-lg border border-border text-sm font-semibold"
+              className="flex-1 min-w-0 px-3 py-2.5 rounded-lg border border-border text-sm font-semibold"
             />
+            <select
+              value={settleMethod}
+              onChange={e => setSettleMethod?.(e.target.value)}
+              aria-label="How it was paid"
+              title="How it was paid"
+              className="px-2 py-2.5 rounded-lg border border-border text-sm font-semibold bg-white"
+            >
+              <option value="CASH">Cash</option>
+              <option value="UPI">UPI</option>
+              <option value="BANK">Bank</option>
+            </select>
             <button
               onClick={onSettle}
               className="px-4 py-2.5 rounded-pill bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
