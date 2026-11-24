@@ -463,7 +463,9 @@ Future<T?> showBlSheet<T>({
 class BlSheetTitle extends StatelessWidget {
   final String title;
   final bool divider;
-  const BlSheetTitle(this.title, {super.key, this.divider = false});
+  final double size;
+  const BlSheetTitle(this.title,
+      {super.key, this.divider = false, this.size = 19});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -478,7 +480,7 @@ class BlSheetTitle extends StatelessWidget {
               child: Text(title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Bl.tight(19, w: FontWeight.w700, ls: -0.02)),
+                  style: Bl.tight(size, w: FontWeight.w700, ls: -0.02)),
             ),
             BlTap(
               label: 'Close',

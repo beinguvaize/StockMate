@@ -1,12 +1,9 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/supabase/client.dart';
-import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
 
 // ── Role routing ──────────────────────────────────────────────────────────────
 
@@ -106,32 +103,21 @@ Future<void> _resolveAndOpenVanSale(
 
   // Multiple vans — picker
   onBeforeNavigate?.call();
-  showModalBottomSheet(
+  showBlSheet(
     context: context,
-    backgroundColor: AppColors.surface,
     useRootNavigator: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
     builder: (_) => _VehiclePicker(vehicles: vehicles, locMap: locMap, parentContext: context),
   );
 }
 
-// ── POS / Van choice sheet (OWNER / GLOBAL_ADMIN only) ───────────────────────
 
 Future<void> _showSaleTypeSheet(BuildContext context) {
-  return showModalBottomSheet(
+  return showBlSheet(
     context: context,
-    backgroundColor: AppColors.surface,
     useRootNavigator: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
     builder: (_) => _SaleTypeSheet(parentContext: context),
   );
 }
-
-// ── Sheet body ────────────────────────────────────────────────────────────────
 
 class _SaleTypeSheet extends StatefulWidget {
   final BuildContext parentContext;
@@ -176,138 +162,133 @@ class _SaleTypeSheetState extends State<_SaleTypeSheet> {
     }
   }
 
+  static const _shop =
+      '<path opacity=".45" d="M4 10h16v10a1 1 0 01-1 1H5a1 1 0 01-1-1z"/><path d="M3 4h18l1 5a3 3 0 01-5.5 1.5 3 3 0 01-5 0 3 3 0 01-5 0A3 3 0 012 9z"/>';
+  static const _van =
+      '<path opacity=".45" d="M2 6a1 1 0 011-1h11v11H2z"/><path d="M14 8h4l4 4v4h-8z"/><circle cx="6.5" cy="17.5" r="2.3"/><circle cx="17.5" cy="17.5" r="2.3"/>';
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20, 24, 20, MediaQuery.of(context).viewInsets.bottom + 40,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Handle
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(99),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const BlSheetTitle('New Sale', size: 16),
+        const SizedBox(height: 12),
+        Text('Where should stock be deducted from?',
+            style: Bl.inter(13, w: FontWeight.w500)),
+        const SizedBox(height: 12),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _SaleTile(
+                  svg: _shop,
+                  primary: true,
+                  title: 'POS Sale',
+                  subtitle: 'Stock deducted from warehouse',
+                  onTap: _goPOS,
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _SaleTile(
+                  svg: _van,
+                  title: 'Van Sale',
+                  subtitle: 'Stock deducted from vehicle',
+                  loading: _loadingVan,
+                  onTap: _loadingVan ? null : _goVan,
+                ),
+              ),
+            ],
           ),
-          Text(
-            'New Sale',
-            style: AppText.title.copyWith(fontWeight: FontWeight.w800,
-              color: AppColors.inkPrimary, letterSpacing: -0.5),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Where should stock be deducted from?',
-            style: AppText.caption.copyWith(color: AppColors.inkSecondary),
-          ),
-          const SizedBox(height: 24),
-
-          _SaleTile(
-            icon: LucideIcons.shoppingBag,
-            iconColor: AppColors.primary,
-            title: 'POS Sale',
-            subtitle: 'Stock deducted from warehouse',
-            onTap: _goPOS,
-          ),
-          const SizedBox(height: 12),
-          _SaleTile(
-            icon: LucideIcons.truck,
-            iconColor: AppColors.secondary,
-            title: 'Van Sale',
-            subtitle: 'Stock deducted from vehicle',
-            loading: _loadingVan,
-            onTap: _loadingVan ? null : _goVan,
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-// ── Tile ──────────────────────────────────────────────────────────────────────
-
+/// One of the two big choices: amber for the usual one, grey for the other.
 class _SaleTile extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
+  final String svg;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
   final bool loading;
+  final bool primary;
 
   const _SaleTile({
-    required this.icon,
-    required this.iconColor,
+    required this.svg,
     required this.title,
     required this.subtitle,
     this.onTap,
     this.loading = false,
+    this.primary = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return AppTappable(
-   ripple: false,
+    final fg = primary ? Bl.white : Bl.ink;
+    final chip = primary ? const Color(0x38FFFFFF) : Bl.white;
+    return BlTap(
+      label: '$title. $subtitle',
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(18),
+        constraints: const BoxConstraints(minHeight: 150),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.canvas,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-        ),
-        child: Row(
+            color: primary ? Bl.amber : const Color(0xFFF6F5F3),
+            borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 48, height: 48,
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, size: 22, color: iconColor),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.manrope(
-                      fontSize: 16, fontWeight: FontWeight.w700,
-                      color: AppColors.inkPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: AppText.caption.copyWith(color: AppColors.inkSecondary),
-                  ),
-                ],
+                  color: chip, borderRadius: BorderRadius.circular(14)),
+              child: SvgPicture.string(
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${primary ? '#ffffff' : '#2563EB'}">$svg</svg>',
+                width: 24,
+                height: 24,
               ),
             ),
-            if (loading)
-              const SizedBox(
-                width: 18, height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.secondary),
-              )
-            else
-              const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.inkTertiary),
+            const SizedBox(height: 14),
+            Text(title, style: Bl.tight(16, w: FontWeight.w700, c: fg)),
+            const SizedBox(height: 3),
+            Text(subtitle,
+                style: Bl.inter(12,
+                    w: FontWeight.w500,
+                    h: 1.35,
+                    c: primary
+                        ? const Color(0xE0FFFFFF)
+                        : const Color(0xFF7A8088))),
+            const Spacer(),
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: chip, shape: BoxShape.circle),
+                child: loading
+                    ? SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: fg))
+                    : BlIcon(BlIcons.arrowRight, size: 16, color: fg),
+              ),
+            ),
           ],
         ),
       ),
- );
+    );
   }
 }
-
-// ── Vehicle picker (multiple vans) ────────────────────────────────────────────
 
 class _VehiclePicker extends StatelessWidget {
   final List<dynamic> vehicles;
@@ -318,90 +299,60 @@ class _VehiclePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const BlSheetTitle('Select Vehicle', size: 16),
+        const SizedBox(height: 2),
+        ...vehicles.map((v) {
+          final id = v['id'] as String;
+          final name = (v['name'] as String?) ?? 'Vehicle';
+          final plate = (v['plate'] ?? v['plateNumber']) as String? ?? '';
+          return BlTap(
+            label: plate.isEmpty ? name : '$name, $plate',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                parentContext,
+                MaterialPageRoute(
+                  builder: (_) => AddSaleScreen(
+                    vehicleId: id,
+                    locationId: locMap[id],
+                  ),
+                ),
+              );
+            },
             child: Container(
-              width: 36, height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(99),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFECEAE7)),
               ),
-            ),
-          ),
-          Text(
-            'Select Vehicle',
-            style: GoogleFonts.manrope(
-              fontSize: 20, fontWeight: FontWeight.w800,
-              color: AppColors.inkPrimary, letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...vehicles.map((v) {
-            final id    = v['id'] as String;
-            final name  = (v['name'] as String?) ?? 'Vehicle';
-            final plate = (v['plate'] ?? v['plateNumber']) as String? ?? '';
-            return AppTappable(
-   ripple: false,
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  parentContext,
-                  MaterialPageRoute(
-                    builder: (_) => AddSaleScreen(
-                      vehicleId: id,
-                      locationId: locMap[id],
+              child: Row(
+                children: [
+                  const BlIconTile(BlIcons.truck,
+                      bg: Bl.blueSoft, fg: Bl.blue),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name, style: Bl.tight(14, w: FontWeight.w600)),
+                        if (plate.isNotEmpty)
+                          Text(plate, style: Bl.inter(12, c: Bl.mute)),
+                      ],
                     ),
                   ),
-                );
-              },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.canvas,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40, height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(LucideIcons.truck, size: 18, color: AppColors.secondary),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(name,
-                            style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
-                              color: AppColors.inkPrimary),
-                          ),
-                          if (plate.isNotEmpty)
-                            Text(plate,
-                              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const Icon(LucideIcons.chevronRight, size: 14, color: AppColors.inkTertiary),
-                  ],
-                ),
+                  const BlIcon(BlIcons.chevronRight,
+                      size: 16, color: Color(0xFFC4C8CC)),
+                ],
               ),
- );
-          }),
-        ],
-      ),
+            ),
+          );
+        }),
+      ],
     );
   }
 }
