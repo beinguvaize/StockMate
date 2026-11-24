@@ -1004,3 +1004,360 @@ class BlRise extends StatelessWidget {
     );
   }
 }
+
+/// A centred dialog (same card as [showBlDialog]) with any content.
+Future<T?> showBlCustomDialog<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  bool dismissible = true,
+}) {
+  final reduce = MediaQuery.maybeDisableAnimationsOf(context) == true;
+  return showGeneralDialog<T>(
+    context: context,
+    barrierDismissible: dismissible,
+    barrierLabel: 'Dismiss',
+    barrierColor: Bl.shade,
+    transitionDuration:
+        reduce ? Duration.zero : const Duration(milliseconds: 240),
+    // Centred when it fits; scrolls when the keyboard leaves too little room.
+    pageBuilder: (ctx, _, _) => SafeArea(
+      child: Padding(
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: LayoutBuilder(
+          builder: (ctx, box) => SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: box.maxHeight - 32),
+              child: Center(
+                child: Material(
+                  color: Bl.white,
+                  borderRadius: BorderRadius.circular(26),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+                    child: builder(ctx),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+    transitionBuilder: (_, a, _, child) {
+      final t = MotionCurves.out.transform(a.value);
+      return Opacity(
+        opacity: t,
+        child: Transform.scale(scale: 0.96 + 0.04 * t, child: child),
+      );
+    },
+  );
+}
+
+/// The three-step form frame from the canvas: back button, a bar per step,
+/// "Step 1 of 3" with the step names, one big question, the fields, and one
+/// button at the bottom. Back returns to the step before.
+class BlStepFrame extends StatelessWidget {
+  final String title;
+  final int step; // 0-based
+  final List<String> stepNames;
+  final String question;
+  final List<Widget> children;
+  final String buttonLabel;
+  final VoidCallback? onNext;
+  final VoidCallback onBack;
+  final bool loading;
+  const BlStepFrame({
+    super.key,
+    required this.title,
+    required this.step,
+    required this.stepNames,
+    required this.question,
+    required this.children,
+    required this.buttonLabel,
+    required this.onNext,
+    required this.onBack,
+    this.loading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: Bl.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              BlBackHeader(title: title, onBack: onBack),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      label: 'Step ${step + 1} of ${stepNames.length}',
+                      child: Row(
+                        children: [
+                          for (var i = 0; i < stepNames.length; i++) ...[
+                            if (i > 0) const SizedBox(width: 5),
+                            Expanded(
+                              child: AnimatedContainer(
+                                duration: motionDur(context, 220),
+                                curve: MotionCurves.out,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                    color: i <= step
+                                        ? Bl.brand
+                                        : const Color(0xFFE9E8E6),
+                                    borderRadius: BorderRadius.circular(2)),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                              'Step ${step + 1} of ${stepNames.length}',
+                              style: Bl.inter(12.5,
+                                  w: FontWeight.w500,
+                                  c: const Color(0xFF7A8088))),
+                        ),
+                        Text(stepNames.join(' · '),
+                            style: Bl.inter(12.5,
+                                w: FontWeight.w500,
+                                c: const Color(0xFF7A8088))),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Text(question,
+                        style: Bl.tight(24, w: FontWeight.w700, ls: -0.03)),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  // A new key per step replays the entrance for that step.
+                  key: ValueKey('step-$step'),
+                  padding: const EdgeInsets.fromLTRB(18, 4, 18, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: BlEntrance.all(children),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+                child:
+                    BlButton(buttonLabel, loading: loading, onTap: onNext),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+/// A labelled form field in a soft grey well (50 high, 14 corners).
+class BlField extends StatelessWidget {
+  final String label;
+  final String? hint;
+  final TextEditingController? controller;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+  final String? prefix;
+  final Widget? trailing;
+  final ValueChanged<String>? onChanged;
+  final TextCapitalization capitalization;
+  final String? helper;
+
+  /// When set, the well shows this text and opens a picker on tap instead of
+  /// taking typing.
+  final String? value;
+  final VoidCallback? onTap;
+
+  const BlField({
+    super.key,
+    required this.label,
+    this.hint,
+    this.controller,
+    this.keyboardType,
+    this.inputFormatters,
+    this.prefix,
+    this.trailing,
+    this.onChanged,
+    this.capitalization = TextCapitalization.none,
+    this.helper,
+    this.value,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final picker = onTap != null;
+    final well = Container(
+      height: 50,
+      padding: EdgeInsets.only(left: 14, right: trailing == null ? 14 : 8),
+      decoration: BoxDecoration(
+          color: Bl.wellSoft, borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        children: [
+          if (prefix != null) ...[
+            Text(prefix!,
+                style: Bl.tight(15.5, w: FontWeight.w600, ls: 0, c: Bl.ink3)),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: picker
+                ? Text(value ?? hint ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Bl.tight(15.5,
+                        w: value == null ? FontWeight.w500 : FontWeight.w600,
+                        ls: 0,
+                        c: value == null ? const Color(0xFFA8ADB4) : Bl.ink))
+                : TextField(
+                    controller: controller,
+                    keyboardType: keyboardType,
+                    inputFormatters: inputFormatters,
+                    textCapitalization: capitalization,
+                    onChanged: onChanged,
+                    cursorColor: Bl.brand,
+                    style: Bl.tight(15.5, w: FontWeight.w600, ls: 0),
+                    decoration: InputDecoration(
+                      isCollapsed: true,
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      hintText: hint,
+                      hintStyle: Bl.tight(15.5,
+                          w: FontWeight.w500,
+                          ls: 0,
+                          c: const Color(0xFFA8ADB4)),
+                    ),
+                  ),
+          ),
+          if (trailing != null) trailing!,
+          if (picker && trailing == null)
+            const BlIcon(BlIcons.chevronDown,
+                size: 16, color: Color(0xFF7A8088)),
+        ],
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: Bl.tight(13, w: FontWeight.w600, ls: 0, c: Bl.ink3)),
+          const SizedBox(height: 6),
+          picker
+              ? Semantics(
+                  button: true,
+                  label: '$label, ${value ?? 'not set'}',
+                  excludeSemantics: true,
+                  child: BlTap(onTap: onTap, child: well))
+              : well,
+          if (helper != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(helper!,
+                  style: Bl.inter(12.5, c: const Color(0xFF7A8088))),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Picks one of [options] from a sheet. Returns the choice, or null.
+Future<String?> showBlPicker(
+  BuildContext context, {
+  required String title,
+  required List<String> options,
+  String? selected,
+}) =>
+    showBlSheet<String>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          BlSheetTitle(title, size: 16, divider: true),
+          for (final o in options)
+            Semantics(
+              button: true,
+              selected: o == selected,
+              child: BlTap(
+                onTap: () => Navigator.pop(ctx, o),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(o,
+                            style: Bl.tight(14.5,
+                                w: o == selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500)),
+                      ),
+                      if (o == selected)
+                        const BlIcon(BlIcons.check,
+                            size: 16, color: Bl.amber, stroke: 2.6),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+/// A row of choice pills that wrap (units, quick reasons): ink when chosen.
+class BlChoicePills extends StatelessWidget {
+  final List<String> options;
+  final String selected;
+  final ValueChanged<String> onChanged;
+  const BlChoicePills(
+      {super.key,
+      required this.options,
+      required this.selected,
+      required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final o in options)
+            Semantics(
+              button: true,
+              selected: o == selected,
+              label: o,
+              excludeSemantics: true,
+              child: BlTap(
+                onTap: () => onChanged(o),
+                child: Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                      color: o == selected ? Bl.ink : Bl.wellSoft,
+                      borderRadius: BorderRadius.circular(999)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(o,
+                          style: Bl.tight(13.5,
+                              w: FontWeight.w600,
+                              ls: 0,
+                              c: o == selected ? Bl.white : Bl.ink3)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+}
