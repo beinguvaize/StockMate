@@ -9,11 +9,21 @@ class SwipeActions extends StatefulWidget {
   final Widget child;
   final List<Widget> actions;
   final double openWidth;
+
+  /// Slides the row open and shut once after it appears, to show that it
+  /// can be swiped.
+  final bool peek;
+
+  /// Called the first time the user swipes the row themselves.
+  final VoidCallback? onSwiped;
+
   const SwipeActions({
     super.key,
     required this.child,
     required this.actions,
     this.openWidth = 160,
+    this.peek = false,
+    this.onSwiped,
   });
   @override
   State<SwipeActions> createState() => _SwipeActionsState();
@@ -33,6 +43,24 @@ class _SwipeActionsState extends State<SwipeActions> with SingleTickerProviderSt
     _c.forward(from: 0);
   }
 
+  bool _userSwiped = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.peek) _runPeek();
+  }
+
+  Future<void> _runPeek() async {
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (!mounted || _userSwiped) return;
+    if (MediaQuery.maybeDisableAnimationsOf(context) == true) return;
+    _animateTo(-widget.openWidth);
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    if (!mounted || _userSwiped) return;
+    _animateTo(0);
+  }
+
   @override
   void dispose() {
     _c.dispose();
@@ -40,6 +68,10 @@ class _SwipeActionsState extends State<SwipeActions> with SingleTickerProviderSt
   }
 
   void _update(DragUpdateDetails d) {
+    if (!_userSwiped) {
+      _userSwiped = true;
+      widget.onSwiped?.call();
+    }
     _c.stop();
     var raw = _dx + d.delta.dx;
     if (raw > 0) raw = 0; // no right overscroll

@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import 'package:mobile_app/core/theme/colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/features/clients_suppliers/data/party_aging.dart';
 import 'package:mobile_app/widgets/motion/motion_refresh.dart';
-import 'package:mobile_app/widgets/motion/motion_sheet.dart';
 import 'package:mobile_app/widgets/motion/swipe_actions.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/add_client_screen.dart';
@@ -18,67 +16,10 @@ import 'package:mobile_app/features/sales/presentation/providers/sales_provider.
 import 'package:mobile_app/features/clients_suppliers/presentation/supplier_detail_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/client_aging_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/client_payments_screen.dart';
-import 'package:mobile_app/features/clients_suppliers/presentation/client_statement_sheet.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/client_settlement_screen.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/client_detail_sheet.dart';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const _kHeaderBg = Color(0xFFB35210);
-const _kSupplierGreen = Color(0xFF1A7A3C);
-const _kSupplierGreenBg = Color(0xFFE6F4EC);
-const _kClientOrange = Color(0xFFA03A0A);
-const _kDanger = Color(0xFFC0320A);
-
-/// Indian-grouped rupee amount: 12000 → ₹12,000.
-String _rupees(num v) {
-  final whole = v.abs().truncate();
-  final str = whole.toString();
-  if (str.length <= 3) return '₹$str';
-  final last3 = str.substring(str.length - 3);
-  final rest = str.substring(0, str.length - 3);
-  final grouped = rest.replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},');
-  return '₹$grouped,$last3';
-}
-const _kDangerBg = Color(0xFFFEEDE4);
-
-Color _avatarBg(String? name, {bool supplier = false}) {
-  if (supplier) return _kSupplierGreenBg;
-  const palette = [
-    Color(0xFFFEEDE4), Color(0xFFE6F4EC), Color(0xFFE8EFFE),
-    Color(0xFFF3EDFD), Color(0xFFFDF3D3), Color(0xFFE0F5EE),
-  ];
-  if (name == null || name.isEmpty) return palette[0];
-  return palette[name.codeUnitAt(0) % palette.length];
-}
-
-Color _avatarFg(String? name, {bool supplier = false}) {
-  if (supplier) return _kSupplierGreen;
-  const palette = [
-    Color(0xFFA03A0A), Color(0xFF1A5C2E), Color(0xFF1D4ED8),
-    Color(0xFF5B21B6), Color(0xFF7B5D0A), Color(0xFF0F6E56),
-  ];
-  if (name == null || name.isEmpty) return palette[0];
-  return palette[name.codeUnitAt(0) % palette.length];
-}
-
-String _initials(String? name) {
-  if (name == null || name.trim().isEmpty) return '?';
-  final parts = name.trim().split(RegExp(r'\s+'));
-  if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-  return parts[0][0].toUpperCase();
-}
-
-String _compact(double v) {
-  final whole = v.round();
-  final s = whole.abs().toString();
-  final grouped = s.length <= 3
-      ? s
-      : '${s.substring(0, s.length - 3).replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},')},${s.substring(s.length - 3)}';
-  return '${whole < 0 ? '-' : ''}₹$grouped';
-}
-
-// ─── Main screen ─────────────────────────────────────────────────────────────
 class CRMScreen extends ConsumerStatefulWidget {
   const CRMScreen({super.key});
 
@@ -86,1453 +27,624 @@ class CRMScreen extends ConsumerStatefulWidget {
   ConsumerState<CRMScreen> createState() => _CRMScreenState();
 }
 
-class _CRMScreenState extends ConsumerState<CRMScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+const _kSwipeHintSeen = 'crm.swipeHintSeen';
+
+class _CRMScreenState extends ConsumerState<CRMScreen> {
   final _searchController = TextEditingController();
+  int _tab = 0; // 0 clients, 1 suppliers
+  int _filter = 0; // 0 owing, 1 settled, 2 all
   String _query = '';
+  bool _showSwipeHint = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() => setState(() {}));
     _searchController.addListener(
         () => setState(() => _query = _searchController.text));
+    // The first row slides open by itself until the owner has swiped once.
+    SharedPreferences.getInstance().then((p) {
+      if (mounted && !(p.getBool(_kSwipeHintSeen) ?? false)) {
+        setState(() => _showSwipeHint = true);
+      }
+    }).catchError((_) {});
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _swipeHintDone() {
+    if (!_showSwipeHint) return;
+    _showSwipeHint = false;
+    SharedPreferences.getInstance()
+        .then((p) => p.setBool(_kSwipeHintSeen, true))
+        .catchError((_) => false);
+  }
+
+  void _refreshAll() {
+    ref.invalidate(clientsProvider);
+    ref.invalidate(suppliersProvider);
+    ref.invalidate(supplierOutstandingProvider);
+    ref.invalidate(supplierAgingProvider);
+    ref.invalidate(clientPaymentsProvider);
   }
 
   void _openAdd() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => _tabController.index == 0
-            ? const AddClientScreen()
-            : const AddSupplierScreen(),
+        builder: (_) =>
+            _tab == 0 ? const AddClientScreen() : const AddSupplierScreen(),
       ),
-    ).then((_) {
-      ref.invalidate(clientsProvider);
-      ref.invalidate(suppliersProvider);
-      ref.invalidate(supplierOutstandingProvider);
+    ).then((_) => _refreshAll());
+  }
+
+  void _showClientDetail(Client client) {
+    ClientDetailSheet.show(context, client).then((_) {
+      if (mounted) _refreshAll();
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final clientsAsync   = ref.watch(clientsProvider);
-    final suppliersAsync = ref.watch(suppliersProvider);
-    final salesAsync     = ref.watch(recentSalesProvider);
-
-    final clients   = clientsAsync.valueOrNull   ?? const [];
-    final suppliers = suppliersAsync.valueOrNull ?? const [];
-    final sales     = salesAsync.valueOrNull     ?? const [];
-
-    // Client KPIs
-    final perClientSales = <String, double>{};
-    for (final s in sales) {
-      final id = s.shopId;
-      if (id == null) continue;
-      perClientSales[id] = (perClientSales[id] ?? 0) + (s.totalAmount ?? 0);
-    }
-    double totalReceivables = 0;
-    String topDebtorName = '—';
-    double topDebtorAmt  = 0;
-    String topBuyerName  = '—';
-    double topBuyerAmt   = 0;
-    for (final c in clients) {
-      final out = c.outstandingBalance ?? 0;
-      final sl  = perClientSales[c.id] ?? 0;
-      totalReceivables += out;
-      if (out > topDebtorAmt) { topDebtorAmt = out; topDebtorName = c.name ?? '—'; }
-      if (sl  > topBuyerAmt)  { topBuyerAmt  = sl;  topBuyerName  = c.name ?? '—'; }
-    }
-
-    // Supplier KPIs -- derived from the bills, not suppliers.balance, which has
-    // drifted from the transactions before.
-    final derivedOut = ref.watch(supplierOutstandingProvider).valueOrNull;
-    double totalPayable = 0;
-    String topPayableName = '—';
-    double topPayableAmt  = 0;
-    for (final s in suppliers) {
-      final bal = supplierOutstanding(s, derivedOut);
-      totalPayable += bal;
-      if (bal > topPayableAmt) { topPayableAmt = bal; topPayableName = s.name ?? '—'; }
-    }
-
-    final isClient = _tabController.index == 0;
-
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        toolbarHeight: 0,
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'crm_fab',
-        onPressed: _openAdd,
-        backgroundColor: _kHeaderBg,
-        foregroundColor: Colors.white,
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        icon: Icon(isClient ? LucideIcons.userPlus : LucideIcons.building2, size: 17),
-        label: AnimatedBuilder(
-          animation: _tabController,
-          builder: (_, __) => Text(
-            isClient ? 'New client' : 'New supplier',
-            style: AppText.label,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _legend(Color c, String t) => Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Header (tab-aware) ──────────────────────────────────────────
-            _CRMHeader(
-              tabIndex: _tabController.index,
-              clientCount: clients.length,
-              totalReceivables: totalReceivables,
-              topDebtorName: topDebtorName,
-              topDebtorAmt: topDebtorAmt,
-              topBuyerName: topBuyerName,
-              topBuyerAmt: topBuyerAmt,
-              supplierCount: suppliers.length,
-              totalPayable: totalPayable,
-              topPayableName: topPayableName,
-              topPayableAmt: topPayableAmt,
-            ),
-
-            // ── Search ──────────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-              child: _SearchBar(
-                controller: _searchController,
-                hint: isClient ? 'Search clients…' : 'Search suppliers…',
-              ),
-            ),
-
-            // ── Pill tab bar ────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-              child: _PillTabBar(controller: _tabController),
-            ),
-
-            // ── Content ─────────────────────────────────────────────────────
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _ClientsTab(query: _query),
-                  _SuppliersTab(query: _query),
-                ],
-              ),
-            ),
+            Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(color: c, shape: BoxShape.circle)),
+            const SizedBox(width: 5),
+            Text(t,
+                style: Bl.inter(12,
+                    w: FontWeight.w500, c: const Color(0xFF5E646C))),
           ],
         ),
-      ),
-    );
-  }
-}
+      );
 
-// ─── Header ──────────────────────────────────────────────────────────────────
-class _CRMHeader extends StatelessWidget {
-  final int    tabIndex;
-  final int    clientCount;
-  final double totalReceivables;
-  final String topDebtorName;
-  final double topDebtorAmt;
-  final String topBuyerName;
-  final double topBuyerAmt;
-  final int    supplierCount;
-  final double totalPayable;
-  final String topPayableName;
-  final double topPayableAmt;
-
-  const _CRMHeader({
-    required this.tabIndex,
-    required this.clientCount,
-    required this.totalReceivables,
-    required this.topDebtorName,
-    required this.topDebtorAmt,
-    required this.topBuyerName,
-    required this.topBuyerAmt,
-    required this.supplierCount,
-    required this.totalPayable,
-    required this.topPayableName,
-    required this.topPayableAmt,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isClient = tabIndex == 0;
-    final stats = isClient
-        ? [
-            _Stat('Total clients', LucideIcons.users,
-                clientCount.toString(), 'Active accounts'),
-            _Stat('To collect', LucideIcons.receipt,
-                _compact(totalReceivables), 'From clients'),
-            _Stat('Owes you most', LucideIcons.alertCircle,
-                topDebtorAmt > 0 ? _compact(topDebtorAmt) : '—', topDebtorName),
-            _Stat('Top buyer', LucideIcons.trendingUp,
-                topBuyerAmt > 0 ? _compact(topBuyerAmt) : '—', topBuyerName),
-          ]
-        : [
-            _Stat('Total suppliers', LucideIcons.truck,
-                supplierCount.toString(), 'Active vendors'),
-            _Stat('To pay', LucideIcons.receipt,
-                _compact(totalPayable), 'To suppliers'),
-            _Stat('You owe most', LucideIcons.alertCircle,
-                topPayableAmt > 0 ? _compact(topPayableAmt) : '—', topPayableName),
-            _Stat('On-time rate', LucideIcons.checkCircle2,
-                '—', 'Last 90 days'),
-          ];
-
-    return AnimatedContainer(
-      duration: Motion.durationOf(context, Motion.base),
-      // Was a solid amber block. Every piece of text on it failed WCAG AA —
-      // title 3.19:1, the "CRM" eyebrow and stat labels 2.43:1, stat values
-      // inside the translucent tiles 2.76:1. A light surface fixes all three
-      // and gives the list back roughly a third of the screen.
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
-      ),
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+  /// Total, how many owe, and the three-band age bar.
+  Widget _summary({
+    required double total,
+    required String caption,
+    required double a,
+    required double b,
+    required double c,
+    VoidCallback? onTap,
+  }) {
+    final sum = a + b + c;
+    int flex(double v) => sum <= 0 ? 0 : (v / sum * 1000).round().clamp(20, 1000);
+    final body = Padding(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'CRM',
-                      style: AppText.label.copyWith(color: AppColors.inkTertiary,
-                        letterSpacing: 0.08 * 10),
-                    ),
-                    const SizedBox(height: 2),
-                    AnimatedSwitcher(
-                      duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
-                      child: Text(
-                        isClient ? 'Clients' : 'Suppliers',
-                        key: ValueKey(isClient),
-                        style: GoogleFonts.manrope(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.inkPrimary,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                child: Text(Money.inr(total),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        Bl.tight(28, w: FontWeight.w700, ls: -0.035, h: 1.1)),
               ),
-              Container(
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  isClient ? LucideIcons.building : LucideIcons.truck,
-                  color: AppColors.inkSecondary,
-                  size: 18,
-                ),
-              ),
+              Text(caption,
+                  style: Bl.inter(12.5,
+                      w: FontWeight.w500, c: const Color(0xFF7A8088))),
             ],
           ),
-          const SizedBox(height: 14),
-          Row(children: [
-            Expanded(child: _StatTile(stats[0])),
-            const SizedBox(width: 8),
-            Expanded(child: _StatTile(stats[1])),
-          ]),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(child: _StatTile(stats[2])),
-            const SizedBox(width: 8),
-            Expanded(child: _StatTile(stats[3])),
-          ]),
-        ],
-      ),
-    );
-  }
-}
-
-class _Stat {
-  final String label;
-  final IconData icon;
-  final String value;
-  final String hint;
-  const _Stat(this.label, this.icon, this.value, this.hint);
-}
-
-class _StatTile extends StatelessWidget {
-  final _Stat s;
-  const _StatTile(this.s);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(s.icon, size: 11, color: AppColors.inkTertiary),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                s.label,
-                style: AppText.caption.copyWith(fontWeight: FontWeight.w500,
-                  color: AppColors.inkSecondary),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ]),
-          const SizedBox(height: 4),
-          Text(
-            s.value,
-            style: AppText.heading.copyWith(fontWeight: FontWeight.w600,
-              color: AppColors.inkPrimary,
-              letterSpacing: -0.3),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 1),
-          Text(
-            s.hint,
-            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Search bar ───────────────────────────────────────────────────────────────
-class _SearchBar extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  const _SearchBar({required this.controller, required this.hint});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
-        prefixIcon: const Icon(LucideIcons.search, size: 16, color: AppColors.inkTertiary),
-        suffixIcon: controller.text.isNotEmpty
-            ? IconButton(
-                icon: const Icon(LucideIcons.x, size: 15, color: AppColors.inkTertiary),
-                onPressed: controller.clear,
-              )
-            : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.outlineVariant),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.outlineVariant),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-        isDense: true,
-      ),
-    );
-  }
-}
-
-// ─── Pill tab bar ─────────────────────────────────────────────────────────────
-class _PillTabBar extends StatelessWidget {
-  final TabController controller;
-  const _PillTabBar({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: TabBar(
-        controller: controller,
-        indicatorSize: TabBarIndicatorSize.tab,
-        indicator: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.outlineVariant),
-        ),
-        labelColor: AppColors.inkPrimary,
-        unselectedLabelColor: AppColors.inkTertiary,
-        labelStyle: AppText.label,
-        unselectedLabelStyle: AppText.caption.copyWith(fontWeight: FontWeight.w500),
-        dividerColor: Colors.transparent,
-        splashBorderRadius: BorderRadius.circular(8),
-        tabs: const [Tab(text: 'Clients'), Tab(text: 'Supplier directory')],
-      ),
-    );
-  }
-}
-
-// ─── CLIENTS TAB ─────────────────────────────────────────────────────────────
-class _ClientsTab extends ConsumerWidget {
-  final String query;
-  const _ClientsTab({required this.query});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(clientsProvider).when(
-      data: (clients) {
-        final filtered = query.isEmpty
-            ? clients
-            : clients.where((c) {
-                final q = query.toLowerCase();
-                return (c.name ?? '').toLowerCase().contains(q) ||
-                    (c.phone ?? '').contains(q) ||
-                    (c.email ?? '').toLowerCase().contains(q);
-              }).toList();
-
-        if (filtered.isEmpty) {
-          return _EmptyState(
-            icon: LucideIcons.users,
-            message: query.isEmpty ? 'No clients yet' : 'No results for "$query"',
-          );
-        }
-
-        final totalBalance =
-            filtered.fold(0.0, (s, c) => s + (c.outstandingBalance ?? 0));
-
-        return Column(
-          children: [
-            // ── Toolbar ────────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-              child: Row(children: [
-                _ToolbarBtn(
-                  icon: LucideIcons.calendarClock,
-                  label: 'Overdue report',
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const ClientAgingScreen())),
-                ),
-                const SizedBox(width: 7),
-                _ToolbarBtn(
-                  icon: LucideIcons.creditCard,
-                  label: 'Payments',
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const ClientPaymentsScreen())),
-                ),
-              ]),
-            ),
-
-            // ── Meta row ───────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${filtered.length} client${filtered.length == 1 ? '' : 's'}',
-                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 6,
+            child: sum <= 0
+                ? const DecoratedBox(
+                    decoration: BoxDecoration(
+                        color: Bl.well,
+                        borderRadius: BorderRadius.all(Radius.circular(3))))
+                : Row(
+                    children: [
+                      for (final (v, col) in [
+                        (a, const Color(0xFF1E9E5A)),
+                        (b, Bl.brand),
+                        (c, Bl.red),
+                      ])
+                        if (v > 0)
+                          Expanded(
+                            flex: flex(v),
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 3),
+                              decoration: BoxDecoration(
+                                  color: col,
+                                  borderRadius: BorderRadius.circular(3)),
+                            ),
+                          ),
+                    ],
                   ),
-                  if (totalBalance > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _kDangerBg,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFF5C09A)),
-                      ),
-                      child: Text(
-                        '₹${totalBalance.toStringAsFixed(0)} outstanding',
-                        style: AppText.label.copyWith(color: _kClientOrange),
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE6F4EC),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'All clear',
-                        style: AppText.label.copyWith(color: _kSupplierGreen),
-                      ),
-                    ),
-                ],
-              ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _legend(const Color(0xFF1E9E5A), '0–30 days ${Money.inr(a)}'),
+                _legend(Bl.brand, '31–60 ${Money.inr(b)}'),
+                _legend(Bl.red, '60+ ${Money.inr(c)}'),
+              ],
             ),
+          ),
+        ],
+      ),
+    );
+    return onTap == null
+        ? body
+        : Semantics(
+            button: true,
+            label: 'Open the overdue report',
+            child: GestureDetector(
+                behavior: HitTestBehavior.opaque, onTap: onTap, child: body));
+  }
 
-            // ── List ───────────────────────────────────────────────────────
+  Widget _filterPill(int i, String label, int count) {
+    final on = _filter == i;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Semantics(
+        button: true,
+        selected: on,
+        label: '$label, $count',
+        excludeSemantics: true,
+        child: BlTap(
+          onTap: () => setState(() => _filter = i),
+          child: Container(
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: on ? Bl.ink : null,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: on ? Bl.ink : const Color(0xFFDADADA)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label,
+                    style: Bl.tight(13,
+                        w: FontWeight.w600,
+                        ls: 0,
+                        c: on ? Bl.white : const Color(0xFF303030))),
+                const SizedBox(width: 5),
+                Text('$count',
+                    style: Bl.tight(12,
+                        w: FontWeight.w500,
+                        ls: 0,
+                        c: (on ? Bl.white : const Color(0xFF303030))
+                            .withValues(alpha: 0.6))),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clientsAsync = ref.watch(clientsProvider);
+    final suppliersAsync = ref.watch(suppliersProvider);
+    final clients = clientsAsync.valueOrNull ?? const <Client>[];
+    final suppliers = suppliersAsync.valueOrNull ?? const <Supplier>[];
+    final isClient = _tab == 0;
+    final now = DateTime.now();
+    final q = _query.trim().toLowerCase();
+
+    // ── Clients ──────────────────────────────────────────────────────────
+    final cAging = clientAging(
+        ref.watch(recentSalesProvider).valueOrNull ?? const [], now);
+    double cOwed(Client c) => c.outstandingBalance ?? 0;
+    final cOwing = clients.where((c) => cOwed(c) > 0.5).toList();
+
+    // ── Suppliers ────────────────────────────────────────────────────────
+    final derivedOut = ref.watch(supplierOutstandingProvider).valueOrNull;
+    final sAging = ref.watch(supplierAgingProvider).valueOrNull ?? const {};
+    double sOwed(Supplier s) => supplierOutstanding(s, derivedOut);
+    final sOwing = suppliers.where((s) => sOwed(s) > 0.5).toList();
+
+    final total = isClient
+        ? cOwing.fold<double>(0, (t, c) => t + cOwed(c))
+        : sOwing.fold<double>(0, (t, s) => t + sOwed(s));
+    // Bands are scaled to each balance, so they add up to the total above.
+    final ages = isClient
+        ? [
+            for (final c in cOwing)
+              cAging[c.id] == null
+                  ? null
+                  : agingScaledTo(cAging[c.id]!, cOwed(c)),
+          ]
+        : [
+            for (final s in sOwing)
+              sAging[s.id] == null
+                  ? null
+                  : agingScaledTo(sAging[s.id]!, sOwed(s)),
+          ];
+    double band(double Function(PartyAging) f) =>
+        ages.fold<double>(0, (t, a) => t + (a == null ? 0 : f(a)));
+
+    final owingCount = isClient ? cOwing.length : sOwing.length;
+    final allCount = isClient ? clients.length : suppliers.length;
+
+    final loading = isClient
+        ? clientsAsync.isLoading && !clientsAsync.hasValue
+        : suppliersAsync.isLoading && !suppliersAsync.hasValue;
+    final failed = isClient
+        ? clientsAsync.hasError && !clientsAsync.hasValue
+        : suppliersAsync.hasError && !suppliersAsync.hasValue;
+
+    final List<Widget> rows;
+    if (isClient) {
+      final list = clients.where((c) {
+        final owes = cOwed(c) > 0.5;
+        if (_filter == 0 && !owes) return false;
+        if (_filter == 1 && owes) return false;
+        if (q.isEmpty) return true;
+        return (c.name ?? '').toLowerCase().contains(q) ||
+            (c.phone ?? '').contains(q) ||
+            (c.email ?? '').toLowerCase().contains(q);
+      }).toList()
+        ..sort((x, y) {
+          final d = cOwed(y).compareTo(cOwed(x));
+          return d != 0
+              ? d
+              : (x.name ?? '').toLowerCase().compareTo((y.name ?? '').toLowerCase());
+        });
+      rows = [
+        for (var i = 0; i < list.length; i++)
+          () {
+            final c = list[i];
+            final phone = (c.phone ?? '').trim();
+            return SwipeActions(
+              key: ValueKey('client-${c.id}'),
+              openWidth: phone.isEmpty ? 66 : 132,
+              peek: _showSwipeHint && i == 0,
+              onSwiped: _swipeHintDone,
+              actions: [
+                if (phone.isNotEmpty)
+                  _SwipeAction(
+                    icon:
+                        '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/>',
+                    label: 'Call',
+                    color: Bl.ink,
+                    onTap: () => launchUrl(Uri(scheme: 'tel', path: phone)),
+                  ),
+                _SwipeAction(
+                  icon: '<path d="M7 5h10M7 9h10M7 5c5 0 6 4 0 4h0l7 10"/>',
+                  label: 'Collect',
+                  color: Bl.amber,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => ClientSettlementScreen(client: c)),
+                  ).then((_) => _refreshAll()),
+                ),
+              ],
+              child: _PartyRow(
+                name: c.name ?? 'Unnamed',
+                owed: cOwed(c),
+                aging: cAging[c.id],
+                detail: null,
+                onTap: () => _showClientDetail(c),
+              ),
+            );
+          }(),
+      ];
+    } else {
+      final list = suppliers.where((s) {
+        final owes = sOwed(s) > 0.5;
+        if (_filter == 0 && !owes) return false;
+        if (_filter == 1 && owes) return false;
+        if (q.isEmpty) return true;
+        return (s.name ?? '').toLowerCase().contains(q) ||
+            (s.phone ?? '').contains(q) ||
+            (s.contactPerson ?? '').toLowerCase().contains(q);
+      }).toList()
+        ..sort((x, y) {
+          final d = sOwed(y).compareTo(sOwed(x));
+          return d != 0
+              ? d
+              : (x.name ?? '').toLowerCase().compareTo((y.name ?? '').toLowerCase());
+        });
+      rows = [
+        for (final s in list)
+          _PartyRow(
+            key: ValueKey('supplier-${s.id}'),
+            name: s.name ?? 'Unnamed',
+            owed: sOwed(s),
+            aging: sAging[s.id],
+            detail: (s.contactPerson ?? '').trim().isNotEmpty
+                ? s.contactPerson!.trim()
+                : ((s.phone ?? '').trim().isNotEmpty ? s.phone!.trim() : null),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => SupplierDetailScreen(supplier: s)),
+            ).then((_) => _refreshAll()),
+          ),
+      ];
+    }
+
+    final noun = isClient ? 'client' : 'supplier';
+
+    return Scaffold(
+      backgroundColor: Bl.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            BlBackHeader(
+              title: isClient ? 'Clients' : 'Suppliers',
+              trailing: isClient
+                  ? BlRoundButton(
+                      '<path d="M4 6h16M4 12h16M4 18h10"/>',
+                      label: 'Payment history',
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ClientPaymentsScreen())),
+                    )
+                  : null,
+            ),
             Expanded(
               child: MotionRefresh(
                 onRefresh: () async {
-                  ref.invalidate(clientsProvider);
+                  _refreshAll();
                   try {
                     await ref.read(clientsProvider.future);
                   } catch (_) {}
                 },
-                child: ListView.separated(
-                  physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics()),
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 100),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, indent: 52),
-                  itemBuilder: (ctx, i) {
-                    final c = filtered[i];
-                    final phone = (c.phone ?? '').trim();
-                    return SwipeActions(
-                      openWidth: phone.isEmpty ? 80 : 160,
-                      actions: [
-                        if (phone.isNotEmpty)
-                          _SwipeAction(
-                            icon: LucideIcons.phone,
-                            label: 'Call',
-                            color: _kSupplierGreen,
-                            onTap: () => launchUrl(Uri(scheme: 'tel', path: phone)),
-                          ),
-                        _SwipeAction(
-                          icon: LucideIcons.indianRupee,
-                          label: 'Collect',
-                          color: _kClientOrange,
-                          onTap: () => _showClientDetail(ctx, c, ref),
-                        ),
-                      ],
-                      child: _ClientRow(
-                        client: c,
-                        onTap: () => _showClientDetail(ctx, c, ref),
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 16),
+                  children: [
+                    _summary(
+                      total: total,
+                      caption:
+                          '${isClient ? 'to collect' : 'to pay'} · $owingCount $noun${owingCount == 1 ? '' : 's'}',
+                      a: band((x) => x.d0to30),
+                      b: band((x) => x.d31to60),
+                      c: band((x) => x.d60plus),
+                      onTap: isClient
+                          ? () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const ClientAgingScreen()))
+                          : null,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: BlSegmented(
+                        labels: const ['Clients', 'Suppliers'],
+                        index: _tab,
+                        onChanged: (i) => setState(() {
+                          _tab = i;
+                          _filter = 0;
+                          _searchController.clear();
+                        }),
                       ),
-                    );
-                  },
+                    ),
+                    Container(
+                      height: 44,
+                      margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                          color: Bl.well,
+                          borderRadius: BorderRadius.circular(999)),
+                      child: Row(
+                        children: [
+                          const BlIcon(BlIcons.search,
+                              size: 20, color: Bl.mute),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              cursorColor: Bl.brand,
+                              style: Bl.inter(14,
+                                  w: FontWeight.w500, c: Bl.ink),
+                              decoration: InputDecoration(
+                                isCollapsed: true,
+                                filled: false,
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                hintText:
+                                    isClient ? 'Search clients' : 'Search suppliers',
+                                hintStyle: Bl.inter(14,
+                                    w: FontWeight.w500, c: Bl.mute),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _filterPill(
+                                0, isClient ? 'Owes you' : 'You owe', owingCount),
+                            _filterPill(1, 'Settled', allCount - owingCount),
+                            _filterPill(2, 'All', allCount),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (loading)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 60),
+                        child: Center(
+                            child: CircularProgressIndicator(
+                                color: Bl.amber, strokeWidth: 2)),
+                      )
+                    else if (failed)
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                            'Could not load ${noun}s. Check your internet and try again.',
+                            textAlign: TextAlign.center,
+                            style: Bl.inter(13.5, c: Bl.redDeep, h: 1.5)),
+                      )
+                    else if (rows.isEmpty)
+                      BlEmpty(
+                        icon: BlIcons.users,
+                        title: q.isNotEmpty
+                            ? 'No results for "$_query"'
+                            : _filter == 0
+                                ? (isClient
+                                    ? 'Nobody owes you'
+                                    : 'You owe nobody')
+                                : 'No ${noun}s here',
+                        message: q.isEmpty && _filter == 0
+                            ? 'Tap All to see every $noun.'
+                            : null,
+                      )
+                    else
+                      ...rows,
+                  ],
                 ),
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+              child: BlButton(
+                isClient ? 'Add client' : 'Add supplier',
+                leading: const BlIcon(BlIcons.plus, size: 16, color: Bl.white),
+                onTap: _openAdd,
+              ),
+            ),
           ],
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      error: (e, _) => _ErrorState(message: e.toString()),
-    );
-  }
-
-  void _showClientDetail(BuildContext context, Client client, WidgetRef ref) {
-    showMotionSheet(
-      context: context,
-      builder: (_) => _ClientDetailSheet(client: client, ref: ref),
+        ),
+      ),
     );
   }
 }
 
+/// One of the buttons a swiped row uncovers.
 class _SwipeAction extends StatelessWidget {
-  final IconData icon;
+  final String icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _SwipeAction({required this.icon, required this.label, required this.color, required this.onTap});
+  const _SwipeAction(
+      {required this.icon,
+      required this.label,
+      required this.color,
+      required this.onTap});
+
   @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        child: ColoredBox(
-          color: color,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: Colors.white),
-              const SizedBox(height: 2),
-              Text(label, style: AppText.caption.copyWith(color: Colors.white)),
-            ],
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: ColoredBox(
+            color: color,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                BlIcon(icon, size: 18, color: Bl.white),
+                const SizedBox(height: 4),
+                Text(label,
+                    style: Bl.tight(11.5,
+                        w: FontWeight.w600, ls: 0, c: Bl.white)),
+              ],
+            ),
           ),
         ),
       );
 }
 
-// ─── Client row (flat list item) ──────────────────────────────────────────────
-class _ClientRow extends StatelessWidget {
-  final Client client;
+/// A client or supplier row: avatar, name, how old the debt is, how much.
+class _PartyRow extends StatelessWidget {
+  final String name;
+  final double owed;
+  final PartyAging? aging;
+  final String? detail;
   final VoidCallback onTap;
-  const _ClientRow({required this.client, required this.onTap});
+  const _PartyRow({
+    super.key,
+    required this.name,
+    required this.owed,
+    required this.aging,
+    required this.detail,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final balance  = client.outstandingBalance ?? 0;
-    final hasGstin = (client.gstNo ?? client.gstin) != null;
-    final fg = _avatarFg(client.name);
-    final bg = _avatarBg(client.name);
+    final owes = owed > 0.5;
+    final days = aging?.oldestDays;
+    final bills = aging?.unpaidBills ?? 0;
+    final sub = [
+      ?detail,
+      if (owes && bills > 0) '$bills unpaid bill${bills == 1 ? '' : 's'}',
+      if (!owes) owed < -0.5 ? 'In advance' : 'Settled',
+    ].join(' · ');
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        child: Row(
-          children: [
-            // Avatar
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-              alignment: Alignment.center,
-              child: Text(
-                _initials(client.name),
-                style: AppText.label.copyWith(color: fg),
-              ),
-            ),
-            const SizedBox(width: 11),
-
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    client.name ?? 'Unknown',
-                    style: AppText.label.copyWith(color: AppColors.inkPrimary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Row(children: [
-                    if (client.phone != null && client.phone!.isNotEmpty) ...[
-                      const Icon(LucideIcons.phone, size: 11, color: AppColors.inkTertiary),
-                      const SizedBox(width: 3),
-                      Text(client.phone!,
-                          style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
-                      const SizedBox(width: 6),
-                    ],
-                    if (hasGstin)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFDF3D3),
-                          border: Border.all(color: const Color(0xFFEFD98A)),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text('GST',
-                            style: AppText.label.copyWith(color: const Color(0xFF7B5D0A))),
-                      ),
-                  ]),
-                ],
-              ),
-            ),
-
-            // Amount + chevron
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  balance > 0
-                      ? _rupees(balance)
-                      : balance < 0
-                          ? '${_rupees(balance)} advance'
-                          : 'Settled',
-                  style: GoogleFonts.manrope(
-                    fontSize: balance < 0 ? 11 : 13,
-                    fontWeight: FontWeight.w600,
-                    color: balance > 0
-                        ? _kDanger
-                        : balance < 0
-                            ? _kSupplierGreen
-                            : AppColors.inkTertiary,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                const Icon(LucideIcons.chevronRight, size: 13, color: AppColors.inkTertiary),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── CLIENT DETAIL SHEET ─────────────────────────────────────────────────────
-class _ClientDetailSheet extends StatelessWidget {
-  final Client client;
-  final WidgetRef ref;
-  const _ClientDetailSheet({required this.client, required this.ref});
-
-  static String _fmtAmount(double v) {
-    final whole = v.truncate();
-    final s = whole.toString();
-    if (s.length <= 3) return '₹$s';
-    final last3 = s.substring(s.length - 3);
-    final rest  = s.substring(0, s.length - 3);
-    final grouped = rest.replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},');
-    return '₹$grouped,$last3';
-  }
-
-  String _accountTypeLabel(String? t) =>
-      t == 'B2B' ? 'B2B · Business' : 'B2C · Consumer';
-
-  String _priceTierLabel(String? t) {
-    switch (t) {
-      case 'WHOLESALE':   return 'Wholesale · Volume';
-      case 'DISTRIBUTOR': return 'Distributor · Trade';
-      default:            return 'Retail · Standard';
-    }
-  }
-
-  String _creditTermLabel(int? days) =>
-      (days ?? 0) == 0 ? 'Cash on delivery' : 'Net ${days!} days';
-
-  @override
-  Widget build(BuildContext context) {
-    final balance     = client.outstandingBalance ?? 0;
-    final fg          = _avatarFg(client.name);
-    final bg          = _avatarBg(client.name);
-    final clientType  = client.clientType ?? 'B2C';
-    final gstinValue  = (client.gstin ?? client.gstNo ?? '').trim();
-    final hasGstin    = gstinValue.isNotEmpty;
-    final hasState    = (client.state ?? '').isNotEmpty;
-    final salesAsync  = ref.watch(recentSalesProvider);
-    final mySales     = (salesAsync.valueOrNull ?? const [])
-        .where((s) => s.shopId == client.id)
-        .toList();
-    final totalSales  = mySales.fold(0.0, (s, sale) => s + (sale.totalAmount ?? 0));
-    final orderCount  = mySales.length;
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.72,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      builder: (_, scroll) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          children: [
-            // Drag handle
-            Container(
-              margin: const EdgeInsets.only(top: 10),
-              width: 36,
-              height: 3,
-              decoration: BoxDecoration(
-                color: AppColors.outlineVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: scroll,
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
-                children: [
-                  // ── Header ──────────────────────────────────────────────
-                  Row(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-                        alignment: Alignment.center,
-                        child: Text(
-                          _initials(client.name),
-                          style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w600, color: fg),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              client.name ?? 'Unknown',
-                              style: GoogleFonts.manrope(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.inkPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: clientType == 'B2B'
-                                    ? AppColors.primary.withValues(alpha: 0.1)
-                                    : AppColors.surfaceContainer,
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                              child: Text(
-                                _accountTypeLabel(client.clientType),
-                                style: AppText.label.copyWith(color: clientType == 'B2B' ? AppColors.primary : AppColors.inkSecondary),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => AddClientScreen(client: client)),
-                          ).then((_) => ref.invalidate(clientsProvider));
-                        },
-                        icon: const Icon(LucideIcons.pencil, size: 16, color: AppColors.inkTertiary),
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppColors.surfaceContainer,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // ── Balance card ─────────────────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: balance > 0
-                          ? AppColors.danger.withValues(alpha: 0.05)
-                          : AppColors.success.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: balance > 0
-                            ? AppColors.danger.withValues(alpha: 0.15)
-                            : AppColors.success.withValues(alpha: 0.15),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          balance > 0 ? LucideIcons.alertCircle : LucideIcons.checkCircle2,
-                          size: 18,
-                          color: balance > 0 ? AppColors.danger : AppColors.success,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                balance < 0 ? 'Advance (paid extra)' : 'Outstanding balance',
-                                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                              ),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    _fmtAmount(balance.abs()),
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w700,
-                                      color: balance > 0 ? AppColors.danger : AppColors.success,
-                                      letterSpacing: -0.4,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 3),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: balance > 0
-                                            ? AppColors.danger.withValues(alpha: 0.10)
-                                            : AppColors.success.withValues(alpha: 0.10),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        balance > 0 ? 'Unpaid' : 'Cleared',
-                                        style: AppText.label.copyWith(color: balance > 0 ? AppColors.danger : AppColors.success),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // ── Sales summary ────────────────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(children: [
-                      Expanded(child: _MiniStat('Total sales', _fmtAmount(totalSales))),
-                      Container(width: 1, height: 28, color: AppColors.outlineVariant),
-                      Expanded(child: _MiniStat('Orders', '$orderCount')),
-                    ]),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // ── Contact info ─────────────────────────────────────────
-                  if (client.phone != null || client.email != null || client.address != null)
-                    _DetailSection(
-                      title: 'Contact info',
-                      icon: LucideIcons.phone,
-                      rows: [
-                        if (client.phone != null && client.phone!.isNotEmpty)
-                          _InfoRow(icon: LucideIcons.phone, label: 'Phone', value: client.phone!),
-                        if (client.email != null && client.email!.isNotEmpty)
-                          _InfoRow(icon: LucideIcons.mail, label: 'Email', value: client.email!),
-                        if (client.address != null && client.address!.isNotEmpty)
-                          _InfoRow(icon: LucideIcons.mapPin, label: 'Address', value: client.address!),
-                      ],
-                    ),
-
-                  if (hasGstin || hasState) ...[
-                    const SizedBox(height: 14),
-                    _DetailSection(
-                      title: 'Tax information',
-                      icon: LucideIcons.fileText,
-                      rows: [
-                        if (hasGstin)
-                          _InfoRow(icon: LucideIcons.hash, label: 'GSTIN', value: gstinValue),
-                        if (hasState)
-                          _InfoRow(
-                            icon: LucideIcons.mapPin,
-                            label: 'State',
-                            value: '${client.state}${client.stateCode != null ? ' (${client.stateCode})' : ''}',
-                          ),
-                      ],
-                    ),
-                  ],
-
-                  const SizedBox(height: 14),
-                  _DetailSection(
-                    title: 'Classification',
-                    icon: LucideIcons.tag,
-                    rows: [
-                      _InfoRow(
-                        icon: clientType == 'B2B' ? LucideIcons.building2 : LucideIcons.shoppingBag,
-                        label: 'Account type',
-                        value: _accountTypeLabel(client.clientType),
-                      ),
-                      _InfoRow(icon: LucideIcons.tag, label: 'Price tier',
-                          value: _priceTierLabel(client.priceTier)),
-                      _InfoRow(icon: LucideIcons.clock, label: 'Credit terms',
-                          value: _creditTermLabel(client.creditDays)),
-                    ],
-                  ),
-
-                  if (client.createdAt != null) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      'Added ${_formatDate(client.createdAt!)}',
-                      style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-
-                  // ── Actions ─────────────────────────────────────────────
-                  const SizedBox(height: 18),
-                  Row(children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => ClientStatementSheet(client: client),
-                          );
-                        },
-                        icon: const Icon(LucideIcons.bookOpen, size: 14),
-                        label: Text('View statement',
-                            style: AppText.label),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.primary, width: 1),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(vertical: 11),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => ClientSettlementScreen(client: client)),
-                          );
-                        },
-                        icon: const Icon(LucideIcons.checkCircle2, size: 14),
-                        label: Text('Collect payment',
-                            style: AppText.label),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _kHeaderBg,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(vertical: 11),
-                          elevation: 0,
-                        ),
-                      ),
-                    ),
-                  ]),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static String _formatDate(DateTime d) =>
-      '${d.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.month-1]} ${d.year}';
-}
-
-// ─── SUPPLIERS TAB ────────────────────────────────────────────────────────────
-class _SuppliersTab extends ConsumerWidget {
-  final String query;
-  const _SuppliersTab({required this.query});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(suppliersProvider).when(
-      data: (suppliers) {
-        final filtered = query.isEmpty
-            ? suppliers
-            : suppliers.where((s) {
-                final q = query.toLowerCase();
-                return (s.name ?? '').toLowerCase().contains(q) ||
-                    (s.contactPerson ?? '').toLowerCase().contains(q) ||
-                    (s.phone ?? '').contains(q);
-              }).toList();
-
-        if (filtered.isEmpty) {
-          return _EmptyState(
-            icon: LucideIcons.building2,
-            message: query.isEmpty ? 'No suppliers yet' : 'No results for "$query"',
-          );
-        }
-
-        // Alphabetical grouping
-        final Map<String, List<Supplier>> grouped = {};
-        for (final s in filtered) {
-          final letter = (s.name?.isNotEmpty == true) ? s.name![0].toUpperCase() : '#';
-          grouped.putIfAbsent(letter, () => []).add(s);
-        }
-        final sortedKeys = grouped.keys.toList()..sort();
-
-        final derivedOut = ref.watch(supplierOutstandingProvider).valueOrNull;
-        final totalPayable = filtered.fold(
-            0.0, (s, sup) => s + supplierOutstanding(sup, derivedOut));
-
-        return Column(
-          children: [
-            // ── Toolbar ────────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-              child: Row(children: [
-                _ToolbarBtn(
-                  icon: LucideIcons.fileText,
-                  label: 'Purchase orders',
-                  onTap: () {},
-                ),
-                const SizedBox(width: 7),
-                _ToolbarBtn(
-                  icon: LucideIcons.creditCard,
-                  label: 'Payments',
-                  onTap: () {},
-                ),
-              ]),
-            ),
-
-            // ── Meta row ───────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${filtered.length} supplier${filtered.length == 1 ? '' : 's'}',
-                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                  ),
-                  if (totalPayable > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _kSupplierGreenBg,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFF9FD5B3)),
-                      ),
-                      child: Text(
-                        '₹${totalPayable.toStringAsFixed(0)} to pay',
-                        style: AppText.label.copyWith(color: _kSupplierGreen),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            // ── Alphabetical list ───────────────────────────────────────────
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(14, 4, 14, 100),
-                itemCount: sortedKeys.fold<int>(0, (c, k) => c + 1 + (grouped[k]?.length ?? 0)),
-                itemBuilder: (ctx, globalIndex) {
-                  int cursor = 0;
-                  for (final key in sortedKeys) {
-                    if (globalIndex == cursor) return _AlphaHeader(letter: key);
-                    cursor++;
-                    final items = grouped[key]!;
-                    if (globalIndex < cursor + items.length) {
-                      final supplier = items[globalIndex - cursor];
-                      return Column(children: [
-                        _SupplierRow(
-                          supplier: supplier,
-                          outstanding:
-                              supplierOutstanding(supplier, derivedOut),
-                          onTap: () => Navigator.push(
-                            ctx,
-                            MaterialPageRoute(builder: (_) => SupplierDetailScreen(supplier: supplier)),
-                          ).then((_) {
-                            ref.invalidate(suppliersProvider);
-                            ref.invalidate(supplierOutstandingProvider);
-                          }),
-                        ),
-                        if (globalIndex - cursor < items.length - 1)
-                          const Divider(height: 1, indent: 52),
-                      ]);
-                    }
-                    cursor += items.length;
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-          ],
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      error: (e, _) => _ErrorState(message: e.toString()),
-    );
-  }
-}
-
-// ─── Supplier row (flat list item) ────────────────────────────────────────────
-class _SupplierRow extends StatelessWidget {
-  final Supplier supplier;
-  final double outstanding;
-  final VoidCallback onTap;
-  const _SupplierRow(
-      {required this.supplier, required this.outstanding, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    // Passed in already derived from the bills -- supplier.balance is the
-    // cached column and is not read here.
-    final balance = outstanding;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        child: Row(
-          children: [
-            // Avatar — green tint for suppliers
-            Container(
-              width: 38,
-              height: 38,
-              decoration: const BoxDecoration(color: _kSupplierGreenBg, shape: BoxShape.circle),
-              alignment: Alignment.center,
-              child: Text(
-                _initials(supplier.name),
-                style: AppText.label.copyWith(color: _kSupplierGreen),
-              ),
-            ),
-            const SizedBox(width: 11),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    supplier.name ?? 'Unknown',
-                    style: AppText.label.copyWith(color: AppColors.inkPrimary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Row(children: [
-                    if (supplier.phone != null && supplier.phone!.isNotEmpty) ...[
-                      const Icon(LucideIcons.phone, size: 11, color: AppColors.inkTertiary),
-                      const SizedBox(width: 3),
-                      Text(supplier.phone!,
-                          style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
-                      const SizedBox(width: 6),
-                    ],
-                    if (supplier.contactPerson != null && supplier.contactPerson!.isNotEmpty)
-                      Text(supplier.contactPerson!,
-                          style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
-                  ]),
-                ],
-              ),
-            ),
-
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  balance == 0 ? '—' : '₹${balance.toStringAsFixed(0)}',
-                  style: AppText.label.copyWith(color: balance > 0 ? _kSupplierGreen : AppColors.inkTertiary),
-                ),
-                const SizedBox(height: 3),
-                const Icon(LucideIcons.chevronRight, size: 13, color: AppColors.inkTertiary),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Alpha section header ─────────────────────────────────────────────────────
-class _AlphaHeader extends StatelessWidget {
-  final String letter;
-  const _AlphaHeader({required this.letter});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 10, 0, 4),
-      child: Row(children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            color: _kHeaderBg,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          alignment: Alignment.center,
-          child: Text(letter,
-              style: AppText.label.copyWith(color: Colors.white)),
-        ),
-        const SizedBox(width: 8),
-        Expanded(child: Container(height: 0.5, color: AppColors.outlineVariant)),
-      ]),
-    );
-  }
-}
-
-// ─── Toolbar button ───────────────────────────────────────────────────────────
-class _ToolbarBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _ToolbarBtn({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppTappable(
-      ripple: false,
+    return BlTap(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: AppColors.outlineVariant),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 14, color: AppColors.inkSecondary),
-          const SizedBox(width: 5),
-          Text(label,
-              style: AppText.caption.copyWith(fontWeight: FontWeight.w500, color: AppColors.inkSecondary)),
-        ]),
-      ),
-    );
-  }
-}
-
-// ─── Mini stat (used in detail sheet) ────────────────────────────────────────
-class _MiniStat extends StatelessWidget {
-  final String label;
-  final String value;
-  const _MiniStat(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
-            style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
-        const SizedBox(height: 2),
-        Text(value,
-            style: GoogleFonts.manrope(
-                fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.inkPrimary, letterSpacing: -0.3)),
-      ]),
-    );
-  }
-}
-
-// ─── Detail section ───────────────────────────────────────────────────────────
-class _DetailSection extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<_InfoRow> rows;
-  const _DetailSection({required this.title, required this.icon, required this.rows});
-
-  @override
-  Widget build(BuildContext context) {
-    if (rows.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(children: [
-          Icon(icon, size: 12, color: AppColors.inkTertiary),
-          const SizedBox(width: 5),
-          Text(title,
-              style: AppText.label.copyWith(color: AppColors.inkTertiary)),
-        ]),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainer,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
-          child: Column(
-            children: rows.map((row) {
-              final isLast = row == rows.last;
-              return Column(children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        decoration: const BoxDecoration(
+            color: Bl.white,
+            border: Border(bottom: BorderSide(color: Bl.sep))),
+        child: Row(
+          children: [
+            BlTintAvatar(name),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Bl.tight(14.5, w: FontWeight.w600)),
+                  const SizedBox(height: 3),
+                  Row(
                     children: [
-                      Icon(row.icon, size: 14, color: AppColors.inkTertiary),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(row.label,
-                                style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
-                            const SizedBox(height: 1),
-                            Text(row.value,
-                                style: AppText.caption.copyWith(fontWeight: FontWeight.w500, color: AppColors.inkPrimary)),
-                          ],
-                        ),
-                      ),
-                      AppTappable(
-                        ripple: false,
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: row.value));
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text('Copied',
-                                style: GoogleFonts.manrope(color: AppColors.inkPrimary)),
-                            backgroundColor: AppColors.primaryContainer,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            duration: const Duration(seconds: 1),
-                          ));
-                        },
-                        child: const Icon(LucideIcons.copy, size: 13, color: AppColors.inkTertiary),
+                      if (owes && days != null) ...[
+                        days > 60
+                            ? BlStatusPill.red('$days days')
+                            : days > 30
+                                ? BlStatusPill.yellow('$days days')
+                                : BlStatusPill.green('$days days'),
+                        const SizedBox(width: 6),
+                      ],
+                      Flexible(
+                        child: Text(sub,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Bl.inter(12,
+                                c: const Color(0xFF7A8088))),
                       ),
                     ],
                   ),
-                ),
-                if (!isLast)
-                  const Divider(height: 1, indent: 14, endIndent: 14),
-              ]);
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _InfoRow {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _InfoRow({required this.icon, required this.label, required this.value});
-}
-
-// ─── Shared utility widgets ───────────────────────────────────────────────────
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String message;
-  const _EmptyState({required this.icon, required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceContainer,
-              shape: BoxShape.circle,
+                ],
+              ),
             ),
-            child: Icon(icon, size: 28, color: AppColors.inkTertiary),
-          ),
-          const SizedBox(height: 14),
-          Text(message,
-              style: AppText.bodyStrong.copyWith(color: AppColors.inkSecondary)),
-          const SizedBox(height: 3),
-          Text('Tap + to add one',
-              style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  final String message;
-  const _ErrorState({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text('Error: $message',
-            style: AppText.caption.copyWith(color: AppColors.danger),
-            textAlign: TextAlign.center),
+            const SizedBox(width: 10),
+            Text(owes ? Money.inr(owed) : (owed < -0.5 ? Money.inr(-owed) : ''),
+                style: Bl.tight(14.5,
+                    w: FontWeight.w600,
+                    c: owes ? Bl.redDeep : const Color(0xFF17663A))),
+            const SizedBox(width: 6),
+            const BlIcon(BlIcons.chevronRight,
+                size: 16, color: Color(0xFFB8BCC2)),
+          ],
+        ),
       ),
     );
   }
