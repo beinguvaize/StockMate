@@ -15,6 +15,10 @@ class BlIcons {
   static const close = '<path d="M6 6l12 12M18 6L6 18"/>';
   static const plus = '<path d="M12 5v14M5 12h14"/>';
   static const check = '<path d="M20 6L9 17l-5-5"/>';
+  static const search = '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>';
+  static const scan =
+      '<path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M7 12h10"/>';
+  static const minus = '<path d="M5 12h14"/>';
   static const chevronDown = '<path d="M6 9l6 6 6-6"/>';
   static const person = '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>';
   static const chevronRight = '<path d="M9 6l6 6-6 6"/>';

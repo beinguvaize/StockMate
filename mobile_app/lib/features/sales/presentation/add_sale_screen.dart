@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/utils/money.dart';
 import 'package:mobile_app/core/widgets/app_surfaces.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
@@ -683,9 +684,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: Bl.white,
       body: productsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: Bl.amber, strokeWidth: 2)),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (allProducts) {
           // ── Van mode: filter to van stock only, override qty with van qty ──
@@ -717,328 +719,289 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
             return matchCat && matchQ;
           }).toList();
 
-          return Stack(
-            children: [
-              CustomScrollView(
-                slivers: [
-                  // ── Header ──────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+          final storeName = stores.length > 1
+              ? (stores.firstWhere((s) => s['id'] == _posStoreId,
+                          orElse: () => stores.first)['name'] ??
+                      'Store')
+                  .toString()
+              : null;
+          final register = widget.isVanSale ? 'Roadside POS' : 'Register 01';
+          final count = _cart.length;
+
+          return SafeArea(
+            child: Column(
+              children: [
+                // ── Header: back, title, who the sale is for ───────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(7, 1, 14, 0),
+                  child: Row(
+                    children: [
+                      BlRoundButton(BlIcons.back,
+                          label: 'Back', onTap: () => Navigator.pop(context)),
+                      const SizedBox(width: 3),
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            Text(widget.isVanSale ? 'Van sale' : 'New sale',
+                                style: Bl.tight(15.5, w: FontWeight.w600)),
+                            if (storeName != null)
+                              PopupMenuButton<String>(
+                                popUpAnimationStyle: menuAnimationStyle(context),
+                                initialValue: _posStoreId,
+                                color: Bl.white,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16)),
+                                onSelected: (v) =>
+                                    setState(() => _posStoreId = v),
+                                itemBuilder: (_) => [
+                                  for (final s in stores)
+                                    PopupMenuItem(
+                                        value: s['id'] as String,
+                                        child: Text(s['name'] ?? 'Store',
+                                            style: Bl.tight(14,
+                                                w: FontWeight.w500))),
+                                ],
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 2),
+                                  child: Text('$storeName ▾ · $register',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Bl.inter(11,
+                                          w: FontWeight.w500,
+                                          c: const Color(0xFF616161))),
+                                ),
+                              )
+                            else
+                              Text(register,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Bl.inter(11,
+                                      w: FontWeight.w500,
+                                      c: const Color(0xFF616161))),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      BlTap(
+                        label:
+                            'Customer: ${_selectedClient?.name ?? 'Walk-in'}. Change',
+                        onTap: _showClientPicker,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Container(
+                            height: 32,
+                            constraints: const BoxConstraints(maxWidth: 150),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                                color: Bl.well,
+                                borderRadius: BorderRadius.circular(999)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                AppTappable(
-                                  ripple: false,
-                                  onTap: () => Navigator.pop(context),
-                                  child: const SizedBox(
-                                    width: 44,
-                                    height: 44,
-                                    child: Icon(LucideIcons.arrowLeft,
-                                        size: 22, color: AppColors.onSurface),
-                                  ),
-                                ),
-                                Gap.w8,
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        widget.isVanSale ? 'Van sale' : 'New sale',
-                                        style: AppText.title,
-                                      ),
-                                      if (!widget.isVanSale && stores.length > 1)
-                                        PopupMenuButton<String>(
-                                          popUpAnimationStyle: menuAnimationStyle(context),
-                                          initialValue: _posStoreId,
-                                          onSelected: (v) => setState(() => _posStoreId = v),
-                                          itemBuilder: (_) => [
-                                            for (final s in stores)
-                                              PopupMenuItem(value: s['id'] as String, child: Text(s['name'] ?? 'Store')),
-                                          ],
-                                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                            Text(
-                                              (stores.firstWhere((s) => s['id'] == _posStoreId, orElse: () => stores.first)['name'] ?? 'Store').toString(),
-                                              style: AppText.label.copyWith(color: AppColors.primary),
-                                            ),
-                                            const Icon(LucideIcons.chevronDown, size: 16, color: AppColors.primary),
-                                          ]),
-                                        )
-                                      else
-                                        Text(
-                                          widget.isVanSale ? 'Roadside POS' : 'Register 01',
-                                          style: AppText.caption,
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                AppTappable(
-                                  ripple: false,
-                                  onTap: () => _showClientPicker(),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: Gap.md, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.canvas,
-                                      borderRadius: Radii.rPill,
-                                      border: Border.all(
-                                          color: _selectedClient == null
-                                              ? AppColors.outlineVariant
-                                              : AppColors.primary),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(LucideIcons.user,
-                                            size: 16,
-                                            color: _selectedClient == null
-                                                ? AppColors.onSurfaceVariant
-                                                : AppColors.primary),
-                                        const SizedBox(width: 6),
-                                        // Who the bill is for. Named client
-                                        // outlined in brand, walk-in neutral --
-                                        // both were the same grey pill before,
-                                        // so "this is going on account" and
-                                        // "cash customer" looked identical.
-                                        Flexible(
-                                          child: Text(
-                                            _selectedClient == null
-                                                ? 'Walk-in'
-                                                : (_selectedClient!.name ?? 'Client'),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: AppText.label.copyWith(
-                                                color: _selectedClient == null
-                                                    ? AppColors.onSurfaceVariant
-                                                    : AppColors.primary),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                const BlIcon(BlIcons.person, size: 16),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    _selectedClient == null
+                                        ? 'Walk-in'
+                                        : (_selectedClient!.name ?? 'Client'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Bl.tight(12.5,
+                                        w: FontWeight.w600, ls: 0),
                                   ),
                                 ),
                               ],
                             ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const OfflineSalesBanner(
+                  padding: EdgeInsets.fromLTRB(14, 8, 14, 0),
+                ),
 
-                            // Offline / not-synced / refused, always in view
-                            // at the till. Collapses to nothing when all is
-                            // synced and online.
-                            const OfflineSalesBanner(
-                              padding: EdgeInsets.only(top: 12),
+                // ── Search, with the scanner on the right ───────────────
+                Container(
+                  height: 44,
+                  margin: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+                  padding: const EdgeInsets.only(left: 14, right: 5),
+                  decoration: BoxDecoration(
+                      color: Bl.well, borderRadius: BorderRadius.circular(999)),
+                  child: Row(
+                    children: [
+                      const BlIcon(BlIcons.search, size: 20, color: Bl.mute),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          cursorColor: Bl.brand,
+                          textInputAction: TextInputAction.search,
+                          style: Bl.inter(14, w: FontWeight.w500, c: Bl.ink),
+                          decoration: InputDecoration(
+                            isCollapsed: true,
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            hintText: 'Search items or scan barcode',
+                            hintStyle: Bl.inter(14,
+                                w: FontWeight.w500, c: Bl.mute),
+                          ),
+                        ),
+                      ),
+                      BlTap(
+                        label: 'Scan barcode',
+                        onTap: _scanBarcode,
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: const BoxDecoration(
+                              color: Bl.white, shape: BoxShape.circle),
+                          child: const BlIcon(BlIcons.scan, size: 20),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Categories ──────────────────────────────────────────
+                SizedBox(
+                  height: 56,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                    itemCount: categories.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 6),
+                    itemBuilder: (_, i) {
+                      final cat = categories[i];
+                      final isAll = cat == 'All';
+                      final on = isAll
+                          ? _selectedCategory == null
+                          : _selectedCategory == cat;
+                      return Semantics(
+                        button: true,
+                        selected: on,
+                        label: cat,
+                        excludeSemantics: true,
+                        child: BlTap(
+                          onTap: () => setState(
+                              () => _selectedCategory = isAll ? null : cat),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: on ? Bl.ink : Colors.transparent,
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                  color:
+                                      on ? Bl.ink : const Color(0xFFD9D6D1)),
                             ),
+                            child: Text(cat,
+                                style: Bl.tight(12.5,
+                                    w: FontWeight.w600,
+                                    ls: 0,
+                                    c: on
+                                        ? Bl.white
+                                        : const Color(0xFF55595F))),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
 
-                            const SizedBox(height: 16),
+                // ── Products, two to a row ──────────────────────────────
+                Expanded(
+                  child: filtered.isEmpty
+                      ? const BlEmpty(
+                          icon: BlIcons.box, title: 'No products found.')
+                      : GridView.builder(
+                          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                          itemCount: filtered.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                            mainAxisExtent: 160,
+                          ),
+                          itemBuilder: (_, i) => _ProductCard(
+                            product: filtered[i],
+                            qty: _cartQty(filtered[i]),
+                            onTap: () => _showProductDetail(filtered[i]),
+                            onAdd: () => _addToCart(filtered[i]),
+                            onRemove: () => _removeFromCart(filtered[i]),
+                          ),
+                        ),
+                ),
 
-                            // ── Search bar ─────────────────────────────
+                // ── Checkout bar ────────────────────────────────────────
+                if (_cart.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+                    child: BlTap(
+                      label:
+                          'Checkout, $count item${count == 1 ? '' : 's'}, ${Money.inr(_subtotal)}',
+                      onTap: _openCheckout,
+                      child: Container(
+                        height: 52,
+                        padding: const EdgeInsets.only(left: 18, right: 6),
+                        decoration: BoxDecoration(
+                            color: Bl.amber,
+                            borderRadius: BorderRadius.circular(999)),
+                        child: Row(
+                          children: [
                             Container(
+                              constraints: const BoxConstraints(minWidth: 24),
+                              height: 24,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 6),
+                              alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: AppColors.canvas,
-                                borderRadius: Radii.rSm,
-                                border: Border.all(
-                                    color: AppColors.outlineVariant),
-                              ),
+                                  color: const Color(0x40FFFFFF),
+                                  borderRadius: BorderRadius.circular(999)),
+                              child: Text('$count',
+                                  style: Bl.tight(12.5,
+                                      w: FontWeight.w600, ls: 0, c: Bl.white)),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text('Checkout',
+                                  style: Bl.tight(15,
+                                      w: FontWeight.w600, c: Bl.white)),
+                            ),
+                            Container(
+                              height: 40,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                  color: Bl.ink,
+                                  borderRadius: BorderRadius.circular(999)),
                               child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _searchController,
-                                      decoration: InputDecoration(
-                                        hintText: 'Search items or scan barcode',
-                                        hintStyle: AppText.body.copyWith(
-                                            color: AppColors.inkTertiary),
-                                        prefixIcon: const Icon(
-                                          LucideIcons.search,
-                                          size: 22,
-                                          color: AppColors.onSurfaceVariant,
-                                        ),
-                                        border: InputBorder.none,
-                                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    onPressed: _scanBarcode,
-                                    icon: const Icon(
-                                      LucideIcons.scanLine,
-                                      color: AppColors.primary,
-                                      size: 22,
-                                    ),
-                                  ),
+                                  Text(Money.inr(_subtotal),
+                                      style: Bl.tight(15,
+                                          w: FontWeight.w700, c: Bl.white)),
+                                  const SizedBox(width: 6),
+                                  const BlIcon(BlIcons.arrowRight,
+                                      size: 16, color: Bl.white),
                                 ],
                               ),
                             ),
-
-                            const SizedBox(height: 16),
-
-                            // ── Category chips ─────────────────────────
-                            SizedBox(
-                              height: 40,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: categories.length,
-                                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                                itemBuilder: (_, i) {
-                                  final cat = categories[i];
-                                  final isAll = cat == 'All';
-                                  final isActive = isAll
-                                      ? _selectedCategory == null
-                                      : _selectedCategory == cat;
-                                  return AppTappable(
-                                    ripple: false,
-                                    onTap: () => setState(
-                                        () => _selectedCategory = isAll ? null : cat),
-                                    child: AnimatedContainer(
-                                      duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: Gap.lg, vertical: Gap.sm),
-                                      decoration: BoxDecoration(
-                                        color: isActive
-                                            ? AppColors.primaryContainer
-                                            : AppColors.canvas,
-                                        borderRadius: Radii.rPill,
-                                        border: Border.all(
-                                          color: isActive
-                                              ? AppColors.primaryContainer
-                                              : AppColors.outlineVariant,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        cat,
-                                        style: AppText.label.copyWith(
-                                          color: isActive
-                                              ? AppColors.onPrimaryContainer
-                                              : AppColors.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 16),
                           ],
                         ),
                       ),
                     ),
                   ),
-
-                  // ── Product grid ─────────────────────────────────
-                  SliverPadding(
-                    padding: EdgeInsets.fromLTRB(
-                        24, 0, 24, _cart.isNotEmpty ? 100 : 24),
-                    sliver: filtered.isEmpty
-                        ? SliverToBoxAdapter(
-                            child: Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(40),
-                                child: Text(
-                                  'No products found.',
-                                  style: AppText.body
-                                      .copyWith(color: AppColors.inkTertiary),
-                                ),
-                              ),
-                            ),
-                          )
-                        : SliverGrid(
-                            delegate: SliverChildBuilderDelegate(
-                              (_, i) => _ProductCard(
-                                product: filtered[i],
-                                qty: _cartQty(filtered[i]),
-                                onTap: () => _showProductDetail(filtered[i]),
-                                onAdd: () => _addToCart(filtered[i]),
-                                onRemove: () => _removeFromCart(filtered[i]),
-                              ),
-                              childCount: filtered.length,
-                            ),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: Gap.md,
-                              mainAxisSpacing: Gap.md,
-                              // 0.78 was tuned around the 80px image
-                              // placeholder the tile no longer has; 0.85 still
-                              // left the Spacer holding a band of dead air
-                              // under every product. Sized to the content that
-                              // is actually in the tile.
-                              childAspectRatio: 0.95,
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-
-              // ── Sticky checkout bar ──────────────────────────────
-              if (_cart.isNotEmpty)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    padding: EdgeInsets.fromLTRB(Gap.xl, Gap.lg, Gap.xl,
-                        Gap.lg + MediaQuery.of(context).padding.bottom),
-                    decoration: const BoxDecoration(
-                      color: AppColors.canvas,
-                      border: Border(
-                          top: BorderSide(color: AppColors.outlineVariant)),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${_cart.length} item${_cart.length == 1 ? '' : 's'}',
-                                style: AppText.caption,
-                              ),
-                              const SizedBox(height: 2),
-                              // Was "BASKET TOTAL" over a 20px figure on a grey
-                              // bar. This is the number the customer is about
-                              // to be asked for; it is the largest thing here.
-                              Text(Money.inr(_subtotal),
-                                  style: AppText.moneyLarge
-                                      .copyWith(fontSize: 26)),
-                            ],
-                          ),
-                        ),
-                        Gap.w16,
-                        AppTappable(
-                          ripple: false,
-                          onTap: _openCheckout,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: Gap.xl, vertical: 16),
-                            decoration: const BoxDecoration(
-                              // The bar was grey with a PALE amber button, so
-                              // the one action that completes a sale was the
-                              // faintest thing on the bar.
-                              color: AppColors.primary,
-                              borderRadius: Radii.rSm,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text('Checkout',
-                                    style: AppText.label.copyWith(
-                                        fontSize: 16,
-                                        color: AppColors.onPrimary)),
-                                Gap.w8,
-                                const Icon(LucideIcons.arrowRight,
-                                    size: 18, color: AppColors.onPrimary),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -1076,211 +1039,148 @@ class _ProductCard extends StatelessWidget {
     required this.onRemove,
   });
 
+  // Soft tints for the initials tile; the same product always gets the same.
+  static const _tints = [
+    Color(0xFFFFF1DE),
+    Color(0xFFE8EFFD),
+    Color(0xFFF1F1F1),
+    Color(0xFFE6F6EC),
+    Color(0xFFFDECEC),
+  ];
+
+  Widget _badge(String text, Color bg, Color fg) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+        child: Text(text, style: Bl.inter(10, w: FontWeight.w700, c: fg)),
+      );
+
+  Widget _step(String icon, String label, VoidCallback onTap) => BlTap(
+        label: label,
+        onTap: onTap,
+        child: SizedBox(
+          width: 30,
+          height: 30,
+          child: Center(
+            child: Container(
+              width: 22,
+              height: 22,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                  color: Color(0x29FFFFFF), shape: BoxShape.circle),
+              child: BlIcon(icon, size: 12, color: Bl.white, stroke: 2.6),
+            ),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final isLow = product.stock > 0 && product.stock <= 10;
     final isOut = product.stock <= 0;
     final inCart = qty > 0;
+    final tint = _tints[product.name.hashCode.abs() % _tints.length];
 
-    // The status the tile is in, said once. It was said three times before --
-    // by the placeholder's fill, by a corner badge, and by the stock line --
-    // each with its own colour logic.
-    final Color statusColor = isOut
-        ? AppColors.error
-        : isLow
-            ? AppColors.warning
-            : AppColors.inkTertiary;
-
-    return AppTappable(
-      ripple: false,
-      onTap: isOut ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.all(Gap.md),
-        decoration: BoxDecoration(
-          color: AppColors.canvas,
-          borderRadius: Radii.rMd,
-          // Selection is carried by the border, not by a shadow. A tile in the
-          // basket has to be identifiable at a glance across a 2-up grid.
-          border: Border.all(
-            color: inCart ? AppColors.primary : AppColors.outlineVariant,
-            width: inCart ? 1.5 : 1,
+    return Opacity(
+      opacity: isOut ? 0.55 : 1,
+      child: BlTap(
+        onTap: isOut ? null : onTap,
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: inCart ? Bl.ink : const Color(0xFFECEAE7)),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                // Was an 80px-tall placeholder holding the same generic package
-                // glyph for every product -- half the tile's height spent on
-                // nothing a cashier can use. The name is what identifies the
-                // item, so the name gets the space.
-                IconTile(
-                  icon: isOut ? LucideIcons.packageX : LucideIcons.package,
-                  tint: isOut ? AppColors.inkTertiary : AppColors.primary,
-                  size: 36,
-                ),
-                const Spacer(),
-                if (isOut)
-                  _Pill(label: 'Out', color: AppColors.error)
-                else if (isLow)
-                  _Pill(label: 'Low', color: AppColors.warning),
-              ],
-            ),
-
-            const SizedBox(height: Gap.sm),
-
-            Text(
-              product.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.bodyStrong.copyWith(
-                color: isOut ? AppColors.inkTertiary : AppColors.onSurface,
-              ),
-            ),
-
-            const SizedBox(height: 2),
-
-            Text(
-              '${product.stock.toStringAsFixed(product.stock % 1 == 0 ? 0 : 1)} in stock',
-              style: AppText.caption.copyWith(
-                color: statusColor,
-                fontWeight: isOut || isLow ? FontWeight.w600 : FontWeight.w400,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-
-            const Spacer(),
-
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    Money.inr(product.sellingPrice),
-                    // Was amber. Twenty tiles on screen meant twenty amber
-                    // numbers, so the colour identified nothing.
-                    style: AppText.money.copyWith(
-                      color: isOut ? AppColors.inkTertiary : AppColors.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                        color: isOut ? Bl.well : tint,
+                        borderRadius: BorderRadius.circular(11)),
+                    child: Text(BlPartyAvatar.initials(product.name),
+                        style: Bl.tight(12,
+                            w: FontWeight.w700,
+                            ls: 0,
+                            c: const Color(0xFF55595F))),
                   ),
-                ),
-                if (!inCart)
-                  _TapTarget(
-                    onTap: isOut ? null : onTap,
-                    child: Container(
-                      width: 36,
-                      height: 36,
+                  const Spacer(),
+                  if (isOut)
+                    _badge('Out', const Color(0xFFFEE2E2), Bl.redDeep)
+                  else if (isLow)
+                    _badge('Low', const Color(0xFFFFE48A),
+                        const Color(0xFF4F3B00)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(product.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Bl.tight(13.5, w: FontWeight.w600, h: 1.25)),
+              const SizedBox(height: 2),
+              Text(
+                  '${product.stock.toStringAsFixed(product.stock % 1 == 0 ? 0 : 1)} in stock',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Bl.inter(11.5, c: const Color(0xFF7A8088))),
+              const Spacer(),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(Money.inr(product.sellingPrice),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Bl.tight(16, w: FontWeight.w700)),
+                  ),
+                  if (isOut)
+                    Text('No stock',
+                        style: Bl.inter(11.5,
+                            w: FontWeight.w600, c: const Color(0xFF9AA0A6)))
+                  else if (!inCart)
+                    BlTap(
+                      label: 'Add ${product.name}',
+                      onTap: onTap,
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                            color: Bl.amber, shape: BoxShape.circle),
+                        child: const BlIcon(BlIcons.plus,
+                            size: 16, color: Bl.white),
+                      ),
+                    )
+                  else
+                    Container(
+                      height: 30,
                       decoration: BoxDecoration(
-                        color: isOut
-                            ? AppColors.secondaryContainer
-                            : AppColors.primary,
-                        borderRadius: Radii.rSm,
+                          color: Bl.ink,
+                          borderRadius: BorderRadius.circular(999)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _step(BlIcons.minus, 'One less', onRemove),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: Text(formatQty(qty, product.unit),
+                                style: Bl.tight(13,
+                                    w: FontWeight.w600, ls: 0, c: Bl.white)),
+                          ),
+                          _step(BlIcons.plus, 'One more', onAdd),
+                        ],
                       ),
-                      child: Icon(LucideIcons.plus,
-                          size: 20,
-                          color: isOut
-                              ? AppColors.inkTertiary
-                              : AppColors.onPrimary),
                     ),
-                  )
-                else
-                  // These were 26px circles. Anything under about 44 is below
-                  // the minimum comfortable touch target, and this is the
-                  // control a cashier hits hundreds of times a day, quickly,
-                  // with a customer waiting. A mis-tap here is a wrong bill.
-                  // The drawn buttons stay compact; _TapTarget gives each one a
-                  // 44px hit area that overflows the drawing.
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _TapTarget(
-                        onTap: onRemove,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: AppColors.secondaryContainer,
-                            borderRadius: Radii.rXs,
-                          ),
-                          child: const Icon(LucideIcons.minus,
-                              size: 16, color: AppColors.onSurface),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: Text(
-                          formatQty(qty, product.unit),
-                          style: AppText.moneySmall,
-                        ),
-                      ),
-                      _TapTarget(
-                        onTap: onAdd,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: Radii.rXs,
-                          ),
-                          child: const Icon(LucideIcons.plus,
-                              size: 16, color: AppColors.onPrimary),
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A small status pill. Sentence case: LOW and OUT were set in w800 uppercase
-/// white on a saturated fill, which is a warning label on machinery, not a
-/// note on a shelf tag.
-class _Pill extends StatelessWidget {
-  final String label;
-  final Color color;
-  const _Pill({required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: Radii.rXs,
-      ),
-      child: Text(label, style: AppText.label.copyWith(color: color)),
-    );
-  }
-}
-
-/// Guarantees a 44px hit area around a smaller drawn control.
-///
-/// The POS drew 26px and 30px tap targets. Growing the drawing itself would
-/// crowd a tile that already has to hold a name, a price and a stock line, so
-/// the hit area is grown instead and allowed to overflow the visual bounds.
-class _TapTarget extends StatelessWidget {
-  final VoidCallback? onTap;
-  final Widget child;
-  const _TapTarget({required this.onTap, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 44,
-      height: 44,
-      child: Center(
-        child: AppTappable(
-          ripple: false,
-          onTap: onTap,
-          child: child,
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -3657,3 +3557,16 @@ class _OutstandingTile extends StatelessWidget {
   }
 }
 
+
+class _TapTarget extends StatelessWidget {
+  final VoidCallback? onTap;
+  final Widget child;
+  const _TapTarget({required this.onTap, required this.child});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: 44,
+        height: 44,
+        child: Center(child: BlTap(onTap: onTap, child: child)),
+      );
+}
