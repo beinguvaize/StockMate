@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/supabase/client.dart';
-import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/features/dashboard/presentation/widgets/dash_common.dart';
 
 // ─── Provider — reads from `invoices` table (same as web Invoices.jsx) ────────
 final invoicesProvider = FutureProvider<List<Invoice>>((ref) async {
@@ -64,7 +62,6 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
   int _filterIndex = 0; // 0=All 1=Pending 2=Overdue 3=Partial 4=Paid
   final _searchController = TextEditingController();
   String _query = '';
-  bool _showSearch = false;
   DateTimeRange? _dateRange;
 
   @override
@@ -83,37 +80,29 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
     if (picked != null && mounted) setState(() => _dateRange = picked);
   }
 
+  // Laid out to the approved board "Invoices" (sales-12).
   @override
   Widget build(BuildContext context) {
     final invoicesAsync = ref.watch(invoicesProvider);
     final filters = ['All', 'Pending', 'Overdue', 'Partial', 'Paid'];
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month, 1);
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      backgroundColor: AppColors.canvasWarm,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvasWarm,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        toolbarHeight: 0,
-        actions: const [],
-      ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AddSaleScreen()),
-        ).then((_) => ref.invalidate(invoicesProvider)),
-        backgroundColor: AppColors.brandFill,
-        foregroundColor: AppColors.onBrandFill,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        child: const Icon(LucideIcons.plus, size: 26),
-      ),
+      backgroundColor: DashColors.card,
       body: invoicesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => Center(child: Text('Could not load invoices. Check your internet and try again.', style: GoogleFonts.manrope(color: AppColors.danger))),
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: DashColors.amber)),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+                'Could not load invoices. Check your internet and try again.',
+                textAlign: TextAlign.center,
+                style: DashText.inter(13.5, c: DashColors.red)),
+          ),
+        ),
         data: (allInvoices) {
           // ── Stats — matching web logic ──────────────────────────────────────
           // Outstanding = sum of (grand_total - paid_amount) for unpaid invoices
@@ -121,9 +110,10 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
               allInvoices.where((inv) => inv.paymentStatus != 'PAID').toList();
           final outstanding =
               unpaid.fold(0.0, (sum, inv) => sum + inv.outstanding);
-          // "to collect" only restated the label above it. How MANY bills are
-          // out is the thing the figure cannot tell you.
           final unpaidCount = unpaid.length;
+          final overdueCount = allInvoices
+              .where((inv) => _statusOf(inv) == _InvoiceStatus.overdue)
+              .length;
 
           // Collected this month = PAID invoices with invoice_date in current month
           final collectedThisMonth = allInvoices.where((inv) {
@@ -156,342 +146,347 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
             return matchFilter && matchSearch && matchDate;
           }).toList();
 
-          return CustomScrollView(
-            slivers: [
-              // ── Header ──────────────────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: SafeArea(
-                  bottom: false,
-                  child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+          return Stack(
+            children: [
+              CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: SafeArea(
+                      bottom: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
+                          // ── Top bar ─────────────────────────────────────
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                            child: Row(
+                              children: [
+                                if (Navigator.of(context).canPop())
+                                  AppTappable(
+                                    ripple: false,
+                                    onTap: () => Navigator.pop(context),
+                                    child: SizedBox(
+                                      width: 44,
+                                      height: 44,
+                                      child: Center(
+                                        child: Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: const BoxDecoration(
+                                              color: _well,
+                                              shape: BoxShape.circle),
+                                          child: const Icon(
+                                              LucideIcons.chevronLeft,
+                                              size: 20,
+                                              color: DashColors.ink),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  const SizedBox(width: 44, height: 44),
+                                Expanded(
+                                  child: Text('Invoices',
+                                      textAlign: TextAlign.center,
+                                      style: DashText.tight(17,
+                                          w: FontWeight.w600)),
+                                ),
+                                const SizedBox(width: 44),
+                              ],
+                            ),
+                          ),
+
+                          // ── Outstanding ─────────────────────────────────
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Invoices', style: AppText.display),
-                                Text(
-                                  'Manage billing & collections',
-                                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
+                                Text('Outstanding',
+                                    style: DashText.inter(13,
+                                        c: const Color(0xFF6E737A))),
+                                const SizedBox(height: 6),
+                                Text(Money.inr(outstanding),
+                                    style: DashText.tight(36,
+                                        ls: -0.04, h: 1.05)),
+                                const SizedBox(height: 14),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                        child: _MiniStat(
+                                            value: '$unpaidCount',
+                                            label: 'Unpaid')),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                        child: _MiniStat(
+                                            value: '$overdueCount',
+                                            label: 'Overdue',
+                                            color: const Color(0xFFB91C1C))),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                        child: _MiniStat(
+                                            value:
+                                                Money.inr(collectedThisMonth),
+                                            label: 'Collected this month',
+                                            color: const Color(0xFF17663A))),
+                                  ],
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: Gap.md),
-                          // The date filter, which is what the artboard puts
-                          // here. There is no "New invoice" pill any more:
-                          // the FAB below already does that, and the screen
-                          // was offering the same action twice.
-                          AppTappable(
-                            ripple: false,
-                            onTap: _pickDateRange,
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppColors.canvas,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: _dateRange != null
-                                      ? AppColors.primary
-                                      : AppColors.outlineVariant,
-                                ),
-                              ),
-                              child: Icon(
-                                LucideIcons.calendar,
-                                size: 16,
-                                color: _dateRange != null
-                                    ? AppColors.primary
-                                    : AppColors.inkSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
 
-                      const SizedBox(height: 20),
-
-                      // ── Money ───────────────────────────────────────────────
-                      //
-                      // These were two peer figures wearing different clothes:
-                      // one white card with a shadow, one dark-grey panel with a
-                      // 72px watermark icon behind it. Same kind of number, two
-                      // visual languages, so neither read as authoritative.
-                      //
-                      // Both now sit on the one dark surface money uses across
-                      // the app, split by a hairline. Colour is spent on the two
-                      // words that differ — to collect, and collected — not on
-                      // the panels.
-                      Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [AppColors.surfaceInverse, AppColors.surfaceInverseDeep],
-                          ),
-                          borderRadius: Radii.rLg,
-                        ),
-                        child: IntrinsicHeight(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: _InverseStat(
-                                  label: 'OUTSTANDING',
-                                  value: Money.inr(outstanding),
-                                  note: unpaidCount == 1
-                                      ? '1 unpaid'
-                                      : '$unpaidCount unpaid',
-                                  noteColor: AppColors.brandFill,
-                                ),
-                              ),
-                              const VerticalDivider(
-                                width: 1, thickness: 1, indent: 16, endIndent: 16,
-                                color: AppColors.outlineInverse,
-                              ),
-                              Expanded(
-                                child: _InverseStat(
-                                  label: 'COLLECTED',
-                                  value: Money.inr(collectedThisMonth),
-                                  note: 'this month',
-                                  noteColor: AppColors.successOnInverse,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // ── Search bar ──────────────────────────────────────────
-                      if (_showSearch)
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [AppColors.cardShadow],
-                          ),
-                          child: TextField(
-                            controller: _searchController,
-                            autofocus: true,
-                            onChanged: (v) => setState(() => _query = v),
-                            style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
-                            decoration: InputDecoration(
-                              hintText: 'Search by name or invoice number…',
-                              hintStyle: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkTertiary),
-                              prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.inkTertiary),
-                              suffixIcon: IconButton(
-                                icon: const Icon(LucideIcons.x, size: 16, color: AppColors.inkTertiary),
-                                onPressed: () => setState(() {
-                                  _showSearch = false;
-                                  _query = '';
-                                  _searchController.clear();
-                                }),
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                          ),
-                        ),
-
-                      // ── Section header ──────────────────────────────────────
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'RECENT INVOICES',
-                              style: AppText.eyebrow,
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => setState(() => _showSearch = !_showSearch),
-                            icon: Icon(
-                              LucideIcons.search,
-                              size: 18,
-                              color: _showSearch ? AppColors.primary : AppColors.inkTertiary,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // ── Filter chips ────────────────────────────────────────
-                      SizedBox(
-                        height: 34,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: filters.length,
-                          separatorBuilder: (context2, i2) => const SizedBox(width: 8),
-                          itemBuilder: (ctx, i) {
-                            final isActive = _filterIndex == i;
-                            return AppTappable(
-   ripple: false,
-                              onTap: () => setState(() => _filterIndex = i),
-                              // Selected is a dark FILL, not a pale tint: a
-                              // shadow on a chip claims it floats, and the
-                              // tinted version leaned on colour alone to say
-                              // which one was on.
-                              child: AnimatedContainer(
-                                duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 13, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: isActive
-                                      ? AppColors.surfaceInverse
-                                      : AppColors.canvas,
-                                  borderRadius: BorderRadius.circular(99),
-                                  border: Border.all(
-                                    color: isActive
-                                        ? AppColors.surfaceInverse
-                                        : AppColors.outlineVariant,
+                          // ── Search + date ───────────────────────────────
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    height: 44,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14),
+                                    decoration: BoxDecoration(
+                                      color: _field,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(LucideIcons.search,
+                                            size: 16,
+                                            color: Color(0xFF8A9099)),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: TextField(
+                                            controller: _searchController,
+                                            onChanged: (v) =>
+                                                setState(() => _query = v),
+                                            style: DashText.tight(14.5,
+                                                w: FontWeight.w500, ls: 0),
+                                            cursorColor: DashColors.amber,
+                                            decoration: InputDecoration(
+                                              isCollapsed: true,
+                                              hintText:
+                                                  'Search name or invoice number',
+                                              hintStyle: DashText.tight(14.5,
+                                                  w: FontWeight.w500,
+                                                  c: const Color(0xFF8A9099),
+                                                  ls: 0),
+                                              border: InputBorder.none,
+                                              enabledBorder: InputBorder.none,
+                                              focusedBorder: InputBorder.none,
+                                              filled: false,
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 12),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                child: Text(
-                                  filters[i],
-                                  style: AppText.label.copyWith(
-                                    color: isActive
-                                        ? AppColors.onSurfaceInverse
-                                        : AppColors.inkSecondary,
+                                const SizedBox(width: 8),
+                                AppTappable(
+                                  ripple: false,
+                                  onTap: _pickDateRange,
+                                  child: Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: _dateRange != null
+                                          ? DashColors.amberSoft
+                                          : _field,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(LucideIcons.calendar,
+                                        size: 17,
+                                        color: _dateRange != null
+                                            ? DashColors.amberDeep
+                                            : const Color(0xFF30343A)),
                                   ),
                                 ),
-                              ),
- );
-                          },
-                        ),
-                      ),
+                              ],
+                            ),
+                          ),
 
-                      const SizedBox(height: 16),
+                          // ── Filter pills ────────────────────────────────
+                          SizedBox(
+                            height: 40,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                              itemCount: filters.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(width: 6),
+                              itemBuilder: (ctx, i) {
+                                final isActive = _filterIndex == i;
+                                return AppTappable(
+                                  ripple: false,
+                                  onTap: () =>
+                                      setState(() => _filterIndex = i),
+                                  child: AnimatedContainer(
+                                    duration: Motion.durationOf(context,
+                                        const Duration(milliseconds: 180)),
+                                    height: 30,
+                                    alignment: Alignment.center,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12),
+                                    decoration: BoxDecoration(
+                                      color: isActive
+                                          ? DashColors.ink
+                                          : DashColors.card,
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(
+                                          color: isActive
+                                              ? DashColors.ink
+                                              : const Color(0xFFE1E0DE)),
+                                    ),
+                                    child: Text(
+                                      filters[i],
+                                      style: DashText.tight(12.5,
+                                          w: FontWeight.w600,
+                                          c: isActive
+                                              ? Colors.white
+                                              : const Color(0xFF30343A),
+                                          ls: 0),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
 
-                      // ── Date range chip ─────────────────────────────────────
-                      if (_dateRange != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            children: [
-                              AppTappable(
+                          // ── Date range chip ─────────────────────────────
+                          if (_dateRange != null)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                              child: AppTappable(
                                 ripple: false,
                                 onTap: () => setState(() => _dateRange = null),
-                                child: AnimatedContainer(
-                                  duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                child: Container(
+                                  height: 30,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primaryContainer,
-                                    borderRadius: BorderRadius.circular(99),
-                                    boxShadow: [AppColors.cardShadow],
+                                    color: DashColors.amberSoft,
+                                    borderRadius: BorderRadius.circular(999),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(LucideIcons.calendar, size: 12, color: AppColors.primary),
-                                      const SizedBox(width: 5),
                                       Text(
-                                        '${_fmtDate(_dateRange!.start.toIso8601String().substring(0, 10))} – ${_fmtDate(_dateRange!.end.toIso8601String().substring(0, 10))}',
-                                        style: AppText.label.copyWith(color: AppColors.primary),
+                                        '${_fmtDate(_dateRange!.start.toIso8601String().substring(0, 10))} to ${_fmtDate(_dateRange!.end.toIso8601String().substring(0, 10))}',
+                                        style: DashText.tight(12.5,
+                                            w: FontWeight.w600,
+                                            c: DashColors.amberDeep,
+                                            ls: 0),
                                       ),
                                       const SizedBox(width: 6),
-                                      Icon(LucideIcons.x, size: 12, color: AppColors.primary),
+                                      const Icon(LucideIcons.x,
+                                          size: 13,
+                                          color: DashColors.amberDeep),
                                     ],
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                ),
-              ),
+                            ),
 
-              // ── Invoice list ──────────────────────────────────────────────
-              filtered.isEmpty
-                  ? SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40),
-                        child: Center(
-                          child: Text(
-                            'No invoices found.',
-                            style: GoogleFonts.manrope(color: AppColors.inkTertiary),
+                          // ── Section label ───────────────────────────────
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('RECENT INVOICES', style: _eyebrow),
+                                Text('${filtered.length}', style: _eyebrow),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                    )
-                  // ONE card holding hairline-separated rows, not a card per
-                  // invoice: a dozen shadowed cards read as a dozen unrelated
-                  // objects, and a list of like things is a list.
-                  //
-                  // Still a SliverList, so it stays LAZY. Wrapping the lot in
-                  // a single Column inside a SliverToBoxAdapter would build
-                  // every row at once -- 157 of them on this tenant today and
-                  // one more per bill forever. The card is drawn per row
-                  // instead: sides on every row, the radius on the ends.
-                  : SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(Gap.xl, 0, Gap.xl, 100),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, i) {
-                            final isFirst = i == 0;
-                            final isLast = i == filtered.length - 1;
-                            return DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: AppColors.canvas,
-                                border: Border(
-                                  left: const BorderSide(
-                                      color: AppColors.outlineVariant),
-                                  right: const BorderSide(
-                                      color: AppColors.outlineVariant),
-                                  top: isFirst
-                                      ? const BorderSide(
-                                          color: AppColors.outlineVariant)
-                                      : BorderSide.none,
-                                  bottom: isLast
-                                      ? const BorderSide(
-                                          color: AppColors.outlineVariant)
-                                      : BorderSide.none,
-                                ),
-                                borderRadius: BorderRadius.vertical(
-                                  top: isFirst
-                                      ? const Radius.circular(Radii.md)
-                                      : Radius.zero,
-                                  bottom: isLast
-                                      ? const Radius.circular(Radii.md)
-                                      : Radius.zero,
-                                ),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: Gap.lg),
-                                child: AppTappable(
-                                  ripple: false,
-                                  onTap: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => InvoiceDetailScreen(
-                                        invoice: filtered[i],
-                                      ),
-                                    ),
-                                  ),
-                                  child: _InvoiceRow(
-                                    invoice: filtered[i],
-                                    showDivider: !isLast,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                          childCount: filtered.length,
-                        ),
+                        ],
                       ),
                     ),
+                  ),
+
+                  // ── Invoice list (lazy) ───────────────────────────────────
+                  filtered.isEmpty
+                      ? SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(40),
+                            child: Center(
+                              child: Text('No invoices found.',
+                                  style: DashText.inter(13.5)),
+                            ),
+                          ),
+                        )
+                      : SliverPadding(
+                          padding:
+                              EdgeInsets.only(bottom: 96 + bottomInset),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, i) => AppTappable(
+                                ripple: false,
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => InvoiceDetailScreen(
+                                      invoice: filtered[i],
+                                    ),
+                                  ),
+                                ),
+                                child: _InvoiceRow(invoice: filtered[i]),
+                              ),
+                              childCount: filtered.length,
+                            ),
+                          ),
+                        ),
+                ],
+              ),
+
+              // ── New sale ──────────────────────────────────────────────────
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding:
+                      EdgeInsets.fromLTRB(16, 10, 16, 18 + bottomInset),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0x00FFFFFF), Color(0xFFFFFFFF)],
+                      stops: [0, 0.35],
+                    ),
+                  ),
+                  child: AppTappable(
+                    ripple: false,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AddSaleScreen()),
+                    ).then((_) => ref.invalidate(invoicesProvider)),
+                    child: Container(
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: DashColors.amber,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(LucideIcons.plus,
+                              size: 18, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Text('New sale',
+                              style: DashText.tight(15.5, c: Colors.white)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           );
         },
@@ -509,156 +504,161 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
 
 }
 
-// ─── Invoice Card ─────────────────────────────────────────────────────────────
-class _InvoiceRow extends StatelessWidget {
-  final Invoice invoice;
-  final bool showDivider;
-  const _InvoiceRow({required this.invoice, required this.showDivider});
+const _well = Color(0xFFF1F1F1);
+const _field = Color(0xFFF4F4F3);
+final _eyebrow = DashText.tight(11,
+    w: FontWeight.w600, c: const Color(0xFF8A9099), ls: 0.07);
 
-  /// Colour carries the state, and only where the state is an obligation.
-  /// Paid and pending are both "nothing to do right now" and stay ink; only
-  /// overdue and partly-paid are asking the shop for something.
-  static (String, Color) _status(_InvoiceStatus s) => switch (s) {
-    _InvoiceStatus.paid => ('Paid', AppColors.inkTertiary),
-    _InvoiceStatus.pending => ('Pending', AppColors.inkTertiary),
-    _InvoiceStatus.partial => ('Partial', AppColors.warning),
-    _InvoiceStatus.overdue => ('Overdue', AppColors.danger),
-  };
+/// One of the three small figures under Outstanding.
+class _MiniStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+  const _MiniStat(
+      {required this.value, required this.label, this.color = DashColors.ink});
 
   @override
   Widget build(BuildContext context) {
-    final status = _statusOf(invoice);
-    final (label, tint) = _status(status);
-
-    // Everything the card used to spread over two rows and an avatar, in one
-    // meta line. Nothing is dropped -- the number, the date, the due date and
-    // the balance still outstanding are all still here.
-    final meta = <String>[
-      invoice.displayNumber,
-      _fmtDate(invoice.invoiceDate),
-      if (invoice.dueDate != null && status != _InvoiceStatus.paid)
-        'due ${_fmtDate(invoice.dueDate)}',
-      if (invoice.paidAmount > 0 && status != _InvoiceStatus.paid)
-        '${Money.inr(invoice.outstanding)} left',
-    ].join(' · ');
-
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: Gap.md),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      invoice.displayClientName,
-                      style: AppText.bodyStrong,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      meta,
-                      style: AppText.caption,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Gap.w12,
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // Money.inr: this row printed ₹48210.00 where the rest of
-                  // the app prints ₹48,210.
-                  Text(Money.inr(invoice.grandTotal), style: AppText.money),
-                  const SizedBox(height: 3),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                            color: tint, shape: BoxShape.circle),
-                      ),
-                      Gap.w4,
-                      Text(label,
-                          style: AppText.caption.copyWith(color: tint)),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        if (showDivider)
-          const Divider(
-              height: 1, thickness: 1, color: AppColors.outlineVariant),
+        Text(value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: DashText.tight(15, c: color, ls: 0)),
+        const SizedBox(height: 1),
+        Text(label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: DashText.inter(11.5, c: const Color(0xFF7A8088))),
       ],
     );
   }
 }
 
+// ─── Invoice row ──────────────────────────────────────────────────────────────
+class _InvoiceRow extends StatelessWidget {
+  final Invoice invoice;
+  const _InvoiceRow({required this.invoice});
+
+  static const _avatars = [
+    Color(0xFFFFF3D6),
+    Color(0xFFE4EEFF),
+    Color(0xFFF3E8FF),
+    Color(0xFFE3F5EA),
+  ];
+
+  static String _initials(String name) {
+    final w = name.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    if (w.isEmpty) return '?';
+    if (w.length == 1) return w.first.characters.take(2).toString().toUpperCase();
+    return (w[0].characters.first + w[1].characters.first).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = _statusOf(invoice);
+    final name = invoice.displayClientName;
+    var sum = 0;
+    for (final u in name.codeUnits) {
+      sum += u;
+    }
+
+    // Pill: grey = nothing to do yet, amber = part paid, red = late,
+    // green = settled. A part-paid bill says how much is left.
+    final (String label, Color ink, Color fill) = switch (status) {
+      _InvoiceStatus.paid => ('Paid', const Color(0xFF17663A), const Color(0xFFE3F5EA)),
+      _InvoiceStatus.pending => ('Pending', const Color(0xFF6E737A), const Color(0xFFEFEEEC)),
+      _InvoiceStatus.partial => (
+          '${Money.inr(invoice.outstanding)} left',
+          const Color(0xFF8A5A00),
+          const Color(0xFFFFF1C9)
+        ),
+      _InvoiceStatus.overdue => ('Overdue', const Color(0xFFB91C1C), const Color(0xFFFDE2E2)),
+    };
+
+    final meta = <String>[
+      invoice.displayNumber,
+      _fmtShort(invoice.invoiceDate),
+      if (invoice.dueDate != null && status != _InvoiceStatus.paid)
+        'due ${_fmtShort(invoice.dueDate)}',
+    ].join(' · ');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFF0EFED))),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: _avatars[sum % _avatars.length],
+                shape: BoxShape.circle),
+            child: Text(_initials(name),
+                style: DashText.tight(13, c: const Color(0xFF30343A), ls: 0)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: DashText.tight(14.5, w: FontWeight.w600)),
+                const SizedBox(height: 1),
+                Text(meta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: DashText.inter(12,
+                        w: FontWeight.w400, c: const Color(0xFF7A8088))),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(Money.inr(invoice.grandTotal),
+                  style: DashText.tight(14.5, w: FontWeight.w600)),
+              const SizedBox(height: 3),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                    color: fill, borderRadius: BorderRadius.circular(999)),
+                child: Text(label,
+                    style: DashText.tight(11,
+                        w: FontWeight.w600, c: ink, ls: 0)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "21 Nov" for the list rows; the year is only noise there.
+String _fmtShort(String? d) {
+  if (d == null || d.isEmpty) return '-';
+  try {
+    final dt = DateTime.parse(d);
+    const m = ['Jan','Feb','Mar','Apr','May','Jun',
+                'Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${dt.day} ${m[dt.month - 1]}';
+  } catch (_) { return d; }
+}
+
 String _fmtDate(String? d) {
-  if (d == null || d.isEmpty) return '—';
+  if (d == null || d.isEmpty) return '-';
   try {
     final dt = DateTime.parse(d);
     const m = ['Jan','Feb','Mar','Apr','May','Jun',
                 'Jul','Aug','Sep','Oct','Nov','Dec'];
     return '${dt.day} ${m[dt.month - 1]} ${dt.year}';
   } catch (_) { return d; }
-}
-
-
-/// One half of the dark money header — a label, a figure, and one coloured
-/// word saying what kind of figure it is.
-///
-/// Contrast on [AppColors.surfaceInverse]: the value is white at 14.85:1, the
-/// label is the muted ink at 5.18:1, and the note colours are 6.59:1 (brand)
-/// and 8.52:1 (green). All measured, all past AA.
-class _InverseStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final String note;
-  final Color noteColor;
-
-  const _InverseStat({
-    required this.label,
-    required this.value,
-    required this.note,
-    required this.noteColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label,
-              style: AppText.label.copyWith(
-                color: AppColors.onSurfaceInverseMuted,
-                letterSpacing: 0.6,
-              ),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: Gap.sm),
-          Text(value,
-              style: AppText.title.copyWith(
-                color: AppColors.onSurfaceInverse,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 2),
-          Text(note, style: AppText.caption.copyWith(color: noteColor)),
-        ],
-      ),
-    );
-  }
 }
