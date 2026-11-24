@@ -14,7 +14,7 @@ import 'package:mobile_app/features/inventory/presentation/providers/inventory_p
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/core/database/database.dart' hide Client, Sale, Invoice;
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:mobile_app/core/widgets/barcode_scanner_screen.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
@@ -3243,26 +3243,8 @@ class _BarcodeScannerScreen extends StatelessWidget {
   const _BarcodeScannerScreen();
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        title: Text('Scan Barcode',
-            style: GoogleFonts.manrope(
-                color: Colors.white, fontWeight: FontWeight.w700)),
-      ),
-      body: MobileScanner(
-        onDetect: (capture) {
-          final barcodes = capture.barcodes;
-          if (barcodes.isNotEmpty) {
-            Navigator.pop(context, barcodes.first.rawValue);
-          }
-        },
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      const BarcodeScannerScreen(title: 'Scan barcode');
 }
 
 // ── Post-sale success sheet ────────────────────────────────────────────────────
@@ -3621,57 +3603,103 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
     final excessToDues  = widget.excess <= widget.outstanding ? widget.excess : widget.outstanding;
     final excessAdvance = widget.excess - excessToDues;
 
+    final mq = MediaQuery.of(context);
+    final methodWord = switch (widget.paymentMethod) {
+      'CASH' => 'Cash',
+      'UPI' => 'UPI',
+      'BANK' => 'Bank',
+      'CARD' => 'Card',
+      'CREDIT_SALE' || 'CREDIT' => 'Credit',
+      _ => widget.paymentMethod,
+    };
+
+    // Laid out to the approved boards "Sale recorded" (sales-09) and
+    // "Sale saved offline" (sales-10).
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      margin: EdgeInsets.fromLTRB(
+          8, 0, 8, 8 + mq.viewInsets.bottom + mq.padding.bottom),
+      constraints: BoxConstraints(
+          maxHeight: mq.size.height -
+              mq.padding.top -
+              mq.viewInsets.bottom -
+              mq.padding.bottom -
+              24),
+      decoration: BoxDecoration(
+        color: DashColors.card,
+        borderRadius: BorderRadius.circular(30),
       ),
-      padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
-          Container(width: 40, height: 4,
-            decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 24),
-          // The tick is DRAWN, not placed. A static icon that was already
-          // there when the sheet opened reads as part of the furniture; a
-          // ring that sweeps closed and a check stroked on in one gesture
-          // reads as "that just happened", which is the whole job of this
-          // sheet. Green, because a confirmation is the one place a status
-          // colour is the point rather than the accent.
-          const SuccessTick(size: 72),
-          const SizedBox(height: 16),
-          Text(widget.queued ? 'Sale saved on this phone' : 'Sale recorded!',
-            style: GoogleFonts.manrope(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
+          Text(
+            widget.queued ? 'Sale saved on this phone' : 'Sale recorded!',
+            textAlign: TextAlign.center,
+            style: DashText.tight(16, w: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          Container(height: 1, color: DashColors.sep),
+          const SizedBox(height: 28),
+          // Recorded: the ring sweeps closed and the tick is stroked on, so it
+          // reads as "that just happened". Waiting to sync: a still grey
+          // clock, because nothing has been confirmed by the server yet.
+          if (widget.queued)
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFD9DCE0), width: 4),
+              ),
+              child: const Icon(LucideIcons.clock,
+                  size: 40, color: Color(0xFF6E737A)),
+            )
+          else
+            const SuccessTick(size: 96, color: DashColors.amber),
+          const SizedBox(height: 18),
+          Text(Money.inrExact(widget.total),
+              style: DashText.tight(40, ls: -0.04, h: 1.05)),
+          const SizedBox(height: 4),
+          Text(
+            'Bill ${widget.saleId} · $methodWord',
+            textAlign: TextAlign.center,
+            style: DashText.inter(12.5, c: _kSub),
+          ),
           if (widget.queued) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 12),
             Text(
               'Not synced yet. It is sent automatically when the internet is back; '
               'the bill number below stays the same.',
               textAlign: TextAlign.center,
-              style: AppText.caption.copyWith(color: AppColors.warning),
+              style: DashText.inter(12).copyWith(height: 1.5),
             ),
           ],
-          const SizedBox(height: 4),
-          Text(Money.inrExact(widget.total),
-            style: AppText.moneyLarge),
-          Text(widget.saleId,
-            style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
-          const SizedBox(height: 24),
-          // Print + Share row
+          const SizedBox(height: 18),
+          // Print + Share
           Row(children: [
-            Expanded(child: AppButton(
-              label: 'Print', icon: LucideIcons.printer, loading: _printing,
-              variant: AppButtonVariant.secondary, size: AppButtonSize.large,
-              fullWidth: true, onPressed: _print)),
-            const SizedBox(width: 12),
-            Expanded(child: AppButton(
-              label: 'Share', icon: LucideIcons.share2, loading: _sharing,
-              variant: AppButtonVariant.secondary, size: AppButtonSize.large,
-              fullWidth: true, onPressed: _share)),
+            Expanded(
+              child: Opacity(
+                opacity: _printing ? 0.5 : 1,
+                child: _SheetButton(
+                    label: 'Print',
+                    soft: true,
+                    onTap: _printing ? () {} : _print),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Opacity(
+                opacity: _sharing ? 0.5 : 1,
+                child: _SheetButton(
+                    label: 'Share',
+                    soft: true,
+                    onTap: _sharing ? () {} : _share),
+              ),
+            ),
           ]),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           // ── Outstanding balance prompt ──────────────────────────────────
           if (hasOutstanding) ...[
@@ -3833,22 +3861,10 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
             ),
           ],
 
-          // Done
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 0,
-              ),
-              child: Text('Done', style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w800)),
-            ),
-          ),
+          _SheetButton(
+              label: 'Done', onTap: () => Navigator.of(context).pop()),
         ],
+      ),
       ),
     );
   }
