@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart' show supplierOutstandingProvider;
+import 'package:mobile_app/features/dashboard/presentation/dashboard_logic.dart' show compactRupees;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException, FunctionException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/widgets/barcode_scanner_screen.dart';
 import 'package:uuid/uuid.dart';
@@ -14,9 +16,6 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchase_detail_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
 import 'package:mobile_app/core/utils/price_check.dart';
 import 'package:mobile_app/core/widgets/price_check_dialog.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider, databaseProvider;
@@ -37,6 +36,7 @@ class Purchase {
   final String? paymentType; // CASH / CREDIT / UDHAAR
   final double quantity;
   final String? linkedProductId;
+  final double paidAmount;
 
   const Purchase({
     required this.id,
@@ -48,6 +48,7 @@ class Purchase {
     this.paymentType,
     this.quantity = 0,
     this.linkedProductId,
+    this.paidAmount = 0,
   });
 
   factory Purchase.fromMap(Map<String, dynamic> m) => Purchase(
@@ -60,12 +61,19 @@ class Purchase {
         paymentType: m['payment_type'] as String?,
         quantity: (m['quantity'] as num? ?? 0).toDouble(),
         linkedProductId: m['linked_product_id'] as String?,
+        paidAmount: (m['paid_amount'] as num? ?? 0).toDouble(),
       );
 
   String get poNumber => 'PO-${id.substring(0, 8).toUpperCase()}';
 
   /// Workflow status — defaults to RECEIVED if DB row predates the column.
   String get resolvedStatus => (status ?? 'RECEIVED').toUpperCase();
+
+  /// What is still owed on this bill.
+  double get due {
+    final d = totalAmount - paidAmount;
+    return d > 0 ? d : 0;
+  }
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -74,7 +82,7 @@ final purchasesProvider =
     FutureProvider.family<List<Purchase>, String>((ref, tenantId) async {
   final data = await supabase
       .from('purchases')
-      .select('id, supplier_name, total_amount, date, payment_type, status, quantity, linked_product_id')
+      .select('id, supplier_name, total_amount, paid_amount, date, payment_type, status, quantity, linked_product_id')
       .eq('tenant_id', tenantId)
       .isFilter('deleted_at', null)
       .order('date', ascending: false);
@@ -97,7 +105,6 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
   // Web purchases has no status field — filter by payment_type instead (CASH / CREDIT)
   // For now show all orders; status-based filtering removed (web never writes status column)
   int _filterIndex = 0; // 0=All, 1=Cash, 2=Credit
-  static const _filters = ['All Orders', 'Cash', 'Credit'];
 
   static String _compact(double v) {
     final whole = v.round();
@@ -108,352 +115,231 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
     return '${whole < 0 ? '-' : ''}₹$grouped';
   }
 
-  static String _fmtDate(String? d) {
-    if (d == null) return '—';
-    try {
-      final dt = DateTime.parse(d);
-      const m = ['Jan','Feb','Mar','Apr','May','Jun',
-                  'Jul','Aug','Sep','Oct','Nov','Dec'];
-      return '${dt.day} ${m[dt.month - 1]} ${dt.year}';
-    } catch (_) { return d; }
-  }
-
   void _showAddSheet(String tenantId) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _AddPurchaseSheet(
-        tenantId: tenantId,
-        onSaved: () {
-          ref.invalidate(purchasesProvider(tenantId));
-          ref.invalidate(telemetryProvider);
-        },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _AddPurchaseSheet(
+          tenantId: tenantId,
+          onSaved: () {
+            ref.invalidate(purchasesProvider(tenantId));
+            ref.invalidate(supplierOutstandingProvider);
+            ref.invalidate(telemetryProvider);
+          },
+        ),
       ),
     );
   }
+
+  static const _mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  /// "20 Nov"; the year only when it is not this year.
+  static String _fmtShort(String? d) {
+    if (d == null) return '';
+    try {
+      final dt = DateTime.parse(d);
+      final y = dt.year == DateTime.now().year ? '' : ' ${dt.year}';
+      return '${dt.day} ${_mon[dt.month - 1]}$y';
+    } catch (_) {
+      return d;
+    }
+  }
+
+  Widget _stat(String value, String label, {Color c = Bl.ink}) => Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Bl.tight(15, w: FontWeight.w700, c: c)),
+            const SizedBox(height: 1),
+            Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Bl.inter(11.5,
+                    w: FontWeight.w500, c: const Color(0xFF7A8088))),
+          ],
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
     final tenantAsync = ref.watch(tenantContextProvider);
+    final ctx = tenantAsync.valueOrNull;
+    final allowed = ctx != null && planMeetsRequirement('purchases', ctx.plan);
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: Bl.white,
+      body: SafeArea(
+        child: Column(
           children: [
-            Text('Purchases',
-                style: GoogleFonts.manrope(
-                    fontSize: 20, fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5, color: AppColors.inkPrimary)),
-            Text('Manage and track your supplier purchase orders.',
-                style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
+            BlBackHeader(
+              title: 'Purchases',
+              trailing: allowed
+                  ? BlRoundButton(BlIcons.plus,
+                      label: 'Add purchase',
+                      onTap: () => _showAddSheet(ctx.tenantId))
+                  : null,
+            ),
+            Expanded(
+              child: tenantAsync.when(
+                loading: () => const Center(
+                    child: CircularProgressIndicator(
+                        color: Bl.amber, strokeWidth: 2)),
+                error: (e, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                        'Could not load. Check your internet and try again.',
+                        textAlign: TextAlign.center,
+                        style: Bl.inter(13.5, c: Bl.redDeep, h: 1.5)),
+                  ),
+                ),
+                data: (ctx) {
+                  if (ctx == null) {
+                    return Center(
+                        child: Text('No shop found for this sign-in.',
+                            style: Bl.inter(13.5, c: Bl.mute)));
+                  }
+                  if (!planMeetsRequirement('purchases', ctx.plan)) {
+                    return const _UpgradeBanner(feature: 'Purchases');
+                  }
+                  return _list(ctx.tenantId);
+                },
+              ),
+            ),
+            if (allowed)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+                child: BlButton(
+                  'Add purchase',
+                  leading:
+                      const BlIcon(BlIcons.plus, size: 16, color: Bl.white),
+                  onTap: () => _showAddSheet(ctx.tenantId),
+                ),
+              ),
           ],
         ),
-        actions: [
-          tenantAsync.maybeWhen(
-            data: (ctx) {
-              if (ctx == null || !planMeetsRequirement('purchases', ctx.plan)) {
-                return const SizedBox.shrink();
-              }
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: AppTappable(
-   ripple: false,
-                  onTap: () => _showAddSheet(ctx.tenantId),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryContainer,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(LucideIcons.plus,
-                            size: 14, color: AppColors.inkPrimary),
-                        const SizedBox(width: 6),
-                        Text('New Order',
-                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                color: AppColors.inkPrimary)),
-                      ],
-                    ),
-                  ),
- ),
-              );
-            },
-            orElse: () => const SizedBox.shrink(),
-          ),
-        ],
-      ),
-      body: tenantAsync.when(
-        data: (ctx) {
-          if (ctx == null) return const Center(child: Text('No tenant.'));
-          if (!planMeetsRequirement('purchases', ctx.plan)) {
-            return _UpgradeBanner(feature: 'Purchases');
-          }
-
-          final purchasesAsync = ref.watch(purchasesProvider(ctx.tenantId));
-
-          return purchasesAsync.when(
-            data: (all) {
-              // ── Computed stats ───────────────────────────────────────
-              final now = DateTime.now();
-              final monthStart = DateTime(now.year, now.month, 1);
-
-              // Web: outstanding = purchases where payment_type is CREDIT/UDHAAR
-              // Since status column doesn't exist, show all unpaid (total_amount with no paid_amount)
-              final outstanding = all.fold(0.0, (s, p) => s + p.totalAmount);
-              final pendingCount = all.length;
-              final monthlySpend = all.where((p) {
-                try {
-                  final d = DateTime.parse(p.date ?? '');
-                  return d.isAfter(monthStart) || d.isAtSameMomentAs(monthStart);
-                } catch (_) { return false; }
-              }).fold(0.0, (s, p) => s + p.totalAmount);
-              final totalSpend = all.fold(0.0, (s, p) => s + p.totalAmount);
-              final monthlyFrac = totalSpend > 0
-                  ? (monthlySpend / totalSpend).clamp(0.0, 1.0)
-                  : 0.0;
-
-              // ── Filtered list ────────────────────────────────────────
-              // Web uses payment_type for filtering (CASH/CREDIT/UDHAAR)
-              // Status column is not written by web — show all as-is
-              final filtered = all.where((p) {
-                final pay = (p.paymentType ?? 'CASH').toUpperCase();
-                if (_filterIndex == 1) return pay == 'CASH';
-                if (_filterIndex == 2) return pay == 'CREDIT' || pay == 'UDHAAR';
-                return true;
-              }).toList();
-
-              return CustomScrollView(
-                slivers: [
-                  // ── 3-column stat cards ────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                      child: Row(
-                        children: [
-                          // Outstanding
-                          Expanded(
-                            child: _StatCard(
-                              label: 'TOTAL OUTSTANDING',
-                              value: _compact(outstanding),
-                              valueColor: AppColors.primary,
-                              sub: Icon(LucideIcons.trendingUp,
-                                  size: 12,
-                                  color: AppColors.inkTertiary),
-                              subText: '$pendingCount orders unpaid',
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          // Pending orders
-                          Expanded(
-                            child: _StatCard(
-                              label: 'PENDING ORDERS',
-                              value: '$pendingCount',
-                              valueColor: AppColors.inkPrimary,
-                              sub: Icon(LucideIcons.clock,
-                                  size: 12,
-                                  color: AppColors.inkTertiary),
-                              subText: 'awaiting delivery',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Monthly spend full-width card
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                      child: Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                              color: Colors.black.withValues(alpha: 0.06)),
-                          boxShadow: [AppColors.cardShadow],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('MONTHLY SPEND',
-                                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                    letterSpacing: 1.2,
-                                    color: AppColors.inkSecondary)),
-                            const SizedBox(height: 4),
-                            Text(_compact(monthlySpend),
-                                style: GoogleFonts.manrope(
-                                    fontSize: 28, fontWeight: FontWeight.w900,
-                                    color: AppColors.secondary,
-                                    letterSpacing: -1)),
-                            const SizedBox(height: 12),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(99),
-                              child: LinearProgressIndicator(
-                                value: monthlyFrac,
-                                minHeight: 6,
-                                backgroundColor: AppColors.canvas,
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                    AppColors.primary),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // ── Filter chips ─────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: _filters.asMap().entries.map((e) {
-                            final active = _filterIndex == e.key;
-                            return Padding(
-                              padding: EdgeInsets.only(
-                                  right: e.key < _filters.length - 1 ? 8 : 0),
-                              child: AppTappable(
-   ripple: false,
-                                onTap: () =>
-                                    setState(() => _filterIndex = e.key),
-                                child: AnimatedContainer(
-                                  duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: active
-                                        ? AppColors.secondaryContainer
-                                        : AppColors.surface,
-                                    borderRadius: BorderRadius.circular(99),
-                                    border: Border.all(
-                                      color: active
-                                          ? AppColors.secondary
-                                              .withValues(alpha: 0.3)
-                                          : Colors.black
-                                              .withValues(alpha: 0.08),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    e.value,
-                                    style: AppText.label.copyWith(color: active
-                                          ? AppColors.secondary
-                                          : AppColors.inkSecondary),
-                                  ),
-                                ),
- ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // ── Section label ────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryContainer
-                                  .withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(LucideIcons.clipboardList,
-                                size: 14, color: AppColors.primary),
-                          ),
-                          const SizedBox(width: 10),
-                          Text('PURCHASE ORDERS',
-                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.5, color: AppColors.primary)),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // ── List ─────────────────────────────────────────────
-                  if (filtered.isEmpty)
-                    SliverFillRemaining(
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: const BoxDecoration(
-                                  color: AppColors.surface, shape: BoxShape.circle),
-                              child: const Icon(LucideIcons.shoppingBag,
-                                  size: 36, color: AppColors.inkSecondary),
-                            ),
-                            const SizedBox(height: 16),
-                            Text('No orders found',
-                                style: GoogleFonts.manrope(
-                                    fontSize: 16, fontWeight: FontWeight.w700,
-                                    color: AppColors.inkPrimary)),
-                          ],
-                        ),
-                      ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, i) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: AppTappable(
-   ripple: false,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => PurchaseDetailScreen(
-                                      purchase: filtered[i]),
-                                ),
-                              ),
-                              child: _PurchaseCard(
-                                purchase: filtered[i],
-                                fmtDate: _fmtDate,
-                              ),
- ),
-                          ),
-                          childCount: filtered.length,
-                        ),
-                      ),
-                    ),
-                ],
-              );
-            },
-            loading: () =>
-                const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-            error: (e, _) => Center(
-                child: Text('Could not load purchases. Check your internet and try again.',
-                    style: GoogleFonts.manrope(color: AppColors.danger))),
-          );
-        },
-        loading: () =>
-            const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => Center(child: Text('Could not load. Check your internet and try again.')),
       ),
     );
   }
-}
 
-// ─── Status helpers ───────────────────────────────────────────────────────────
+  Widget _list(String tenantId) {
+    final purchasesAsync = ref.watch(purchasesProvider(tenantId));
+    // What is owed comes from the same sum the Suppliers screen uses, so the
+    // two always agree; the bills on this screen are the fallback.
+    final derived = ref.watch(supplierOutstandingProvider).valueOrNull;
+
+    return purchasesAsync.when(
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: Bl.amber, strokeWidth: 2)),
+      error: (e, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+              'Could not load purchases. Check your internet and try again.',
+              textAlign: TextAlign.center,
+              style: Bl.inter(13.5, c: Bl.redDeep, h: 1.5)),
+        ),
+      ),
+      data: (all) {
+        final now = DateTime.now();
+        final monthStart = DateTime(now.year, now.month, 1);
+        final live =
+            all.where((p) => p.resolvedStatus != 'CANCELLED').toList();
+        final owed = derived != null
+            ? derived.values.fold<double>(0, (s, v) => s + (v > 0 ? v : 0))
+            : live.fold<double>(0, (s, p) => s + p.due);
+        final unpaid = live.where((p) => p.due > 0.5).length;
+        final awaiting = live
+            .where((p) =>
+                p.resolvedStatus == 'ORDERED' || p.resolvedStatus == 'PENDING')
+            .length;
+        final monthlySpend = live.where((p) {
+          try {
+            return !DateTime.parse(p.date ?? '').isBefore(monthStart);
+          } catch (_) {
+            return false;
+          }
+        }).fold<double>(0, (s, p) => s + p.totalAmount);
+
+        final filtered = all.where((p) {
+          final pay = (p.paymentType ?? 'CASH').toUpperCase();
+          if (_filterIndex == 1) return pay == 'CASH';
+          if (_filterIndex == 2) return pay == 'CREDIT' || pay == 'UDHAAR';
+          return true;
+        }).toList();
+
+        final head = <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('You owe suppliers',
+                    style: Bl.inter(13, w: FontWeight.w500)),
+                const SizedBox(height: 6),
+                Text(_compact(owed),
+                    style: Bl.tight(36,
+                        w: FontWeight.w700, ls: -0.04, h: 1.05)),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    _stat('$unpaid', 'Unpaid orders',
+                        c: unpaid > 0 ? Bl.amberDeep : Bl.ink),
+                    const SizedBox(width: 10),
+                    _stat('$awaiting', 'Awaiting delivery'),
+                    const SizedBox(width: 10),
+                    _stat(compactRupees(monthlySpend), 'Spent this month'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: BlSegmented(
+              labels: const ['All orders', 'Cash', 'Credit'],
+              index: _filterIndex,
+              onChanged: (i) => setState(() => _filterIndex = i),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
+            child: Text('PURCHASE ORDERS', style: Bl.eyebrow),
+          ),
+        ];
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(bottom: 16),
+          itemCount: head.length + (filtered.isEmpty ? 1 : filtered.length),
+          itemBuilder: (context, i) {
+            if (i < head.length) return head[i];
+            if (filtered.isEmpty) {
+              return const BlEmpty(
+                  icon: BlIcons.cart, title: 'No orders found');
+            }
+            final p = filtered[i - head.length];
+            return BlTap(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      PurchaseDetailScreen(purchase: p),
+                ),
+              ).then((_) {
+                ref.invalidate(purchasesProvider(tenantId));
+                ref.invalidate(supplierOutstandingProvider);
+              }),
+              child: _PurchaseCard(purchase: p, fmtDate: _fmtShort),
+            );
+          },
+        );
+      },
+    );
+  }
+}
 
 Color orderStatusColor(String status) {
   switch (status.toUpperCase()) {
@@ -477,58 +363,6 @@ Color orderStatusBg(String status) {
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color valueColor;
-  final Widget sub;
-  final String subText;
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.valueColor,
-    required this.sub,
-    required this.subText,
-  });
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-          boxShadow: [AppColors.cardShadow],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2, color: AppColors.inkSecondary)),
-            const SizedBox(height: 6),
-            Text(value,
-                style: GoogleFonts.manrope(
-                    fontSize: 26, fontWeight: FontWeight.w900,
-                    color: valueColor, letterSpacing: -1)),
-            const SizedBox(height: 6),
-            Row(children: [
-              sub,
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(subText,
-                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ),
-            ]),
-          ],
-        ),
-      );
-}
-
-// ─── Purchase card ────────────────────────────────────────────────────────────
-
 class _PurchaseCard extends StatelessWidget {
   final Purchase purchase;
   final String Function(String?) fmtDate;
@@ -537,113 +371,68 @@ class _PurchaseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = purchase.resolvedStatus;
-    final statusColor = orderStatusColor(status);
-    final statusBg = orderStatusBg(status);
+    final cancelled = status == 'CANCELLED';
+    final name = purchase.supplierName ?? 'Unknown Supplier';
+    final pill = switch (status) {
+      'RECEIVED' => const BlStatusPill.green('Received'),
+      'ORDERED' => const BlStatusPill.yellow('Ordered'),
+      'CANCELLED' => const BlStatusPill.red('Cancelled'),
+      _ => const BlStatusPill.grey('Pending'),
+    };
+    final meta = [
+      purchase.poNumber,
+      fmtDate(purchase.date),
+      if (purchase.deliveryDate != null) 'Est. ${fmtDate(purchase.deliveryDate)}',
+    ].where((e) => e.isNotEmpty).join(' · ');
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-        boxShadow: [AppColors.cardShadow],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+      decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Bl.sep))),
       child: Row(
         children: [
-          // ── Circle avatar ──────────────────────────────────────────
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: status == 'RECEIVED'
-                  ? AppColors.secondaryContainer
-                  : status == 'ORDERED'
-                      ? AppColors.primaryContainer.withValues(alpha: 0.4)
-                      : AppColors.canvas,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              status == 'RECEIVED'
-                  ? LucideIcons.checkCircle
-                  : status == 'ORDERED'
-                      ? LucideIcons.warehouse
-                      : LucideIcons.clock,
-              size: 20,
-              color: status == 'RECEIVED'
-                  ? AppColors.secondary
-                  : status == 'ORDERED'
-                      ? AppColors.primary
-                      : AppColors.inkSecondary,
-            ),
-          ),
+          BlTintAvatar(name),
           const SizedBox(width: 12),
-
-          // ── Supplier + PO + date ───────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  purchase.supplierName ?? 'Unknown Supplier',
-                  style: GoogleFonts.manrope(
-                      fontSize: 14, fontWeight: FontWeight.w700,
-                      color: AppColors.inkPrimary),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${purchase.poNumber} · ${fmtDate(purchase.date)}',
-                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                ),
-                if (purchase.deliveryDate != null) ...[
-                  const SizedBox(height: 2),
-                  Row(children: [
-                    const Icon(LucideIcons.truck,
-                        size: 10, color: AppColors.inkTertiary),
-                    const SizedBox(width: 4),
-                    Text('Est. ${fmtDate(purchase.deliveryDate)}',
-                        style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
-                  ]),
-                ],
+                Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Bl.tight(14.5, w: FontWeight.w600)),
+                const SizedBox(height: 1),
+                Text(meta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Bl.inter(12, c: const Color(0xFF7A8088))),
               ],
             ),
           ),
-
-          // ── Amount + status ────────────────────────────────────────
+          const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '₹${purchase.totalAmount.toStringAsFixed(2)}',
-                style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w900,
-                    color: AppColors.inkPrimary, letterSpacing: -0.5),
+                Money.inr(purchase.totalAmount),
+                style: Bl.tight(14.5,
+                        w: FontWeight.w600,
+                        c: cancelled ? const Color(0xFF9AA0A6) : Bl.ink)
+                    .copyWith(
+                        decoration:
+                            cancelled ? TextDecoration.lineThrough : null,
+                        decorationColor: const Color(0xFF9AA0A6)),
               ),
-              const SizedBox(height: 5),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: statusBg,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: Text(
-                  status,
-                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                      color: statusColor),
-                ),
-              ),
+              const SizedBox(height: 3),
+              pill,
             ],
           ),
-
-          const SizedBox(width: 8),
-          const Icon(LucideIcons.chevronRight,
-              size: 16, color: AppColors.inkTertiary),
         ],
       ),
     );
   }
 }
 
-// ─── Add Purchase Sheet ───────────────────────────────────────────────────────
 
 class _AddPurchaseSheet extends ConsumerStatefulWidget {
   final String tenantId;
@@ -727,26 +516,33 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
       if (await _consentStore.read(key: _consentKey) == 'yes') return true;
     } catch (_) {/* unreadable store: ask again */}
     if (!mounted) return false;
-    final ok = await showDialog<bool>(
+    final ok = await showBlDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Before you scan a bill',
-            style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
-        content: Text(
-          'The photo is sent to Google\'s Gemini service, which reads it and '
+      title: 'Before you scan a bill',
+      message: 'The photo is sent to Google\'s Gemini service, which reads it and '
           'fills in the bill for you.\n\n'
           'We use Google\'s free service. Google may use the photo to improve '
           'its products, and Google\'s human reviewers may read it. The photo '
           'shows what is printed on the bill, such as the supplier\'s name, '
           'GSTIN and address.\n\n'
           'If you prefer not to share bills, enter the bill by hand.',
-          style: GoogleFonts.manrope(fontSize: 14, height: 1.4),
+      actions: (ctx) => [
+        Row(
+          children: [
+            Expanded(
+              child: BlButton('Enter by hand',
+                  kind: BlButtonKind.soft,
+                  fontSize: 14,
+                  onTap: () => Navigator.of(ctx).pop(false)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BlButton('Send to Google',
+                  fontSize: 14, onTap: () => Navigator.of(ctx).pop(true)),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Enter by hand')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Send to Google')),
-        ],
-      ),
+      ],
     );
     if (ok != true) return false;
     try {
@@ -758,41 +554,47 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   Future<void> _scanBill() async {
     if (!await _billScanConsent() || !mounted) return;
     final picker = ImagePicker();
-    final XFile? shot = await showModalBottomSheet<XFile?>(
+    final XFile? shot = await showBlSheet<XFile?>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (sheetCtx) => SafeArea(
-        child: Column(
+      builder: (sheetCtx) {
+        Widget row(String icon, String label, ImageSource source) => BlTap(
+              label: label,
+              onTap: () async {
+                final nav = Navigator.of(sheetCtx);
+                final img = await picker.pickImage(
+                    source: source, imageQuality: 70, maxWidth: 1600);
+                nav.pop(img);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    BlIconTile(icon,
+                        size: 40, radius: 12, iconSize: 18, bg: Bl.amberSoft, fg: Bl.amberDeep),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Text(label,
+                            style: Bl.tight(14.5, w: FontWeight.w600))),
+                    const BlIcon(BlIcons.chevronRight,
+                        size: 16, color: Color(0xFFC4C8CC)),
+                  ],
+                ),
+              ),
+            );
+        return Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ListTile(
-              leading: const Icon(LucideIcons.camera, color: AppColors.primary),
-              title: Text('Take photo',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
-              onTap: () async {
-                final nav = Navigator.of(sheetCtx);
-                final img = await picker.pickImage(
-                    source: ImageSource.camera, imageQuality: 70, maxWidth: 1600);
-                nav.pop(img);
-              },
-            ),
-            ListTile(
-              leading: const Icon(LucideIcons.image, color: AppColors.primary),
-              title: Text('Choose from gallery',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
-              onTap: () async {
-                final nav = Navigator.of(sheetCtx);
-                final img = await picker.pickImage(
-                    source: ImageSource.gallery, imageQuality: 70, maxWidth: 1600);
-                nav.pop(img);
-              },
-            ),
+            const BlSheetTitle('Scan a bill', size: 16, divider: true),
+            const SizedBox(height: 4),
+            row(_camIcon, 'Take photo', ImageSource.camera),
+            row('<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/>',
+                'Choose from gallery', ImageSource.gallery),
           ],
-        ),
-      ),
+        );
+      },
     );
+
     if (shot == null) return;
 
     setState(() => _scanning = true);
@@ -1302,367 +1104,509 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
 
   double get _grandTotal => _lines.fold(0.0, (s, l) => s + l.totalVal);
 
-  @override
-  Widget build(BuildContext context) {
-    final canSave = _supplierId != null && _lines.any((l) => l.isValid);
-    final itemCount = _lines.where((l) => l.isValid).length;
+  static const _camIcon =
+      '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.2"/>';
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.95,
-      maxChildSize: 0.97,
-      minChildSize: 0.5,
-      builder: (_, ctrl) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.canvas,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          children: [
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 4),
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
+  int _step = 0;
+
+  void _toast(String msg) => ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
+
+  void _next() {
+    if (_step == 0 && _supplierId == null) {
+      _toast('Choose the supplier first.');
+      return;
+    }
+    if (_step == 1 && !_lines.any((l) => l.isValid)) {
+      _toast('Add at least one product with a quantity and a total.');
+      return;
+    }
+    if (_step < 2) {
+      FocusScope.of(context).unfocus();
+      setState(() => _step++);
+    } else {
+      _save();
+    }
+  }
+
+  void _back() {
+    if (_step == 0) {
+      Navigator.maybePop(context);
+    } else {
+      setState(() => _step--);
+    }
+  }
+
+  String get _supplierName {
+    for (final s in _suppliers) {
+      if (s['id'] == _supplierId) return (s['name'] as String?) ?? '';
+    }
+    return '';
+  }
+
+  Future<void> _pickSupplier() async {
+    final id = await showBlSheet<String>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const BlSheetTitle('Supplier', size: 16, divider: true),
+          if (_suppliers.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                  'No suppliers yet. Add one under Clients & Suppliers first.',
+                  textAlign: TextAlign.center,
+                  style: Bl.inter(13, c: Bl.mute, h: 1.5)),
+            ),
+          for (final sup in _suppliers)
+            Semantics(
+              button: true,
+              selected: sup['id'] == _supplierId,
+              child: BlTap(
+                onTap: () => Navigator.pop(ctx, sup['id'] as String),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  child: Row(
+                    children: [
+                      BlTintAvatar((sup['name'] as String?) ?? '', size: 38),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text((sup['name'] as String?) ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Bl.tight(14.5, w: FontWeight.w600)),
+                      ),
+                      if (sup['id'] == _supplierId)
+                        const BlIcon(BlIcons.check,
+                            size: 16, color: Bl.amber, stroke: 2.6),
+                    ],
+                  ),
                 ),
               ),
             ),
-            Expanded(
-              child: _loadingData
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                  : SingleChildScrollView(
-                      controller: ctrl,
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Header
-                          Text('Add Purchase',
-                              style: AppText.title.copyWith(fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.5, color: AppColors.inkPrimary)),
-                          Text('ONE SUPPLIER · MULTIPLE PRODUCTS · SINGLE SUBMIT',
-                              style: AppText.label.copyWith(color: AppColors.inkSecondary, letterSpacing: 1.2)),
-                          const SizedBox(height: 16),
+        ],
+      ),
+    );
+    if (id != null && mounted) setState(() => _supplierId = id);
+  }
 
-                          // ── Scan bill (AI OCR) ───────────────────────
-                          AppTappable(
-                            ripple: false,
-                            onTap: _scanning ? null : _scanBill,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryContainer,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                    color: AppColors.primary.withValues(alpha: 0.3)),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  if (_scanning)
-                                    const SizedBox(
-                                      width: 16, height: 16,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: AppColors.onPrimaryContainer),
-                                    )
-                                  else
-                                    const Icon(LucideIcons.scanLine,
-                                        size: 17, color: AppColors.onPrimaryContainer),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _scanning ? 'Reading bill…' : 'Scan bill with camera',
-                                    style: GoogleFonts.manrope(
-                                        fontSize: 13.5, fontWeight: FontWeight.w700,
-                                        color: AppColors.onPrimaryContainer),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          // A shared counter phone: whoever holds it is told
-                          // every time, not only the person who first agreed.
-                          const SizedBox(height: 6),
-                          Text('The photo is read by Google\'s free Gemini service.',
-                              textAlign: TextAlign.center,
-                              style: AppText.label.copyWith(color: AppColors.inkSecondary)),
-                          const SizedBox(height: 18),
-
-                          // ── HEADER CARD ──────────────────────────────
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: [AppColors.cardShadow],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _label('SUPPLIER *'),
-                                _Dropdown(
-                                  hint: 'Select a supplier...',
-                                  icon: LucideIcons.building2,
-                                  value: _supplierId,
-                                  items: _suppliers.map((s) => DropdownMenuItem(
-                                    value: s['id'] as String,
-                                    child: Text(s['name'] as String? ?? '',
-                                        overflow: TextOverflow.ellipsis),
-                                  )).toList(),
-                                  onChanged: (v) => setState(() => _supplierId = v),
-                                ),
-                                const SizedBox(height: 12),
-                                _label('PAYMENT TYPE'),
-                                Row(
-                                  children: [
-                                    _PayChip(label: 'Cash', active: _paymentType == 'CASH',
-                                      onTap: () => setState(() => _paymentType = 'CASH')),
-                                    const SizedBox(width: 8),
-                                    _PayChip(label: 'Credit', active: _paymentType == 'CREDIT',
-                                      onTap: () => setState(() => _paymentType = 'CREDIT')),
-                                    const SizedBox(width: 8),
-                                    _PayChip(label: 'Bank', active: _paymentType == 'BANK',
-                                      onTap: () => setState(() => _paymentType = 'BANK')),
-                                  ],
-                                ),
-
-                                // Money down on a credit bill. Only meaningful
-                                // for CREDIT: a cash or bank bill is paid in
-                                // full at entry, so a part figure there would
-                                // contradict the payment type.
-                                if (_paymentType == 'CREDIT') ...[
-                                  const SizedBox(height: 12),
-                                  _label('PAID NOW (OPTIONAL)'),
-                                  TextField(
-                                    controller: _paidNowCtrl,
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                    onChanged: (_) => setState(() {}),
-                                    decoration: InputDecoration(
-                                      hintText: 'Leave blank if nothing paid yet',
-                                      isDense: true,
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10)),
-                                    ),
-                                  ),
-                                  if ((double.tryParse(_paidNowCtrl.text.trim()) ?? 0) > 0)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 6),
-                                      child: Text(
-                                        'Rs ${((_grandTotal) - (double.tryParse(_paidNowCtrl.text.trim()) ?? 0)).clamp(0, double.infinity).toStringAsFixed(2)} stays on credit',
-                                        style: GoogleFonts.inter(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.inkSecondary),
-                                      ),
-                                    ),
-                                ],
-                                const SizedBox(height: 12),
-                                _label('DATE'),
-                                AppTappable(
-                                  ripple: false,
-                                  onTap: _pickDate,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.canvas,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(LucideIcons.calendar,
-                                            size: 16, color: AppColors.inkSecondary),
-                                        const SizedBox(width: 10),
-                                        Text(_fmt(_date),
-                                            style: AppText.label.copyWith(color: AppColors.inkPrimary)),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                _label('SUPPLIER BILL NO (OPTIONAL)'),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.canvas,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-                                  ),
-                                  child: TextField(
-                                    controller: _billNoCtrl,
-                                    style: AppText.caption.copyWith(color: AppColors.inkPrimary),
-                                    decoration: InputDecoration(
-                                      prefixIcon: const Icon(LucideIcons.receipt,
-                                          size: 16, color: AppColors.inkSecondary),
-                                      hintText: "Supplier's invoice no. (for GSTR-2B)",
-                                      hintStyle: AppText.caption.copyWith(color: AppColors.inkSecondary.withValues(alpha: 0.5)),
-                                      border: InputBorder.none,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 12),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                _label('NOTES (OPTIONAL)'),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.canvas,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-                                  ),
-                                  child: TextField(
-                                    controller: _notesCtrl,
-                                    style: AppText.caption.copyWith(color: AppColors.inkPrimary),
-                                    decoration: InputDecoration(
-                                      prefixIcon: const Icon(LucideIcons.fileText,
-                                          size: 16, color: AppColors.inkSecondary),
-                                      hintText: 'Remarks...',
-                                      hintStyle: AppText.caption.copyWith(color: AppColors.inkSecondary.withValues(alpha: 0.5)),
-                                      border: InputBorder.none,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 12),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 18),
-
-                          // ── LINE ITEMS ───────────────────────────────
-                          Row(
-                            children: [
-                              _label('LINE ITEMS'),
-                              const Spacer(),
-                              Text('${_lines.length} ROW${_lines.length == 1 ? '' : 'S'}',
-                                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                      color: AppColors.inkTertiary, letterSpacing: 1)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          ..._lines.asMap().entries.map((entry) {
-                            final idx = entry.key;
-                            final line = entry.value;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _LineItemCard(
-                                index: idx,
-                                line: line,
-                                products: _products,
-                                canRemove: _lines.length > 1,
-                                onProductChange: (id) => _selectProductForLine(line, id),
-                                onCreateFromScan: () => _createFromScan(line),
-                                onExpiryChange: (d) => setState(() => line.expiryDate = d),
-                                onQtyChange: (v) => _onQtyChanged(line, v),
-                                onUnitPriceChange: (v) => _onUnitPriceChanged(line, v),
-                                onTotalChange: (v) => _onTotalChanged(line, v),
-                                onRemove: () => setState(() {
-                                  line.dispose();
-                                  _lines.removeAt(idx);
-                                }),
-                              ),
-                            );
-                          }),
-
-                          // Add row
-                          OutlinedButton.icon(
-                            onPressed: () => setState(() => _lines.add(_PurchaseLine())),
-                            icon: const Icon(LucideIcons.plus, size: 14),
-                            label: Text('ADD ROW',
-                                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                    letterSpacing: 1)),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                              backgroundColor: AppColors.primaryContainer.withValues(alpha: 0.3),
-                              side: BorderSide(
-                                  color: AppColors.primary.withValues(alpha: 0.3)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: const StadiumBorder(),
-                            ),
-                          ),
-
-                          const SizedBox(height: 18),
-
-                          // ── GRAND TOTAL ──────────────────────────────
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppColors.inkPrimary,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('GRAND TOTAL',
-                                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                        color: Colors.white.withValues(alpha: 0.6),
-                                        letterSpacing: 1.5)),
-                                Text('₹${_grandTotal.toStringAsFixed(2)}',
-                                    style: GoogleFonts.manrope(
-                                        fontSize: 24, fontWeight: FontWeight.w900,
-                                        color: Colors.white, letterSpacing: -0.8)),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 22),
-
-                          // Save button
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: canSave
-                                    ? AppColors.inkPrimary
-                                    : AppColors.surfaceContainer,
-                                foregroundColor: canSave
-                                    ? Colors.white
-                                    : AppColors.inkTertiary,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: const StadiumBorder(),
-                              ),
-                              onPressed: canSave && !_saving ? _save : null,
-                              child: _saving
-                                  ? const SizedBox(
-                                      width: 20, height: 20,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2, color: Colors.white))
-                                  : Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(LucideIcons.checkCircle, size: 16),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'SAVE ${itemCount > 0 ? "$itemCount ITEM${itemCount == 1 ? '' : 'S'}" : 'PURCHASE'}',
-                                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                              letterSpacing: 1.5),
-                                        ),
-                                      ],
-                                    ),
-                            ),
-                          ),
-                        ],
+  List<Widget> _supplierStep() => [
+        // Scan a bill to fill the rest.
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Semantics(
+            button: true,
+            label: 'Scan bill with camera',
+            excludeSemantics: true,
+            child: BlTap(
+              onTap: _scanning ? null : _scanBill,
+              child: CustomPaint(
+                foregroundPainter: const _DashedBorder(
+                    color: Bl.brand, radius: 16, width: 1.5),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFFF8EC),
+                      borderRadius: BorderRadius.circular(16)),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                            color: Bl.brand,
+                            borderRadius: BorderRadius.circular(12)),
+                        child: _scanning
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Bl.white))
+                            : const BlIcon(_camIcon, size: 20, color: Bl.white),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                _scanning
+                                    ? 'Reading bill…'
+                                    : 'Scan bill with camera',
+                                style: Bl.tight(14.5, w: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text(
+                                "Fills supplier and items for you. The photo is read by Google's free Gemini service.",
+                                style: Bl.inter(12,
+                                    c: const Color(0xFF7A6A4E), h: 1.35)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 14),
+          child: Row(
+            children: [
+              const Expanded(
+                  child: ColoredBox(
+                      color: Color(0xFFE9E8E6), child: SizedBox(height: 1))),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Text('or fill it in',
+                    style: Bl.inter(12, w: FontWeight.w500, c: Bl.mute)),
+              ),
+              const Expanded(
+                  child: ColoredBox(
+                      color: Color(0xFFE9E8E6), child: SizedBox(height: 1))),
+            ],
+          ),
+        ),
+        BlField(
+          label: 'Supplier',
+          hint: 'Select a supplier',
+          value: _supplierId == null ? null : _supplierName,
+          onTap: _pickSupplier,
+        ),
+        BlField(
+          label: 'Date',
+          value: _fmt(_date),
+          onTap: _pickDate,
+          trailing: const Padding(
+            padding: EdgeInsets.only(right: 6),
+            child: BlIcon(
+                '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+                size: 16,
+                color: Color(0xFF7A8088)),
+          ),
+        ),
+        BlField(
+          label: 'Supplier bill no (optional)',
+          hint: "Supplier's invoice no. (for GSTR-2B)",
+          controller: _billNoCtrl,
+        ),
+      ];
+
+  List<Widget> _itemsStep() {
+    final n = _lines.where((l) => l.isValid).length;
+    return [
+      for (final entry in _lines.asMap().entries)
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: _LineItemCard(
+            index: entry.key,
+            line: entry.value,
+            products: _products,
+            canRemove: _lines.length > 1,
+            onProductChange: (id) => _selectProductForLine(entry.value, id),
+            onCreateFromScan: () => _createFromScan(entry.value),
+            onExpiryChange: (d) => setState(() => entry.value.expiryDate = d),
+            onQtyChange: (v) => _onQtyChanged(entry.value, v),
+            onUnitPriceChange: (v) => _onUnitPriceChanged(entry.value, v),
+            onTotalChange: (v) => _onTotalChanged(entry.value, v),
+            onRemove: () => setState(() {
+              entry.value.dispose();
+              _lines.removeAt(entry.key);
+            }),
+          ),
+        ),
+      Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: BlTap(
+          label: 'Add another product',
+          onTap: () => setState(() => _lines.add(_PurchaseLine())),
+          child: CustomPaint(
+            foregroundPainter: const _DashedBorder(
+                color: Color(0xFFCFCFCF), radius: 14, width: 1.5),
+            child: SizedBox(
+              height: 48,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const BlIcon(BlIcons.plus, size: 16, color: Bl.ink3),
+                  const SizedBox(width: 8),
+                  Text('Add another product',
+                      style: Bl.tight(14, w: FontWeight.w600, c: Bl.ink3)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      Container(
+        margin: const EdgeInsets.only(top: 18),
+        padding: const EdgeInsets.only(top: 14),
+        decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: Color(0xFFE9E8E6)))),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Expanded(
+              child: Text('$n ${n == 1 ? 'item' : 'items'} so far',
+                  style: Bl.inter(13.5, w: FontWeight.w500)),
+            ),
+            Text(Money.inr(_grandTotal),
+                style: Bl.tight(22, w: FontWeight.w700, ls: -0.03)),
           ],
+        ),
+      ),
+    ];
+  }
+
+  Widget _payOption(String key, String icon, String title, String sub,
+      {bool last = false}) {
+    final on = _paymentType == key;
+    final credit = key == 'CREDIT';
+    final paidNow = double.tryParse(_paidNowCtrl.text.trim()) ?? 0;
+    final pending = (_grandTotal - paidNow).clamp(0, double.infinity);
+    return Semantics(
+      button: true,
+      selected: on,
+      label: '$title. $sub',
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _paymentType = key),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          decoration: BoxDecoration(
+            color: on ? const Color(0xFFFFF8EC) : null,
+            border: last
+                ? null
+                : const Border(bottom: BorderSide(color: Bl.sep)),
+          ),
+          child: Row(
+            children: [
+              BlIconTile(icon,
+                  size: 36,
+                  radius: 10,
+                  iconSize: 18,
+                  bg: on ? Bl.brand : Bl.wellSoft,
+                  fg: on ? Bl.white : Bl.ink3),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: Bl.tight(14.5, w: FontWeight.w600)),
+                    const SizedBox(height: 1),
+                    Text(sub, style: Bl.inter(12, c: const Color(0xFF7A8088))),
+                  ],
+                ),
+              ),
+              if (on && credit && pending > 0)
+                Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(Money.inr(pending.toDouble()),
+                          style: Bl.tight(14.5,
+                              w: FontWeight.w700, c: const Color(0xFFB86A0A))),
+                      Text('pending',
+                          style: Bl.inter(11,
+                              w: FontWeight.w500, c: const Color(0xFFB86A0A))),
+                    ],
+                  ),
+                ),
+              Container(
+                width: 22,
+                height: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: on ? Bl.brand : null,
+                  shape: BoxShape.circle,
+                  border: on
+                      ? null
+                      : Border.all(width: 1.5, color: const Color(0xFFCFCFCF)),
+                ),
+                child: on
+                    ? const BlIcon(BlIcons.check,
+                        size: 13, color: Bl.white, stroke: 3)
+                    : null,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 6, left: 2),
-    child: Text(text,
-        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-            color: AppColors.inkTertiary, letterSpacing: 1.2)),
-  );
+  List<Widget> _paymentStep() {
+    final n = _lines.where((l) => l.isValid).length;
+    final credit = _paymentType == 'CREDIT';
+    final total = _grandTotal;
+    final paidNow = credit
+        ? (double.tryParse(_paidNowCtrl.text.trim()) ?? 0).clamp(0, total)
+        : total;
+    final pending = (total - paidNow).clamp(0, double.infinity);
+
+    Widget line(String k, String v, {Color? c, bool strong = false}) => Row(
+          children: [
+            Expanded(
+              child: Text(k,
+                  style: Bl.inter(13,
+                      w: strong ? FontWeight.w600 : FontWeight.w500,
+                      c: c ?? Bl.body)),
+            ),
+            Text(v,
+                style: Bl.inter(13, w: FontWeight.w600, c: c ?? Bl.ink)),
+          ],
+        );
+
+    return [
+      Container(
+        margin: const EdgeInsets.only(top: 12),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE6E5E3)),
+        ),
+        child: Column(
+          children: [
+            _payOption('CASH', BlIcons.cash, 'Cash', 'Paid from the cash drawer'),
+            _payOption('CREDIT',
+                '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+                'Credit', 'Pay the supplier later'),
+            _payOption('BANK', BlIcons.bank, 'Bank', 'UPI, transfer or cheque',
+                last: true),
+          ],
+        ),
+      ),
+      if (credit)
+        BlField(
+          label: 'Paid now (optional)',
+          hint: 'Leave blank if nothing paid yet',
+          prefix: '₹',
+          controller: _paidNowCtrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (_) => setState(() {}),
+        ),
+      BlField(
+        label: 'Notes (optional)',
+        hint: 'Remarks',
+        controller: _notesCtrl,
+        capitalization: TextCapitalization.sentences,
+      ),
+      Container(
+        margin: const EdgeInsets.only(top: 18),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFECEBE9)),
+        ),
+        child: Column(
+          children: [
+            line(_supplierName, '$n ${n == 1 ? 'item' : 'items'}'),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Expanded(
+                    child: Text('Grand total',
+                        style: Bl.tight(14, w: FontWeight.w600))),
+                Text(Money.inr(total),
+                    style: Bl.tight(24, w: FontWeight.w700, ls: -0.03)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const Divider(height: 1, thickness: 1, color: Bl.sep),
+            const SizedBox(height: 10),
+            line('Paid now', Money.inr(paidNow.toDouble())),
+            if (pending > 0) ...[
+              const SizedBox(height: 6),
+              line('Pending to supplier', Money.inr(pending.toDouble()),
+                  c: const Color(0xFFB86A0A), strong: true),
+            ],
+          ],
+        ),
+      ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final itemCount = _lines.where((l) => l.isValid).length;
+    if (_loadingData) {
+      return const Scaffold(
+        backgroundColor: Bl.white,
+        body: Center(
+            child: CircularProgressIndicator(color: Bl.amber, strokeWidth: 2)),
+      );
+    }
+    return PopScope(
+      canPop: _step == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _back();
+      },
+      child: BlStepFrame(
+        title: 'Add Purchase',
+        step: _step,
+        stepNames: const ['Supplier', 'Items', 'Payment'],
+        question: const [
+          'Who did you buy from?',
+          'What did you buy?',
+          'How did you pay?',
+        ][_step],
+        onBack: _back,
+        loading: _saving,
+        onNext: _saving ? null : _next,
+        buttonLabel: switch (_step) {
+          0 => 'Next: items',
+          1 => 'Next: payment',
+          _ => 'Save $itemCount item purchase',
+        },
+        children: switch (_step) {
+          0 => _supplierStep(),
+          1 => _itemsStep(),
+          _ => _paymentStep(),
+        },
+      ),
+    );
+  }
 }
 
-// ─── Line item card ─────────────────────────────────────────────────────────
+/// Dashed rounded outline (the "scan a bill" and "add another" boxes).
+class _DashedBorder extends CustomPainter {
+  final Color color;
+  final double radius;
+  final double width;
+  const _DashedBorder(
+      {required this.color, required this.radius, required this.width});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rr = RRect.fromRectAndRadius(
+        (Offset.zero & size).deflate(width / 2), Radius.circular(radius));
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width;
+    for (final m in (Path()..addRRect(rr)).computeMetrics()) {
+      var d = 0.0;
+      while (d < m.length) {
+        canvas.drawPath(m.extractPath(d, d + 5), paint);
+        d += 9;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorder old) =>
+      old.color != color || old.radius != radius || old.width != width;
+}
+
 class _LineItemCard extends StatelessWidget {
   final int index;
   final _PurchaseLine line;
@@ -1692,10 +1636,8 @@ class _LineItemCard extends StatelessWidget {
 
   // Searchable full-height picker — dropdowns don't scale past ~50 products.
   void _openProductSearch(BuildContext context) {
-    showModalBottomSheet(
+    showBlSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _ProductSearchSheet(
         products: products,
         selectedId: line.productId,
@@ -1707,259 +1649,253 @@ class _LineItemCard extends StatelessWidget {
     );
   }
 
+  Widget _box(String label, TextEditingController ctrl,
+          ValueChanged<String> onChanged,
+          {int flex = 10, FocusNode? focusNode, String? prefix}) =>
+      Expanded(
+        flex: flex,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Bl.white,
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(color: const Color(0xFFE6E5E3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: Bl.inter(11,
+                      w: FontWeight.w500, c: const Color(0xFF7A8088))),
+              Row(
+                children: [
+                  if (prefix != null)
+                    Text(prefix, style: Bl.tight(14.5, w: FontWeight.w600)),
+                  Expanded(
+                    child: TextField(
+                      controller: ctrl,
+                      focusNode: focusNode,
+                      onChanged: onChanged,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      cursorColor: Bl.brand,
+                      style: Bl.tight(14.5, w: FontWeight.w600),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        filled: false,
+                        contentPadding: EdgeInsets.zero,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        hintText: '0',
+                        hintStyle: Bl.tight(14.5,
+                            w: FontWeight.w500, c: Bl.faint),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+
+  static const _mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  Future<void> _pickExpiry(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate:
+          line.expiryDate ?? DateTime.now().add(const Duration(days: 180)),
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+    );
+    if (picked != null) onExpiryChange?.call(picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedProduct = line.productId == null
         ? null
         : products.firstWhere((p) => p['id'] == line.productId,
             orElse: () => <String, dynamic>{});
-
+    final hasProduct = selectedProduct != null && selectedProduct.isNotEmpty;
     final lastCost = selectedProduct?['costPrice'] == null
         ? null
         : double.tryParse(selectedProduct!['costPrice'].toString());
     final unit = line.unitCost;
+    final exp = line.expiryDate;
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-        boxShadow: [AppColors.cardShadow],
-      ),
+          color: Bl.wellSoft, borderRadius: BorderRadius.circular(16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Row index + remove
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(99),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      button: true,
+                      label: hasProduct
+                          ? 'Product ${selectedProduct['name']}. Change'
+                          : 'Select product',
+                      excludeSemantics: true,
+                      child: BlTap(
+                        onTap: () => _openProductSearch(context),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                    hasProduct
+                                        ? '${selectedProduct['name']}'
+                                        : 'Select product',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Bl.tight(14.5,
+                                        w: FontWeight.w600,
+                                        c: hasProduct
+                                            ? Bl.ink
+                                            : Bl.amberDeep)),
+                              ),
+                              const SizedBox(width: 4),
+                              BlIcon(BlIcons.chevronDown,
+                                  size: 14,
+                                  color:
+                                      hasProduct ? Bl.mute : Bl.amberDeep),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (line.scannedName != null && line.productId == null)
+                      Text('On bill: ${line.scannedName}',
+                          style: Bl.inter(12, c: const Color(0xFF7A8088))),
+                    if (hasProduct)
+                      Row(
+                        children: [
+                          Text('In stock: ${selectedProduct['stock'] ?? 0} · ',
+                              style: Bl.inter(12,
+                                  c: const Color(0xFF7A8088))),
+                          BlTap(
+                            label: exp == null
+                                ? 'Add expiry date'
+                                : 'Change expiry date',
+                            onTap: () => _pickExpiry(context),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 4),
+                              child: Text(
+                                  exp == null
+                                      ? 'Add expiry date'
+                                      : 'Expiry: ${exp.day} ${_mon[exp.month - 1]} ${exp.year}',
+                                  style: Bl.inter(12,
+                                      w: FontWeight.w500,
+                                      c: exp == null
+                                          ? Bl.amberDeep
+                                          : const Color(0xFF7A8088))),
+                            ),
+                          ),
+                          if (exp != null)
+                            BlTap(
+                              label: 'Remove expiry date',
+                              onTap: () => onExpiryChange?.call(null),
+                              child: const Padding(
+                                padding: EdgeInsets.all(6),
+                                child: BlIcon(BlIcons.close,
+                                    size: 12, color: Color(0xFFA0A5AC)),
+                              ),
+                            ),
+                        ],
+                      ),
+                  ],
                 ),
-                child: Text('#${index + 1}',
-                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                        color: AppColors.primary)),
               ),
-              const Spacer(),
               if (canRemove)
-                IconButton(
-                  iconSize: 16,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  onPressed: onRemove,
-                  icon: const Icon(LucideIcons.trash2, color: AppColors.danger),
+                BlTap(
+                  label: 'Remove this product',
+                  onTap: onRemove,
+                  child: const Padding(
+                    padding: EdgeInsets.fromLTRB(12, 4, 0, 12),
+                    child: BlIcon(BlIcons.close,
+                        size: 16, color: Color(0xFFA0A5AC)),
+                  ),
                 ),
             ],
           ),
-          const SizedBox(height: 6),
-
-          // Scanned-bill hint — tells the user which bill item this row is
-          // when no inventory product matched automatically.
-          if (line.scannedName != null && line.productId == null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6, left: 2),
-              child: Row(
-                children: [
-                  const Icon(LucideIcons.scanLine, size: 12, color: AppColors.primary),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      'On bill: ${line.scannedName}',
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                        color: AppColors.onPrimaryContainer),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // Product picker — opens a searchable sheet (type to filter).
-          AppTappable(
-            ripple: false,
-            onTap: () => _openProductSearch(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(LucideIcons.package, size: 16, color: AppColors.inkTertiary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      (selectedProduct != null && selectedProduct.isNotEmpty)
-                          ? '${selectedProduct['name']}'
-                          : 'Select product...',
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13.5,
-                        fontWeight: (selectedProduct != null && selectedProduct.isNotEmpty)
-                            ? FontWeight.w600 : FontWeight.w400,
-                        color: (selectedProduct != null && selectedProduct.isNotEmpty)
-                            ? AppColors.inkPrimary : AppColors.inkTertiary,
-                      ),
-                    ),
-                  ),
-                  const Icon(LucideIcons.search, size: 14, color: AppColors.inkTertiary),
-                ],
-              ),
-            ),
-          ),
-
-          // Suggestion chips for unmatched scanned lines: top fuzzy candidates
-          // + one-tap create. Tapping a chip also teaches the alias memory.
           if (line.productId == null &&
               (line.suggestions.isNotEmpty || line.scannedName != null))
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: 6),
               child: Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  ...line.suggestions.map((p) => AppTappable(
-   ripple: false,
-                        onTap: () => onProductChange(p['id'] as String?),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryContainer,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                          child: Text(
-                            '${p['name']}',
-                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                color: AppColors.onPrimaryContainer),
-                          ),
-                        ),
- )),
+                  for (final p in line.suggestions)
+                    BlTap(
+                      onTap: () => onProductChange(p['id'] as String?),
+                      child: Container(
+                        height: 32,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                            color: Bl.white,
+                            borderRadius: BorderRadius.circular(999)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text('${p['name']}',
+                              style: Bl.tight(12.5,
+                                  w: FontWeight.w600, ls: 0)),
+                        ]),
+                      ),
+                    ),
                   if (line.scannedName != null && onCreateFromScan != null)
-                    AppTappable(
-                      ripple: false,
+                    BlTap(
                       onTap: onCreateFromScan,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        height: 32,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(99),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(LucideIcons.plus, size: 12, color: AppColors.primary),
-                            const SizedBox(width: 4),
-                            Text('Create new',
-                                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                    color: AppColors.primary)),
-                          ],
-                        ),
+                            color: Bl.amber,
+                            borderRadius: BorderRadius.circular(999)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text('+ Create new',
+                              style: Bl.tight(12.5,
+                                  w: FontWeight.w600, ls: 0, c: Bl.white)),
+                        ]),
                       ),
                     ),
                 ],
               ),
             ),
-
-          if (selectedProduct != null && selectedProduct.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6, left: 4),
-              child: Text(
-                'Stock: ${selectedProduct['stock'] ?? 0}'
-                '${lastCost != null && lastCost > 0 ? " · Last ₹${lastCost.toStringAsFixed(2)}" : ""}',
-                style: AppText.label.copyWith(color: AppColors.inkTertiary),
-              ),
-            ),
-
           const SizedBox(height: 10),
-
-          // Qty + Unit price row
           Row(
             children: [
-              Expanded(
-                child: _MiniField(
-                  label: 'QTY',
-                  ctrl: line.qtyCtrl,
-                  icon: LucideIcons.hash,
-                  onChanged: onQtyChange,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _MiniField(
-                  label: 'UNIT',
-                  ctrl: line.unitPriceCtrl,
-                  icon: LucideIcons.indianRupee,
-                  onChanged: onUnitPriceChange,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _MiniField(
-                  label: 'TOTAL',
-                  ctrl: line.totalCtrl,
-                  focusNode: line.totalFocus,
-                  icon: LucideIcons.indianRupee,
-                  onChanged: onTotalChange,
-                ),
-              ),
+              _box('Qty', line.qtyCtrl, onQtyChange),
+              const SizedBox(width: 6),
+              _box('Unit price', line.unitPriceCtrl, onUnitPriceChange,
+                  prefix: '₹ '),
+              const SizedBox(width: 6),
+              _box('Total', line.totalCtrl, onTotalChange,
+                  flex: 14, focusNode: line.totalFocus, prefix: '₹ '),
             ],
           ),
-
-          // Optional expiry — creates a dated batch for expiry tracking.
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: AppTappable(
-   ripple: false,
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: line.expiryDate ?? DateTime.now().add(const Duration(days: 180)),
-                  firstDate: DateTime.now(),
-                  lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-                );
-                onExpiryChange?.call(picked);
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(LucideIcons.calendarClock, size: 13,
-                      color: line.expiryDate != null ? AppColors.warning : AppColors.inkTertiary),
-                  const SizedBox(width: 5),
-                  Text(
-                    line.expiryDate != null
-                        ? 'Expiry: ${line.expiryDate!.day}/${line.expiryDate!.month}/${line.expiryDate!.year}'
-                        : 'Add expiry date (optional)',
-                    style: AppText.label.copyWith(color: line.expiryDate != null ? AppColors.warning : AppColors.inkTertiary),
-                  ),
-                  if (line.expiryDate != null) ...[
-                    const SizedBox(width: 6),
-                    AppTappable(
-                      ripple: false,
-                      onTap: () => onExpiryChange?.call(null),
-                      child: const Icon(LucideIcons.x, size: 12, color: AppColors.inkTertiary),
-                    ),
-                  ],
-                ],
-              ),
- ),
-          ),
-
-          // Cost vs last
           if (unit != null && lastCost != null && lastCost > 0)
             Padding(
-              padding: const EdgeInsets.only(top: 6, left: 4),
+              padding: const EdgeInsets.only(top: 6, left: 2),
               child: Text(
                 unit > lastCost
                     ? '▲ Higher than last ₹${lastCost.toStringAsFixed(2)}'
                     : '▼ Lower than last ₹${lastCost.toStringAsFixed(2)}',
-                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                  color: unit > lastCost ? AppColors.warning : AppColors.success),
+                style: Bl.inter(11.5,
+                    w: FontWeight.w600,
+                    c: unit > lastCost ? Bl.amberDeep : Bl.green),
               ),
             ),
         ],
@@ -1968,170 +1904,16 @@ class _LineItemCard extends StatelessWidget {
   }
 }
 
-class _MiniField extends StatelessWidget {
-  final String label;
-  final TextEditingController ctrl;
-  final IconData icon;
-  final ValueChanged<String>? onChanged;
-  final FocusNode? focusNode;
-  const _MiniField({
-    required this.label,
-    required this.ctrl,
-    required this.icon,
-    this.onChanged,
-    this.focusNode,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4, left: 2),
-          child: Text(label,
-              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                  color: AppColors.inkTertiary, letterSpacing: 1)),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.canvas,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-          ),
-          child: TextField(
-            controller: ctrl,
-            focusNode: focusNode,
-            onChanged: onChanged,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: AppText.label.copyWith(color: AppColors.inkPrimary),
-            decoration: InputDecoration(
-              prefixIcon: Icon(icon, size: 13, color: AppColors.inkSecondary),
-              prefixIconConstraints: const BoxConstraints(minWidth: 30, minHeight: 0),
-              hintText: '0',
-              hintStyle: AppText.caption.copyWith(color: AppColors.inkSecondary.withValues(alpha: 0.4)),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-
-class _Dropdown extends StatelessWidget {
-  final String hint;
-  final IconData icon;
-  final String? value;
-  final List<DropdownMenuItem<String>> items;
-  final void Function(String?) onChanged;
-
-  const _Dropdown({
-    required this.hint,
-    required this.icon,
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          hint: Row(
-            children: [
-              Icon(icon, size: 18, color: AppColors.inkSecondary),
-              const SizedBox(width: 10),
-              Text(hint,
-                  style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      color: AppColors.inkSecondary.withValues(alpha: 0.5))),
-            ],
-          ),
-          icon: const Icon(LucideIcons.chevronDown,
-              size: 16, color: AppColors.inkSecondary),
-          isExpanded: true,
-          style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
-          items: items,
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-}
-
-class _PayChip extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  const _PayChip({required this.label, required this.active, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppTappable(
-   ripple: false,
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: active ? AppColors.primaryContainer : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: active ? AppColors.primary : Colors.transparent,
-          ),
-          boxShadow: [AppColors.cardShadow],
-        ),
-        child: Text(label,
-            style: AppText.label.copyWith(color: active ? AppColors.primary : AppColors.inkSecondary)),
-      ),
- );
-  }
-}
-
-// ─── Upgrade banner ───────────────────────────────────────────────────────────
-
 class _UpgradeBanner extends StatelessWidget {
   final String feature;
   const _UpgradeBanner({required this.feature});
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(LucideIcons.lock,
-                    color: AppColors.primary, size: 40),
-              ),
-              const SizedBox(height: 20),
-              Text('Upgrade Required',
-                  style: AppText.title.copyWith(fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5)),
-              const SizedBox(height: 8),
-              Text('$feature requires PRO plan or above.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.manrope(
-                      color: AppColors.inkSecondary, fontSize: 14)),
-            ],
-          ),
+        child: BlEmpty(
+          icon: BlIcons.lock,
+          title: 'Upgrade required',
+          message: '$feature needs the PRO plan or above.',
         ),
       );
 }
@@ -2197,7 +1979,6 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('No product with barcode "$code"'),
-        backgroundColor: AppColors.danger,
         behavior: SnackBarBehavior.floating,
       ));
     }
@@ -2205,132 +1986,95 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.85,
-      maxChildSize: 0.95,
-      minChildSize: 0.5,
-      builder: (_, ctrl) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.canvas,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const BlSheetTitle('Select product', size: 16, divider: true),
+        Container(
+          height: 44,
+          margin: const EdgeInsets.only(top: 12, bottom: 6),
+          padding: const EdgeInsets.only(left: 14, right: 5),
+          decoration: BoxDecoration(
+              color: Bl.well, borderRadius: BorderRadius.circular(999)),
+          child: Row(
+            children: [
+              const BlIcon(BlIcons.search, size: 20, color: Bl.mute),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _search,
+                  cursorColor: Bl.brand,
+                  style: Bl.inter(14, w: FontWeight.w500, c: Bl.ink),
+                  decoration: InputDecoration(
+                    isCollapsed: true,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    hintText: 'Search product or SKU',
+                    hintStyle: Bl.inter(14, w: FontWeight.w500, c: Bl.mute),
+                  ),
+                ),
+              ),
+              BlTap(
+                label: 'Scan barcode',
+                onTap: _scanToPick,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                      color: Bl.white, shape: BoxShape.circle),
+                  child: const BlIcon(BlIcons.scan, size: 20),
+                ),
+              ),
+            ],
+          ),
         ),
-        child: Column(
-          children: [
-            Center(
+        if (_filtered.isEmpty)
+          const BlEmpty(icon: BlIcons.box, title: 'No products found.'),
+        for (final p in _filtered)
+          Semantics(
+            button: true,
+            selected: p['id'] == widget.selectedId,
+            child: BlTap(
+              onTap: () => widget.onSelected(p['id'] as String?),
               child: Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: const BoxDecoration(
+                    border: Border(bottom: BorderSide(color: Bl.sep))),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${p['name']}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Bl.tight(14.5, w: FontWeight.w600)),
+                          const SizedBox(height: 1),
+                          Text(
+                              [
+                                'Stock ${p['stock'] ?? 0}',
+                                if ('${p['sku'] ?? ''}'.isNotEmpty)
+                                  '${p['sku']}',
+                              ].join(' · '),
+                              style: Bl.inter(12,
+                                  c: const Color(0xFF7A8088))),
+                        ],
+                      ),
+                    ),
+                    if (p['id'] == widget.selectedId)
+                      const BlIcon(BlIcons.check,
+                          size: 16, color: Bl.amber, stroke: 2.6),
+                  ],
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [AppColors.cardShadow],
-                      ),
-                      child: TextField(
-                        controller: _search,
-                        autofocus: true,
-                        decoration: InputDecoration(
-                          hintText: 'Search product or SKU...',
-                          hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                          prefixIcon: const Icon(LucideIcons.search,
-                              size: 16, color: AppColors.inkTertiary),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  AppTappable(
-                    ripple: false,
-                    onTap: _scanToPick,
-                    child: Container(
-                      width: 48, height: 48,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(LucideIcons.scanLine,
-                          size: 20, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: _filtered.isEmpty
-                  ? Center(
-                      child: Text('No products found',
-                          style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
-                    )
-                  : ListView.builder(
-                      controller: ctrl,
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                      itemCount: _filtered.length,
-                      itemBuilder: (context, i) {
-                        final p = _filtered[i];
-                        final isSelected = widget.selectedId == p['id'];
-                        return AppTappable(
-   ripple: false,
-                          onTap: () => widget.onSelected(p['id'] as String?),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primaryContainer
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : Colors.transparent,
-                              ),
-                              boxShadow: [AppColors.cardShadow],
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('${p['name']}',
-                                          style: GoogleFonts.manrope(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 14,
-                                              color: AppColors.inkPrimary)),
-                                      Text(
-                                        'Stock ${p['stock'] ?? 0}'
-                                        '${(p['sku'] ?? '').toString().isNotEmpty ? " · ${p['sku']}" : ""}',
-                                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (isSelected)
-                                  const Icon(LucideIcons.checkCircle2,
-                                      color: AppColors.primary, size: 18),
-                              ],
-                            ),
-                          ),
- );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
 }

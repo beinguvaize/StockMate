@@ -1361,3 +1361,146 @@ class BlChoicePills extends StatelessWidget {
         ],
       );
 }
+
+/// Segmented control (grey tray, white selected segment), with an optional
+/// count beside each label.
+class BlSegmented extends StatelessWidget {
+  final List<String> labels;
+  final List<int>? counts;
+  final int index;
+  final ValueChanged<int> onChanged;
+  const BlSegmented(
+      {super.key,
+      required this.labels,
+      required this.index,
+      required this.onChanged,
+      this.counts});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+            color: Bl.well, borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            for (var i = 0; i < labels.length; i++)
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  selected: index == i,
+                  label: counts == null
+                      ? labels[i]
+                      : '${labels[i]}, ${counts![i]}',
+                  excludeSemantics: true,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onChanged(i),
+                    child: AnimatedContainer(
+                      duration: motionDur(context, 160),
+                      curve: MotionCurves.out,
+                      height: 32,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color:
+                            index == i ? Bl.white : const Color(0x00FFFFFF),
+                        borderRadius: BorderRadius.circular(9),
+                        boxShadow: index == i
+                            ? const [
+                                BoxShadow(
+                                    color: Color(0x1F000000),
+                                    blurRadius: 2,
+                                    offset: Offset(0, 1)),
+                              ]
+                            : null,
+                      ),
+                      child: Text.rich(
+                        TextSpan(
+                          text: labels[i],
+                          children: [
+                            if (counts != null)
+                              TextSpan(
+                                  text: '  ${counts![i]}',
+                                  style: Bl.tight(12,
+                                      w: FontWeight.w500,
+                                      ls: 0,
+                                      c: (index == i ? Bl.ink : Bl.body)
+                                          .withValues(alpha: 0.55))),
+                          ],
+                        ),
+                        maxLines: 1,
+                        style: Bl.tight(13,
+                            w: FontWeight.w600,
+                            ls: 0,
+                            c: index == i ? Bl.ink : Bl.body),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+}
+
+/// Small rounded status pill with its own colours (Paid, Overdue, Ordered…).
+class BlStatusPill extends StatelessWidget {
+  final String text;
+  final Color fg;
+  final Color bg;
+  const BlStatusPill(this.text, {super.key, required this.fg, required this.bg});
+
+  const BlStatusPill.grey(this.text, {super.key})
+      : fg = const Color(0xFF6E737A),
+        bg = const Color(0xFFEFEEEC);
+  const BlStatusPill.green(this.text, {super.key})
+      : fg = const Color(0xFF17663A),
+        bg = const Color(0xFFE3F5EA);
+  const BlStatusPill.yellow(this.text, {super.key})
+      : fg = const Color(0xFF8A5A00),
+        bg = const Color(0xFFFFF1C9);
+  const BlStatusPill.red(this.text, {super.key})
+      : fg = const Color(0xFFB91C1C),
+        bg = const Color(0xFFFDE2E2);
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+        child: Text(text,
+            style: Bl.tight(11, w: FontWeight.w600, ls: 0, c: fg)),
+      );
+}
+
+/// Round 40px avatar with a soft tint picked from the name.
+class BlTintAvatar extends StatelessWidget {
+  final String name;
+  final double size;
+  const BlTintAvatar(this.name, {super.key, this.size = 40});
+
+  static const _tints = [
+    Color(0xFFFFF3D6),
+    Color(0xFFE6F6EC),
+    Color(0xFFE8F1FF),
+    Color(0xFFF1ECFF),
+    Color(0xFFFDECEC),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = BlPartyAvatar.initials(name);
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+          color: _tints[name.hashCode.abs() % _tints.length],
+          shape: BoxShape.circle),
+      child: initials.isEmpty
+          ? BlIcon(BlIcons.person, size: size * 0.4, color: Bl.ink3)
+          : Text(initials,
+              style: Bl.tight(size * 0.32,
+                  w: FontWeight.w700, ls: 0, c: Bl.ink3)),
+    );
+  }
+}
