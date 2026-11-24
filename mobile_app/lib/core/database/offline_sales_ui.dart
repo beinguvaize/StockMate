@@ -16,8 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/database/sync_errors.dart';
 import 'package:mobile_app/core/database/unsynced_sales.dart';
-import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/utils/money.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider, databaseProvider;
 
@@ -66,46 +65,42 @@ class OfflineSalesBanner extends ConsumerWidget {
 
     final String text;
     final Color fg, bg;
-    final IconData icon;
     final plural = unsynced == 1 ? '' : 's';
     if (refused > 0) {
       text = '$refused refused by the server — tap to fix';
-      fg = AppColors.onErrorContainer;
-      bg = AppColors.errorContainer;
-      icon = Icons.error_outline;
+      fg = Bl.redDeep;
+      bg = Bl.redSoft;
     } else if (!online) {
       text = unsynced == 0
           ? 'Offline — sales are saved on this phone'
           : 'Offline — $unsynced sale$plural saved on this phone, not synced';
-      fg = AppColors.onWarningContainer;
-      bg = AppColors.warningContainer;
-      icon = Icons.cloud_off;
+      fg = const Color(0xFF6B4E00);
+      bg = const Color(0xFFFFF8E1);
     } else {
       text = '$unsynced sale$plural not synced yet — tap to sync';
-      fg = AppColors.onInfoContainer;
-      bg = AppColors.infoContainer;
-      icon = Icons.cloud_upload_outlined;
+      fg = const Color(0xFF1D4E9E);
+      bg = Bl.blueSoft;
     }
 
     return Padding(
       padding: padding,
-      child: Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
+      child: Semantics(
+        button: true,
+        child: GestureDetector(
           key: const Key('offline-sales-banner'),
-          borderRadius: BorderRadius.circular(12),
+          behavior: HitTestBehavior.opaque,
           onTap: () => UnsyncedSalesSheet.show(context),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 44),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+                color: bg, borderRadius: BorderRadius.circular(12)),
             child: Row(children: [
-              Icon(icon, size: 18, color: fg),
-              const SizedBox(width: 8),
               Expanded(
                 child: Text(text,
-                    style: AppText.label.copyWith(color: fg, fontWeight: FontWeight.w700)),
+                    style: Bl.inter(12, w: FontWeight.w600, c: fg, h: 1.35)),
               ),
-              Icon(Icons.chevron_right, size: 18, color: fg),
+              BlIcon(BlIcons.chevronRight, size: 16, color: fg),
             ]),
           ),
         ),
@@ -117,13 +112,9 @@ class OfflineSalesBanner extends ConsumerWidget {
 class UnsyncedSalesSheet extends ConsumerStatefulWidget {
   const UnsyncedSalesSheet({super.key});
 
-  static Future<void> show(BuildContext context) => showModalBottomSheet<void>(
+  static Future<void> show(BuildContext context) => showBlSheet<void>(
         context: context,
-        isScrollControlled: true,
         useRootNavigator: true,
-        backgroundColor: AppColors.canvas,
-        shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
         builder: (_) => const UnsyncedSalesSheet(),
       );
 
@@ -145,24 +136,33 @@ class _UnsyncedSalesSheetState extends ConsumerState<UnsyncedSalesSheet> {
 
   Future<void> _discard(UnsyncedOp op) async {
     final isSale = op.rpcName == 'process_sale';
-    final ok = await showDialog<bool>(
+    final ok = await showBlDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(isSale ? 'Discard bill ${op.opId}?' : 'Discard this collection?'),
-        content: Text(isSale
-            ? 'This sale will NOT be recorded: no stock moves and the customer\'s '
-                'account is not changed. If the customer took the goods, ring the '
-                'bill again. The refused bill stays in Sync diagnostics for audit.'
-            : 'This payment will NOT be recorded against the customer. Record it '
-                'again once the cause is fixed. It stays in Sync diagnostics for audit.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Discard', style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
+      title: isSale ? 'Discard bill ${op.opId}?' : 'Discard this collection?',
+      message: isSale
+          ? 'This sale will NOT be recorded: no stock moves and the customer\'s '
+              'account is not changed. If the customer took the goods, ring the '
+              'bill again. The refused bill stays in Sync diagnostics for audit.'
+          : 'This payment will NOT be recorded against the customer. Record it '
+              'again once the cause is fixed. It stays in Sync diagnostics for audit.',
+      actions: (ctx) => [
+        Row(
+          children: [
+            Expanded(
+              child: BlButton('Keep',
+                  kind: BlButtonKind.soft,
+                  onTap: () => Navigator.pop(ctx, false)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BlButton('Discard',
+                  key: const Key('confirm-discard'),
+                  kind: BlButtonKind.danger,
+                  onTap: () => Navigator.pop(ctx, true)),
+            ),
+          ],
+        ),
+      ],
     );
     if (ok == true) await ref.read(syncServiceProvider).discardJob(op.jobId);
   }
@@ -175,73 +175,69 @@ class _UnsyncedSalesSheetState extends ConsumerState<UnsyncedSalesSheet> {
     final pending = ops.where((o) => o.state == UnsyncedState.pending).toList();
     final otherRefused = (ref.watch(refusedJobCountProvider).valueOrNull ?? 0) - refused.length;
 
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.75,
-      maxChildSize: 0.95,
-      minChildSize: 0.4,
-      builder: (_, ctrl) => ListView(
-        controller: ctrl,
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        children: [
-          Center(
-            child: Container(width: 40, height: 4,
-                decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(2))),
-          ),
-          const SizedBox(height: 16),
-          Text('Sales on this phone', style: AppText.title),
-          const SizedBox(height: 4),
-          Text(
-            online
-                ? (pending.isEmpty
-                    ? 'Online. Everything rung on this phone has reached the server.'
-                    : 'Online. ${pending.length} waiting to send, in the order they were made.')
-                : 'Offline. Keep selling: bills are saved on this phone and sent '
-                    'automatically when the internet is back.',
-            style: AppText.caption,
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              key: const Key('sync-now'),
-              onPressed: (!online || _syncing || pending.isEmpty) ? null : _syncNow,
-              icon: _syncing
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.sync, size: 18),
-              label: Text(online ? 'Sync now' : 'Sync now (needs internet)'),
-            ),
-          ),
-          if (refused.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Text('Refused by the server — not in the books',
-                style: AppText.label.copyWith(color: AppColors.error, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            for (final op in refused)
-              _RefusedCard(
-                op: op,
-                onRetry: online ? () => ref.read(syncServiceProvider).retryJob(op.jobId) : null,
-                onDiscard: () => _discard(op),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const BlSheetTitle('Sales on this phone'),
+        const SizedBox(height: 4),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                    color: online ? const Color(0xFF1E9E5A) : Bl.amber,
+                    shape: BoxShape.circle),
               ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                online
+                    ? (pending.isEmpty
+                        ? 'Online. Everything rung on this phone has reached the server.'
+                        : 'Online. ${pending.length} waiting to send, in the order they were made.')
+                    : 'Offline. Keep selling: bills are saved on this phone and sent '
+                        'automatically when the internet is back.',
+                style: Bl.inter(12.5, w: FontWeight.w500, h: 1.4),
+              ),
+            ),
           ],
-          if (otherRefused > 0) ...[
-            const SizedBox(height: 8),
-            Text('$otherRefused other change${otherRefused == 1 ? '' : 's'} refused — '
+        ),
+        const SizedBox(height: 4),
+        for (final op in refused)
+          _RefusedCard(
+            op: op,
+            onRetry: online ? () => ref.read(syncServiceProvider).retryJob(op.jobId) : null,
+            onDiscard: () => _discard(op),
+          ),
+        if (otherRefused > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+                '$otherRefused other change${otherRefused == 1 ? '' : 's'} refused — '
                 'see Settings › Sync diagnostics.',
-                style: AppText.caption.copyWith(color: AppColors.error)),
-          ],
-          if (pending.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Text('Waiting to sync', style: AppText.label.copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            for (final op in pending) _PendingRow(op: op),
-          ],
-          if (ops.isEmpty) ...[
-            const SizedBox(height: 24),
-            Center(child: Text('Nothing waiting.', style: AppText.caption)),
-          ],
-        ],
-      ),
+                style: Bl.inter(12, c: Bl.redDeep)),
+          ),
+        for (final op in pending) _PendingRow(op: op),
+        if (ops.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+                child: Text('Nothing waiting.', style: Bl.inter(13, c: Bl.mute))),
+          ),
+        const SizedBox(height: 14),
+        BlButton(
+          online ? 'Sync now' : 'Sync now (needs internet)',
+          key: const Key('sync-now'),
+          loading: _syncing,
+          onTap: (!online || _syncing || pending.isEmpty) ? null : _syncNow,
+        ),
+      ],
     );
   }
 }
@@ -251,11 +247,23 @@ String _what(UnsyncedOp op) => op.rpcName == 'process_sale' ? 'Bill ${op.opId}' 
 double _amount(UnsyncedOp op) =>
     ((op.payload['p_total_amount'] ?? op.payload['p_amount']) as num?)?.toDouble() ?? 0;
 
+const _mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/// "22 Nov, 4:10 pm"
 String _when(DateTime d) {
   final l = d.toLocal();
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${two(l.day)}/${two(l.month)} ${two(l.hour)}:${two(l.minute)}';
+  final h = l.hour % 12 == 0 ? 12 : l.hour % 12;
+  return '${l.day} ${_mon[l.month - 1]}, $h:${l.minute.toString().padLeft(2, '0')} ${l.hour < 12 ? 'am' : 'pm'}';
 }
+
+Widget _tile(String icon, Color bg, Color fg) => Container(
+      width: 34,
+      height: 34,
+      alignment: Alignment.center,
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+      child: BlIcon(icon, size: 16, color: fg),
+    );
 
 class _RefusedCard extends StatelessWidget {
   final UnsyncedOp op;
@@ -268,38 +276,57 @@ class _RefusedCard extends StatelessWidget {
     final info = describeRefusal(op.lastError, rpcName: op.rpcName);
     return Container(
       key: Key('refused-${op.jobId}'),
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
       decoration: BoxDecoration(
-        color: AppColors.errorContainer,
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFFFF7F7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF5C2C2)),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(child: Text(_what(op), style: AppText.bodyStrong)),
-          Text(Money.inrExact(_amount(op)), style: AppText.money),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _tile('<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/>',
+              const Color(0xFFFDE2E2), Bl.redDeep),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Refused by the server · not in the books',
+                  style: Bl.tight(14.5, w: FontWeight.w600, c: Bl.redDeep)),
+              const SizedBox(height: 4),
+              Row(children: [
+                Expanded(
+                    child: Text(_what(op),
+                        style: Bl.tight(13.5, w: FontWeight.w600))),
+                Text(Money.inrExact(_amount(op)),
+                    style: Bl.tight(13.5, w: FontWeight.w600)),
+              ]),
+              const SizedBox(height: 2),
+              Text(info.title,
+                  style: Bl.inter(13, w: FontWeight.w600, c: Bl.ink3)),
+              Text(info.reason,
+                  style: Bl.inter(13, w: FontWeight.w500, c: Bl.ink3, h: 1.4)),
+              const SizedBox(height: 2),
+              Text(info.whatToDo,
+                  style: Bl.inter(12, c: const Color(0xFF7A8088), h: 1.4)),
+              const SizedBox(height: 2),
+              Text('Rung ${_when(op.createdAt)}',
+                  style: Bl.inter(12, c: const Color(0xFF7A8088))),
+            ]),
+          ),
         ]),
-        Text('Rung ${_when(op.createdAt)}', style: AppText.caption),
-        const SizedBox(height: 8),
-        Text(info.title,
-            style: AppText.label.copyWith(color: AppColors.onErrorContainer, fontWeight: FontWeight.w800)),
-        Text(info.reason, style: AppText.caption.copyWith(color: AppColors.onErrorContainer)),
-        const SizedBox(height: 6),
-        Text(info.whatToDo, style: AppText.caption),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Row(children: [
           Expanded(
-            child: OutlinedButton(
-              onPressed: onDiscard,
-              child: const Text('Discard'),
-            ),
+            child: BlButton('Discard',
+                kind: BlButtonKind.danger,
+                height: 42,
+                fontSize: 14.5,
+                onTap: onDiscard),
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: FilledButton(
-              onPressed: onRetry,
-              child: Text(onRetry == null ? 'Retry (offline)' : 'Retry'),
-            ),
+            child: BlButton(onRetry == null ? 'Retry (offline)' : 'Retry',
+                height: 42, fontSize: 14.5, onTap: onRetry),
           ),
         ]),
       ]),
@@ -314,24 +341,36 @@ class _PendingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final err = op.lastError;
-    return Padding(
+    return Container(
       key: Key('pending-${op.jobId}'),
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE6E5E3)),
+      ),
       child: Row(children: [
-        const Icon(Icons.schedule, size: 18, color: AppColors.warning),
+        _tile('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+            const Color(0xFFFFF1C9), const Color(0xFF8A5A00)),
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_what(op), style: AppText.bodyStrong),
+            Text(_what(op),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Bl.tight(14.5, w: FontWeight.w600)),
+            const SizedBox(height: 1),
             Text(
               err != null && err.startsWith('Sign in again')
                   ? 'Rung ${_when(op.createdAt)} · sign in again to send'
                   : 'Rung ${_when(op.createdAt)} · not synced yet',
-              style: AppText.caption,
+              style: Bl.inter(12, c: const Color(0xFF7A8088)),
             ),
           ]),
         ),
-        Text(Money.inrExact(_amount(op)), style: AppText.money),
+        const SizedBox(width: 8),
+        Text(Money.inrExact(_amount(op)),
+            style: Bl.tight(14.5, w: FontWeight.w600)),
       ]),
     );
   }

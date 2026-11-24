@@ -428,6 +428,7 @@ Future<T?> showBlSheet<T>({
     isScrollControlled: true,
     useRootNavigator: useRootNavigator,
     isDismissible: isDismissible,
+    enableDrag: isDismissible,
     backgroundColor: Colors.transparent,
     barrierColor: Bl.shade,
     elevation: 0,

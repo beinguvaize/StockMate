@@ -9,11 +9,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'app_button.dart';
 
 class UpiQrSheet extends StatelessWidget {
   final String upiId;
@@ -46,199 +43,138 @@ class UpiQrSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deeplink = _buildDeeplink();
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Drag handle
-            Center(
-              child: Container(
-                width: 40, height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.inkTertiary.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // A bill waiting on a UPI answer has no close button: it must end
+        // in "received" or "failed".
+        if (confirmable)
+          Container(
+            padding: const EdgeInsets.only(bottom: 12, top: 4),
+            decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: Bl.sep))),
+            child: Text('Pay with UPI',
+                style: Bl.tight(16, w: FontWeight.w700, ls: -0.02)),
+          )
+        else
+          const BlSheetTitle('Pay with UPI', size: 16, divider: true),
+        const SizedBox(height: 10),
+        Text('Ask the customer to scan with PhonePe, GPay, Paytm, or BHIM.',
+            style: Bl.inter(12.5, w: FontWeight.w500, h: 1.45)),
+        const SizedBox(height: 14),
+        Center(
+          child: Container(
+            width: 182,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Bl.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFECEAE7)),
             ),
-
-            Text(
-              'Pay with UPI',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 22, fontWeight: FontWeight.w700,
-                color: AppColors.inkPrimary,
-              ),
+            child: QrImageView(
+              data: deeplink,
+              version: QrVersions.auto,
+              size: 150,
+              padding: EdgeInsets.zero,
+              semanticsLabel: 'UPI payment QR code',
+              eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square, color: Bl.ink),
+              dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square, color: Bl.ink),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Ask the customer to scan with PhonePe, GPay, Paytm, or BHIM.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
-            ),
-            const SizedBox(height: 20),
-
-            // QR card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.outlineVariant),
-              ),
-              child: Column(
-                children: [
-                  QrImageView(
-                    data: deeplink,
-                    version: QrVersions.auto,
-                    size: 220,
-                    eyeStyle: const QrEyeStyle(
-                      eyeShape: QrEyeShape.square,
-                      color: Colors.black,
-                    ),
-                    dataModuleStyle: const QrDataModuleStyle(
-                      dataModuleShape: QrDataModuleShape.square,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '$currencySymbol${amount.toStringAsFixed(2)}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 28, fontWeight: FontWeight.w800,
-                      color: AppColors.inkPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  if (invoiceNo != 'PREVIEW')
-                    Text(
-                      'Invoice $invoiceNo',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13, color: AppColors.inkTertiary,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // VPA + copy
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.canvas,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(LucideIcons.atSign, size: 14, color: AppColors.inkTertiary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      upiId,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13, fontWeight: FontWeight.w600,
-                        color: AppColors.inkPrimary,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: upiId));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('UPI ID copied'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    icon: const Icon(LucideIcons.copy, size: 16),
-                    tooltip: 'Copy UPI ID',
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Preview mode (confirmable=false): single Close button. The
-            // sale isn't created yet, so there's nothing to mark paid or
-            // failed — that happens after Complete Transaction.
-            if (!confirmable)
-              ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(LucideIcons.x, size: 16),
-                label: const Text('Close'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.surfaceContainer,
-                  foregroundColor: AppColors.inkPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: const StadiumBorder(),
-                  textStyle: GoogleFonts.manrope(
-                    fontSize: 13, fontWeight: FontWeight.w700,
-                  ),
-                ),
-              )
-            else ...[
-              // Payment confirmation row: cashier asks the customer if their
-              // UPI app showed "Payment Successful", then taps the matching
-              // button. Until one is tapped the sale stays in PENDING state.
-              Row(
-                children: [
-                  Expanded(
-                    // Both were raw Material buttons, so the two controls that
-                    // decide whether a payment landed were the only ones in
-                    // the checkout flow with no press response. AppButton
-                    // carries the scale, the ripple and the reduce-motion
-                    // handling every other button in the app has.
-                    child: AppButton(
-                      label: 'Mark Failed',
-                      icon: LucideIcons.x,
-                      variant: AppButtonVariant.danger,
-                      size: AppButtonSize.large,
-                      fullWidth: true,
-                      onPressed: () => Navigator.pop(context, false),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: AppButton(
-                      label: 'Payment Received',
-                      icon: LucideIcons.checkCircle2,
-                      size: AppButtonSize.large,
-                      fullWidth: true,
-                      onPressed: () => Navigator.pop(context, true),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Mark Failed will void the sale and return stock. '
-                'The cashier can then ring a fresh transaction.',
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text('$currencySymbol${amount.toStringAsFixed(2)}',
+            textAlign: TextAlign.center,
+            style: Bl.tight(34, w: FontWeight.w700, ls: -0.04)),
+        if (invoiceNo != 'PREVIEW')
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text('Invoice $invoiceNo',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.manrope(
-                  fontSize: 13, color: AppColors.inkTertiary,
+                style: Bl.inter(12.5,
+                    w: FontWeight.w500, c: const Color(0xFF7A8088))),
+          ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 9, 4, 9),
+          decoration: BoxDecoration(
+              color: const Color(0xFFF3F2F0),
+              borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('UPI ID',
+                        style:
+                            Bl.inter(10, w: FontWeight.w500, c: Bl.mute)),
+                    const SizedBox(height: 1),
+                    Text(upiId,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Bl.tight(13.5, w: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              BlTap(
+                label: 'Copy UPI ID',
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: upiId));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('UPI ID copied'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: const SizedBox(
+                  width: 44,
+                  height: 36,
+                  child: Center(
+                    child: BlIcon(
+                        '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/>',
+                        size: 16,
+                        color: Bl.body),
+                  ),
                 ),
               ),
             ],
-          ],
+          ),
         ),
-      ),
+        const SizedBox(height: 12),
+        if (!confirmable)
+          BlButton('Close',
+              kind: BlButtonKind.soft, onTap: () => Navigator.pop(context))
+        else ...[
+          Row(
+            children: [
+              Expanded(
+                child: BlButton('Mark failed',
+                    kind: BlButtonKind.danger,
+                    onTap: () => Navigator.pop(context, false)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: BlButton('Payment received',
+                    onTap: () => Navigator.pop(context, true)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+              'Mark failed will void the sale and return stock. '
+              'The cashier can then ring a fresh transaction.',
+              textAlign: TextAlign.center,
+              style: Bl.inter(12, c: Bl.mute, h: 1.5)),
+        ],
+      ],
     );
   }
 
-  /// Show as a modal bottom sheet. Resolves to:
-  ///   true  → cashier confirmed payment received
-  ///   false → cashier confirmed NOT received
-  ///   null  → dismissed (treated same as 'not received' by callers)
   static Future<bool?> show(
     BuildContext context, {
     required String upiId,
@@ -248,16 +184,9 @@ class UpiQrSheet extends StatelessWidget {
     String currencySymbol = '₹',
     bool confirmable = true,
   }) {
-    return showModalBottomSheet<bool>(
+    return showBlSheet<bool>(
       context: context,
-      isScrollControlled: true,
-      // Preview mode is freely dismissible; confirm mode forces a choice.
       isDismissible: !confirmable,
-      enableDrag: !confirmable,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
       builder: (_) => UpiQrSheet(
         upiId: upiId,
         merchantName: merchantName,

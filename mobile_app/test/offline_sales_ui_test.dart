@@ -118,7 +118,7 @@ void main() {
     await t.tap(find.text('Discard'));
     await settle(t);
     expect(find.textContaining('This sale will NOT be recorded'), findsOneWidget);
-    await t.tap(find.widgetWithText(TextButton, 'Discard'));
+    await t.tap(find.byKey(const Key('confirm-discard')));
     await settle(t);
 
     final rows = await db.select(db.syncMutations).get();

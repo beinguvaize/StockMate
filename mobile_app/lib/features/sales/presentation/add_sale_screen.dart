@@ -17,7 +17,7 @@ import 'package:mobile_app/features/logistics/presentation/providers/driver_prov
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/sales/presentation/sales_view.dart' show methodLabel;
 import 'package:mobile_app/core/database/database.dart' hide Client, Sale, Invoice;
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:mobile_app/core/widgets/barcode_scanner_screen.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
@@ -265,7 +265,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
   void _scanBarcode() async {
     final result = await Navigator.push<String>(
       context,
-      MaterialPageRoute(builder: (_) => const _BarcodeScannerScreen()),
+      MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
     );
     if (result != null && mounted) {
       final products = ref.read(productsProvider).asData?.value ?? [];
@@ -2542,32 +2542,6 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
 }
 
 // ─── Barcode Scanner ──────────────────────────────────────────────────────────
-
-class _BarcodeScannerScreen extends StatelessWidget {
-  const _BarcodeScannerScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        title: Text('Scan Barcode',
-            style: GoogleFonts.manrope(
-                color: Colors.white, fontWeight: FontWeight.w700)),
-      ),
-      body: MobileScanner(
-        onDetect: (capture) {
-          final barcodes = capture.barcodes;
-          if (barcodes.isNotEmpty) {
-            Navigator.pop(context, barcodes.first.rawValue);
-          }
-        },
-      ),
-    );
-  }
-}
 
 // ── Post-sale success sheet ────────────────────────────────────────────────────
 
