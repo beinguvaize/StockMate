@@ -282,6 +282,30 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     }
   }
 
+  /// Asks the cashier whether a UPI payment arrived when no QR sheet could
+  /// be shown. The bill is voided only on an explicit "Not received".
+  Future<bool?> _askUpiReceived(String why) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dCtx) => AlertDialog(
+        title: const Text('Did the UPI payment arrive?'),
+        content: Text('$why\n\nNot received will void this bill and return the stock.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx, false),
+            child: const Text('Not received',
+                style: TextStyle(color: AppColors.error)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx, true),
+            child: const Text('Payment received'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Checkout sheet ────────────────────────────────────────────────────────────
 
   void _openCheckout() {
@@ -522,16 +546,19 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
               currencySymbol: symbol,
             );
           } else if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Add a UPI ID in Settings to show a payment QR.'),
-                backgroundColor: Colors.orange,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+            // No QR can be shown, but the customer may still have paid by
+            // UPI. Ask, rather than treating silence as "not received" and
+            // voiding a bill the screen then reports as recorded.
+            upiConfirmed = await _askUpiReceived(
+                'This shop has no UPI ID yet, so no QR could be shown. '
+                'Add one in Settings.');
           }
         } catch (e) {
           debugPrint('[SALE] UPI sheet failed: $e');
+          if (mounted) {
+            upiConfirmed = await _askUpiReceived(
+                'The payment QR could not be shown.');
+          }
         }
       }
 

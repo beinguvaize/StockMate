@@ -11,8 +11,14 @@ import 'package:mobile_app/features/logistics/data/models/van_stock.dart';
 
 // ── Tenant business profile (currency symbol, etc.) ──────────────────────────
 final tenantProfileProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
-  final session  = supabase.auth.currentSession;
-  final tenantId = session?.user.userMetadata?['tenant_id'] as String?;
+  // The shop comes from the verified tenant context (public.users). It used
+  // to be read from user_metadata only, which most accounts do not carry: for
+  // them the profile came back null, so checkout lost the shop's tax mode
+  // (an INCLUSIVE shop was taxed again on top) and its UPI ID (no QR, and the
+  // UPI bill was then voided as "not received").
+  final ctx = await ref.watch(tenantContextProvider.future);
+  final tenantId = ctx?.tenantId ??
+      (supabase.auth.currentSession?.user.userMetadata?['tenant_id'] as String?);
   if (tenantId == null) return null;
 
   final Map<String, dynamic>? res;
