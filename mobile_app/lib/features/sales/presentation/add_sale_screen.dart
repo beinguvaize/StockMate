@@ -2965,271 +2965,228 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
     super.dispose();
   }
 
+  // Laid out to the approved board "New sale: select client" (sales-07).
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.85,
-      maxChildSize: 0.95,
-      minChildSize: 0.5,
-      builder: (_, ctrl) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.canvas,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          children: [
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
+    final mq = MediaQuery.of(context);
+    return Container(
+      margin: EdgeInsets.fromLTRB(
+          8, 0, 8, 8 + mq.viewInsets.bottom + mq.padding.bottom),
+      height: (mq.size.height * 0.78).clamp(
+          0.0,
+          mq.size.height -
+              mq.padding.top -
+              mq.viewInsets.bottom -
+              mq.padding.bottom -
+              24),
+      decoration: BoxDecoration(
+        color: DashColors.card,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                  child: Text('Select Client', style: DashText.tight(17))),
+              AppTappable(
+                ripple: false,
+                onTap: _openAddClient,
+                child: SizedBox(
+                  height: 44,
+                  child: Center(
+                    child: Container(
+                      height: 30,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: DashColors.amber,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text('+ New',
+                          style: DashText.tight(12.5,
+                              w: FontWeight.w600, c: Colors.white, ls: 0)),
+                    ),
+                  ),
                 ),
               ),
+              const SizedBox(width: 2),
+              AppTappable(
+                ripple: false,
+                onTap: () => Navigator.pop(context),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Center(
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: const BoxDecoration(
+                          color: DashColors.well, shape: BoxShape.circle),
+                      child: const Icon(LucideIcons.x,
+                          size: 16, color: Color(0xFF4A5057)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Container(height: 1, color: DashColors.sep),
+          Container(
+            height: 42,
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: _kWell,
+              borderRadius: BorderRadius.circular(999),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+            child: Row(
+              children: [
+                const Icon(LucideIcons.search,
+                    size: 18, color: DashColors.mute),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _search,
+                    style: DashText.inter(13.5, c: DashColors.ink),
+                    cursorColor: DashColors.amber,
+                    decoration: InputDecoration(
+                      isCollapsed: true,
+                      hintText: 'Search by name or phone',
+                      hintStyle: DashText.inter(13.5),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 11),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(color: DashColors.amber))
+                : _loadFailed
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('Could not load clients. Check the connection.',
+                                textAlign: TextAlign.center,
+                                style: DashText.inter(13)),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: 140,
+                              child: _SheetButton(
+                                  label: 'Try again',
+                                  soft: true,
+                                  onTap: _loadClients),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        itemCount: _filtered.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            return _row(
+                              selected: widget.selectedClient == null,
+                              onTap: () => widget.onSelected(null),
+                              avatar: const Icon(LucideIcons.user,
+                                  size: 17, color: DashColors.ink2),
+                              title: 'Walk-in Customer',
+                              subtitle: 'No name on the bill',
+                            );
+                          }
+                          final client = _filtered[index - 1];
+                          final owes = client.outstandingBalance ?? 0;
+                          return _row(
+                            selected: widget.selectedClient?.id == client.id,
+                            onTap: () => widget.onSelected(client),
+                            avatar: Text(
+                              _initialsFor(client.name ?? 'C'),
+                              style: DashText.tight(12.5,
+                                  c: DashColors.ink2, ls: 0),
+                            ),
+                            title: client.name ?? 'Unknown',
+                            subtitle: client.phone,
+                            owes: owes > 0 ? owes : null,
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row({
+    required bool selected,
+    required VoidCallback onTap,
+    required Widget avatar,
+    required String title,
+    String? subtitle,
+    double? owes,
+  }) {
+    return AppTappable(
+      ripple: false,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                  color: DashColors.well, shape: BoxShape.circle),
+              child: avatar,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Select Client',
-                          style: GoogleFonts.manrope(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.inkPrimary,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                      ),
-                      AppTappable(
-                        ripple: false,
-                        onTap: _openAddClient,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(LucideIcons.userPlus,
-                                  size: 15, color: Colors.white),
-                              const SizedBox(width: 6),
-                              Text(
-                                'New',
-                                style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [AppColors.cardShadow],
-                    ),
-                    child: TextField(
-                      controller: _search,
-                      decoration: InputDecoration(
-                        hintText: 'Search by name or phone...',
-                        hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                        prefixIcon: const Icon(LucideIcons.search,
-                            size: 16, color: AppColors.inkTertiary),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
+                  Text(title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: DashText.tight(14.5, w: FontWeight.w600)),
+                  if (subtitle != null && subtitle.isNotEmpty)
+                    Text(subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: DashText.inter(12,
+                            w: FontWeight.w400, c: _kSub)),
                 ],
               ),
             ),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _loadFailed
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('Couldn\'t load clients — check connection',
-                              style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
-                          const SizedBox(height: 10),
-                          TextButton(onPressed: _loadClients, child: const Text('Retry')),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: ctrl,
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                      itemCount: _filtered.length + 1,
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          // Walk-in option
-                          final isSelected = widget.selectedClient == null;
-                          return AppTappable(
-                            ripple: false,
-                            onTap: () => widget.onSelected(null),
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppColors.primaryContainer
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? AppColors.primary
-                                      : Colors.transparent,
-                                ),
-                                boxShadow: [AppColors.cardShadow],
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 40, height: 40,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surfaceContainer,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(LucideIcons.userX,
-                                        size: 18, color: AppColors.inkSecondary),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Walk-in Customer',
-                                          style: GoogleFonts.manrope(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 14,
-                                            color: AppColors.inkPrimary,
-                                          ),
-                                        ),
-                                        Text(
-                                          'No credit option',
-                                          style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (isSelected)
-                                    const Icon(LucideIcons.checkCircle2,
-                                        color: AppColors.primary, size: 18),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-
-                        final client = _filtered[index - 1];
-                        final isSelected = widget.selectedClient?.id == client.id;
-                        final outstanding = client.outstandingBalance ?? 0;
-                        final initial = (client.name?.isNotEmpty == true)
-                            ? client.name![0].toUpperCase()
-                            : 'C';
-                        const palette = [
-                          Color(0xFF2E7D32), Color(0xFF1565C0),
-                          Color(0xFF6A1B9A), Color(0xFFE65100),
-                        ];
-                        final avatarColor =
-                            palette[(client.name ?? 'C').codeUnitAt(0) % palette.length];
-
-                        return AppTappable(
-                          ripple: false,
-                          onTap: () => widget.onSelected(client),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primaryContainer
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : Colors.transparent,
-                              ),
-                              boxShadow: [AppColors.cardShadow],
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 40, height: 40,
-                                  decoration: BoxDecoration(
-                                    color: avatarColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      initial,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        client.name ?? 'Unknown',
-                                        style: GoogleFonts.manrope(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                          color: AppColors.inkPrimary,
-                                        ),
-                                      ),
-                                      if (client.phone != null)
-                                        Text(
-                                          client.phone!,
-                                          style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                if (outstanding > 0)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.danger.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      '₹${outstanding.toStringAsFixed(0)} due',
-                                      style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.danger),
-                                    ),
-                                  ),
-                                const SizedBox(width: 8),
-                                if (isSelected)
-                                  const Icon(LucideIcons.checkCircle2,
-                                      color: AppColors.primary, size: 18),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
+            if (owes != null) ...[
+              const SizedBox(width: 8),
+              Text('Owes ${Money.inr(owes)}',
+                  style: DashText.tight(13.5,
+                      w: FontWeight.w600, c: DashColors.red, ls: 0)),
+            ],
+            if (selected) ...[
+              const SizedBox(width: 8),
+              Container(
+                width: 22,
+                height: 22,
+                decoration: const BoxDecoration(
+                    color: DashColors.amber, shape: BoxShape.circle),
+                child:
+                    const Icon(LucideIcons.check, size: 13, color: Colors.white),
+              ),
+            ],
           ],
         ),
       ),
