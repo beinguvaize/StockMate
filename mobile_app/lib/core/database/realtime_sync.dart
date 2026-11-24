@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/features/auth/data/auth_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
@@ -19,10 +20,23 @@ import 'package:mobile_app/features/finance/presentation/providers/finance_provi
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
 
 class RealtimeSync {
+  RealtimeSync(this._ref);
+
+  /// The PROVIDER's ref, which lives exactly as long as this object does.
+  ///
+  /// This used to be the WidgetRef of whichever screen called [start]. That
+  /// screen is the tenant gate, and the gate is disposed whenever the app
+  /// shows anything else in its place — after which every invalidation threw
+  /// "Cannot use ref after the widget was disposed". The throw was caught and
+  /// logged, so nothing crashed; live refresh simply stopped. And because
+  /// [start] returns early for a tenant it is already running for, the gate
+  /// coming back did not replace the dead ref: it stayed broken until the app
+  /// was restarted.
+  final Ref _ref;
+
   RealtimeChannel? _channel;
   String?          _tenantId;
   Timer?           _backstopTimer;
-  WidgetRef?       _ref;
 
   /// Cellular networks regularly drop the websocket, so realtime events
   /// can be missed. This timer re-invalidates the key providers every
@@ -30,11 +44,11 @@ class RealtimeSync {
   /// back out of the current screen and return.
   static const Duration _backstopInterval = Duration(seconds: 60);
 
-  void start(String tenantId, WidgetRef ref) {
+  void start(String tenantId) {
     if (_tenantId == tenantId && _channel != null) return;
     stop();
     _tenantId = tenantId;
-    _ref = ref;
+    final ref = _ref;
 
     final channel = supabase.channel('tenant-realtime-$tenantId');
 
@@ -94,14 +108,14 @@ class RealtimeSync {
   /// Force-refresh every provider the channel watches. Safe to call from
   /// pull-to-refresh handlers and app-lifecycle resume.
   void refreshAll() {
-    final ref = _ref;
-    if (ref == null) return;
+    // Nothing is being watched until a tenant has been started.
+    if (_tenantId == null) return;
     try {
-      ref.invalidate(productsProvider);
-      ref.invalidate(clientsProvider);
-      ref.invalidate(recentSalesProvider);
-      ref.invalidate(expensesProvider);
-      ref.invalidate(telemetryProvider);
+      _ref.invalidate(productsProvider);
+      _ref.invalidate(clientsProvider);
+      _ref.invalidate(recentSalesProvider);
+      _ref.invalidate(expensesProvider);
+      _ref.invalidate(telemetryProvider);
     } catch (e) {
       debugPrint('[realtime] refreshAll error: $e');
     }
@@ -115,13 +129,18 @@ class RealtimeSync {
       _channel = null;
     }
     _tenantId = null;
-    _ref = null;
   }
 }
 
 /// Provider exposing a single long-lived RealtimeSync instance.
 final realtimeSyncProvider = Provider<RealtimeSync>((ref) {
-  final svc = RealtimeSync();
+  final svc = RealtimeSync(ref);
+  // Signing out ends the subscription. Nothing did before, so the channel for
+  // the shop just left stayed open with its 60s timer running; and a sign-in
+  // to the same shop then found it "already running" and never restarted it.
+  ref.listen<String?>(userIdProvider, (previous, next) {
+    if (next == null) svc.stop();
+  });
   ref.onDispose(svc.stop);
   return svc;
 });
