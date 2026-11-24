@@ -5,6 +5,9 @@ import 'package:mobile_app/core/database/offline_reads.dart';
 import 'package:mobile_app/core/database/unsynced_sales.dart';
 import 'daybook_models.dart';
 
+/// The store id that means "all stores" on a day_book row.
+const allStoresLocationId = '00000000-0000-0000-0000-000000000000';
+
 class DaybookRepository {
   final SupabaseClient _client;
   // Optional so existing construction keeps working; when supplied, reads fall
@@ -263,11 +266,18 @@ class DaybookRepository {
   }) async {
     final raw = 'DB-$date-$tenantId';
     final id = existingId ?? (raw.length > 40 ? raw.substring(0, 40) : raw);
+    // day_book has been one row per (tenant, date, store) since the
+    // 20260601_day_book_per_store migration, and that triple is its only
+    // unique key. The phone has no store picker, so it writes the all-stores
+    // row, the same one web uses when no store is chosen. Naming the old
+    // (tenant_id, date) pair here made Postgres reject every write with
+    // 42P10, so nothing the phone saved to the Day Book ever landed.
     await _client.from('day_book').upsert({
       'id': id,
       'tenant_id': tenantId,
       'date': date,
+      'location_id': allStoresLocationId,
       ...payload,
-    }, onConflict: 'tenant_id,date');
+    }, onConflict: 'tenant_id,date,location_id');
   }
 }
