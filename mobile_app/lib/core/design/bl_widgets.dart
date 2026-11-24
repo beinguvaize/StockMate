@@ -850,3 +850,135 @@ class BlPartyAvatar extends StatelessWidget {
     );
   }
 }
+
+/// The success mark on "done" sheets: a ring that draws itself, then a tick
+/// (or a clock hand for "saved on this phone, not yet sent").
+///
+/// [progress] runs 0..1; the ring takes the first 60%, the mark the rest.
+class BlDoneMark extends StatelessWidget {
+  final double progress;
+  final bool waiting;
+  final double size;
+  const BlDoneMark(
+      {super.key, required this.progress, this.waiting = false, this.size = 96});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        image: true,
+        label: waiting ? 'Waiting to sync' : 'Done',
+        child: CustomPaint(
+            size: Size.square(size), painter: _DonePainter(progress, waiting)),
+      );
+}
+
+class _DonePainter extends CustomPainter {
+  final double t;
+  final bool waiting;
+  const _DonePainter(this.t, this.waiting);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final k = size.width / 96;
+    final ring = MotionCurves.out.transform((t / 0.6).clamp(0.0, 1.0));
+    final mark = MotionCurves.out.transform(((t - 0.45) / 0.55).clamp(0.0, 1.0));
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(48 * k, 48 * k), radius: 44 * k),
+      -1.5707963,
+      6.2831853 * ring,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4 * k
+        ..strokeCap = StrokeCap.round
+        ..color = waiting ? const Color(0xFFD9DCE0) : const Color(0xFFF6C27F),
+    );
+    if (mark <= 0) return;
+    final path = Path();
+    if (waiting) {
+      path
+        ..moveTo(48 * k, 26 * k)
+        ..lineTo(48 * k, 48 * k)
+        ..lineTo(62 * k, 57 * k);
+    } else {
+      path
+        ..moveTo(30 * k, 49 * k)
+        ..lineTo(42 * k, 61 * k)
+        ..lineTo(66 * k, 35 * k);
+    }
+    final m = path.computeMetrics().first;
+    canvas.drawPath(
+      m.extractPath(0, m.length * mark),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5 * k
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = waiting ? Bl.body : Bl.amber,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_DonePainter old) => old.t != t || old.waiting != waiting;
+}
+
+/// Runs a "done" sheet's entrance once and hands out each part's progress:
+/// ring and mark first, then the figure, the line under it and the buttons.
+class BlDoneSequence extends StatefulWidget {
+  final Widget Function(BuildContext context, double Function(double from, double to) part)
+      builder;
+  const BlDoneSequence({super.key, required this.builder});
+
+  @override
+  State<BlDoneSequence> createState() => _BlDoneSequenceState();
+}
+
+class _BlDoneSequenceState extends State<BlDoneSequence>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1500));
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (MediaQuery.maybeDisableAnimationsOf(context) == true) {
+        _c.value = 1;
+      } else {
+        _c.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  double _part(double from, double to) =>
+      ((_c.value - from) / (to - from)).clamp(0.0, 1.0);
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+      animation: _c, builder: (ctx, _) => widget.builder(ctx, _part));
+}
+
+/// Fades and lifts [child] in by [t] (0..1), used with [BlDoneSequence].
+class BlRise extends StatelessWidget {
+  final double t;
+  final Widget child;
+  final bool scale;
+  const BlRise({super.key, required this.t, required this.child, this.scale = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final e = MotionCurves.out.transform(t);
+    return Opacity(
+      opacity: e,
+      child: scale
+          ? Transform.scale(scale: 0.9 + 0.1 * e, child: child)
+          : Transform.translate(offset: Offset(0, 8 * (1 - e)), child: child),
+    );
+  }
+}

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/utils/units.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +15,7 @@ import 'package:mobile_app/core/utils/money.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
+import 'package:mobile_app/features/sales/presentation/sales_view.dart' show methodLabel;
 import 'package:mobile_app/core/database/database.dart' hide Client, Sale, Invoice;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:uuid/uuid.dart';
@@ -36,7 +35,6 @@ import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/sales/data/models/sale.dart';
 import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:printing/printing.dart';
-import 'package:mobile_app/core/widgets/success_tick.dart';
 import 'package:mobile_app/core/database/sync_errors.dart' show describeRefusal;
 import 'package:mobile_app/core/database/offline_sales_ui.dart' show OfflineSalesBanner, nudgeSync;
 import 'package:mobile_app/core/auth/offline_context_cache.dart';
@@ -2608,7 +2606,7 @@ class _SaleSuccessSheet extends StatefulWidget {
     double           excess        = 0,
     String           paymentMethod = 'CASH',
   }) {
-    return showMotionSheet<void>(
+    return showBlSheet<void>(
       context: context,
       builder: (_) => _SaleSuccessSheet(
         saleId:        saleId,
@@ -2919,240 +2917,264 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
     }
   }
 
+  String get _subLine {
+    final items = widget.localSale?['items'];
+    final n = items is List ? items.length : 0;
+    return [
+      'Bill ${widget.saleId}',
+      methodLabel(widget.paymentMethod == 'CREDIT_SALE'
+          ? 'Credit'
+          : widget.paymentMethod),
+      if (n > 0) '$n ${n == 1 ? 'item' : 'items'}',
+    ].join(' · ');
+  }
+
+  Future<void> _collect() async {
+    final amt = (double.tryParse(_collectCtrl.text) ?? 0);
+    if (amt <= 0) return;
+    final toDues = amt <= widget.outstanding ? amt : widget.outstanding;
+    final advance = amt - toDues;
+    if (!await _confirmApply(amt, toDues, advance)) return;
+    setState(() => _collectStatus = SaveStatus.saving);
+    final ok = await _recordPayment(amt);
+    if (!mounted) return;
+    setState(() => _collectStatus = ok ? SaveStatus.saved : SaveStatus.error);
+    if (ok) {
+      HapticFeedback.lightImpact();
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      if (mounted) Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasOutstanding = widget.outstanding > 0 && widget.client != null;
     final hasExcess      = widget.excess > 0;
-    // How the tendered excess splits: dues first, remainder becomes advance.
     final excessToDues  = widget.excess <= widget.outstanding ? widget.excess : widget.outstanding;
     final excessAdvance = widget.excess - excessToDues;
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(context).viewInsets.bottom + 32),
-      child: Column(
+    return BlDoneSequence(
+      builder: (context, part) => Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Handle
-          Container(width: 40, height: 4,
-            decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 24),
-          // The tick is DRAWN, not placed. A static icon that was already
-          // there when the sheet opened reads as part of the furniture; a
-          // ring that sweeps closed and a check stroked on in one gesture
-          // reads as "that just happened", which is the whole job of this
-          // sheet. Green, because a confirmation is the one place a status
-          // colour is the point rather than the accent.
-          const SuccessTick(size: 72),
-          const SizedBox(height: 16),
           Text(widget.queued ? 'Sale saved on this phone' : 'Sale recorded!',
-            style: GoogleFonts.manrope(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
-          if (widget.queued) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Not synced yet. It is sent automatically when the internet is back; '
-              'the bill number below stays the same.',
               textAlign: TextAlign.center,
-              style: AppText.caption.copyWith(color: AppColors.warning),
-            ),
-          ],
-          const SizedBox(height: 4),
-          Text(Money.inrExact(widget.total),
-            style: AppText.moneyLarge),
-          Text(widget.saleId,
-            style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
-          const SizedBox(height: 24),
-          // Print + Share row
-          Row(children: [
-            Expanded(child: AppButton(
-              label: 'Print', icon: LucideIcons.printer, loading: _printing,
-              variant: AppButtonVariant.secondary, size: AppButtonSize.large,
-              fullWidth: true, onPressed: _print)),
-            const SizedBox(width: 12),
-            Expanded(child: AppButton(
-              label: 'Share', icon: LucideIcons.share2, loading: _sharing,
-              variant: AppButtonVariant.secondary, size: AppButtonSize.large,
-              fullWidth: true, onPressed: _share)),
-          ]),
+              style: Bl.tight(15.5, w: FontWeight.w600)),
           const SizedBox(height: 12),
-
-          // ── Outstanding balance prompt ──────────────────────────────────
-          if (hasOutstanding) ...[
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: AppColors.canvas,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.black.withValues(alpha: 0.07)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
+          const Divider(height: 1, thickness: 1, color: Bl.sep),
+          const SizedBox(height: 34),
+          Center(
+              child: BlDoneMark(
+                  progress: part(0, 0.55), waiting: widget.queued)),
+          const SizedBox(height: 18),
+          BlRise(
+            t: part(0.42, 0.72),
+            scale: true,
+            child: Text(Money.inrExact(widget.total),
+                textAlign: TextAlign.center,
+                style: Bl.tight(40, w: FontWeight.w700, ls: -0.04)),
+          ),
+          const SizedBox(height: 4),
+          BlRise(
+            t: part(0.54, 0.84),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(_subLine,
+                    textAlign: TextAlign.center,
+                    style: Bl.inter(12.5,
+                        w: FontWeight.w500, c: const Color(0xFF7A8088))),
+                if (widget.queued)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-                    child: Row(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                    child: Text(
+                        'Not synced yet. It is sent automatically when the internet is back; '
+                        'the bill number below stays the same.',
+                        textAlign: TextAlign.center,
+                        style: Bl.inter(12, c: Bl.mute, h: 1.5)),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          BlRise(
+            t: part(0.66, 0.92),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(children: [
+                  Expanded(
+                      child: BlButton('Print',
+                          kind: BlButtonKind.soft,
+                          loading: _printing,
+                          onTap: _print)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                      child: BlButton('Share',
+                          kind: BlButtonKind.soft,
+                          loading: _sharing,
+                          onTap: _share)),
+                ]),
+                if (hasOutstanding)
+                  Container(
+                    margin: const EdgeInsets.only(top: 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFECEAE7)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Icon(LucideIcons.alertCircle, size: 14, color: AppColors.danger),
-                        const SizedBox(width: 6),
                         Text(
-                          '${widget.client!.name ?? "Client"} — ₹${widget.outstanding.toStringAsFixed(2)} outstanding',
-                          style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
-                        ),
+                            '${widget.client!.name ?? 'Client'} still owes ${Money.inrExact(widget.outstanding)}',
+                            style: Bl.tight(13.5, w: FontWeight.w600)),
+                        if (hasExcess) ...[
+                          _OutstandingTile(
+                            title:
+                                'Apply ${Money.inrExact(widget.excess)} to account',
+                            subtitle: excessAdvance > 0
+                                ? 'Clears ${Money.inrExact(excessToDues)} dues · ${Money.inrExact(excessAdvance)} kept as advance'
+                                : 'Balance: ${Money.inrExact(widget.outstanding)} → ${Money.inrExact(widget.outstanding - widget.excess)}',
+                            loading: _collecting,
+                            onTap: () async {
+                              if (!await _confirmApply(widget.excess,
+                                  excessToDues, excessAdvance)) {
+                                return;
+                              }
+                              await _recordPayment(widget.excess);
+                              if (context.mounted) Navigator.of(context).pop();
+                            },
+                          ),
+                          _OutstandingTile(
+                            title:
+                                'Give ${Money.inrExact(widget.excess)} as change',
+                            subtitle:
+                                'Outstanding stays ${Money.inrExact(widget.outstanding)}',
+                            loading: false,
+                            onTap: () => Navigator.of(context).pop(),
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                                color: const Color(0xFFF3F2F0),
+                                borderRadius: BorderRadius.circular(12)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Collect now',
+                                    style: Bl.inter(10,
+                                        w: FontWeight.w500, c: Bl.mute)),
+                                Row(
+                                  children: [
+                                    Text('₹',
+                                        style: Bl.tight(14.5,
+                                            w: FontWeight.w600)),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _collectCtrl,
+                                        keyboardType: const TextInputType
+                                            .numberWithOptions(decimal: true),
+                                        cursorColor: Bl.brand,
+                                        style: Bl.tight(14.5,
+                                            w: FontWeight.w600),
+                                        decoration: const InputDecoration(
+                                          isDense: true,
+                                          filled: false,
+                                          contentPadding: EdgeInsets.zero,
+                                          border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              for (final m in const ['CASH', 'UPI', 'BANK']) ...[
+                                if (m != 'CASH') const SizedBox(width: 5),
+                                Expanded(
+                                  child: Semantics(
+                                    button: true,
+                                    selected: _collectMethod == m,
+                                    child: BlTap(
+                                      onTap: () =>
+                                          setState(() => _collectMethod = m),
+                                      child: Container(
+                                        height: 36,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                            color: _collectMethod == m
+                                                ? Bl.amber
+                                                : Bl.well,
+                                            borderRadius:
+                                                BorderRadius.circular(10)),
+                                        child: Text(methodLabel(m),
+                                            style: Bl.tight(11.5,
+                                                w: FontWeight.w600,
+                                                ls: 0,
+                                                c: _collectMethod == m
+                                                    ? Bl.white
+                                                    : Bl.ink)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (_collectStatus == SaveStatus.error)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(_collectErr ?? 'Payment failed',
+                                  style: Bl.inter(11.5,
+                                      w: FontWeight.w500, c: Bl.redDeep)),
+                            ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: BlButton('Skip',
+                                    kind: BlButtonKind.soft,
+                                    height: 40,
+                                    fontSize: 13.5,
+                                    onTap: () => Navigator.of(context).pop()),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 2,
+                                child: BlButton(
+                                    _collectStatus == SaveStatus.saved
+                                        ? 'Collected'
+                                        : 'Collect',
+                                    height: 40,
+                                    fontSize: 13.5,
+                                    loading: _collecting ||
+                                        _collectStatus == SaveStatus.saving,
+                                    onTap: _collecting ? null : _collect),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  const Divider(height: 1, thickness: 1, color: Color(0x0F000000)),
-
-                  if (hasExcess) ...[
-                    // Excess path — two action tiles. Anything beyond the dues
-                    // is kept as an advance rather than being refused.
-                    _OutstandingTile(
-                      icon: LucideIcons.checkCircle,
-                      iconColor: AppColors.secondary,
-                      title: 'Apply ₹${widget.excess.toStringAsFixed(2)} to account',
-                      subtitle: excessAdvance > 0
-                          ? 'Clears ₹${excessToDues.toStringAsFixed(2)} dues · ₹${excessAdvance.toStringAsFixed(2)} kept as advance'
-                          : 'Balance: ₹${widget.outstanding.toStringAsFixed(2)} → ₹${(widget.outstanding - widget.excess).toStringAsFixed(2)} · Change: ₹0',
-                      loading: _collecting,
-                      onTap: () async {
-                        if (!await _confirmApply(widget.excess, excessToDues, excessAdvance)) return;
-                        await _recordPayment(widget.excess);
-                        if (mounted) Navigator.of(context).pop();
-                      },
-                    ),
-                    const Divider(height: 1, thickness: 1, color: Color(0x0F000000)),
-                    _OutstandingTile(
-                      icon: LucideIcons.banknote,
-                      iconColor: AppColors.inkSecondary,
-                      title: 'Give ₹${widget.excess.toStringAsFixed(2)} as change',
-                      subtitle: 'Outstanding stays ₹${widget.outstanding.toStringAsFixed(2)}',
-                      loading: false,
-                      onTap: () => Navigator.of(context).pop(),
-                    ),
-                  ] else ...[
-                    // Collect now path — amount input + method chips
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-                              ),
-                              child: TextField(
-                                controller: _collectCtrl,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                  prefixText: '₹ ',
-                                  prefixStyle: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ...['CASH', 'UPI', 'BANK'].map((m) => Padding(
-                            padding: const EdgeInsets.only(left: 4),
-                            child: AppTappable(
-                              ripple: false,
-                              onTap: () => setState(() => _collectMethod = m),
-                              child: AnimatedContainer(
-                                duration: Motion.durationOf(context, Motion.fast),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: _collectMethod == m ? AppColors.primaryContainer : Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: _collectMethod == m ? AppColors.primaryContainer : Colors.black.withValues(alpha: 0.1)),
-                                ),
-                                child: Text(m, style: AppText.label.copyWith(fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
-                              ),
-                            ),
-                          )),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0x18000000)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                              ),
-                              child: Text('Skip', style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkSecondary)),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 2,
-                            child: SaveButton(
-                              status: _collectStatus,
-                              errorText: _collectErr,
-                              idleLabel: 'Collect',
-                              background: AppColors.primaryContainer,
-                              foreground: AppColors.inkPrimary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              textStyle: AppText.label.copyWith(fontWeight: FontWeight.w700),
-                              onPressed: _collecting ? null : () async {
-                                // Not capped at the outstanding — the surplus
-                                // is recorded as an advance.
-                                final amt = (double.tryParse(_collectCtrl.text) ?? 0);
-                                if (amt <= 0) return;
-                                final toDues  = amt <= widget.outstanding ? amt : widget.outstanding;
-                                final advance = amt - toDues;
-                                if (!await _confirmApply(amt, toDues, advance)) return;
-                                setState(() => _collectStatus = SaveStatus.saving);
-                                final ok = await _recordPayment(amt);
-                                if (!mounted) return;
-                                setState(() => _collectStatus = ok ? SaveStatus.saved : SaveStatus.error);
-                                if (ok) {
-                                  HapticFeedback.lightImpact();
-                                  await Future<void>.delayed(const Duration(milliseconds: 700));
-                                  if (mounted) Navigator.of(context).pop();
-                                } else {
-                                  await Future<void>.delayed(const Duration(milliseconds: 1800));
-                                  if (mounted) setState(() => _collectStatus = SaveStatus.idle);
-                                }
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+              ],
             ),
-          ],
-
-          // Done
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 0,
-              ),
-              child: Text('Done', style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w800)),
-            ),
+          ),
+          const SizedBox(height: 8),
+          BlRise(
+            t: part(0.76, 1),
+            child: BlButton('Done', onTap: () => Navigator.of(context).pop()),
           ),
         ],
       ),
@@ -3160,44 +3182,47 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
   }
 }
 
-// Tappable tile inside the outstanding prompt.
 class _OutstandingTile extends StatelessWidget {
-  final IconData icon;
-  final Color    iconColor;
-  final String   title;
-  final String   subtitle;
-  final bool     loading;
+  final String title;
+  final String subtitle;
+  final bool loading;
   final VoidCallback onTap;
-  const _OutstandingTile({required this.icon, required this.iconColor, required this.title, required this.subtitle, required this.loading, required this.onTap});
+  const _OutstandingTile(
+      {required this.title,
+      required this.subtitle,
+      required this.loading,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return BlTap(
       onTap: loading ? null : onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.only(top: 10),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: iconColor),
-            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
+                  Text(title, style: Bl.tight(13.5, w: FontWeight.w600)),
                   const SizedBox(height: 1),
-                  Text(subtitle, style: AppText.caption.copyWith(color: AppColors.inkSecondary)),
+                  Text(subtitle, style: Bl.inter(12, c: Bl.mute)),
                 ],
               ),
             ),
             if (loading)
-              const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
+              const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Bl.amber))
             else
-              const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.inkTertiary),
+              const BlIcon(BlIcons.chevronRight,
+                  size: 16, color: Color(0xFFC4C8CC)),
           ],
         ),
       ),
     );
   }
 }
-
