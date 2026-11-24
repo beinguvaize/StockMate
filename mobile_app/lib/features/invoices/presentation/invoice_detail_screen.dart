@@ -1978,9 +1978,11 @@ class _Field extends StatelessWidget {
 ///  * a credit sale to a registered client is settled through
 ///    `settle_client_payment`, which allocates it, posts it to the chosen
 ///    method's account and recalculates what the client owes;
-///  * any other sale only has its paid amount raised, and the sale-ledger
-///    trigger reposts it under the sale's own method. A different method
-///    cannot be recorded for that case yet, so the choice is locked.
+///  * any other sale is settled through `settle_sale_payment`, which raises
+///    its paid amount; the sale-ledger trigger posts what just arrived under
+///    the chosen method, dated today;
+///  * an old invoice with no sale behind it has no ledger to post to, so the
+///    method cannot be recorded there and the choice is locked.
 class _RecordPaymentSheet extends ConsumerStatefulWidget {
   final Invoice invoice;
   /// Called after a successful save with whether the bill is now fully paid.
@@ -2015,9 +2017,12 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
 
   String? get _clientId => (_sale?['shopId'] as String?) ?? inv.clientId;
 
-  /// Only a credit sale to a registered client can take a method of its own.
-  bool get _canChoose =>
+  /// A credit sale to a registered client: settled as a client payment.
+  bool get _viaClient =>
       _saleMethod.startsWith('CREDIT') && (_clientId ?? '').isNotEmpty;
+
+  /// The method can be recorded whenever there is a sale behind the bill.
+  bool get _canChoose => _viaClient || _sale != null;
 
   @override
   void initState() {
@@ -2052,7 +2057,7 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
     if (!mounted) return;
     setState(() {
       _loaded = true;
-      if (!_canChoose) {
+      if (!_viaClient) {
         final m = _saleMethod;
         _method = (m == 'UPI' || m == 'BANK') ? m : 'CASH';
       }
@@ -2070,7 +2075,7 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
     try {
       final supabase = Supabase.instance.client;
       final saleId = _saleId;
-      if (_canChoose) {
+      if (_viaClient) {
         // One settled path, the same one Cash Collection uses. Routed
         // through the offline queue so a dropped connection queues the
         // payment instead of losing it.
@@ -2090,21 +2095,19 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
           },
         );
       } else if (_sale != null && saleId != null) {
-        // Cash/UPI sale (or walk-in credit): raise the sale's paid amount.
-        // The sale-ledger trigger reposts Cash & Bank and what is owed is
-        // recalculated. No client_payments row (it would double-count).
-        final total = ((_sale!['totalAmount'] as num?)?.toDouble() ?? 0);
-        final paid = ((_sale!['paidAmount'] as num?)?.toDouble() ?? 0);
-        final newPaid = (paid + amt).clamp(0, total);
-        final newStatus = newPaid >= total ? 'PAID' : 'PARTIAL';
-        await supabase.from('sales').update({
-          'paidAmount': newPaid,
-          'paymentStatus': newStatus,
-        }).eq('id', saleId);
-        await supabase.from('invoices').update({
-          'paid_amount': newPaid,
-          'payment_status': newStatus,
-        }).eq('id', 'INV-$saleId');
+        // Cash/UPI/bank sale (or walk-in credit): the server raises the paid
+        // amount and posts what just arrived under the chosen method. Online
+        // only: this call has no replay guard, so queuing it could apply a
+        // part payment twice.
+        final today = DateTime.now();
+        await supabase.rpc('settle_sale_payment', params: {
+          'p_sale_id': saleId,
+          'p_amount': amt,
+          'p_tenant_id': _sale!['tenant_id'],
+          'p_method': _method,
+          'p_date':
+              '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}',
+        }).timeout(const Duration(seconds: 15));
       } else {
         // Invoice with no linked sale: update the invoice itself.
         final newPaid = inv.paidAmount + amt;
@@ -2341,8 +2344,8 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
             if (_loaded && !_canChoose) ...[
               const SizedBox(height: 8),
               Text(
-                'Goes in the same way this sale was paid. Another method '
-                'can be chosen only on a credit bill to a saved client.',
+                'This old invoice has no sale behind it, so how it was paid '
+                'cannot be recorded here.',
                 textAlign: TextAlign.center,
                 style: DashText.inter(12, c: grey).copyWith(height: 1.4),
               ),
