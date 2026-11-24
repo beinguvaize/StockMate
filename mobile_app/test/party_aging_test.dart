@@ -27,6 +27,8 @@ void main() {
       expect(a.d0to30, 600);
       expect(a.d31to60, 500);
       expect(a.d60plus, 300);
+      expect(a.d90plus, 300);
+      expect(a.d61to90, 0);
       expect(a.unpaidBills, 3);
       expect(a.oldestDays, 115);
       expect(a.total, 1400);

@@ -291,12 +291,7 @@ class ClientDetailSheet extends ConsumerWidget {
               flex: 10,
               child: BlButton('Statement',
                   kind: BlButtonKind.soft,
-                  onTap: () => showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => ClientStatementSheet(client: client),
-                      )),
+                  onTap: () => showClientStatement(context, client)),
             ),
             const SizedBox(width: 8),
             Expanded(

@@ -1,27 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/features/clients_suppliers/data/client_products.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
+import 'package:mobile_app/features/clients_suppliers/data/models/client_payment.dart';
+import 'package:mobile_app/features/clients_suppliers/data/statement_credits.dart';
+import 'package:mobile_app/features/clients_suppliers/data/statement_window.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/client_settlement_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
-import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/statement_pdf_screen.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_products_card.dart';
+import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
-import 'package:mobile_app/features/clients_suppliers/data/client_products.dart';
-import 'package:mobile_app/features/clients_suppliers/data/statement_credits.dart';
-import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_products_card.dart';
-import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
-import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/features/settings/presentation/providers/settings_provider.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
-import 'package:mobile_app/features/clients_suppliers/data/models/client_payment.dart';
-import 'package:mobile_app/core/auth/tenant_provider.dart';
+
+const _mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const _months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const _shareIcon = '<path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"/>';
+const _calendarIcon =
+    '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>';
+const _greenDeep = Color(0xFF17663A);
+const _grey = Color(0xFF7A8088);
 
 // ─── Data model ───────────────────────────────────────────────────────────────
 class _StatementRow {
   final String date;
+
+  /// What the row is called on screen: "Bill INV-1041", "Payment received".
+  final String title;
+
+  /// Second line after the date on a payment: how it was paid, and any note.
+  final String detail;
+
+  /// The same row as one line of the printed statement.
   final String description;
   final double debit;   // money owed (sale or invoice)
   final double credit;  // money paid
@@ -49,14 +66,22 @@ class _StatementRow {
 
   _StatementRow({
     required this.date,
+    required this.title,
     required this.description,
     required this.debit,
     required this.credit,
     required this.type,
+    this.detail = '',
     this.bill,
     this.payment,
   });
+
+  bool get isPayment => type == 'PAYMENT';
 }
+
+List<LedgerEntry> _entries(List<_StatementRow> rows) => [
+      for (final r in rows) (date: r.date, debit: r.debit, credit: r.credit),
+    ];
 
 // ─── Helper: payment method label ────────────────────────────────────────────
 String _methodLabel(String method) {
@@ -70,54 +95,274 @@ String _methodLabel(String method) {
   }
 }
 
-// ─── Helper: today formatted as "17 May 2026" ────────────────────────────────
-String _todayFormatted() {
-  final now = DateTime.now();
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-  return '${now.day} ${months[now.month - 1]} ${now.year}';
+String _iso(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// "2026-11-21" → "21 Nov", with the year when asked.
+String _short(String iso, {bool year = false}) {
+  final d = DateTime.tryParse(iso);
+  if (d == null) return iso;
+  return '${d.day} ${_mon[d.month - 1]}${year ? ' ${d.year}' : ''}';
 }
 
-// ─── Helper: format ₹ amount with paise if non-zero ──────────────────────────
-String _fmtRupee(double v) {
-  if (v == 0) return '₹0';
-  final whole = v.truncate();
-  final s = whole.toString();
-  if (s.length <= 3) {
-    final paise = ((v - whole) * 100).round();
-    return paise > 0 ? '₹$whole.${paise.toString().padLeft(2, '0')}' : '₹$s';
-  }
-  final last3 = s.substring(s.length - 3);
-  final rest = s.substring(0, s.length - 3);
-  final restGrouped =
-      rest.replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},');
-  return '₹$restGrouped,$last3';
-}
+/// A balance in words a shopkeeper reads at a glance: what is owed, or what
+/// was paid ahead.
+String _owed(double v) =>
+    v < -0.5 ? '${Money.inr(-v)} advance' : Money.inr(v < 0 ? 0 : v);
 
 // ─── Public entry-point ───────────────────────────────────────────────────────
-/// Show the statement sheet for [client].
-///
-/// ```dart
-/// showClientStatement(context, client);
-/// ```
-void showClientStatement(BuildContext context, Client client) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => ClientStatementSheet(client: client),
-  );
-}
+/// Open the statement for [client].
+Future<void> showClientStatement(BuildContext context, Client client) =>
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ClientStatementSheet(client: client)),
+    );
 
-// ─── Widget ───────────────────────────────────────────────────────────────────
-class ClientStatementSheet extends ConsumerWidget {
+/// "Account Statement" (canvas): one client's bills and payments for a date
+/// range, with the balance carried in and out.
+class ClientStatementSheet extends ConsumerStatefulWidget {
   final Client client;
   const ClientStatementSheet({super.key, required this.client});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ClientStatementSheet> createState() =>
+      _ClientStatementSheetState();
+}
+
+class _ClientStatementSheetState extends ConsumerState<ClientStatementSheet> {
+  static const _presets = ['This month', 'Last month', 'This year', 'Custom'];
+  int _preset = 2;
+  late DateTime _from;
+  late DateTime _to;
+  int _kind = 0; // 0 all, 1 bills, 2 payments
+
+  Client get client => widget.client;
+
+  @override
+  void initState() {
+    super.initState();
+    _applyPreset(2);
+  }
+
+  void _applyPreset(int i) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    _preset = i;
+    switch (i) {
+      case 0:
+        _from = DateTime(today.year, today.month, 1);
+        _to = today;
+      case 1:
+        _from = DateTime(today.year, today.month - 1, 1);
+        _to = DateTime(today.year, today.month, 0);
+      case 2:
+        _from = DateTime(today.year, 1, 1);
+        _to = today;
+    }
+  }
+
+  Future<void> _pickRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year, now.month, now.day),
+      initialDateRange: DateTimeRange(start: _from, end: _to),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(
+              primary: Bl.ink, onPrimary: Bl.white, onSurface: Bl.ink),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _preset = 3;
+      _from = picked.start;
+      _to = picked.end;
+    });
+  }
+
+  String get _rangeLabel => _from.year == _to.year
+      ? '${_short(_iso(_from))} – ${_short(_iso(_to), year: true)}'
+      : '${_short(_iso(_from), year: true)} – ${_short(_iso(_to), year: true)}';
+
+  void _refresh() {
+    ref.invalidate(clientPaymentsForClientProvider(client.id));
+    ref.invalidate(clientPaymentsProvider);
+    ref.invalidate(saleReceiptsForClientProvider(client.id));
+    ref.invalidate(recentSalesProvider);
+    ref.invalidate(invoicesProvider);
+    ref.invalidate(clientsProvider);
+  }
+
+  void _openPdf(List<_StatementRow> inRange, StatementWindow w) {
+    final biz = ref.read(businessProfileProvider).valueOrNull;
+    final tenant = ref.read(tenantContextProvider).valueOrNull?.tenant.name;
+    final shop = (biz?.name ?? '').trim().isNotEmpty
+        ? biz!.name!.trim()
+        : (tenant ?? '').trim();
+    final gst = (biz?.gstNo ?? '').trim();
+    final shopPhone = (biz?.phone ?? '').trim();
+    final now = DateTime.now();
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => StatementPdfScreen(
+        data: StatementPdfData(
+          shopName: shop.isEmpty ? 'Statement' : shop,
+          shopLines: [
+            if ((biz?.address ?? '').trim().isNotEmpty) biz!.address!.trim(),
+            if (gst.isNotEmpty || shopPhone.isNotEmpty)
+              [if (gst.isNotEmpty) 'GSTIN $gst', if (shopPhone.isNotEmpty) shopPhone]
+                  .join(' · '),
+          ],
+          clientName: client.name ?? 'Unnamed',
+          clientLine: [
+            if ((client.address ?? '').trim().isNotEmpty) client.address!.trim(),
+            if ((client.phone ?? '').trim().isNotEmpty) client.phone!.trim(),
+          ].join(' · '),
+          range:
+              '${_short(_iso(_from), year: true)} to ${_short(_iso(_to), year: true)}',
+          openingDate: _short(_iso(_from)),
+          opening: w.opening,
+          closing: w.closing,
+          billed: w.billed,
+          received: w.received,
+          lines: [
+            for (final r in inRange)
+              (
+                date: _short(r.date),
+                details: r.description,
+                billed: r.debit,
+                received: r.credit,
+                balance: r.balance,
+              ),
+          ],
+          generated: _short(_iso(now), year: true),
+        ),
+      ),
+    ));
+  }
+
+  Widget _sumRow(String label, String value,
+          {Color color = Bl.ink, bool total = false}) =>
+      Container(
+        padding: total
+            ? const EdgeInsets.only(top: 10)
+            : const EdgeInsets.symmetric(vertical: 5),
+        margin: total ? const EdgeInsets.only(top: 6) : null,
+        decoration: total
+            ? const BoxDecoration(
+                border: Border(top: BorderSide(color: Color(0xFFE6E5E3))))
+            : null,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Bl.inter(13.5,
+                      w: total ? FontWeight.w600 : FontWeight.w500,
+                      c: total ? Bl.ink : const Color(0xFF6E737A))),
+            ),
+            const SizedBox(width: 10),
+            Text(value,
+                style: total
+                    ? Bl.tight(17, w: FontWeight.w700, c: color)
+                    : Bl.tight(14, w: FontWeight.w600, c: color)),
+          ],
+        ),
+      );
+
+  Widget _ledgerRow(_StatementRow row) {
+    final items = row.bill?.items?.length ?? 0;
+    final sub = [
+      _short(row.date),
+      if (row.isPayment && row.detail.isNotEmpty) row.detail,
+      if (!row.isPayment && items > 0) '$items item${items == 1 ? '' : 's'}',
+    ].join(' · ');
+    final body = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+      decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Bl.sep))),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: row.isPayment ? const Color(0xFFE3F5EA) : Bl.well,
+                shape: BoxShape.circle),
+            child: BlIcon(row.isPayment ? BlIcons.check : BlIcons.doc,
+                size: 16, color: row.isPayment ? _greenDeep : Bl.ink),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(row.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Bl.tight(14, w: FontWeight.w600)),
+                const SizedBox(height: 1),
+                Text(sub,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Bl.inter(12, c: _grey)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                  row.isPayment
+                      ? '− ${Money.inr(row.credit)}'
+                      : '+ ${Money.inr(row.debit)}',
+                  style: Bl.tight(14.5,
+                      w: FontWeight.w600,
+                      c: row.isPayment ? _greenDeep : Bl.ink)),
+              const SizedBox(height: 1),
+              Text(
+                  row.balance < -0.5
+                      ? 'Adv ${Money.inr(-row.balance)}'
+                      : 'Bal ${Money.inr(row.balance < 0 ? 0 : row.balance)}',
+                  style: Bl.inter(11.5, c: _grey)),
+            ],
+          ),
+        ],
+      ),
+    );
+    // A bill row opens the bill; a real receipt opens its editor. A credit
+    // worked out from a sale is not a record, so it opens nothing.
+    if (row.bill != null) {
+      return BlTap(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => InvoiceDetailScreen(invoice: row.bill!))),
+        child: body,
+      );
+    }
+    if (row.payment != null) {
+      return BlTap(
+        onTap: () => _openPaymentEditor(context, ref, row.payment!),
+        child: body,
+      );
+    }
+    return body;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final owedNow = ref
+            .watch(clientsProvider)
+            .valueOrNull
+            ?.where((c) => c.id == client.id)
+            .firstOrNull
+            ?.outstandingBalance ??
+        client.outstandingBalance ??
+        0;
     final invoicesAsync = ref.watch(invoicesProvider);
     final paymentsAsync = ref.watch(clientPaymentsForClientProvider(client.id));
     // One row per payment event, each with the date the money arrived. Empty
@@ -129,6 +374,7 @@ class ClientStatementSheet extends ConsumerWidget {
     // as a bare number.
     final productsAsync = ref.watch(productsProvider);
     final salesAsync    = ref.watch(recentSalesProvider);
+    ref.watch(businessProfileProvider); // warmed for the PDF header
 
     // Determine loading / error states. Sales load is needed to resolve each
     // invoice's original payment method (invoices table doesn't store it).
@@ -137,10 +383,10 @@ class ClientStatementSheet extends ConsumerWidget {
     // deliberately NOT in the error gate: if it fails, the statement should
     // degrade to that single credit rather than refuse to render. isLoading
     // goes false on failure too, so a failure does not block either.
-    final isLoading = invoicesAsync.isLoading ||
-        paymentsAsync.isLoading ||
-        salesAsync.isLoading ||
-        receiptsAsync.isLoading;
+    final isLoading = (invoicesAsync.isLoading && !invoicesAsync.hasValue) ||
+        (paymentsAsync.isLoading && !paymentsAsync.hasValue) ||
+        (salesAsync.isLoading && !salesAsync.hasValue) ||
+        (receiptsAsync.isLoading && !receiptsAsync.hasValue);
 
     final error = invoicesAsync.error ?? paymentsAsync.error ?? salesAsync.error;
 
@@ -199,7 +445,9 @@ class ClientStatementSheet extends ConsumerWidget {
           )
               .map((c) => _StatementRow(
                     date: c.date,
-                    description: c.collectedLater ? '$label — collected later' : label,
+                    title: 'Payment received',
+                    detail: c.collectedLater ? '$label · collected later' : label,
+                    description: 'Payment · $label',
                     debit: 0,
                     credit: c.amount,
                     type: 'PAYMENT',
@@ -218,7 +466,8 @@ class ClientStatementSheet extends ConsumerWidget {
             '';
         rows.add(_StatementRow(
           date: dateStr,
-          description: 'Invoice ${inv.displayNumber}',
+          title: 'Bill ${inv.displayNumber}',
+          description: 'Bill ${inv.displayNumber}',
           debit: inv.grandTotal,
           credit: 0,
           type: 'INVOICE',
@@ -238,7 +487,7 @@ class ClientStatementSheet extends ConsumerWidget {
             saleId: inv.saleId ?? '',
             fallbackAmount: invPaid,
             fallbackDate: dateStr,
-            label: 'Payment received (${_methodLabel(saleMethod)})',
+            label: _methodLabel(saleMethod),
           ));
         }
       }
@@ -256,13 +505,30 @@ class ClientStatementSheet extends ConsumerWidget {
       for (final s in sales) {
         if (s.shopId != client.id) continue;
         final method = (s.paymentMethod ?? '').toUpperCase();
-        if (method == 'CREDIT') continue;
         if (invoicedSaleIds.contains(s.id)) continue;
         final saleDate = s.date ?? s.createdAt?.toIso8601String().substring(0, 10) ?? '';
+        // A credit sale with no invoice is still a bill the client was given,
+        // same as web (src/lib/clientStatement.js). It is debited in full and
+        // gets no credit of its own: what was collected against it arrives as
+        // client_payments rows below, and crediting it here too would count
+        // that money twice.
+        if (method == 'CREDIT') {
+          rows.add(_StatementRow(
+            date: saleDate,
+            title: 'Bill #${s.id.split('-').last}',
+            description: 'Bill #${s.id.split('-').last}',
+            debit: s.totalAmount ?? 0,
+            credit: 0,
+            type: 'SALE',
+            bill: Invoice.fromSale(s),
+          ));
+          continue;
+        }
         final total = s.totalAmount ?? 0;
         final paid  = s.paidAmount ?? 0;
         rows.add(_StatementRow(
           date: saleDate,
+          title: 'Bill #${s.id.split('-').last}',
           description: 'Bill #${s.id.split('-').last}',
           debit: total,
           credit: 0,
@@ -274,7 +540,7 @@ class ClientStatementSheet extends ConsumerWidget {
             saleId: s.id,
             fallbackAmount: paid,
             fallbackDate: saleDate,
-            label: 'Payment received (${_methodLabel(method)})',
+            label: _methodLabel(method),
           ));
         }
       }
@@ -282,14 +548,14 @@ class ClientStatementSheet extends ConsumerWidget {
       // 2. Client payment rows (post-sale cash collections).
       final payments = paymentsAsync.valueOrNull ?? const [];
       for (final payment in payments) {
-        final notesSuffix = (payment.notes != null && payment.notes!.isNotEmpty)
-            ? ' — ${payment.notes}'
-            : '';
+        final notes = (payment.notes ?? '').trim();
         final label = _methodLabel(payment.paymentMethod);
-        final base = label.isEmpty ? 'Payment received' : 'Payment received ($label)';
         rows.add(_StatementRow(
           date: payment.date,
-          description: '$base$notesSuffix',
+          title: 'Payment received',
+          detail: [if (label.isNotEmpty) label, if (notes.isNotEmpty) notes]
+              .join(' · '),
+          description: label.isEmpty ? 'Payment' : 'Payment · $label',
           debit: 0,
           credit: payment.amount,
           type: 'PAYMENT',
@@ -300,549 +566,303 @@ class ClientStatementSheet extends ConsumerWidget {
       // Sort ascending by date string (ISO YYYY-MM-DD sorts lexicographically).
       rows.sort((a, b) => a.date.compareTo(b.date));
 
-      // Compute running balance.
-      double running = 0;
-      for (final row in rows) {
-        running += row.debit - row.credit;
-        row.balance = running;
+      // Running balance. Bills older than this phone holds are carried in
+      // front, so the last balance is what the client owes today.
+      final run = runningBalances(_entries(rows), owedNow);
+      for (var i = 0; i < rows.length; i++) {
+        rows[i].balance = run[i];
       }
     }
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.85,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (_, scrollController) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
+
+    final fromIso = _iso(_from), toIso = _iso(_to);
+    final window = statementWindow(_entries(rows), owedNow, fromIso, toIso);
+    final inRange = [
+      for (final r in rows)
+        if (inStatementRange(r.date, fromIso, toIso)) r,
+    ];
+    final shown = [
+      for (final r in inRange.reversed)
+        if (_kind == 0 || (_kind == 2) == r.isPayment) r,
+    ];
+    final ready = !isLoading && error == null;
+    final phone = (client.phone ?? '').trim();
+    final credit = client.creditDays ?? 0;
+
+    final ledger = <Widget>[];
+    String? month;
+    for (final r in shown) {
+      final key = r.date.length >= 7 ? r.date.substring(0, 7) : r.date;
+      if (key != month) {
+        month = key;
+        final net = shown
+            .where((x) => x.date.startsWith(key))
+            .fold<double>(0, (t, x) => t + x.debit - x.credit);
+        final d = DateTime.tryParse('$key-01');
+        ledger.add(BlGroupHeader(
+            d == null ? key : '${_months[d.month - 1]} ${d.year}',
+            trailing: '${net < 0 ? '−' : '+'} ${Money.inr(net.abs())}'));
+      }
+      ledger.add(_ledgerRow(r));
+    }
+
+    void collect() => Navigator.of(context)
+        .push(MaterialPageRoute(
+            builder: (_) => ClientSettlementScreen(client: client)))
+        .then((_) => _refresh());
+
+    return Scaffold(
+      backgroundColor: Bl.white,
+      body: SafeArea(
         child: Column(
           children: [
-            // ── Drag handle ──────────────────────────────────────────────────
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.outlineVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
+            BlBackHeader(
+              title: 'Account Statement',
+              trailing: BlRoundButton(_shareIcon,
+                  label: 'Share the statement as a PDF',
+                  onTap: ready ? () => _openPdf(inRange, window) : null),
             ),
-
             Expanded(
               child: isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary),
-                    )
+                      child: CircularProgressIndicator(
+                          color: Bl.amber, strokeWidth: 2))
                   : error != null
-                      ? _ErrorView(message: error.toString())
-                      : _StatementBody(
-                          client: client,
-                          rows: rows,
-                          productLines: productLines,
-                          scrollController: scrollController,
-                        ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Statement body ───────────────────────────────────────────────────────────
-class _StatementBody extends StatefulWidget {
-  final Client client;
-  final List<_StatementRow> rows;
-  final List<ClientProductLine> productLines;
-  final ScrollController scrollController;
-
-  const _StatementBody({
-    required this.client,
-    required this.rows,
-    required this.productLines,
-    required this.scrollController,
-  });
-
-  @override
-  State<_StatementBody> createState() => _StatementBodyState();
-}
-
-class _StatementBodyState extends State<_StatementBody> {
-  // Same two controls as the web ledger, with the same meanings — 'ALL',
-  // 'SALE' (bills), 'PAYMENT' — so one statement reads the same on either
-  // screen. Nothing beyond what web already shows.
-  String _rowKind = 'ALL';
-  bool _newestFirst = true;
-
-  @override
-  Widget build(BuildContext context) {
-    final client = widget.client;
-    final productLines = widget.productLines;
-    final scrollController = widget.scrollController;
-    final balance = client.outstandingBalance ?? 0;
-
-    final filtered = widget.rows.where((r) {
-      if (_rowKind == 'SALE') return r.type != 'PAYMENT';
-      if (_rowKind == 'PAYMENT') return r.type == 'PAYMENT';
-      return true;
-    }).toList();
-    // The rows arrive oldest-first with the running balance already on them,
-    // so reversing is a view choice and does not touch the arithmetic.
-    final rows = _newestFirst ? filtered.reversed.toList() : filtered;
-
-    return ListView(
-      controller: scrollController,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-      children: [
-        // ── Header ──────────────────────────────────────────────────────────
-        _HeaderSection(client: client),
-
-        const SizedBox(height: 20),
-
-        // ── KPI tiles ────────────────────────────────────────────────────────
-        Row(
-          children: [
-            _KpiTile(
-              label: balance < 0 ? 'ADVANCE (PAID EXTRA)' : 'TOTAL OUTSTANDING',
-              value: compactAmount(balance.abs()),
-              valueColor: balance > 0 ? AppColors.danger : AppColors.success,
-              icon: balance > 0 ? LucideIcons.alertCircle : LucideIcons.checkCircle2,
-              iconColor: balance > 0 ? AppColors.danger : AppColors.success,
-            ),
-            const SizedBox(width: 10),
-            _KpiTile(
-              label: 'TRANSACTIONS',
-              value: rows.length.toString(),
-              valueColor: AppColors.inkPrimary,
-              icon: LucideIcons.receipt,
-              iconColor: AppColors.primary,
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 24),
-
-        // ── What they buy ─────────────────────────────────────────────────────
-        // Above the ledger deliberately: the ledger is unbounded, so anything
-        // under it is unreachable for a client with a long history.
-        ClientProductsCard(lines: productLines),
-
-        const SizedBox(height: 24),
-
-        // ── Ledger section label ──────────────────────────────────────────────
-        Row(
-          children: [
-            const Icon(LucideIcons.bookOpen, size: 13, color: AppColors.inkTertiary),
-            const SizedBox(width: 6),
-            Text(
-              'BILLS & PAYMENTS',
-              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                color: AppColors.inkTertiary,
-                letterSpacing: 1.2),
-            ),
-            const Spacer(),
-            Text(
-              '${rows.length} ${rows.length == 1 ? 'row' : 'rows'}',
-              style: AppText.label.copyWith(color: AppColors.inkTertiary),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 8),
-
-        // Filter + order, the same two controls as the web ledger.
-        Row(
-          children: [
-            for (final e in const [['ALL', 'All'], ['SALE', 'Bills'], ['PAYMENT', 'Payments']])
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: _FilterPill(
-                  label: e[1],
-                  selected: _rowKind == e[0],
-                  onTap: () => setState(() => _rowKind = e[0]),
-                ),
-              ),
-            const Spacer(),
-            _FilterPill(
-              label: _newestFirst ? 'Newest' : 'Oldest',
-              selected: false,
-              icon: _newestFirst ? LucideIcons.arrowDown : LucideIcons.arrowUp,
-              onTap: () => setState(() => _newestFirst = !_newestFirst),
-            ),
-          ],
-        ),
-
-        // The balance on each row is the running figure from the WHOLE ledger.
-        // Filtering hides rows but not their effect, so on Payments it can
-        // climb across consecutive credits. Recomputing over what is visible
-        // would show a balance this client never had — same wording as web.
-        if (_rowKind != 'ALL') ...[
-          const SizedBox(height: 6),
-          Text(
-            'Balance still counts the ${_rowKind == 'PAYMENT' ? 'bills' : 'payments'} hidden by this filter.',
-            style: AppText.caption.copyWith(fontWeight: FontWeight.w500, color: AppColors.inkTertiary),
-          ),
-        ],
-
-        const SizedBox(height: 10),
-
-        // ── Ledger rows ───────────────────────────────────────────────────────
-        if (rows.isEmpty)
-          _EmptyLedger()
-        else
-          ...rows.map((row) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _LedgerCard(row: row),
-              )),
-      ],
-    );
-  }
-}
-
-// ─── Header: title, date generated, avatar + name/contact ────────────────────
-class _HeaderSection extends StatelessWidget {
-  final Client client;
-  const _HeaderSection({required this.client});
-
-  @override
-  Widget build(BuildContext context) {
-    final color  = avatarColor(client.name);
-    final bgCol  = avatarBg(client.name);
-    final inits  = initials(client.name);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Title + generated date
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Account Statement',
-                    style: AppText.title.copyWith(fontWeight: FontWeight.w800,
-                      color: AppColors.inkPrimary,
-                      letterSpacing: -0.3),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Generated: ${_todayFormatted()}',
-                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.primaryContainer.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                LucideIcons.fileText,
-                size: 20,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 16),
-
-        // Avatar + name + contact
-        Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(color: bgCol, shape: BoxShape.circle),
-              child: Center(
-                child: Text(
-                  inits,
-                  style: GoogleFonts.manrope(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    client.name ?? 'Unknown',
-                    style: GoogleFonts.manrope(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (client.phone != null && client.phone!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(LucideIcons.phone, size: 11, color: AppColors.inkTertiary),
-                        const SizedBox(width: 4),
-                        Text(
-                          client.phone!,
-                          style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (client.email != null && client.email!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(LucideIcons.mail, size: 11, color: AppColors.inkTertiary),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            client.email!,
-                            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                                'Could not load the statement. Check your internet and try again. ($error)',
+                                textAlign: TextAlign.center,
+                                style: Bl.inter(13.5, c: Bl.redDeep, h: 1.5)),
                           ),
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.only(bottom: 20),
+                          children: [
+                            Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(18, 4, 18, 0),
+                              child: Row(
+                                children: [
+                                  BlTintAvatar(client.name ?? ''),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(client.name ?? 'Unnamed',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: Bl.tight(15,
+                                                w: FontWeight.w600)),
+                                        const SizedBox(height: 1),
+                                        Text(
+                                            [
+                                              if (phone.isNotEmpty) phone,
+                                              credit == 0
+                                                  ? 'Cash on delivery'
+                                                  : 'Net $credit days',
+                                            ].join(' · '),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style:
+                                                Bl.inter(12.5, c: _grey)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(18, 14, 18, 0),
+                              child: Semantics(
+                                button: true,
+                                label: 'Dates, $_rangeLabel. Change',
+                                excludeSemantics: true,
+                                child: BlTap(
+                                  onTap: _pickRange,
+                                  child: Container(
+                                    height: 44,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12),
+                                    decoration: BoxDecoration(
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color:
+                                                const Color(0xFFDADADA))),
+                                    child: Row(
+                                      children: [
+                                        const BlIcon(_calendarIcon,
+                                            size: 18, color: Bl.ink3),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(_rangeLabel,
+                                              style: Bl.tight(13.5,
+                                                  w: FontWeight.w600)),
+                                        ),
+                                        const BlIcon(BlIcons.chevronDown,
+                                            size: 18, color: _grey),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              padding:
+                                  const EdgeInsets.fromLTRB(18, 8, 18, 0),
+                              child: Row(
+                                children: [
+                                  for (var i = 0; i < _presets.length; i++)
+                                    Padding(
+                                      padding:
+                                          const EdgeInsets.only(right: 6),
+                                      child: Semantics(
+                                        button: true,
+                                        selected: _preset == i,
+                                        label: _presets[i],
+                                        excludeSemantics: true,
+                                        child: BlTap(
+                                          onTap: () => i == 3
+                                              ? _pickRange()
+                                              : setState(
+                                                  () => _applyPreset(i)),
+                                          child: Container(
+                                            height: 28,
+                                            padding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 11),
+                                            alignment: Alignment.center,
+                                            decoration: BoxDecoration(
+                                                color: _preset == i
+                                                    ? Bl.ink
+                                                    : Bl.well,
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        999)),
+                                            child: Text(_presets[i],
+                                                style: Bl.tight(12,
+                                                    w: FontWeight.w600,
+                                                    ls: 0,
+                                                    c: _preset == i
+                                                        ? Bl.white
+                                                        : Bl.ink3)),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              margin:
+                                  const EdgeInsets.fromLTRB(18, 14, 18, 0),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                  color: Bl.tile,
+                                  borderRadius: BorderRadius.circular(16)),
+                              child: Column(
+                                children: [
+                                  _sumRow(
+                                      'Opening balance · ${_short(fromIso)}',
+                                      _owed(window.opening)),
+                                  _sumRow(
+                                      'Billed · ${window.bills} bill${window.bills == 1 ? '' : 's'}',
+                                      '+ ${Money.inr(window.billed)}'),
+                                  _sumRow(
+                                      'Received · ${window.payments} payment${window.payments == 1 ? '' : 's'}',
+                                      '− ${Money.inr(window.received)}',
+                                      color: _greenDeep),
+                                  _sumRow(
+                                      'Closing balance · ${_short(toIso)}',
+                                      _owed(window.closing),
+                                      total: true,
+                                      color: window.closing > 0.5
+                                          ? Bl.redDeep
+                                          : window.closing < -0.5
+                                              ? _greenDeep
+                                              : Bl.ink),
+                                ],
+                              ),
+                            ),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                              child: BlSegmented(
+                                labels: const ['All', 'Bills', 'Payments'],
+                                counts: [
+                                  inRange.length,
+                                  inRange.where((r) => !r.isPayment).length,
+                                  inRange.where((r) => r.isPayment).length,
+                                ],
+                                index: _kind,
+                                onChanged: (i) => setState(() => _kind = i),
+                              ),
+                            ),
+                            // The balance on each row is the running figure
+                            // from the WHOLE ledger. Filtering hides rows but
+                            // not their effect; recomputing over what is
+                            // visible would show a balance this client never
+                            // had.
+                            if (_kind != 0 && shown.isNotEmpty)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(18, 8, 18, 0),
+                                child: Text(
+                                    'Balance still counts the ${_kind == 2 ? 'bills' : 'payments'} hidden here.',
+                                    style: Bl.inter(11.5, c: _grey)),
+                              ),
+                            if (ledger.isEmpty)
+                              BlEmpty(
+                                icon: BlIcons.doc,
+                                title: inRange.isEmpty
+                                    ? 'Nothing in these dates'
+                                    : _kind == 1
+                                        ? 'No bills in these dates'
+                                        : 'No payments in these dates',
+                                message: inRange.isEmpty
+                                    ? 'Pick a wider range to see older bills and payments.'
+                                    : null,
+                              )
+                            else
+                              ...ledger,
+                            if (productLines.isNotEmpty)
+                              ClientProductsCard(lines: productLines),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
             ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-// ─── KPI tile ─────────────────────────────────────────────────────────────────
-class _KpiTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color valueColor;
-  final IconData icon;
-  final Color iconColor;
-
-  const _KpiTile({
-    required this.label,
-    required this.value,
-    required this.valueColor,
-    required this.icon,
-    required this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.canvas,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.6)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  label,
-                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                    color: AppColors.inkTertiary,
-                    letterSpacing: 1),
-                ),
-                Icon(icon, size: 13, color: iconColor),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: GoogleFonts.manrope(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                color: valueColor,
-                letterSpacing: -0.3,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Ledger card ──────────────────────────────────────────────────────────────
-class _LedgerCard extends ConsumerWidget {
-  final _StatementRow row;
-  const _LedgerCard({required this.row});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isDebit    = row.type == 'SALE' || row.type == 'INVOICE';
-    final balColor   = row.balance > 0.005 ? AppColors.danger : AppColors.success;
-    final balLabel   = row.balance > 0.005
-        ? 'Still owes ${_fmtRupee(row.balance)}'
-        : row.balance < -0.005
-            ? 'Advance ${_fmtRupee(row.balance.abs())}'
-            : 'Fully paid';
-
-    final card = Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [AppColors.cardShadow],
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top line: date | type pill
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _fmtDate(row.date),
-                style: AppText.label.copyWith(color: AppColors.inkTertiary),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+              child: Row(
                 children: [
-                  _TypePill(type: row.type),
-                  // The hint marks rows that actually open something: a bill
-                  // row opens the bill, a receipt row opens its editor. A
-                  // synthesised credit opens nothing and gets no hint.
-                  if (row.bill != null) ...[
-                    const SizedBox(width: 4),
-                    const Icon(LucideIcons.chevronRight,
-                        size: 13, color: AppColors.inkTertiary),
-                  ] else if (row.payment != null) ...[
-                    const SizedBox(width: 4),
-                    const Icon(LucideIcons.pencil,
-                        size: 12, color: AppColors.inkTertiary),
-                  ],
+                  Expanded(
+                    flex: 10,
+                    child: BlButton('Share PDF',
+                        kind: BlButtonKind.soft,
+                        leading: const BlIcon(_shareIcon, size: 18),
+                        onTap:
+                            ready ? () => _openPdf(inRange, window) : null),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 12,
+                    child: BlButton('Collect payment', onTap: collect),
+                  ),
                 ],
               ),
-            ],
-          ),
-
-          const SizedBox(height: 6),
-
-          // Middle line: description
-          Text(
-            row.description,
-            style: AppText.label.copyWith(color: AppColors.inkPrimary),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-
-          const SizedBox(height: 8),
-
-          // Divider
-          Divider(
-            height: 1,
-            color: AppColors.outlineVariant.withValues(alpha: 0.4),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Bottom line: Dr / Cr amounts + running balance
-          Row(
-            children: [
-              if (isDebit && row.debit > 0) ...[
-                Text(
-                  'Billed ${_fmtRupee(row.debit)}',
-                  style: AppText.label.copyWith(color: AppColors.danger),
-                ),
-                const SizedBox(width: 12),
-              ],
-              if (!isDebit && row.credit > 0) ...[
-                Text(
-                  'Paid ${_fmtRupee(row.credit)}',
-                  style: AppText.label.copyWith(color: AppColors.success),
-                ),
-                const SizedBox(width: 12),
-              ],
-              const Spacer(),
-              // Running balance chip — plain wording instead of Dr/Cr.
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: balColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  balLabel,
-                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                    color: balColor),
-                ),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
-
-    // A bill row opens the bill. Without this the statement tells you a bill
-    // exists and then makes you go and find it in the invoice list — with the
-    // date and amount held in your head.
-    if (row.bill != null) {
-      return InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => InvoiceDetailScreen(invoice: row.bill!)),
-        ),
-        borderRadius: BorderRadius.circular(16),
-        child: card,
-      );
-    }
-
-    // A receipt row opens its own editor. A receipt typed at the counter is
-    // the entry most likely to be wrong -- a digit, a method, a date -- and
-    // until now the only fix on a phone was to leave it wrong.
-    if (row.payment != null) {
-      return InkWell(
-        onTap: () => _openPaymentEditor(context, ref, row.payment!),
-        borderRadius: BorderRadius.circular(16),
-        child: card,
-      );
-    }
-
-    // A credit synthesised from a sale is not a record; nothing to open.
-    return card;
-  }
-
-  /// "2026-05-17" → "17 May 2026"
-  static String _fmtDate(String iso) {
-    if (iso.length < 10) return iso;
-    try {
-      final d = DateTime.parse(iso);
-      const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-      ];
-      return '${d.day} ${months[d.month - 1]} ${d.year}';
-    } catch (_) {
-      return iso;
-    }
   }
 }
-
 
 // ─── Receipt editor ───────────────────────────────────────────────────────────
 //
@@ -861,10 +881,8 @@ Future<void> _openPaymentEditor(
   WidgetRef ref,
   ClientPayment payment,
 ) async {
-  final changed = await showModalBottomSheet<bool>(
+  final changed = await showBlSheet<bool>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (_) => _PaymentEditorSheet(payment: payment),
   );
   if (changed == true) {
@@ -886,6 +904,7 @@ class _PaymentEditorSheet extends ConsumerStatefulWidget {
 }
 
 class _PaymentEditorSheetState extends ConsumerState<_PaymentEditorSheet> {
+  static const _methods = ['CASH', 'UPI', 'BANK', 'CARD', 'CHEQUE'];
   late final TextEditingController _amount =
       TextEditingController(text: _trimAmount(widget.payment.amount));
   late final TextEditingController _notes =
@@ -937,37 +956,46 @@ class _PaymentEditorSheetState extends ConsumerState<_PaymentEditorSheet> {
       if (!mounted) return;
       Navigator.of(context).pop(true);
       _toast(context, queued
-          ? 'Saved offline — the receipt updates when you reconnect.'
+          ? 'Saved on this phone. The receipt updates when you are online.'
           : 'Receipt updated.');
     } catch (e) {
       // Never swallow the reason: a bare "could not save" here hides a server
       // rejection that the person could act on.
-      if (mounted) setState(() { _busy = false; _error = '$e'; });
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error =
+              'May not have saved. Check the statement before trying again. ($e)';
+        });
+      }
     }
   }
 
   Future<void> _delete() async {
-    final ok = await showDialog<bool>(
+    final ok = await showBlDialog<bool>(
       context: context,
-      builder: (dctx) => AlertDialog(
-        title: const Text('Delete this receipt?'),
-        content: Text(
-          'The ${_fmtRupee(widget.payment.amount)} comes back off this '
+      title: 'Delete this receipt?',
+      message:
+          'The ${Money.inr(widget.payment.amount)} comes back off this '
           'customer’s account and their bills are re-settled from what is '
           'left. This can be undone only by entering the receipt again.',
+      actions: (dctx) => [
+        Row(
+          children: [
+            Expanded(
+              child: BlButton('Keep it',
+                  kind: BlButtonKind.soft,
+                  onTap: () => Navigator.pop(dctx, false)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BlButton('Delete',
+                  kind: BlButtonKind.danger,
+                  onTap: () => Navigator.pop(dctx, true)),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dctx).pop(false),
-            child: const Text('Keep it'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dctx).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      ],
     );
     if (ok != true) return;
 
@@ -982,310 +1010,112 @@ class _PaymentEditorSheetState extends ConsumerState<_PaymentEditorSheet> {
       if (!mounted) return;
       Navigator.of(context).pop(true);
       _toast(context, queued
-          ? 'Deleted offline — it reverses when you reconnect.'
+          ? 'Saved on this phone. It reverses when you are online.'
           : 'Receipt deleted.');
     } catch (e) {
-      if (mounted) setState(() { _busy = false; _error = '$e'; });
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error =
+              'May not have saved. Check the statement before trying again. ($e)';
+        });
+      }
     }
   }
 
   static void _toast(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(
+              primary: Bl.ink, onPrimary: Bl.white, onSurface: Bl.ink),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && mounted) setState(() => _date = picked);
   }
 
   @override
   Widget build(BuildContext context) {
-    final inset = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.only(bottom: inset),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 10, 20, 22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 38, height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const BlSheetTitle('Edit receipt', size: 16, divider: true),
+        const SizedBox(height: 4),
+        IgnorePointer(
+          ignoring: _busy,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              BlField(
+                label: 'Amount',
+                prefix: '₹',
+                controller: _amount,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text('Edit receipt', style: AppText.heading),
-            const SizedBox(height: 4),
-            Text(
-              'Recorded ${_LedgerCard._fmtDate(widget.payment.date)}',
-              style: AppText.label.copyWith(color: AppColors.inkTertiary),
-            ),
-            const SizedBox(height: 18),
-
-            Text('Amount', style: AppText.label.copyWith(color: AppColors.inkTertiary)),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _amount,
-              autofocus: true,
-              enabled: !_busy,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: AppText.money,
-              decoration: const InputDecoration(
-                prefixText: '₹ ',
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              Padding(
+                padding: const EdgeInsets.only(top: 14, bottom: 8),
+                child: Text('Paid by',
+                    style: Bl.inter(12.5,
+                        w: FontWeight.w500, c: const Color(0xFF5E646C))),
               ),
-            ),
-            const SizedBox(height: 16),
-
-            Text('Method', style: AppText.label.copyWith(color: AppColors.inkTertiary)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final m in const ['CASH', 'UPI', 'BANK', 'CARD', 'CHEQUE'])
-                  ChoiceChip(
-                    label: Text(_methodLabel(m)),
-                    selected: _method == m,
-                    onSelected: _busy ? null : (_) => setState(() => _method = m),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            Text('Date', style: AppText.label.copyWith(color: AppColors.inkTertiary)),
-            const SizedBox(height: 6),
-            OutlinedButton.icon(
-              onPressed: _busy
-                  ? null
-                  : () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _date,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now().add(const Duration(days: 1)),
-                      );
-                      if (picked != null) setState(() => _date = picked);
-                    },
-              icon: const Icon(LucideIcons.calendar, size: 16),
-              label: Text(_LedgerCard._fmtDate(_iso)),
-            ),
-            const SizedBox(height: 16),
-
-            Text('Note', style: AppText.label.copyWith(color: AppColors.inkTertiary)),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _notes,
-              enabled: !_busy,
-              decoration: const InputDecoration(
-                hintText: 'Optional',
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              BlChoicePills(
+                options: [
+                  for (final m in {..._methods, _method}) _methodLabel(m),
+                ],
+                selected: _methodLabel(_method),
+                onChanged: (label) => setState(() => _method = {
+                      ..._methods,
+                      _method
+                    }.firstWhere((m) => _methodLabel(m) == label)),
               ),
-            ),
-
-            if (_error != null) ...[
-              const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.danger.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  _error!,
-                  style: AppText.label.copyWith(color: AppColors.danger),
-                ),
+              BlField(
+                label: 'Date',
+                value: _short(_iso, year: true),
+                onTap: _pickDate,
               ),
+              BlField(label: 'Note', hint: 'Optional', controller: _notes),
             ],
-
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                TextButton.icon(
-                  onPressed: _busy ? null : _delete,
-                  icon: const Icon(LucideIcons.trash2, size: 16),
-                  label: const Text('Delete'),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-                ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: _busy ? null : _save,
-                  child: _busy
-                      ? const SizedBox(
-                          width: 16, height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Save changes'),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
-      ),
-    );
-  }
-}
-
-// ─── Type pill ────────────────────────────────────────────────────────────────
-class _TypePill extends StatelessWidget {
-  final String type; // 'SALE' | 'INVOICE' | 'PAYMENT'
-  const _TypePill({required this.type});
-
-  @override
-  Widget build(BuildContext context) {
-    final isPayment = type == 'PAYMENT';
-    final bg    = isPayment
-        ? AppColors.success.withValues(alpha: 0.12)
-        : AppColors.danger.withValues(alpha: 0.10);
-    final fg    = isPayment ? AppColors.success : AppColors.danger;
-    // Plain words instead of accounting terms — this screen is read by
-    // shopkeepers, not accountants.
-    final label = isPayment ? 'PAYMENT' : 'BILL';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Text(
-        label,
-        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-          color: fg,
-          letterSpacing: 1),
-      ),
-    );
-  }
-}
-
-// ─── Empty ledger state ───────────────────────────────────────────────────────
-class _EmptyLedger extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+        if (_error != null)
           Container(
-            padding: const EdgeInsets.all(20),
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
-              color: AppColors.surfaceContainer,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              LucideIcons.receipt,
-              size: 32,
-              color: AppColors.inkTertiary,
-            ),
+                color: Bl.redSoft, borderRadius: BorderRadius.circular(12)),
+            child: Text(_error!,
+                style: Bl.inter(12.5, w: FontWeight.w500, c: Bl.redDeep)),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'No transaction history for this client.',
-            style: AppText.bodyStrong.copyWith(color: AppColors.inkSecondary),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Credit sales, invoices and payments will appear here.',
-            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Error view ───────────────────────────────────────────────────────────────
-class _ErrorView extends StatelessWidget {
-  final String message;
-  const _ErrorView({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        const SizedBox(height: 16),
+        Row(
           children: [
-            const Icon(LucideIcons.alertTriangle, size: 36, color: AppColors.danger),
-            const SizedBox(height: 12),
-            Text(
-              'Failed to load statement',
-              style: GoogleFonts.manrope(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.inkPrimary,
-              ),
+            Expanded(
+              flex: 9,
+              child: BlButton('Delete',
+                  kind: BlButtonKind.danger, onTap: _busy ? null : _delete),
             ),
-            const SizedBox(height: 6),
-            Text(
-              message,
-              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-              textAlign: TextAlign.center,
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 14,
+              child: BlButton('Save changes',
+                  loading: _busy, onTap: _busy ? null : _save),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-
-// ─── Filter / order pill — mirrors the web ledger's controls ─────────────────
-class _FilterPill extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final IconData? icon;
-  final VoidCallback onTap;
-  const _FilterPill({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: selected
-                ? Colors.transparent
-                : AppColors.outlineVariant.withValues(alpha: 0.7),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 11, color: selected ? Colors.white : AppColors.inkSecondary),
-              const SizedBox(width: 3),
-            ],
-            Text(
-              label,
-              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : AppColors.inkSecondary),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }

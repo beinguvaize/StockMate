@@ -8,6 +8,9 @@ class PartyAging {
   final double d0to30;
   final double d31to60;
   final double d60plus;
+
+  /// The part of [d60plus] that is older than 90 days.
+  final double d90plus;
   final int unpaidBills;
 
   /// Age in days of the oldest bill still unpaid; null when none is.
@@ -17,16 +20,20 @@ class PartyAging {
     this.d0to30 = 0,
     this.d31to60 = 0,
     this.d60plus = 0,
+    this.d90plus = 0,
     this.unpaidBills = 0,
     this.oldestDays,
   });
 
   double get total => d0to30 + d31to60 + d60plus;
+
+  /// 61 to 90 days.
+  double get d61to90 => d60plus - d90plus;
 }
 
 /// Running totals for [PartyAging] while bills are added one at a time.
 class _Acc {
-  double a = 0, b = 0, c = 0;
+  double a = 0, b = 0, c = 0, d = 0;
   int n = 0;
   int? oldest;
 
@@ -38,13 +45,19 @@ class _Acc {
       b += unpaid;
     } else {
       c += unpaid;
+      if (days > 90) d += unpaid;
     }
     n++;
     if (oldest == null || days > oldest!) oldest = days;
   }
 
   PartyAging done() => PartyAging(
-      d0to30: a, d31to60: b, d60plus: c, unpaidBills: n, oldestDays: oldest);
+      d0to30: a,
+      d31to60: b,
+      d60plus: c,
+      d90plus: d,
+      unpaidBills: n,
+      oldestDays: oldest);
 }
 
 int _daysSince(String? date, DateTime now) {
@@ -90,6 +103,7 @@ PartyAging agingScaledTo(PartyAging aging, double owed) {
     d0to30: aging.d0to30 * k,
     d31to60: aging.d31to60 * k,
     d60plus: aging.d60plus * k,
+    d90plus: aging.d90plus * k,
     unpaidBills: aging.unpaidBills,
     oldestDays: aging.oldestDays,
   );
