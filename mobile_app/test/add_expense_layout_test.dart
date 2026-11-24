@@ -9,10 +9,11 @@ import 'package:mobile_app/features/finance/presentation/providers/finance_provi
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart'
     show posStoresProvider;
 
-/// The category grid used a fixed 0.78 aspect ratio, so at 360dp each cell
-/// was ~76dp tall against ~83dp of icon and label, and Flutter painted its
-/// overflow stripe on small Android phones. These pump the whole screen at
-/// real phone widths and fail on any layout exception.
+/// The category grid once used a fixed 0.78 aspect ratio, so at 360dp each
+/// cell was ~76dp tall against ~83dp of icon and label, and Flutter painted
+/// its overflow stripe on small Android phones. Categories are chips in a
+/// Wrap now; these still pump the whole screen at real phone widths and fail
+/// on any layout exception.
 void main() {
   Future<void> pump(WidgetTester tester, double width,
       {List<String> custom = const [], TextScaler? scaler, Expense? expense}) async {
@@ -38,19 +39,19 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('category grid fits a 360x780 phone without overflow', (t) async {
+  testWidgets('category chips fit a 360x780 phone without overflow', (t) async {
     await pump(t, 360);
     expect(t.takeException(), isNull);
-    expect(find.text('PETROL'), findsOneWidget);
-    expect(find.text('ADD'), findsOneWidget);
+    expect(find.text('Petrol'), findsOneWidget);
+    expect(find.text('+ Add'), findsOneWidget);
   });
 
   for (final width in [320.0, 412.0]) {
-    testWidgets('category grid fits ${width.toInt()}dp without overflow',
+    testWidgets('category chips fit ${width.toInt()}dp without overflow',
         (t) async {
       await pump(t, width, custom: const ['Packaging', 'Cleaning supplies']);
       expect(t.takeException(), isNull);
-      expect(find.text('PACKAGING'), findsOneWidget);
+      expect(find.text('Packaging'), findsOneWidget);
     });
   }
 
@@ -79,7 +80,7 @@ void main() {
   // A long figure that scrolls hides its first digits with nothing to say
   // so: ₹12,34,567.89 reads as 2,34,567.89. The figure must shrink to stay
   // whole, down to a floor, and only scroll past it. The test font draws
-  // every glyph as a square, wider than Public Sans, so the figures here are
+  // every glyph as a square, wider than Inter Tight, so the figures here are
   // shorter than the ones that bite on a real phone.
   Finder amountText() => find.descendant(
       of: find.byType(TextField).first, matching: find.byType(EditableText));
@@ -95,7 +96,7 @@ void main() {
     await t.enterText(find.byType(TextField).first, '12345.67');
     await t.pump();
     expect(t.takeException(), isNull);
-    expect(amountSize(t), lessThan(56));
+    expect(amountSize(t), lessThan(46));
     expect(amountSize(t), greaterThanOrEqualTo(28));
     expect(amountScroll(t).maxScrollExtent, 0,
         reason: 'the whole figure fits, so nothing is scrolled out of view');
@@ -112,11 +113,11 @@ void main() {
     expect(amountSize(t), 28);
   });
 
-  testWidgets('an everyday amount keeps the full 56 size', (t) async {
+  testWidgets('an everyday amount keeps the full 46 size', (t) async {
     await pump(t, 360);
     await t.enterText(find.byType(TextField).first, '2500');
     await t.pump();
-    expect(amountSize(t), 56);
+    expect(amountSize(t), 46);
   });
 
   // At 2x the test font's square glyphs overflow the CATEGORY header and the
@@ -189,26 +190,26 @@ void main() {
           await t.enterText(
               find.byType(TextField).first, figure.substring(0, i));
           await t.pump();
-          ys.add(t.getTopLeft(find.text('DESCRIPTION')).dy);
+          ys.add(t.getTopLeft(find.text('What was it for?')).dy);
           expectAmountRowFits(t);
         }
       });
       expect(errors, isEmpty);
-      expect(ys.toSet(), hasLength(1), reason: 'DESCRIPTION moved: $ys');
+      expect(ys.toSet(), hasLength(1), reason: 'the note field moved: $ys');
     });
   }
 
-  testWidgets('five tiles still share one row at 360dp', (t) async {
+  testWidgets('category chips share a row and wrap at 360dp', (t) async {
     await pump(t, 360);
-    final food = t.getTopLeft(find.text('FOOD'));
-    final utility = t.getTopLeft(find.text('UTILITY'));
-    final purchase = t.getTopLeft(find.text('PURCHASE'));
-    expect(utility.dy, food.dy);
-    expect(purchase.dy, greaterThan(food.dy));
+    final food = t.getTopLeft(find.text('Food'));
+    final petrol = t.getTopLeft(find.text('Petrol'));
+    final other = t.getTopLeft(find.text('Other'));
+    expect(petrol.dy, food.dy);
+    expect(other.dy, greaterThan(food.dy));
   });
 
-  // The test font draws every glyph as a full square, wider than Public
-  // Sans, so at 2x it overflows the CATEGORY header and the Log Expense
+  // The test font draws every glyph as a full square, wider than Inter
+  // Tight, so at 2x it overflows the CATEGORY header and the Log Expense
   // button where real glyphs do not. These look at one widget's geometry
   // and drop that unrelated noise.
   Future<void> pumpScaled(WidgetTester t, double width, double scale) async {
@@ -240,7 +241,7 @@ void main() {
       testWidgets('PAID VIA chips show whole labels at ${width.toInt()}dp, '
           '${scale}x', (t) async {
         await pumpScaled(t, width, scale);
-        for (final m in ['CASH', 'UPI', 'BANK', 'CARD']) {
+        for (final m in ['Cash', 'UPI', 'Bank', 'Card']) {
           expectWhole(t, find.text(m), oneLine: true);
           expect(t.getBottomRight(find.text(m)).dx, lessThanOrEqualTo(width));
         }
@@ -258,9 +259,9 @@ void main() {
 
   testWidgets('PAID VIA stays one row of four at 1x', (t) async {
     await pump(t, 360);
-    final cash = t.getTopLeft(find.text('CASH'));
-    expect(t.getTopLeft(find.text('CARD')).dy, cash.dy);
-    expectWhole(t, find.text('CASH'), oneLine: true);
+    final cash = t.getTopLeft(find.text('Cash'));
+    expect(t.getTopLeft(find.text('Card')).dy, cash.dy);
+    expectWhole(t, find.text('Cash'), oneLine: true);
   });
 
   group('amount field takes a well-formed figure only', () {

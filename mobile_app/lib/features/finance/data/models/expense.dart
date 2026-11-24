@@ -13,6 +13,12 @@ class Expense {
   final String? vendorGstin;
   // Owner drawing / loan repayment / capital — excluded from P&L profit.
   final bool excludeFromPl;
+  // CASH | UPI | BANK | CARD. Null on rows read from the offline cache, which
+  // does not hold it.
+  final String? paymentMethod;
+  final double? gstRate;
+  // Store or till the expense was paid from; null is business-wide.
+  final String? locationId;
 
   Expense({
     required this.id,
@@ -26,6 +32,9 @@ class Expense {
     this.gstAmount,
     this.vendorGstin,
     this.excludeFromPl = false,
+    this.paymentMethod,
+    this.gstRate,
+    this.locationId,
   });
 
   /// Claimable input tax credit for this row (0 unless a vendor GSTIN is set).
@@ -45,6 +54,9 @@ class Expense {
       gstAmount: (json['gst_amount'] as num?)?.toDouble(),
       vendorGstin: json['vendor_gstin'] as String?,
       excludeFromPl: json['exclude_from_pl'] == true,
+      paymentMethod: json['payment_method'] as String?,
+      gstRate: (json['gst_rate'] as num?)?.toDouble(),
+      locationId: json['location_id'] as String?,
     );
   }
 }
