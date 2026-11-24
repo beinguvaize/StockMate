@@ -25,6 +25,7 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/widgets/upi_qr_sheet.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
+import 'package:mobile_app/features/dashboard/presentation/widgets/dash_common.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider, databaseProvider;
 import 'package:mobile_app/features/accounts/presentation/providers/accounts_provider.dart';
 import 'package:mobile_app/core/print/web_print_service.dart';
@@ -698,211 +699,18 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                   SliverToBoxAdapter(
                     child: SafeArea(
                       bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                AppTappable(
-                                  ripple: false,
-                                  onTap: () => Navigator.pop(context),
-                                  child: const SizedBox(
-                                    width: 44,
-                                    height: 44,
-                                    child: Icon(LucideIcons.arrowLeft,
-                                        size: 22, color: AppColors.onSurface),
-                                  ),
-                                ),
-                                Gap.w8,
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        widget.isVanSale ? 'Van sale' : 'New sale',
-                                        style: AppText.title,
-                                      ),
-                                      if (!widget.isVanSale && stores.length > 1)
-                                        PopupMenuButton<String>(
-                                          popUpAnimationStyle: menuAnimationStyle(context),
-                                          initialValue: _posStoreId,
-                                          onSelected: (v) => setState(() => _posStoreId = v),
-                                          itemBuilder: (_) => [
-                                            for (final s in stores)
-                                              PopupMenuItem(value: s['id'] as String, child: Text(s['name'] ?? 'Store')),
-                                          ],
-                                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                            Text(
-                                              (stores.firstWhere((s) => s['id'] == _posStoreId, orElse: () => stores.first)['name'] ?? 'Store').toString(),
-                                              style: AppText.label.copyWith(color: AppColors.primary),
-                                            ),
-                                            const Icon(LucideIcons.chevronDown, size: 16, color: AppColors.primary),
-                                          ]),
-                                        )
-                                      else
-                                        Text(
-                                          widget.isVanSale ? 'Roadside POS' : 'Register 01',
-                                          style: AppText.caption,
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                AppTappable(
-                                  ripple: false,
-                                  onTap: () => _showClientPicker(),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: Gap.md, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.canvas,
-                                      borderRadius: Radii.rPill,
-                                      border: Border.all(
-                                          color: _selectedClient == null
-                                              ? AppColors.outlineVariant
-                                              : AppColors.primary),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(LucideIcons.user,
-                                            size: 16,
-                                            color: _selectedClient == null
-                                                ? AppColors.onSurfaceVariant
-                                                : AppColors.primary),
-                                        const SizedBox(width: 6),
-                                        // Who the bill is for. Named client
-                                        // outlined in brand, walk-in neutral --
-                                        // both were the same grey pill before,
-                                        // so "this is going on account" and
-                                        // "cash customer" looked identical.
-                                        Flexible(
-                                          child: Text(
-                                            _selectedClient == null
-                                                ? 'Walk-in'
-                                                : (_selectedClient!.name ?? 'Client'),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: AppText.label.copyWith(
-                                                color: _selectedClient == null
-                                                    ? AppColors.onSurfaceVariant
-                                                    : AppColors.primary),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            // Offline / not-synced / refused, always in view
-                            // at the till. Collapses to nothing when all is
-                            // synced and online.
-                            const OfflineSalesBanner(
-                              padding: EdgeInsets.only(top: 12),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // ── Search bar ─────────────────────────────
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.canvas,
-                                borderRadius: Radii.rSm,
-                                border: Border.all(
-                                    color: AppColors.outlineVariant),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _searchController,
-                                      decoration: InputDecoration(
-                                        hintText: 'Search items or scan barcode',
-                                        hintStyle: AppText.body.copyWith(
-                                            color: AppColors.inkTertiary),
-                                        prefixIcon: const Icon(
-                                          LucideIcons.search,
-                                          size: 22,
-                                          color: AppColors.onSurfaceVariant,
-                                        ),
-                                        border: InputBorder.none,
-                                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    onPressed: _scanBarcode,
-                                    icon: const Icon(
-                                      LucideIcons.scanLine,
-                                      color: AppColors.primary,
-                                      size: 22,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // ── Category chips ─────────────────────────
-                            SizedBox(
-                              height: 40,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: categories.length,
-                                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                                itemBuilder: (_, i) {
-                                  final cat = categories[i];
-                                  final isAll = cat == 'All';
-                                  final isActive = isAll
-                                      ? _selectedCategory == null
-                                      : _selectedCategory == cat;
-                                  return AppTappable(
-                                    ripple: false,
-                                    onTap: () => setState(
-                                        () => _selectedCategory = isAll ? null : cat),
-                                    child: AnimatedContainer(
-                                      duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: Gap.lg, vertical: Gap.sm),
-                                      decoration: BoxDecoration(
-                                        color: isActive
-                                            ? AppColors.primaryContainer
-                                            : AppColors.canvas,
-                                        borderRadius: Radii.rPill,
-                                        border: Border.all(
-                                          color: isActive
-                                              ? AppColors.primaryContainer
-                                              : AppColors.outlineVariant,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        cat,
-                                        style: AppText.label.copyWith(
-                                          color: isActive
-                                              ? AppColors.onPrimaryContainer
-                                              : AppColors.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                        ),
-                      ),
+                      child: _buildPickerHeader(stores, categories),
                     ),
                   ),
 
                   // ── Product grid ─────────────────────────────────
                   SliverPadding(
                     padding: EdgeInsets.fromLTRB(
-                        24, 0, 24, _cart.isNotEmpty ? 100 : 24),
+                        14,
+                        0,
+                        14,
+                        (_cart.isNotEmpty ? 92 : 24) +
+                            MediaQuery.of(context).padding.bottom),
                     sliver: filtered.isEmpty
                         ? SliverToBoxAdapter(
                             child: Center(
@@ -910,8 +718,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                 padding: const EdgeInsets.all(40),
                                 child: Text(
                                   'No products found.',
-                                  style: AppText.body
-                                      .copyWith(color: AppColors.inkTertiary),
+                                  style: DashText.inter(14),
                                 ),
                               ),
                             ),
@@ -928,92 +735,339 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                               childCount: filtered.length,
                             ),
                             gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              crossAxisSpacing: Gap.md,
-                              mainAxisSpacing: Gap.md,
-                              // 0.78 was tuned around the 80px image
-                              // placeholder the tile no longer has; 0.85 still
-                              // left the Spacer holding a band of dead air
-                              // under every product. Sized to the content that
-                              // is actually in the tile.
-                              childAspectRatio: 0.95,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              // Fixed height, not a ratio: the card holds a
+                              // tile, a two-line name, a stock line and a
+                              // 44px control row whatever the phone width.
+                              // Grows with the system font size.
+                              mainAxisExtent: 112 +
+                                  MediaQuery.textScalerOf(context).scale(50),
                             ),
                           ),
                   ),
                 ],
               ),
 
-              // ── Sticky checkout bar ──────────────────────────────
+              // ── Checkout dock ────────────────────────────────────
               if (_cart.isNotEmpty)
                 Positioned(
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  child: Container(
-                    padding: EdgeInsets.fromLTRB(Gap.xl, Gap.lg, Gap.xl,
-                        Gap.lg + MediaQuery.of(context).padding.bottom),
-                    decoration: const BoxDecoration(
-                      color: AppColors.canvas,
-                      border: Border(
-                          top: BorderSide(color: AppColors.outlineVariant)),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${_cart.length} item${_cart.length == 1 ? '' : 's'}',
-                                style: AppText.caption,
-                              ),
-                              const SizedBox(height: 2),
-                              // Was "BASKET TOTAL" over a 20px figure on a grey
-                              // bar. This is the number the customer is about
-                              // to be asked for; it is the largest thing here.
-                              Text(Money.inr(_subtotal),
-                                  style: AppText.moneyLarge
-                                      .copyWith(fontSize: 26)),
-                            ],
-                          ),
-                        ),
-                        Gap.w16,
-                        AppTappable(
-                          ripple: false,
-                          onTap: _openCheckout,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: Gap.xl, vertical: 16),
-                            decoration: const BoxDecoration(
-                              // The bar was grey with a PALE amber button, so
-                              // the one action that completes a sale was the
-                              // faintest thing on the bar.
-                              color: AppColors.primary,
-                              borderRadius: Radii.rSm,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text('Checkout',
-                                    style: AppText.label.copyWith(
-                                        fontSize: 16,
-                                        color: AppColors.onPrimary)),
-                                Gap.w8,
-                                const Icon(LucideIcons.arrowRight,
-                                    size: 18, color: AppColors.onPrimary),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  child: _buildCheckoutDock(),
                 ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  // ── Picker header: back, title, customer, search, categories ────────────────
+  // Laid out to the approved board "New sale" (sales-04).
+
+  Widget _buildPickerHeader(
+      List<Map<String, dynamic>> stores, List<String> categories) {
+    final hasClient = _selectedClient != null;
+    final subStyle = DashText.inter(12, c: _kSub2);
+    final multiStore = !widget.isVanSale && stores.length > 1;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 14, 0),
+          child: Row(
+            children: [
+              AppTappable(
+                ripple: false,
+                onTap: () => Navigator.pop(context),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Center(
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                          color: _kWell, shape: BoxShape.circle),
+                      child: const Icon(LucideIcons.chevronLeft,
+                          size: 20, color: DashColors.ink),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.isVanSale ? 'Van sale' : 'New sale',
+                      style: DashText.tight(17, w: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 1),
+                    if (multiStore)
+                      PopupMenuButton<String>(
+                        popUpAnimationStyle: menuAnimationStyle(context),
+                        initialValue: _posStoreId,
+                        onSelected: (v) => setState(() => _posStoreId = v),
+                        itemBuilder: (_) => [
+                          for (final s in stores)
+                            PopupMenuItem(
+                                value: s['id'] as String,
+                                child: Text(s['name'] ?? 'Store')),
+                        ],
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Flexible(
+                            child: Text(
+                              (stores.firstWhere(
+                                          (s) => s['id'] == _posStoreId,
+                                          orElse: () => stores.first)['name'] ??
+                                      'Store')
+                                  .toString(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: subStyle,
+                            ),
+                          ),
+                          const Icon(LucideIcons.chevronDown,
+                              size: 14, color: _kSub2),
+                          Text(' · Register 01', style: subStyle),
+                        ]),
+                      )
+                    else
+                      Text(
+                        widget.isVanSale ? 'Roadside POS' : 'Register 01',
+                        style: subStyle,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Who the bill is for. Walk-in is the neutral grey pill from the
+              // board; a named client turns it amber so "going on account" and
+              // "cash customer" never look the same.
+              AppTappable(
+                ripple: false,
+                onTap: () => _showClientPicker(),
+                child: SizedBox(
+                  height: 44,
+                  child: Center(
+                    child: Container(
+                      height: 32,
+                      constraints: const BoxConstraints(maxWidth: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: hasClient ? DashColors.amberSoft : _kWell,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(LucideIcons.user,
+                              size: 15,
+                              color: hasClient
+                                  ? DashColors.amberDeep
+                                  : DashColors.ink),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              hasClient
+                                  ? (_selectedClient!.name ?? 'Client')
+                                  : 'Walk-in',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: DashText.tight(12.5,
+                                  w: FontWeight.w600,
+                                  c: hasClient
+                                      ? DashColors.amberDeep
+                                      : DashColors.ink),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Offline / not-synced / refused, always in view at the till.
+        // Collapses to nothing when all is synced and online.
+        const OfflineSalesBanner(
+          padding: EdgeInsets.fromLTRB(14, 8, 14, 0),
+        ),
+
+        // ── Search ───────────────────────────────────────────
+        Container(
+          height: 44,
+          margin: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+          padding: const EdgeInsets.only(left: 14),
+          decoration: BoxDecoration(
+            color: _kWell,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            children: [
+              const Icon(LucideIcons.search, size: 19, color: DashColors.mute),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  style: DashText.inter(14, c: DashColors.ink),
+                  cursorColor: DashColors.amber,
+                  decoration: InputDecoration(
+                    isCollapsed: true,
+                    hintText: 'Search items or scan barcode',
+                    hintStyle: DashText.inter(14),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              AppTappable(
+                ripple: false,
+                onTap: _scanBarcode,
+                child: SizedBox(
+                  width: 46,
+                  height: 44,
+                  child: Center(
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: const BoxDecoration(
+                          color: DashColors.card, shape: BoxShape.circle),
+                      child: const Icon(LucideIcons.scanLine,
+                          size: 18, color: DashColors.ink),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ── Category pills ───────────────────────────────────
+        SizedBox(
+          height: 56,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            itemCount: categories.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 6),
+            itemBuilder: (_, i) {
+              final cat = categories[i];
+              final isAll = cat == 'All';
+              final isActive =
+                  isAll ? _selectedCategory == null : _selectedCategory == cat;
+              return AppTappable(
+                ripple: false,
+                onTap: () =>
+                    setState(() => _selectedCategory = isAll ? null : cat),
+                child: AnimatedContainer(
+                  duration: Motion.durationOf(
+                      context, const Duration(milliseconds: 180)),
+                  height: 32,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: isActive ? DashColors.ink : DashColors.card,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                        color: isActive ? DashColors.ink : _kHair),
+                  ),
+                  child: Text(
+                    cat,
+                    style: DashText.tight(12.5,
+                        w: FontWeight.w600,
+                        c: isActive ? Colors.white : _kChipText),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Checkout dock: one amber pill, count on the left, total on the right ────
+
+  Widget _buildCheckoutDock() {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+          14, 8, 14, 14 + MediaQuery.of(context).padding.bottom),
+      // Fades the grid out behind the pill instead of a hard bar.
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x00FFFFFF), Color(0xFFFFFFFF)],
+          stops: [0, 0.35],
+        ),
+      ),
+      child: AppTappable(
+        ripple: false,
+        onTap: _openCheckout,
+        child: Container(
+          height: 52,
+          padding: const EdgeInsets.only(left: 18, right: 6),
+          decoration: BoxDecoration(
+            color: DashColors.amber,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            children: [
+              Container(
+                height: 24,
+                constraints: const BoxConstraints(minWidth: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0x40FFFFFF),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text('${_cart.length}',
+                    style: DashText.tight(12.5,
+                        w: FontWeight.w600, c: Colors.white)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Checkout',
+                    style: DashText.tight(15,
+                        w: FontWeight.w600, c: Colors.white)),
+              ),
+              Container(
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: DashColors.ink,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // The number the customer is about to be asked for.
+                    Text(Money.inr(_subtotal),
+                        style: DashText.tight(15, c: Colors.white)),
+                    const SizedBox(width: 6),
+                    const Icon(LucideIcons.arrowRight,
+                        size: 16, color: Colors.white),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1034,6 +1088,16 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
 
+// Greys the approved boards use that the Dashboard tokens do not name.
+const _kWell = Color(0xFFF1F1F1);
+const _kHair = Color(0xFFD9D6D1);
+const _kCardLine = Color(0xFFECEAE7);
+const _kChipText = Color(0xFF55595F);
+const _kSub = Color(0xFF7A8088);
+const _kSub2 = Color(0xFF616161);
+
+/// One product in the New sale grid, to the approved board (sales-04):
+/// initials tile, name, stock, price, and either an amber + or a dark stepper.
 class _ProductCard extends StatelessWidget {
   final Product product;
   final double qty;
@@ -1049,187 +1113,251 @@ class _ProductCard extends StatelessWidget {
     required this.onRemove,
   });
 
+  static const _tiles = [
+    Color(0xFFFFF1DE),
+    Color(0xFFE8EFFD),
+    Color(0xFFF1F1F1),
+    Color(0xFFE6F6EC),
+    Color(0xFFFDECEC),
+  ];
+
+  /// "Basmati rice 5 kg" -> BR. One word -> its first two letters.
+  String get _initials {
+    final words = product.name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    if (words.isEmpty) return '?';
+    if (words.length == 1) {
+      return words.first.characters.take(2).toString().toUpperCase();
+    }
+    return (words[0].characters.first + words[1].characters.first)
+        .toUpperCase();
+  }
+
+  /// Same product, same tile colour, every time the till opens.
+  Color get _tileColor {
+    var sum = 0;
+    for (final u in product.name.codeUnits) {
+      sum += u;
+    }
+    return _tiles[sum % _tiles.length];
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLow = product.stock > 0 && product.stock <= 10;
     final isOut = product.stock <= 0;
     final inCart = qty > 0;
 
-    // The status the tile is in, said once. It was said three times before --
-    // by the placeholder's fill, by a corner badge, and by the stock line --
-    // each with its own colour logic.
-    final Color statusColor = isOut
-        ? AppColors.error
-        : isLow
-            ? AppColors.warning
-            : AppColors.inkTertiary;
+    final Widget trailing;
+    if (isOut) {
+      trailing = SizedBox(
+        height: 44,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.only(right: 7),
+            child: Text('No stock',
+                style: DashText.inter(11.5,
+                    w: FontWeight.w600, c: const Color(0xFF9AA0A6))),
+          ),
+        ),
+      );
+    } else if (!inCart) {
+      // Drawn at 30px as on the board; _TapTarget keeps the 44px hit area a
+      // cashier needs when tapping quickly.
+      trailing = _TapTarget(
+        onTap: onTap,
+        child: Container(
+          width: 30,
+          height: 30,
+          decoration: const BoxDecoration(
+              color: DashColors.amber, shape: BoxShape.circle),
+          child: const Icon(LucideIcons.plus, size: 16, color: Colors.white),
+        ),
+      );
+    } else {
+      trailing = Padding(
+        padding: const EdgeInsets.only(right: 7),
+        child: _Stepper(
+          label: formatQty(qty, product.unit),
+          onMinus: onRemove,
+          onPlus: onAdd,
+        ),
+      );
+    }
+
+    final card = Container(
+      // Right and bottom are 3, not 10: the control row carries its own 44px
+      // hit boxes, which overhang the drawn buttons by 7.
+      padding: const EdgeInsets.fromLTRB(10, 10, 3, 3),
+      decoration: BoxDecoration(
+        color: DashColors.card,
+        borderRadius: BorderRadius.circular(16),
+        // In the basket = dark outline, identifiable at a glance.
+        border: Border.all(color: inCart ? DashColors.ink : _kCardLine),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 7),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isOut ? _kWell : _tileColor,
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Text(_initials,
+                          style: DashText.tight(12, c: _kChipText, ls: 0)),
+                    ),
+                    const Spacer(),
+                    if (isOut)
+                      const _Pill(
+                          label: 'Out',
+                          fill: Color(0xFFFEE2E2),
+                          ink: Color(0xFFB91C1C))
+                    else if (isLow)
+                      const _Pill(
+                          label: 'Low',
+                          fill: Color(0xFFFFE48A),
+                          ink: Color(0xFF4F3B00)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  product.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: DashText.tight(13.5, w: FontWeight.w600, h: 1.25),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${product.stock.toStringAsFixed(product.stock % 1 == 0 ? 0 : 1)} in stock',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: DashText.inter(11.5, w: FontWeight.w400, c: _kSub),
+                ),
+              ],
+            ),
+          ),
+          const Spacer(),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  Money.inr(product.sellingPrice),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: DashText.tight(16),
+                ),
+              ),
+              trailing,
+            ],
+          ),
+        ],
+      ),
+    );
 
     return AppTappable(
       ripple: false,
       onTap: isOut ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.all(Gap.md),
-        decoration: BoxDecoration(
-          color: AppColors.canvas,
-          borderRadius: Radii.rMd,
-          // Selection is carried by the border, not by a shadow. A tile in the
-          // basket has to be identifiable at a glance across a 2-up grid.
-          border: Border.all(
-            color: inCart ? AppColors.primary : AppColors.outlineVariant,
-            width: inCart ? 1.5 : 1,
+      child: isOut ? Opacity(opacity: 0.55, child: card) : card,
+    );
+  }
+}
+
+/// Dark − n + pill. Drawn 30px tall; each side has a 44px-tall hit box so a
+/// quick tap at the till lands. A mis-tap here is a wrong bill.
+class _Stepper extends StatelessWidget {
+  final String label;
+  final VoidCallback onMinus;
+  final VoidCallback onPlus;
+  const _Stepper(
+      {required this.label, required this.onMinus, required this.onPlus});
+
+  Widget _side(IconData icon, VoidCallback onTap) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          width: 32,
+          height: 44,
+          child: Center(
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: const BoxDecoration(
+                  color: Color(0x29FFFFFF), shape: BoxShape.circle),
+              child: Icon(icon, size: 13, color: Colors.white),
+            ),
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                // Was an 80px-tall placeholder holding the same generic package
-                // glyph for every product -- half the tile's height spent on
-                // nothing a cashier can use. The name is what identifies the
-                // item, so the name gets the space.
-                IconTile(
-                  icon: isOut ? LucideIcons.packageX : LucideIcons.package,
-                  tint: isOut ? AppColors.inkTertiary : AppColors.primary,
-                  size: 36,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: Center(
+              child: Container(
+                height: 30,
+                decoration: BoxDecoration(
+                  color: DashColors.ink,
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                const Spacer(),
-                if (isOut)
-                  _Pill(label: 'Out', color: AppColors.error)
-                else if (isLow)
-                  _Pill(label: 'Low', color: AppColors.warning),
-              ],
-            ),
-
-            const SizedBox(height: Gap.sm),
-
-            Text(
-              product.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.bodyStrong.copyWith(
-                color: isOut ? AppColors.inkTertiary : AppColors.onSurface,
               ),
             ),
-
-            const SizedBox(height: 2),
-
-            Text(
-              '${product.stock.toStringAsFixed(product.stock % 1 == 0 ? 0 : 1)} in stock',
-              style: AppText.caption.copyWith(
-                color: statusColor,
-                fontWeight: isOut || isLow ? FontWeight.w600 : FontWeight.w400,
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _side(LucideIcons.minus, onMinus),
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 12),
+                child: Text(label,
+                    textAlign: TextAlign.center,
+                    style: DashText.tight(13,
+                        w: FontWeight.w600, c: Colors.white, ls: 0)),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-
-            const Spacer(),
-
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    Money.inr(product.sellingPrice),
-                    // Was amber. Twenty tiles on screen meant twenty amber
-                    // numbers, so the colour identified nothing.
-                    style: AppText.money.copyWith(
-                      color: isOut ? AppColors.inkTertiary : AppColors.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (!inCart)
-                  _TapTarget(
-                    onTap: isOut ? null : onTap,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: isOut
-                            ? AppColors.secondaryContainer
-                            : AppColors.primary,
-                        borderRadius: Radii.rSm,
-                      ),
-                      child: Icon(LucideIcons.plus,
-                          size: 20,
-                          color: isOut
-                              ? AppColors.inkTertiary
-                              : AppColors.onPrimary),
-                    ),
-                  )
-                else
-                  // These were 26px circles. Anything under about 44 is below
-                  // the minimum comfortable touch target, and this is the
-                  // control a cashier hits hundreds of times a day, quickly,
-                  // with a customer waiting. A mis-tap here is a wrong bill.
-                  // The drawn buttons stay compact; _TapTarget gives each one a
-                  // 44px hit area that overflows the drawing.
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _TapTarget(
-                        onTap: onRemove,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: AppColors.secondaryContainer,
-                            borderRadius: Radii.rXs,
-                          ),
-                          child: const Icon(LucideIcons.minus,
-                              size: 16, color: AppColors.onSurface),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: Text(
-                          formatQty(qty, product.unit),
-                          style: AppText.moneySmall,
-                        ),
-                      ),
-                      _TapTarget(
-                        onTap: onAdd,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: Radii.rXs,
-                          ),
-                          child: const Icon(LucideIcons.plus,
-                              size: 16, color: AppColors.onPrimary),
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ],
-        ),
+              _side(LucideIcons.plus, onPlus),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-/// A small status pill. Sentence case: LOW and OUT were set in w800 uppercase
-/// white on a saturated fill, which is a warning label on machinery, not a
-/// note on a shelf tag.
+/// Small status pill on a product card.
 class _Pill extends StatelessWidget {
   final String label;
-  final Color color;
-  const _Pill({required this.label, required this.color});
+  final Color fill;
+  final Color ink;
+  const _Pill({required this.label, required this.fill, required this.ink});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: Radii.rXs,
+        color: fill,
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(label, style: AppText.label.copyWith(color: color)),
+      child: Text(label,
+          style: DashText.inter(10, w: FontWeight.w700, c: ink)),
     );
   }
 }
