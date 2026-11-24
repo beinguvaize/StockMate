@@ -59,7 +59,7 @@ dependencies:
   lucide_icons: any
   flutter_animate: ^4.5.2
   firebase_messaging: any
-  mobile_scanner: ^5.1.0
+  mobile_scanner: ^7.0.0
   local_auth: ^2.1.8
   # local_auth platform impls — declared explicitly so clean installs
   # (CI / fresh `pub get`) resolve the same versions as today's lockfile,
