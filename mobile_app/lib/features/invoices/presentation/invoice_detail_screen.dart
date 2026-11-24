@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:mobile_app/core/utils/money.dart';
+import 'package:flutter/services.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/features/sales/presentation/sales_view.dart' show methodLabel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
@@ -63,292 +65,429 @@ class InvoiceDetailScreen extends ConsumerWidget {
   final Invoice invoice;
   const InvoiceDetailScreen({super.key, required this.invoice});
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(businessProfileProvider);
-    final profile = profileAsync.asData?.value;
+  double _clientOutstanding(WidgetRef ref) {
+    final cid = invoice.clientId;
+    if (cid == null || cid.isEmpty) return 0.0;
+    final cs = ref.read(clientsProvider).valueOrNull ?? const [];
+    for (final c in cs) {
+      if (c.id == cid) return c.outstandingBalance ?? 0.0;
+    }
+    return 0.0;
+  }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, size: 20, color: Color(0xFF1E293B)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  void _onRecordPayment(BuildContext context, WidgetRef ref) {
+    final pm = (invoice.paymentMethod ?? '').toUpperCase();
+    final ps = invoice.paymentStatus.toUpperCase();
+    final isUpiFailed =
+        pm == 'UPI' && (ps == 'VOIDED' || ps == 'FAILED' || ps == 'PENDING');
+    if (isUpiFailed) {
+      _retryUpiPayment(context, ref, invoice);
+    } else {
+      _showPaymentSheet(context, ref);
+    }
+  }
+
+  static const _shareIcon = '<path d="M12 15V4M8 8l4-4 4 4M5 14v5h14v-5"/>';
+  static const _printIcon =
+      '<path d="M7 9V4h10v5M7 17H5v-6h14v6h-2M8 14h8v6H8z"/>';
+
+  Widget _kv(String k, String v,
+          {bool strong = false, Color? valueColor, bool divider = true}) =>
+      Container(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        decoration: divider
+            ? const BoxDecoration(
+                border: Border(bottom: BorderSide(color: Bl.sep)))
+            : null,
+        child: Row(
           children: [
-            Text(
-              invoice.docKind,
-              style: GoogleFonts.manrope(
-                color: const Color(0xFF1E293B),
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-              ),
+            Expanded(
+              child: Text(k,
+                  style: Bl.inter(13.5,
+                      w: strong ? FontWeight.w600 : FontWeight.w500,
+                      c: strong ? Bl.ink : Bl.body)),
             ),
-            Text(
-              invoice.displayNumber,
-              style: GoogleFonts.manrope(
-                color: const Color(0xFF94A3B8),
-                fontSize: 13,
-              ),
-            ),
+            Text(v,
+                style: Bl.tight(14,
+                    w: strong ? FontWeight.w700 : FontWeight.w600,
+                    c: valueColor ?? Bl.ink)),
           ],
         ),
-        actions: [
-          // Real GST invoices get Print/Share PDF icons. Sale-backed views
-          // skip these — they print receipts via the body buttons instead.
-          if (invoice.id.startsWith('INV-')) ...[
-            IconButton(
-              onPressed: () => _share(context, profile),
-              icon: const Icon(LucideIcons.share2, size: 20, color: AppColors.primary),
-              tooltip: 'Share PDF',
-            ),
-            IconButton(
-              onPressed: () => _print(context, profile),
-              icon: const Icon(LucideIcons.printer, size: 20, color: Color(0xFF1E293B)),
-              tooltip: 'Print',
-            ),
-            const SizedBox(width: 8),
-          ],
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _InvoiceCard(
-              invoice: invoice,
-              profile: profile,
-              clientOutstanding: () {
-                final cid = invoice.clientId;
-                if (cid == null || cid.isEmpty) return 0.0;
-                final cs = ref.read(clientsProvider).valueOrNull ?? const [];
-                for (final c in cs) {
-                  if (c.id == cid) return c.outstandingBalance ?? 0.0;
-                }
-                return 0.0;
-              }(),
-            ),
-            const SizedBox(height: 20),
+      );
 
-            // GST Invoice print/share — only when this view is a real GST invoice.
-            // Sale-backed views (id starts with SAL-) get Receipt buttons only.
-            if (invoice.id.startsWith('INV-'))
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _print(context, profile),
-                      icon: const Icon(LucideIcons.printer, size: 16),
-                      label: Text('Print',
-                          style: GoogleFonts.manrope(
-                              fontWeight: FontWeight.w700, fontSize: 14)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF1E293B),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: const StadiumBorder(),
-                        side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _share(context, profile),
-                      icon: const Icon(LucideIcons.share2, size: 16),
-                      label: Text('Share Invoice',
-                          style: GoogleFonts.manrope(
-                              fontWeight: FontWeight.w700, fontSize: 14)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.secondary,
-                        foregroundColor: AppColors.primaryContainer,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: const StadiumBorder(),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-            if (invoice.id.startsWith('INV-')) const SizedBox(height: 12),
-            if (!invoice.id.startsWith('INV-'))
-              // No spacer needed; receipt row starts directly.
-              const SizedBox.shrink(),
-            // POS Receipt — always available for sale-backed views.
-            // For real invoices we keep them too as a fallback (some users still
-            // want a thermal print). Hidden buttons row above implies this is
-            // the primary action set for SAL- views.
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _printPosReceipt(context, profile),
-                    icon: const Icon(LucideIcons.receipt, size: 16),
-                    label: Text('Print Receipt',
-                        style: GoogleFonts.manrope(
-                            fontWeight: FontWeight.w700, fontSize: 14)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF1E293B),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: const StadiumBorder(),
-                      side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _sharePosReceipt(context, profile),
-                    icon: const Icon(LucideIcons.share2, size: 16),
-                    label: Text('Share Receipt',
-                        style: GoogleFonts.manrope(
-                            fontWeight: FontWeight.w700, fontSize: 14)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF1E293B),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: const StadiumBorder(),
-                      side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            // ── IRN status + manual generate (real invoices only) ────────
-            if (invoice.id.startsWith('INV-')) ...[
-              const SizedBox(height: 12),
-              _IrnStatusCard(
-                invoice: invoice,
-                onGenerate: () => _enqueueIrn(context, ref),
-              ),
-            ],
-
-            // Sale → GST Invoice flow.
-            // ALL sales (walk-in or named) can be converted — cashier collects
-            // client + GSTIN at the time of conversion.
-            // Already-converted sales: show 'GST Invoice issued · INV-…' badge.
-            if (invoice.id.startsWith('SAL-') &&
-                (invoice.linkedInvoiceIdFromSale == null ||
-                 invoice.linkedInvoiceIdFromSale!.isEmpty)) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _convertToInvoice(context, ref),
-                  icon: const Icon(LucideIcons.fileText, size: 16),
-                  label: Text('Convert to GST Invoice',
-                      style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 14)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E293B),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: const StadiumBorder(),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ],
-
-            // Sale already converted → show muted reference to the linked invoice.
-            if (invoice.id.startsWith('SAL-') &&
-                invoice.linkedInvoiceIdFromSale != null &&
-                invoice.linkedInvoiceIdFromSale!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+  Widget _linkRow(String title, String sub,
+          {VoidCallback? onTap, String? action}) =>
+      BlTap(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+              color: Bl.tile, borderRadius: BorderRadius.circular(14)),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(LucideIcons.checkCircle2, size: 16, color: AppColors.success),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'GST Invoice issued · ${invoice.linkedInvoiceIdFromSale}',
+                    Text(title, style: Bl.tight(13.5, w: FontWeight.w600)),
+                    const SizedBox(height: 1),
+                    Text(sub,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.success),
-                      ),
-                    ),
+                        style: Bl.inter(12, c: const Color(0xFF7A8088))),
                   ],
                 ),
               ),
-            ],
-
-            if (invoice.paymentStatus != 'PAID') ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  // Failed / pending UPI sales re-open the QR sheet so the
-                  // cashier can ask the customer to retry the payment and
-                  // confirm receipt; on success we call unvoid_sale which
-                  // re-decrements stock and marks the row PAID.
-                  // Everything else falls through to the generic payment
-                  // sheet (cash / bank / etc.).
-                  onPressed: () {
-                    final pm = (invoice.paymentMethod ?? '').toUpperCase();
-                    final ps = invoice.paymentStatus.toUpperCase();
-                    final isUpiFailed = pm == 'UPI' && (ps == 'VOIDED' || ps == 'FAILED' || ps == 'PENDING');
-                    if (isUpiFailed) {
-                      _retryUpiPayment(context, ref, invoice);
-                    } else {
-                      _showPaymentSheet(context, ref);
-                    }
-                  },
-                  icon: const Icon(LucideIcons.indianRupee, size: 16),
-                  label: Text('Record Payment',
-                      style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 14)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: const StadiumBorder(),
-                    elevation: 0,
-                  ),
+              if (action != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(action,
+                      style:
+                          Bl.tight(13, w: FontWeight.w600, c: Bl.amberDeep)),
                 ),
-              ),
+              if (onTap != null)
+                const Padding(
+                  padding: EdgeInsets.only(left: 6),
+                  child: BlIcon(BlIcons.chevronRight,
+                      size: 16, color: Color(0xFFB8BCC2)),
+                ),
             ],
+          ),
+        ),
+      );
 
-            if (invoice.items != null && invoice.items!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => SalesReturnFormScreen(invoice: invoice),
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(businessProfileProvider).asData?.value;
+    final isInv = invoice.id.startsWith('INV-');
+    final isSale = invoice.id.startsWith('SAL-');
+    final isPaid = invoice.paymentStatus == 'PAID';
+    final isPartial = invoice.paymentStatus == 'PARTIAL';
+    final items = _parseItems(invoice);
+    final total = invoice.grandTotal;
+    final paid = invoice.paidAmount.clamp(0, total).toDouble();
+    final clientOwes = _clientOutstanding(ref);
+    final linked = invoice.linkedInvoiceIdFromSale;
+    final hasLinked = linked != null && linked.isNotEmpty;
+
+    final (String badge, Color badgeFg, Color badgeBg) = isPaid
+        ? ('Paid', const Color(0xFF17663A), const Color(0xFFE3F5EA))
+        : isPartial
+            ? ('Partial', const Color(0xFF8A5A00), const Color(0xFFFFF1C9))
+            : ('Unpaid', Bl.redDeep, const Color(0xFFFDE2E2));
+
+    final cgst = invoice.cgstAmount ?? 0.0;
+    final sgst = invoice.sgstAmount ?? 0.0;
+    final igst = invoice.igstAmount ?? 0.0;
+    final hasTax = cgst + sgst + igst > 0;
+    final taxable = invoice.taxableAmount ??
+        items.fold<double>(0.0, (s, i) => s + i.lineTotal);
+    final received = invoice.amountReceived ?? 0;
+    final over = received - total;
+
+    final irnStatus = invoice.irnStatus ?? 'NONE';
+    final irnLine = switch (irnStatus) {
+      'SUCCESS' =>
+        'Generated · ${invoice.irn?.substring(0, invoice.irn!.length.clamp(0, 16)) ?? ''}…',
+      'PENDING' => 'Queued for NIC',
+      'PROCESSING' => 'Worker processing…',
+      'FAILED' => 'Failed. Retry available',
+      _ => 'Not generated',
+    };
+    final irnCanRun = irnStatus == 'NONE' ||
+        irnStatus == 'FAILED' ||
+        irnStatus == 'NOT_APPLICABLE';
+
+    final canReturn = invoice.items != null && invoice.items!.isNotEmpty;
+
+    return Scaffold(
+      backgroundColor: Bl.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            BlBackHeader(
+              title: invoice.displayNumber,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BlRoundButton(_shareIcon,
+                      label: isInv ? 'Share invoice' : 'Share receipt',
+                      onTap: () => isInv
+                          ? _share(context, profile)
+                          : _sharePosReceipt(context, profile)),
+                  BlRoundButton(_printIcon,
+                      label: isInv ? 'Print invoice' : 'Print receipt',
+                      onTap: () => isInv
+                          ? _print(context, profile)
+                          : _printPosReceipt(context, profile)),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: BlEntrance.all([
+                    // ── Total, how much is paid, when it is due ──────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 6, 18, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                    '${isInv ? 'Tax invoice' : invoice.docKind} · ${profile?.name ?? 'Your business'}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Bl.inter(13, w: FontWeight.w500)),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                    color: badgeBg,
+                                    borderRadius: BorderRadius.circular(999)),
+                                child: Text(badge,
+                                    style: Bl.tight(11,
+                                        w: FontWeight.w600, ls: 0, c: badgeFg)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text('₹${_fmtAmount(total)}',
+                              style: Bl.tight(36,
+                                  w: FontWeight.w700, ls: -0.04, h: 1.05)),
+                          const SizedBox(height: 12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: total <= 0 ? 0 : paid / total,
+                              minHeight: 6,
+                              backgroundColor: const Color(0xFFEFEEEC),
+                              color: const Color(0xFF1E9E5A),
+                              semanticsLabel: 'Paid so far',
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                    'Paid ₹${_fmtAmount(paid)} · balance ₹${_fmtAmount(invoice.outstanding)}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Bl.inter(12, w: FontWeight.w500)),
+                              ),
+                              Text(
+                                  invoice.dueDate != null && !isPaid
+                                      ? 'Due ${_fmtDate(invoice.dueDate)}'
+                                      : _fmtDate(invoice.invoiceDate),
+                                  style: Bl.inter(12, w: FontWeight.w500)),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  icon: const Icon(LucideIcons.rotateCcw, size: 16),
-                  label: Text('Process Return',
-                      style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 14)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.danger,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: const StadiumBorder(),
-                    elevation: 0,
-                  ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Row(
+                        children: [
+                          for (final (label, value) in [
+                            ('Bill to', invoice.displayClientName),
+                            (
+                              'Payment',
+                              methodLabel(invoice.paymentMethod ?? 'CASH')
+                            ),
+                          ]) ...[
+                            if (label == 'Payment') const SizedBox(width: 8),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 9),
+                                decoration: BoxDecoration(
+                                    color: Bl.tile,
+                                    borderRadius: BorderRadius.circular(12)),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(label,
+                                        style: Bl.inter(11.5,
+                                            w: FontWeight.w500,
+                                            c: const Color(0xFF7A8088))),
+                                    const SizedBox(height: 2),
+                                    Text(value,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Bl.tight(14,
+                                            w: FontWeight.w600)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // ── Items ────────────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
+                      child: Row(
+                        children: [
+                          Expanded(child: Text('ITEMS', style: Bl.eyebrow)),
+                          Text('${items.length}', style: Bl.eyebrow),
+                        ],
+                      ),
+                    ),
+                    if (items.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
+                        child: Text('No item details',
+                            style: Bl.inter(13, c: Bl.mute)),
+                      )
+                    else
+                      Column(
+                        children: [
+                          for (final item in items)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 18, vertical: 8),
+                              decoration: const BoxDecoration(
+                                  border: Border(
+                                      bottom: BorderSide(color: Bl.sep))),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(item.name,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: Bl.tight(14,
+                                                w: FontWeight.w600)),
+                                        const SizedBox(height: 1),
+                                        Text(
+                                            '${_qtyText(item.qty)} × ₹${_fmtAmount(item.price)}',
+                                            style: Bl.inter(12,
+                                                c: const Color(0xFF7A8088))),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text('₹${_fmtAmount(item.lineTotal)}',
+                                      style: Bl.tight(14,
+                                          w: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+
+                    // ── Tax and totals ───────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 6, 18, 0),
+                      child: Column(
+                        children: [
+                          if (hasTax) ...[
+                            _kv('Taxable amount', '₹${_fmtAmount(taxable)}'),
+                            if (igst == 0) ...[
+                              _kv('CGST', '₹${_fmtAmount(cgst)}'),
+                              _kv('SGST', '₹${_fmtAmount(sgst)}'),
+                            ] else
+                              _kv('IGST', '₹${_fmtAmount(igst)}'),
+                          ],
+                          _kv('Total', '₹${_fmtAmount(total)}', strong: true),
+                          if (invoice.paidAmount > 0) ...[
+                            _kv('Paid on this bill',
+                                '₹${_fmtAmount(invoice.paidAmount)}'),
+                            if (received > 0) ...[
+                              _kv('Amount received',
+                                  '₹${_fmtAmount(received)}'),
+                              if (over > 0.5)
+                                _kv(
+                                    (invoice.paymentMethod ?? '')
+                                                .toUpperCase() ==
+                                            'CREDIT'
+                                        ? 'Credited to account'
+                                        : 'Paid over this bill',
+                                    '₹${_fmtAmount(over)}'),
+                            ],
+                            if (invoice.outstanding > 0.5)
+                              _kv('Balance due (this bill)',
+                                  '₹${_fmtAmount(invoice.outstanding)}'),
+                          ],
+                          if (clientOwes > 0.5)
+                            _kv(
+                                '${invoice.displayClientName} owes in total',
+                                '₹${_fmtAmount(clientOwes)}',
+                                valueColor: Bl.redDeep,
+                                divider: false),
+                        ],
+                      ),
+                    ),
+
+                    // ── Other things you can do with this bill ───────────
+                    if (isInv)
+                      _linkRow(
+                        'E-invoice IRN',
+                        invoice.ackNo != null
+                            ? '$irnLine\nAck: ${invoice.ackNo} · ${invoice.ackDate ?? ''}'
+                            : irnLine,
+                        onTap:
+                            irnCanRun ? () => _enqueueIrn(context, ref) : null,
+                        action: irnCanRun
+                            ? (irnStatus == 'FAILED' ? 'Retry' : 'Generate')
+                            : null,
+                      ),
+                    if (isSale && !hasLinked)
+                      _linkRow('GST invoice',
+                          'Issue a tax invoice for this sale',
+                          onTap: () => _convertToInvoice(context, ref)),
+                    if (isSale && hasLinked)
+                      _linkRow('GST invoice', 'Issued · $linked'),
+                    if (isInv)
+                      _linkRow('Counter receipt', 'Print the small receipt',
+                          onTap: () => _printPosReceipt(context, profile)),
+                    if (isInv)
+                      _linkRow('Share receipt', 'Send the small receipt',
+                          onTap: () => _sharePosReceipt(context, profile)),
+                  ]),
                 ),
               ),
-            ],
-            const SizedBox(height: 16),
+            ),
+            if (canReturn || !isPaid)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+                child: Row(
+                  children: [
+                    if (canReturn)
+                      Expanded(
+                        child: BlButton('Process return',
+                            kind: BlButtonKind.soft,
+                            onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => SalesReturnFormScreen(
+                                        invoice: invoice),
+                                  ),
+                                )),
+                      ),
+                    if (canReturn && !isPaid) const SizedBox(width: 8),
+                    if (!isPaid)
+                      Expanded(
+                        child: BlButton('Record payment',
+                            onTap: () => _onRecordPayment(context, ref)),
+                      ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -492,13 +631,8 @@ class InvoiceDetailScreen extends ConsumerWidget {
     // Open form sheet to collect client info + GSTIN.
     // ANY sale (walk-in or named) can be converted — we collect everything
     // we need to issue a GST tax invoice at this moment.
-    final result = await showModalBottomSheet<Map<String, String?>?>(
+    final result = await showBlSheet<Map<String, String?>?>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (_) => _ConvertSheet(invoice: invoice),
     );
     if (result == null) return; // cancelled
@@ -686,172 +820,94 @@ class InvoiceDetailScreen extends ConsumerWidget {
     }
   }
 
+  /// Writes one payment against this bill. Throws with the real reason when
+  /// the server refuses it.
+  Future<void> _writePayment(double amt, String method) async {
+    final supabase = Supabase.instance.client;
+    // Resolve the underlying SALE — that's what the
+    // outstanding + Cash & Bank triggers read. Updating only
+    // the invoice row (old behaviour) never adjusted the
+    // client's outstanding, and did nothing at all for raw
+    // sales without an invoice.
+    final saleId = invoice.saleId ??
+        (invoice.id.startsWith('INV-') ? null : invoice.id);
+    final saleRow = saleId == null
+        ? null
+        : await supabase
+            .from('sales')
+            .select('id, tenant_id, "shopId", "paymentMethod", "totalAmount", "paidAmount"')
+            .eq('id', saleId)
+            .maybeSingle();
+
+    final method = ((saleRow?['paymentMethod'] as String?) ?? '').toUpperCase();
+    final clientId = saleRow?['shopId'] as String?;
+
+    if (saleRow != null && method == 'CREDIT' && clientId != null) {
+      // Credit sale with a registered client: record a
+      // client payment — the DB replay allocates it FIFO,
+      // posts Cash & Bank and recomputes outstanding.
+      await supabase.from('client_payments').insert({
+        'id': 'CP-${DateTime.now().millisecondsSinceEpoch}',
+        'tenant_id': saleRow['tenant_id'],
+        'client_id': clientId,
+        'amount': amt,
+        'date': DateTime.now().toIso8601String().substring(0, 10),
+        'payment_method': method,
+        'recorded_by': supabase.auth.currentUser?.id,
+      });
+    } else if (saleRow != null) {
+      // Cash/UPI sale (or walk-in credit): bump the sale's
+      // paid amount directly — the sale-ledger trigger
+      // reposts Cash & Bank and outstanding recalcs. No
+      // client_payments row (the replay would double-count).
+      final total = ((saleRow['totalAmount'] as num?)?.toDouble() ?? 0);
+      final paid  = ((saleRow['paidAmount'] as num?)?.toDouble() ?? 0);
+      final newPaid = (paid + amt).clamp(0, total);
+      final newStatus = newPaid >= total ? 'PAID' : 'PARTIAL';
+      await supabase.from('sales').update({
+        'paidAmount': newPaid,
+        'paymentStatus': newStatus,
+      }).eq('id', saleId as Object);
+      await supabase.from('invoices').update({
+        'paid_amount': newPaid,
+        'payment_status': newStatus,
+      }).eq('id', 'INV-$saleId');
+    } else {
+      // Legacy invoice with no linked sale — old behaviour.
+      final newPaid = invoice.paidAmount + amt;
+      final newStatus = newPaid >= invoice.grandTotal ? 'PAID' : 'PARTIAL';
+      await supabase.from('invoices').update({
+        'paid_amount': newPaid.clamp(0, invoice.grandTotal),
+        'payment_status': newStatus,
+      }).eq('id', invoice.id);
+    }
+  }
+
   void _showPaymentSheet(BuildContext context, WidgetRef ref) {
-    final outstanding = invoice.outstanding;
-    final amountCtrl = TextEditingController(text: outstanding.toStringAsFixed(2));
-
-    showModalBottomSheet(
+    showBlSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text('Record Payment',
-                style: GoogleFonts.manrope(
-                    fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
-            const SizedBox(height: 4),
-            Text('Balance due: ₹${outstanding.toStringAsFixed(2)}',
-                style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
-            const SizedBox(height: 20),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainer,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-              ),
-              child: TextField(
-                controller: amountCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: GoogleFonts.manrope(fontSize: 16, color: AppColors.inkPrimary, fontWeight: FontWeight.w600),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(LucideIcons.indianRupee, size: 18, color: AppColors.inkSecondary),
-                  labelText: 'Payment Amount',
-                  labelStyle: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary, fontWeight: FontWeight.w600),
-                  floatingLabelBehavior: FloatingLabelBehavior.always,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
-                  if (amt <= 0) return;
-                  try {
-                    final supabase = Supabase.instance.client;
-                    // Resolve the underlying SALE — that's what the
-                    // outstanding + Cash & Bank triggers read. Updating only
-                    // the invoice row (old behaviour) never adjusted the
-                    // client's outstanding, and did nothing at all for raw
-                    // sales without an invoice.
-                    final saleId = invoice.saleId ??
-                        (invoice.id.startsWith('INV-') ? null : invoice.id);
-                    final saleRow = saleId == null
-                        ? null
-                        : await supabase
-                            .from('sales')
-                            .select('id, tenant_id, "shopId", "paymentMethod", "totalAmount", "paidAmount"')
-                            .eq('id', saleId)
-                            .maybeSingle();
-
-                    final method = ((saleRow?['paymentMethod'] as String?) ?? '').toUpperCase();
-                    final clientId = saleRow?['shopId'] as String?;
-
-                    if (saleRow != null && method == 'CREDIT' && clientId != null) {
-                      // Credit sale with a registered client: record a
-                      // client payment — the DB replay allocates it FIFO,
-                      // posts Cash & Bank and recomputes outstanding.
-                      await supabase.from('client_payments').insert({
-                        'id': 'CP-${DateTime.now().millisecondsSinceEpoch}',
-                        'tenant_id': saleRow['tenant_id'],
-                        'client_id': clientId,
-                        'amount': amt,
-                        'date': DateTime.now().toIso8601String().substring(0, 10),
-                        'payment_method': 'CASH',
-                        'recorded_by': supabase.auth.currentUser?.id,
-                      });
-                    } else if (saleRow != null) {
-                      // Cash/UPI sale (or walk-in credit): bump the sale's
-                      // paid amount directly — the sale-ledger trigger
-                      // reposts Cash & Bank and outstanding recalcs. No
-                      // client_payments row (the replay would double-count).
-                      final total = ((saleRow['totalAmount'] as num?)?.toDouble() ?? 0);
-                      final paid  = ((saleRow['paidAmount'] as num?)?.toDouble() ?? 0);
-                      final newPaid = (paid + amt).clamp(0, total);
-                      final newStatus = newPaid >= total ? 'PAID' : 'PARTIAL';
-                      await supabase.from('sales').update({
-                        'paidAmount': newPaid,
-                        'paymentStatus': newStatus,
-                      }).eq('id', saleId as Object);
-                      await supabase.from('invoices').update({
-                        'paid_amount': newPaid,
-                        'payment_status': newStatus,
-                      }).eq('id', 'INV-$saleId');
-                    } else {
-                      // Legacy invoice with no linked sale — old behaviour.
-                      final newPaid = invoice.paidAmount + amt;
-                      final newStatus = newPaid >= invoice.grandTotal ? 'PAID' : 'PARTIAL';
-                      await supabase.from('invoices').update({
-                        'paid_amount': newPaid.clamp(0, invoice.grandTotal),
-                        'payment_status': newStatus,
-                      }).eq('id', invoice.id);
-                    }
-                    final newStatus = (invoice.paidAmount + amt) >= invoice.grandTotal ? 'PAID' : 'PARTIAL';
-                    if (ctx.mounted) {
-                      Navigator.pop(ctx);
-                      ref.invalidate(invoicesProvider);
-                      ref.invalidate(recentSalesProvider);
-                      try { ref.invalidate(clientsProvider); } catch (_) {}
-                      if (context.mounted) {
-                        Navigator.pop(context); // go back to list
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                newStatus == 'PAID' ? 'Invoice marked as PAID' : 'Partial payment recorded',
-                                style: GoogleFonts.manrope(color: AppColors.inkPrimary)),
-                            backgroundColor: AppColors.primaryContainer,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        );
-                      }
-                    }
-                  } catch (e) {
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
-                      );
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: const StadiumBorder(),
-                  elevation: 0,
-                ),
-                child: Text('CONFIRM PAYMENT',
-                    style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 1)),
-              ),
-            ),
-          ],
-        ),
+      builder: (ctx) => _PaymentSheet(
+        invoice: invoice,
+        onRecord: (amt, method) async {
+          await _writePayment(amt, method);
+          final paidInFull = (invoice.paidAmount + amt) >= invoice.grandTotal;
+          if (!ctx.mounted) return;
+          Navigator.pop(ctx);
+          ref.invalidate(invoicesProvider);
+          ref.invalidate(recentSalesProvider);
+          try { ref.invalidate(clientsProvider); } catch (_) {}
+          if (context.mounted) {
+            Navigator.pop(context); // go back to list
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(
+                  paidInFull ? 'Invoice marked as paid' : 'Part payment recorded'),
+              behavior: SnackBarBehavior.floating,
+            ));
+          }
+        },
       ),
     );
   }
-
-  // ── PDF Builder ─────────────────────────────────────────────────────────────
 
   // ─── POS Receipt PDF (80mm thermal — standard receipt style) ────────────────
   // Delegates to the shared builder in core/print/pos_receipt_pdf.dart so
@@ -1492,471 +1548,6 @@ class InvoiceDetailScreen extends ConsumerWidget {
 
 // ─── Flutter Invoice Card (simple on-screen view) ────────────────────────────
 
-class _InvoiceCard extends StatelessWidget {
-  final Invoice invoice;
-  final BusinessProfile? profile;
-  // The client's TOTAL across all their bills, so this bill's balance is not
-  // mistaken for the whole account. 0 when unknown or walk-in.
-  final double clientOutstanding;
-  const _InvoiceCard({required this.invoice, required this.profile, this.clientOutstanding = 0});
-
-  @override
-  Widget build(BuildContext context) {
-    final biz = profile;
-    final isPaid = invoice.paymentStatus == 'PAID';
-    final isPartial = invoice.paymentStatus == 'PARTIAL';
-    final items = _parseItems(invoice);
-    final double grandTotal = invoice.grandTotal;
-    final invoiceNo = invoice.displayNumber;
-    final custName = invoice.displayClientName;
-    final dateStr = _fmtDate(invoice.invoiceDate);
-    final paymentMethod = invoice.paymentMethod ?? 'CASH';
-
-    Color badgeColor;
-    Color badgeBg;
-    String badgeLabel;
-    if (isPaid) {
-      badgeColor = const Color(0xFF15803d);
-      badgeBg = const Color(0xFFf0fdf4);
-      badgeLabel = 'PAID';
-    } else if (isPartial) {
-      badgeColor = const Color(0xFFD97706);
-      badgeBg = const Color(0xFFFFFBEB);
-      badgeLabel = 'PARTIAL';
-    } else {
-      badgeColor = const Color(0xFFEA580C);
-      badgeBg = const Color(0xFFFFF7ED);
-      badgeLabel = 'UNPAID';
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 20,
-              offset: const Offset(0, 4)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Top accent bar ───────────────────────────────────────────
-          Container(
-            height: 4,
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Invoice header ───────────────────────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          biz?.name ?? 'Your Business',
-                          style: GoogleFonts.manrope(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          invoiceNo,
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: const Color(0xFF94A3B8),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          dateStr,
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: const Color(0xFF64748B),
-                          ),
-                        ),
-                        // Only worth showing when it differs from the bill
-                        // date. On a same-day sale it repeats the line above
-                        // and reads as a second "Due" next to the balance.
-                        if (invoice.dueDate != null && !isPaid &&
-                            invoice.dueDate != invoice.invoiceDate)
-                          Text(
-                            'Payment due ${_fmtDate(invoice.dueDate)}',
-                            style: GoogleFonts.manrope(fontSize: 13, color: const Color(0xFF64748B)),
-                          ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: badgeBg,
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(
-                          color: badgeColor,
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Text(
-                        badgeLabel,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: badgeColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                if (invoice.paidAmount > 0 && !isPaid) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Balance ₹${invoice.outstanding.toStringAsFixed(0)}',
-                    style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFFD97706)),
-                  ),
-                ],
-
-                const SizedBox(height: 16),
-
-                // ── Customer + payment ───────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Bill To',
-                                style: GoogleFonts.manrope(
-                                    fontSize: 13,
-                                    color: const Color(0xFF94A3B8))),
-                            const SizedBox(height: 2),
-                            Text(custName,
-                                style: GoogleFonts.manrope(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF0F172A))),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text('Payment',
-                              style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  color: const Color(0xFF94A3B8))),
-                          const SizedBox(height: 2),
-                          Text(paymentMethod,
-                              style: GoogleFonts.manrope(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF0F172A))),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-                const Divider(color: Color(0xFFE2E8F0)),
-                const SizedBox(height: 8),
-
-                // ── Items ────────────────────────────────────────────────
-                if (items.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text('No item details',
-                        style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: const Color(0xFF94A3B8))),
-                  )
-                else
-                  ...items.asMap().entries.map((e) {
-                    final idx = e.key;
-                    final item = e.value;
-                    return Padding(
-                      padding: EdgeInsets.only(
-                          top: idx == 0 ? 0 : 10, bottom: 10),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(item.name,
-                                    style: GoogleFonts.manrope(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF0F172A))),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${item.qty} × ₹${_fmtAmount(item.price)}',
-                                  style: GoogleFonts.manrope(
-                                      fontSize: 13,
-                                      color: const Color(0xFF64748B)),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            '₹${_fmtAmount(item.lineTotal)}',
-                            style: GoogleFonts.manrope(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0F172A),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-
-                const Divider(color: Color(0xFFE2E8F0)),
-                const SizedBox(height: 10),
-
-                // ── Tax breakdown ─────────────────────────────────────────
-                Builder(builder: (_) {
-                  final lineSubtotal = items.fold(0.0, (s, i) => s + i.lineTotal);
-                  final taxable = invoice.taxableAmount ?? lineSubtotal;
-                  final cgst   = invoice.cgstAmount ?? 0.0;
-                  final sgst   = invoice.sgstAmount ?? 0.0;
-                  final igst   = invoice.igstAmount ?? 0.0;
-                  final totalTax = cgst + sgst + igst;
-                  final hasTax = totalTax > 0;
-                  final isIntra = igst == 0 && hasTax;
-
-                  if (!hasTax) return const SizedBox.shrink();
-
-                  return Column(
-                    children: [
-                      _TaxRow(label: 'Taxable Amount', value: taxable),
-                      if (isIntra) ...[
-                        _TaxRow(label: 'CGST', value: cgst),
-                        _TaxRow(label: 'SGST', value: sgst),
-                      ] else
-                        _TaxRow(label: 'IGST', value: igst),
-                      const SizedBox(height: 6),
-                    ],
-                  );
-                }),
-
-                // ── Grand total ──────────────────────────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Total',
-                        style: GoogleFonts.manrope(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF0F172A))),
-                    Text(
-                      '₹${_fmtAmount(grandTotal)}',
-                      style: GoogleFonts.manrope(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Payment breakdown. Only rendered when there is something to
-                // say: paidAmount is capped at the bill, so a customer who
-                // handed over more leaves no trace without amountReceived.
-                // That value is null on historical sales and on phones older
-                // than v1.5.73, and showing paidAmount relabelled as
-                // "received" would assert a tender nobody captured.
-                if (invoice.paidAmount > 0) ...[
-                  const SizedBox(height: 8),
-                  const Divider(height: 1),
-                  const SizedBox(height: 8),
-                  _TaxRow(label: 'Paid on this bill', value: invoice.paidAmount),
-                  if (invoice.amountReceived != null && invoice.amountReceived! > 0) ...[
-                    _TaxRow(label: 'Amount received', value: invoice.amountReceived!),
-                    if (invoice.amountReceived! - grandTotal > 0.5)
-                      // "Excess received" covered two opposite outcomes and so
-                      // told the reader neither: on a cash sale it reads as
-                      // money the shop is holding when it may have been handed
-                      // back, and crediting that against dues pays the same
-                      // rupees out twice. The fate is NOT implied by the
-                      // method — checkout lets the cashier apply a surplus to
-                      // the outstanding OR give it as change, and nothing on
-                      // the sale records which. Only a CREDIT sale is knowable:
-                      // it collects nothing at the till, so anything over the
-                      // bill went against older dues. Mirrors surplusLabel() in
-                      // src/pages/sales/lib/checkoutMoney.js — change both.
-                      _TaxRow(
-                        label: (invoice.paymentMethod ?? '').toUpperCase() == 'CREDIT'
-                            ? 'Credited to account'
-                            : 'Paid over this bill',
-                        value: invoice.amountReceived! - grandTotal,
-                      ),
-                  ],
-                  if (invoice.outstanding > 0.5)
-                    _TaxRow(label: 'Balance due (this bill)', value: invoice.outstanding),
-                ],
-                // Account total, shown only when it differs from this bill —
-                // "Outstanding" alone read as everything the client owes.
-                if (invoice.outstanding > 0.5 &&
-                    clientOutstanding > 0.5 &&
-                    (clientOutstanding - invoice.outstanding).abs() > 0.5) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${invoice.displayClientName} — total outstanding',
-                          style: GoogleFonts.manrope(
-                              fontSize: 13, color: AppColors.inkTertiary),
-                        ),
-                      ),
-                      Text(
-                        '₹${_fmtAmount(clientOutstanding)}',
-                        style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.warning),
-                      ),
-                    ],
-                  ),
-                ],
-
-                const SizedBox(height: 4),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── IRN status card ──────────────────────────────────────────────────────────
-class _IrnStatusCard extends StatelessWidget {
-  final Invoice invoice;
-  final VoidCallback onGenerate;
-  const _IrnStatusCard({required this.invoice, required this.onGenerate});
-
-  @override
-  Widget build(BuildContext context) {
-    final status = invoice.irnStatus ?? 'NONE';
-
-    Color bg, fg;
-    String headline;
-    IconData icon;
-
-    switch (status) {
-      case 'SUCCESS':
-        bg = const Color(0xFFECFDF5); fg = const Color(0xFF047857);
-        headline = 'Generated · ${invoice.irn?.substring(0, invoice.irn!.length.clamp(0, 16)) ?? ''}…';
-        icon = LucideIcons.checkCircle2;
-        break;
-      case 'PENDING':
-        bg = const Color(0xFFFFFBEB); fg = const Color(0xFFB45309);
-        headline = 'Queued for NIC';
-        icon = LucideIcons.clock;
-        break;
-      case 'PROCESSING':
-        bg = const Color(0xFFFFFBEB); fg = const Color(0xFFB45309);
-        headline = 'Worker processing…';
-        icon = LucideIcons.loader;
-        break;
-      case 'FAILED':
-        bg = const Color(0xFFFEF2F2); fg = const Color(0xFFB91C1C);
-        headline = 'Failed — retry available';
-        icon = LucideIcons.alertCircle;
-        break;
-      default:
-        bg = const Color(0xFFF8FAFC); fg = const Color(0xFF475569);
-        headline = 'Not generated';
-        icon = LucideIcons.fileText;
-    }
-
-    final canRetry = status == 'NONE' || status == 'FAILED' || status == 'NOT_APPLICABLE';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: fg.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: fg),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('E-INVOICE IRN',
-                        style: GoogleFonts.manrope(
-                            fontSize: 13, fontWeight: FontWeight.w700,
-                            color: fg.withValues(alpha: 0.7), letterSpacing: 1.5)),
-                    const SizedBox(height: 2),
-                    Text(headline,
-                        style: GoogleFonts.manrope(
-                            fontSize: 13, fontWeight: FontWeight.w700, color: fg),
-                        overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-              ),
-              if (canRetry)
-                TextButton.icon(
-                  onPressed: onGenerate,
-                  icon: const Icon(LucideIcons.send, size: 13),
-                  label: Text(status == 'FAILED' ? 'Retry' : 'Generate',
-                      style: GoogleFonts.manrope(
-                          fontSize: 13, fontWeight: FontWeight.w700)),
-                  style: TextButton.styleFrom(
-                    foregroundColor: fg,
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    shape: const StadiumBorder(),
-                  ),
-                ),
-            ],
-          ),
-          if (invoice.ackNo != null) ...[
-            const SizedBox(height: 6),
-            Text('Ack: ${invoice.ackNo} · ${invoice.ackDate ?? ''}',
-                style: GoogleFonts.manrope(
-                    fontSize: 13, color: fg.withValues(alpha: 0.7))),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 // ─── Convert Sale → GST Invoice form sheet ────────────────────────────────────
 class _ConvertSheet extends ConsumerStatefulWidget {
   final Invoice invoice;
@@ -2039,100 +1630,70 @@ class _ConvertSheetState extends ConsumerState<_ConvertSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Issue GST invoice',
+            style: Bl.tight(19, w: FontWeight.w700, ls: -0.02)),
+        Container(
+          margin: const EdgeInsets.only(top: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+              color: const Color(0xFFFFF6DD),
+              borderRadius: BorderRadius.circular(12)),
+          child: Text("A tax invoice needs the client's GSTIN.",
+              style: Bl.inter(12.5,
+                  w: FontWeight.w500, c: const Color(0xFF8A5A00))),
+        ),
+        _Field(label: 'Client name *', ctrl: _name),
+        _Field(
+            label: 'GSTIN *',
+            ctrl: _gstin,
+            hint: '29AAACR5055K1Z5',
+            caps: true),
+        _Field(label: 'Billing address', ctrl: _address),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text('Issue GST Invoice',
-                style: GoogleFonts.manrope(
-                    fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
-            Text('TAX INVOICE — REQUIRES GSTIN',
-                style: GoogleFonts.manrope(
-                    fontSize: 13, fontWeight: FontWeight.w600,
-                    color: AppColors.inkTertiary, letterSpacing: 1.2)),
-            const SizedBox(height: 18),
-
-            _Field(label: 'Client Name *', ctrl: _name),
-            const SizedBox(height: 10),
-            _Field(label: 'GSTIN *', ctrl: _gstin, mono: true, hint: '29AAACR5055K1Z5'),
-            const SizedBox(height: 10),
-            _Field(label: 'Billing Address', ctrl: _address, maxLines: 2),
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(child: _Field(label: 'Phone', ctrl: _phone, keyboardType: TextInputType.phone)),
-              const SizedBox(width: 10),
-              Expanded(child: _Field(label: 'Place of Supply', ctrl: _placeOfSupply, hint: 'KL / TN / GST state code')),
-            ]),
-            const SizedBox(height: 10),
-            _Field(label: 'Due in (days)', ctrl: _dueDays, keyboardType: TextInputType.number),
-
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.danger.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
-                ),
-                child: Row(children: [
-                  const Icon(LucideIcons.alertCircle, size: 14, color: AppColors.danger),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(_error!,
-                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.danger, fontWeight: FontWeight.w600))),
-                ]),
-              ),
-            ],
-
-            const SizedBox(height: 18),
-            Row(children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: const StadiumBorder(),
-                    side: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
-                  ),
-                  child: Text('Cancel',
-                      style: GoogleFonts.manrope(
-                          fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkSecondary)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton.icon(
-                  onPressed: _submit,
-                  icon: const Icon(LucideIcons.fileText, size: 16),
-                  label: Text('Issue Invoice',
-                      style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryContainer,
-                    foregroundColor: AppColors.inkPrimary,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: const StadiumBorder(),
-                  ),
-                ),
-              ),
-            ]),
+            Expanded(
+                child: _Field(
+                    label: 'Phone',
+                    ctrl: _phone,
+                    keyboardType: TextInputType.phone)),
+            const SizedBox(width: 8),
+            SizedBox(
+                width: 112,
+                child: _Field(
+                    label: 'Due in (days)',
+                    ctrl: _dueDays,
+                    keyboardType: TextInputType.number)),
           ],
         ),
-      ),
+        _Field(
+            label: 'Place of supply',
+            ctrl: _placeOfSupply,
+            hint: 'KL / TN / GST state code'),
+        if (_error != null)
+          Container(
+            margin: const EdgeInsets.only(top: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+                color: Bl.redSoft, borderRadius: BorderRadius.circular(12)),
+            child: Text(_error!,
+                style: Bl.inter(12.5, w: FontWeight.w500, c: Bl.redDeep)),
+          ),
+        const SizedBox(height: 14),
+        Row(children: [
+          Expanded(
+            child: BlButton('Cancel',
+                kind: BlButtonKind.soft,
+                onTap: () => Navigator.pop(context)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: BlButton('Issue invoice', onTap: _submit)),
+        ]),
+      ],
     );
   }
 }
@@ -2141,79 +1702,338 @@ class _Field extends StatelessWidget {
   final String label;
   final TextEditingController ctrl;
   final String? hint;
-  final int maxLines;
-  final bool mono;
+  final bool caps;
   final TextInputType? keyboardType;
+
   const _Field({
     required this.label,
     required this.ctrl,
     this.hint,
-    this.maxLines = 1,
-    this.mono = false,
+    this.caps = false,
     this.keyboardType,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(label,
-              style: GoogleFonts.manrope(
-                  fontSize: 13, fontWeight: FontWeight.w700,
-                  color: AppColors.inkTertiary, letterSpacing: 1)),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: Bl.tight(12.5, w: FontWeight.w600, ls: 0, c: Bl.ink3)),
+          const SizedBox(height: 5),
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 13),
+            alignment: Alignment.centerLeft,
+            decoration: BoxDecoration(
+                color: Bl.wellSoft, borderRadius: BorderRadius.circular(13)),
+            child: TextField(
+              controller: ctrl,
+              keyboardType: keyboardType,
+              textCapitalization: caps
+                  ? TextCapitalization.characters
+                  : TextCapitalization.none,
+              cursorColor: Bl.brand,
+              style: Bl.tight(14.5, w: FontWeight.w600, ls: 0),
+              decoration: InputDecoration(
+                isCollapsed: true,
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                hintText: hint,
+                hintStyle: Bl.tight(14.5,
+                    w: FontWeight.w500, ls: 0, c: const Color(0xFFA8ADB4)),
+              ),
+            ),
           ),
-          child: TextField(
-            controller: ctrl,
-            maxLines: maxLines,
-            keyboardType: keyboardType,
-            style: (mono
-                    ? GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700)
-                    : GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w500))
-                .copyWith(color: AppColors.inkPrimary),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              hintText: hint,
-              hintStyle: GoogleFonts.manrope(
-                  color: AppColors.inkTertiary.withValues(alpha: 0.6), fontSize: 13),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Record payment" (canvas): amount, quick amounts, how it was paid, what is
+/// left after, and slide to record.
+class _PaymentSheet extends StatefulWidget {
+  final Invoice invoice;
+  final Future<void> Function(double amount, String method) onRecord;
+  const _PaymentSheet({required this.invoice, required this.onRecord});
+
+  @override
+  State<_PaymentSheet> createState() => _PaymentSheetState();
+}
+
+class _PaymentSheetState extends State<_PaymentSheet> {
+  late final double _due = widget.invoice.outstanding;
+  late final _ctrl = TextEditingController(text: _plain(_due));
+  final _focus = FocusNode();
+  String _method = 'CASH';
+  int _quick = 0; // 0 full, 1 half, 2 other
+  String? _error;
+
+  static String _plain(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+
+  double get _amount => double.tryParse(_ctrl.text.trim()) ?? 0;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _setQuick(int i) {
+    setState(() {
+      _quick = i;
+      if (i == 0) _ctrl.text = _plain(_due);
+      if (i == 1) _ctrl.text = _plain((_due * 50).roundToDouble() / 100);
+    });
+    if (i == 2) {
+      _focus.requestFocus();
+      _ctrl.selection =
+          TextSelection(baseOffset: 0, extentOffset: _ctrl.text.length);
+    }
+  }
+
+  Future<void> _record() async {
+    final amt = _amount;
+    if (amt <= 0) {
+      setState(() => _error = 'Enter the amount received.');
+      return;
+    }
+    setState(() => _error = null);
+    try {
+      await widget.onRecord(amt, _method);
+    } catch (e) {
+      debugPrint('[invoice] record payment failed: $e');
+      if (mounted) {
+        setState(() => _error =
+            'May not have saved. Check this bill before trying again. ($e)');
+      }
+    }
+  }
+
+  static const _methods = [
+    ('CASH', 'Cash', BlIcons.cash),
+    (
+      'UPI',
+      'UPI',
+      '<rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M10 17h4"/>'
+    ),
+    ('BANK', 'Bank', BlIcons.bank),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final inv = widget.invoice;
+    final name = inv.displayClientName;
+    final after = (_due - _amount).clamp(0, double.infinity).toDouble();
+    final initials = BlPartyAvatar.initials(name);
+
+    Widget quick(int i, String label) {
+      final on = _quick == i;
+      return Semantics(
+        button: true,
+        selected: on,
+        label: label,
+        excludeSemantics: true,
+        child: BlTap(
+          onTap: () => _setQuick(i),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Container(
+              height: 30,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: on ? Bl.ink : Colors.transparent,
+                borderRadius: BorderRadius.circular(999),
+                border:
+                    Border.all(color: on ? Bl.ink : const Color(0xFFE1E0DE)),
+              ),
+              child: Text(label,
+                  style: Bl.tight(12.5,
+                      w: FontWeight.w600, ls: 0, c: on ? Bl.white : Bl.ink3)),
             ),
           ),
         ),
+      );
+    }
+
+    Widget line(String k, String v, {Color? c}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Row(
+            children: [
+              Expanded(
+                  child: Text(k,
+                      style: Bl.inter(13.5, w: FontWeight.w500))),
+              Text(v, style: Bl.tight(14, w: FontWeight.w600, c: c ?? Bl.ink)),
+            ],
+          ),
+        );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                  color: Color(0xFFFFF3D6), shape: BoxShape.circle),
+              child: initials.isEmpty
+                  ? const BlIcon(BlIcons.person, size: 18, color: Bl.ink3)
+                  : Text(initials,
+                      style:
+                          Bl.tight(13, w: FontWeight.w700, ls: 0, c: Bl.ink3)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Record payment',
+                      style: Bl.tight(18, w: FontWeight.w700, ls: -0.02)),
+                  const SizedBox(height: 1),
+                  Text('$name · ${inv.displayNumber}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Bl.inter(12.5, c: const Color(0xFF7A8088))),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Text('Amount received',
+            textAlign: TextAlign.center,
+            style: Bl.inter(12.5,
+                w: FontWeight.w500, c: const Color(0xFF7A8088))),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('₹',
+                style: Bl.tight(40,
+                    w: FontWeight.w600,
+                    ls: -0.04,
+                    h: 1.1,
+                    c: const Color(0xFFB8BCC2))),
+            IntrinsicWidth(
+              child: TextField(
+                controller: _ctrl,
+                focusNode: _focus,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                ],
+                cursorColor: Bl.brand,
+                onChanged: (_) => setState(() => _quick = 2),
+                style: Bl.tight(40, w: FontWeight.w700, ls: -0.04, h: 1.1),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  filled: false,
+                  contentPadding: EdgeInsets.zero,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  constraints: BoxConstraints(minWidth: 30),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            quick(0, 'Full ${Money.inr(_due)}'),
+            const SizedBox(width: 6),
+            quick(1, 'Half ${Money.inr(_due / 2)}'),
+            const SizedBox(width: 6),
+            quick(2, 'Other'),
+          ],
+        ),
+        const SizedBox(height: 9),
+        Row(
+          children: [
+            for (final (key, label, icon) in _methods) ...[
+              if (key != 'CASH') const SizedBox(width: 8),
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  selected: _method == key,
+                  label: label,
+                  excludeSemantics: true,
+                  child: BlTap(
+                    onTap: () => setState(() => _method = key),
+                    child: Column(
+                      children: [
+                        Container(
+                          height: 52,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                              color:
+                                  _method == key ? Bl.brand : Bl.wellSoft,
+                              borderRadius: BorderRadius.circular(16)),
+                          child: BlIcon(icon,
+                              size: 20,
+                              color: _method == key ? Bl.white : Bl.ink3),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(label,
+                            style: Bl.tight(12,
+                                w: FontWeight.w600,
+                                ls: 0,
+                                c: _method == key ? Bl.ink : Bl.body)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        Container(
+          margin: const EdgeInsets.only(top: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+              color: Bl.tile, borderRadius: BorderRadius.circular(12)),
+          child: Column(
+            children: [
+              line('Balance due now', Money.inr(_due)),
+              line('Still due after this', Money.inr(after),
+                  c: after <= 0 ? const Color(0xFF17663A) : Bl.ink),
+            ],
+          ),
+        ),
+        if (_error != null)
+          Container(
+            margin: const EdgeInsets.only(top: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+                color: Bl.redSoft, borderRadius: BorderRadius.circular(12)),
+            child: Text(_error!,
+                style: Bl.inter(11.5, w: FontWeight.w500, c: Bl.redDeep)),
+          ),
+        const SizedBox(height: 16),
+        BlSlide('Slide to record ${Money.inr(_amount)}', onConfirmed: _record),
       ],
     );
   }
 }
 
-// ─── Tax breakdown row ────────────────────────────────────────────────────────
-class _TaxRow extends StatelessWidget {
-  final String label;
-  final double value;
-  const _TaxRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: GoogleFonts.manrope(
-                  fontSize: 13, color: const Color(0xFF64748B))),
-          Text('₹${value.toStringAsFixed(2)}',
-              style: GoogleFonts.manrope(
-                  fontSize: 13, color: const Color(0xFF64748B))),
-        ],
-      ),
-    );
-  }
+/// "4", not "4.0"; fractions keep their decimals.
+String _qtyText(Object? q) {
+  final v = q is num ? q.toDouble() : double.tryParse('$q');
+  if (v == null) return '$q';
+  return v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
 }
