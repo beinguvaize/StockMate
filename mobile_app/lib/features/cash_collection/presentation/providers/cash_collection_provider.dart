@@ -37,7 +37,10 @@ final collectableClientsProvider = FutureProvider<List<CollectableClient>>((ref)
         .order('outstanding_balance', ascending: false);
     return (rows as List).map((r) => CollectableClient.fromJson(r as Map<String, dynamic>)).toList();
   } catch (e) {
+    // Rethrown, not turned into an empty list: an empty list reads as "nobody
+    // owes you", which is the wrong thing to tell someone whose internet
+    // dropped.
     debugPrint('[collectableClientsProvider] failed: $e');
-    return [];
+    rethrow;
   }
 });
