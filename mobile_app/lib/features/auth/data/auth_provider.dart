@@ -75,3 +75,32 @@ class AuthService {
     await supabase.auth.signOut();
   }
 }
+
+/// What the Login screen shows for a failed sign-in. A connection failure
+/// reaches us as an [AuthRetryableFetchException] whose message is the raw
+/// transport error (socket text plus the server URL); never show that.
+String loginErrorMessage(AuthException e) {
+  if (e is AuthRetryableFetchException) {
+    return 'Could not sign in. Check your internet and try again.';
+  }
+  if (e.message.toLowerCase().contains('invalid login credentials')) {
+    return 'Wrong email or password. Please try again.';
+  }
+  return e.message;
+}
+
+/// Runs [action]; if it fails with an error [retryIf] accepts, waits [delay]
+/// and runs it once more. The second failure is thrown as is.
+Future<T> retryOnce<T>(
+  Future<T> Function() action, {
+  required bool Function(Object error) retryIf,
+  Duration delay = const Duration(seconds: 1),
+}) async {
+  try {
+    return await action();
+  } catch (e) {
+    if (!retryIf(e)) rethrow;
+    await Future<void>.delayed(delay);
+    return action();
+  }
+}

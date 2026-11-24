@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/biometric_service.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/features/auth/data/auth_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/theme/typography.dart';
@@ -124,9 +125,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Timeout guard: on a weak connection the auth request can stall
       // forever, leaving the button spinning with no feedback. Fail fast
       // with a clear retry message instead.
-      final response = await supabase.auth
-          .signInWithPassword(email: email, password: pass)
-          .timeout(const Duration(seconds: 20));
+      // A dropped connection (network switch, weak signal) surfaces as a
+      // retryable failure. Sign-in is safe to repeat, so try once more
+      // before bothering the user.
+      final response = await retryOnce(
+        () => supabase.auth
+            .signInWithPassword(email: email, password: pass)
+            .timeout(const Duration(seconds: 20)),
+        retryIf: (e) => e is AuthRetryableFetchException,
+      );
 
       if (response.session != null) {
         await _persistRemembered(email, pass);
@@ -147,10 +154,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
       }
     } on AuthException catch (e) {
+      debugPrint('[login] failed: $e');
       if (mounted) {
-        final msg = e.message.toLowerCase().contains('invalid login credentials')
-            ? 'Wrong email or password. Please try again.'
-            : e.message;
+        final msg = loginErrorMessage(e);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(msg), backgroundColor: AppColors.danger),
         );
