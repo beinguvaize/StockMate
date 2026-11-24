@@ -40,7 +40,6 @@ import 'package:mobile_app/core/database/offline_sales_ui.dart' show OfflineSale
 import 'package:mobile_app/core/auth/offline_context_cache.dart';
 import 'package:mobile_app/widgets/motion/motion_sheet.dart';
 import 'package:mobile_app/widgets/motion/motion_toast.dart';
-import 'package:mobile_app/widgets/motion/pressable.dart';
 import 'package:mobile_app/widgets/motion/rolling_number.dart';
 import 'package:mobile_app/widgets/motion/save_button.dart';
 
@@ -242,7 +241,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
 
   void _showProductDetail(Product p) {
     final currentItem = _cart.where((c) => c.product.id == p.id).firstOrNull;
-    showMotionSheet(
+    showBlSheet(
       context: context,
       builder: (_) => _ProductDetailSheet(
         product: p,
@@ -1306,436 +1305,246 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
     _priceController.text = _dispPrice.toStringAsFixed(2);
   }
 
+  Future<void> _confirm() async {
+    if (_belowCost) {
+      final owner = widget.isOwner;
+      final proceed = await showBlDialog<bool>(
+        context: context,
+        title: owner ? 'Selling at or below cost' : 'Blocked: at or below cost',
+        message: owner
+            ? 'This price is at or below what you paid for the item. '
+                'It cost ₹${_cost.toStringAsFixed(2)}; you are charging ₹${_price.toStringAsFixed(2)}.'
+            : '${widget.product.name} cost ₹${_cost.toStringAsFixed(2)} but the price is ₹${_price.toStringAsFixed(2)}. '
+                'Only the owner can sell at or below cost.',
+        actions: (dCtx) => [
+          if (owner)
+            Row(
+              children: [
+                Expanded(
+                  child: BlButton('Change price',
+                      kind: BlButtonKind.soft,
+                      onTap: () => Navigator.pop(dCtx, false)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: BlButton('Sell anyway',
+                      onTap: () => Navigator.pop(dCtx, true)),
+                ),
+              ],
+            )
+          else
+            BlButton('Change price',
+                kind: BlButtonKind.soft,
+                onTap: () => Navigator.pop(dCtx, false)),
+        ],
+      );
+      if (proceed != true) return;
+    }
+    if (!mounted) return;
+    widget.onConfirm(_qty, _price);
+    Navigator.pop(context);
+  }
+
+  Widget _round(String icon, String label, bool enabled, bool primary,
+          VoidCallback onTap) =>
+      BlTap(
+        label: label,
+        onTap: onTap,
+        child: Container(
+          width: 46,
+          height: 46,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+              color: primary && enabled ? Bl.amber : Bl.well,
+              shape: BoxShape.circle),
+          child: BlIcon(icon,
+              size: 20,
+              stroke: 2.4,
+              color: !enabled
+                  ? Bl.faint
+                  : primary
+                      ? Bl.white
+                      : Bl.ink),
+        ),
+      );
+
+  Widget _box(String label, Widget value) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+              color: const Color(0xFFF3F2F0),
+              borderRadius: BorderRadius.circular(12)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: Bl.inter(10, w: FontWeight.w500, c: Bl.mute)),
+              const SizedBox(height: 1),
+              value,
+            ],
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final p = widget.product;
     final isLow = p.stock > 0 && p.stock <= 10;
+    final frac = allowsFraction(p.unit);
+    final stockText = p.stock.toStringAsFixed(p.stock % 1 == 0 ? 0 : 1);
+    final sub = !_alt ? subQtyLabel(_qty, p.unit) : null;
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.canvas,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── Handle + header ─────────────────────────────────
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 12, bottom: 20),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        BlSheetTitle(p.name, size: 16, divider: true),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: Text(p.sku == null ? '' : 'SKU: ${p.sku}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Bl.inter(12.5, c: const Color(0xFF7A8088))),
+            ),
+            BlPill(isLow ? 'Low · $stockText' : 'In Stock · $stockText',
+                tone: isLow ? BlPillTone.warn : BlPillTone.good),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Text('Adjust quantity',
+            textAlign: TextAlign.center,
+            style: Bl.inter(12, w: FontWeight.w500, c: Bl.mute)),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _round(BlIcons.minus, 'Less', _qty > qtyMin(p.unit), false,
+                _decrement),
+            const SizedBox(width: 18),
+            SizedBox(
+              width: frac ? 132 : 96,
+              child: TextField(
+                controller: _qtyController,
+                keyboardType: frac
+                    ? const TextInputType.numberWithOptions(decimal: true)
+                    : TextInputType.number,
+                textAlign: TextAlign.center,
+                cursorColor: Bl.brand,
+                inputFormatters: [
+                  if (frac)
+                    FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d*\.?\d{0,3}'))
+                  else
+                    FilteringTextInputFormatter.digitsOnly,
+                ],
+                style: Bl.tight(44, w: FontWeight.w700, ls: -0.04, h: 1.1),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
+                ),
+                onTap: () => _qtyController.selection = TextSelection(
+                  baseOffset: 0,
+                  extentOffset: _qtyController.text.length,
                 ),
               ),
-
+            ),
+            const SizedBox(width: 18),
+            _round(BlIcons.plus, 'More', _qty < _maxStock, true, _increment),
+          ],
+        ),
+        if (_dispUnit.trim().isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(sub == null ? _dispUnit.trim() : '${_dispUnit.trim()} · $sub',
+                textAlign: TextAlign.center,
+                style: Bl.inter(12, w: FontWeight.w500, c: Bl.mute)),
+          ),
+        if (_hasAlt)
+          Center(
+            child: BlTap(
+              onTap: _toggleAlt,
+              child: Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _alt ? Bl.amberSoft : Colors.transparent,
+                  border: Border.all(
+                      color: _alt ? Bl.amber : const Color(0xFFD9D6D1)),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  _alt
+                      ? 'by ${p.secondaryUnit} · ${formatQty(_qty, p.unit)} ${p.unit ?? ''}'
+                      : 'Sell by ${p.secondaryUnit}?',
+                  style: Bl.tight(12,
+                      w: FontWeight.w600,
+                      ls: 0,
+                      c: _alt ? Bl.amberDeep : const Color(0xFF55595F)),
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            _box(
+              _alt ? 'Price / ${p.secondaryUnit}' : 'Unit price',
               Row(
                 children: [
-                  AppTappable(
-                    ripple: false,
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(LucideIcons.x, size: 18, color: AppColors.inkSecondary),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
+                  Text('₹', style: Bl.tight(14.5, w: FontWeight.w600)),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          p.name,
-                          style: GoogleFonts.manrope(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.inkPrimary,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        if (p.sku != null)
-                          Text(
-                            'SKU: ${p.sku}',
-                            style: AppText.caption.copyWith(color: AppColors.inkTertiary, letterSpacing: 0.3),
-                          ),
+                    child: TextField(
+                      controller: _priceController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      cursorColor: Bl.brand,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d*\.?\d{0,2}')),
                       ],
-                    ),
-                  ),
-                  // Stock badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: isLow
-                          ? AppColors.warning.withValues(alpha: 0.12)
-                          : AppColors.primaryContainer.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          LucideIcons.checkCircle2,
-                          size: 12,
-                          color: isLow ? AppColors.warning : AppColors.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          isLow ? 'Low (${p.stock.toInt()})' : 'In Stock',
-                          style: AppText.label.copyWith(color: isLow ? AppColors.warning : AppColors.primary),
-                        ),
-                      ],
+                      style: Bl.tight(14.5, w: FontWeight.w600),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        contentPadding: EdgeInsets.zero,
+                        isDense: true,
+                      ),
                     ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 32),
-
-              // ── Quantity stepper ──────────────────────────────────
-              Text(
-                'ADJUST QUANTITY',
-                textAlign: TextAlign.center,
-                style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkTertiary, letterSpacing: 1.5),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(color: AppColors.outlineVariant),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Decrement
-                    AppTappable(
-                      pressedScale: 0.90,
-                      borderRadius: Radii.rPill,
-                      onTap: _decrement,
-                      child: AnimatedContainer(
-                        duration: Motion.durationOf(context, Motion.fast),
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: _qty > 1
-                              ? AppColors.surfaceContainer
-                              : AppColors.outlineVariant.withValues(alpha: 0.3),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.outlineVariant),
-                        ),
-                        child: Icon(
-                          LucideIcons.minus,
-                          size: 22,
-                          color: _qty > qtyMin(widget.product.unit)
-                              ? AppColors.inkPrimary
-                              : AppColors.inkTertiary,
-                        ),
-                      ),
-                    ),
-
-                    // Quantity — editable field, with its unit beside it and
-                    // the gram equivalent underneath. The number alone gave no
-                    // clue what it counted, and "0.5" is harder to check
-                    // against a scale than "500 g".
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                    SizedBox(
-                      width: allowsFraction(widget.product.unit) ? 116 : 96,
-                      child: TextField(
-                        controller: _qtyController,
-                        keyboardType: allowsFraction(widget.product.unit)
-                            ? const TextInputType.numberWithOptions(decimal: true)
-                            : TextInputType.number,
-                        textAlign: TextAlign.center,
-                        inputFormatters: [
-                          // digitsOnly strips the decimal point outright, so the
-                          // decimal keypad above would have been useless on its
-                          // own. Weight units allow up to 3 dp (1 gram on a KG
-                          // product); piece units stay digits-only.
-                          if (allowsFraction(widget.product.unit))
-                            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}'))
-                          else
-                            FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        style: AppText.numericEntry.copyWith(color: AppColors.inkPrimary, height: 1),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                          isDense: true,
-                        ),
-                        onTap: () => _qtyController.selection = TextSelection(
-                          baseOffset: 0,
-                          extentOffset: _qtyController.text.length,
-                        ),
-                      ),
-                    ),
-                            if (_dispUnit.trim().isNotEmpty) ...[
-                              const SizedBox(width: 6),
-                              Text(
-                                _dispUnit.trim(),
-                                style: GoogleFonts.manrope(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.inkSecondary,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        // Sell by base unit or alternate (packet).
-                        if (_hasAlt)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: AppTappable(
-                              ripple: false,
-                              onTap: _toggleAlt,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: _alt ? AppColors.primary.withValues(alpha: 0.12) : AppColors.canvas,
-                                  border: Border.all(color: _alt ? AppColors.primary : AppColors.outline),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  _alt
-                                      ? 'by ${widget.product.secondaryUnit} · ${formatQty(_qty, widget.product.unit)} ${widget.product.unit ?? ''}'
-                                      : 'Sell by ${widget.product.secondaryUnit}?',
-                                  style: AppText.label.copyWith(color: _alt ? AppColors.primary : AppColors.inkTertiary),
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (!_alt && subQtyLabel(_qty, widget.product.unit) != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              subQtyLabel(_qty, widget.product.unit)!,
-                              style: AppText.caption.copyWith(fontWeight: FontWeight.w500, color: AppColors.inkTertiary),
-                            ),
-                          ),
-                      ],
-                    ),
-
-                    // Increment
-                    AppTappable(
-                      pressedScale: 0.90,
-                      borderRadius: Radii.rPill,
-                      onTap: _increment,
-                      child: AnimatedContainer(
-                        duration: Motion.durationOf(context, Motion.fast),
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: _qty < _maxStock
-                              ? AppColors.primaryContainer
-                              : AppColors.outlineVariant.withValues(alpha: 0.3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          LucideIcons.plus,
-                          size: 22,
-                          color: _qty < _maxStock ? AppColors.primary : AppColors.inkTertiary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // ── Unit price field ──────────────────────────────────
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.outlineVariant),
-                  boxShadow: [AppColors.cardShadow],
-                ),
-                child: TextField(
-                  controller: _priceController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                  ],
-                  style: GoogleFonts.manrope(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: _alt ? 'PRICE / ${widget.product.secondaryUnit!.toUpperCase()}' : 'UNIT PRICE',
-                    labelStyle: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkTertiary, letterSpacing: 1),
-                    floatingLabelBehavior: FloatingLabelBehavior.always,
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.only(left: 16, right: 8, top: 4),
-                      child: Text(
-                        '₹',
-                        style: GoogleFonts.manrope(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.inkSecondary,
-                        ),
-                      ),
-                    ),
-                    prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                    suffixIcon: const Padding(
-                      padding: EdgeInsets.only(right: 16),
-                      child: Icon(LucideIcons.pencil, size: 16, color: AppColors.inkTertiary),
-                    ),
-                    suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
-                    ),
-                    enabledBorder: InputBorder.none,
-                  ),
-                ),
-              ),
-
-              // Visible before the confirm dialog, so the cashier can correct
-              // the price rather than being stopped at the end.
-              if (_belowCost) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2F2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFFECACA)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(LucideIcons.alertTriangle, size: 15, color: Color(0xFFB91C1C)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Below cost — this stock cost ₹${_cost.toStringAsFixed(2)}',
-                          style: AppText.label.copyWith(color: const Color(0xFFB91C1C)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 28),
-
-              // ── Estimated total ───────────────────────────────────
-              Column(
-                children: [
-                  Text(
-                    'ESTIMATED TOTAL',
-                    style: AppText.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.inkTertiary, letterSpacing: 1.5),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          '₹',
-                          style: AppText.title.copyWith(color: AppColors.inkSecondary),
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        _total.toStringAsFixed(2),
-                        style: AppText.moneyHero.copyWith(color: AppColors.inkPrimary, height: 1, letterSpacing: -1),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 28),
-
-              // ── Add to Basket ─────────────────────────────────────
-              Pressable(child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    if (_belowCost) {
-                      final proceed = await showDialog<bool>(
-                        context: context,
-                        builder: (dCtx) => AlertDialog(
-                          title: Text(widget.isOwner
-                              ? 'Selling at or below cost'
-                              : 'Blocked: at or below cost'),
-                          content: Text(
-                            '${widget.product.name} costs ₹${_cost.toStringAsFixed(2)} '
-                            'but you are charging ₹${_price.toStringAsFixed(2)}.\n\n'
-                            '${widget.isOwner ? 'That leaves no margin (or a loss of ₹${((_cost - _price) * _qty).toStringAsFixed(2)}). Continue only if you meant to.' : 'Selling at or below purchase cost is not allowed. Ask the owner to override, or change the price.'}',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(dCtx, false),
-                              child: const Text('Change price'),
-                            ),
-                            if (widget.isOwner)
-                              TextButton(
-                                onPressed: () => Navigator.pop(dCtx, true),
-                                child: const Text('Sell anyway'),
-                              ),
-                          ],
-                        ),
-                      );
-                      if (proceed != true) return;
-                    }
-                    if (!context.mounted) return;
-                    widget.onConfirm(_qty, _price);
-                    Navigator.pop(context);
-                  },
-                  icon: const Icon(LucideIcons.shoppingBag, size: 20),
-                  label: Text(
-                    'Add to Basket',
-                    style: AppText.heading,
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondary,
-                    foregroundColor: AppColors.primaryContainer,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: const StadiumBorder(),
-                    elevation: 0,
-                  ),
-                ),
-              )),
-
-              const SizedBox(height: 8),
-
-              Text(
-                'Tap quantity number on card to reopen this screen',
-                textAlign: TextAlign.center,
-                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 6),
+            _box('Estimated total',
+                Text(Money.inr(_total), style: Bl.tight(14.5, w: FontWeight.w700))),
+          ],
         ),
-      ),
+        if (_belowCost)
+          Container(
+            margin: const EdgeInsets.only(top: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+                color: const Color(0xFFFFF8E1),
+                borderRadius: BorderRadius.circular(12)),
+            child: Text(
+                'Below cost. This stock cost ₹${_cost.toStringAsFixed(2)}.',
+                style: Bl.inter(11.5,
+                    w: FontWeight.w500, c: const Color(0xFF6B4E00))),
+          ),
+        const SizedBox(height: 14),
+        BlButton('Add to basket · ${Money.inr(_total)}', onTap: _confirm),
+        const SizedBox(height: 10),
+        Text('Tap quantity number on card to reopen this screen',
+            textAlign: TextAlign.center, style: Bl.inter(12, c: Bl.mute)),
+      ],
     );
   }
 }
