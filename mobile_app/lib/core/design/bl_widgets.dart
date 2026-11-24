@@ -843,8 +843,13 @@ class BlPartyAvatar extends StatelessWidget {
   /// Two letters for a name; empty for a walk-in, which gets the person icon.
   static String initials(String name) {
     if (isWalkIn(name)) return '';
-    final parts =
-        name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    // Letters and digits only, so "Eggs (tray 30)" gives ET, not E(.
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .map((p) => p.replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), ''))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return '';
     final a = parts.first.characters.first;
     final b = parts.length > 1 ? parts[1].characters.first : '';
