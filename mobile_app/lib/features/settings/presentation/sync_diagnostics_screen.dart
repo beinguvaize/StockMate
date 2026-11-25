@@ -17,14 +17,28 @@ import 'dart:io';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/database/database.dart';
-import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/main.dart' show databaseProvider, syncServiceProvider;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+const _grey = Color(0xFF7A8088);
+
+/// What a queued change is, in the owner's words.
+String syncJobTitle(String action, String targetTable, String? rpcName) {
+  final key = (action == 'rpc' ? (rpcName ?? '') : targetTable).toLowerCase();
+  if (key.contains('sale')) return 'Sale';
+  if (key.contains('settle') || key.contains('payment')) return 'Payment';
+  if (key.contains('expense')) return 'Expense';
+  if (key.contains('purchase')) return 'Purchase';
+  if (key.contains('client')) return 'Client';
+  if (key.contains('supplier')) return 'Supplier';
+  if (key.contains('product') || key.contains('inventory')) return 'Product';
+  if (key.contains('vehicle')) return 'Vehicle';
+  if (key.contains('day_book')) return 'Day Book';
+  return 'Change';
+}
 
 class SyncDiagnosticsScreen extends ConsumerStatefulWidget {
   const SyncDiagnosticsScreen({super.key});
@@ -36,6 +50,9 @@ class SyncDiagnosticsScreen extends ConsumerStatefulWidget {
 class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
   bool _busy = false;
   String? _statusMsg;
+  late Future<List<SyncMutation>> _jobs = _loadJobs();
+
+  void _reload() => setState(() => _jobs = _loadJobs());
 
   Future<List<SyncMutation>> _loadJobs() async {
     final db = ref.read(databaseProvider);
@@ -52,11 +69,72 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
       final svc = ref.read(syncServiceProvider);
       await svc.retryFailed();
       await svc.sync();
-      setState(() => _statusMsg = 'Retry triggered. Pull-to-refresh to see updated status.');
+      if (mounted) setState(() => _statusMsg = 'Tried again.');
     } catch (e) {
-      setState(() => _statusMsg = 'Retry error: $e');
+      debugPrint('[sync diagnostics] retry all failed: $e');
+      if (mounted) setState(() => _statusMsg = 'Could not retry. ($e)');
     } finally {
-      setState(() => _busy = false);
+      if (mounted) {
+        setState(() => _busy = false);
+        _reload();
+      }
+    }
+  }
+
+  Future<void> _retryOne(SyncMutation j) async {
+    setState(() { _busy = true; _statusMsg = null; });
+    try {
+      final svc = ref.read(syncServiceProvider);
+      await svc.retryJob(j.id);
+      await svc.sync();
+    } catch (e) {
+      debugPrint('[sync diagnostics] retry ${j.id} failed: $e');
+      if (mounted) setState(() => _statusMsg = 'Could not retry. ($e)');
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+        _reload();
+      }
+    }
+  }
+
+  Future<void> _discard(SyncMutation j) async {
+    final what = syncJobTitle(j.action, j.targetTable, j.rpcName).toLowerCase();
+    final ok = await showBlDialog<bool>(
+      context: context,
+      title: 'Discard this $what?',
+      message:
+          'It will not be sent to the server and will not appear in your books. If it may already have been saved, tap Retry instead to check. This cannot be undone.',
+      actions: (ctx) => [
+        Row(
+          children: [
+            Expanded(
+              child: BlButton('Keep it',
+                  kind: BlButtonKind.soft,
+                  onTap: () => Navigator.pop(ctx, false)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BlButton('Discard',
+                  kind: BlButtonKind.danger,
+                  onTap: () => Navigator.pop(ctx, true)),
+            ),
+          ],
+        ),
+      ],
+    );
+    if (ok != true || !mounted) return;
+    setState(() { _busy = true; _statusMsg = null; });
+    try {
+      await ref.read(syncServiceProvider).discardJob(j.id);
+    } catch (e) {
+      debugPrint('[sync diagnostics] discard ${j.id} failed: $e');
+      if (mounted) setState(() => _statusMsg = 'Could not discard. ($e)');
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+        _reload();
+      }
     }
   }
 
@@ -92,93 +170,149 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
         text: 'Pending/failed sync queue from mobile device. '
               'Forward to admin for server-side replay.',
       );
-      setState(() => _statusMsg = 'Exported ${jobs.length} jobs.');
+      if (mounted) {
+        setState(() => _statusMsg =
+            'Exported ${jobs.length} change${jobs.length == 1 ? '' : 's'}.');
+      }
     } catch (e) {
-      setState(() => _statusMsg = 'Export error: $e');
+      debugPrint('[sync diagnostics] export failed: $e');
+      if (mounted) setState(() => _statusMsg = 'Could not export. ($e)');
     } finally {
-      setState(() => _busy = false);
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'FAILED': return Colors.red;
-      case 'PROCESSING': return Colors.orange;
-      case 'PENDING': return Colors.amber;
-      default: return Colors.grey;
-    }
+  Widget _small(String label, VoidCallback? onTap, {bool danger = false}) =>
+      Semantics(
+        button: true,
+        enabled: onTap != null,
+        label: label,
+        excludeSemantics: true,
+        child: BlTap(
+          onTap: onTap,
+          child: Opacity(
+            opacity: onTap == null ? 0.5 : 1,
+            child: Container(
+              height: 34,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: danger ? const Color(0xFFFEF2F2) : Bl.white,
+                  borderRadius: BorderRadius.circular(999)),
+              child: Text(label,
+                  style: Bl.tight(13,
+                      w: FontWeight.w600,
+                      ls: 0,
+                      c: danger ? Bl.redDeep : Bl.ink)),
+            ),
+          ),
+        ),
+      );
+
+  Widget _jobCard(SyncMutation j) {
+    final failed = j.status == 'FAILED';
+    final tint = failed ? const Color(0xFFFDE2E2) : const Color(0xFFFFF1C9);
+    final ink = failed ? Bl.redDeep : const Color(0xFF8A5A00);
+    final what = j.action == 'rpc'
+        ? 'RPC: ${j.rpcName ?? '?'}'
+        : '${j.action.toUpperCase()} ${j.targetTable}';
+    final note = (j.lastError ?? '').trim().isNotEmpty
+        ? j.lastError!.trim()
+        : j.status == 'PROCESSING'
+            ? 'Sending now.'
+            : 'Waiting for internet.';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+          color: Bl.tile, borderRadius: BorderRadius.circular(18)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+                child: BlIcon(
+                    failed ? '<path d="M12 6v7M12 17v.500"/>' : BlIcons.sync,
+                    size: 16,
+                    color: ink,
+                    stroke: failed ? 2.6 : 2),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(syncJobTitle(j.action, j.targetTable, j.rpcName),
+                        style: Bl.tight(14.5, w: FontWeight.w600)),
+                    const SizedBox(height: 1),
+                    Text(
+                        '$what · ${j.attempts} attempt${j.attempts == 1 ? '' : 's'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Bl.inter(12, c: _grey)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(note,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              style: Bl.inter(12.5,
+                  w: FontWeight.w500, c: failed ? Bl.redDeep : Bl.ink3, h: 1.4)),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // Only a change the server refused can be discarded. One that is
+              // still waiting may already have been saved, so it is kept and
+              // sent again.
+              if (failed) ...[
+                _small('Discard', _busy ? null : () => _discard(j),
+                    danger: true),
+                const SizedBox(width: 8),
+              ],
+              _small('Retry', _busy ? null : () => _retryOne(j)),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        elevation: 0,
-        title: Text(
-          'Sync Diagnostics',
-          style: GoogleFonts.manrope(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AppColors.inkPrimary,
-          ),
-        ),
-        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
-      ),
+      backgroundColor: Bl.white,
       body: SafeArea(
         child: Column(
           children: [
-            // Action buttons
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _busy ? null : _retryAll,
-                      icon: const Icon(LucideIcons.refreshCw, size: 16),
-                      label: const Text('Retry All'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _busy ? null : _exportShare,
-                      icon: const Icon(LucideIcons.share2, size: 16),
-                      label: const Text('Export & Share'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.surface,
-                        foregroundColor: AppColors.inkPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            if (_statusMsg != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Text(
-                  _statusMsg!,
-                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
-                ),
-              ),
-
-            // Jobs list
+            const BlBackHeader(title: 'Sync Diagnostics'),
             Expanded(
               child: FutureBuilder<List<SyncMutation>>(
-                future: _loadJobs(),
+                future: _jobs,
                 builder: (context, snap) {
+                  if (snap.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                            'Could not read the waiting changes. (${snap.error})',
+                            textAlign: TextAlign.center,
+                            style: Bl.inter(13.5, c: Bl.redDeep, h: 1.5)),
+                      ),
+                    );
+                  }
                   if (!snap.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                        child: CircularProgressIndicator(
+                            color: Bl.amber, strokeWidth: 2));
                   }
                   final jobs = snap.data!;
                   if (jobs.isEmpty) {
@@ -186,100 +320,82 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(LucideIcons.checkCircle2, size: 48, color: Colors.green.shade400),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No pending or failed jobs',
-                            style: GoogleFonts.manrope(
-                              fontSize: 14,
-                              color: AppColors.inkSecondary,
-                            ),
+                          Container(
+                            width: 64,
+                            height: 64,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                                color: Color(0xFFE3F5EA),
+                                shape: BoxShape.circle),
+                            child: const BlIcon(BlIcons.check,
+                                size: 28,
+                                color: Color(0xFF17663A),
+                                stroke: 2.6),
                           ),
+                          const SizedBox(height: 14),
+                          Text('Everything is synced',
+                              style: Bl.tight(19,
+                                  w: FontWeight.w700, ls: -0.02)),
+                          const SizedBox(height: 6),
+                          Text('No pending or failed jobs.',
+                              style: Bl.inter(13.5, c: _grey)),
+                          const SizedBox(height: 80),
                         ],
                       ),
                     );
                   }
                   return RefreshIndicator(
-                    onRefresh: () async { setState(() {}); },
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: jobs.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, i) {
-                        final j = jobs[i];
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.inkTertiary.withValues(alpha: 0.15)),
-                          ),
-                          padding: const EdgeInsets.all(12),
+                    color: Bl.amber,
+                    onRefresh: () async => _reload(),
+                    child: ListView(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: _statusColor(j.status).withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      j.status,
-                                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                        color: _statusColor(j.status)),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '#${j.id}',
-                                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    '${j.attempts} attempt${j.attempts == 1 ? '' : 's'}',
-                                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                j.action == 'rpc'
-                                    ? 'RPC: ${j.rpcName ?? '?'}'
-                                    : '${j.action.toUpperCase()} ${j.targetTable}',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.inkPrimary,
-                                ),
-                              ),
-                              if (j.lastError != null) ...[
-                                const SizedBox(height: 6),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.shade50,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    j.lastError!,
-                                    style: AppText.caption.copyWith(color: Colors.red.shade900),
-                                    maxLines: 4,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
+                              Text('Waiting to sync',
+                                  style: Bl.inter(13,
+                                      w: FontWeight.w500, c: Bl.body)),
                               const SizedBox(height: 6),
                               Text(
-                                'Created ${j.createdAt.toLocal().toString().substring(0, 19)}',
-                                style: AppText.caption.copyWith(color: AppColors.inkTertiary),
+                                  '${jobs.length} change${jobs.length == 1 ? '' : 's'}',
+                                  style: Bl.tight(36,
+                                      w: FontWeight.w700,
+                                      ls: -0.04,
+                                      h: 1.05)),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: BlButton('Export and share',
+                                    kind: BlButtonKind.soft,
+                                    fontSize: 14,
+                                    onTap: _busy ? null : _exportShare),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: BlButton('Retry all',
+                                    loading: _busy,
+                                    onTap: _busy ? null : _retryAll),
                               ),
                             ],
                           ),
-                        );
-                      },
+                        ),
+                        if (_statusMsg != null)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+                            child: Text(_statusMsg!,
+                                style: Bl.inter(12.5, c: Bl.ink3)),
+                          ),
+                        BlGroupHeader('Changes', trailing: '${jobs.length}'),
+                        for (final j in jobs) _jobCard(j),
+                      ],
                     ),
                   );
                 },
