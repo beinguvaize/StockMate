@@ -83,7 +83,11 @@ jobs:
             echo "::error::Dump is only ${size} bytes — too small to be a real backup. Not uploading."
             exit 1
           fi
-          if ! gunzip -c "$file" | grep -q 'CREATE TABLE public.sales'; then
+          # Count, do not use `grep -q`. With pipefail on, -q quits at the first
+          # match, gunzip is killed mid-stream (SIGPIPE), and the pipeline
+          # reports failure: a good dump was being refused as "no sales table".
+          tables=$(gunzip -c "$file" | grep -c 'CREATE TABLE public.sales' || true)
+          if [ "${tables:-0}" -lt 1 ]; then
             echo "::error::Dump does not contain the sales table. Refusing to upload a partial backup."
             exit 1
           fi
@@ -94,8 +98,9 @@ jobs:
 
           # Confirm it is actually there. An upload that silently no-ops would
           # otherwise report success, which is the fault this job already had.
-          if ! aws s3 ls "s3://${R2_BUCKET}/daily/${file}" \
-                 --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" | grep -q "$file"; then
+          found=$(aws s3 ls "s3://${R2_BUCKET}/daily/${file}" \
+                 --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" | grep -c "$file" || true)
+          if [ "${found:-0}" -lt 1 ]; then
             echo "::error::Upload reported success but the object is not in the bucket."
             exit 1
           fi
