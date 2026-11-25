@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
-import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
 
 /// LoadVanScreen — warehouse → vehicle stock transfer.
 /// Mirrors the web `loadVan` flow: per product, adjust_inventory_atomic
@@ -182,18 +178,32 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
       if (!mounted) return;
       if (errors.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Some items failed: ${errors.first}')),
+          SnackBar(
+            content: Text(
+                '${errors.length} product${errors.length == 1 ? '' : 's'} may not have moved. Check the van stock before loading again. (${errors.first})'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 8),
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Loaded $_totalUnits units onto ${widget.vehicleName}')),
+          SnackBar(
+            content: Text(
+                'Loaded $_totalUnits units onto ${widget.vehicleName}'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
       Navigator.pop(context, errors.isEmpty);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Load failed: $e')),
+          SnackBar(
+            content: Text(
+                'May not have loaded. Check the van stock before trying again. ($e)'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 8),
+          ),
         );
       }
     } finally {
@@ -203,210 +213,259 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final q = _search.toLowerCase().trim();
-    final visible = q.isEmpty
+    final q = _search.trim().toLowerCase();
+    final shown = q.isEmpty
         ? _items
         : _items.where((i) => i.name.toLowerCase().contains(q)).toList();
+    final picked = _qty.length;
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: Bl.white,
+      body: SafeArea(
+        child: Column(
           children: [
-            Text(
-              'Load Van',
-              style: AppText.heading.copyWith(fontWeight: FontWeight.w800,
-                color: AppColors.inkPrimary),
-            ),
-            Text(
-              'WAREHOUSE → ${widget.vehicleName.toUpperCase()}',
-              style: AppText.label.copyWith(color: AppColors.secondary,
-                letterSpacing: 1.2),
-            ),
-          ],
-        ),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(_error!,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.manrope(color: AppColors.danger)),
-                  ),
-                )
-              : Column(
-                  children: [
-                    // Search
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                      child: TextField(
-                        onChanged: (v) => setState(() => _search = v),
-                        decoration: InputDecoration(
-                          hintText: 'Search products…',
-                          prefixIcon: const Icon(LucideIcons.search, size: 18),
-                          filled: true,
-                          fillColor: AppColors.surface,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.06)),
+            const BlBackHeader(title: 'Load Van'),
+            Expanded(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                          color: Bl.amber, strokeWidth: 2))
+                  : _error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                                'Could not load warehouse stock. Check your internet and try again. ($_error)',
+                                textAlign: TextAlign.center,
+                                style:
+                                    Bl.inter(13.5, c: Bl.redDeep, h: 1.5)),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.06)),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: visible.isEmpty
-                          ? Center(
-                              child: Text('No warehouse stock',
-                                  style: GoogleFonts.manrope(color: AppColors.inkTertiary)),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                              itemCount: visible.length,
-                              itemBuilder: (context, i) {
-                                final item = visible[i];
-                                final qty = _qty[item.productId] ?? 0;
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surface,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: qty > 0
-                                          ? AppColors.primary.withValues(alpha: 0.4)
-                                          : Colors.black.withValues(alpha: 0.06),
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.only(bottom: 20),
+                          children: [
+                            Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 12),
+                                decoration: BoxDecoration(
+                                    color: Bl.tile,
+                                    borderRadius: BorderRadius.circular(16)),
+                                child: Row(
+                                  children: [
+                                    Text('Warehouse',
+                                        style: Bl.tight(14,
+                                            w: FontWeight.w600)),
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 10),
+                                      child: BlIcon(BlIcons.arrowRight,
+                                          size: 16,
+                                          color: Color(0xFF7A8088)),
+                                    ),
+                                    Expanded(
+                                      child: Text(widget.vehicleName,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Bl.tight(14,
+                                              w: FontWeight.w600)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Container(
+                              height: 44,
+                              margin:
+                                  const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14),
+                              decoration: BoxDecoration(
+                                  color: Bl.well,
+                                  borderRadius: BorderRadius.circular(999)),
+                              child: Row(
+                                children: [
+                                  const BlIcon(BlIcons.search,
+                                      size: 20, color: Bl.mute),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextField(
+                                      onChanged: (v) =>
+                                          setState(() => _search = v),
+                                      cursorColor: Bl.brand,
+                                      style: Bl.inter(14,
+                                          w: FontWeight.w500, c: Bl.ink),
+                                      decoration: InputDecoration(
+                                        isCollapsed: true,
+                                        filled: false,
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        hintText: 'Search products',
+                                        hintStyle: Bl.inter(14,
+                                            w: FontWeight.w500, c: Bl.mute),
+                                      ),
                                     ),
                                   ),
+                                ],
+                              ),
+                            ),
+                            BlGroupHeader('Warehouse stock',
+                                trailing: '${shown.length}'),
+                            if (shown.isEmpty)
+                              BlEmpty(
+                                icon: BlIcons.box,
+                                title: _items.isEmpty
+                                    ? 'Nothing in the warehouse'
+                                    : 'No results for "$_search"',
+                                message: _items.isEmpty
+                                    ? 'Stock has to be in the warehouse before it can go on a van.'
+                                    : null,
+                              ),
+                            for (final item in shown)
+                              Builder(builder: (context) {
+                                final n = _qty[item.productId] ?? 0;
+                                final avail = item.available.toInt();
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 18, vertical: 10),
+                                  decoration: const BoxDecoration(
+                                      border: Border(
+                                          bottom:
+                                              BorderSide(color: Bl.sep))),
                                   child: Row(
                                     children: [
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              item.name,
-                                              style: GoogleFonts.manrope(
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 14,
-                                                color: AppColors.inkPrimary,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              '${item.available.toStringAsFixed(0)} in warehouse',
-                                              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                                            ),
+                                            Text(item.name,
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: Bl.tight(14.5,
+                                                    w: FontWeight.w600)),
+                                            const SizedBox(height: 1),
+                                            Text('$avail in warehouse',
+                                                style: Bl.inter(12,
+                                                    c: const Color(
+                                                        0xFF7A8088))),
                                           ],
                                         ),
                                       ),
-                                      _StepBtn(
-                                        icon: LucideIcons.minus,
-                                        onTap: qty > 0 ? () => _setQty(item, qty - 1) : null,
-                                      ),
-                                      SizedBox(
-                                        width: 38,
-                                        child: Text(
-                                          '$qty',
-                                          textAlign: TextAlign.center,
-                                          style: GoogleFonts.manrope(
-                                            fontWeight: FontWeight.w900,
-                                            fontSize: 16,
-                                            color: AppColors.inkPrimary,
-                                          ),
+                                      const SizedBox(width: 10),
+                                      Container(
+                                        padding: const EdgeInsets.all(3),
+                                        decoration: BoxDecoration(
+                                            color: Bl.wellSoft,
+                                            borderRadius:
+                                                BorderRadius.circular(999)),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _StepBtn(
+                                                icon: BlIcons.minus,
+                                                label:
+                                                    'One fewer ${item.name}',
+                                                onTap: n > 0
+                                                    ? () =>
+                                                        _setQty(item, n - 1)
+                                                    : null),
+                                            SizedBox(
+                                              width: 38,
+                                              child: Text('$n',
+                                                  textAlign: TextAlign.center,
+                                                  style: Bl.tight(15,
+                                                      w: FontWeight.w700,
+                                                      c: n > 0
+                                                          ? Bl.ink
+                                                          : Bl.mute)),
+                                            ),
+                                            _StepBtn(
+                                                icon: BlIcons.plus,
+                                                label:
+                                                    'One more ${item.name}',
+                                                onTap: n < avail
+                                                    ? () =>
+                                                        _setQty(item, n + 1)
+                                                    : null),
+                                          ],
                                         ),
-                                      ),
-                                      _StepBtn(
-                                        icon: LucideIcons.plus,
-                                        onTap: qty < item.available
-                                            ? () => _setQty(item, qty + 1)
-                                            : null,
                                       ),
                                     ],
                                   ),
                                 );
-                              },
-                            ),
-                    ),
-                    // Confirm bar
-                    SafeArea(
-                      top: false,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: SizedBox(
-                          height: 54,
-                          child: ElevatedButton(
-                            onPressed: (_totalUnits > 0 && !_submitting) ? _confirm : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.inkPrimary,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: _submitting
-                                ? const SizedBox(
-                                    width: 20, height: 20,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: Colors.white),
-                                  )
-                                : Text(
-                                    _totalUnits > 0
-                                        ? 'Load Vehicle ($_totalUnits units)'
-                                        : 'Select products to load',
-                                    style: GoogleFonts.manrope(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                          ),
+                              }),
+                          ],
                         ),
+            ),
+            if (!_loading && _error == null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(2, 0, 2, 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                                picked == 0
+                                    ? 'Nothing picked yet'
+                                    : 'Loading · $picked product${picked == 1 ? '' : 's'}',
+                                style: Bl.inter(13,
+                                    w: FontWeight.w500, c: Bl.body)),
+                          ),
+                          Text(
+                              '$_totalUnits unit${_totalUnits == 1 ? '' : 's'}',
+                              style: Bl.tight(14, w: FontWeight.w700)),
+                        ],
                       ),
                     ),
+                    BlButton('Load vehicle',
+                        loading: _submitting,
+                        onTap: _totalUnits > 0 && !_submitting
+                            ? _confirm
+                            : null),
                   ],
                 ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _StepBtn extends StatelessWidget {
-  final IconData icon;
+  final String icon;
+  final String label;
   final VoidCallback? onTap;
-  const _StepBtn({required this.icon, this.onTap});
+  const _StepBtn({required this.icon, required this.label, this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return AppTappable(
-   ripple: false,
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: enabled
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : Colors.black.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(10),
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        enabled: onTap != null,
+        label: label,
+        excludeSemantics: true,
+        child: BlTap(
+          onTap: onTap,
+          child: Opacity(
+            opacity: onTap == null ? 0.35 : 1,
+            child: Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                  color: Bl.white, shape: BoxShape.circle),
+              child: BlIcon(icon, size: 16, stroke: 2.2),
+            ),
+          ),
         ),
-        child: Icon(
-          icon,
-          size: 16,
-          color: enabled ? AppColors.primary : AppColors.inkTertiary,
-        ),
-      ),
- );
-  }
+      );
 }

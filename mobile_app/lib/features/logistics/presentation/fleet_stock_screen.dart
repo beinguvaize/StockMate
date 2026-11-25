@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/supabase/client.dart';
-import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/presentation/van_stock_screen.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/features/logistics/presentation/widgets/vehicle_picture.dart';
 
-/// FleetStockScreen — stock-on-board overview for every vehicle.
+const _grey = Color(0xFF7A8088);
+
+String _units(double v) =>
+    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+
+/// "Fleet Stock" (canvas): what is on board, van by van.
 class FleetStockScreen extends ConsumerStatefulWidget {
   const FleetStockScreen({super.key});
 
@@ -20,11 +22,15 @@ class FleetStockScreen extends ConsumerStatefulWidget {
 class _VanStock {
   final String vehicleId;
   final String name;
+  final String plate;
+  final VehicleKind kind;
   final double units;
   final int products;
   _VanStock({
     required this.vehicleId,
     required this.name,
+    required this.plate,
+    required this.kind,
     required this.units,
     required this.products,
   });
@@ -49,7 +55,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
 
       final vehicles = await supabase
           .from('vehicles')
-          .select('id, name').isFilter('deleted_at', null)
+          .select('id, name, plateNumber, plate, type').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId);
       final vLocs = await supabase
           .from('inventory_locations')
@@ -83,190 +89,173 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
         rows.add(_VanStock(
           vehicleId: vid,
           name: v['name']?.toString() ?? 'Vehicle',
+          plate: (v['plateNumber'] ?? v['plate'] ?? '').toString(),
+          kind: vehicleKindOf(v['type']?.toString()),
           units: qs.fold(0.0, (s, q) => s + q),
           products: qs.length,
         ));
       }
       rows.sort((a, b) => b.units.compareTo(a.units));
 
-      setState(() { _rows = rows; _loading = false; });
+      if (mounted) setState(() { _rows = rows; _loading = false; });
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final totalUnits = _rows.fold(0.0, (s, r) => s + r.units);
-
     return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: Bl.white,
+      body: SafeArea(
+        child: Column(
           children: [
-            Text(
-              'Fleet Stock',
-              style: AppText.heading.copyWith(fontWeight: FontWeight.w800,
-                color: AppColors.inkPrimary),
-            ),
-            Text(
-              'STOCK ON BOARD — ALL VANS',
-              style: AppText.label.copyWith(color: AppColors.secondary,
-                letterSpacing: 1.2),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.refreshCw, size: 18),
-            onPressed: _fetch,
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(_error!,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.manrope(color: AppColors.danger)),
-                  ),
-                )
-              : _rows.isEmpty
-                  ? Center(
-                      child: Text('No vehicles',
-                          style: GoogleFonts.manrope(color: AppColors.inkTertiary)),
-                    )
-                  : Column(
-                      children: [
-                        Container(
-                          margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryContainer,
-                            borderRadius: BorderRadius.circular(20),
+            const BlBackHeader(title: 'Fleet Stock'),
+            Expanded(
+              child: _loading && _rows.isEmpty
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                          color: Bl.amber, strokeWidth: 2))
+                  : _error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                                'Could not load van stock. Check your internet and try again. ($_error)',
+                                textAlign: TextAlign.center,
+                                style:
+                                    Bl.inter(13.5, c: Bl.redDeep, h: 1.5)),
                           ),
-                          child: Row(
+                        )
+                      : RefreshIndicator(
+                          color: Bl.amber,
+                          onRefresh: _fetch,
+                          child: ListView(
+                            padding: const EdgeInsets.only(bottom: 24),
                             children: [
-                              const Icon(LucideIcons.truck,
-                                  color: AppColors.inkPrimary, size: 26),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${totalUnits.toStringAsFixed(0)} units across fleet',
-                                      style: GoogleFonts.manrope(
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 20,
-                                        color: AppColors.inkPrimary,
+                              BlGroupHeader('Stock on board, all vans',
+                                  trailing:
+                                      '${_rows.length} vehicle${_rows.length == 1 ? '' : 's'}'),
+                              if (_rows.isEmpty)
+                                const BlEmpty(
+                                  icon: BlIcons.truck,
+                                  title: 'No vehicles yet',
+                                  message:
+                                      'Add a vehicle, then load it from the warehouse.',
+                                ),
+                              for (final r in _rows)
+                                Semantics(
+                                  button: true,
+                                  label:
+                                      '${r.name}, ${_units(r.units)} units. Open',
+                                  excludeSemantics: true,
+                                  child: BlTap(
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => VanStockScreen(
+                                            vehicleId: r.vehicleId,
+                                            vehicleName: r.name,
+                                            plate: r.plate,
+                                            kind: r.kind),
+                                      ),
+                                    ).then((_) => _fetch()),
+                                    child: Container(
+                                      margin: const EdgeInsets.fromLTRB(
+                                          16, 8, 16, 0),
+                                      padding: const EdgeInsets.fromLTRB(
+                                          12, 12, 12, 12),
+                                      decoration: BoxDecoration(
+                                          color: Bl.tile,
+                                          borderRadius:
+                                              BorderRadius.circular(18)),
+                                      child: Row(
+                                        children: [
+                                          VehiclePicture(r.kind,
+                                              width: 84,
+                                              opacity:
+                                                  r.units > 0 ? 1 : 0.55),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(r.name,
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow
+                                                        .ellipsis,
+                                                    style: Bl.tight(14.5,
+                                                        w: FontWeight.w600)),
+                                                const SizedBox(height: 1),
+                                                Text(
+                                                    [
+                                                      if (r.plate.isNotEmpty)
+                                                        r.plate,
+                                                      r.units <= 0
+                                                          ? 'empty'
+                                                          : '${r.products} product${r.products == 1 ? '' : 's'}',
+                                                    ].join(' · '),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow
+                                                        .ellipsis,
+                                                    style: Bl.inter(12,
+                                                        c: _grey)),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              Text(_units(r.units),
+                                                  style: Bl.tight(18,
+                                                      w: FontWeight.w700,
+                                                      c: r.units > 0
+                                                          ? Bl.ink
+                                                          : Bl.mute)),
+                                              Text('units',
+                                                  style: Bl.inter(11.5,
+                                                      c: _grey)),
+                                            ],
+                                          ),
+                                          const SizedBox(width: 6),
+                                          const BlIcon(BlIcons.chevronRight,
+                                              size: 16,
+                                              color: Color(0xFFB8BCC2)),
+                                        ],
                                       ),
                                     ),
-                                    Text(
-                                      '${_rows.length} vehicle${_rows.length > 1 ? 's' : ''}',
-                                      style: AppText.caption.copyWith(color: AppColors.secondary),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          child: ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                            itemCount: _rows.length,
-                            itemBuilder: (context, i) {
-                              final r = _rows[i];
-                              return AppTappable(
-   ripple: false,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        VanStockScreen(vehicleId: r.vehicleId),
                                   ),
                                 ),
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surface,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                        color: Colors.black.withValues(alpha: 0.06)),
-                                  ),
+                              if (_rows.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      18, 14, 18, 0),
                                   child: Row(
                                     children: [
-                                      Container(
-                                        width: 40,
-                                        height: 40,
-                                        decoration: BoxDecoration(
-                                          color: AppColors.primary
-                                              .withValues(alpha: 0.08),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: const Icon(LucideIcons.truck,
-                                            size: 18, color: AppColors.primary),
-                                      ),
-                                      const SizedBox(width: 14),
+                                      const BlIcon(
+                                          '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.500v.500"/>',
+                                          size: 16,
+                                          color: Bl.body),
+                                      const SizedBox(width: 8),
                                       Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              r.name,
-                                              style: GoogleFonts.manrope(
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 14,
-                                                color: AppColors.inkPrimary,
-                                              ),
-                                            ),
-                                            Text(
-                                              r.units <= 0
-                                                  ? 'Empty'
-                                                  : '${r.products} product${r.products > 1 ? 's' : ''}',
-                                              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                                            ),
-                                          ],
-                                        ),
+                                        child: Text(
+                                            'Tap a van to see what is on board.',
+                                            style: Bl.inter(12.5,
+                                                c: Bl.body)),
                                       ),
-                                      Text(
-                                        r.units.toStringAsFixed(0),
-                                        style: GoogleFonts.manrope(
-                                          fontWeight: FontWeight.w900,
-                                          fontSize: 18,
-                                          color: r.units <= 0
-                                              ? AppColors.inkTertiary
-                                              : AppColors.primary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'units',
-                                        style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      const Icon(LucideIcons.chevronRight,
-                                          size: 16, color: AppColors.inkTertiary),
                                     ],
                                   ),
                                 ),
- );
-                            },
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

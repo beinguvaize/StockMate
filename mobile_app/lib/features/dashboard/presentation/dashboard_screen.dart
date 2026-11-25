@@ -46,7 +46,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     (feature: 'dashboard', icon: BlIcons.home, label: 'Dashboard', tab: DashboardHome(onTabSwitch: _switchToFeature)),
     (feature: 'sales',     icon: BlIcons.receipt, label: 'Sales',     tab: const SalesScreen()),
     (feature: 'inventory', icon: BlIcons.box, label: 'Inventory', tab: const InventoryScreen(showAddButton: false)),
-    (feature: 'logistics', icon: BlIcons.truck, label: 'My Route',  tab: const DriverRouteScreen()),
+    (feature: 'logistics', icon: BlIcons.truck, label: 'My Route',  tab: const DriverRouteScreen(embedded: true)),
     (feature: '__menu__',  icon: BlIcons.more, label: 'More',      tab: const MenuScreen()),
   ];
 
