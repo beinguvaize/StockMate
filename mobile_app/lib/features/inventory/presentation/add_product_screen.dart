@@ -1,17 +1,13 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/database/database.dart';
-import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/widgets/barcode_scanner_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
-import '../../../core/widgets/app_surfaces.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
   final Product? product; // non-null = edit mode
@@ -135,12 +131,9 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   Future<void> _submit() async {
     if (_nameController.text.isEmpty || _skuController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Name and SKU required',
-              style: GoogleFonts.manrope(color: Colors.white)),
-          backgroundColor: AppColors.danger,
+        const SnackBar(
+          content: Text('Name and SKU required'),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
@@ -211,14 +204,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              _isEditMode ? 'Product updated successfully' : 'Product added successfully',
-              style: GoogleFonts.manrope(color: AppColors.inkPrimary),
-            ),
-            backgroundColor: AppColors.primaryContainer,
+            content: Text(_isEditMode ? 'Product updated' : 'Product added'),
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -226,12 +213,11 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e',
-                style: GoogleFonts.manrope(color: Colors.white)),
-            backgroundColor: AppColors.danger,
+            content: Text(
+                'May not have saved. Check the product list before trying again. ($e)'),
+            backgroundColor: Bl.redDeep,
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 8),
           ),
         );
       }
@@ -240,347 +226,313 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft,
-              size: 20, color: AppColors.inkPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _isEditMode ? 'Edit Product' : 'Add Product',
-              style: GoogleFonts.manrope(
-                color: AppColors.inkPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-            Text(
-              'INVENTORY MANAGEMENT',
-              style: AppText.label.copyWith(color: AppColors.secondary,
-                letterSpacing: 1.5),
-            ),
-          ],
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Product identity section
-            SectionHeading('PRODUCT IDENTITY', icon: LucideIcons.package),
-            const SizedBox(height: 12),
-            _buildField(
-              label: 'Product Name',
-              hint: 'e.g. Premium Basmati Rice',
-              controller: _nameController,
-              icon: LucideIcons.package,
-            ),
-            const SizedBox(height: 12),
-            _buildField(
-              label: 'SKU',
-              hint: 'e.g. RICE-5KG-001',
-              controller: _skuController,
-              icon: LucideIcons.scan,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: _buildField(
-                    label: 'Barcode (EAN-13)',
-                    hint: 'Assign or scan…',
-                    controller: _barcodeController,
-                    icon: LucideIcons.scanLine,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                AppTappable(
-                  ripple: false,
-                  onTap: _assignBarcode,
-                  child: Container(
-                    height: 48, padding: const EdgeInsets.symmetric(horizontal: 12),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text('Assign',
-                        style: AppText.label.copyWith(fontWeight: FontWeight.w800,
-                            color: AppColors.onPrimaryContainer)),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                AppTappable(
-                  ripple: false,
-                  onTap: _scanBarcodeIntoField,
-                  child: Container(
-                    height: 48, width: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(LucideIcons.camera, size: 18, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildField(
-              label: 'Category',
-              hint: 'e.g. Groceries',
-              controller: _categoryController,
-              icon: LucideIcons.tag,
-            ),
+  int _step = 0;
 
-            const SizedBox(height: 28),
+  static const _units = ['pcs', 'kg', 'ltr', 'box', 'set', 'dozen'];
 
-            // Pricing section
-            SectionHeading('PRICING', icon: LucideIcons.indianRupee),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildField(
-                    label: 'Cost Price',
-                    hint: '0.00',
-                    controller: _costController,
-                    icon: LucideIcons.indianRupee,
-                    isNumber: true,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildField(
-                    label: 'Selling Price',
-                    hint: '0.00',
-                    controller: _sellingController,
-                    icon: LucideIcons.indianRupee,
-                    isNumber: true,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildDropdownCard(
-              label: 'TAX SLAB (GST + CESS)',
-              icon: LucideIcons.percent,
-              value: _selectedTaxSlab,
-              items: _taxSlabs.map((m) => m['label'].toString()).toList(),
-              onChanged: (v) {
-                final slab = _taxSlabs.firstWhere(
-                  (s) => s['label'] == v,
-                  orElse: () => _taxSlabs.first,
-                );
-                setState(() {
-                  _selectedTaxSlab = v!;
-                  _taxRate = slab['rate'] as double;
-                  _cessRate = slab['cess'] as double;
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            _buildField(
-              label: 'HSN / SAC Code',
-              hint: 'e.g. 39231090',
-              controller: _hsnController,
-              icon: LucideIcons.hash,
-              isNumber: true,
-            ),
+  void _toast(String msg) => ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
 
-            const SizedBox(height: 28),
-
-            // Stock section
-            SectionHeading('STOCK & UNIT', icon: LucideIcons.layers),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildField(
-                    label: 'Current Stock',
-                    hint: '0',
-                    controller: _stockController,
-                    icon: LucideIcons.layers,
-                    isNumber: true,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildField(
-                    label: 'Low Stock Alert',
-                    hint: '10',
-                    controller: _alertController,
-                    icon: LucideIcons.alertTriangle,
-                    isNumber: true,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildDropdownCard(
-              label: 'UNIT OF MEASURE',
-              icon: LucideIcons.ruler,
-              value: _selectedUnit,
-              items: ['pcs', 'kg', 'ltr', 'box', 'set', 'dozen'],
-              onChanged: (v) => setState(() => _selectedUnit = v!),
-            ),
-
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _submit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryContainer,
-              foregroundColor: AppColors.inkPrimary,
-              disabledBackgroundColor:
-                  AppColors.primaryContainer.withValues(alpha: 0.4),
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: const StadiumBorder(),
-            ),
-            child: _isLoading
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: AppColors.inkPrimary,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(_isEditMode ? LucideIcons.save : LucideIcons.plus, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        _isEditMode ? 'SAVE CHANGES' : 'ADD TO INVENTORY',
-                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                          letterSpacing: 1),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ),
-    );
+  void _next() {
+    if (_step == 0 &&
+        (_nameController.text.trim().isEmpty ||
+            _skuController.text.trim().isEmpty)) {
+      _toast('Enter the product name and SKU first.');
+      return;
+    }
+    if (_step < 2) {
+      FocusScope.of(context).unfocus();
+      setState(() => _step++);
+    } else {
+      _submit();
+    }
   }
 
-  Widget _buildField({
-    required String label,
-    required String hint,
-    required TextEditingController controller,
-    required IconData icon,
-    bool isNumber = false,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: isNumber
-            ? const TextInputType.numberWithOptions(decimal: true)
-            : TextInputType.text,
-        style: GoogleFonts.manrope(
-          fontSize: 14,
-          color: AppColors.inkPrimary,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon, size: 18, color: AppColors.inkSecondary),
-          border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          hintText: hint,
-          hintStyle: GoogleFonts.manrope(
-            color: AppColors.inkSecondary.withValues(alpha: 0.5),
-            fontSize: 14,
-          ),
-          labelText: label,
-          labelStyle: AppText.label.copyWith(color: AppColors.inkSecondary,
-            letterSpacing: 0.5),
-          floatingLabelBehavior: FloatingLabelBehavior.always,
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(
-              color: AppColors.primaryContainer,
-              width: 1.5,
-            ),
-          ),
-          enabledBorder: InputBorder.none,
-        ),
-      ),
-    );
+  void _back() {
+    if (_step == 0) {
+      Navigator.maybePop(context);
+    } else {
+      setState(() => _step--);
+    }
   }
 
-  Widget _buildDropdownCard({
-    required String label,
-    required IconData icon,
-    required String value,
-    required List<String> items,
-    required void Function(String?) onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-      ),
-      child: Row(
+  Future<void> _pickCategory() async {
+    final known = <String>{
+      'Other',
+      for (final p in ref.read(productsProvider).valueOrNull ?? const <Product>[])
+        if ((p.category ?? '').trim().isNotEmpty) p.category!.trim(),
+    }.toList()
+      ..sort();
+    const addNew = 'New category…';
+    final picked = await showBlPicker(context,
+        title: 'Category',
+        options: [...known, addNew],
+        selected: _categoryController.text.trim().isEmpty
+            ? 'Other'
+            : _categoryController.text.trim());
+    if (picked == null || !mounted) return;
+    if (picked != addNew) {
+      setState(() => _categoryController.text = picked);
+      return;
+    }
+    final ctrl = TextEditingController();
+    final name = await showBlCustomDialog<String>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(icon, size: 18, color: AppColors.inkSecondary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: AppText.label.copyWith(color: AppColors.inkSecondary,
-                    letterSpacing: 0.5),
-                ),
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: value,
-                    isExpanded: true,
-                    isDense: true,
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      color: AppColors.inkPrimary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    items: items
-                        .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                        .toList(),
-                    onChanged: onChanged,
-                  ),
-                ),
-              ],
-            ),
+          Text('New category', style: Bl.tight(16, w: FontWeight.w700)),
+          BlField(
+              label: 'Name',
+              hint: 'e.g. Groceries',
+              controller: ctrl,
+              capitalization: TextCapitalization.words),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: BlButton('Cancel',
+                    kind: BlButtonKind.soft, onTap: () => Navigator.pop(ctx)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: BlButton('Use it',
+                    onTap: () => Navigator.pop(ctx, ctrl.text.trim())),
+              ),
+            ],
           ),
         ],
       ),
     );
+    if (name != null && name.isNotEmpty && mounted) {
+      setState(() => _categoryController.text = name);
+    }
+  }
+
+  Future<void> _pickTax() async {
+    final picked = await showBlPicker(context,
+        title: 'Tax slab (GST + Cess)',
+        options: _taxSlabs.map((m) => m['label'].toString()).toList(),
+        selected: _selectedTaxSlab);
+    if (picked == null || !mounted) return;
+    final slab = _taxSlabs.firstWhere((s) => s['label'] == picked,
+        orElse: () => _taxSlabs.first);
+    setState(() {
+      _selectedTaxSlab = picked;
+      _taxRate = (slab['rate'] as num).toDouble();
+      _cessRate = (slab['cess'] as num).toDouble();
+    });
+  }
+
+  static final _money = [
+    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+  ];
+
+  List<Widget> _detailsStep() => [
+        BlField(
+          label: 'Product name',
+          hint: 'e.g. Premium Basmati Rice',
+          controller: _nameController,
+          capitalization: TextCapitalization.words,
+        ),
+        BlField(
+          label: 'SKU',
+          hint: 'e.g. RICE-5KG-001',
+          controller: _skuController,
+          capitalization: TextCapitalization.characters,
+        ),
+        BlField(
+          label: 'Barcode',
+          hint: 'Scan or type',
+          controller: _barcodeController,
+          keyboardType: TextInputType.number,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              BlTap(
+                label: 'Make a barcode',
+                onTap: _assignBarcode,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+                  child: Text('Make one',
+                      style: Bl.tight(12.5,
+                          w: FontWeight.w600,
+                          ls: 0,
+                          c: const Color(0xFFB86A0A))),
+                ),
+              ),
+              BlTap(
+                label: 'Scan barcode',
+                onTap: _scanBarcodeIntoField,
+                child: Padding(
+                  padding: const EdgeInsets.all(7),
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                        color: Bl.well, shape: BoxShape.circle),
+                    child: const BlIcon(BlIcons.scan, size: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        BlField(
+          label: 'Category',
+          value: _categoryController.text.trim().isEmpty
+              ? 'Other'
+              : _categoryController.text.trim(),
+          onTap: _pickCategory,
+        ),
+      ];
+
+  List<Widget> _pricingStep() {
+    final cost = double.tryParse(_costController.text) ?? 0;
+    final sell = double.tryParse(_sellingController.text) ?? 0;
+    final has = cost > 0 && sell > 0;
+    final margin = has ? (sell - cost) / sell * 100 : 0.0;
+    final bad = has && sell <= cost;
+    return [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: BlField(
+              label: 'Cost price',
+              hint: '0.00',
+              prefix: '₹',
+              controller: _costController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: _money,
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: BlField(
+              label: 'Selling price',
+              hint: '0.00',
+              prefix: '₹',
+              controller: _sellingController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: _money,
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+        ],
+      ),
+      Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+            color: bad ? const Color(0xFFFFF8E1) : const Color(0xFFF1F8F3),
+            borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            BlIcon('<path d="M4 17l6-6 4 4 6-8"/>',
+                size: 15,
+                color: bad ? const Color(0xFF6B4E00) : const Color(0xFF17663A)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                  !has
+                      ? 'Your margin shows here once both prices are filled.'
+                      : bad
+                          ? 'Selling at or below cost. You make nothing on this item.'
+                          : 'Margin ${margin.toStringAsFixed(1)}% · you make ₹${(sell - cost).toStringAsFixed(2)} on each.',
+                  style: Bl.inter(12.5,
+                      w: FontWeight.w500,
+                      c: bad
+                          ? const Color(0xFF6B4E00)
+                          : const Color(0xFF17663A))),
+            ),
+          ],
+        ),
+      ),
+      BlField(
+          label: 'Tax slab (GST + Cess)',
+          value: _selectedTaxSlab,
+          onTap: _pickTax),
+      BlField(
+        label: 'HSN / SAC code',
+        hint: 'e.g. 39231090',
+        controller: _hsnController,
+        keyboardType: TextInputType.number,
+      ),
+    ];
+  }
+
+  List<Widget> _stockStep() => [
+        BlField(
+          label: 'Current stock',
+          hint: '0',
+          controller: _stockController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        ),
+        // The alert level is set when the product is created; the app has no
+        // way to change it afterwards yet, so it is not offered on edit.
+        if (!_isEditMode)
+          BlField(
+            label: 'Low stock alert',
+            hint: '10',
+            controller: _alertController,
+            keyboardType: TextInputType.number,
+            helper: 'We mark the product Low when stock falls to this number.',
+          ),
+        Padding(
+          padding: const EdgeInsets.only(top: 16, bottom: 8),
+          child: Text('Unit of measure',
+              style: Bl.tight(13, w: FontWeight.w600, ls: 0, c: Bl.ink3)),
+        ),
+        BlChoicePills(
+          options: [
+            ..._units,
+            if (!_units.contains(_selectedUnit)) _selectedUnit,
+          ],
+          selected: _selectedUnit,
+          onChanged: (v) => setState(() => _selectedUnit = v),
+        ),
+      ];
+
+  @override
+  Widget build(BuildContext context) {
+    const questions = [
+      'What are you adding?',
+      'Set the price',
+      'How much do you have?',
+    ];
+    return PopScope(
+      canPop: _step == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _back();
+      },
+      child: BlStepFrame(
+        title: _isEditMode ? 'Edit Product' : 'Add Product',
+        step: _step,
+        stepNames: const ['Details', 'Pricing', 'Stock'],
+        question: _isEditMode && _step == 0
+            ? 'What is this product?'
+            : questions[_step],
+        onBack: _back,
+        loading: _isLoading,
+        onNext: _isLoading ? null : _next,
+        buttonLabel: switch (_step) {
+          0 => 'Next: pricing',
+          1 => 'Next: stock',
+          _ => _isEditMode ? 'Save changes' : 'Add to inventory',
+        },
+        children: switch (_step) {
+          0 => _detailsStep(),
+          1 => _pricingStep(),
+          _ => _stockStep(),
+        },
+      ),
+    );
   }
 }
-

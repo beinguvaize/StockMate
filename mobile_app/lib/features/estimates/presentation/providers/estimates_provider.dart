@@ -55,7 +55,9 @@ final estimatesProvider = FutureProvider<List<EstimateModel>>((ref) async {
         .limit(200);
     return (rows as List).map((r) => EstimateModel.fromJson(r as Map<String, dynamic>)).toList();
   } catch (e) {
+    // Rethrown: an empty list would read as "nothing here yet" when the
+    // truth is that it could not be loaded.
     debugPrint('[estimatesProvider] failed: $e');
-    return [];
+    rethrow;
   }
 });

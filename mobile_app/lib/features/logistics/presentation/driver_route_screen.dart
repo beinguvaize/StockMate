@@ -1,253 +1,440 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/location/location_service.dart';
 import 'package:mobile_app/core/supabase/client.dart';
-import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/features/logistics/data/models/route.dart';
 import 'package:mobile_app/features/logistics/data/models/route_stop.dart';
+import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart'
+    show fleetDate, fleetPill;
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
+import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
 import 'package:mobile_app/features/logistics/presentation/van_stock_screen.dart';
+import 'package:mobile_app/features/logistics/presentation/widgets/vehicle_picture.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
 
+const _grey = Color(0xFF7A8088);
+const _green = Color(0xFF1E9E5A);
+const _amberDeep = Color(0xFF8A5A00);
+
+/// A failed stop is stored as NO_SALE (the status column has no FAILED) with
+/// its reason in the notes behind this prefix, so the stop keeps the reason
+/// and the screen can tell a failed delivery from a plain "no sale".
+const failedStopPrefix = 'Failed: ';
+
+/// The reason a stop failed, or null when it did not fail.
+String? failedStopReason(RouteStop s) {
+  final n = (s.notes ?? '').trim();
+  final mark = failedStopPrefix.trim();
+  if (s.status != 'NO_SALE' || !n.startsWith(mark)) return null;
+  final reason = n.substring(mark.length).trim();
+  return reason.isEmpty ? 'delivery failed' : reason;
+}
+
+String _time(String? iso) {
+  final d = iso == null ? null : DateTime.tryParse(iso)?.toLocal();
+  if (d == null) return '';
+  final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+  return '$h:${d.minute.toString().padLeft(2, '0')} ${d.hour >= 12 ? 'pm' : 'am'}';
+}
+
+/// "My Route" (canvas): the driver's stops for the route they were sent on,
+/// one at a time, with what happened at each.
 class DriverRouteScreen extends ConsumerStatefulWidget {
-  const DriverRouteScreen({super.key});
+  /// True when shown as a tab inside the shell, which draws the header.
+  final bool embedded;
+  const DriverRouteScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<DriverRouteScreen> createState() => _DriverRouteScreenState();
 }
 
 class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
-  // Which stop has the action panel open
-  String? _expandedStopId;
+  // The stop the driver chose to work on; the first pending one otherwise.
+  String? _chosenStopId;
 
-  @override
-  Widget build(BuildContext context) {
-    final routeAsync = ref.watch(activeRouteProvider);
-
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'My Route',
-              style: AppText.heading.copyWith(fontWeight: FontWeight.w800,
-                color: AppColors.inkPrimary),
-            ),
-            Text(
-              'DRIVER CONSOLE',
-              style: AppText.label.copyWith(color: AppColors.secondary,
-                letterSpacing: 1.5),
-            ),
-          ],
-        ),
-        actions: [
-          // Quick stock view
-          IconButton(
-            icon: const Icon(LucideIcons.package, size: 20),
-            tooltip: 'Van Stock',
-            onPressed: () => routeAsync.whenData((route) {
-              if (route?.vehicleId != null) {
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => VanStockScreen(vehicleId: route!.vehicleId!),
-                ));
-              }
-            }),
-          ),
-        ],
+  Future<void> _quickSale(LogisticRoute route) async {
+    final nav = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    String? locationId;
+    try {
+      // Look up van's inventory location, then open AddSaleScreen
+      final locRes = await supabase
+          .from('inventory_locations')
+          .select('id').isFilter('deleted_at', null)
+          .eq('type', 'VEHICLE')
+          .eq('reference_id', route.vehicleId ?? '')
+          .maybeSingle();
+      locationId = locRes?['id'] as String?;
+    } catch (e) {
+      debugPrint('[my route] van location lookup failed: $e');
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+            'Could not find this van\'s stock. Check your internet and try again. ($e)'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    if (!mounted) return;
+    nav.push(MaterialPageRoute(
+      builder: (_) => AddSaleScreen(
+        vehicleId:  route.vehicleId,
+        locationId: locationId,
+        routeId:    route.id,
       ),
-      body: routeAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Text(
-            'Error: $e',
-            style: GoogleFonts.manrope(color: AppColors.danger),
-          ),
-        ),
-        data: (route) {
-          if (route == null) {
-            return const _NoRouteView();
-          }
-
-          return Column(
-            children: [
-              // Route header card
-              _RouteHeader(route: route),
-
-              // Stops list
-              Expanded(
-                child: ref.watch(routeStopsProvider(route.id)).when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(
-                    child: Text(
-                      'Error: $e',
-                      style: GoogleFonts.manrope(color: AppColors.danger),
-                    ),
-                  ),
-                  data: (stops) {
-                    if (stops.isEmpty) {
-                      return _EmptyStops(
-                        vehicleId: route.vehicleId,
-                        routeId: route.id,
-                      );
-                    }
-                    return ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                      itemCount: stops.length,
-                      itemBuilder: (context, i) => _StopCard(
-                        stop: stops[i],
-                        vehicleId: route.vehicleId,
-                        isExpanded: _expandedStopId == stops[i].id,
-                        onTap: () => setState(() {
-                          _expandedStopId = _expandedStopId == stops[i].id ? null : stops[i].id;
-                        }),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-
-      // Floating "Quick Sale" button
-      floatingActionButton: routeAsync.whenOrNull(
-        data: (route) => route != null
-            ? FloatingActionButton.extended(
-                onPressed: () async {
-                  // Look up van's inventory location, then open AddSaleScreen
-                  final locRes = await supabase
-                      .from('inventory_locations')
-                      .select('id').isFilter('deleted_at', null)
-                      .eq('type', 'VEHICLE')
-                      .eq('reference_id', route.vehicleId ?? '')
-                      .maybeSingle();
-                  if (!context.mounted) return;
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => AddSaleScreen(
-                      vehicleId:  route.vehicleId,
-                      locationId: locRes?['id'] as String?,
-                      routeId:    route.id,
-                    ),
-                  ));
-                },
-                backgroundColor: AppColors.primaryContainer,
-                foregroundColor: AppColors.inkPrimary,
-                shape: const StadiumBorder(),
-                icon: const Icon(LucideIcons.shoppingCart, size: 18),
-                label: Text(
-                  'QUICK SALE',
-                  style: AppText.label.copyWith(fontWeight: FontWeight.w900),
-                ),
-              )
-            : null,
-      ),
-    );
+    ));
   }
-}
 
-// ── Route header ──────────────────────────────────────────────────────────────
-class _RouteHeader extends StatelessWidget {
-  final dynamic route;
-  const _RouteHeader({required this.route});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(20),
-      ),
+  Widget _doneRow(RouteStop s) {
+    final failed = failedStopReason(s);
+    final (String label, Color tint, Color ink, String icon) = failed != null
+        ? ('Failed', const Color(0xFFFFF1C9), _amberDeep, '<path d="M12 6v7M12 17v.500"/>')
+        : switch (s.status) {
+            'DELIVERED' => ('Delivered', const Color(0xFFE3F5EA), const Color(0xFF17663A), BlIcons.check),
+            'PARTIAL' => ('Partial', const Color(0xFFE4EEFF), const Color(0xFF1D4E9E), BlIcons.minus),
+            'NO_SALE' => ('No sale', const Color(0xFFFDE2E2), Bl.redDeep, BlIcons.close),
+            _ => ('Closed', const Color(0xFFEFEEEC), Bl.body, BlIcons.check),
+          };
+    final dot = failed != null
+        ? Bl.brand
+        : s.status == 'DELIVERED'
+            ? _green
+            : ink;
+    final time = _time(s.visitedAt);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
       child: Row(
+        crossAxisAlignment: failed != null
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: [
           Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.35),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(LucideIcons.truck, color: AppColors.inkPrimary, size: 22),
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+            child: BlIcon(icon, size: 13, color: Bl.white, stroke: 3),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(s.clientName ?? 'Unknown client',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Bl.tight(14.5, w: FontWeight.w600)),
+                if (failed != null) ...[
+                  const SizedBox(height: 2),
+                  Text('$failedStopPrefix$failed',
+                      style: Bl.inter(12.5,
+                          w: FontWeight.w500, c: _amberDeep)),
+                ],
+                const SizedBox(height: 1),
                 Text(
-                  route.location ?? 'Active Route',
-                  style: GoogleFonts.manrope(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    color: AppColors.inkPrimary,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    const Icon(LucideIcons.mapPin, size: 12, color: AppColors.secondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      route.date ?? '',
-                      style: AppText.label.copyWith(color: AppColors.secondary),
-                    ),
-                  ],
-                ),
+                    [
+                      if (s.cashCollected > 0) Money.inr(s.cashCollected),
+                      if (time.isNotEmpty) time,
+                      if (failed != null && s.invoiceId != null)
+                        'back in queue for next dispatch',
+                    ].join(' · '),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Bl.inter(12, c: _grey)),
               ],
             ),
           ),
-          // ACTIVE badge — primary text on white bg pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              'ACTIVE',
-              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-                letterSpacing: 1.2),
+          const SizedBox(width: 10),
+          fleetPill((label, tint, ink)),
+        ],
+      ),
+    );
+  }
+
+  Widget _waitingRow(RouteStop s, {required bool next}) => Semantics(
+        button: true,
+        label: '${s.clientName ?? 'Unknown client'}. Do this stop now',
+        excludeSemantics: true,
+        child: BlTap(
+          onTap: () => setState(() => _chosenStopId = s.id),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                      color: Color(0xFFEFEEEC), shape: BoxShape.circle),
+                  child: Text('${s.sequence}',
+                      style: Bl.tight(12.5,
+                          w: FontWeight.w700, ls: 0, c: Bl.body)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(s.clientName ?? 'Unknown client',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Bl.tight(14.5, w: FontWeight.w600)),
+                ),
+                if (next)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFEFEEEC),
+                        borderRadius: BorderRadius.circular(999)),
+                    child: Text('Next',
+                        style: Bl.tight(11,
+                            w: FontWeight.w600, ls: 0, c: Bl.body)),
+                  ),
+              ],
             ),
           ),
-        ],
+        ),
+      );
+
+  Widget _routeBody(LogisticRoute route, List<RouteStop> stops) {
+    final vehicle = ref
+        .watch(vehiclesProvider)
+        .valueOrNull
+        ?.where((v) => v.id == route.vehicleId)
+        .firstOrNull;
+    final plate = vehicle == null || vehicle.displayPlate == '—'
+        ? ''
+        : vehicle.displayPlate;
+    final pending = stops.where((s) => s.status == 'PENDING').toList();
+    final current = pending.where((s) => s.id == _chosenStopId).firstOrNull ??
+        pending.firstOrNull;
+    final nextUp = pending.where((s) => s.id != current?.id).firstOrNull;
+    final visited = stops.length - pending.length;
+    final failed = stops.where((s) => failedStopReason(s) != null).length;
+    final collected = stops.fold<double>(0, (t, s) => t + s.cashCollected);
+    final place = (route.location ?? '').trim();
+
+    void openVanStock() {
+      if (route.vehicleId == null) return;
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => VanStockScreen(vehicleId: route.vehicleId!)));
+    }
+
+    return ListView(
+      padding: EdgeInsets.only(bottom: widget.embedded ? 120 : 24),
+      children: [
+        Container(
+          margin: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+              color: Bl.tile, borderRadius: BorderRadius.circular(18)),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Semantics(
+                    button: true,
+                    label: 'See what is on the van',
+                    excludeSemantics: true,
+                    child: BlTap(
+                      onTap: openVanStock,
+                      child: Container(
+                        width: 58,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                            color: Bl.white,
+                            borderRadius: BorderRadius.circular(12)),
+                        child: VehiclePicture(vehicleKindOf(vehicle?.type),
+                            width: 52),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(place.isEmpty ? 'Active route' : place,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Bl.tight(16,
+                                w: FontWeight.w700, ls: -0.01)),
+                        const SizedBox(height: 1),
+                        Text(
+                            [
+                              fleetDate(route.date),
+                              '${stops.length} stop${stops.length == 1 ? '' : 's'}',
+                              plate,
+                            ].where((s) => s.isNotEmpty).join(' · '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Bl.inter(12, c: _grey)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  fleetPill((
+                    'Active',
+                    const Color(0xFFE3F5EA),
+                    const Color(0xFF17663A)
+                  )),
+                ],
+              ),
+              if (stops.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    for (var i = 0; i < stops.length; i++)
+                      Expanded(
+                        child: Container(
+                          height: 5,
+                          margin: EdgeInsets.only(
+                              right: i == stops.length - 1
+                                  ? 0
+                                  : (stops.length > 24 ? 1 : 4)),
+                          decoration: BoxDecoration(
+                              color: stops[i].status == 'PENDING'
+                                  ? const Color(0xFFDDDCDA)
+                                  : stops[i].status == 'DELIVERED' ||
+                                          stops[i].status == 'PARTIAL'
+                                      ? _green
+                                      : Bl.brand,
+                              borderRadius: BorderRadius.circular(3)),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 7),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                          failed > 0
+                              ? '$visited of ${stops.length} stops visited · $failed failed'
+                              : '$visited of ${stops.length} stop${stops.length == 1 ? '' : 's'} done',
+                          style: Bl.inter(12,
+                              w: FontWeight.w500, c: Bl.body)),
+                    ),
+                    Text('${Money.inr(collected)} collected',
+                        style: Bl.tight(12.5, w: FontWeight.w600)),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (stops.isEmpty)
+          const BlEmpty(
+            icon: BlIcons.truck,
+            title: 'No delivery stops on this route',
+            message: 'You can still sell from the van.',
+          ),
+        for (final s in stops)
+          if (s.status != 'PENDING')
+            _doneRow(s)
+          else if (s.id == current?.id)
+            _StopCard(
+                key: ValueKey(s.id), stop: s, vehicleId: route.vehicleId)
+          else
+            _waitingRow(s, next: s.id == nextUp?.id),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+          child: BlButton('Quick sale',
+              kind: BlButtonKind.soft,
+              leading: const BlIcon(BlIcons.plus, size: 16, stroke: 2.2),
+              onTap: () => _quickSale(route)),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final routeAsync = ref.watch(activeRouteProvider);
+    final route = routeAsync.valueOrNull;
+
+    final body = routeAsync.when(
+      skipLoadingOnReload: true,
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: Bl.amber, strokeWidth: 2)),
+      error: (e, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+              'Could not load your route. Check your internet and try again. ($e)',
+              textAlign: TextAlign.center,
+              style: Bl.inter(13.5, c: Bl.redDeep, h: 1.5)),
+        ),
+      ),
+      data: (route) {
+        if (route == null) return const _NoRouteView();
+        final stopsAsync = ref.watch(routeStopsProvider(route.id));
+        return stopsAsync.when(
+          skipLoadingOnReload: true,
+          loading: () => const Center(
+              child:
+                  CircularProgressIndicator(color: Bl.amber, strokeWidth: 2)),
+          error: (e, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                  'Could not load the stops. Check your internet and try again. ($e)',
+                  textAlign: TextAlign.center,
+                  style: Bl.inter(13.5, c: Bl.redDeep, h: 1.5)),
+            ),
+          ),
+          data: (stops) => _routeBody(route, stops),
+        );
+      },
+    );
+
+    if (widget.embedded) return ColoredBox(color: Bl.white, child: body);
+    return Scaffold(
+      backgroundColor: Bl.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            BlBackHeader(
+              title: 'My Route',
+              trailing: route?.vehicleId == null
+                  ? null
+                  : BlRoundButton(BlIcons.box,
+                      label: 'Van stock',
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => VanStockScreen(
+                                  vehicleId: route!.vehicleId!)))),
+            ),
+            Expanded(child: body),
+          ],
+        ),
       ),
     );
   }
 }
 
-// ── Stop card ─────────────────────────────────────────────────────────────────
+// ── The stop being done now ──────────────────────────────────────────────────
 class _StopCard extends ConsumerStatefulWidget {
   final RouteStop stop;
-  final bool isExpanded;
-  final VoidCallback onTap;
   final String? vehicleId;
-  const _StopCard({
-    required this.stop,
-    required this.isExpanded,
-    required this.onTap,
-    this.vehicleId,
-  });
+  const _StopCard({super.key, required this.stop, this.vehicleId});
 
   @override
   ConsumerState<_StopCard> createState() => _StopCardState();
 }
 
 class _StopCardState extends ConsumerState<_StopCard> {
+  static const _quickReasons = [
+    'Customer unavailable',
+    'Shop closed',
+    'Refused goods',
+  ];
   final _cashController = TextEditingController();
   bool _loading = false;
 
@@ -257,33 +444,31 @@ class _StopCardState extends ConsumerState<_StopCard> {
     super.dispose();
   }
 
-  Color get _statusColor {
-    switch (widget.stop.status) {
-      case 'DELIVERED': return AppColors.success;
-      case 'NO_SALE':   return AppColors.danger;
-      case 'PARTIAL':   return AppColors.info;
-      default:          return AppColors.inkTertiary;
-    }
-  }
+  double get _cash => double.tryParse(_cashController.text) ?? 0;
 
-  IconData get _statusIcon {
-    switch (widget.stop.status) {
-      case 'DELIVERED': return LucideIcons.checkCircle2;
-      case 'NO_SALE':   return LucideIcons.xCircle;
-      case 'PARTIAL':   return LucideIcons.minusCircle;
-      default:          return LucideIcons.clock;
-    }
+  /// A failure here may still have reached the server, so it never claims
+  /// the stop was left untouched.
+  void _unsure(Object e) {
+    debugPrint('[my route] stop update failed: $e');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+          'May not have saved. Check this stop before trying again. ($e)'),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 8),
+    ));
   }
 
   Future<void> _markStatus(String status) async {
     setState(() => _loading = true);
-    final cash = double.tryParse(_cashController.text) ?? 0;
     try {
       await updateStopStatus(
         widget.stop.id,
         status,
-        cashCollected: cash,
+        cashCollected: _cash,
       );
+    } catch (e) {
+      _unsure(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -297,28 +482,145 @@ class _StopCardState extends ConsumerState<_StopCard> {
     setState(() => _loading = true);
     try {
       final invId = widget.stop.invoiceId;
+      final why = reason.isEmpty ? 'Delivery failed' : reason;
       if (invId != null) {
         await supabase.from('invoices').update({
           'delivery_status':        'PENDING',
-          'failed_delivery_reason': reason.isEmpty ? 'Delivery failed' : reason,
+          'failed_delivery_reason': why,
           'vehicle_route_id':       null,
         }).eq('id', invId);
       }
-      await updateStopStatus(widget.stop.id, 'NO_SALE', cashCollected: 0);
+      // The reason is written on the stop as well. It used to go only on the
+      // invoice, so the stop itself read as a plain "no sale" with no cause.
+      await updateStopStatus(widget.stop.id, 'NO_SALE',
+          cashCollected: 0,
+          notes:
+              '$failedStopPrefix${why[0].toLowerCase()}${why.substring(1)}');
       await _captureLocation();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not mark failed: $e')),
-        );
-      }
+      _unsure(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<String?> _askFailReason() =>
-      _askText('Delivery Failed', 'Reason (e.g. customer unavailable)');
+  Widget _dialogHead(String icon, Color tint, Color ink, String title,
+          String line, String sub) =>
+      Column(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+            child: BlIcon(icon, size: 22, color: ink, stroke: 2.2),
+          ),
+          const SizedBox(height: 10),
+          Text(title,
+              textAlign: TextAlign.center,
+              style: Bl.tight(19, w: FontWeight.w700, ls: -0.02)),
+          const SizedBox(height: 6),
+          Text(line,
+              textAlign: TextAlign.center,
+              style: Bl.inter(13.5, w: FontWeight.w500, c: Bl.ink3)),
+          if (sub.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(sub,
+                textAlign: TextAlign.center,
+                style: Bl.inter(12.5, c: _grey)),
+          ],
+        ],
+      );
+
+  Widget _dialogButtons(BuildContext ctx, VoidCallback onConfirm,
+          {bool danger = false}) =>
+      Padding(
+        padding: const EdgeInsets.only(top: 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: BlButton('Cancel',
+                  kind: BlButtonKind.soft, onTap: () => Navigator.pop(ctx)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BlButton('Confirm',
+                  kind: danger ? BlButtonKind.danger : BlButtonKind.primary,
+                  onTap: onConfirm),
+            ),
+          ],
+        ),
+      );
+
+  Future<String?> _askFailReason() {
+    final ctrl = TextEditingController();
+    final name = widget.stop.clientName ?? 'this customer';
+    return showBlCustomDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _dialogHead(
+                '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.500"/>',
+                const Color(0xFFFFF1C9),
+                _amberDeep,
+                'Delivery failed',
+                'Why could you not deliver?',
+                name),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final r in _quickReasons)
+                  Semantics(
+                    button: true,
+                    selected: ctrl.text == r,
+                    label: r,
+                    excludeSemantics: true,
+                    child: BlTap(
+                      onTap: () => setLocal(() => ctrl.text = r),
+                      child: Container(
+                        height: 32,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                            color: ctrl.text == r ? Bl.ink : Bl.wellSoft,
+                            borderRadius: BorderRadius.circular(999)),
+                        child: Text(r,
+                            style: Bl.tight(12.5,
+                                w: FontWeight.w600,
+                                ls: 0,
+                                c: ctrl.text == r ? Bl.white : Bl.ink3)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            BlField(
+              label: 'Reason',
+              hint: 'e.g. customer unavailable',
+              controller: ctrl,
+              capitalization: TextCapitalization.sentences,
+              onChanged: (_) => setLocal(() {}),
+            ),
+            if (widget.stop.invoiceId != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                    'The bill goes back in the queue for the next dispatch.',
+                    textAlign: TextAlign.center,
+                    style: Bl.inter(12, c: _grey)),
+              ),
+            _dialogButtons(ctx, () => Navigator.pop(ctx, ctrl.text.trim())),
+          ],
+        ),
+      ),
+    );
+  }
 
   // Best-effort last-known-location capture at a delivery event.
   Future<void> _captureLocation() async {
@@ -331,9 +633,32 @@ class _StopCardState extends ConsumerState<_StopCard> {
 
   // Mark a stop delivered, capturing optional proof of delivery on the invoice.
   Future<void> _markDelivered() async {
-    final proof = await _askText(
-      'Proof of Delivery',
-      'Note — e.g. received by Mr. Khan (optional)',
+    final ctrl = TextEditingController();
+    final cash = _cash;
+    final proof = await showBlCustomDialog<String>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _dialogHead(
+              BlIcons.check,
+              const Color(0xFFE3F5EA),
+              const Color(0xFF17663A),
+              'Proof of delivery',
+              'Delivered to ${widget.stop.clientName ?? 'customer'}',
+              cash > 0
+                  ? '${Money.inr(cash)} cash collected'
+                  : 'No cash collected'),
+          BlField(
+            label: 'Note (optional)',
+            hint: 'e.g. received by Mr. Khan',
+            controller: ctrl,
+            capitalization: TextCapitalization.sentences,
+          ),
+          _dialogButtons(ctx, () => Navigator.pop(ctx, ctrl.text.trim())),
+        ],
+      ),
     );
     if (proof == null) return; // cancelled
     setState(() => _loading = true);
@@ -345,333 +670,199 @@ class _StopCardState extends ConsumerState<_StopCard> {
           'delivery_proof': proof.isEmpty ? 'Confirmed by driver' : proof,
         }).eq('id', invId);
       }
-      final cash = double.tryParse(_cashController.text) ?? 0;
       await updateStopStatus(widget.stop.id, 'DELIVERED', cashCollected: cash);
       await _captureLocation();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not mark delivered: $e')),
-        );
-      }
+      _unsure(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<String?> _askText(String title, String hint) {
-    final ctrl = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: InputDecoration(hintText: hint),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+  Widget _action(String label, String icon, Color tint, Color ink,
+          VoidCallback onTap) =>
+      Expanded(
+        child: Semantics(
+          button: true,
+          label: label,
+          excludeSemantics: true,
+          child: BlTap(
+            onTap: _loading ? null : onTap,
+            child: Column(
+              children: [
+                Container(
+                  height: 46,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      color: tint, borderRadius: BorderRadius.circular(14)),
+                  child: BlIcon(icon, size: 18, color: ink, stroke: 2.4),
+                ),
+                const SizedBox(height: 5),
+                Text(label,
+                    maxLines: 1,
+                    style: Bl.tight(11.5,
+                        w: FontWeight.w600, ls: 0, c: Bl.ink3)),
+              ],
+            ),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: const Text('Confirm'),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final symbol = ref.watch(currencySymbolProvider).valueOrNull ?? '₹';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 4, 14, 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+          color: Bl.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Bl.ink, width: 1.5)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                    color: Bl.ink, shape: BoxShape.circle),
+                child: Text('${widget.stop.sequence}',
+                    style: Bl.tight(12.5,
+                        w: FontWeight.w700, ls: 0, c: Bl.white)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(widget.stop.clientName ?? 'Unknown client',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Bl.tight(15, w: FontWeight.w600)),
+              ),
+              Text('Now',
+                  style: Bl.tight(11.5,
+                      w: FontWeight.w600,
+                      ls: 0,
+                      c: const Color(0xFFB86A0A))),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text('Cash collected',
+              style: Bl.inter(11.5, w: FontWeight.w500, c: _grey)),
+          const SizedBox(height: 5),
+          Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+                color: Bl.wellSoft, borderRadius: BorderRadius.circular(13)),
+            child: Row(
+              children: [
+                Text(symbol,
+                    style: Bl.tight(18,
+                        w: FontWeight.w600, c: const Color(0xFFA8ADB4))),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: TextField(
+                    controller: _cashController,
+                    enabled: !_loading,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d{0,2}')),
+                    ],
+                    cursorColor: Bl.brand,
+                    style: Bl.tight(18, w: FontWeight.w700),
+                    decoration: InputDecoration(
+                      isCollapsed: true,
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      hintText: '0',
+                      hintStyle: Bl.tight(18,
+                          w: FontWeight.w700, c: const Color(0xFFA8ADB4)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Opacity(
+            opacity: _loading ? 0.5 : 1,
+            child: Row(
+              children: [
+                _action('Delivered', BlIcons.check, const Color(0xFFE3F5EA),
+                    _green, _markDelivered),
+                const SizedBox(width: 6),
+                _action('Partial', BlIcons.minus, const Color(0xFFE4EEFF),
+                    const Color(0xFF1D4E9E), () => _markStatus('PARTIAL')),
+                const SizedBox(width: 6),
+                _action('No sale', BlIcons.close, const Color(0xFFFDE2E2),
+                    Bl.redDeep, () => _markStatus('NO_SALE')),
+                const SizedBox(width: 6),
+                _action(
+                    'Failed',
+                    '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.500"/>',
+                    const Color(0xFFFFF1C9),
+                    _amberDeep,
+                    _markFailed),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final done = widget.stop.status != 'PENDING';
-
-    return AppTappable(
-   ripple: false,
-      onTap: done ? null : widget.onTap,
-      child: AnimatedContainer(
-        duration: Motion.durationOf(context, Motion.base),
-        margin: const EdgeInsets.only(bottom: 10),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: done
-                ? _statusColor.withValues(alpha: 0.3)
-                : Colors.black.withValues(alpha: 0.06),
-            width: done ? 1.5 : 1,
-          ),
-          boxShadow: [AppColors.cardShadow],
-        ),
-        child: Column(
-          children: [
-            // Main row
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Sequence circle or status icon
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: done
-                          ? _statusColor.withValues(alpha: 0.12)
-                          : AppColors.primaryContainer.withValues(alpha: 0.3),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: done ? _statusColor : AppColors.primary.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: done
-                        ? Icon(_statusIcon, size: 16, color: _statusColor)
-                        : Center(
-                            child: Text(
-                              '${widget.stop.sequence}',
-                              style: AppText.label.copyWith(fontWeight: FontWeight.w900,
-                                color: AppColors.primary),
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: 14),
-                  // Client info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.stop.clientName ?? 'Unknown Client',
-                          style: GoogleFonts.manrope(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: AppColors.inkPrimary,
-                          ),
-                        ),
-                        if (widget.stop.cashCollected > 0)
-                          Text(
-                            'Collected: ${widget.stop.cashCollected.toStringAsFixed(0)}',
-                            style: AppText.label.copyWith(color: AppColors.success,
-                              fontWeight: FontWeight.w700),
-                          ),
-                        if (widget.stop.visitedAt != null)
-                          Text(
-                            _formatTime(widget.stop.visitedAt!),
-                            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                          ),
-                      ],
-                    ),
-                  ),
-                  // Status badge / chevron
-                  if (done)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _statusColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: _statusColor.withValues(alpha: 0.25)),
-                      ),
-                      child: Text(
-                        widget.stop.status,
-                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                          color: _statusColor),
-                      ),
-                    )
-                  else
-                    Icon(
-                      widget.isExpanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
-                      size: 18,
-                      color: AppColors.inkTertiary,
-                    ),
-                ],
-              ),
-            ),
-
-            // Action panel (expandable, only for PENDING)
-            if (widget.isExpanded && !done) ...[
-              Divider(height: 1, color: Colors.black.withValues(alpha: 0.05)),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Section header
-                    Row(
-                      children: [
-                        Container(
-                          width: 20,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: const Icon(LucideIcons.dollarSign, size: 11, color: AppColors.primary),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'CASH COLLECTED',
-                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
-                            color: AppColors.primary),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _cashController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
-                      style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
-                        color: AppColors.inkPrimary),
-                      decoration: InputDecoration(
-                        hintText: '0.00',
-                        hintStyle: AppText.body.copyWith(color: AppColors.inkTertiary),
-                        prefixText: '${ref.watch(currencySymbolProvider).valueOrNull ?? ''} ',
-                        prefixStyle: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary),
-                        filled: true,
-                        fillColor: AppColors.canvas,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: AppColors.primary, width: 2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (_loading)
-                      const Center(child: CircularProgressIndicator())
-                    else
-                      Row(
-                        children: [
-                          _ActionBtn(
-                            label: 'DELIVERED',
-                            color: AppColors.success,
-                            icon: LucideIcons.checkCircle2,
-                            onTap: _markDelivered,
-                          ),
-                          const SizedBox(width: 8),
-                          _ActionBtn(
-                            label: 'PARTIAL',
-                            color: AppColors.info,
-                            icon: LucideIcons.minusCircle,
-                            onTap: () => _markStatus('PARTIAL'),
-                          ),
-                          const SizedBox(width: 8),
-                          _ActionBtn(
-                            label: 'NO SALE',
-                            color: AppColors.danger,
-                            icon: LucideIcons.xCircle,
-                            onTap: () => _markStatus('NO_SALE'),
-                          ),
-                          const SizedBox(width: 8),
-                          _ActionBtn(
-                            label: 'FAILED',
-                            color: AppColors.warning,
-                            icon: LucideIcons.alertTriangle,
-                            onTap: _markFailed,
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
- );
-  }
-
-  String _formatTime(String iso) {
-    try {
-      final dt = DateTime.parse(iso).toLocal();
-      final h = dt.hour.toString().padLeft(2, '0');
-      final m = dt.minute.toString().padLeft(2, '0');
-      return 'Visited $h:$m';
-    } catch (_) { return ''; }
-  }
 }
 
-class _ActionBtn extends StatelessWidget {
-  final String label;
-  final Color color;
-  final IconData icon;
-  final VoidCallback onTap;
-  const _ActionBtn({required this.label, required this.color, required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => Expanded(
-    child: AppTappable(
-   ripple: false,
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: AppText.label.copyWith(fontWeight: FontWeight.w900,
-                color: color),
-            ),
-          ],
-        ),
-      ),
- ),
-  );
-}
-
-// ── Empty / no-route states ───────────────────────────────────────────────────
+// ── No route ─────────────────────────────────────────────────────────────────
 class _NoRouteView extends ConsumerWidget {
   const _NoRouteView();
 
   Future<void> _openVehiclePicker(BuildContext context, WidgetRef ref) async {
-    // Load VEHICLE-type inventory locations that have stock
-    final locRows = await supabase
-        .from('inventory_locations')
-        .select('id, reference_id, name').isFilter('deleted_at', null)
-        .eq('type', 'VEHICLE');
+    final messenger = ScaffoldMessenger.of(context);
+    void say(String msg) => messenger.showSnackBar(
+        SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
 
-    if (!context.mounted) return;
-    if (locRows.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No vans have stock loaded.')),
-      );
-      return;
-    }
-
-    // Check which have stock > 0
     final List<Map<String, dynamic>> vansWithStock = [];
-    for (final loc in locRows as List) {
-      final bal = await supabase
-          .from('inventory_balances')
-          .select('quantity')
-          .eq('location_id', loc['id'] as String)
-          .gt('quantity', 0)
-          .limit(1);
-      if ((bal as List).isNotEmpty) {
-        vansWithStock.add(loc as Map<String, dynamic>);
+    try {
+      // Load VEHICLE-type inventory locations that have stock
+      final locRows = await supabase
+          .from('inventory_locations')
+          .select('id, reference_id, name').isFilter('deleted_at', null)
+          .eq('type', 'VEHICLE');
+
+      if (!context.mounted) return;
+      if (locRows.isEmpty) {
+        say('No vans have stock loaded.');
+        return;
       }
+
+      // Check which have stock > 0
+      for (final loc in locRows as List) {
+        final bal = await supabase
+            .from('inventory_balances')
+            .select('quantity')
+            .eq('location_id', loc['id'] as String)
+            .gt('quantity', 0)
+            .limit(1);
+        if ((bal as List).isNotEmpty) {
+          vansWithStock.add(loc as Map<String, dynamic>);
+        }
+      }
+    } catch (e) {
+      debugPrint('[my route] van lookup failed: $e');
+      say('Could not check the vans. Check your internet and try again. ($e)');
+      return;
     }
 
     if (!context.mounted) return;
     if (vansWithStock.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No vans have stock loaded. Load stock from web.')),
-      );
+      say('No vans have stock loaded. Load a van from Vehicles first.');
       return;
     }
 
@@ -685,129 +876,53 @@ class _NoRouteView extends ConsumerWidget {
       return;
     }
 
-    // Multiple vans — show picker sheet; return Map with vehicleId + locationId
-    final picked = await showModalBottomSheet<Map<String, String>>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    // Several vans: pick one by name.
+    String label(Map<String, dynamic> loc) =>
+        loc['name'] as String? ?? loc['reference_id'] as String;
+    final picked = await showBlPicker(context,
+        title: 'Select van',
+        options: [for (final l in vansWithStock) label(l)]);
+    if (picked == null || !context.mounted) return;
+    final loc = vansWithStock.firstWhere((l) => label(l) == picked);
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => AddSaleScreen(
+        vehicleId:  loc['reference_id'] as String,
+        locationId: loc['id'] as String,
       ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 16),
-            Text('Select Van',
-              style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 16)),
-            const SizedBox(height: 8),
-            ...vansWithStock.map((loc) => ListTile(
-              leading: const Icon(LucideIcons.truck),
-              title: Text(loc['name'] as String? ?? loc['reference_id'] as String),
-              onTap: () => Navigator.pop(ctx, {
-                'vehicleId':  loc['reference_id'] as String,
-                'locationId': loc['id'] as String,
-              }),
-            )),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-
-    if (picked != null && context.mounted) {
-      Navigator.push(context, MaterialPageRoute(
-        builder: (_) => AddSaleScreen(
-          vehicleId:  picked['vehicleId'],
-          locationId: picked['locationId'],
-        ),
-      ));
-    }
+    ));
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-            ),
-            child: const Icon(LucideIcons.truck, size: 36, color: AppColors.inkTertiary),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 120),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                    color: Bl.well, shape: BoxShape.circle),
+                child: const BlIcon(BlIcons.truck, size: 28, color: Bl.ink3),
+              ),
+              const SizedBox(height: 14),
+              Text('No active route',
+                  style: Bl.tight(19, w: FontWeight.w700, ls: -0.02)),
+              const SizedBox(height: 6),
+              Text(
+                  'Your manager has not dispatched a route to you yet. You can still sell from the van.',
+                  textAlign: TextAlign.center,
+                  style: Bl.inter(13.5, c: _grey, h: 1.45)),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: 200,
+                child: BlButton('Make a sale',
+                    onTap: () => _openVehiclePicker(context, ref)),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          Text(
-            'No Active Route',
-            style: GoogleFonts.manrope(
-              fontWeight: FontWeight.w900,
-              fontSize: 20,
-              color: AppColors.inkPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'You have no dispatched route.\nManager must dispatch you from the web app.',
-            textAlign: TextAlign.center,
-            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () => _openVehiclePicker(context, ref),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryContainer,
-              foregroundColor: AppColors.inkPrimary,
-              shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            ),
-            icon: const Icon(LucideIcons.shoppingCart, size: 16),
-            label: Text(
-              'MAKE A SALE',
-              style: AppText.label.copyWith(fontWeight: FontWeight.w900,
-                letterSpacing: 1.2),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _EmptyStops extends StatelessWidget {
-  final String? vehicleId;
-  final String routeId;
-  const _EmptyStops({this.vehicleId, required this.routeId});
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withValues(alpha: 0.3),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(LucideIcons.mapPin, size: 28, color: AppColors.primary),
         ),
-        const SizedBox(height: 14),
-        Text(
-          'No delivery stops assigned',
-          style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
-            color: AppColors.inkSecondary),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'You can still make walk-in van sales.',
-          style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-        ),
-      ],
-    ),
-  );
+      );
 }

@@ -1,64 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/core/utils/money.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client_payment.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
-import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
-import 'package:mobile_app/core/theme/typography.dart';
 
-// ─── Payment method metadata ──────────────────────────────────────────────────
-class _MethodMeta {
-  final Color color;
-  final String label;
-  const _MethodMeta({required this.color, required this.label});
+const _mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const _upiIcon =
+    '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2z"/>';
+const _chequeIcon = '<path d="M3 7h18v10H3z"/><path d="M6 13h6M14 13l2 1.5 3-3"/>';
+
+(String, String) _method(String m) => switch (m.toUpperCase()) {
+      'UPI' => ('UPI', _upiIcon),
+      'BANK' => ('Bank transfer', BlIcons.bank),
+      'CHEQUE' => ('Cheque', _chequeIcon),
+      'CARD' => ('Card', _chequeIcon),
+      _ => ('Cash', BlIcons.cash),
+    };
+
+/// Which heading a payment falls under, by its date.
+String _bucket(String date, DateTime now) {
+  final d = DateTime.tryParse(date);
+  if (d == null) return 'Earlier';
+  final today = DateTime(now.year, now.month, now.day);
+  final weekStart =
+      DateTime(today.year, today.month, today.day - (today.weekday - 1));
+  final day = DateTime(d.year, d.month, d.day);
+  if (!day.isBefore(weekStart)) return 'This week';
+  if (day.year == today.year && day.month == today.month) return 'This month';
+  return 'Earlier';
 }
 
-const _methodMeta = <String, _MethodMeta>{
-  'CASH':   _MethodMeta(color: Color(0xFF059669), label: 'Cash'),
-  'CARD':   _MethodMeta(color: Color(0xFF2563EB), label: 'Card'),
-  'UPI':    _MethodMeta(color: Color(0xFF7C3AED), label: 'UPI'),
-  'BANK':   _MethodMeta(color: Color(0xFF0891B2), label: 'Bank Transfer'),
-  'CHEQUE': _MethodMeta(color: Color(0xFFB45309), label: 'Cheque'),
-};
-
-_MethodMeta _meta(String method) =>
-    _methodMeta[method.toUpperCase()] ??
-    const _MethodMeta(color: Color(0xFF727a64), label: 'Other');
-
-// ─── Date formatter ───────────────────────────────────────────────────────────
-String _formatDate(String isoDate) {
-  final months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-  try {
-    final d = DateTime.parse(isoDate);
-    return '${d.day} ${months[d.month - 1]} ${d.year}';
-  } catch (_) {
-    return isoDate;
-  }
-}
-
-// ─── Amount compact ───────────────────────────────────────────────────────────
-String _compact(double v) {
-  final whole = v.round();
-  final s = whole.abs().toString();
-  final grouped = s.length <= 3
-      ? s
-      : '${s.substring(0, s.length - 3).replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},')},${s.substring(s.length - 3)}';
-  return '${whole < 0 ? '-' : ''}₹$grouped';
-}
-
-// ─── Joined model ─────────────────────────────────────────────────────────────
-class _PaymentRow {
-  final ClientPayment payment;
-  final String clientName;
-  _PaymentRow({required this.payment, required this.clientName});
-}
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
+/// "Payment History" (canvas): everything collected from clients, newest
+/// first, grouped by week.
 class ClientPaymentsScreen extends ConsumerStatefulWidget {
   const ClientPaymentsScreen({super.key});
 
@@ -85,414 +60,226 @@ class _ClientPaymentsScreenState extends ConsumerState<ClientPaymentsScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final paymentsAsync = ref.watch(clientPaymentsProvider);
-    final clientsAsync  = ref.watch(clientsProvider);
-
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(LucideIcons.arrowLeft, size: 20, color: AppColors.inkPrimary),
-        ),
-        title: Text(
-          'Payment History',
-          style: GoogleFonts.manrope(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: AppColors.inkPrimary,
-            letterSpacing: -0.3,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-        ),
-      ),
-      body: paymentsAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              'Error: $e',
-              style: AppText.caption.copyWith(color: AppColors.danger),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-        data: (payments) {
-          // Build clientId → name map from clientsProvider (best-effort)
-          final clientMap = <String, String>{};
-          final clientsValue = clientsAsync.valueOrNull ?? const [];
-          for (final c in clientsValue) {
-            clientMap[c.id] = c.name ?? '—';
-          }
-
-          // Join payments with client names
-          final rows = payments.map((p) => _PaymentRow(
-            payment: p,
-            clientName: clientMap[p.clientId] ?? 'Unknown Client',
-          )).toList();
-
-          // Apply search filter
-          final q = _query.toLowerCase().trim();
-          final filtered = q.isEmpty
-              ? rows
-              : rows.where((r) {
-                  return r.clientName.toLowerCase().contains(q) ||
-                      (r.payment.notes ?? '').toLowerCase().contains(q);
-                }).toList();
-
-          // KPI calculations (from unfiltered list so KPIs always reflect total)
-          final totalCollected = payments.fold(0.0, (s, p) => s + p.amount);
-          final transactionCount = payments.length;
-          final distinctClients = payments.map((p) => p.clientId).toSet().length;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── KPI row ──────────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: Row(
-                  children: [
-                    _KpiTile(
-                      label: 'TOTAL COLLECTED',
-                      value: _compact(totalCollected),
-                      icon: LucideIcons.trendingUp,
-                      accent: const Color(0xFF059669),
-                    ),
-                    const SizedBox(width: 10),
-                    _KpiTile(
-                      label: 'TRANSACTIONS',
-                      value: transactionCount.toString(),
-                      icon: LucideIcons.receipt,
-                      accent: const Color(0xFF2563EB),
-                    ),
-                    const SizedBox(width: 10),
-                    _KpiTile(
-                      label: 'CLIENTS PAID',
-                      value: distinctClients.toString(),
-                      icon: LucideIcons.users,
-                      accent: const Color(0xFF7C3AED),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── Search bar ───────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _SearchBar(controller: _searchController),
-              ),
-
-              const SizedBox(height: 12),
-
-              // ── Summary row ──────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                child: Text(
-                  '${filtered.length} payment${filtered.length == 1 ? '' : 's'}${q.isNotEmpty ? ' · filtered' : ''}',
-                  style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // ── List ─────────────────────────────────────────────────────
-              Expanded(
-                child: filtered.isEmpty
-                    ? _EmptyState(
-                        icon: LucideIcons.bell,
-                        message: q.isEmpty
-                            ? 'No payments recorded yet'
-                            : 'No results for "$_query"',
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) => _PaymentCard(row: filtered[i]),
-                      ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-// ─── KPI tile ─────────────────────────────────────────────────────────────────
-class _KpiTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color accent;
-
-  const _KpiTile({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.accent,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [AppColors.cardShadow],
-          border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
-        ),
+  Widget _stat(String value, String label) => Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Text(
-                    label,
-                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                      color: AppColors.inkTertiary,
-                      letterSpacing: 0.8),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+            Text(value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Bl.tight(15, w: FontWeight.w700)),
+            const SizedBox(height: 1),
+            Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Bl.inter(11.5,
+                    w: FontWeight.w500, c: const Color(0xFF7A8088))),
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final paymentsAsync = ref.watch(clientPaymentsProvider);
+    final names = <String, String>{
+      for (final c in ref.watch(clientsProvider).valueOrNull ?? const [])
+        c.id: c.name ?? '',
+    };
+
+    return Scaffold(
+      backgroundColor: Bl.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            const BlBackHeader(title: 'Payment History'),
+            Expanded(
+              child: paymentsAsync.when(
+                loading: () => const Center(
+                    child: CircularProgressIndicator(
+                        color: Bl.amber, strokeWidth: 2)),
+                error: (e, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                        'Could not load payments. Check your internet and try again.',
+                        textAlign: TextAlign.center,
+                        style: Bl.inter(13.5, c: Bl.redDeep, h: 1.5)),
                   ),
                 ),
-                const SizedBox(width: 4),
-                Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, size: 11, color: accent),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: GoogleFonts.manrope(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: AppColors.inkPrimary,
-                letterSpacing: -0.3,
+                data: (payments) {
+                  final now = DateTime.now();
+                  final sorted = [...payments]
+                    ..sort((a, b) => b.date.compareTo(a.date));
+                  final q = _query.toLowerCase().trim();
+                  String nameOf(ClientPayment p) =>
+                      (names[p.clientId] ?? '').isEmpty
+                          ? 'Unknown client'
+                          : names[p.clientId]!;
+                  final shown = q.isEmpty
+                      ? sorted
+                      : sorted
+                          .where((p) =>
+                              nameOf(p).toLowerCase().contains(q) ||
+                              (p.notes ?? '').toLowerCase().contains(q))
+                          .toList();
+                  final total =
+                      payments.fold<double>(0, (s, p) => s + p.amount);
+                  final clients =
+                      payments.map((p) => p.clientId).toSet().length;
+
+                  final rows = <Widget>[];
+                  String? bucket;
+                  for (final p in shown) {
+                    final b = _bucket(p.date, now);
+                    if (b != bucket) {
+                      bucket = b;
+                      final sum = shown
+                          .where((x) => _bucket(x.date, now) == b)
+                          .fold<double>(0, (t, x) => t + x.amount);
+                      rows.add(
+                          BlGroupHeader(b, trailing: Money.inr(sum)));
+                    }
+                    final (label, icon) = _method(p.paymentMethod);
+                    final d = DateTime.tryParse(p.date);
+                    final when = d == null
+                        ? p.date
+                        : '${d.day} ${_mon[d.month - 1]}${d.year == now.year ? '' : ' ${d.year}'}';
+                    rows.add(Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 11),
+                      decoration: const BoxDecoration(
+                          border:
+                              Border(bottom: BorderSide(color: Bl.sep))),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                                color: Color(0xFFE3F5EA),
+                                shape: BoxShape.circle),
+                            child: BlIcon(icon,
+                                size: 17, color: const Color(0xFF17663A)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(nameOf(p),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Bl.tight(14.5,
+                                        w: FontWeight.w600)),
+                                const SizedBox(height: 1),
+                                Text(
+                                    [
+                                      when,
+                                      label,
+                                      if ((p.notes ?? '').trim().isNotEmpty)
+                                        p.notes!.trim(),
+                                    ].join(' · '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Bl.inter(12,
+                                        c: const Color(0xFF7A8088))),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text('+ ${Money.inr(p.amount)}',
+                              style: Bl.tight(14.5,
+                                  w: FontWeight.w600,
+                                  c: const Color(0xFF17663A))),
+                        ],
+                      ),
+                    ));
+                  }
+
+                  return ListView(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Collected from clients',
+                                style: Bl.inter(13, w: FontWeight.w500)),
+                            const SizedBox(height: 6),
+                            Text(Money.inr(total),
+                                style: Bl.tight(36,
+                                    w: FontWeight.w700,
+                                    ls: -0.04,
+                                    h: 1.05,
+                                    c: const Color(0xFF17663A))),
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                _stat('${payments.length}', 'Payments'),
+                                const SizedBox(width: 10),
+                                _stat('$clients', 'Clients paid'),
+                                const SizedBox(width: 10),
+                                _stat(
+                                    payments.isEmpty
+                                        ? '—'
+                                        : Money.inr(total / payments.length),
+                                    'Average payment'),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        height: 44,
+                        margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: BoxDecoration(
+                            color: Bl.well,
+                            borderRadius: BorderRadius.circular(999)),
+                        child: Row(
+                          children: [
+                            const BlIcon(BlIcons.search,
+                                size: 20, color: Bl.mute),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                cursorColor: Bl.brand,
+                                style: Bl.inter(14,
+                                    w: FontWeight.w500, c: Bl.ink),
+                                decoration: InputDecoration(
+                                  isCollapsed: true,
+                                  filled: false,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  hintText: 'Search by client name or notes',
+                                  hintStyle: Bl.inter(14,
+                                      w: FontWeight.w500, c: Bl.mute),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (rows.isEmpty)
+                        BlEmpty(
+                          icon: BlIcons.cash,
+                          title: q.isEmpty
+                              ? 'No payments recorded yet'
+                              : 'No results for "$_query"',
+                        )
+                      else
+                        ...rows,
+                    ],
+                  );
+                },
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ─── Search bar ───────────────────────────────────────────────────────────────
-class _SearchBar extends StatelessWidget {
-  final TextEditingController controller;
-  const _SearchBar({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: TextField(
-        controller: controller,
-        style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
-        decoration: InputDecoration(
-          hintText: 'Search by client name or notes…',
-          hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
-          prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.inkTertiary),
-          suffixIcon: controller.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(LucideIcons.x, size: 16, color: AppColors.inkTertiary),
-                  onPressed: controller.clear,
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Payment card ─────────────────────────────────────────────────────────────
-class _PaymentCard extends StatelessWidget {
-  final _PaymentRow row;
-  const _PaymentCard({required this.row});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = row.payment;
-    final meta = _meta(p.paymentMethod);
-    final color = avatarColor(row.clientName);
-    final bg    = avatarBg(row.clientName);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: Row(
-        children: [
-          // ── Avatar ────────────────────────────────────────────────────
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-            child: Center(
-              child: Text(
-                initials(row.clientName),
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 14),
-
-          // ── Centre info ───────────────────────────────────────────────
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  row.clientName,
-                  style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
-                    color: AppColors.inkPrimary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                if (p.notes != null && p.notes!.trim().isNotEmpty) ...[
-                  Text(
-                    p.notes!,
-                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                ],
-                Row(
-                  children: [
-                    const Icon(LucideIcons.calendar, size: 11, color: AppColors.inkTertiary),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatDate(p.date),
-                      style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // ── Right: amount + method chip ───────────────────────────────
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '₹${p.amount.toStringAsFixed(p.amount % 1 == 0 ? 0 : 2)}',
-                style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w800,
-                  color: const Color(0xFF059669),
-                  letterSpacing: -0.3),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: meta.color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: Text(
-                  meta.label,
-                  style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                    color: meta.color,
-                    letterSpacing: 0.5),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Empty state ──────────────────────────────────────────────────────────────
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String message;
-  const _EmptyState({required this.icon, required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 32, color: AppColors.inkTertiary),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: GoogleFonts.manrope(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Payments will appear here once recorded',
-            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-          ),
-        ],
       ),
     );
   }

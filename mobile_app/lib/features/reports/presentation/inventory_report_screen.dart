@@ -1,34 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import 'package:mobile_app/core/auth/tenant_provider.dart';
-import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/core/utils/money.dart';
 import 'package:mobile_app/features/reports/data/report_params.dart';
 import 'package:mobile_app/features/reports/data/report_providers.dart';
-import 'package:mobile_app/features/reports/presentation/widgets/report_kpi_tile.dart';
-import 'package:mobile_app/features/reports/presentation/widgets/simple_pie_chart.dart';
-import 'package:mobile_app/features/reports/utils/financial_calcs.dart';
-import 'package:mobile_app/core/theme/typography.dart';
-import '../../../core/widgets/app_surfaces.dart';
+import 'package:mobile_app/features/reports/presentation/widgets/report_widgets.dart';
 
-// ---------------------------------------------------------------------------
-// Pie palette
-// ---------------------------------------------------------------------------
-const _kPieColors = [
-  Color(0xFFF59E0B),
-  Color(0xFF0891B2),
-  Color(0xFF7C3AED),
-  Color(0xFF059669),
-  Color(0xFFDC2626),
-  Color(0xFFE879F9),
-  Color(0xFF6366F1),
-  Color(0xFFFF6B35),
-];
+const _amberText = Color(0xFFB86A0A);
 
-// ---------------------------------------------------------------------------
-// Screen
-// ---------------------------------------------------------------------------
+/// The key every screen uses to read the product list for reports. Products
+/// have no date range, so the dates are fixed: a key built from "now" was a
+/// new key on every rebuild and fetched the whole list again each time.
+ReportParams reportProductsKey(String tenantId) => ReportParams(
+    tenantId: tenantId, from: DateTime(2020), to: DateTime(2020));
+
+String _qty(double v) =>
+    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+
+/// "Inventory Report" (canvas): what the stock is worth, and what has not
+/// sold in 30 days.
 class InventoryReportScreen extends ConsumerStatefulWidget {
   const InventoryReportScreen({super.key});
 
@@ -39,137 +29,8 @@ class InventoryReportScreen extends ConsumerStatefulWidget {
 
 class _InventoryReportScreenState
     extends ConsumerState<InventoryReportScreen> {
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
-  @override
-  Widget build(BuildContext context) {
-    final tenantAsync = ref.watch(tenantContextProvider);
-
-    return tenantAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Scaffold(
-        appBar: AppBar(title: const Text('Inventory Report')),
-        body: Center(child: Text('Error: $e')),
-      ),
-      data: (ctx) {
-        if (ctx == null) {
-          return const Scaffold(
-            body: Center(child: Text('No tenant context.')),
-          );
-        }
-
-        final now = DateTime.now();
-        // Products don't use date range — pass arbitrary dates.
-        final productsParams = ReportParams(
-          tenantId: ctx.tenantId,
-          from: now.subtract(const Duration(days: 365)),
-          to: now,
-        );
-        // Last 30 days for dead-stock detection.
-        final last30Params = ReportParams(
-          tenantId: ctx.tenantId,
-          from: now.subtract(const Duration(days: 30)),
-          to: now,
-        );
-
-        final productsAsync = ref.watch(reportProductsProvider(productsParams));
-        final salesAsync = ref.watch(reportSalesProvider(last30Params));
-
-        return DefaultTabController(
-          length: 2,
-          child: Scaffold(
-            backgroundColor: AppColors.canvas,
-            appBar: AppBar(
-              backgroundColor: AppColors.canvas,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              iconTheme: const IconThemeData(color: AppColors.inkPrimary),
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Inventory Report',
-                    style: GoogleFonts.manrope(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                      color: AppColors.inkPrimary,
-                    ),
-                  ),
-                  Text(
-                    'STOCK VALUATION',
-                    style: AppText.label.copyWith(color: AppColors.secondary,
-                      letterSpacing: 1.5),
-                  ),
-                ],
-              ),
-              bottom: TabBar(
-                labelStyle: AppText.label.copyWith(fontWeight: FontWeight.w700),
-                unselectedLabelStyle: AppText.caption.copyWith(fontWeight: FontWeight.w500),
-                labelColor: AppColors.primary,
-                unselectedLabelColor: AppColors.inkSecondary,
-                indicatorColor: AppColors.primary,
-                indicatorWeight: 3,
-                tabs: const [
-                  Tab(text: 'Valuation'),
-                  Tab(text: 'Dead Stock (30d)'),
-                ],
-              ),
-            ),
-            body: productsAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Text(
-                  'Error loading products: $e',
-                  style: GoogleFonts.manrope(color: AppColors.danger),
-                ),
-              ),
-              data: (products) {
-                return salesAsync.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(
-                    child: Text(
-                      'Error loading sales: $e',
-                      style: GoogleFonts.manrope(color: AppColors.danger),
-                    ),
-                  ),
-                  data: (recentSales) {
-                    return _InventoryBody(
-                      products: products,
-                      recentSales: recentSales,
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Body — separated to keep build() lean
-// ---------------------------------------------------------------------------
-class _InventoryBody extends StatelessWidget {
-  final List<Map<String, dynamic>> products;
-  final List<Map<String, dynamic>> recentSales;
-
-  const _InventoryBody({
-    required this.products,
-    required this.recentSales,
-  });
-
-  // --------------------------------------------------------------------------
-  // Computations
-  // --------------------------------------------------------------------------
   static const double _lowThreshold = 5.0;
+  int _tab = 0;
 
   double _stock(Map<String, dynamic> p) =>
       (p['stock'] as num?)?.toDouble() ?? 0;
@@ -177,549 +38,264 @@ class _InventoryBody extends StatelessWidget {
       (p['costPrice'] as num?)?.toDouble() ?? 0;
   double _sell(Map<String, dynamic> p) =>
       (p['sellingPrice'] as num?)?.toDouble() ?? 0;
+  bool _low(Map<String, dynamic> p) =>
+      _stock(p) <=
+      ((p['lowStockThreshold'] as num?)?.toDouble() ?? _lowThreshold);
 
   @override
   Widget build(BuildContext context) {
-    // ---- Valuation KPIs -------------------------------------------------------
-    final totalCostValue = products.fold(
-        0.0, (s, p) => s + _stock(p) * _cost(p));
-    final totalSellValue = products.fold(
-        0.0, (s, p) => s + _stock(p) * _sell(p));
-    final projectedProfit = totalSellValue - totalCostValue;
-    final stockAlerts = products
-        .where((p) =>
-            _stock(p) <=
-            ((p['lowStockThreshold'] as num?)?.toDouble() ?? _lowThreshold))
-        .length;
+    final last30 = reportLastDays(31);
+    return ReportPage(
+      title: 'Inventory Report',
+      range: last30,
+      builder: (context, salesParams) {
+        final productsAsync = ref
+            .watch(reportProductsProvider(reportProductsKey(salesParams.tenantId)));
+        final salesAsync = ref.watch(reportSalesProvider(salesParams));
+        if (productsAsync.hasError && !productsAsync.hasValue) {
+          return ReportError(productsAsync.error!);
+        }
+        if (!productsAsync.hasValue) return const ReportLoading();
+        final products = productsAsync.value!;
+        final recentSales = salesAsync.valueOrNull;
 
-    // ---- By category (pie) -----------------------------------------------
-    final Map<String, double> byCat = {};
-    for (final p in products) {
-      final cat = (p['category'] as String?) ?? 'Uncategorized';
-      byCat[cat] = (byCat[cat] ?? 0) + _stock(p) * _cost(p);
-    }
-    final sortedCats = byCat.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final pieSlices = sortedCats.asMap().entries.map((e) {
-      return PieSlice(
-        label: e.value.key,
-        value: e.value.value,
-        color: _kPieColors[e.key % _kPieColors.length],
-      );
-    }).toList();
+        // ---- Valuation ---------------------------------------------------
+        final totalCostValue =
+            products.fold(0.0, (s, p) => s + _stock(p) * _cost(p));
+        final totalSellValue =
+            products.fold(0.0, (s, p) => s + _stock(p) * _sell(p));
+        final projectedProfit = totalSellValue - totalCostValue;
+        final stockAlerts = products.where(_low).length;
 
-    // ---- Dead stock -------------------------------------------------------
-    final soldProductIds = <String>{};
-    for (final s in recentSales) {
-      final items = s['items'] as List?;
-      if (items == null) continue;
-      for (final item in items) {
-        final pid = (item as Map?)?['product_id'] ??
-            item?['id'] ??
-            item?['productId'];
-        if (pid != null) soldProductIds.add(pid.toString());
-      }
-    }
-    final deadStock = products
-        .where((p) =>
-            _stock(p) > 0 &&
-            !soldProductIds.contains(p['id'] as String? ?? ''))
-        .toList();
+        final byCat = <String, (double, int)>{};
+        for (final p in products) {
+          final cat = (p['category'] as String?) ?? 'Uncategorized';
+          final cur = byCat[cat] ?? (0.0, 0);
+          byCat[cat] = (cur.$1 + _stock(p) * _cost(p), cur.$2 + 1);
+        }
+        final shares =
+            reportTopShares(byCat).where((s) => s.value > 0).toList();
 
-    // ---- Sorted valuation list --------------------------------------------
-    final sortedProducts = [...products]
-      ..sort((a, b) => (_stock(b) * _cost(b)).compareTo(_stock(a) * _cost(a)));
+        // ---- Dead stock --------------------------------------------------
+        final soldProductIds = <String>{};
+        for (final s in recentSales ?? const <Map<String, dynamic>>[]) {
+          final items = s['items'] as List?;
+          if (items == null) continue;
+          for (final item in items) {
+            final pid = (item as Map?)?['product_id'] ??
+                item?['id'] ??
+                item?['productId'];
+            if (pid != null) soldProductIds.add(pid.toString());
+          }
+        }
+        final deadStock = products
+            .where((p) =>
+                _stock(p) > 0 &&
+                !soldProductIds.contains(p['id'] as String? ?? ''))
+            .toList()
+          ..sort((a, b) =>
+              (_stock(b) * _cost(b)).compareTo(_stock(a) * _cost(a)));
+        final deadValue =
+            deadStock.fold(0.0, (s, p) => s + _stock(p) * _cost(p));
 
-    return TabBarView(
-      children: [
-        // ================================================================
-        // TAB 1: Valuation
-        // ================================================================
-        CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // KPI 2x2
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ReportKpiTile(
-                            label: 'Stock Value / Cost',
-                            value: compactINR(totalCostValue),
-                            color: const Color(0xFFF59E0B),
-                            icon: LucideIcons.package,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ReportKpiTile(
-                            label: 'Potential Revenue',
-                            value: compactINR(totalSellValue),
-                            color: const Color(0xFF059669),
-                            icon: LucideIcons.trendingUp,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ReportKpiTile(
-                            label: 'Projected Profit',
-                            value: compactINR(projectedProfit),
-                            color: const Color(0xFF0891B2),
-                            icon: LucideIcons.indianRupee,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ReportKpiTile(
-                            label: 'Stock Alerts',
-                            value: stockAlerts.toString(),
-                            color: AppColors.danger,
-                            icon: LucideIcons.alertTriangle,
-                          ),
-                        ),
-                      ],
-                    ),
+        final sortedProducts = [...products]..sort(
+            (a, b) => (_stock(b) * _cost(b)).compareTo(_stock(a) * _cost(a)));
 
-                    // Pie chart
-                    const SizedBox(height: 24),
-                    SectionHeading('BY CATEGORY', icon: LucideIcons.pieChart),
-                    const SizedBox(height: 16),
-                    if (pieSlices.isNotEmpty)
-                      Center(
-                        child: SimplePieChart(slices: pieSlices, size: 160),
-                      )
-                    else
-                      _EmptyState(
-                        icon: LucideIcons.pieChart,
-                        message: 'No category data',
-                      ),
-
-                    const SizedBox(height: 24),
-                    SectionHeading('PRODUCTS', icon: LucideIcons.layoutList),
-                    const SizedBox(height: 12),
-                  ],
-                ),
+        return ListView(
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+              child: BlSegmented(
+                labels: const ['Valuation', 'Dead stock (30d)'],
+                index: _tab,
+                onChanged: (i) => setState(() => _tab = i),
               ),
             ),
-
-            // Product list
-            if (sortedProducts.isEmpty)
-              SliverFillRemaining(
-                child: _EmptyState(
-                  icon: LucideIcons.package,
-                  message: 'No products found',
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final p = sortedProducts[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _ProductCard(product: p),
-                      );
-                    },
-                    childCount: sortedProducts.length,
-                  ),
-                ),
-              ),
-          ],
-        ),
-
-        // ================================================================
-        // TAB 2: Dead Stock
-        // ================================================================
-        deadStock.isEmpty
-            ? _EmptyState(
-                icon: LucideIcons.checkCircle2,
-                message: 'No dead stock — all products sold in the last 30 days',
-                positive: true,
-              )
-            : CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              color:
-                                  const Color(0xFFEA580C).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: const Color(0xFFEA580C)
-                                      .withValues(alpha: 0.3)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(LucideIcons.alertOctagon,
-                                    size: 16, color: Color(0xFFEA580C)),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    '${deadStock.length} product${deadStock.length == 1 ? '' : 's'} with no sales in the last 30 days',
-                                    style: AppText.label.copyWith(color: const Color(0xFFEA580C)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SectionHeading('IDLE STOCK', icon: LucideIcons.packageX),
-                          const SizedBox(height: 12),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final p = deadStock[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _DeadStockCard(product: p),
-                          );
-                        },
-                        childCount: deadStock.length,
-                      ),
-                    ),
-                  ),
+            if (_tab == 0) ...[
+              ReportHero(
+                label: 'Stock value at cost',
+                value: Money.inr(totalCostValue),
+                stats: [
+                  ReportStat(Money.inr(totalSellValue), 'Sell value'),
+                  ReportStat(
+                      projectedProfit < 0
+                          ? '− ${Money.inr(-projectedProfit)}'
+                          : Money.inr(projectedProfit),
+                      'Possible profit',
+                      color: projectedProfit < 0 ? Bl.redDeep : reportGreen),
+                  ReportStat('$stockAlerts', 'Stock alerts',
+                      color: stockAlerts > 0 ? _amberText : Bl.ink),
                 ],
               ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Product card (Valuation tab)
-// ---------------------------------------------------------------------------
-class _ProductCard extends StatelessWidget {
-  final Map<String, dynamic> product;
-  const _ProductCard({required this.product});
-
-  static const double _lowThreshold = 5.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = (product['name'] as String?) ?? '—';
-    final sku = (product['sku'] as String?) ?? '';
-    final category = (product['category'] as String?) ?? 'Uncategorized';
-    final unit = (product['unit'] as String?) ?? 'pcs';
-    final stock = (product['stock'] as num?)?.toDouble() ?? 0;
-    final costPrice = (product['costPrice'] as num?)?.toDouble() ?? 0;
-    final sellPrice = (product['sellingPrice'] as num?)?.toDouble() ?? 0;
-    final threshold =
-        (product['lowStockThreshold'] as num?)?.toDouble() ?? _lowThreshold;
-    final isLow = stock <= threshold;
-    final costValue = stock * costPrice;
-    final sellValue = stock * sellPrice;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isLow
-              ? AppColors.danger.withValues(alpha: 0.3)
-              : Colors.black.withValues(alpha: 0.06),
-        ),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Row 1: name + category pill
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  name,
-                  style: GoogleFonts.manrope(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: AppColors.inkPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  category,
-                  style: AppText.label.copyWith(color: AppColors.primary),
-                ),
-              ),
-            ],
-          ),
-
-          // SKU
-          if (sku.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              sku,
-              style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-            ),
-          ],
-
-          const SizedBox(height: 10),
-          const Divider(height: 1, thickness: 1, color: Color(0x0F000000)),
-          const SizedBox(height: 10),
-
-          // Row 2: stock qty + low-stock chip
-          Row(
-            children: [
-              Text(
-                'Stock: ',
-                style: AppText.caption.copyWith(color: AppColors.inkSecondary),
-              ),
-              Text(
-                '${stock.toStringAsFixed(stock.truncateToDouble() == stock ? 0 : 2)} $unit',
-                style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                  color: AppColors.inkPrimary),
-              ),
-              const Spacer(),
-              if (isLow)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.danger.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: AppColors.danger.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+              if (shares.isNotEmpty && totalCostValue > 0)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(LucideIcons.alertTriangle,
-                          size: 10, color: AppColors.danger),
-                      const SizedBox(width: 4),
-                      Text(
-                        'LOW STOCK',
-                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                          color: AppColors.danger,
-                          letterSpacing: 0.5),
+                      SizedBox(
+                        height: 8,
+                        child: Row(
+                          children: [
+                            for (var i = 0; i < shares.length; i++)
+                              Expanded(
+                                flex: (shares[i].value / totalCostValue * 1000)
+                                    .round()
+                                    .clamp(15, 1000),
+                                child: Container(
+                                  margin: EdgeInsets.only(
+                                      right: i == shares.length - 1 ? 0 : 3),
+                                  decoration: BoxDecoration(
+                                      color: reportShareColors[i],
+                                      borderRadius: BorderRadius.circular(4)),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 14,
+                        runSpacing: 6,
+                        children: [
+                          for (var i = 0; i < shares.length; i++)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                        color: reportShareColors[i],
+                                        shape: BoxShape.circle)),
+                                const SizedBox(width: 5),
+                                Text(
+                                    '${shares[i].name} ${(shares[i].value / totalCostValue * 100).round()}%',
+                                    style: Bl.inter(11.5,
+                                        w: FontWeight.w500, c: Bl.body)),
+                              ],
+                            ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-            ],
-          ),
-
-          const SizedBox(height: 8),
-
-          // Row 3: cost value | sell value
-          Row(
-            children: [
-              Expanded(
-                child: _ValueLabel(
-                  label: 'Cost value',
-                  value: compactINR(costValue),
-                  color: const Color(0xFFF59E0B),
+              BlGroupHeader('Products', trailing: '${products.length}'),
+              if (products.isEmpty)
+                const BlEmpty(
+                  icon: BlIcons.box,
+                  title: 'No products yet',
+                  message: 'Add products in Inventory to see their value.',
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ValueLabel(
-                  label: 'Sell value',
-                  value: compactINR(sellValue),
-                  color: const Color(0xFF059669),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ValueLabel extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  const _ValueLabel(
-      {required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: AppText.caption.copyWith(color: color.withValues(alpha: 0.8),
-                  fontWeight: FontWeight.w500)),
-          Text(
-            value,
-            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-              color: color),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Dead Stock card
-// ---------------------------------------------------------------------------
-class _DeadStockCard extends StatelessWidget {
-  final Map<String, dynamic> product;
-  const _DeadStockCard({required this.product});
-
-  @override
-  Widget build(BuildContext context) {
-    final name = (product['name'] as String?) ?? '—';
-    final sku = (product['sku'] as String?) ?? '';
-    final unit = (product['unit'] as String?) ?? 'pcs';
-    final stock = (product['stock'] as num?)?.toDouble() ?? 0;
-    final costPrice = (product['costPrice'] as num?)?.toDouble() ?? 0;
-    final costValue = stock * costPrice;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: const Color(0xFFEA580C).withValues(alpha: 0.25)),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEA580C).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(LucideIcons.packageX,
-                color: Color(0xFFEA580C), size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: GoogleFonts.manrope(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: AppColors.inkPrimary,
+              for (final p in sortedProducts)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 18, vertical: 11),
+                  decoration: const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: Bl.sep))),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                      (p['name'] as String?) ?? 'Unnamed',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Bl.tight(14.5,
+                                          w: FontWeight.w600)),
+                                ),
+                                if (_low(p)) ...[
+                                  const SizedBox(width: 6),
+                                  _stock(p) <= 0
+                                      ? BlStatusPill.red('Out of stock')
+                                      : BlStatusPill.yellow('Low stock'),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                                'Stock ${_qty(_stock(p))} · sells for ${Money.inr(_stock(p) * _sell(p))}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Bl.inter(12, c: reportGrey)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(Money.inr(_stock(p) * _cost(p)),
+                              style: Bl.tight(14.5, w: FontWeight.w600)),
+                          Text('at cost',
+                              style: Bl.inter(11.5, c: reportGrey)),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                if (sku.isNotEmpty)
-                  Text(
-                    sku,
-                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
+            ] else if (recentSales == null)
+              // Without the last 30 days of sales every product would look
+              // unsold, so nothing is listed until they are in.
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: salesAsync.hasError
+                    ? Text(
+                        'Could not load recent sales, so dead stock cannot be worked out. Check your internet and try again. (${salesAsync.error})',
+                        textAlign: TextAlign.center,
+                        style: Bl.inter(13.5, c: Bl.redDeep, h: 1.5))
+                    : const SizedBox(height: 120, child: ReportLoading()),
+              )
+            else ...[
+              ReportHero(
+                label: 'Money stuck in dead stock',
+                value: Money.inr(deadValue),
+                color: deadValue > 0 ? _amberText : Bl.ink,
+                stats: [
+                  ReportStat('${deadStock.length}',
+                      deadStock.length == 1 ? 'Product' : 'Products'),
+                  const ReportStat('30+ days', 'Not sold', color: _amberText),
+                  ReportStat(
+                      totalCostValue > 0
+                          ? '${(deadValue / totalCostValue * 100).toStringAsFixed(1)}%'
+                          : '—',
+                      'Of stock value'),
+                ],
+              ),
+              BlGroupHeader('Dead stock', trailing: '${deadStock.length}'),
+              if (deadStock.isEmpty)
+                const BlEmpty(
+                  icon: BlIcons.check,
+                  title: 'No dead stock',
+                  message: 'Every product in stock sold in the last 30 days.',
+                ),
+              for (final p in deadStock)
+                ReportEntryRow(
+                  leading: Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFFFF1C9),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: const BlIcon(BlIcons.box,
+                        size: 17, color: Color(0xFF8A5A00)),
                   ),
-                const SizedBox(height: 4),
-                Text(
-                  'Stock: ${stock.toStringAsFixed(stock.truncateToDouble() == stock ? 0 : 2)} $unit',
-                  style: AppText.caption.copyWith(color: AppColors.inkSecondary),
+                  name: (p['name'] as String?) ?? 'Unnamed',
+                  sub: '${_qty(_stock(p))} in stock · not sold in 30+ days',
+                  amount: Money.inr(_stock(p) * _cost(p)),
+                  amountColor: _amberText,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Not sold in 30+ days',
-                  style: AppText.label.copyWith(color: const Color(0xFFEA580C)),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                compactINR(costValue),
-                style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w800,
-                  color: const Color(0xFFF59E0B)),
-              ),
-              Text(
-                'idle capital',
-                style: AppText.caption.copyWith(color: const Color(0xFFF59E0B).withValues(alpha: 0.8)),
-              ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Section header
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Empty state
-// ---------------------------------------------------------------------------
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String message;
-  final bool positive;
-  const _EmptyState(
-      {required this.icon, required this.message, this.positive = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = positive ? AppColors.primary : AppColors.inkTertiary;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 32),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 14,
-                color: AppColors.inkSecondary,
-              ),
-            ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

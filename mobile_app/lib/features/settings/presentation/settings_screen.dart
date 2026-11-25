@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/database/sync_status_pill.dart'
+    show pendingSyncCountProvider;
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/update/auto_updater.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/settings/data/models/business_profile.dart';
+import 'package:mobile_app/features/settings/presentation/invoice_template_screen.dart';
 import 'package:mobile_app/features/settings/presentation/providers/settings_provider.dart';
 import 'package:mobile_app/features/settings/presentation/sync_diagnostics_screen.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/main.dart' show syncServiceProvider;
+import 'package:package_info_plus/package_info_plus.dart';
 
+const _grey = Color(0xFF7A8088);
+
+/// Changes that could not be delivered and are parked for the owner.
+final _failedSyncCountProvider = StreamProvider<int>(
+    (ref) => ref.watch(syncServiceProvider).watchFailedCount());
+
+/// "Settings" (canvas): the shop's profile, app switches and what a bill
+/// shows.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -24,531 +31,389 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _pushNotificationsEnabled = false;
 
-  Future<void> _updateProfileField(String column, dynamic value) async {
-    final tenantId = ref.read(tenantContextProvider).valueOrNull?.tenantId;
-    if (tenantId == null) return;
-    await supabase.from('business_profile').update({column: value}).eq('tenant_id', tenantId);
-    ref.invalidate(businessProfileProvider);
-  }
-
   void _openEditProfile(BusinessProfile profile) {
-    showModalBottomSheet(
+    showBlSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _EditBusinessProfileSheet(
         profile: profile,
         onSaved: () {
           ref.invalidate(businessProfileProvider);
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Business profile updated.',
-                  style: GoogleFonts.manrope(fontSize: 14, color: Colors.white),
-                ),
-                backgroundColor: AppColors.success,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            );
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Business profile updated.'),
+              behavior: SnackBarBehavior.floating,
+            ));
           }
         },
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final profileAsync = ref.watch(businessProfileProvider);
-
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Column(
+  Widget _fact(String label, String value, {bool last = false}) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: last
+            ? null
+            : const BoxDecoration(
+                border: Border(bottom: BorderSide(color: Color(0xFFECEBE9)))),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Settings',
-              style: GoogleFonts.manrope(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-                color: AppColors.inkPrimary,
-              ),
+            SizedBox(
+              width: 84,
+              child: Text(label,
+                  style: Bl.inter(13, w: FontWeight.w500, c: _grey)),
             ),
-            Text(
-              'ACCOUNT & PREFERENCES',
-              style: AppText.label.copyWith(color: AppColors.secondary,
-                letterSpacing: 1.5),
+            Expanded(
+              child: Text(value,
+                  textAlign: TextAlign.right,
+                  style: Bl.inter(13.5, w: FontWeight.w600, c: Bl.ink)),
             ),
           ],
         ),
-        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
-        toolbarHeight: 0,
-        actions: const [],
+      );
+
+  Widget _row(
+          {required String icon,
+          required String title,
+          String? sub,
+          Widget? trailing,
+          VoidCallback? onTap,
+          bool last = false}) {
+    final row = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: last
+          ? null
+          : const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Color(0xFFECEBE9)))),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: Bl.white, borderRadius: BorderRadius.circular(11)),
+            child: BlIcon(icon, size: 17, color: Bl.ink3),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Bl.tight(14.5, w: FontWeight.w600)),
+                if (sub != null) ...[
+                  const SizedBox(height: 1),
+                  Text(sub,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Bl.inter(12, c: _grey)),
+                ],
+              ],
+            ),
+          ),
+          if (trailing != null) ...[const SizedBox(width: 10), trailing],
+        ],
       ),
+    );
+    return onTap == null
+        ? row
+        : Semantics(
+            button: true,
+            label: sub == null ? title : '$title. $sub',
+            excludeSemantics: true,
+            child: BlTap(onTap: onTap, child: row),
+          );
+  }
+
+  Widget _group(String heading, List<Widget> rows) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          BlGroupHeader(heading),
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            decoration: BoxDecoration(
+                color: Bl.tile, borderRadius: BorderRadius.circular(18)),
+            child: Column(children: rows),
+          ),
+        ],
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final profileAsync = ref.watch(businessProfileProvider);
+    final profile = profileAsync.valueOrNull;
+    final waiting = (ref.watch(pendingSyncCountProvider).valueOrNull ?? 0) +
+        (ref.watch(_failedSyncCountProvider).valueOrNull ?? 0);
+    final taxMode = switch ((profile?.taxMode ?? 'EXCLUSIVE').toUpperCase()) {
+      'INCLUSIVE' => 'GST included in prices',
+      'NONE' => 'No GST',
+      _ => 'GST added to prices',
+    };
+    const chevron =
+        BlIcon(BlIcons.chevronRight, size: 16, color: Color(0xFFB8BCC2));
+
+    return Scaffold(
+      backgroundColor: Bl.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Business profile card ────────────────────────────
-              profileAsync.when(
-                data: (profile) {
-                  if (profile == null) {
-                    return Text(
-                      'No profile found.',
-                      style: GoogleFonts.manrope(color: AppColors.inkTertiary),
-                    );
-                  }
-                  return Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [AppColors.cardShadow],
-                    ),
-                    child: Column(
-                      children: [
-                        // Header row: avatar + edit button
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Spacer(),
-                            Container(
-                              width: 64,
-                              height: 64,
-                              decoration: const BoxDecoration(
-                                color: AppColors.primaryContainer,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(LucideIcons.building2, color: AppColors.primary, size: 28),
-                            ),
-                            Expanded(
-                              child: Align(
-                                alignment: Alignment.topRight,
-                                child: AppTappable(
-   ripple: false,
-                                  onTap: () => _openEditProfile(profile),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primaryContainer,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(
-                                      LucideIcons.pencil,
-                                      size: 16,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
- ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          profile.name ?? 'Company Name',
-                          style: GoogleFonts.manrope(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.inkPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        if (profile.email != null)
-                          Text(
-                            profile.email!,
-                            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                          ),
-                        if (profile.phone != null)
-                          Text(
-                            profile.phone!,
-                            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                          ),
-                        const SizedBox(height: 20),
-                        const Divider(color: AppColors.outlineVariant, height: 1),
-                        const SizedBox(height: 16),
-                        _ProfileRow('Address', profile.address ?? 'N/A'),
-                        const SizedBox(height: 8),
-                        _ProfileRow('GSTIN', profile.gstNo ?? 'N/A'),
-                        const SizedBox(height: 8),
-                        _ProfileRow('Currency', profile.currency ?? 'INR'),
-                      ],
-                    ),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                error: (e, _) => Text('Could not load settings. Check your internet and try again.', style: GoogleFonts.manrope(color: AppColors.danger)),
-              ),
-
-              const SizedBox(height: 24),
-
-              // ── App preferences ──────────────────────────────────
-              Row(
+        child: Column(
+          children: [
+            const BlBackHeader(title: 'Settings'),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 24),
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryContainer.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(LucideIcons.settings, size: 14, color: AppColors.primary),
+                        color: Bl.tile,
+                        borderRadius: BorderRadius.circular(18)),
+                    child: profileAsync.isLoading && profile == null
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 30),
+                            child: Center(
+                                child: CircularProgressIndicator(
+                                    color: Bl.amber, strokeWidth: 2)),
+                          )
+                        : profile == null
+                            ? Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Text(
+                                    'Could not load the business profile. Check your internet and try again.',
+                                    style: Bl.inter(13,
+                                        c: Bl.redDeep, h: 1.5)),
+                              )
+                            : Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      BlTintAvatar(profile.name ?? '',
+                                          size: 44),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                                profile.name ??
+                                                    'Your shop',
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: Bl.tight(16,
+                                                    w: FontWeight.w700,
+                                                    ls: -0.01)),
+                                            const SizedBox(height: 1),
+                                            Text(
+                                                [
+                                                  profile.email ?? '',
+                                                  profile.phone ?? '',
+                                                ]
+                                                    .where((s) =>
+                                                        s.trim().isNotEmpty)
+                                                    .join(' · '),
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: Bl.inter(12,
+                                                    c: _grey)),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Semantics(
+                                        button: true,
+                                        label: 'Edit business profile',
+                                        excludeSemantics: true,
+                                        child: BlTap(
+                                          onTap: () =>
+                                              _openEditProfile(profile),
+                                          child: Container(
+                                            height: 32,
+                                            padding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 14),
+                                            alignment: Alignment.center,
+                                            decoration: BoxDecoration(
+                                                color: Bl.white,
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        999)),
+                                            child: Text('Edit',
+                                                style: Bl.tight(13,
+                                                    w: FontWeight.w600,
+                                                    ls: 0)),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _fact(
+                                      'Address',
+                                      (profile.address ?? '').trim().isEmpty
+                                          ? 'Not set'
+                                          : profile.address!.trim()),
+                                  _fact(
+                                      'GSTIN',
+                                      (profile.gstNo ?? '').trim().isEmpty
+                                          ? 'Not set'
+                                          : profile.gstNo!.trim()),
+                                  _fact('Currency', profile.currency ?? 'INR',
+                                      last: true),
+                                ],
+                              ),
                   ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'APP PREFERENCES',
-                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
-                      color: AppColors.primary),
+                  _group('App', [
+                    _row(
+                      icon: BlIcons.bell,
+                      title: 'Push notifications',
+                      trailing: BlToggle(
+                        value: _pushNotificationsEnabled,
+                        label: 'Push notifications',
+                        onChanged: (v) =>
+                            setState(() => _pushNotificationsEnabled = v),
+                      ),
+                    ),
+                    _row(
+                      icon: BlIcons.sync,
+                      title: 'Offline sync',
+                      sub: 'Working in the background',
+                      trailing: Text('On',
+                          style: Bl.tight(13,
+                              w: FontWeight.w600,
+                              c: const Color(0xFF17663A))),
+                    ),
+                    _row(
+                      icon: BlIcons.doc,
+                      title: 'Sync diagnostics',
+                      sub: 'Waiting or failed changes',
+                      last: true,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const SyncDiagnosticsScreen()),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (waiting > 0) ...[
+                            BlStatusPill.yellow('$waiting waiting'),
+                            const SizedBox(width: 6),
+                          ],
+                          chevron,
+                        ],
+                      ),
+                    ),
+                  ]),
+                  if (profile != null)
+                    _group('Billing', [
+                      _row(
+                        icon: BlIcons.receipt,
+                        title: 'Invoice template',
+                        sub: 'What shows on a printed bill · $taxMode',
+                        last: true,
+                        trailing: chevron,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const InvoiceTemplateScreen()),
+                        ),
+                      ),
+                    ]),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                    child: BlButton('Check for updates',
+                        kind: BlButtonKind.soft,
+                        onTap: () => AutoUpdater.instance
+                            .checkForUpdate(context, verbose: true)),
+                  ),
+                  Center(
+                    child: BlTap(
+                      onTap: () async => await supabase.auth.signOut(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        child: Text('Sign out',
+                            style: Bl.tight(14.5,
+                                w: FontWeight.w600, c: Bl.redDeep)),
+                      ),
+                    ),
+                  ),
+                  FutureBuilder<PackageInfo>(
+                    future: PackageInfo.fromPlatform(),
+                    builder: (context, snap) {
+                      final v = snap.data;
+                      return Text(
+                          v == null
+                              ? 'bookledger'
+                              : 'bookledger · v${v.version} (build ${v.buildNumber})',
+                          textAlign: TextAlign.center,
+                          style: Bl.inter(12, c: Bl.mute));
+                    },
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [AppColors.cardShadow],
-                ),
-                child: Column(
-                  children: [
-                    _SettingRow(
-                      icon: LucideIcons.bell,
-                      iconColor: AppColors.warning,
-                      label: 'Push Notifications',
-                      trailing: Switch(
-                        value: _pushNotificationsEnabled,
-                        onChanged: (v) => setState(() => _pushNotificationsEnabled = v),
-                        activeThumbColor: AppColors.primary,
-                        activeTrackColor: AppColors.primaryContainer,
-                      ),
-                    ),
-                    const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
-                    _SettingRow(
-                      icon: LucideIcons.refreshCw,
-                      iconColor: AppColors.primary,
-                      label: 'Offline Sync Engine',
-                      subtitle: 'Background queue active',
-                      trailing: const Icon(LucideIcons.checkCircle2, color: AppColors.success, size: 20),
-                    ),
-                    const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
-                    InkWell(
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const SyncDiagnosticsScreen()),
-                      ),
-                      child: _SettingRow(
-                        icon: LucideIcons.activity,
-                        iconColor: AppColors.warning,
-                        label: 'Sync Diagnostics',
-                        subtitle: 'View pending/failed jobs, retry, export',
-                        trailing: const Icon(LucideIcons.chevronRight, color: AppColors.inkTertiary, size: 20),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // ── Invoice template ─────────────────────────────────
-              profileAsync.when(
-                data: (profile) {
-                  if (profile == null) return const SizedBox.shrink();
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryContainer.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(LucideIcons.calculator, size: 14, color: AppColors.primary),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'INVOICE TEMPLATE',
-                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                              letterSpacing: 1.5,
-                              color: AppColors.primary),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [AppColors.cardShadow],
-                        ),
-                        child: Column(
-                          children: [
-                            _SettingRow(
-                              icon: LucideIcons.shieldCheck,
-                              iconColor: AppColors.primary,
-                              label: 'Show Business GSTIN',
-                              trailing: Switch(
-                                value: profile.showGstin ?? true,
-                                onChanged: (v) => _updateProfileField('show_gstin', v),
-                                activeThumbColor: AppColors.primary,
-                                activeTrackColor: AppColors.primaryContainer,
-                              ),
-                            ),
-                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
-                            _SettingRow(
-                              icon: LucideIcons.userCheck,
-                              iconColor: AppColors.secondary,
-                              label: 'Show Customer GSTIN',
-                              trailing: Switch(
-                                value: profile.showCustomerGstin ?? true,
-                                onChanged: (v) => _updateProfileField('show_customer_gstin', v),
-                                activeThumbColor: AppColors.primary,
-                                activeTrackColor: AppColors.primaryContainer,
-                              ),
-                            ),
-                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
-                            _SettingRow(
-                              icon: LucideIcons.percent,
-                              iconColor: AppColors.warning,
-                              label: 'Show Tax Breakdown',
-                              trailing: Switch(
-                                value: profile.showTaxBreakdown ?? true,
-                                onChanged: (v) => _updateProfileField('show_tax_breakdown', v),
-                                activeThumbColor: AppColors.primary,
-                                activeTrackColor: AppColors.primaryContainer,
-                              ),
-                            ),
-                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
-                            // Extra bill toggles — match the receipt
-                            // renderer's bill_settings keys so the printed
-                            // / shared thermal receipt picks up changes
-                            // immediately (POSReceipt reads these).
-                            _SettingRow(
-                              icon: LucideIcons.mapPin,
-                              iconColor: AppColors.inkSecondary,
-                              label: 'Show Address',
-                              trailing: Switch(
-                                value: profile.showAddress ?? true,
-                                onChanged: (v) => _updateProfileField('show_address', v),
-                                activeThumbColor: AppColors.primary,
-                                activeTrackColor: AppColors.primaryContainer,
-                              ),
-                            ),
-                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
-                            _SettingRow(
-                              icon: LucideIcons.phone,
-                              iconColor: AppColors.inkSecondary,
-                              label: 'Show Phone',
-                              trailing: Switch(
-                                value: profile.showPhone ?? true,
-                                onChanged: (v) => _updateProfileField('show_phone', v),
-                                activeThumbColor: AppColors.primary,
-                                activeTrackColor: AppColors.primaryContainer,
-                              ),
-                            ),
-                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
-                            _SettingRow(
-                              icon: LucideIcons.user,
-                              iconColor: AppColors.inkSecondary,
-                              label: 'Show Customer Name',
-                              trailing: Switch(
-                                value: profile.showCustomerName ?? true,
-                                onChanged: (v) => _updateProfileField('show_customer_name', v),
-                                activeThumbColor: AppColors.primary,
-                                activeTrackColor: AppColors.primaryContainer,
-                              ),
-                            ),
-                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
-                            _SettingRow(
-                              icon: LucideIcons.qrCode,
-                              iconColor: AppColors.secondary,
-                              label: 'Show UPI QR',
-                              trailing: Switch(
-                                value: profile.showUpi ?? true,
-                                onChanged: (v) => _updateProfileField('show_upi', v),
-                                activeThumbColor: AppColors.primary,
-                                activeTrackColor: AppColors.primaryContainer,
-                              ),
-                            ),
-                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
-                            _SettingRow(
-                              icon: LucideIcons.tag,
-                              iconColor: AppColors.warning,
-                              label: 'Show Discount Line',
-                              trailing: Switch(
-                                value: profile.showDiscount ?? true,
-                                onChanged: (v) => _updateProfileField('show_discount', v),
-                                activeThumbColor: AppColors.primary,
-                                activeTrackColor: AppColors.primaryContainer,
-                              ),
-                            ),
-                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.inkTertiary.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(LucideIcons.calculator, color: AppColors.inkTertiary, size: 18),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Text(
-                                      'Tax Mode',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.inkPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                  _TaxModePicker(
-                                    current: profile.taxMode ?? 'EXCLUSIVE',
-                                    onChanged: (v) => _updateProfileField('tax_mode', v),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
-                loading: () => const SizedBox.shrink(),
-                error: (_, _) => const SizedBox.shrink(),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── App version ──────────────────────────────────────
-              FutureBuilder<PackageInfo>(
-                future: PackageInfo.fromPlatform(),
-                builder: (context, snap) {
-                  final v = snap.data;
-                  final label = v == null
-                      ? 'bookledger'
-                      : 'bookledger · v${v.version} (build ${v.buildNumber})';
-                  return Center(
-                    child: Text(
-                      label,
-                      style: AppText.label.copyWith(color: AppColors.inkTertiary),
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 12),
-
-              // ── Check for app updates ────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => AutoUpdater.instance.checkForUpdate(context, verbose: true),
-                  icon: const Icon(LucideIcons.downloadCloud, size: 16),
-                  label: const Text('Check for Updates'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(color: AppColors.primary),
-                    ),
-                    textStyle: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── Logout ───────────────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () async => await supabase.auth.signOut(),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.danger,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(color: AppColors.danger),
-                    ),
-                    textStyle: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  child: const Text('Sign Out'),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────
-// Edit Business Profile — Modal Bottom Sheet
-// ─────────────────────────────────────────────────────────
-
+// ── Edit business profile ────────────────────────────────────────────────────
 class _EditBusinessProfileSheet extends ConsumerStatefulWidget {
   final BusinessProfile profile;
   final VoidCallback onSaved;
-
-  const _EditBusinessProfileSheet({required this.profile, required this.onSaved});
+  const _EditBusinessProfileSheet(
+      {required this.profile, required this.onSaved});
 
   @override
-  ConsumerState<_EditBusinessProfileSheet> createState() => _EditBusinessProfileSheetState();
+  ConsumerState<_EditBusinessProfileSheet> createState() =>
+      _EditBusinessProfileSheetState();
 }
 
-class _EditBusinessProfileSheetState extends ConsumerState<_EditBusinessProfileSheet> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameCtrl;
-  late final TextEditingController _gstinCtrl;
-  late final TextEditingController _addressCtrl;
-  late final TextEditingController _phoneCtrl;
-  late final TextEditingController _emailCtrl;
-  late final TextEditingController _currencyCtrl;
+class _EditBusinessProfileSheetState
+    extends ConsumerState<_EditBusinessProfileSheet> {
+  late final _nameCtrl = TextEditingController(text: widget.profile.name ?? '');
+  late final _gstinCtrl =
+      TextEditingController(text: widget.profile.gstNo ?? '');
+  late final _addressCtrl =
+      TextEditingController(text: widget.profile.address ?? '');
+  late final _phoneCtrl =
+      TextEditingController(text: widget.profile.phone ?? '');
+  late final _emailCtrl =
+      TextEditingController(text: widget.profile.email ?? '');
+  late final _currencyCtrl =
+      TextEditingController(text: widget.profile.currency ?? '');
 
   bool _isSaving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameCtrl = TextEditingController(text: widget.profile.name ?? '');
-    _gstinCtrl = TextEditingController(text: widget.profile.gstNo ?? '');
-    _addressCtrl = TextEditingController(text: widget.profile.address ?? '');
-    _phoneCtrl = TextEditingController(text: widget.profile.phone ?? '');
-    _emailCtrl = TextEditingController(text: widget.profile.email ?? '');
-    _currencyCtrl = TextEditingController(text: widget.profile.currency ?? '');
-  }
+  String? _error;
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _gstinCtrl.dispose();
-    _addressCtrl.dispose();
-    _phoneCtrl.dispose();
-    _emailCtrl.dispose();
-    _currencyCtrl.dispose();
+    for (final c in [
+      _nameCtrl,
+      _gstinCtrl,
+      _addressCtrl,
+      _phoneCtrl,
+      _emailCtrl,
+      _currencyCtrl
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   Future<void> _save() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() => _isSaving = true);
+    if (_nameCtrl.text.trim().isEmpty) {
+      setState(() => _error = 'Business name is required.');
+      return;
+    }
+    setState(() {
+      _isSaving = true;
+      _error = null;
+    });
 
     try {
       final tenantCtx = ref.read(tenantContextProvider).valueOrNull;
@@ -581,18 +446,10 @@ class _EditBusinessProfileSheetState extends ConsumerState<_EditBusinessProfileS
         widget.onSaved();
       }
     } catch (e) {
+      debugPrint('[settings] profile save failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to save: $e',
-              style: AppText.caption.copyWith(color: Colors.white),
-            ),
-            backgroundColor: AppColors.danger,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        setState(() => _error =
+            'May not have saved. Check the profile before trying again. ($e)');
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -601,332 +458,71 @@ class _EditBusinessProfileSheetState extends ConsumerState<_EditBusinessProfileS
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      decoration: BoxDecoration(
-        color: AppColors.canvas,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Sheet handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Title row
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(LucideIcons.building2, size: 18, color: AppColors.primary),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Edit Business Profile',
-                    style: GoogleFonts.manrope(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              _FormField(label: 'Business Name', controller: _nameCtrl, hint: 'e.g. Acme Pvt. Ltd.', required: true),
-              const SizedBox(height: 16),
-              _FormField(label: 'GSTIN', controller: _gstinCtrl, hint: 'e.g. 29ABCDE1234F1Z5'),
-              const SizedBox(height: 16),
-              _FormField(label: 'Address', controller: _addressCtrl, hint: 'Street, City, State', maxLines: 3),
-              const SizedBox(height: 16),
-              _FormField(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const BlSheetTitle('Edit business profile', size: 16, divider: true),
+        BlField(
+          label: 'Business name',
+          hint: 'e.g. Sharma General Store',
+          controller: _nameCtrl,
+          capitalization: TextCapitalization.words,
+        ),
+        BlField(
+          label: 'GSTIN',
+          hint: 'e.g. 29ABCDE1234F1Z5',
+          controller: _gstinCtrl,
+          capitalization: TextCapitalization.characters,
+        ),
+        BlField(
+          label: 'Address',
+          hint: 'Street, City, State',
+          controller: _addressCtrl,
+          capitalization: TextCapitalization.words,
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 13,
+              child: BlField(
                 label: 'Phone',
+                hint: '98765 43210',
                 controller: _phoneCtrl,
-                hint: '+91 98765 43210',
                 keyboardType: TextInputType.phone,
               ),
-              const SizedBox(height: 16),
-              _FormField(
-                label: 'Email',
-                controller: _emailCtrl,
-                hint: 'contact@company.com',
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              _FormField(label: 'Currency Symbol', controller: _currencyCtrl, hint: 'e.g. ₹  or  USD'),
-              const SizedBox(height: 28),
-
-              // Save button
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _isSaving ? null : _save,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    textStyle: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  child: _isSaving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                        )
-                      : const Text('Save Changes'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// Shared form field widget
-// ─────────────────────────────────────────────────────────
-
-class _FormField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final String? hint;
-  final bool required;
-  final int maxLines;
-  final TextInputType keyboardType;
-
-  const _FormField({
-    required this.label,
-    required this.controller,
-    this.hint,
-    this.required = false,
-    this.maxLines = 1,
-    this.keyboardType = TextInputType.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        RichText(
-          text: TextSpan(
-            text: label,
-            style: AppText.label.copyWith(color: AppColors.inkSecondary,
-              letterSpacing: 0.3),
-            children: required
-                ? [
-                    TextSpan(
-                      text: ' *',
-                      style: GoogleFonts.manrope(color: AppColors.danger),
-                    ),
-                  ]
-                : [],
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          maxLines: maxLines,
-          keyboardType: keyboardType,
-          style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkTertiary),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.outlineVariant),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.outlineVariant),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.danger),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
-            ),
-          ),
-          validator: required
-              ? (v) => (v == null || v.trim().isEmpty) ? '$label is required' : null
-              : null,
-        ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// Read-only profile row
-// ─────────────────────────────────────────────────────────
-
-class _ProfileRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _ProfileRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppText.caption.copyWith(color: AppColors.inkTertiary)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            softWrap: true,
-            style: AppText.label.copyWith(color: AppColors.inkPrimary),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// Tax mode pill picker
-// ─────────────────────────────────────────────────────────
-
-class _TaxModePicker extends StatelessWidget {
-  final String current;
-  final ValueChanged<String> onChanged;
-
-  const _TaxModePicker({required this.current, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      // value = DB tax_mode; label = shorter display. NONE = not filing GST,
-      // P&L counts full amounts (no GST split) — matches get_pl_ranged.
-      children: const [
-        ('INCLUSIVE', 'INCL'),
-        ('EXCLUSIVE', 'EXCL'),
-        ('NONE', 'NO GST'),
-      ].map((opt) {
-        final mode = opt.$1;
-        final selected = current == mode;
-        return AppTappable(
-   ripple: false,
-          onTap: () => onChanged(mode),
-          child: AnimatedContainer(
-            duration: Motion.durationOf(context, const Duration(milliseconds: 150)),
-            margin: const EdgeInsets.only(left: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: selected ? AppColors.primaryContainer : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: selected ? AppColors.primaryContainer : AppColors.outlineVariant,
-                width: 1.5,
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 9,
+              child: BlField(
+                label: 'Currency symbol',
+                hint: '₹',
+                controller: _currencyCtrl,
               ),
             ),
-            child: Text(
-              opt.$2,
-              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-                color: selected ? AppColors.onPrimaryContainer : AppColors.inkTertiary),
-            ),
-          ),
- );
-      }).toList(),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// Preference row
-// ─────────────────────────────────────────────────────────
-
-class _SettingRow extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-  final String? subtitle;
-  final Widget trailing;
-
-  const _SettingRow({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-    this.subtitle,
-    required this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
+          ],
+        ),
+        BlField(
+          label: 'Email',
+          hint: 'owner@shop.in',
+          controller: _emailCtrl,
+          keyboardType: TextInputType.emailAddress,
+        ),
+        if (_error != null)
           Container(
-            padding: const EdgeInsets.all(8),
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 18),
+                color: Bl.redSoft, borderRadius: BorderRadius.circular(12)),
+            child: Text(_error!,
+                style: Bl.inter(12.5, w: FontWeight.w500, c: Bl.redDeep)),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.inkPrimary,
-                  ),
-                ),
-                if (subtitle != null)
-                  Text(
-                    subtitle!,
-                    style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-                  ),
-              ],
-            ),
-          ),
-          trailing,
-        ],
-      ),
+        const SizedBox(height: 16),
+        BlButton('Save changes',
+            loading: _isSaving, onTap: _isSaving ? null : _save),
+      ],
     );
   }
 }

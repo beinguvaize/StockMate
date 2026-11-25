@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
-import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
 
 // Mirrors web Clients.jsx form schema exactly.
 // DB columns written: id, tenant_id, name, contact, phone, email, address,
@@ -152,604 +147,280 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              queued
-                  ? 'Saved offline — will sync when online'
-                  : (_isEdit ? 'Client updated' : 'Client added'),
-              style: GoogleFonts.manrope(color: AppColors.inkPrimary),
-            ),
-            backgroundColor: AppColors.primaryContainer,
+            content: Text(queued
+                ? 'Saved on this phone. It will sync when you are online.'
+                : (_isEdit ? 'Client updated' : 'Client added')),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
     } catch (e) {
-      if (mounted) setState(() => _formError = 'Save failed: $e');
+      if (mounted) setState(() => _formError =
+          'May not have saved. Check the client list before trying again. ($e)');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, size: 20, color: AppColors.inkPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _isEdit ? 'Edit Client' : 'Add Client',
-              style: GoogleFonts.manrope(
-                color: AppColors.inkPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-            Text(
-              'CRM',
-              style: AppText.label.copyWith(color: AppColors.secondary,
-                letterSpacing: 1.5),
-            ),
-          ],
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ── BASIC INFO ──────────────────────────────────────────
-            _CardSection(
-              icon: LucideIcons.userCircle,
-              title: 'BASIC INFORMATION',
-              children: [
-                _FieldLabel(text: 'Business / Client Name', required: true),
-                _Field(
-                  controller: _nameController,
-                  hint: 'e.g. Sunrise Traders Pvt Ltd',
-                ),
-                const SizedBox(height: 14),
-                _FieldLabel(text: 'Contact Person'),
-                _Field(
-                  controller: _contactController,
-                  hint: 'e.g. Ramesh Kumar',
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _FieldLabel(text: 'Phone'),
-                          _Field(
-                            controller: _phoneController,
-                            hint: '9876543210',
-                            keyboardType: TextInputType.phone,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _FieldLabel(text: 'Email'),
-                          _Field(
-                            controller: _emailController,
-                            hint: 'billing@client.com',
-                            keyboardType: TextInputType.emailAddress,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                _FieldLabel(text: 'Address'),
-                _Field(
-                  controller: _addressController,
-                  hint: 'Shop / Street / Area / City',
-                  maxLines: 2,
-                ),
-              ],
-            ),
+  int _step = 0;
 
-            const SizedBox(height: 16),
-
-            // ── LOCATION ────────────────────────────────────────────
-            _CardSection(
-              icon: LucideIcons.mapPin,
-              title: 'LOCATION',
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _FieldLabel(text: 'State'),
-                          _StateDropdown(
-                            value: _selectedState,
-                            onChanged: (st) {
-                              setState(() {
-                                _selectedState = st?.name;
-                                _selectedStateCode = st?.code;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _FieldLabel(text: 'PIN Code'),
-                          _Field(
-                            controller: _pinCodeController,
-                            hint: '600001',
-                            keyboardType: TextInputType.number,
-                            maxLength: 6,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── GST ─────────────────────────────────────────────────
-            _CardSection(
-              icon: LucideIcons.shieldCheck,
-              title: 'GST DETAILS',
-              trailing: 'OPTIONAL',
-              children: [
-                _FieldLabel(text: 'GSTIN'),
-                _Field(
-                  controller: _gstinController,
-                  hint: '22AAAAA0000A1Z5',
-                  mono: true,
-                  maxLength: 15,
-                  textCapitalization: TextCapitalization.characters,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── ACCOUNT CLASSIFICATION ──────────────────────────────
-            _CardSection(
-              icon: LucideIcons.tag,
-              title: 'ACCOUNT CLASSIFICATION',
-              children: [
-                _FieldLabel(text: 'Account Type'),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _TypeCard(
-                        title: 'B2C — Consumer',
-                        sub: 'Walk-in / retail',
-                        emoji: '🛒',
-                        selected: _clientType == 'B2C',
-                        onTap: () => setState(() => _clientType = 'B2C'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _TypeCard(
-                        title: 'B2B — Business',
-                        sub: 'Company / distributor',
-                        emoji: '🏢',
-                        selected: _clientType == 'B2B',
-                        onTap: () => setState(() => _clientType = 'B2B'),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 14),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _FieldLabel(text: 'Price Tier'),
-                          _BasicDropdown<String>(
-                            value: _priceTier,
-                            items: const [
-                              MapEntry('RETAIL',      'Retail — Standard'),
-                              MapEntry('WHOLESALE',   'Wholesale — Volume'),
-                              MapEntry('DISTRIBUTOR', 'Distributor — Trade'),
-                            ],
-                            onChanged: (v) => setState(() => _priceTier = v ?? 'RETAIL'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _FieldLabel(text: 'Credit Terms'),
-                          _BasicDropdown<int>(
-                            value: _creditDays,
-                            items: _kCreditDayOptions.map((d) => MapEntry(
-                              d, d == 0 ? 'Cash on delivery' : 'Net $d days')).toList(),
-                            onChanged: (v) => setState(() => _creditDays = v ?? 0),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            if (_formError != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.danger.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(LucideIcons.alertCircle, size: 16, color: AppColors.danger),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _formError!,
-                        style: AppText.label.copyWith(color: AppColors.danger),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _submit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryContainer,
-              foregroundColor: AppColors.inkPrimary,
-              disabledBackgroundColor: AppColors.primaryContainer.withValues(alpha: 0.4),
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: const StadiumBorder(),
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20, height: 20,
-                    child: CircularProgressIndicator(color: AppColors.inkPrimary, strokeWidth: 2.5),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(_isEdit ? LucideIcons.save : LucideIcons.userPlus, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        _isEdit ? 'SAVE CHANGES' : 'ADD CLIENT',
-                        style: AppText.label.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ),
-    );
+  void _next() {
+    setState(() => _formError = null);
+    if (_step == 0 && _nameController.text.trim().length < 2) {
+      setState(() => _formError = 'Business / client name is required.');
+      return;
+    }
+    if (_step == 1) {
+      final g = _gstinController.text.trim();
+      if (g.isNotEmpty && g.length != 15) {
+        setState(() => _formError = 'GSTIN must be exactly 15 characters.');
+        return;
+      }
+    }
+    if (_step < 2) {
+      FocusScope.of(context).unfocus();
+      setState(() => _step++);
+    } else {
+      _submit();
+    }
   }
-}
 
-// ─── Section card wrapper ─────────────────────────────────────────────────────
-class _CardSection extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String? trailing;
-  final List<Widget> children;
-  const _CardSection({
-    required this.icon,
-    required this.title,
-    required this.children,
-    this.trailing,
-  });
+  void _back() {
+    if (_step == 0) {
+      Navigator.maybePop(context);
+    } else {
+      setState(() {
+        _formError = null;
+        _step--;
+      });
+    }
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+  Future<void> _pickState() async {
+    final picked = await showBlPicker(context,
+        title: 'State',
+        options: [for (final s in _kIndianStates) '${s.name} · ${s.code}'],
+        selected: _selectedState == null
+            ? null
+            : '$_selectedState · ${_selectedStateCode ?? ''}');
+    if (picked == null || !mounted) return;
+    final st = _kIndianStates.firstWhere((s) => '${s.name} · ${s.code}' == picked);
+    setState(() {
+      _selectedState = st.name;
+      _selectedStateCode = st.code;
+    });
+  }
+
+  static const _tiers = {
+    'RETAIL': 'Retail · Standard',
+    'WHOLESALE': 'Wholesale · Volume',
+    'DISTRIBUTOR': 'Distributor · Trade',
+  };
+
+  static String _creditLabel(int d) =>
+      d == 0 ? 'Cash on delivery' : 'Net $d days';
+
+  Future<void> _pickTier() async {
+    final picked = await showBlPicker(context,
+        title: 'Price tier',
+        options: _tiers.values.toList(),
+        selected: _tiers[_priceTier]);
+    if (picked == null || !mounted) return;
+    setState(() => _priceTier =
+        _tiers.entries.firstWhere((e) => e.value == picked).key);
+  }
+
+  Future<void> _pickCredit() async {
+    final picked = await showBlPicker(context,
+        title: 'Credit terms',
+        options: [for (final d in _kCreditDayOptions) _creditLabel(d)],
+        selected: _creditLabel(_creditDays));
+    if (picked == null || !mounted) return;
+    setState(() => _creditDays =
+        _kCreditDayOptions.firstWhere((d) => _creditLabel(d) == picked));
+  }
+
+  Widget _typeCard(String key, String title, String sub) {
+    final on = _clientType == key;
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Semantics(
+        button: true,
+        selected: on,
+        label: '$title. $sub',
+        excludeSemantics: true,
+        child: BlTap(
+          onTap: () => setState(() => _clientType = key),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.black.withValues(alpha: 0.05))),
+              color: on ? const Color(0xFFFFF8EC) : null,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: on ? Bl.brand : const Color(0xFFE6E5E3),
+                  width: on ? 1.5 : 1),
             ),
             child: Row(
               children: [
-                Icon(icon, size: 14, color: AppColors.primary),
-                const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    title,
-                    style: AppText.label.copyWith(fontWeight: FontWeight.w800,
-                      letterSpacing: 1.5,
-                      color: AppColors.inkPrimary),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: Bl.tight(14.5, w: FontWeight.w600)),
+                      const SizedBox(height: 1),
+                      Text(sub,
+                          style: Bl.inter(12, c: const Color(0xFF7A8088))),
+                    ],
                   ),
                 ),
-                if (trailing != null)
-                  Text(
-                    trailing!,
-                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                      color: AppColors.inkTertiary, letterSpacing: 1.2),
+                Container(
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: on ? Bl.brand : null,
+                    shape: BoxShape.circle,
+                    border: on
+                        ? null
+                        : Border.all(
+                            width: 1.5, color: const Color(0xFFCFCFCF)),
                   ),
+                  child: on
+                      ? const BlIcon(BlIcons.check,
+                          size: 13, color: Bl.white, stroke: 3)
+                      : null,
+                ),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: children,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-  final bool required;
-  const _FieldLabel({required this.text, this.required = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6, left: 2),
-      child: RichText(
-        text: TextSpan(children: [
-          TextSpan(
-            text: text.toUpperCase(),
-            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-              color: AppColors.inkTertiary, letterSpacing: 1),
-          ),
-          if (required)
-            TextSpan(
-              text: ' *',
-              style: AppText.label.copyWith(fontWeight: FontWeight.w900, color: AppColors.primary),
-            ),
-        ]),
-      ),
-    );
-  }
-}
-
-class _Field extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final TextInputType? keyboardType;
-  final int maxLines;
-  final int? maxLength;
-  final bool mono;
-  final TextCapitalization textCapitalization;
-  const _Field({
-    required this.controller,
-    required this.hint,
-    this.keyboardType,
-    this.maxLines = 1,
-    this.maxLength,
-    this.mono = false,
-    this.textCapitalization = TextCapitalization.none,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.canvas,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        maxLines: maxLines,
-        maxLength: maxLength,
-        textCapitalization: textCapitalization,
-        style: (mono
-                ? AppText.label.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1)
-                : GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600))
-            .copyWith(color: AppColors.inkPrimary),
-        decoration: InputDecoration(
-          counterText: '',
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          hintText: hint,
-          hintStyle: AppText.caption.copyWith(color: AppColors.inkTertiary),
         ),
       ),
     );
   }
-}
 
-class _StateDropdown extends StatelessWidget {
-  final String? value;
-  final ValueChanged<_State?> onChanged;
-  const _StateDropdown({required this.value, required this.onChanged});
+  Widget _errorBox() => _formError == null
+      ? const SizedBox.shrink()
+      : Container(
+          margin: const EdgeInsets.only(top: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+              color: Bl.redSoft, borderRadius: BorderRadius.circular(12)),
+          child: Text(_formError!,
+              style: Bl.inter(12.5, w: FontWeight.w500, c: Bl.redDeep)),
+        );
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: AppColors.canvas,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          hint: Text(
-            '— Select State —',
-            style: AppText.caption.copyWith(color: AppColors.inkTertiary),
-          ),
-          style: AppText.label.copyWith(color: AppColors.inkPrimary),
-          icon: const Icon(LucideIcons.chevronDown,
-              size: 16, color: AppColors.inkSecondary),
-          items: _kIndianStates
-              .map((s) => DropdownMenuItem<String>(
-                    value: s.name,
-                    child: Text('${s.name} · ${s.code}'),
-                  ))
-              .toList(),
-          onChanged: (name) {
-            if (name == null) {
-              onChanged(null);
-            } else {
-              onChanged(_kIndianStates.firstWhere((s) => s.name == name));
-            }
-          },
+  List<Widget> _clientStep() => [
+        BlField(
+          label: 'Business / client name',
+          hint: 'e.g. Sunrise Traders Pvt Ltd',
+          controller: _nameController,
+          capitalization: TextCapitalization.words,
         ),
-      ),
-    );
-  }
-}
-
-class _BasicDropdown<T> extends StatelessWidget {
-  final T value;
-  final List<MapEntry<T, String>> items;
-  final ValueChanged<T?> onChanged;
-  const _BasicDropdown({
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: AppColors.canvas,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          value: value,
-          isExpanded: true,
-          style: AppText.label.copyWith(color: AppColors.inkPrimary),
-          icon: const Icon(LucideIcons.chevronDown,
-              size: 16, color: AppColors.inkSecondary),
-          items: items
-              .map((e) => DropdownMenuItem<T>(
-                    value: e.key,
-                    child: Text(e.value),
-                  ))
-              .toList(),
-          onChanged: onChanged,
+        BlField(
+          label: 'Contact person',
+          hint: 'e.g. Ramesh Kumar',
+          controller: _contactController,
+          capitalization: TextCapitalization.words,
         ),
-      ),
-    );
-  }
-}
-
-class _TypeCard extends StatelessWidget {
-  final String title;
-  final String sub;
-  final String emoji;
-  final bool selected;
-  final VoidCallback onTap;
-  const _TypeCard({
-    required this.title,
-    required this.sub,
-    required this.emoji,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AppTappable(
-   ripple: false,
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: Motion.durationOf(context, const Duration(milliseconds: 160)),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.inkPrimary : AppColors.canvas,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? AppColors.inkPrimary : Colors.black.withValues(alpha: 0.08),
-            width: 1.5,
-          ),
+        BlField(
+          label: 'Phone',
+          hint: '9876543210',
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
         ),
-        child: Row(
+        BlField(
+          label: 'Email',
+          hint: 'billing@client.com',
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+        ),
+        _errorBox(),
+      ];
+
+  List<Widget> _addressStep() => [
+        BlField(
+          label: 'Address',
+          hint: 'Shop / Street / Area / City',
+          controller: _addressController,
+          capitalization: TextCapitalization.words,
+        ),
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 18)),
-            const SizedBox(width: 8),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppText.label.copyWith(fontWeight: FontWeight.w800,
-                      color: selected ? AppColors.primaryContainer : AppColors.inkPrimary,
-                      letterSpacing: 0.5),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    sub,
-                    style: AppText.caption.copyWith(color: selected
-                          ? Colors.white.withValues(alpha: 0.55)
-                          : AppColors.inkTertiary),
-                  ),
-                ],
+              flex: 13,
+              child: BlField(
+                label: 'State',
+                hint: 'Select state',
+                value: _selectedState,
+                onTap: _pickState,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 9,
+              child: BlField(
+                label: 'PIN code',
+                hint: '600001',
+                controller: _pinCodeController,
+                keyboardType: TextInputType.number,
               ),
             ),
           ],
         ),
+        BlField(
+          label: 'GSTIN (optional)',
+          hint: '22AAAAA0000A1Z5',
+          controller: _gstinController,
+          capitalization: TextCapitalization.characters,
+          helper: 'Needed only if this client wants GST invoices.',
+        ),
+        _errorBox(),
+      ];
+
+  List<Widget> _billingStep() => [
+        _typeCard('B2C', 'B2C · Consumer',
+            'Sells to a person, no GSTIN on the bill'),
+        _typeCard('B2B', 'B2B · Business', 'GST invoice with their GSTIN'),
+        BlField(
+            label: 'Price tier', value: _tiers[_priceTier], onTap: _pickTier),
+        BlField(
+            label: 'Credit terms',
+            value: _creditLabel(_creditDays),
+            onTap: _pickCredit),
+        _errorBox(),
+      ];
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: _step == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _back();
+      },
+      child: BlStepFrame(
+        title: _isEdit ? 'Edit Client' : 'Add Client',
+        step: _step,
+        stepNames: const ['Client', 'Address', 'Billing'],
+        question: const [
+          'Who is the client?',
+          'Where are they?',
+          'How do you bill them?',
+        ][_step],
+        onBack: _back,
+        loading: _isLoading,
+        onNext: _isLoading ? null : _next,
+        buttonLabel: switch (_step) {
+          0 => 'Next: address',
+          1 => 'Next: billing',
+          _ => _isEdit ? 'Save changes' : 'Add client',
+        },
+        children: switch (_step) {
+          0 => _clientStep(),
+          1 => _addressStep(),
+          _ => _billingStep(),
+        },
       ),
- );
+    );
   }
 }

@@ -1,1043 +1,628 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/supabase/client.dart';
-import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/data/models/route.dart';
 import 'package:mobile_app/features/logistics/data/models/vehicle.dart';
 import 'package:mobile_app/features/logistics/presentation/add_vehicle_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/delivery_screen.dart';
-import 'package:mobile_app/features/logistics/presentation/driver_route_screen.dart';
-import 'package:mobile_app/features/logistics/presentation/load_van_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/dispatch_route_screen.dart';
-import 'package:mobile_app/features/logistics/presentation/fleet_stock_screen.dart';
+import 'package:mobile_app/features/logistics/presentation/driver_route_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/fleet_map_screen.dart';
+import 'package:mobile_app/features/logistics/presentation/fleet_stock_screen.dart';
+import 'package:mobile_app/features/logistics/presentation/load_van_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
+import 'package:mobile_app/features/logistics/presentation/widgets/vehicle_picture.dart';
 
-class LogisticsScreen extends ConsumerWidget {
+const _grey = Color(0xFF7A8088);
+const _mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const fleetRouteIcon =
+    '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 000-6H9a3 3 0 010-6h6.800"/>';
+const _pinIcon =
+    '<path d="M12 21s7-6.200 7-11a7 7 0 10-14 0c0 4.800 7 11 7 11z"/><circle cx="12" cy="10" r="2.500"/>';
+
+/// A vehicle's status as the owner reads it: label, pill background, text.
+(String, Color, Color) vehicleStatusLook(String? status) =>
+    switch ((status ?? '').toUpperCase()) {
+      'ACTIVE' => ('Active', const Color(0xFFE3F5EA), const Color(0xFF17663A)),
+      'MAINTENANCE' => ('Maintenance', const Color(0xFFFFF1C9), const Color(0xFF8A5A00)),
+      'OUT_OF_SERVICE' => ('Out of service', const Color(0xFFFDE2E2), Bl.redDeep),
+      '' => ('Unknown', const Color(0xFFEFEEEC), Bl.body),
+      final s => (
+          '${s[0]}${s.substring(1).toLowerCase().replaceAll('_', ' ')}',
+          const Color(0xFFEFEEEC),
+          Bl.body,
+        ),
+    };
+
+/// A route's status as the owner reads it: label, tint, ink.
+(String, Color, Color) routeStatusLook(String? status) =>
+    switch ((status ?? '').toUpperCase()) {
+      'PLANNED' => ('Planned', const Color(0xFFEFEEEC), Bl.body),
+      'IN_TRANSIT' => ('In transit', const Color(0xFFE4EEFF), const Color(0xFF1D4E9E)),
+      'ACTIVE' => ('Active', const Color(0xFFE4EEFF), const Color(0xFF1D4E9E)),
+      'COMPLETED' => ('Completed', const Color(0xFFE3F5EA), const Color(0xFF17663A)),
+      'RECONCILED' => ('Reconciled', const Color(0xFFE3F5EA), const Color(0xFF17663A)),
+      '' => ('Unknown', const Color(0xFFEFEEEC), Bl.body),
+      final s => (
+          '${s[0]}${s.substring(1).toLowerCase().replaceAll('_', ' ')}',
+          const Color(0xFFEFEEEC),
+          Bl.body,
+        ),
+    };
+
+Widget fleetPill((String, Color, Color) look) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+          color: look.$2, borderRadius: BorderRadius.circular(999)),
+      child: Text(look.$1,
+          style: Bl.tight(11, w: FontWeight.w600, ls: 0, c: look.$3)),
+    );
+
+String fleetDate(String? iso) {
+  final d = iso == null ? null : DateTime.tryParse(iso);
+  if (d == null) return '';
+  return '${d.day} ${_mon[d.month - 1]}${d.year == DateTime.now().year ? '' : ' ${d.year}'}';
+}
+
+String _vehicleLine(Vehicle v) => [
+      if ((v.name ?? '').trim().isNotEmpty) v.name!.trim(),
+      vehicleKindLabel(vehicleKindOf(v.type)),
+    ].join(' · ');
+
+/// "Vehicles" (canvas): the fleet, each vehicle's state, and recent routes.
+class LogisticsScreen extends ConsumerStatefulWidget {
   const LogisticsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final vehiclesAsync = ref.watch(vehiclesProvider);
-    final routesAsync = ref.watch(routesProvider);
-
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Vehicles',
-              style: GoogleFonts.manrope(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-                color: AppColors.inkPrimary,
-              ),
-            ),
-            Text(
-              'LOGISTICS MANAGEMENT',
-              style: AppText.label.copyWith(color: AppColors.inkSecondary,
-                letterSpacing: 1.2),
-            ),
-          ],
-        ),
-        toolbarHeight: 0,
-        actions: const [],
-      ),
-      body: SafeArea(
-        child: vehiclesAsync.when(
-          data: (vehicles) {
-            final activeCount = vehicles
-                .where((v) => (v.status ?? '').toUpperCase() == 'ACTIVE')
-                .length;
-            final maintenanceCount = vehicles
-                .where((v) => (v.status ?? '').toUpperCase() == 'MAINTENANCE')
-                .length;
-
-            return CustomScrollView(
-              slivers: [
-                // ── Stats row ────────────────────────────────────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                    child: Row(
-                      children: [
-                        _StatCard(
-                          label: 'VEHICLES',
-                          value: '${vehicles.length}',
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(width: 10),
-                        _StatCard(
-                          label: 'ACTIVE',
-                          value: '$activeCount',
-                          color: AppColors.success,
-                        ),
-                        const SizedBox(width: 10),
-                        _StatCard(
-                          label: 'MAINTENANCE',
-                          value: '$maintenanceCount',
-                          color: AppColors.warning,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // ── Fleet section header ──────────────────────────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(LucideIcons.truck,
-                                size: 14, color: AppColors.primary),
-                            const SizedBox(width: 6),
-                            Text(
-                              'FLEET VEHICLES',
-                              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                letterSpacing: 1.5,
-                                color: AppColors.primary),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            AppTappable(
-                              ripple: false,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const FleetMapScreen()),
-                              ),
-                              child: const Icon(LucideIcons.map,
-                                  size: 16, color: AppColors.secondary),
-                            ),
-                            const SizedBox(width: 14),
-                            AppTappable(
-                              ripple: false,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const FleetStockScreen()),
-                              ),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    'STOCK',
-                                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                                      letterSpacing: 1,
-                                      color: AppColors.secondary),
-                                  ),
-                                  const Icon(LucideIcons.chevronRight,
-                                      size: 14, color: AppColors.secondary),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // ── Vehicle list or empty state ───────────────────────────────
-                if (vehicles.isEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 32),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(LucideIcons.truck,
-                              size: 48, color: AppColors.inkTertiary),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No vehicles in fleet',
-                            style: AppText.body.copyWith(color: AppColors.inkSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final v = vehicles[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _VehicleCard(vehicle: v),
-                          );
-                        },
-                        childCount: vehicles.length,
-                      ),
-                    ),
-                  ),
-
-                // ── Routes section header ─────────────────────────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
-                    child: Row(
-                      children: [
-                        const Icon(LucideIcons.router,
-                            size: 14, color: AppColors.secondary),
-                        const SizedBox(width: 6),
-                        Text(
-                          'ROUTES',
-                          style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
-                            color: AppColors.secondary),
-                        ),
-                        const Spacer(),
-                        AppTappable(
-                          ripple: false,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const DriverRouteScreen()),
-                          ),
-                          child: Text(
-                            'VIEW ALL',
-                            style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                              letterSpacing: 1.2,
-                              color: AppColors.primary),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // ── Routes list ───────────────────────────────────────────────
-                routesAsync.when(
-                  data: (routes) {
-                    if (routes.isEmpty) {
-                      return SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 24, horizontal: 16),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                  color: Colors.black.withValues(alpha: 0.06)),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(LucideIcons.router,
-                                    size: 32, color: AppColors.inkTertiary),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'No routes yet',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 14,
-                                    color: AppColors.inkSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                    return SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final route = routes[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _RouteCard(route: route),
-                            );
-                          },
-                          childCount: routes.length,
-                        ),
-                      ),
-                    );
-                  },
-                  loading: () => const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  ),
-                  error: (e, _) => SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-                      child: Text('Error loading routes: $e',
-                          style: GoogleFonts.manrope(color: AppColors.danger)),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(
-            child: Text('Error: $e',
-                style: GoogleFonts.manrope(color: AppColors.danger)),
-          ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        onPressed: () {
-          Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const AddVehicleScreen()));
-        },
-        backgroundColor: AppColors.primaryContainer,
-        shape: const StadiumBorder(),
-        child: const Icon(LucideIcons.plus, color: AppColors.inkPrimary),
-      ),
-    );
-  }
+  ConsumerState<LogisticsScreen> createState() => _LogisticsScreenState();
 }
 
-// ---------------------------------------------------------------------------
-// Stat card widget
-// ---------------------------------------------------------------------------
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
+class _LogisticsScreenState extends ConsumerState<LogisticsScreen> {
+  static const _routesShown = 5;
+  bool _allRoutes = false;
 
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+  void _open(Widget screen) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-          boxShadow: [AppColors.cardShadow],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-                color: color),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: GoogleFonts.manrope(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                color: AppColors.inkPrimary,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Vehicle card widget — tappable, opens detail bottom sheet
-// ---------------------------------------------------------------------------
-class _VehicleCard extends ConsumerWidget {
-  final Vehicle vehicle;
-
-  const _VehicleCard({required this.vehicle});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final name = vehicle.name ?? 'Unnamed';
-    final plate = vehicle.displayPlate;
-    final status = vehicle.status ?? '';
-    final driver = vehicle.driverName ?? '';
-
-    Color statusBg;
-    Color statusFg;
-    String statusLabel;
-
-    switch (status.toUpperCase()) {
-      case 'ACTIVE':
-        statusBg = AppColors.success.withValues(alpha: 0.12);
-        statusFg = AppColors.success;
-        statusLabel = 'ACTIVE';
-        break;
-      case 'MAINTENANCE':
-        statusBg = AppColors.warning.withValues(alpha: 0.12);
-        statusFg = AppColors.warning;
-        statusLabel = 'MAINTENANCE';
-        break;
-      case 'OUT_OF_SERVICE':
-        statusBg = AppColors.danger.withValues(alpha: 0.12);
-        statusFg = AppColors.danger;
-        statusLabel = 'OUT OF SERVICE';
-        break;
-      default:
-        statusBg = AppColors.inkTertiary.withValues(alpha: 0.12);
-        statusFg = AppColors.inkTertiary;
-        statusLabel = status.isEmpty ? 'UNKNOWN' : status.toUpperCase();
-    }
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => _showVehicleSheet(context, ref),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-            boxShadow: [AppColors.cardShadow],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                // Truck icon circle
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryContainer.withValues(alpha: 0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(LucideIcons.truck,
-                      size: 20, color: AppColors.primary),
-                ),
-                const SizedBox(width: 14),
-
-                // Name + plate + driver
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        plate.isNotEmpty ? plate : '—',
-                        style: AppText.caption.copyWith(color: AppColors.inkSecondary),
-                      ),
-                      if (driver.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          driver,
-                          style: AppText.caption.copyWith(color: AppColors.inkSecondary),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 10),
-
-                // Status badge pill
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusBg,
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Text(
-                    statusLabel,
-                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                      color: statusFg),
-                  ),
-                ),
-
-                const SizedBox(width: 6),
-                const Icon(LucideIcons.chevronRight,
-                    size: 16, color: AppColors.inkTertiary),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showVehicleSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _VehicleDetailSheet(vehicle: vehicle, ref: ref),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Vehicle detail bottom sheet
-// ---------------------------------------------------------------------------
-class _VehicleDetailSheet extends StatelessWidget {
-  final Vehicle vehicle;
-  final WidgetRef ref;
-
-  const _VehicleDetailSheet({required this.vehicle, required this.ref});
-
-  @override
-  Widget build(BuildContext context) {
-    final status = vehicle.status ?? '';
-
-    Color statusFg;
-    String statusLabel;
-
-    switch (status.toUpperCase()) {
-      case 'ACTIVE':
-        statusFg = AppColors.success;
-        statusLabel = 'ACTIVE';
-        break;
-      case 'MAINTENANCE':
-        statusFg = AppColors.warning;
-        statusLabel = 'MAINTENANCE';
-        break;
-      case 'OUT_OF_SERVICE':
-        statusFg = AppColors.danger;
-        statusLabel = 'OUT OF SERVICE';
-        break;
-      default:
-        statusFg = AppColors.inkTertiary;
-        statusLabel = status.isEmpty ? 'UNKNOWN' : status.toUpperCase();
-    }
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 36,
-              height: 4,
+  Widget _shortcut(String icon, String title, String sub, Widget screen) =>
+      Expanded(
+        child: Semantics(
+          button: true,
+          label: '$title. $sub',
+          excludeSemantics: true,
+          child: BlTap(
+            onTap: () => _open(screen),
+            child: Container(
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+                  color: Bl.tile, borderRadius: BorderRadius.circular(16)),
               child: Row(
                 children: [
                   Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryContainer.withValues(alpha: 0.3),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(LucideIcons.truck,
-                        size: 24, color: AppColors.primary),
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                        color: Bl.white, shape: BoxShape.circle),
+                    child: BlIcon(icon, size: 17, color: Bl.ink3),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          vehicle.name ?? 'Unnamed Vehicle',
-                          style: GoogleFonts.manrope(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.inkPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          vehicle.displayPlate,
-                          style: AppText.caption.copyWith(color: AppColors.inkSecondary),
-                        ),
+                        Text(title, style: Bl.tight(14, w: FontWeight.w600)),
+                        const SizedBox(height: 1),
+                        Text(sub,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Bl.inter(11.5, c: _grey)),
                       ],
                     ),
                   ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: statusFg.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      statusLabel,
-                      style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                        color: statusFg),
-                    ),
-                  ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 20),
-            Divider(height: 1, color: Colors.black.withValues(alpha: 0.06)),
-            const SizedBox(height: 16),
-
-            // Detail rows
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                children: [
-                  if ((vehicle.driverName ?? '').isNotEmpty)
-                    _DetailRow(
-                      icon: LucideIcons.user,
-                      label: 'Driver',
-                      value: vehicle.driverName!,
-                    ),
-                  if ((vehicle.type ?? '').isNotEmpty)
-                    _DetailRow(
-                      icon: LucideIcons.truck,
-                      label: 'Type',
-                      value: vehicle.type!,
-                    ),
-                  if (vehicle.capacity != null)
-                    _DetailRow(
-                      icon: LucideIcons.package,
-                      label: 'Capacity',
-                      value: '${vehicle.capacity} kg',
-                    ),
-                  if ((vehicle.fuelType ?? '').isNotEmpty)
-                    _DetailRow(
-                      icon: LucideIcons.fuel,
-                      label: 'Fuel Type',
-                      value: vehicle.fuelType!,
-                    ),
-                  if (vehicle.year != null)
-                    _DetailRow(
-                      icon: LucideIcons.calendar,
-                      label: 'Year',
-                      value: '${vehicle.year}',
-                    ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Action buttons
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Column(
-                children: [
-                  // View Routes
-                  _SheetButton(
-                    icon: LucideIcons.router,
-                    label: 'View Routes',
-                    color: AppColors.primary,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const DriverRouteScreen()),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  // Load Van
-                  _SheetButton(
-                    icon: LucideIcons.packagePlus,
-                    label: 'Load Van',
-                    color: AppColors.info,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => LoadVanScreen(
-                            vehicleId: vehicle.id,
-                            vehicleName: vehicle.name ?? 'Vehicle',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  // Dispatch Route
-                  _SheetButton(
-                    icon: LucideIcons.send,
-                    label: 'Dispatch Route',
-                    color: AppColors.primary,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DispatchRouteScreen(
-                            vehicleId: vehicle.id,
-                            vehicleName: vehicle.name ?? 'Vehicle',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  // Deliveries
-                  _SheetButton(
-                    icon: LucideIcons.mapPin,
-                    label: 'Deliveries',
-                    color: AppColors.secondary,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const DeliveryScreen()),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  // Edit
-                  _SheetButton(
-                    icon: LucideIcons.pencil,
-                    label: 'Edit Vehicle',
-                    color: AppColors.inkSecondary,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AddVehicleScreen(vehicle: vehicle),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  // Delete
-                  _SheetButton(
-                    icon: LucideIcons.trash2,
-                    label: 'Delete Vehicle',
-                    color: AppColors.danger,
-                    onTap: () => _confirmDelete(context),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmDelete(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Delete Vehicle?',
-          style: GoogleFonts.manrope(
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
-            color: AppColors.inkPrimary,
           ),
         ),
-        content: Text(
-          'This will permanently remove "${vehicle.name ?? vehicle.displayPlate}" from your fleet.',
-          style: GoogleFonts.manrope(
-            fontSize: 14,
-            color: AppColors.inkSecondary,
-          ),
+      );
+
+  Widget _vehicleCard(Vehicle v, String driver) {
+    final kind = vehicleKindOf(v.type);
+    final active = (v.status ?? '').toUpperCase() == 'ACTIVE';
+    return Semantics(
+      button: true,
+      label:
+          '${v.displayPlate}, ${_vehicleLine(v)}, ${driver.isEmpty ? 'no driver' : driver}, ${vehicleStatusLook(v.status).$1}',
+      excludeSemantics: true,
+      child: BlTap(
+        onTap: () => showBlSheet<void>(
+          context: context,
+          builder: (_) => _VehicleDetailSheet(vehicle: v, driver: driver),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.manrope(
-                color: AppColors.inkSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext); // close dialog
-              Navigator.pop(context); // close sheet
-              try {
-                await supabase // soft delete
-                    .from('vehicles')
-                    .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
-                    .eq('id', vehicle.id);
-                ref.invalidate(vehiclesProvider);
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Delete failed: $e',
-                          style: GoogleFonts.manrope(color: Colors.white)),
-                      backgroundColor: AppColors.danger,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text(
-              'Delete',
-              style: GoogleFonts.manrope(
-                color: AppColors.danger,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Detail row helper
-// ---------------------------------------------------------------------------
-class _DetailRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _DetailRow(
-      {required this.icon, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Icon(icon, size: 15, color: AppColors.inkTertiary),
-          const SizedBox(width: 10),
-          Text(
-            label,
-            style: AppText.label.copyWith(color: AppColors.inkSecondary,
-              letterSpacing: 0.4),
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: GoogleFonts.manrope(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Sheet action button helper
-// ---------------------------------------------------------------------------
-class _SheetButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _SheetButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: color.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+          decoration: BoxDecoration(
+              color: Bl.tile, borderRadius: BorderRadius.circular(18)),
           child: Row(
             children: [
-              Icon(icon, size: 17, color: color),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child:
+                        VehiclePicture(kind, opacity: active ? 1 : 0.55),
+                  ),
+                  Positioned(
+                    left: -4,
+                    bottom: -6,
+                    child: driver.isEmpty
+                        ? Container(
+                            width: 30,
+                            height: 30,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                                color: Bl.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: const Color(0xFFB8BCC2),
+                                    width: 1.5)),
+                            child: const BlIcon(BlIcons.plus,
+                                size: 12, color: Bl.mute),
+                          )
+                        : Container(
+                            decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Bl.tile, width: 2.5)),
+                            child: BlTintAvatar(driver, size: 25),
+                          ),
+                  ),
+                ],
+              ),
               const SizedBox(width: 12),
-              Text(
-                label,
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: color,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(v.displayPlate,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Bl.tight(17, w: FontWeight.w700, ls: 0.01)),
+                    const SizedBox(height: 2),
+                    Text(_vehicleLine(v),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Bl.inter(12.5, w: FontWeight.w500, c: Bl.body)),
+                    const SizedBox(height: 1),
+                    Text(driver.isEmpty ? 'No driver' : driver,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Bl.inter(12, c: _grey)),
+                    const SizedBox(height: 7),
+                    fleetPill(vehicleStatusLook(v.status)),
+                  ],
                 ),
               ),
-              const Spacer(),
-              Icon(LucideIcons.chevronRight, size: 16, color: color.withValues(alpha: 0.5)),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-// ---------------------------------------------------------------------------
-// Route card widget
-// ---------------------------------------------------------------------------
-class _RouteCard extends StatelessWidget {
-  final LogisticRoute route;
-
-  const _RouteCard({required this.route});
+  Widget _routeRow(LogisticRoute r, Map<String, Vehicle> vehicles) {
+    final look = routeStatusLook(r.status);
+    final place = (r.location ?? '').trim();
+    final title = place.isEmpty
+        ? 'Route #${r.id.length > 8 ? r.id.substring(0, 8) : r.id}'
+        : place;
+    final van = vehicles[r.vehicleId]?.name?.trim() ?? '';
+    return Semantics(
+      button: true,
+      label: '$title, ${look.$1}. Open',
+      excludeSemantics: true,
+      child: BlTap(
+        onTap: () => _open(DeliveryScreen(routeId: r.id)),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+          decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Bl.sep))),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                    color: look.$2, borderRadius: BorderRadius.circular(12)),
+                child: BlIcon(fleetRouteIcon, size: 18, color: look.$3),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Bl.tight(14.5, w: FontWeight.w600)),
+                    const SizedBox(height: 1),
+                    Text(
+                        [fleetDate(r.date), van]
+                            .where((s) => s.isNotEmpty)
+                            .join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Bl.inter(12, c: _grey)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              fleetPill(look),
+              const SizedBox(width: 6),
+              const BlIcon(BlIcons.chevronRight,
+                  size: 16, color: Color(0xFFB8BCC2)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final status = route.status ?? '';
+    final vehiclesAsync = ref.watch(vehiclesProvider);
+    final routesAsync = ref.watch(routesProvider);
+    final vehicles = vehiclesAsync.valueOrNull ?? const <Vehicle>[];
+    final byId = {for (final v in vehicles) v.id: v};
+    final active = vehicles
+        .where((v) => (v.status ?? '').toUpperCase() == 'ACTIVE')
+        .length;
+    final maintenance = vehicles
+        .where((v) => (v.status ?? '').toUpperCase() == 'MAINTENANCE')
+        .length;
+    final routes = [...(routesAsync.valueOrNull ?? const <LogisticRoute>[])]
+      ..sort((a, b) => (b.date ?? '').compareTo(a.date ?? ''));
+    final shownRoutes =
+        _allRoutes ? routes : routes.take(_routesShown).toList();
+    final drivers = driversByVehicle(
+        routes, ref.watch(fleetDriverNamesProvider).valueOrNull ?? const {});
 
-    Color statusBg;
-    Color statusFg;
-    String statusLabel;
-
-    switch (status.toUpperCase()) {
-      case 'PLANNED':
-        statusBg = AppColors.inkSecondary.withValues(alpha: 0.1);
-        statusFg = AppColors.inkSecondary;
-        statusLabel = 'PLANNED';
-        break;
-      case 'IN_TRANSIT':
-        statusBg = Colors.blue.withValues(alpha: 0.12);
-        statusFg = Colors.blue;
-        statusLabel = 'IN TRANSIT';
-        break;
-      case 'COMPLETED':
-      case 'RECONCILED':
-        statusBg = AppColors.success.withValues(alpha: 0.12);
-        statusFg = AppColors.success;
-        statusLabel = status.toUpperCase();
-        break;
-      case 'ACTIVE':
-        statusBg = Colors.indigo.withValues(alpha: 0.12);
-        statusFg = Colors.indigo;
-        statusLabel = 'ACTIVE';
-        break;
-      default:
-        statusBg = AppColors.inkTertiary.withValues(alpha: 0.1);
-        statusFg = AppColors.inkTertiary;
-        statusLabel = status.isEmpty ? 'UNKNOWN' : status.toUpperCase();
-    }
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => DeliveryScreen(routeId: route.id)),
-        ),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-            boxShadow: [AppColors.cardShadow],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                // Icon circle
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: statusFg.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(LucideIcons.router, size: 20, color: statusFg),
-                ),
-                const SizedBox(width: 14),
-
-                // Route info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        route.location ?? 'Route #${route.id.substring(0, 8)}',
-                        style: AppText.bodyStrong.copyWith(fontWeight: FontWeight.w700,
-                          color: AppColors.inkPrimary),
+    return Scaffold(
+      backgroundColor: Bl.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            const BlBackHeader(title: 'Vehicles'),
+            Expanded(
+              child: RefreshIndicator(
+                color: Bl.amber,
+                onRefresh: () async {
+                  ref.invalidate(vehiclesProvider);
+                  ref.invalidate(routesProvider);
+                  ref.invalidate(fleetDriverNamesProvider);
+                },
+                child: ListView(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Row(
+                        children: [
+                          _shortcut(_pinIcon, 'Fleet map',
+                              'Last seen places', const FleetMapScreen()),
+                          const SizedBox(width: 8),
+                          _shortcut(BlIcons.box, 'Van stock',
+                              'Stock on board',
+                              const FleetStockScreen()),
+                        ],
                       ),
-                      if ((route.date ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          route.date!,
-                          style: AppText.caption.copyWith(color: AppColors.inkSecondary),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                    BlGroupHeader(
+                        [
+                          'Vehicles',
+                          if (vehicles.isNotEmpty)
+                            [
+                              '$active active',
+                              if (maintenance > 0)
+                                '$maintenance in maintenance',
+                            ].join(', '),
+                        ].join(' · '),
+                        trailing: '${vehicles.length}'),
+                    if (vehiclesAsync.hasError && !vehiclesAsync.hasValue)
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                            'Could not load vehicles. Check your internet and try again. (${vehiclesAsync.error})',
+                            textAlign: TextAlign.center,
+                            style: Bl.inter(13.5, c: Bl.redDeep, h: 1.5)),
+                      )
+                    else if (!vehiclesAsync.hasValue)
+                      const SizedBox(
+                        height: 140,
+                        child: Center(
+                            child: CircularProgressIndicator(
+                                color: Bl.amber, strokeWidth: 2)),
+                      )
+                    else if (vehicles.isEmpty)
+                      const BlEmpty(
+                        icon: BlIcons.truck,
+                        title: 'No vehicles yet',
+                        message: 'Tap Add vehicle to put your first one in.',
+                      ),
+                    for (final v in vehicles)
+                      _vehicleCard(v, drivers[v.id] ?? ''),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
+                      child: Row(
+                        children: [
+                          Expanded(child: Text('ROUTES', style: Bl.eyebrow)),
+                          if (routes.length > _routesShown)
+                            BlTap(
+                              onTap: () =>
+                                  setState(() => _allRoutes = !_allRoutes),
+                              child: Text(
+                                  _allRoutes ? 'Show fewer' : 'View all',
+                                  style: Bl.tight(12.5,
+                                      w: FontWeight.w600,
+                                      ls: 0,
+                                      c: const Color(0xFFB86A0A))),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (routesAsync.hasError && !routesAsync.hasValue)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                        child: Text(
+                            'Could not load routes. (${routesAsync.error})',
+                            style: Bl.inter(13, c: Bl.redDeep, h: 1.5)),
+                      )
+                    else if (routesAsync.hasValue && routes.isEmpty)
+                      const BlEmpty(
+                        icon: fleetRouteIcon,
+                        title: 'No routes yet',
+                        message:
+                            'Open a vehicle and tap Dispatch to start one.',
+                      ),
+                    for (final r in shownRoutes) _routeRow(r, byId),
+                  ],
                 ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+              child: BlButton('Add vehicle',
+                  leading: const BlIcon(BlIcons.plus,
+                      size: 18, color: Bl.white, stroke: 2.2),
+                  onTap: () => _open(const AddVehicleScreen())),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-                const SizedBox(width: 10),
+/// The sheet behind a vehicle card (canvas "Vehicle detail"): what it is, who
+/// drives it, and what can be done with it.
+class _VehicleDetailSheet extends ConsumerWidget {
+  final Vehicle vehicle;
+  final String driver;
+  const _VehicleDetailSheet({required this.vehicle, required this.driver});
 
-                // Status chip
+  Widget _fact(String label, String value) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+              color: Bl.tile, borderRadius: BorderRadius.circular(12)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: Bl.inter(11.5, w: FontWeight.w500, c: _grey)),
+              const SizedBox(height: 2),
+              Text(value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Bl.tight(14, w: FontWeight.w600)),
+            ],
+          ),
+        ),
+      );
+
+  Widget _action(String icon, String label, VoidCallback onTap,
+          {bool primary = false}) =>
+      Expanded(
+        child: Semantics(
+          button: true,
+          label: label,
+          excludeSemantics: true,
+          child: BlTap(
+            onTap: onTap,
+            child: Column(
+              children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  width: 52,
+                  height: 52,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: statusBg,
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Text(
-                    statusLabel,
-                    style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                      color: statusFg),
-                  ),
+                      color: primary ? Bl.brand : Bl.wellSoft,
+                      borderRadius: BorderRadius.circular(16)),
+                  child: BlIcon(icon,
+                      size: 20, color: primary ? Bl.white : Bl.ink3),
                 ),
-
-                const SizedBox(width: 6),
-                const Icon(LucideIcons.chevronRight,
-                    size: 16, color: AppColors.inkTertiary),
+                const SizedBox(height: 6),
+                Text(label,
+                    maxLines: 1,
+                    style: Bl.tight(11.5,
+                        w: FontWeight.w600, ls: 0, c: Bl.ink3)),
               ],
             ),
           ),
         ),
-      ),
+      );
+
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final ok = await showBlDialog<bool>(
+      context: context,
+      title: 'Delete this vehicle?',
+      message:
+          '${vehicle.displayPlate} will be removed from your fleet. Its past routes stay.',
+      actions: (ctx) => [
+        Row(
+          children: [
+            Expanded(
+              child: BlButton('Cancel',
+                  kind: BlButtonKind.soft,
+                  onTap: () => Navigator.pop(ctx, false)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BlButton('Delete',
+                  kind: BlButtonKind.danger,
+                  onTap: () => Navigator.pop(ctx, true)),
+            ),
+          ],
+        ),
+      ],
+    );
+    if (ok != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.pop(context); // close sheet
+    try {
+      await supabase // soft delete
+          .from('vehicles')
+          .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
+          .eq('id', vehicle.id);
+      ref.invalidate(vehiclesProvider);
+    } catch (e) {
+      debugPrint('[fleet] vehicle delete failed: $e');
+      ref.invalidate(vehiclesProvider);
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+            'May not have been deleted. Check the list before trying again. ($e)'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 8),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kind = vehicleKindOf(vehicle.type);
+    final capacity = vehicle.capacity;
+    final fuel = (vehicle.fuelType ?? '').trim();
+
+    void go(Widget screen) {
+      final nav = Navigator.of(context);
+      nav.pop();
+      nav.push(MaterialPageRoute(builder: (_) => screen));
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 2),
+        Center(child: VehiclePictureArrive(kind)),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(vehicle.displayPlate,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Bl.tight(22, w: FontWeight.w700, ls: 0.01)),
+                  const SizedBox(height: 2),
+                  Text(_vehicleLine(vehicle),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Bl.inter(13, w: FontWeight.w500, c: Bl.body)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            fleetPill(vehicleStatusLook(vehicle.status)),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            _fact('Driver', driver.isEmpty ? 'No driver' : driver),
+            const SizedBox(width: 6),
+            _fact('Type', vehicleKindLabel(kind)),
+            const SizedBox(width: 6),
+            _fact(
+                'Capacity',
+                capacity == null || capacity <= 0
+                    ? '—'
+                    : '${capacity == capacity.roundToDouble() ? capacity.toStringAsFixed(0) : capacity} kg'),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            _fact(
+                'Fuel',
+                fuel.isEmpty
+                    ? '—'
+                    : '${fuel[0].toUpperCase()}${fuel.substring(1).toLowerCase()}'),
+            const SizedBox(width: 6),
+            _fact('Year', vehicle.year == null ? '—' : '${vehicle.year}'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            _action(
+                BlIcons.box,
+                kind == VehicleKind.van ? 'Load van' : 'Load truck',
+                () => go(LoadVanScreen(
+                    vehicleId: vehicle.id,
+                    vehicleName: vehicle.name ?? 'Vehicle')),
+                primary: true),
+            const SizedBox(width: 6),
+            _action(
+                fleetRouteIcon,
+                'Dispatch',
+                () => go(DispatchRouteScreen(
+                    vehicleId: vehicle.id,
+                    vehicleName: vehicle.name ?? 'Vehicle'))),
+            const SizedBox(width: 6),
+            _action('<path d="M4 6h16M4 12h16M4 18h10"/>', 'Routes',
+                () => go(const DriverRouteScreen())),
+            const SizedBox(width: 6),
+            _action(BlIcons.check, 'Deliveries',
+                () => go(const DeliveryScreen())),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: BlButton('Edit',
+                  kind: BlButtonKind.soft,
+                  onTap: () => go(AddVehicleScreen(vehicle: vehicle))),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BlButton('Delete',
+                  kind: BlButtonKind.danger,
+                  onTap: () => _delete(context, ref)),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

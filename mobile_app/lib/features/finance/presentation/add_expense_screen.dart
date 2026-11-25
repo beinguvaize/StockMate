@@ -1,22 +1,19 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/widgets/motion/motion_curves.dart' show motionDur;
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'package:uuid/uuid.dart';
 import 'package:mobile_app/features/finance/data/recurring.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart' show posStoresProvider;
-import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/finance/data/models/expense.dart';
 import 'package:mobile_app/features/finance/presentation/providers/finance_provider.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final Expense? expense; // non-null = edit mode
@@ -49,18 +46,30 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   bool get _isEditMode => widget.expense != null;
 
+  // (label on the chip, value stored on the expense).
   static const _categories = [
-    _Cat('Food',     LucideIcons.utensils),
-    _Cat('Petrol',   LucideIcons.fuel),
-    _Cat('Salary',   LucideIcons.banknote),
-    _Cat('Rent',     LucideIcons.home),
-    _Cat('Utility',  LucideIcons.zap),
-    _Cat('Purchase', LucideIcons.shoppingBag),
-    _Cat('Maint',    LucideIcons.wrench,            valueOverride: 'Maintenance'),
-    _Cat('Credit',   LucideIcons.creditCard,        valueOverride: 'Credit Card Payment'),
-    _Cat('Delivery', LucideIcons.truck,             valueOverride: 'Delivery Charge'),
-    _Cat('Other',    LucideIcons.moreHorizontal),
+    ('Food', 'Food'),
+    ('Petrol', 'Petrol'),
+    ('Salary', 'Salary'),
+    ('Rent', 'Rent'),
+    ('Utility', 'Utility'),
+    ('Purchase', 'Purchase'),
+    ('Maintenance', 'Maintenance'),
+    ('Credit card', 'Credit Card Payment'),
+    ('Delivery', 'Delivery Charge'),
+    ('Other', 'Other'),
   ];
+
+  static const _methods = [
+    ('CASH', 'Cash', BlIcons.cash),
+    ('UPI', 'UPI',
+        '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2z"/>'),
+    ('BANK', 'Bank', BlIcons.bank),
+    ('CARD', 'Card',
+        '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18"/>'),
+  ];
+
+  bool _moreOpen = false;
 
   @override
   void initState() {
@@ -77,7 +86,24 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         ? DateTime.tryParse(e!.date!) ?? DateTime.parse(todayIst())
         : DateTime.parse(todayIst());
     _excludeFromPl = e?.excludeFromPl ?? false;
-    _gstinController = TextEditingController();
+    // An edit starts from what the expense was saved with. Starting from the
+    // defaults instead rewrote a bank expense as cash, and dropped its GST
+    // claim and its store, the moment anything else on it was changed.
+    final method = (e?.paymentMethod ?? '').toUpperCase();
+    if (_methods.any((m) => m.$1 == method)) _paymentMethod = method;
+    _storeId = e?.locationId;
+    final gstin = (e?.vendorGstin ?? '').trim();
+    _gstinController = TextEditingController(text: gstin);
+    if (e != null && ((e.gstAmount ?? 0) > 0 || gstin.isNotEmpty)) {
+      _gstClaimable = true;
+      final rate = e.gstRate;
+      if (rate != null && rate > 0) {
+        _gstRate = rate == rate.roundToDouble()
+            ? rate.toStringAsFixed(0)
+            : rate.toString();
+      }
+    }
+    _moreOpen = _gstClaimable || _excludeFromPl || _storeId != null;
   }
 
   @override
@@ -93,32 +119,23 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   // so a long figure on a narrow phone or under a large system font stays
   // whole instead of silently scrolling its first digits out of sight
   // (₹12,34,567 read as 2,34,567). Only past the floor does the field scroll.
-  static const _amountMaxSize = 56.0;
+  static const _amountMaxSize = 46.0;
   static const _amountMinRendered = 28.0;
   static const _amountHint = '0.00';
 
   // ₹, its offset and the letter spacing all scale with the figure, so the
   // row keeps the proportions it has at 56.
-  TextStyle _rupeeStyle(double size) => GoogleFonts.publicSans(
-        fontSize: 24 * size / _amountMaxSize,
-        fontWeight: FontWeight.w300,
-        color: AppColors.inkTertiary,
+  TextStyle _rupeeStyle(double size) => Bl.tight(
+        28 * size / _amountMaxSize,
+        w: FontWeight.w600,
+        c: const Color(0xFF7A8088),
       );
 
-  TextStyle _amountStyle(double size) => GoogleFonts.publicSans(
-        fontSize: size,
-        fontWeight: FontWeight.w800,
-        color: AppColors.inkPrimary,
-        letterSpacing: -2 * size / _amountMaxSize,
-        height: 1,
-      );
+  TextStyle _amountStyle(double size) =>
+      Bl.tight(size, w: FontWeight.w700, ls: -0.04, h: 1.1);
 
-  TextStyle _amountHintStyle(double size) => GoogleFonts.publicSans(
-        fontSize: size,
-        fontWeight: FontWeight.w800,
-        color: AppColors.inkTertiary.withValues(alpha: 0.25),
-        letterSpacing: -2 * size / _amountMaxSize,
-      );
+  TextStyle _amountHintStyle(double size) =>
+      Bl.tight(size, w: FontWeight.w700, ls: -0.04, h: 1.1, c: Bl.faint);
 
   Size _measure(String s, TextStyle style, TextScaler scaler) {
     final painter = TextPainter(
@@ -185,8 +202,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   double _amountRowHeight(BuildContext context) {
     final scaler = MediaQuery.textScalerOf(context);
     final figure = _measure('0', _amountStyle(_amountMaxSize), scaler).height;
-    final rupee =
-        12 + _measure('₹', _rupeeStyle(_amountMaxSize), scaler).height;
+    final rupee = _measure('₹', _rupeeStyle(_amountMaxSize), scaler).height;
     return figure > rupee ? figure : rupee;
   }
 
@@ -199,9 +215,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: const ColorScheme.light(
-            primary: AppColors.primary,
-            onPrimary: Colors.white,
-            surface: Colors.white,
+            primary: Bl.ink,
+            onPrimary: Bl.white,
+            onSurface: Bl.ink,
+            surface: Bl.white,
           ),
         ),
         child: child!,
@@ -213,35 +230,32 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   // ── Custom categories (parity with web settings.expense_categories) ──
   Future<void> _addCategoryDialog() async {
     final ctrl = TextEditingController();
-    final name = await showDialog<String>(
+    final name = await showBlCustomDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('New category',
-            style: GoogleFonts.publicSans(
-                fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: InputDecoration(
-            hintText: 'e.g. Packaging',
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12)),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('New category', style: Bl.tight(16, w: FontWeight.w700)),
+          BlField(
+            label: 'Name',
+            hint: 'e.g. Packaging',
+            controller: ctrl,
+            capitalization: TextCapitalization.words,
           ),
-          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
-                style: GoogleFonts.publicSans(color: AppColors.inkSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: Text('Add',
-                style: GoogleFonts.publicSans(
-                    color: AppColors.primary, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: BlButton('Cancel',
+                    kind: BlButtonKind.soft, onTap: () => Navigator.pop(ctx)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: BlButton('Add',
+                    onTap: () => Navigator.pop(ctx, ctrl.text.trim())),
+              ),
+            ],
           ),
         ],
       ),
@@ -250,42 +264,57 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final ctx = await ref.read(tenantContextProvider.future);
     if (ctx == null) return;
     final existing = ref.read(customExpenseCategoriesProvider).valueOrNull ?? [];
-    await saveExpenseCategories(ref, ctx.tenantId, [...existing, name]);
+    try {
+      await saveExpenseCategories(ref, ctx.tenantId, [...existing, name]);
+    } catch (e) {
+      debugPrint('[expenses] add category failed: $e');
+      if (mounted) {
+        setState(() => _formError =
+            'The category may not have saved. Check the list before adding it again. ($e)');
+      }
+      return;
+    }
     if (mounted) setState(() => _selectedCategory = name);
   }
 
   Future<void> _deleteCategoryDialog(String name) async {
-    final ok = await showDialog<bool>(
+    final ok = await showBlDialog<bool>(
       context: context,
-      builder: (dctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Remove "$name"?',
-            style: GoogleFonts.publicSans(
-                fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
-        content: Text('Existing expenses keep this category.',
-            style: GoogleFonts.publicSans(
-                fontSize: 14, color: AppColors.inkSecondary)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dctx, false),
-            child: Text('Cancel',
-                style: GoogleFonts.publicSans(color: AppColors.inkSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dctx, true),
-            child: Text('Remove',
-                style: GoogleFonts.publicSans(
-                    color: AppColors.danger, fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
+      title: 'Remove "$name"?',
+      message: 'Existing expenses keep this category.',
+      actions: (dctx) => [
+        Row(
+          children: [
+            Expanded(
+              child: BlButton('Cancel',
+                  kind: BlButtonKind.soft,
+                  onTap: () => Navigator.pop(dctx, false)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BlButton('Remove',
+                  kind: BlButtonKind.danger,
+                  onTap: () => Navigator.pop(dctx, true)),
+            ),
+          ],
+        ),
+      ],
     );
     if (ok != true) return;
     final ctx = await ref.read(tenantContextProvider.future);
     if (ctx == null) return;
     final existing = ref.read(customExpenseCategoriesProvider).valueOrNull ?? [];
-    await saveExpenseCategories(
-        ref, ctx.tenantId, existing.where((c) => c != name).toList());
+    try {
+      await saveExpenseCategories(
+          ref, ctx.tenantId, existing.where((c) => c != name).toList());
+    } catch (e) {
+      debugPrint('[expenses] remove category failed: $e');
+      if (mounted) {
+        setState(() => _formError =
+            'The category may not have been removed. Check the list before trying again. ($e)');
+      }
+      return;
+    }
     if (mounted && _selectedCategory == name) {
       setState(() => _selectedCategory = 'Other');
     }
@@ -318,7 +347,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     final tenantCtx = ref.read(tenantContextProvider).valueOrNull;
     if (tenantCtx == null) {
-      setState(() => _formError = 'No tenant context — please sign out and back in.');
+      setState(() => _formError = 'Could not tell which shop this is. Sign out and back in.');
       return;
     }
 
@@ -372,11 +401,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           ref.invalidate(telemetryProvider);
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Expense updated'),
-              backgroundColor: AppColors.secondary,
+            const SnackBar(
+              content: Text('Expense updated'),
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           );
         }
@@ -460,22 +487,21 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             SnackBar(
               content: Text(repeatProblem ??
                   (queued
-                      ? 'Saved offline — will sync when online'
+                      ? 'Saved on this phone. It will sync when you are online.'
                       : repeatLabel != null
                           ? 'Expense logged · Repeats: $repeatLabel'
                           : 'Expense logged')),
-              backgroundColor:
-                  repeatProblem != null ? AppColors.danger : AppColors.secondary,
               duration: Duration(seconds: repeatProblem != null ? 10 : 4),
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _formError = 'Failed to save: ${e.toString()}');
+        debugPrint('[expenses] save failed: $e');
+        setState(() => _formError =
+            'May not have saved. Check Expenses before trying again. ($e)');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -526,8 +552,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           button: true,
           selected: on,
           label: semantics ?? label,
-          child: AppTappable(
-            ripple: false,
+          child: BlTap(
             onTap: onTap,
             child: Padding(
               padding: gap,
@@ -538,37 +563,27 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               constraints: const BoxConstraints(minHeight: 44),
               padding: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
-                color: on ? AppColors.primary.withValues(alpha: 0.12) : Colors.white,
-                border: Border.all(color: on ? AppColors.primary : AppColors.outlineVariant),
-                borderRadius: BorderRadius.circular(10),
+                color: on ? Bl.ink : Bl.wellSoft,
+                borderRadius: BorderRadius.circular(999),
               ),
               child: Center(
                 widthFactor: 1,
                 heightFactor: 1,
-                child: Text(label, maxLines: 1, style: GoogleFonts.publicSans(
-                  fontSize: 13, fontWeight: on ? FontWeight.w800 : FontWeight.w600,
-                  color: on ? AppColors.primary : AppColors.inkSecondary)),
+                child: Text(label, maxLines: 1, style: Bl.tight(13,
+                    w: FontWeight.w600, ls: 0, c: on ? Bl.white : Bl.ink3)),
               ),
             ),
             ),
           ),
         );
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: AppColors.outlineVariant),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Repeat', style: GoogleFonts.publicSans(
-            fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
-          const SizedBox(height: 2),
-          Text(sub, key: const Key('repeat-label'), style: GoogleFonts.publicSans(
-            fontSize: 13, color: AppColors.inkTertiary)),
+          Text('Repeat', style: Bl.tight(14, w: FontWeight.w600)),
+          const SizedBox(height: 1),
+          Text(sub, key: const Key('repeat-label'),
+              style: Bl.inter(12, c: const Color(0xFF7A8088))),
           const SizedBox(height: 10),
           _gaplessRow(gap: 6, children: [
             for (final (k, label) in const [('NONE', 'No'), ('DAILY', 'Daily'), ('MONTHLY', 'Monthly')])
@@ -596,727 +611,459 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               // Secondary text, like "Log this once". Red is kept for money
               // that is overdue or lost.
               Text('Keep at least one day', key: const Key('keep-one-day'),
-                  style: GoogleFonts.publicSans(
-                    fontSize: 13, color: AppColors.inkTertiary)),
+                  style: Bl.inter(12, c: const Color(0xFF7A8088))),
             ],
           ],
         ],
-      ),
     );
+  }
+
+  Widget _toggleRow(String title, String sub, bool value,
+          ValueChanged<bool> onChanged) =>
+      Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Bl.tight(14, w: FontWeight.w600)),
+                const SizedBox(height: 1),
+                Text(sub,
+                    style:
+                        Bl.inter(12, c: const Color(0xFF7A8088), h: 1.35)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          BlToggle(value: value, onChanged: onChanged, label: title),
+        ],
+      );
+
+  Widget _chip(String label, bool on, VoidCallback onTap,
+          {VoidCallback? onLongPress}) =>
+      Semantics(
+        button: true,
+        selected: on,
+        label: label,
+        excludeSemantics: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 36),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+                color: on ? Bl.ink : Bl.wellSoft,
+                borderRadius: BorderRadius.circular(999)),
+            child: Text(label,
+                style: Bl.tight(13,
+                    w: FontWeight.w600, ls: 0, c: on ? Bl.white : Bl.ink3)),
+          ),
+        ),
+      );
+
+  Future<void> _seeAllCategories(List<String> custom) async {
+    final all = [
+      for (final c in _categories) c.$2,
+      ...custom,
+      if (!_categories.any((c) => c.$2 == _selectedCategory) &&
+          !custom.contains(_selectedCategory))
+        _selectedCategory,
+    ];
+    final picked = await showBlPicker(context,
+        title: 'Category', options: all, selected: _selectedCategory);
+    if (picked != null && mounted) setState(() => _selectedCategory = picked);
   }
 
   @override
   Widget build(BuildContext context) {
     final stores = ref.watch(posStoresProvider).valueOrNull ?? const [];
+    final custom = ref.watch(customExpenseCategoriesProvider).maybeWhen(
+        data: (c) => c, orElse: () => const <String>[]);
+    // A category the expense already has but the lists do not (renamed or
+    // removed since) still gets a chip, so an edit does not silently move it.
+    final orphan = !_categories.any((c) => c.$2 == _selectedCategory) &&
+        !custom.contains(_selectedCategory);
+    final storeName = stores
+        .where((s) => s['id'] == _storeId)
+        .map((s) => (s['name'] ?? 'Store').toString())
+        .firstOrNull;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F6F6), // warm off-white per spec
+      backgroundColor: Bl.white,
       body: SafeArea(
         child: Column(
           children: [
-            // ── HEADER ──────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              child: Row(
-                children: [
-                  _circleIconButton(
-                    icon: LucideIcons.arrowLeft,
-                    onTap: () => Navigator.pop(context),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        _isEditMode ? 'EDIT EXPENSE' : 'NEW EXPENSE',
-                        style: GoogleFonts.publicSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 2.5,
-                          color: AppColors.inkPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 40), // balance spacer
-                ],
-              ),
-            ),
-
+            BlBackHeader(title: _isEditMode ? 'Edit Expense' : 'New Expense'),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.only(bottom: 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ── AMOUNT BLOCK (centered) ─────────────────────
+                    const SizedBox(height: 10),
+                    Text('Amount spent',
+                        textAlign: TextAlign.center,
+                        style: Bl.inter(13, w: FontWeight.w500, c: Bl.body)),
+                    const SizedBox(height: 4),
+                    // The figure shrinks to stay whole (see _amountFontSize),
+                    // and the row keeps its full height while it does, so the
+                    // form below does not climb as a long figure is typed.
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
-                      child: Column(
-                        children: [
-                          Text(
-                            'LOG BUSINESS EXPENDITURE',
-                            style: GoogleFonts.publicSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 3.2,
-                              color: AppColors.inkTertiary,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          ValueListenableBuilder<TextEditingValue>(
-                            valueListenable: _amountController,
-                            builder: (context, value, _) =>
-                                LayoutBuilder(builder: (context, box) {
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: LayoutBuilder(builder: (context, c) {
+                        return ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _amountController,
+                          builder: (context, value, _) {
                             final size = _amountFontSize(
-                                context, value.text, box.maxWidth);
-                            return ConstrainedBox(
-                            constraints: BoxConstraints(
-                                minHeight: _amountRowHeight(context)),
-                            child: Align(
-                            alignment: Alignment.bottomCenter,
-                            child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.only(
-                                    top: 12 * size / _amountMaxSize),
-                                child: Text('₹', style: _rupeeStyle(size)),
-                              ),
-                              const SizedBox(width: 6),
-                              // Flexible so the 280dp cap gives way to the
-                              // room actually left on a narrow phone or under
-                              // a large font. The figure shrinks to fit that
-                              // room (see _amountFontSize) and only scrolls
-                              // once it reaches the floor size.
-                              Flexible(
-                                child: ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 280),
-                                child: IntrinsicWidth(
-                                  child: TextField(
-                                    controller: _amountController,
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                                      const ExpenseAmountFormatter(),
-                                    ],
-                                    cursorColor: AppColors.primary,
-                                    textAlign: TextAlign.center,
-                                    style: _amountStyle(size),
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      hintText: _amountHint,
-                                      hintStyle: _amountHintStyle(size),
-                                    ),
-                                  ),
-                                ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          ),
-                          );
-                          }),
-                          ),
-                          const SizedBox(height: 22),
-                          // Decorative accent bar (h-1 w-12, primary @ 20%)
-                          Container(
-                            width: 48,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // ── DESCRIPTION FIELD ───────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                      child: _iconField(
-                        label: 'DESCRIPTION',
-                        icon: LucideIcons.fileEdit,
-                        child: TextField(
-                          controller: _noteController,
-                          cursorColor: AppColors.primary,
-                          style: GoogleFonts.publicSans(
-                            fontSize: 14, fontWeight: FontWeight.w500,
-                            color: AppColors.inkPrimary,
-                          ),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                            hintText: 'What was this expense for?',
-                            hintStyle: GoogleFonts.publicSans(
-                              fontSize: 14,
-                              color: AppColors.inkTertiary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // ── DATE FIELD ──────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
-                      child: AppTappable(
-   ripple: false,
-                        onTap: _pickDate,
-                        child: _iconField(
-                          label: 'DATE',
-                          icon: LucideIcons.calendar,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            child: Text(
-                              _dateLabel(),
-                              style: GoogleFonts.publicSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.inkPrimary,
-                              ),
-                            ),
-                          ),
-                        ),
- ),
-                    ),
-
-                    // ── PAID VIA ────────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('PAID VIA', style: GoogleFonts.publicSans(
-                            fontSize: 13, fontWeight: FontWeight.w800,
-                            letterSpacing: 1, color: AppColors.inkTertiary)),
-                          const SizedBox(height: 8),
-                          // Four across when the widest label fits, else
-                          // two by two, else one per row: a large system font
-                          // would otherwise clip CASH to CAS.
-                          LayoutBuilder(builder: (context, box) {
-                            const methods = ['CASH', 'UPI', 'BANK', 'CARD'];
-                            final style = GoogleFonts.publicSans(
-                                fontSize: 13, fontWeight: FontWeight.w800);
-                            final scaler = MediaQuery.textScalerOf(context);
-                            var widest = 0.0;
-                            for (final m in methods) {
-                              final tp = TextPainter(
-                                text: TextSpan(text: m, style: style),
-                                textDirection: TextDirection.ltr,
-                                textScaler: scaler,
-                              )..layout();
-                              if (tp.width > widest) widest = tp.width;
-                              tp.dispose();
-                            }
-                            const gap = 6.0, pad = 8.0 * 2 + 2;
-                            var perRow = 4;
-                            while (perRow > 1 &&
-                                (box.maxWidth - gap * (perRow - 1)) / perRow <
-                                    widest + pad) {
-                              perRow ~/= 2;
-                            }
-                            Widget chip(String m) => AppTappable(
-                                  ripple: false,
-                                  onTap: () => setState(() => _paymentMethod = m),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: _paymentMethod == m ? AppColors.primary.withValues(alpha: 0.12) : Colors.white,
-                                      border: Border.all(color: _paymentMethod == m ? AppColors.primary : AppColors.outlineVariant),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(m, maxLines: 1, softWrap: false, style: style.copyWith(
-                                      color: _paymentMethod == m ? AppColors.primary : AppColors.inkSecondary)),
-                                  ),
-                                );
-                            return Column(children: [
-                              for (var r = 0; r < methods.length; r += perRow) ...[
-                                if (r > 0) const SizedBox(height: gap),
-                                Row(children: [
-                                  for (var i = r; i < r + perRow; i++) ...[
-                                    if (i > r) const SizedBox(width: gap),
-                                    Expanded(child: chip(methods[i])),
-                                  ],
-                                ]),
-                              ],
-                            ]);
-                          }),
-                        ],
-                      ),
-                    ),
-
-                    // ── GST / ITC ───────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.outlineVariant),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Column(children: [
-                          SwitchListTile(
-                            value: _gstClaimable,
-                            onChanged: (v) => setState(() => _gstClaimable = v),
-                            activeThumbColor: AppColors.primary,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-                            title: Text('Claim GST (ITC)', style: GoogleFonts.publicSans(
-                              fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
-                            subtitle: Text('For registered vendors with a GSTIN', style: GoogleFonts.publicSans(
-                              fontSize: 13, color: AppColors.inkTertiary)),
-                          ),
-                          if (_gstClaimable) Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                            child: Column(children: [
-                              Row(children: [
-                                for (final r in const ['5','12','18','28'])
-                                  Expanded(child: Padding(
-                                    padding: const EdgeInsets.only(right: 6),
-                                    child: AppTappable(
-   ripple: false,
-                                      onTap: () => setState(() => _gstRate = r),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(vertical: 8),
-                                        alignment: Alignment.center,
-                                        decoration: BoxDecoration(
-                                          color: _gstRate == r ? AppColors.primary.withValues(alpha: 0.12) : Colors.white,
-                                          border: Border.all(color: _gstRate == r ? AppColors.primary : AppColors.outlineVariant),
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
-                                        child: Text('$r%', style: GoogleFonts.publicSans(
-                                          fontSize: 13, fontWeight: FontWeight.w800,
-                                          color: _gstRate == r ? AppColors.primary : AppColors.inkSecondary)),
-                                      ),
- ),
-                                  )),
-                              ]),
-                              const SizedBox(height: 10),
-                              TextField(
-                                controller: _gstinController,
-                                textCapitalization: TextCapitalization.characters,
-                                style: GoogleFonts.publicSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
-                                decoration: InputDecoration(
-                                  hintText: 'Vendor GSTIN',
-                                  isDense: true,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                              ),
-                            ]),
-                          ),
-                        ]),
-                      ),
-                    ),
-
-                    // ── PAID FROM STORE (multi-store only) ──────────
-                    if (stores.length > 1) Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('PAID FROM STORE', style: GoogleFonts.publicSans(
-                            fontSize: 13, fontWeight: FontWeight.w800,
-                            letterSpacing: 1, color: AppColors.inkTertiary)),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: AppColors.outlineVariant),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String?>(
-                                isExpanded: true,
-                                value: _storeId,
-                                hint: Text('Business-wide', style: GoogleFonts.publicSans(
-                                  fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.inkSecondary)),
-                                items: [
-                                  DropdownMenuItem<String?>(value: null, child: Text('Business-wide', style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w600))),
-                                  for (final s in stores)
-                                    DropdownMenuItem<String?>(value: s['id'] as String, child: Text(s['name'] ?? 'Store', style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w600))),
-                                ],
-                                onChanged: (v) => setState(() => _storeId = v),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // ── REPEAT (add mode only) ──────────────────────
-                    if (!_isEditMode) Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                      child: _repeatControl(),
-                    ),
-
-                    // ── NOT A BUSINESS EXPENSE (drawing / loan / capital) ──
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.outlineVariant),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: SwitchListTile(
-                          value: _excludeFromPl,
-                          onChanged: (v) => setState(() => _excludeFromPl = v),
-                          activeThumbColor: AppColors.primary,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-                          title: Text('Not a business expense', style: GoogleFonts.publicSans(
-                            fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
-                          subtitle: Text('Owner drawing, loan repayment or capital — kept out of profit', style: GoogleFonts.publicSans(
-                            fontSize: 13, color: AppColors.inkTertiary)),
-                        ),
-                      ),
-                    ),
-
-                    // ── CATEGORY HEADER ─────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'CATEGORY',
-                            style: GoogleFonts.publicSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.5,
-                              color: AppColors.inkTertiary,
-                            ),
-                          ),
-                          Text(
-                            'SEE ALL',
-                            style: GoogleFonts.publicSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.8,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // ── CATEGORY GRID (presets + custom + add) ──────
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Builder(builder: (context) {
-                        final customAsync =
-                            ref.watch(customExpenseCategoriesProvider);
-                        final custom = customAsync.maybeWhen(
-                            data: (c) => c, orElse: () => const <String>[]);
-                        // Build a flat tile list: presets, then custom, then +Add.
-                        final tiles = <_CatTile>[
-                          for (final c in _categories)
-                            _CatTile(c.label, c.valueOverride ?? c.label, c.icon,
-                                custom: false),
-                          for (final name in custom)
-                            _CatTile(name, name, LucideIcons.tag, custom: true),
-                          const _CatTile('Add', '__ADD__', LucideIcons.plus,
-                              custom: false, isAdd: true),
-                        ];
-                        // Fixed-width tiles in a Wrap, not a fixed-ratio grid:
-                        // the row height follows the icon and label, so a
-                        // 320-360dp phone or a larger system font never
-                        // overflows the cell. The icon shrinks only when the
-                        // column is narrower than its 56dp.
-                        return LayoutBuilder(builder: (context, box) {
-                          const columns = 5;
-                          const gap = 8.0;
-                          final tileWidth =
-                              ((box.maxWidth - gap * (columns - 1)) / columns)
-                                  .floorToDouble();
-                          final iconSize = tileWidth < 56 ? tileWidth : 56.0;
-                          return Wrap(
-                            spacing: gap,
-                            runSpacing: 14,
-                            children: tiles.map((t) {
-                            final selected =
-                                !t.isAdd && _selectedCategory == t.value;
-                            return GestureDetector(
-                              onTap: () {
-                                if (t.isAdd) {
-                                  _addCategoryDialog();
-                                } else {
-                                  setState(() => _selectedCategory = t.value);
-                                }
-                              },
-                              onLongPress: t.custom
-                                  ? () => _deleteCategoryDialog(t.value)
-                                  : null,
-                              child: SizedBox(
-                                width: tileWidth,
-                                child: Column(
-                                mainAxisSize: MainAxisSize.min,
+                                context, value.text, c.maxWidth);
+                            return SizedBox(
+                              height: _amountRowHeight(context),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
                                 children: [
-                                  AnimatedContainer(
-                                    duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
-                                    width: iconSize,
-                                    height: iconSize,
-                                    decoration: BoxDecoration(
-                                      color: selected
-                                          ? AppColors.primary
-                                          : (t.isAdd
-                                              ? AppColors.primary
-                                                  .withValues(alpha: 0.08)
-                                              : Colors.white),
-                                      borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(
-                                        color: selected
-                                            ? AppColors.primary
-                                            : (t.isAdd
-                                                ? AppColors.primary
-                                                    .withValues(alpha: 0.4)
-                                                : Colors.black
-                                                    .withValues(alpha: 0.05)),
+                                  Text('₹', style: _rupeeStyle(size)),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                          maxWidth: 280),
+                                      child: IntrinsicWidth(
+                                        child: TextField(
+                                          controller: _amountController,
+                                          autofocus: !_isEditMode,
+                                          keyboardType: const TextInputType
+                                              .numberWithOptions(
+                                              decimal: true),
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter.deny(
+                                                ','),
+                                            const ExpenseAmountFormatter(),
+                                          ],
+                                          maxLines: 1,
+                                          cursorColor: Bl.brand,
+                                          style: _amountStyle(size),
+                                          decoration: InputDecoration(
+                                            isCollapsed: true,
+                                            filled: false,
+                                            border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            hintText: _amountHint,
+                                            hintStyle: _amountHintStyle(size),
+                                          ),
+                                        ),
                                       ),
-                                      boxShadow: t.isAdd
-                                          ? null
-                                          : [
-                                              BoxShadow(
-                                                color: Colors.black
-                                                    .withValues(alpha: 0.05),
-                                                blurRadius: 20,
-                                                offset: const Offset(0, 4),
-                                              ),
-                                            ],
-                                    ),
-                                    child: Icon(
-                                      t.icon,
-                                      size: 22,
-                                      color: selected
-                                          ? Colors.white
-                                          : (t.isAdd
-                                              ? AppColors.primary
-                                              : AppColors.inkSecondary),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    t.label.toUpperCase(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.publicSans(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: selected
-                                          ? AppColors.primary
-                                          : AppColors.inkTertiary,
-                                      letterSpacing: 0.4,
                                     ),
                                   ),
                                 ],
-                                ),
                               ),
                             );
-                            }).toList(),
-                          );
-                        });
+                          },
+                        );
                       }),
                     ),
-
-                    if (_formError != null) ...[
-                      const SizedBox(height: 18),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: AppColors.danger.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                              child: Text('CATEGORY', style: Bl.eyebrow)),
+                          BlTap(
+                            onTap: () => _seeAllCategories(custom),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 4),
+                              child: Text('See all',
+                                  style: Bl.tight(12.5,
+                                      w: FontWeight.w600,
+                                      ls: 0,
+                                      c: const Color(0xFFB86A0A))),
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(LucideIcons.alertCircle, size: 16, color: AppColors.danger),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _formError!,
-                                  style: GoogleFonts.publicSans(
-                                    fontSize: 13,
-                                    color: AppColors.danger,
-                                    fontWeight: FontWeight.w600,
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final c in _categories)
+                            _chip(c.$1, _selectedCategory == c.$2,
+                                () => setState(() => _selectedCategory = c.$2)),
+                          for (final name in custom)
+                            _chip(name, _selectedCategory == name,
+                                () => setState(() => _selectedCategory = name),
+                                onLongPress: () =>
+                                    _deleteCategoryDialog(name)),
+                          if (orphan) _chip(_selectedCategory, true, () {}),
+                          _chip('+ Add', false, _addCategoryDialog),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
+                      child: Text('PAID VIA', style: Bl.eyebrow),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
+                      child: Row(
+                        children: [
+                          for (var i = 0; i < _methods.length; i++) ...[
+                            if (i > 0) const SizedBox(width: 8),
+                            Expanded(
+                              child: Semantics(
+                                button: true,
+                                selected: _paymentMethod == _methods[i].$1,
+                                label: _methods[i].$2,
+                                excludeSemantics: true,
+                                child: BlTap(
+                                  onTap: () => setState(
+                                      () => _paymentMethod = _methods[i].$1),
+                                  child: Container(
+                                    constraints:
+                                        const BoxConstraints(minHeight: 58),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 8),
+                                    decoration: BoxDecoration(
+                                        color: _paymentMethod ==
+                                                _methods[i].$1
+                                            ? Bl.brand
+                                            : Bl.wellSoft,
+                                        borderRadius:
+                                            BorderRadius.circular(14)),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        BlIcon(_methods[i].$3,
+                                            size: 19,
+                                            color: _paymentMethod ==
+                                                    _methods[i].$1
+                                                ? Bl.white
+                                                : Bl.ink3),
+                                        const SizedBox(height: 5),
+                                        FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(_methods[i].$2,
+                                              maxLines: 1,
+                                              style: Bl.tight(12.5,
+                                                  w: FontWeight.w600,
+                                                  ls: 0,
+                                                  c: _paymentMethod ==
+                                                          _methods[i].$1
+                                                      ? Bl.white
+                                                      : Bl.ink3)),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-
-                    const SizedBox(height: 24),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          BlField(
+                            label: 'What was it for?',
+                            hint: 'e.g. Electricity bill',
+                            controller: _noteController,
+                            capitalization: TextCapitalization.sentences,
+                          ),
+                          BlField(
+                            label: 'Date',
+                            value: _dateLabel(),
+                            onTap: _pickDate,
+                            trailing: const Padding(
+                              padding: EdgeInsets.only(right: 6),
+                              child: BlIcon(
+                                  '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+                                  size: 18,
+                                  color: Color(0xFF7A8088)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          border:
+                              Border.all(color: const Color(0xFFECEBE9))),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Semantics(
+                            button: true,
+                            expanded: _moreOpen,
+                            label: 'More options',
+                            excludeSemantics: true,
+                            child: BlTap(
+                              onTap: () =>
+                                  setState(() => _moreOpen = !_moreOpen),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text('More options',
+                                            style: Bl.tight(14,
+                                                w: FontWeight.w600)),
+                                        const SizedBox(height: 1),
+                                        Text(
+                                            _isEditMode
+                                                ? 'Claim GST · not a business expense'
+                                                : 'Claim GST · not a business expense · repeat',
+                                            style: Bl.inter(12,
+                                                c: const Color(0xFF7A8088))),
+                                      ],
+                                    ),
+                                  ),
+                                  AnimatedRotation(
+                                    turns: _moreOpen ? 0.5 : 0,
+                                    duration: motionDur(context, 160),
+                                    child: const BlIcon(BlIcons.chevronDown,
+                                        size: 18, color: Color(0xFF7A8088)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (_moreOpen) ...[
+                            const Divider(height: 25, color: Bl.sep),
+                            _toggleRow(
+                                'Claim GST (ITC)',
+                                'For registered vendors with a GSTIN',
+                                _gstClaimable,
+                                (v) => setState(() => _gstClaimable = v)),
+                            if (_gstClaimable) ...[
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  for (final r in {
+                                    '5',
+                                    '12',
+                                    '18',
+                                    '28',
+                                    _gstRate
+                                  })
+                                    _chip('$r%', _gstRate == r,
+                                        () => setState(() => _gstRate = r)),
+                                ],
+                              ),
+                              BlField(
+                                label: 'Vendor GSTIN',
+                                hint: '22AAAAA0000A1Z5',
+                                controller: _gstinController,
+                                capitalization: TextCapitalization.characters,
+                              ),
+                            ],
+                            const Divider(height: 25, color: Bl.sep),
+                            _toggleRow(
+                                'Not a business expense',
+                                'Owner drawing, loan repayment or capital. Kept out of profit.',
+                                _excludeFromPl,
+                                (v) => setState(() => _excludeFromPl = v)),
+                            if (stores.length > 1) ...[
+                              const Divider(height: 25, color: Bl.sep),
+                              BlTap(
+                                onTap: () async {
+                                  const whole = 'Business-wide';
+                                  final names = [
+                                    whole,
+                                    for (final s in stores)
+                                      (s['name'] ?? 'Store').toString(),
+                                  ];
+                                  final picked = await showBlPicker(context,
+                                      title: 'Paid from store',
+                                      options: names,
+                                      selected: storeName ?? whole);
+                                  if (picked == null || !mounted) return;
+                                  setState(() => _storeId = picked == whole
+                                      ? null
+                                      : stores
+                                          .firstWhere((s) =>
+                                              (s['name'] ?? 'Store')
+                                                  .toString() ==
+                                              picked)['id'] as String);
+                                },
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Paid from store',
+                                              style: Bl.tight(14,
+                                                  w: FontWeight.w600)),
+                                          const SizedBox(height: 1),
+                                          Text(storeName ?? 'Business-wide',
+                                              style: Bl.inter(12,
+                                                  c: const Color(
+                                                      0xFF7A8088))),
+                                        ],
+                                      ),
+                                    ),
+                                    const BlIcon(BlIcons.chevronRight,
+                                        size: 16, color: Color(0xFFB8BCC2)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            if (!_isEditMode) ...[
+                              const Divider(height: 25, color: Bl.sep),
+                              _repeatControl(),
+                            ],
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (_formError != null)
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 9),
+                        decoration: BoxDecoration(
+                            color: Bl.redSoft,
+                            borderRadius: BorderRadius.circular(12)),
+                        child: Text(_formError!,
+                            style: Bl.inter(12.5,
+                                w: FontWeight.w500, c: Bl.redDeep)),
+                      ),
                   ],
                 ),
               ),
             ),
-
-            // ── FOOTER CTA (gradient) ───────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              child: SizedBox(
-                width: double.infinity,
-                height: 64,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.primary,
-                        Color(0xFF769600),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.25),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: _isLoading ? null : _submit,
-                      child: Center(
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 22, height: 22,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2.5))
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    _isEditMode ? 'Save Changes' : 'Log Expense',
-                                    style: GoogleFonts.publicSans(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                      letterSpacing: 0.4,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  const Icon(LucideIcons.arrowRight, size: 20, color: Colors.white),
-                                ],
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+              child: BlButton(_isEditMode ? 'Save changes' : 'Log expense',
+                  loading: _isLoading, onTap: _isLoading ? null : _submit),
             ),
           ],
         ),
       ),
     );
   }
-
-  // ── helpers ────────────────────────────────────────────────────────────────
-
-  Widget _circleIconButton({required IconData icon, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(99),
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Icon(LucideIcons.arrowLeft, size: 18, color: AppColors.inkPrimary),
-      ),
-    );
-  }
-
-  Widget _iconField({
-    required String label,
-    required IconData icon,
-    required Widget child,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            label,
-            style: GoogleFonts.publicSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-              color: AppColors.inkTertiary,
-            ),
-          ),
-        ),
-        // A floor, not a fixed height: a large system font wraps the date
-        // or grows the line, and a fixed 56 cut it off at the baseline.
-        Container(
-          constraints: const BoxConstraints(minHeight: 56),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Icon(icon, size: 18, color: AppColors.inkTertiary),
-              ),
-              Expanded(child: child),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Cat {
-  final String label;
-  final IconData icon;
-  final String? valueOverride; // when display label differs from stored category
-  const _Cat(this.label, this.icon, {this.valueOverride});
-}
-
-// Flattened category tile (preset, custom, or the +Add affordance).
-class _CatTile {
-  final String label;
-  final String value;
-  final IconData icon;
-  final bool custom; // user-added (long-press to delete)
-  final bool isAdd; // the trailing "+ Add" tile
-  const _CatTile(this.label, this.value, this.icon,
-      {this.custom = false, this.isAdd = false});
 }
 
 /// The amount as the field shows it: up to two decimals, no trailing zeros,

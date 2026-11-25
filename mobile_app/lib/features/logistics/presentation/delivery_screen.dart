@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/supabase/client.dart';
-import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart'
+    show fleetDate, fleetPill, fleetRouteIcon, routeStatusLook;
+import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart'
+    show driverEmployeeIdProvider;
+import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
 
+/// "Route Management" (canvas): each route with where it is in its life
+/// (planned, in transit, reconciled) and the one thing to do next.
 class DeliveryScreen extends ConsumerStatefulWidget {
   /// When provided, shows only this route. When null, shows all routes for
   /// the current user that are in PLANNED or IN_TRANSIT state.
@@ -15,11 +23,19 @@ class DeliveryScreen extends ConsumerStatefulWidget {
 }
 
 class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
-  final _odometerController = TextEditingController();
-  final _cashController = TextEditingController();
+  // One pair of fields per route. A single shared pair meant two routes in
+  // transit showed, and could be closed with, each other's figures.
+  final Map<String, TextEditingController> _odometer = {};
+  final Map<String, TextEditingController> _cash = {};
   List<Map<String, dynamic>> _routes = [];
   bool _loading = true;
   String? _error;
+  String? _busyId;
+
+  TextEditingController _odo(String id) =>
+      _odometer.putIfAbsent(id, TextEditingController.new);
+  TextEditingController _cashFor(String id) =>
+      _cash.putIfAbsent(id, TextEditingController.new);
 
   @override
   void initState() {
@@ -29,8 +45,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   @override
   void dispose() {
-    _odometerController.dispose();
-    _cashController.dispose();
+    for (final c in [..._odometer.values, ..._cash.values]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -44,8 +61,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         query = query.eq('id', widget.routeId!);
       } else if (userId != null) {
         // Show routes for this driver that are not yet reconciled
+        // routes has driverId only. Naming driver_id as well made Postgres
+        // reject the read (42703), so this list never loaded. A driver is
+        // recorded by login id or by employee id, so both are matched.
+        final empId = await ref.read(driverEmployeeIdProvider.future);
         query = query
-            .or('driver_id.eq.$userId,driverId.eq.$userId')
+            .inFilter('driverId', [userId, if (empId != null) empId])
             .inFilter('status', ['PLANNED', 'IN_TRANSIT', 'ACTIVE']);
       }
 
@@ -56,21 +77,39 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     }
   }
 
+  void _say(String msg, {bool long = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      behavior: SnackBarBehavior.floating,
+      duration: Duration(seconds: long ? 8 : 4),
+    ));
+  }
+
   Future<void> _updateStatus(String id, String status) async {
+    if (_busyId != null) return;
+    setState(() => _busyId = id);
     try {
       await supabase.from('routes').update({'status': status}).eq('id', id);
-      _loadRoutes();
+      ref.invalidate(routesProvider);
+      await _loadRoutes();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      debugPrint('[fleet] route status update failed: $e');
+      _say('May not have started. Check the route before trying again. ($e)',
+          long: true);
+    } finally {
+      if (mounted) setState(() => _busyId = null);
     }
   }
 
   Future<void> _completeRoute(String id) async {
-    if (_odometerController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter final odometer reading')));
+    if (_busyId != null) return;
+    if (_odo(id).text.isEmpty) {
+      _say('Enter the final odometer reading first.');
       return;
     }
-    final odo = double.tryParse(_odometerController.text) ?? 0;
+    final odo = double.tryParse(_odo(id).text) ?? 0;
+    setState(() => _busyId = id);
 
     // Resolve tenantId
     final session = supabase.auth.currentSession;
@@ -88,189 +127,274 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         'p_route_id':       id,
         'p_final_odometer': odo,
         'p_returned_stock': <dynamic>[],  // stock stays on van by default
-        'p_actual_cash':    double.tryParse(_cashController.text) ?? 0,
+        'p_actual_cash':    double.tryParse(_cashFor(id).text) ?? 0,
         'p_tenant_id':      tenantId,
       });
-      _odometerController.clear();
-      _cashController.clear();
-      _loadRoutes();
+      _odo(id).clear();
+      _cashFor(id).clear();
+      ref.invalidate(routesProvider);
+      await _loadRoutes();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      debugPrint('[fleet] route reconcile failed: $e');
+      _say(
+          'May not have closed. Check the route before trying again. ($e)',
+          long: true);
+    } finally {
+      if (mounted) setState(() => _busyId = null);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        title: const Text('Route Management', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: AppColors.canvas,
-        foregroundColor: AppColors.inkPrimary,
-        elevation: 0,
-        actions: [
-          IconButton(icon: const Icon(LucideIcons.refreshCw, size: 18), onPressed: _loadRoutes),
+  /// Planned → In transit → Reconciled, with the steps reached filled in.
+  Widget _tracker(int reached) {
+    const labels = ['Planned', 'In transit', 'Reconciled'];
+    Widget dot(int i) => Container(
+          width: 20,
+          height: 20,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+              color: i <= reached ? Bl.ink : Bl.white,
+              shape: BoxShape.circle,
+              border: i <= reached
+                  ? null
+                  : Border.all(color: const Color(0xFFCFCFCF), width: 1.5)),
+          child: i <= reached
+              ? const BlIcon(BlIcons.check,
+                  size: 11, color: Bl.white, stroke: 3)
+              : null,
+        );
+    Widget bar(int i) => Expanded(
+          child: Container(
+              height: 2,
+              color: i < reached ? Bl.ink : const Color(0xFFE6E5E3)),
+        );
+    return Semantics(
+      label: 'Stage: ${labels[reached]}',
+      excludeSemantics: true,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(children: [dot(0), bar(0), dot(1), bar(1), dot(2)]),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              for (var i = 0; i < 3; i++)
+                Expanded(
+                  child: Text(labels[i],
+                      textAlign: i == 0
+                          ? TextAlign.left
+                          : i == 2
+                              ? TextAlign.right
+                              : TextAlign.center,
+                      style: Bl.inter(11.5,
+                          w: i == reached ? FontWeight.w600 : FontWeight.w500,
+                          c: i <= reached
+                              ? Bl.ink
+                              : const Color(0xFF8A9099))),
+                ),
+            ],
+          ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text('Error: $_error', style: const TextStyle(color: AppColors.error)))
-              : _routes.isEmpty
-                  ? const Center(child: Text('No assigned routes', style: TextStyle(color: AppColors.inkSecondary)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _routes.length,
-                      itemBuilder: (context, index) => _RouteCard(
-                        route: _routes[index],
-                        odometerController: _odometerController,
-                        cashController: _cashController,
-                        onStartTransit: () => _updateStatus(_routes[index]['id'], 'IN_TRANSIT'),
-                        onComplete:     () => _completeRoute(_routes[index]['id']),
-                      ),
-                    ),
     );
   }
-}
 
-class _RouteCard extends StatelessWidget {
-  final Map<String, dynamic> route;
-  final TextEditingController odometerController;
-  final TextEditingController cashController;
-  final VoidCallback onStartTransit;
-  final VoidCallback onComplete;
-
-  const _RouteCard({
-    required this.route,
-    required this.odometerController,
-    required this.cashController,
-    required this.onStartTransit,
-    required this.onComplete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _routeCard(Map<String, dynamic> route, Map<String, String> vans) {
     final id = route['id'] as String? ?? '';
-    final status = (route['status'] as String?) ?? 'PLANNED';
-    final location = route['location'] as String?;
-    final date = (route['date'] as String?)?.substring(0, 10) ?? '';
+    final status = ((route['status'] as String?) ?? 'PLANNED').toUpperCase();
+    final place = ((route['location'] as String?) ?? '').trim();
+    final van = vans[(route['vehicleId'] ?? route['vehicle_id'])?.toString()] ?? '';
+    final look = routeStatusLook(status);
+    final reached = status == 'IN_TRANSIT'
+        ? 1
+        : (status == 'PLANNED' || status == 'ACTIVE')
+            ? 0
+            : 2;
+    final busy = _busyId == id;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-      ),
+          color: Bl.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE6E5E3))),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Route #${id.length >= 8 ? id.substring(0, 8) : id}',
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                    color: look.$2, borderRadius: BorderRadius.circular(12)),
+                child: BlIcon(fleetRouteIcon, size: 18, color: look.$3),
               ),
-              _StatusBadge(status: status),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (location != null) Row(
-            children: [
-              const Icon(LucideIcons.mapPin, size: 14, color: AppColors.inkSecondary),
-              const SizedBox(width: 6),
-              Text(location, style: const TextStyle(color: AppColors.inkSecondary, fontSize: 13)),
-            ],
-          ),
-          if (date.isNotEmpty) Row(
-            children: [
-              const Icon(LucideIcons.calendar, size: 14, color: AppColors.inkSecondary),
-              const SizedBox(width: 6),
-              Text(date, style: const TextStyle(color: AppColors.inkSecondary, fontSize: 13)),
-            ],
-          ),
-          const Divider(height: 28),
-          if (status == 'PLANNED' || status == 'ACTIVE')
-            ElevatedButton.icon(
-              onPressed: onStartTransit,
-              icon: const Icon(LucideIcons.playCircle),
-              label: const Text('START TRANSIT'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentSignature,
-                minimumSize: const Size(double.infinity, 50),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        place.isEmpty
+                            ? 'Route #${id.length >= 8 ? id.substring(0, 8) : id}'
+                            : place,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Bl.tight(15, w: FontWeight.w600)),
+                    const SizedBox(height: 1),
+                    Text(
+                        [fleetDate(route['date'] as String?), van]
+                            .where((s) => s.isNotEmpty)
+                            .join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Bl.inter(12, c: const Color(0xFF7A8088))),
+                  ],
+                ),
               ),
-            )
-          else if (status == 'IN_TRANSIT')
-            Column(
+              const SizedBox(width: 8),
+              fleetPill(look),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _tracker(reached),
+          if (reached == 0) ...[
+            const SizedBox(height: 14),
+            BlButton('Start transit',
+                kind: BlButtonKind.soft,
+                loading: busy,
+                onTap: _busyId != null
+                    ? null
+                    : () => _updateStatus(id, 'IN_TRANSIT')),
+          ] else if (reached == 1) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
-                  controller: odometerController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Final Odometer Reading (km)',
-                    border: OutlineInputBorder(),
+                Expanded(
+                  child: BlField(
+                    label: 'Final odometer',
+                    hint: '0',
+                    controller: _odo(id),
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d{0,1}')),
+                    ],
+                    trailing: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text('km',
+                          style: Bl.inter(13,
+                              w: FontWeight.w500,
+                              c: const Color(0xFF7A8088))),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: cashController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Cash Collected (₹)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: onComplete,
-                  icon: const Icon(LucideIcons.checkCircle),
-                  label: const Text('COMPLETE & RECONCILE'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    minimumSize: const Size(double.infinity, 50),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: BlField(
+                    label: 'Cash collected',
+                    hint: '0',
+                    prefix: '₹',
+                    controller: _cashFor(id),
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d{0,2}')),
+                    ],
                   ),
                 ),
               ],
-            )
-          else
-            const Center(
-              child: Text(
-                'Route Closed & Reconciled',
-                style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 14),
+            BlSlide('Slide to complete and reconcile',
+                enabled: _busyId == null,
+                onConfirmed: () => _completeRoute(id)),
+          ] else ...[
+            const SizedBox(height: 14),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFE3F5EA),
+                  borderRadius: BorderRadius.circular(12)),
+              child: Row(
+                children: [
+                  const BlIcon(BlIcons.check,
+                      size: 18, color: Color(0xFF17663A), stroke: 2.6),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                        route['actual_cash'] == null
+                            ? 'Route closed and reconciled'
+                            : 'Route closed and reconciled · ${Money.inr((route['actual_cash'] as num?) ?? 0)} cash',
+                        style: Bl.tight(13.5,
+                            w: FontWeight.w600,
+                            c: const Color(0xFF17663A))),
+                  ),
+                ],
               ),
             ),
+          ],
         ],
       ),
     );
   }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final String status;
-  const _StatusBadge({required this.status});
 
   @override
   Widget build(BuildContext context) {
-    Color color;
-    switch (status.toUpperCase()) {
-      case 'IN_TRANSIT': color = Colors.blue;        break;
-      case 'ACTIVE':     color = Colors.indigo;      break;
-      case 'RECONCILED':
-      case 'COMPLETED':  color = AppColors.success;  break;
-      default:           color = AppColors.inkSecondary;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w900),
+    final vans = <String, String>{
+      for (final v in ref.watch(vehiclesProvider).valueOrNull ?? const [])
+        v.id: (v.name ?? '').trim(),
+    };
+    return Scaffold(
+      backgroundColor: Bl.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            const BlBackHeader(title: 'Route Management'),
+            Expanded(
+              child: _loading && _routes.isEmpty
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                          color: Bl.amber, strokeWidth: 2))
+                  : _error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                                'Could not load routes. Check your internet and try again. ($_error)',
+                                textAlign: TextAlign.center,
+                                style:
+                                    Bl.inter(13.5, c: Bl.redDeep, h: 1.5)),
+                          ),
+                        )
+                      : RefreshIndicator(
+                          color: Bl.amber,
+                          onRefresh: _loadRoutes,
+                          child: ListView(
+                            padding: const EdgeInsets.only(bottom: 24),
+                            children: [
+                              if (_routes.isEmpty)
+                                const BlEmpty(
+                                  icon: fleetRouteIcon,
+                                  title: 'No routes to manage',
+                                  message:
+                                      'Routes you are driving, or one you open from Vehicles, show here.',
+                                ),
+                              for (final r in _routes) _routeCard(r, vans),
+                            ],
+                          ),
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }

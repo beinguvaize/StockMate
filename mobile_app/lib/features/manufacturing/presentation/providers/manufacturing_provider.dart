@@ -40,9 +40,9 @@ class ProductionOrderModel {
         id: m['id'] as String,
         bomId: m['bom_id'] as String?,
         bomName: m['bom_name'] as String?,
-        qty: (m['qty'] as num?)?.toDouble() ?? 1,
+        qty: (m['qty_produced'] as num?)?.toDouble() ?? 0,
         status: (m['status'] as String? ?? 'PLANNED').toUpperCase(),
-        startDate: m['start_date'] as String?,
+        startDate: m['production_date'] as String?,
       );
 }
 
@@ -58,8 +58,10 @@ final bomsProvider = FutureProvider<List<BomModel>>((ref) async {
         .order('created_at', ascending: false);
     return (rows as List).map((r) => BomModel.fromJson(r as Map<String, dynamic>)).toList();
   } catch (e) {
+    // Rethrown: an empty list would read as "nothing here yet" when the
+    // truth is that it could not be loaded.
     debugPrint('[bomsProvider] failed: $e');
-    return [];
+    rethrow;
   }
 });
 
@@ -69,14 +71,19 @@ final productionOrdersProvider = FutureProvider<List<ProductionOrderModel>>((ref
   try {
     final rows = await supabase
         .from('production_orders')
-        .select('id, bom_id, bom_name, qty, status, start_date')
+        // The table has no bom_name, qty or start_date. Asking for them made
+        // Postgres reject the whole read (42703), so no order ever showed.
+        // The name comes from the BOM list, matched on bom_id.
+        .select('id, bom_id, qty_produced, status, production_date')
         .eq('tenant_id', ctx.tenantId)
         .isFilter('deleted_at', null)
         .order('created_at', ascending: false)
         .limit(100);
     return (rows as List).map((r) => ProductionOrderModel.fromJson(r as Map<String, dynamic>)).toList();
   } catch (e) {
+    // Rethrown: an empty list would read as "nothing here yet" when the
+    // truth is that it could not be loaded.
     debugPrint('[productionOrdersProvider] failed: $e');
-    return [];
+    rethrow;
   }
 });

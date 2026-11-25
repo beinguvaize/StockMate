@@ -24,7 +24,10 @@ class ReportsDataService {
     final data = await supabase
         .from('invoices')
         .select(
-            'id, sale_id, client_id, client_name, invoice_number, invoice_date, date, due_date, grand_total, taxable_amount, cgst_amount, sgst_amount, igst_amount, is_interstate, items, payment_status').isFilter('deleted_at', null)
+            // client_gstin is what GSTR-1 sorts B2B from B2C on. It was not
+            // selected, so every invoice read as B2C and the B2B tab was
+            // always empty.
+            'id, sale_id, client_id, client_name, client_gstin, invoice_number, invoice_date, date, due_date, grand_total, taxable_amount, cgst_amount, sgst_amount, igst_amount, is_interstate, items, payment_status').isFilter('deleted_at', null)
         .eq('tenant_id', tenantId)
         .gte('invoice_date', from)
         .lte('invoice_date', to);

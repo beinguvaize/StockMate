@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
-import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/features/logistics/data/models/vehicle.dart';
-import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
-import 'package:mobile_app/core/theme/dimens.dart';
-import 'package:mobile_app/core/widgets/app_button.dart';
-import 'package:mobile_app/core/theme/typography.dart';
-import '../../../core/widgets/app_surfaces.dart';
+import 'package:mobile_app/features/logistics/presentation/widgets/vehicle_picture.dart';
+import 'package:mobile_app/main.dart' show syncServiceProvider;
 
+/// "Add Vehicle" (canvas): pick the kind, name it, give it a plate and a
+/// status. The same screen edits a vehicle.
 class AddVehicleScreen extends ConsumerStatefulWidget {
-  /// When non-null the screen operates in edit mode.
+  /// Non-null = edit this vehicle.
   final Vehicle? vehicle;
-
   const AddVehicleScreen({super.key, this.vehicle});
 
   @override
@@ -25,39 +21,25 @@ class AddVehicleScreen extends ConsumerStatefulWidget {
 class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
   final _nameController = TextEditingController();
   final _plateController = TextEditingController();
-  final _driverController = TextEditingController();
   String _selectedStatus = 'ACTIVE';
+  VehicleKind _kind = VehicleKind.van;
   bool _isLoading = false;
+  String? _formError;
 
   bool get _isEditing => widget.vehicle != null;
 
   static const _statusOptions = ['ACTIVE', 'MAINTENANCE', 'OUT_OF_SERVICE'];
-  static const _statusLabels = {
-    'ACTIVE': 'Active',
-    'MAINTENANCE': 'Maintenance',
-    'OUT_OF_SERVICE': 'Out of Service',
-  };
-  static const _statusColors = {
-    'ACTIVE': AppColors.success,
-    'MAINTENANCE': Colors.orange,
-    'OUT_OF_SERVICE': AppColors.danger,
-  };
-  static const _statusIcons = {
-    'ACTIVE': LucideIcons.checkCircle,
-    'MAINTENANCE': LucideIcons.wrench,
-    'OUT_OF_SERVICE': LucideIcons.xCircle,
-  };
+  static const _statusLabels = ['Active', 'Maintenance', 'Out of service'];
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill fields when editing an existing vehicle
     final v = widget.vehicle;
     if (v != null) {
       _nameController.text = v.name ?? '';
       _plateController.text = v.displayPlate == '—' ? '' : v.displayPlate;
-      _driverController.text = v.driverName ?? '';
-      _selectedStatus = v.status ?? 'ACTIVE';
+      _selectedStatus = _statusOptions.contains(v.status) ? v.status! : 'ACTIVE';
+      _kind = vehicleKindOf(v.type);
     }
   }
 
@@ -65,30 +47,24 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
   void dispose() {
     _nameController.dispose();
     _plateController.dispose();
-    _driverController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (_nameController.text.isEmpty || _plateController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Vehicle name and plate number required',
-              style: GoogleFonts.manrope(color: Colors.white)),
-          backgroundColor: AppColors.danger,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      setState(() =>
+          _formError = 'Enter the vehicle name and its number plate.');
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _formError = null;
+    });
     try {
       final tenantCtx = ref.read(tenantContextProvider).valueOrNull;
       if (tenantCtx == null) {
-        throw Exception('No active workspace — sign in again.');
+        throw Exception('Could not tell which shop this is. Sign in again.');
       }
       // id + tenant_id are REQUIRED: vehicles.id has no default and tenant_id
       // defaults to a placeholder that fails RLS. Route through the offline
@@ -101,7 +77,10 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
         'name': _nameController.text.trim(),
         'plateNumber': _plateController.text.trim().toUpperCase(),
         'status': _selectedStatus,
-        'driverName': _driverController.text.trim(),
+        // No driver here: vehicles has no driver column, and sending one made
+        // Postgres reject the whole save (PGRST204). A vehicle's driver is
+        // whoever is on its route.
+        'type': vehicleKindValue(_kind),
       };
 
       await ref.read(syncServiceProvider).upsertOnlineOrQueue('vehicles', payload);
@@ -112,283 +91,185 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              _isEditing ? 'Vehicle updated' : 'Vehicle added to fleet',
-              style: GoogleFonts.manrope(color: AppColors.inkPrimary),
-            ),
-            backgroundColor: AppColors.primaryContainer,
+                _isEditing ? 'Vehicle updated' : 'Vehicle added to fleet'),
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e',
-                style: GoogleFonts.manrope(color: Colors.white)),
-            backgroundColor: AppColors.danger,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        debugPrint('[fleet] vehicle save failed: $e');
+        setState(() => _formError =
+            'May not have saved. Check the vehicle list before trying again. ($e)');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  Widget _kindCard(VehicleKind k) {
+    final on = _kind == k;
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: on,
+        label: vehicleKindLabel(k),
+        excludeSemantics: true,
+        child: BlTap(
+          onTap: () => setState(() => _kind = k),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
+            decoration: BoxDecoration(
+                color: on ? const Color(0xFFFFF8EC) : Bl.wellSoft,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: on ? Bl.brand : const Color(0x00FFFFFF),
+                    width: 1.5)),
+            child: Column(
+              children: [
+                VehiclePicture(k, width: 120),
+                const SizedBox(height: 4),
+                Text(vehicleKindLabel(k),
+                    style: Bl.tight(12,
+                        w: FontWeight.w600, ls: 0, c: on ? Bl.ink : Bl.body)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft,
-              size: 20, color: AppColors.inkPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _isEditing ? 'Edit Vehicle' : 'Add Vehicle',
-              style: GoogleFonts.manrope(
-                color: AppColors.inkPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-            Text(
-              'FLEET MANAGEMENT',
-              style: AppText.label.copyWith(color: AppColors.secondary,
-                letterSpacing: 1.5),
-            ),
-          ],
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+      backgroundColor: Bl.white,
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Vehicle icon header
-            Center(
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer.withValues(alpha: 0.25),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(LucideIcons.truck,
-                      size: 36, color: AppColors.primary),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                'FLEET VEHICLE',
-                style: AppText.label.copyWith(color: AppColors.inkSecondary,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2),
-              ),
-            ),
-            const SizedBox(height: 28),
-
-            // Vehicle details
-            SectionHeading('VEHICLE DETAILS', icon: LucideIcons.truck),
-            const SizedBox(height: 12),
-            _buildField(
-              label: 'Vehicle Name / Model',
-              hint: 'e.g. Tata Ace 2023',
-              controller: _nameController,
-              icon: LucideIcons.truck,
-            ),
-            const SizedBox(height: 12),
-            _buildField(
-              label: 'License Plate Number',
-              hint: 'e.g. MH 12 AB 1234',
-              controller: _plateController,
-              icon: LucideIcons.creditCard,
-              textCapitalization: TextCapitalization.characters,
-            ),
-            const SizedBox(height: 12),
-            _buildField(
-              label: 'Assigned Driver (Optional)',
-              hint: 'e.g. Suresh Patel',
-              controller: _driverController,
-              icon: LucideIcons.user,
-            ),
-
-            const SizedBox(height: 28),
-
-            // Status
-            SectionHeading('STATUS', icon: LucideIcons.activity),
-            const SizedBox(height: 12),
-            Column(
-              children: _statusOptions.map((status) {
-                final selected = _selectedStatus == status;
-                final color =
-                    _statusColors[status] ?? AppColors.inkSecondary;
-                final icon = _statusIcons[status] ?? LucideIcons.circle;
-                final label = _statusLabels[status] ?? status;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: AppTappable(
-   ripple: false,
-                    onTap: () => setState(() => _selectedStatus = status),
-                    child: AnimatedContainer(
-                      duration: Motion.durationOf(context, const Duration(milliseconds: 180)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+            BlBackHeader(title: _isEditing ? 'Edit Vehicle' : 'Add Vehicle'),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 8),
+                    Text('Which vehicle?',
+                        style: Bl.tight(24, w: FontWeight.w700, ls: -0.03)),
+                    const SizedBox(height: 12),
+                    Text('Vehicle type',
+                        style: Bl.tight(13, w: FontWeight.w600, c: Bl.ink3)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        _kindCard(VehicleKind.van),
+                        const SizedBox(width: 8),
+                        _kindCard(VehicleKind.miniTruck),
+                      ],
+                    ),
+                    BlField(
+                      label: 'Vehicle name or model',
+                      hint: 'e.g. Tata Ace 2023',
+                      controller: _nameController,
+                      capitalization: TextCapitalization.words,
+                    ),
+                    BlField(
+                      label: 'Number plate',
+                      hint: 'e.g. MH 12 AB 1234',
+                      controller: _plateController,
+                      capitalization: TextCapitalization.characters,
+                    ),
+                    const SizedBox(height: 12),
+                    Text('Status',
+                        style: Bl.tight(13, w: FontWeight.w600, c: Bl.ink3)),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
-                        color: selected
-                            ? color.withValues(alpha: 0.08)
-                            : AppColors.surface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: selected
-                              ? color
-                              : Colors.black.withValues(alpha: 0.08),
-                          width: selected ? 1.5 : 1,
-                        ),
-                      ),
+                          color: Bl.wellSoft,
+                          borderRadius: BorderRadius.circular(14)),
                       child: Row(
                         children: [
-                          Icon(icon,
-                              size: 18,
-                              color: selected
-                                  ? color
-                                  : AppColors.inkSecondary),
-                          const SizedBox(width: 12),
-                          Text(
-                            label,
-                            style: GoogleFonts.manrope(
-                              color: selected ? color : AppColors.inkSecondary,
-                              fontSize: 14,
-                              fontWeight: selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (selected)
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
+                          for (var i = 0; i < _statusOptions.length; i++)
+                            Expanded(
+                              child: Semantics(
+                                button: true,
+                                selected:
+                                    _selectedStatus == _statusOptions[i],
+                                label: _statusLabels[i],
+                                excludeSemantics: true,
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => setState(() =>
+                                      _selectedStatus = _statusOptions[i]),
+                                  child: Container(
+                                    height: 44,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: _selectedStatus ==
+                                              _statusOptions[i]
+                                          ? Bl.white
+                                          : null,
+                                      borderRadius:
+                                          BorderRadius.circular(11),
+                                      boxShadow: _selectedStatus ==
+                                              _statusOptions[i]
+                                          ? const [
+                                              BoxShadow(
+                                                  color: Color(0x1F000000),
+                                                  blurRadius: 2,
+                                                  offset: Offset(0, 1)),
+                                            ]
+                                          : null,
+                                    ),
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 4),
+                                        child: Text(_statusLabels[i],
+                                            maxLines: 1,
+                                            style: Bl.tight(13.5,
+                                                w: FontWeight.w600,
+                                                ls: 0,
+                                                c: _selectedStatus ==
+                                                        _statusOptions[i]
+                                                    ? Bl.ink
+                                                    : Bl.body)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                         ],
                       ),
                     ),
- ),
-                );
-              }).toList(),
+                    if (_formError != null)
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 9),
+                        decoration: BoxDecoration(
+                            color: Bl.redSoft,
+                            borderRadius: BorderRadius.circular(12)),
+                        child: Text(_formError!,
+                            style: Bl.inter(12.5,
+                                w: FontWeight.w500, c: Bl.redDeep)),
+                      ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 32),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+              child: BlButton(_isEditing ? 'Save changes' : 'Add to fleet',
+                  loading: _isLoading, onTap: _isLoading ? null : _submit),
+            ),
           ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _submit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryContainer,
-              foregroundColor: AppColors.inkPrimary,
-              disabledBackgroundColor:
-                  AppColors.primaryContainer.withValues(alpha: 0.4),
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: const StadiumBorder(),
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        color: AppColors.inkPrimary, strokeWidth: 2.5),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _isEditing ? LucideIcons.save : LucideIcons.plus,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _isEditing ? 'SAVE CHANGES' : 'ADD TO FLEET',
-                        style: AppText.label.copyWith(fontWeight: FontWeight.w700,
-                          letterSpacing: 1),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildField({
-    required String label,
-    required String hint,
-    required TextEditingController controller,
-    required IconData icon,
-    TextInputType? keyboardType,
-    TextCapitalization textCapitalization = TextCapitalization.words,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType ?? TextInputType.text,
-        textCapitalization: textCapitalization,
-        style: GoogleFonts.manrope(
-          fontSize: 14,
-          color: AppColors.inkPrimary,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon, size: 18, color: AppColors.inkSecondary),
-          border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          hintText: hint,
-          hintStyle: GoogleFonts.manrope(
-            color: AppColors.inkSecondary.withValues(alpha: 0.5),
-            fontSize: 14,
-          ),
-          labelText: label,
-          labelStyle: AppText.label.copyWith(color: AppColors.inkSecondary,
-            letterSpacing: 0.5),
-          floatingLabelBehavior: FloatingLabelBehavior.always,
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(
-                color: AppColors.primaryContainer, width: 1.5),
-          ),
-          enabledBorder: InputBorder.none,
         ),
       ),
     );
   }
 }
-

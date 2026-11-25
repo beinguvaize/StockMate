@@ -1,3 +1,4 @@
+import 'package:mobile_app/features/clients_suppliers/data/party_aging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' show OrderingTerm;
@@ -218,5 +219,26 @@ final saleReceiptsForClientProvider =
   } catch (e) {
     debugPrint('[saleReceiptsForClient] failed, statement falls back to sale dates: $e');
     return [];
+  }
+});
+
+/// How old each supplier's unpaid bills are, keyed by supplier id. Null when
+/// it cannot be worked out (offline, or the query failed).
+final supplierAgingProvider =
+    FutureProvider<Map<String, PartyAging>?>((ref) async {
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return null;
+  try {
+    final bills = await supabase
+        .from('purchases')
+        .select('supplier_id, total_amount, paid_amount, date')
+        .eq('tenant_id', ctx.tenantId)
+        .isFilter('deleted_at', null)
+        .limit(10000);
+    return supplierAging(
+        (bills as List).cast<Map<String, dynamic>>(), DateTime.now());
+  } catch (e) {
+    debugPrint('[supplierAging] could not load: $e');
+    return null;
   }
 });
