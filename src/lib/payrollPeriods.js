@@ -442,7 +442,23 @@ export function needsOverlapConfirmation(items = [], overlappingRuns = []) {
  * A prior run that only PARTLY overlaps is pro-rated by the days shared with
  * the window. A run covering 1-8 Aug overlapping a 5-10 Aug window paid for
  * four of its eight days inside that window, so half of it counts.
+ *
+ * A day-rate line is only ever pay for days already worked, so an earlier run
+ * stops counting at the day it was processed. Without that, a whole-month run
+ * made mid-month was spread over the days still to come, and every single-day
+ * run for the rest of the month offered a little less than the day's rate.
  */
+const SHOP_DAY = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+
+/** The shop's calendar day a run was processed on, or null if unreadable. */
+function processedDay(stamp) {
+  if (!stamp) return null;
+  const d = new Date(stamp);
+  return Number.isNaN(d.getTime()) ? null : SHOP_DAY.format(d);
+}
+
 export function paidForWindow({ from, to, employeeId, records = [] } = {}) {
   if (!from || !to || !employeeId) return 0;
   const wFrom = parseISO(from), wTo = parseISO(to);
@@ -456,16 +472,25 @@ export function paidForWindow({ from, to, employeeId, records = [] } = {}) {
     const p = parsePeriod(r.period);
     if (!p) continue;
 
-    // Intersection of the prior run's period with this window.
-    const lo = p.from > from ? p.from : from;
-    const hi = p.to   < to   ? p.to   : to;
-    if (lo > hi) continue;
-
     const item = (r.items || []).find(i => i.employeeId === employeeId);
     const net = Number(item?.netPay || 0);
     if (net <= 0) continue;
 
-    const runDays = dayCount(p.from, p.to);
+    // Day-rate pay covers nothing after the day the run was made. Only ever
+    // shortens the period, and never to before it starts, so a run dated ahead
+    // of its own processing still counts for the days it names.
+    let pTo = p.to;
+    if (['DAILY', 'HOURLY'].includes(String(item.payType || '').toUpperCase())) {
+      const done = processedDay(r.processed_at);
+      if (done && done >= p.from && done < pTo) pTo = done;
+    }
+
+    // Intersection of the prior run's period with this window.
+    const lo = p.from > from ? p.from : from;
+    const hi = pTo    < to   ? pTo    : to;
+    if (lo > hi) continue;
+
+    const runDays = dayCount(p.from, pTo);
     const shared  = dayCount(lo, hi);
     if (runDays <= 0 || shared <= 0) continue;
 
