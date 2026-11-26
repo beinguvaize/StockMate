@@ -355,8 +355,14 @@ class _LogisticsScreenState extends ConsumerState<LogisticsScreen> {
                         title: 'No vehicles yet',
                         message: 'Tap Add vehicle to put your first one in.',
                       ),
+                    // The usual driver saved on the vehicle; failing that,
+                    // whoever is on its route.
                     for (final v in vehicles)
-                      _vehicleCard(v, drivers[v.id] ?? ''),
+                      _vehicleCard(
+                          v,
+                          (v.driverName ?? '').trim().isNotEmpty
+                              ? v.driverName!.trim()
+                              : drivers[v.id] ?? ''),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
                       child: Row(

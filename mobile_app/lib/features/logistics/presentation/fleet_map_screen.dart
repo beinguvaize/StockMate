@@ -246,7 +246,7 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
                                                 BorderSide(color: Bl.sep))),
                                     child: Row(
                                       children: [
-                                        VehiclePicture(v.kind, width: 64),
+                                        VehiclePicture(v.kind, width: 64, ground: Bl.white),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(

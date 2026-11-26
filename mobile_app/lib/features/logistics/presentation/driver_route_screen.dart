@@ -250,7 +250,7 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
                             color: Bl.white,
                             borderRadius: BorderRadius.circular(12)),
                         child: VehiclePicture(vehicleKindOf(vehicle?.type),
-                            width: 52),
+                            width: 52, ground: Bl.white),
                       ),
                     ),
                   ),

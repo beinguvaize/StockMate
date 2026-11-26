@@ -1,0 +1,16 @@
+-- A vehicle's usual driver.
+--
+-- The phone has always sent "driverName" when saving a vehicle, but the column
+-- never existed, so PostgREST rejected the whole save (PGRST204) and no vehicle
+-- could be added or edited from the phone. v1.7.32 stopped sending it; the
+-- owner then asked for the field itself (25 Nov 2026).
+--
+-- Free text, optional. It is who normally takes this vehicle out, shown on the
+-- vehicle card. The driver of a ROUTE is still routes."driverId" and is what
+-- pay, stops and reconciliation use; this column drives nothing.
+--
+-- camelCase and quoted to match the table's other legacy columns
+-- ("plateNumber", "fuelType"). Additive and nullable: shop restore copies rows
+-- with jsonb_populate_record, so older backup files without the key restore
+-- with NULL here.
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS "driverName" text;
