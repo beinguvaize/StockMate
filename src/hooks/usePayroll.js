@@ -243,12 +243,6 @@ export const usePayroll = (tenantId) => {
     return { success: true, expensesReversed: reversed?.length || 0, amountReversed: total };
   };
 
-  const resetEmployeesDailyData = async () => {
-    const { error } = await supabase.from('employees').update({ days_worked: 0 }).eq('tenant_id', tenantId);
-    if (!error) await fetchPayrollData();
-    return { success: !error, error };
-  };
-
   // ── Attendance ────────────────────────────────────────────────────────
   //
   // These read and wrote `date` and `ot_hours`. The table has neither: the
@@ -350,7 +344,6 @@ export const usePayroll = (tenantId) => {
     deleteEmployee,
     processPayroll,
     deletePayrollRecord,
-    resetEmployeesDailyData,
     loadAttendance,
     markAttendance,
     saveAttendanceBatch,
