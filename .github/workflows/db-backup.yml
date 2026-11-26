@@ -1,4 +1,7 @@
-# Nightly prod database backup → Cloudflare R2.
+# Weekly prod database backup → Cloudflare R2.
+# Owner's choice (25 Nov 2026): once a week, not nightly. The most that can be
+# lost is therefore seven days; run it by hand (Actions → Run workflow) before
+# any risky database change.
 #
 # Closes the gap that Supabase Free has no automated backups. Dumps the
 # prod Postgres with pg_dump, gzips it, and uploads to an R2 bucket
@@ -26,12 +29,13 @@
 # secret, checks the dump actually contains data rather than just headers, and
 # confirms the uploaded object exists in R2 before reporting success.
 
-name: Nightly · DB backup to R2
+name: Weekly · DB backup to R2
 
 on:
   schedule:
     # 20:30 UTC = 02:00 IST — well after close, low traffic.
-    - cron: '30 20 * * *'
+    # Sunday 20:30 UTC = Monday 02:00 India time.
+    - cron: '30 20 * * 0'
   workflow_dispatch:
 
 jobs:
@@ -103,18 +107,18 @@ jobs:
           fi
 
           echo "Uploading to R2…"
-          aws s3 cp "$file" "s3://${R2_BUCKET}/daily/${file}" \
+          aws s3 cp "$file" "s3://${R2_BUCKET}/weekly/${file}" \
             --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
           # Confirm it is actually there. An upload that silently no-ops would
           # otherwise report success, which is the fault this job already had.
-          found=$(aws s3 ls "s3://${R2_BUCKET}/daily/${file}" \
+          found=$(aws s3 ls "s3://${R2_BUCKET}/weekly/${file}" \
                  --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" | grep -c "$file" || true)
           if [ "${found:-0}" -lt 1 ]; then
             echo "::error::Upload reported success but the object is not in the bucket."
             exit 1
           fi
-          echo "✓ Backup verified in R2: daily/${file} (${size} bytes)"
+          echo "✓ Backup verified in R2: weekly/${file} (${size} bytes)"
 
   # A cron job's red cross is addressed to nobody. These four failed every run
   # from June to October without anyone noticing.
@@ -123,7 +127,7 @@ jobs:
     if: always() && github.event_name == 'schedule'
     uses: ./.github/workflows/scheduled-failure-issue.yml
     with:
-      job: Nightly DB backup to R2
+      job: Weekly DB backup to R2
       outcome: ${{ needs.backup.result }}
     permissions:
       issues: write
