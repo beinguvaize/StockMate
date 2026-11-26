@@ -6,6 +6,7 @@ import Modal from '../../../shared/Modal';
 import Button from '../../../shared/Button';
 import { TAX_SLABS, TAX_SLABS_WITH_CESS, UNITS } from '../../../lib/constants';
 import { uploadProductImage, listTenantProductImages } from '../../../lib/supabase';
+import { shrinkImageFile } from '../../../lib/imageShrink';
 import { useTenant } from '../../../context/TenantContext';
 import { PACK_KEYS, fieldsFor, cleanAttributes, validateAttributes } from '../../../lib/sectorFields';
 
@@ -195,7 +196,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
 
       let imageUrl = formData.image || '';
       if (imageFile) {
-        const { url, error } = await uploadProductImage(imageFile, tenantId);
+        // Stored as a small thumbnail, never the camera original.
+        const small = await shrinkImageFile(imageFile);
+        if (small.error) {
+          setSaveError(small.error);
+          setUploading(false);
+          return;
+        }
+        const { url, error } = await uploadProductImage(small.file, tenantId);
         if (error) {
           setSaveError('Image upload failed: ' + error);
           setUploading(false);

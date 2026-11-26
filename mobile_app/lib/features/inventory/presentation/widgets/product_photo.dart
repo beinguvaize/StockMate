@@ -62,6 +62,10 @@ class ProductPicture extends StatelessWidget {
               cacheWidth: px,
               fit: BoxFit.cover,
               excludeFromSemantics: true,
+              // Initials until the picture arrives, so a slow connection
+              // shows a labelled tile rather than a blank one.
+              frameBuilder: (_, child, frame, sync) =>
+                  sync || frame != null ? child : initials,
               errorBuilder: (_, _, _) => initials)
           : initials,
     );
@@ -111,16 +115,18 @@ Future<PhotoChoice?> askPhotoChoice(BuildContext context,
       },
     );
 
-/// Take or choose a picture, already shrunk: at most 1000 px on its long side
-/// and re-saved as a lighter JPEG, so a 4 MB camera shot uploads as roughly
-/// 100 to 200 KB. Null when the owner backs out.
+/// Take or choose a picture, already shrunk to a thumbnail: at most 256 px on
+/// its long side and re-saved as a light JPEG, so a 4 MB camera shot uploads
+/// as roughly 10 KB. The biggest place a product photo is shown is about a
+/// hundred points across, so nothing larger is ever needed. The web makes the
+/// same size (src/lib/imageShrink.js). Null when the owner backs out.
 Future<XFile?> pickShrunkPhoto(PhotoChoice choice) => ImagePicker().pickImage(
       source: choice == PhotoChoice.camera
           ? ImageSource.camera
           : ImageSource.gallery,
-      maxWidth: 1000,
-      maxHeight: 1000,
-      imageQuality: 78,
+      maxWidth: 256,
+      maxHeight: 256,
+      imageQuality: 68,
     );
 
 /// Upload a picked photo and return its public address.
