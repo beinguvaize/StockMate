@@ -12,9 +12,9 @@ import { DollarSign, Trash2, X, Check, CreditCard, UserPlus, Lock, Receipt, Link
 import PayrollHeader from '../components/payroll/PayrollHeader';
 import EmployeeTable from '../components/payroll/EmployeeTable';
 import PayHistory from '../components/payroll/PayHistory';
-import { todayISOInAppTZ } from '../lib/utils';
 import { PT_STATES } from '../lib/statutory';
 import { buildPayRun, netOf } from '../lib/payRun';
+import { staffDues } from '../lib/staffDues';
 import { needsOverlapConfirmation } from '../lib/payrollPeriods';
 import { iso } from '../lib/reportPeriods';
 import { classifyWriteFailure } from '../lib/writeOutcome';
@@ -35,14 +35,14 @@ const isDailyWage = (t) => ['DAILY', 'HOURLY'].includes(String(t || '').toUpperC
 const DEPARTMENTS = ['Operations', 'Sales', 'Warehouse', 'Delivery', 'Management', 'Admin'];
 
 const Payroll = () => {
-  const { hasPermission, hasRole } = useAuth();
+  const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   // Named so a bank or UPI payslip can say which account the money left.
   const { accounts: payAccounts = [] } = useAccounts(currentTenantId);
   const { users } = usePeople(currentTenantId);
   const {
     employees, addEmployee, updateEmployee, deleteEmployee,
-    payrollRecords, payrollPaymentMethods, processPayroll, deletePayrollRecord, resetEmployeesDailyData,
+    payrollRecords, payrollPaymentMethods, processPayroll, deletePayrollRecord,
     loadAttendance, saveAttendanceBatch,
     loading: payLoading
   } = usePayroll(currentTenantId);
@@ -369,7 +369,7 @@ const Payroll = () => {
   const [empForm, setEmpForm] = useState({
   name: '', email: '', phone: '', department: DEPARTMENTS[0],
   position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '',
-  dailyRate: 500, daysWorked: 0, userId: '',
+  dailyRate: 500, userId: '',
   dob: '', gender: '', bloodGroup: '', emergencyContact: '',
   joiningDate: '', employmentType: 'FULL_TIME',
   aadhaar: '', pan: '', pfAccount: '', esiNo: '',
@@ -377,16 +377,12 @@ const Payroll = () => {
   professionalTaxState: '', tdsMonthly: 0,
 });
   
-  // Modals state
-  const [showSalaryModal, setShowSalaryModal] = useState(false);
-  const [salaryPayment, setSalaryPayment] = useState({ empId: null, amount: '', date: todayISOInAppTZ(), notes: ''});
-
   const viewOnly = isViewOnly();
 
   // ===== EMPLOYEE CRUD =====
   const openAdd = () => {
   setEditingEmployee(null);
-  setEmpForm({ name: '', email: '', phone: '', department: DEPARTMENTS[0], position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '', dailyRate: 500, daysWorked: 0, userId: '', dob: '', gender: '', bloodGroup: '', emergencyContact: '', joiningDate: '', employmentType: 'FULL_TIME', aadhaar: '', pan: '', pfAccount: '', esiNo: '',
+  setEmpForm({ name: '', email: '', phone: '', department: DEPARTMENTS[0], position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '', dailyRate: 500, userId: '', dob: '', gender: '', bloodGroup: '', emergencyContact: '', joiningDate: '', employmentType: 'FULL_TIME', aadhaar: '', pan: '', pfAccount: '', esiNo: '',
     epfEnabled: false, epfOnFullWage: false, esiEnabled: false, professionalTaxState: '', tdsMonthly: 0,
     status: 'ACTIVE', paidLeavePerMonth: 0 });
   setShowForm(true);
@@ -400,7 +396,6 @@ const Payroll = () => {
   payType: emp.pay_type || emp.payType || 'MONTHLY', basePay: emp.salary ?? emp.basePay ?? '',
   bankAccount: emp.bank_account || emp.bankAccount || '', notes: emp.notes || '',
   dailyRate: emp.daily_rate ?? emp.dailyRate ?? 500,
-  daysWorked: emp.days_worked ?? emp.daysWorked ?? 0,
   userId: emp.user_id || '',
   dob: emp.dob || '', gender: emp.gender || '', bloodGroup: emp.blood_group || '',
   emergencyContact: emp.emergency_contact || '', joiningDate: emp.joining_date || '',
@@ -421,14 +416,14 @@ const Payroll = () => {
   e.preventDefault();
   if (isSaving) return;
   const dailyRate = parseFloat(empForm.dailyRate) || 0;
-  const daysWorked = parseFloat(empForm.daysWorked) || 0;
-  const basePay = (dailyRate > 0 && daysWorked > 0) ? (dailyRate * daysWorked) : (parseFloat(empForm.basePay) || 0);
+  // Days worked are not typed here any more: they come from the attendance
+  // grid. The salary is what was typed, never rate x a typed day count.
+  const basePay = parseFloat(empForm.basePay) || 0;
 
   const data = {
   ...empForm,
   basePay,
   dailyRate,
-  daysWorked,
   user_id: empForm.userId || null,
 };
   setIsSaving(true);
@@ -459,25 +454,6 @@ const Payroll = () => {
   updateEmployee({ ...emp, status: emp.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'});
 };
 
-  const handleMonthlyReset = async () => {
-  if (!hasRole('OWNER')) return;
-  if (confirm("Reset ALL active personnel days worked to zero for the new month?")) {
-  await resetEmployeesDailyData();
-}
-};
-
-  const handleMarkSalaryPaid = (e) => {
-  e.preventDefault();
-  const emp = employees.find(e => e.id === salaryPayment.empId);
-  if (emp) {
-  updateEmployee({
-  ...emp,
-  amountPaid: (emp.amountPaid || 0) + parseFloat(salaryPayment.amount)
-});
-  setShowSalaryModal(false);
-}
-};
-
   // ===== PAYROLL RUN LOGIC =====
   // What each employee has already been paid for the month on screen, and the
   // windows that money covered. The grid used to show only a month-to-date
@@ -502,6 +478,13 @@ const Payroll = () => {
   }), [employees, attendance, payrollRecords, periodFrom, periodTo, includeOnLeave]);
 
   const buildPayRunItems = useCallback(() => payRun.items, [payRun]);
+
+  // The staff table: earned, paid and still owed for the month on screen, from
+  // the same calculation as the run. Always the whole month, whatever period
+  // the run modal is set to -- the phone's "Still to pay" uses the same window.
+  const staffRows = useMemo(
+    () => staffDues({ employees, attendance, records: payrollRecords, month: payRunMonth }),
+    [employees, attendance, payrollRecords, payRunMonth]);
 
   const openPayRun = () => {
     setIncludeOnLeave([]);
@@ -704,13 +687,13 @@ const Payroll = () => {
     [payRunItems]);
 
   useEffect(() => {
-    if (showForm || showPayRunModal || showSalaryModal || deleteConfirm) {
+    if (showForm || showPayRunModal || deleteConfirm) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => { document.body.style.overflow = 'unset'; };
-  }, [showForm, showPayRunModal, showSalaryModal, deleteConfirm]);
+  }, [showForm, showPayRunModal, deleteConfirm]);
 
   /**
    * Re-read the month from the server and show what is actually there.
@@ -720,12 +703,15 @@ const Payroll = () => {
    * answer is to go and look. It drops the pending buffer, which is correct
    * HERE and nowhere else -- the server's answer is now the truth on screen.
    */
+  // The staff table shows no figures while this is true: an empty grid would
+  // read as nobody having worked.
+  const [attLoadFailed, setAttLoadFailed] = useState(false);
   const reloadAttendance = useCallback(async () => {
     if (!currentTenantId) return;
     setAttLoading(true);
     const map = await loadAttendance(attYear, attMonth);
-    if (map?.error) { setAttSaveError(attNotice('Could not load attendance', map.error.message)); setSavedAtt({}); }
-    else { setSavedAtt(map); setAttSaveError(null); }
+    if (map?.error) { setAttSaveError(attNotice('Could not load attendance', map.error.message)); setSavedAtt({}); setAttLoadFailed(true); }
+    else { setSavedAtt(map); setAttSaveError(null); setAttLoadFailed(false); }
     setPendingAtt({});
     setAttPicker(null);
     setAttLoading(false);
@@ -751,8 +737,6 @@ const Payroll = () => {
   lastPayRun={lastPayRun}
   currencySymbol={businessProfile?.currencySymbol || '₹'}
   viewOnly={viewOnly}
-  hasRole={hasRole}
-  handleMonthlyReset={handleMonthlyReset}
   openPayRun={openPayRun}
   openAdd={openAdd}
   />
@@ -781,13 +765,16 @@ const Payroll = () => {
   </div>
 
   {activeTab === 'EMPLOYEES' && (
-  <EmployeeTable 
-  employees={employees}
+  <EmployeeTable
+  rows={staffRows}
+  monthLabel={new Date(attYear, attMonth - 1).toLocaleString('default', { month: 'short', year: 'numeric' })}
+  onPrevMonth={goPrevMonth}
+  onNextMonth={goNextMonth}
+  loading={attLoading}
+  unavailable={attLoadFailed}
   updateEmployee={updateEmployee}
   openEdit={openEdit}
   setDeleteConfirm={setDeleteConfirm}
-  setSalaryPayment={setSalaryPayment}
-  setShowSalaryModal={setShowSalaryModal}
   currencySymbol={businessProfile?.currencySymbol || '₹'}
   viewOnly={viewOnly}
   departments={DEPARTMENTS}
@@ -1196,42 +1183,6 @@ const Payroll = () => {
   </div>
   </div>
 
-  {/* Mark Salary Paid Modal */}
-  {showSalaryModal && (
-  <div className="modal-overlay z-50">
-  <div className="glass-modal !max-w-[400px]">
-  <div className="flex justify-between items-start mb-4">
-  <div>
-  <h2 className="text-xl font-semibold text-ink-primary">Record Payment</h2>
-  <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-6 uppercase">Pay Employee Salary</p>
-  </div>
-  <button onClick={() => setShowSalaryModal(false)} className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-primary transition-all">
-  <X size={16} />
-  </button>
-  </div>
-  <form onSubmit={handleMarkSalaryPaid} className="space-y-4">
-  <div>
-  <label className="text-[10px] font-semibold text-ink-secondary opacity-70 block mb-2">Amount Paying</label>
-  <div className="flex items-center gap-2 bg-canvas px-4 py-3 rounded-xl border border-black/10">
-  <span className="text-sm font-semibold text-ink-secondary">{businessProfile?.currencySymbol || '₹'}</span>
-  <input type="number" step="0.01" required className="w-full bg-transparent border-none text-base font-semibold text-ink-primary outline-none" value={salaryPayment.amount} onChange={e => setSalaryPayment({...salaryPayment, amount: e.target.value})} />
-  </div>
-  </div>
-  <div>
-  <label className="text-[10px] font-semibold text-ink-secondary opacity-70 block mb-2">Payment Date</label>
-  <input type="date" required className="w-full bg-canvas px-4 py-3 rounded-xl border border-black/10 text-sm font-semibold text-ink-primary outline-none" value={salaryPayment.date} onChange={e => setSalaryPayment({...salaryPayment, date: e.target.value})} />
-  </div>
-  <div>
-  <label className="text-[10px] font-semibold text-ink-secondary opacity-70 block mb-2">Notes (Optional)</label>
-  <input type="text" className="w-full bg-canvas px-4 py-3 rounded-xl border border-black/10 text-sm font-semibold text-ink-primary outline-none" value={salaryPayment.notes} onChange={e => setSalaryPayment({...salaryPayment, notes: e.target.value})} />
-  </div>
-  <button type="submit" className="w-full btn-signature py-2 rounded-xl mt-4 text-xs font-semibold">
-  RECORD SALARY PAYMENT
-  </button>
-  </form>
-  </div>
-  </div>
-  )}
 
   {/* Employee Form Modal */}
   {showForm && (
@@ -1389,50 +1340,14 @@ const Payroll = () => {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1">{empForm.payType === 'DAILY' ? 'Daily rate (₹)' : 'Hourly rate (₹)'}</label>
+              <label className="block text-[11px] font-medium text-ink-secondary mb-1">Daily rate (₹)</label>
               <input required type="number" step="0.01" placeholder="e.g. 500"
                 className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
                 value={empForm.dailyRate} onChange={e => setEmpForm({...empForm, dailyRate: e.target.value})} />
             </div>
-            <div>
-              <label className="block text-[11px] font-medium text-ink-secondary mb-1">
-                {empForm.payType === 'DAILY' ? 'Days worked (this cycle)' : 'Hours worked (this cycle)'}
-              </label>
-              <input type="number" placeholder="0"
-                className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
-                value={empForm.daysWorked} onChange={e => setEmpForm({...empForm, daysWorked: e.target.value})} />
-            </div>
-            {/* The wage is rate × units, worked out silently at save time. You
-                were typing two numbers and only finding out what got stored
-                afterwards — show it as it is typed. */}
-            {(() => {
-              const sym  = businessProfile?.currencySymbol || '₹';
-              const rate = parseFloat(empForm.dailyRate) || 0;
-              const unit = parseFloat(empForm.daysWorked) || 0;
-              const noun = empForm.payType === 'DAILY' ? 'day' : 'hour';
-              if (!(rate > 0)) return null;
-              return (
-                <div className="col-span-2 -mt-1">
-                  {unit > 0 ? (
-                    <div className="flex items-baseline justify-between rounded-lg bg-canvas border border-black/8 px-3 py-2">
-                      <span className="text-[11px] font-medium text-ink-secondary">
-                        Wage this cycle
-                        <span className="text-muted-foreground ml-1.5 tabular-nums">
-                          {sym}{rate.toLocaleString('en-IN')} × {unit.toLocaleString('en-IN')} {noun}{unit === 1 ? '' : 's'}
-                        </span>
-                      </span>
-                      <span className="text-sm font-bold tabular-nums text-ink-primary">
-                        {sym}{(rate * unit).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="text-[10px] text-muted-foreground">
-                      {sym}{rate.toLocaleString('en-IN')} per {noun}. Add {noun}s worked to record a wage for this cycle — attendance drives the actual pay run.
-                    </p>
-                  )}
-                </div>
-              );
-            })()}
+            <p className="col-span-2 -mt-1 text-[10px] text-muted-foreground">
+              Paid for the days marked on the Attendance tab. Half day pays half.
+            </p>
           </div>
         )}
         <div className="grid grid-cols-2 gap-3 mt-3">

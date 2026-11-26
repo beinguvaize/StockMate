@@ -7,8 +7,6 @@ const PayrollHeader = ({
   lastPayRun,
   currencySymbol,
   viewOnly,
-  hasRole,
-  handleMonthlyReset,
   openPayRun,
   openAdd,
 }) => {
@@ -71,15 +69,6 @@ const PayrollHeader = ({
 
         {/* Action buttons */}
         <div className="flex flex-col gap-2 md:w-56 justify-center">
-          {!viewOnly && hasRole('OWNER') && (
-            <button
-              className="h-10 rounded-pill bg-white border border-black/5 text-ink-primary font-bold text-[9px] uppercase tracking-widest hover:bg-black/5 transition-all shadow-sm flex items-center justify-center gap-2"
-              onClick={handleMonthlyReset}
-            >
-              <Calendar size={12} className="opacity-40" />
-              Reset Days (New Month)
-            </button>
-          )}
           {!viewOnly && (
             <button
               className="h-10 rounded-pill bg-white border border-black/5 text-ink-primary font-bold text-[9px] uppercase tracking-widest hover:bg-black/5 transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"

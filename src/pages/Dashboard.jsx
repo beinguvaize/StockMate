@@ -12,6 +12,7 @@ import { useSales } from '../hooks/useSales';
 import { usePurchases } from '../hooks/usePurchases';
 import { useFinance } from '../hooks/useFinance';
 import { usePeople } from '../hooks/usePeople';
+import { useStaffDues } from '../hooks/useStaffDues';
 import { useOperations } from '../hooks/useOperations';
 import { useAccounts } from '../hooks/useAccounts';
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, ArrowUpRight, ArrowDownRight, LayoutDashboard, Activity, Users, Calendar} from 'lucide-react';
@@ -105,6 +106,9 @@ const Dashboard = () => {
   const { purchases, refetch: refetchPurchases, loading: purLoading } = usePurchases(currentTenantId, { withReturns: false, withPayments: false });
   const { expenses, dayBook, refetch: refetchFinance, loading: finLoading } = useFinance(currentTenantId);
   const { clients, employees, refetch: refetchPeople } = usePeople(currentTenantId);
+  // What staff are still owed this month, from attendance and pay runs.
+  const staffDue = useStaffDues(currentTenantId, employees);
+  const refetchStaffDue = staffDue.refetch;
   const { routes, movementLog, refetch: refetchOps } = useOperations(currentTenantId);
   const { accounts, balances: accountBalances } = useAccounts(currentTenantId);
 
@@ -129,9 +133,9 @@ const Dashboard = () => {
 
   const refetchAll = useCallback(() => {
     refetchInventory(); refetchSales(); refetchPurchases();
-    refetchFinance(); refetchPeople(); refetchOps();
+    refetchFinance(); refetchPeople(); refetchOps(); refetchStaffDue();
     fetchKpis();
-  }, [refetchInventory, refetchSales, refetchPurchases, refetchFinance, refetchPeople, refetchOps, fetchKpis]);
+  }, [refetchInventory, refetchSales, refetchPurchases, refetchFinance, refetchPeople, refetchOps, refetchStaffDue, fetchKpis]);
 
   useRefetchOnFocus(refetchAll, 15_000);
 
@@ -244,13 +248,9 @@ const Dashboard = () => {
    [clients]
  );
 
- const salariesPending = useMemo(
-   () => (employees || []).reduce((sum, e) => {
-     const earned = (e.dailyRate ?? e.daily_rate ?? 500) * (e.daysWorked ?? e.days_worked ?? 0);
-     return sum + Math.max(0, earned - (e.amountPaid ?? e.amount_paid ?? 0));
-   }, 0),
-   [employees]
- );
+ // null until attendance and pay runs have been read: the tile shows a dash
+ // rather than a 0 nobody checked.
+ const salariesPending = staffDue.ready ? staffDue.total : null;
 
  const lowStockProducts = useMemo(
    () => (products || []).filter(p => {
@@ -268,8 +268,8 @@ const Dashboard = () => {
    [products, inventoryBalances]
  );
  const pendingSalaryAlerts = useMemo(
-   () => (employees || []).filter(e => ((e.dailyRate ?? e.daily_rate ?? 500) * (e.daysWorked ?? e.days_worked ?? 0)) > (e.amountPaid ?? e.amount_paid ?? 0)),
-   [employees]
+   () => staffDue.rows.filter(r => r.pending > 0),
+   [staffDue.rows]
  );
 
  // Chart 1: Daily Sales This Week
@@ -640,7 +640,7 @@ const Dashboard = () => {
    { label: 'Cash Balance',            value: Math.round(currentCashBalance),                                                                                icon: <DollarSign size={16} />,  tone: 'amber', to: '/daybook' },
    { label: 'Outstanding',             value: Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding),               icon: <Activity size={16} />,    tone: 'amber', to: '/clients' },
    { label: `${datePreset} Purchases`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases), icon: <ShoppingBag size={16} />, tone: 'slate', to: '/purchases' },
-   { label: 'Salary Pending',          value: Math.round(salariesPending),                                                                                   icon: <Users size={16} />,       tone: 'slate', to: '/payroll' },
+   { label: 'Salary Pending',          value: salariesPending === null ? null : Math.round(salariesPending),                                                                                   icon: <Users size={16} />,       tone: 'slate', to: '/payroll' },
  ].map((m, i) => {
    const chip = { emerald: 'bg-emerald-50 text-emerald-600', rose: 'bg-rose-50 text-rose-500', amber: 'bg-accent-signature/10 text-accent-signature', slate: 'bg-slate-100 text-slate-500' }[m.tone];
    const d = typeof m.delta === 'number' ? m.delta : null;
@@ -659,7 +659,7 @@ const Dashboard = () => {
        )}
      </div>
      <div className="text-[22px] font-bold tabular-nums leading-none text-ink-primary mt-1">
-       <span className="text-accent-signature/70 text-sm mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{m.value.toLocaleString('en-IN')}
+       <span className="text-accent-signature/70 text-sm mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{m.value === null ? '—' : m.value.toLocaleString('en-IN')}
      </div>
      <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{m.label}</div>
    </div>
@@ -1078,23 +1078,27 @@ const Dashboard = () => {
      <span className="text-[10px] font-black text-accent-signature bg-accent-signature/10 border border-accent-signature/15 px-2 py-0.5 rounded-lg">{pendingSalaryAlerts.length}</span>
    </div>
    <div className="flex-1 overflow-y-auto divide-y divide-black/5">
-     {pendingSalaryAlerts.length === 0 ? (
+     {!staffDue.ready ? (
+       <div className="h-full flex items-center justify-center px-5 text-center text-[11px] text-muted-foreground font-semibold">
+         {staffDue.error ? 'Salary dues could not be loaded. Open Payroll to check.' : 'Loading…'}
+       </div>
+     ) : pendingSalaryAlerts.length === 0 ? (
        <div className="h-full flex items-center justify-center text-[11px] text-muted-foreground font-semibold">All salaries cleared</div>
      ) : (
-       pendingSalaryAlerts.map(emp => {
-         const rate = emp.dailyRate ?? emp.daily_rate ?? 500;
-         const days = emp.daysWorked ?? emp.days_worked ?? 0;
-         const total = rate * days;
-         const paid = emp.amountPaid ?? emp.amount_paid ?? 0;
-         const pending = Math.max(0, total - paid);
+       pendingSalaryAlerts.map(row => {
+         const emp = row.employee;
+         const sym = businessProfile?.currencySymbol || '₹';
+         const pending = row.pending;
          return (
            <div key={emp.id} className="flex items-center justify-between px-5 py-3 hover:bg-canvas transition-colors">
              <div className="flex-1 min-w-0">
                <p className="text-xs font-bold text-ink-primary truncate">{emp.name}</p>
-               <p className="text-[10px] text-muted-foreground mt-0.5">{days}d × ₹{rate} · paid ₹{paid.toLocaleString()}</p>
+               <p className="text-[10px] text-muted-foreground mt-0.5">
+                 {row.dayRate ? `${row.daysWorked}d × ${sym}${row.rate.toLocaleString('en-IN')}` : `Earned ${sym}${row.earned.toLocaleString('en-IN')}`} · paid {sym}{row.paid.toLocaleString('en-IN')}
+               </p>
              </div>
              <div className="flex items-center gap-2 shrink-0 ml-3">
-               <span className="text-xs font-black text-accent-signature tabular-nums">₹{pending.toLocaleString()}</span>
+               <span className="text-xs font-black text-accent-signature tabular-nums">{sym}{pending.toLocaleString('en-IN')}</span>
                <button onClick={() => navigate('/payroll')} className="text-[9px] font-black uppercase tracking-widest text-accent-signature-hover bg-accent-signature/10 border border-accent-signature/15 hover:bg-accent-signature hover:text-white transition-colors px-2.5 py-1.5 rounded-pill">
                  Pay
                </button>
