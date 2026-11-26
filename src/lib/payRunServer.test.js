@@ -1,0 +1,137 @@
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { buildSync } from 'esbuild';
+import { handle, periodFor } from '../../supabase/functions/payroll-run/handler.js';
+import { buildPayRun } from './payRun';
+
+const TENANT = '3d666d92-f5b4-44c3-a811-270557ad2fc6';
+
+/** A stand-in for the database client: each table answers with fixed rows, a page at a time. */
+const fakeDb = (tables, seen = []) => () => ({
+  from(table) {
+    const q = { table, filters: [] };
+    const chain = {
+      select: () => chain, is: () => chain, order: () => chain,
+      eq: (c, v) => { q.filters.push(['eq', c, v]); return chain; },
+      gte: (c, v) => { q.filters.push(['gte', c, v]); return chain; },
+      lte: (c, v) => { q.filters.push(['lte', c, v]); return chain; },
+      range: async (a, b) => {
+        seen.push({ ...q, a, b });
+        const t = tables[table];
+        if (t instanceof Error) return { data: null, error: t };
+        return { data: (t || []).slice(a, b + 1), error: null };
+      },
+    };
+    return chain;
+  },
+});
+
+const call = (body, tables, { auth = 'Bearer x', method = 'POST', seen } = {}) =>
+  handle(new Request('http://fn/payroll-run', {
+    method, headers: auth ? { Authorization: auth } : {},
+    body: method === 'POST' ? JSON.stringify(body) : undefined,
+  }), { db: fakeDb(tables, seen), cors: {} });
+
+const staff = [
+  { id: 'aj', name: 'Anita Jadhav', status: 'ACTIVE', pay_type: 'MONTHLY', salary: 11000, paid_leave_per_month: 2 },
+  { id: 'ks', name: 'Kiran Shinde', status: 'ACTIVE', pay_type: 'DAILY', daily_rate: 400 },
+  { id: 'sp', name: 'Suresh Patil', status: 'ON_LEAVE', pay_type: 'MONTHLY', salary: 12000 },
+];
+const marks = [
+  { employee_id: 'ks', day: '2026-11-16', status: 'PRESENT', custom_rate: null },
+  { employee_id: 'ks', day: '2026-11-17', status: 'HALF_DAY', custom_rate: null },
+  { employee_id: 'aj', day: '2026-11-03', status: 'ABSENT', custom_rate: null },
+  { employee_id: 'aj', day: '2026-11-04', status: 'SICK', custom_rate: null },
+];
+
+describe('payroll-run server function', () => {
+  it('ships a bundle built from the current shared rules', () => {
+    const fresh = buildSync({
+      entryPoints: ['src/lib/payRunServer.js'], bundle: true, format: 'esm',
+      platform: 'neutral', write: false,
+    }).outputFiles[0].text;
+    const shipped = readFileSync('supabase/functions/payroll-run/payRun.bundle.js', 'utf8');
+    // If this fails: npm run build:payroll-fn, then deploy the function.
+    expect(shipped).toBe(fresh);
+  });
+
+  it('costs a run exactly as the web does', async () => {
+    const res = await call({ tenant_id: TENANT, from: '2026-11-01', to: '2026-11-30' },
+      { employees: staff, attendance: marks, payroll: [] });
+    expect(res.status).toBe(200);
+    const out = await res.json();
+    const attendance = {
+      ks: { '2026-11-16': { status: 'PRESENT', custom_rate: null }, '2026-11-17': { status: 'HALF_DAY', custom_rate: null } },
+      aj: { '2026-11-03': { status: 'ABSENT', custom_rate: null }, '2026-11-04': { status: 'SICK', custom_rate: null } },
+    };
+    const web = buildPayRun({ employees: staff, attendance, records: [], from: '2026-11-01', to: '2026-11-30' });
+    expect(out.run).toEqual(JSON.parse(JSON.stringify(web)));
+    expect(out.period).toBe('2026-11');
+    expect(out.run.items.map(i => i.employeeId).sort()).toEqual(['aj', 'ks']);
+    expect(out.run.held.map(l => l.employeeId)).toEqual(['sp']);
+    expect(out.run.items.find(i => i.employeeId === 'ks').basePay).toBe(600);
+    expect(out.must_confirm_already_paid).toBe(false);
+  });
+
+  it('pays someone on leave only when asked to', async () => {
+    const res = await call({ tenant_id: TENANT, from: '2026-11-01', to: '2026-11-30', include_on_leave: ['sp'] },
+      { employees: staff, attendance: [], payroll: [] });
+    const out = await res.json();
+    expect(out.run.items.some(i => i.employeeId === 'sp')).toBe(true);
+    expect(out.run.held).toEqual([]);
+  });
+
+  it('reads attendance from the 1st of the end month so leave is counted over the whole month', async () => {
+    const seen = [];
+    await call({ tenant_id: TENANT, from: '2026-11-16', to: '2026-11-22' },
+      { employees: staff, attendance: marks, payroll: [] }, { seen });
+    const att = seen.find(q => q.table === 'attendance');
+    expect(att.filters).toContainEqual(['gte', 'day', '2026-11-01']);
+    expect(att.filters).toContainEqual(['lte', 'day', '2026-11-22']);
+    expect(att.filters).toContainEqual(['eq', 'tenant_id', TENANT]);
+  });
+
+  it('reads past the first thousand rows', async () => {
+    const many = Array.from({ length: 1500 }, (_, i) => ({
+      id: `e${i}`, name: `Hand ${i}`, status: 'ACTIVE', pay_type: 'DAILY', daily_rate: 100 }));
+    const res = await call({ tenant_id: TENANT, from: '2026-11-01', to: '2026-11-30' },
+      { employees: many, attendance: [], payroll: [] });
+    expect((await res.json()).run.items).toHaveLength(1500);
+  });
+
+  it('lists runs that already cover the dates and asks before paying a line twice', async () => {
+    const payroll = [{ id: 'r1', period: '2026-11-01/2026-11-08', total_net: 500, processed_at: '2026-11-08T10:00:00Z',
+      items: [{ employeeId: 'ks', netPay: 500 }] }];
+    const res = await call({ tenant_id: TENANT, from: '2026-11-01', to: '2026-11-30' },
+      { employees: staff, attendance: marks, payroll });
+    const out = await res.json();
+    expect(out.already_paid_runs).toEqual([{ id: 'r1', period: '2026-11-01/2026-11-08', total_net: 500, processed_at: '2026-11-08T10:00:00Z' }]);
+    // Anita was not in that run and is owed money, so a second payout over
+    // these dates has to be seen first.
+    expect(out.must_confirm_already_paid).toBe(true);
+  });
+
+  it('names the period the way the web stores it', () => {
+    expect(periodFor('2026-02-01', '2026-02-28')).toBe('2026-02');
+    expect(periodFor('2028-02-01', '2028-02-29')).toBe('2028-02');
+    expect(periodFor('2028-02-01', '2028-02-28')).toBe('2028-02-01/2028-02-28');
+    expect(periodFor('2026-11-16', '2026-11-22')).toBe('2026-11-16/2026-11-22');
+  });
+
+  it('refuses a caller who is not signed in, bad dates and a missing shop', async () => {
+    const t = { employees: [], attendance: [], payroll: [] };
+    expect((await call({ tenant_id: TENANT, from: '2026-11-01', to: '2026-11-30' }, t, { auth: '' })).status).toBe(401);
+    expect((await call({ tenant_id: 'nope', from: '2026-11-01', to: '2026-11-30' }, t)).status).toBe(400);
+    expect((await call({ tenant_id: TENANT, from: '2026-11-31', to: '2026-12-01' }, t)).status).toBe(400);
+    expect((await call({ tenant_id: TENANT, from: '2026-11-30', to: '2026-11-01' }, t)).status).toBe(400);
+    expect((await call({ tenant_id: TENANT, from: '2024-01-01', to: '2026-11-01' }, t)).status).toBe(400);
+    expect((await call(null, t, { method: 'GET' })).status).toBe(405);
+  });
+
+  it('says why when the shop data cannot be read, instead of returning an empty run', async () => {
+    const res = await call({ tenant_id: TENANT, from: '2026-11-01', to: '2026-11-30' },
+      { employees: new Error('permission denied for table employees'), attendance: [], payroll: [] });
+    expect(res.status).toBe(502);
+    expect((await res.json()).message).toContain('permission denied');
+  });
+});

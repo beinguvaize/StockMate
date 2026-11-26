@@ -1726,15 +1726,17 @@ const Payroll = () => {
         </tr>
       ))}
       {/* On leave: listed, not paid, until switched in. */}
-      {payRun.held.map(emp => (
-        <tr key={emp.id} className="bg-canvas/50">
+      {payRun.held.map(line => (
+        <tr key={line.employeeId} className="bg-canvas/50">
           <td className="px-5 py-3">
-            <div className="text-sm font-semibold text-muted-foreground leading-none">{emp.name}</div>
-            <div className="text-[10px] text-muted-foreground font-medium mt-0.5">{emp.department} · On leave</div>
+            <div className="text-sm font-semibold text-muted-foreground leading-none">{line.employeeName}</div>
+            <div className="text-[10px] text-muted-foreground font-medium mt-0.5">{line.department} · On leave</div>
           </td>
-          <td colSpan={6} className="px-3 py-3 text-[11px] text-muted-foreground">Not in this run</td>
+          <td colSpan={6} className="px-3 py-3 text-[11px] text-muted-foreground">
+            Not in this run · would add {sym}{Math.round(line.netPay).toLocaleString('en-IN')}
+          </td>
           <td className="px-5 py-3 text-right">
-            <button type="button" onClick={() => setIncludeOnLeave(ids => [...ids, emp.id])}
+            <button type="button" onClick={() => setIncludeOnLeave(ids => [...ids, line.employeeId])}
               className="text-[11px] font-semibold text-accent-signature hover:underline cursor-pointer">Pay anyway</button>
           </td>
         </tr>
