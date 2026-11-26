@@ -68,6 +68,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (idx >= 0) setState(() => _selectedIndex = idx);
   }
 
+  /// For the drawer: go to the bottom-bar tab for [feature]. False when this
+  /// user has no such tab.
+  bool _openTab(String feature) {
+    final ctx = ref.read(tenantContextProvider).value;
+    final visible = _visibleTabs(ctx?.roles ?? [], ctx?.plan ?? 'FREE', ctx?.permissions);
+    final idx = visible.indexWhere((t) => t.feature == feature);
+    if (idx < 0) return false;
+    setState(() => _selectedIndex = idx);
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final ctx = ref.watch(tenantContextProvider).value;
@@ -80,7 +91,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       key: _scaffoldKey,
       backgroundColor: Bl.white,
       drawerScrimColor: Bl.shade,
-      drawer: const _AppDrawer(),
+      drawer: _AppDrawer(onTab: _openTab),
       body: Column(
         children: [
           // ── Global app bar ────────────────────────────────────────
@@ -373,7 +384,15 @@ class _GlobalAppBar extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AppDrawer extends ConsumerWidget {
-  const _AppDrawer();
+  /// Switches to a bottom-bar tab; false when the user has no such tab.
+  final bool Function(String feature) onTab;
+  const _AppDrawer({required this.onTab});
+
+  /// Drawer entries that are bottom-bar tabs. Sales and Inventory are tab
+  /// bodies: they have no page frame of their own, so pushing one as a new
+  /// page drew it with no header, under the status bar, with every label
+  /// underlined in yellow. They are opened by switching tab instead.
+  static const _tabFor = {'sales': 'sales', 'inventory': 'inventory'};
 
   static const _sections = [
     _DrawerSection(label: 'Sales & finance', items: [
@@ -405,9 +424,16 @@ class _AppDrawer extends ConsumerWidget {
       });
       return;
     }
+    final tab = _tabFor[id];
+    if (tab != null && onTab(tab)) return;
     final Widget? screen = _screenFor(id);
     if (screen != null) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+      // A tab body shown as a page (its tab is hidden for this user) still
+      // needs a page frame around it.
+      final page = tab == null
+          ? screen
+          : Scaffold(backgroundColor: Bl.white, body: SafeArea(child: screen));
+      Navigator.push(context, MaterialPageRoute(builder: (_) => page));
     }
   }
 
