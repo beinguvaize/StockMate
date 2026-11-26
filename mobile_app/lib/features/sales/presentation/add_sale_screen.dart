@@ -10,6 +10,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/design/bl_widgets.dart';
 import 'package:mobile_app/core/utils/money.dart';
+import 'package:mobile_app/features/inventory/presentation/widgets/product_photo.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
@@ -1092,19 +1093,13 @@ class _ProductCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                        color: isOut ? Bl.well : tint,
-                        borderRadius: BorderRadius.circular(11)),
-                    child: Text(BlPartyAvatar.initials(product.name),
-                        style: Bl.tight(12,
-                            w: FontWeight.w700,
-                            ls: 0,
-                            c: const Color(0xFF55595F))),
-                  ),
+                  ProductPicture(
+                      name: product.name,
+                      image: product.image,
+                      size: 38,
+                      fontSize: 12,
+                      ground: isOut ? Bl.well : tint,
+                      ink: const Color(0xFF55595F)),
                   const Spacer(),
                   if (isOut)
                     _badge('Out', const Color(0xFFFEE2E2), Bl.redDeep)
