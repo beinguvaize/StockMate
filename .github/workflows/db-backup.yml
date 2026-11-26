@@ -1,4 +1,7 @@
-# Nightly prod database backup → Cloudflare R2.
+# Weekly prod database backup → Cloudflare R2.
+# Owner's choice (25 Nov 2026): once a week, not nightly. The most that can be
+# lost is therefore seven days; run it by hand (Actions → Run workflow) before
+# any risky database change.
 #
 # Closes the gap that Supabase Free has no automated backups. Dumps the
 # prod Postgres with pg_dump, gzips it, and uploads to an R2 bucket
@@ -14,6 +17,9 @@
 #   R2_SECRET_ACCESS_KEY   R2 API token secret
 #   R2_BUCKET              target bucket name (e.g. stockmate-backups)
 #
+# Backups older than 90 days are deleted by this job (the newest four are
+# always kept).
+#
 # Restore: download the .sql.gz, `gunzip`, then `psql "<conn>" -f dump.sql`.
 #
 # THIS RAN AND FAILED EVERY NIGHT FOR WEEKS. The secrets below were never added,
@@ -26,12 +32,13 @@
 # secret, checks the dump actually contains data rather than just headers, and
 # confirms the uploaded object exists in R2 before reporting success.
 
-name: Nightly · DB backup to R2
+name: Weekly · DB backup to R2
 
 on:
   schedule:
     # 20:30 UTC = 02:00 IST — well after close, low traffic.
-    - cron: '30 20 * * *'
+    # Sunday 20:30 UTC = Monday 02:00 India time.
+    - cron: '30 20 * * 0'
   workflow_dispatch:
 
 jobs:
@@ -69,6 +76,16 @@ jobs:
             exit 1
           fi
 
+          # A secret pasted with a trailing space or line break makes the
+          # upload fail with "Invalid header value" and nothing to say which
+          # one. None of these values can contain whitespace, so strip it.
+          strip() { printf '%s' "$1" | tr -d '[:space:]'; }
+          export AWS_ACCESS_KEY_ID=$(strip "$AWS_ACCESS_KEY_ID")
+          export AWS_SECRET_ACCESS_KEY=$(strip "$AWS_SECRET_ACCESS_KEY")
+          R2_ACCOUNT_ID=$(strip "$R2_ACCOUNT_ID")
+          R2_BUCKET=$(strip "$R2_BUCKET")
+          echo "Key lengths: access id ${#AWS_ACCESS_KEY_ID}, secret ${#AWS_SECRET_ACCESS_KEY}, account ${#R2_ACCOUNT_ID}"
+
           stamp=$(date -u +%Y-%m-%d_%H%M)
           file="ledgrpro-prod-${stamp}.sql.gz"
 
@@ -83,23 +100,52 @@ jobs:
             echo "::error::Dump is only ${size} bytes — too small to be a real backup. Not uploading."
             exit 1
           fi
-          if ! gunzip -c "$file" | grep -q 'CREATE TABLE public.sales'; then
+          # Count, do not use `grep -q`. With pipefail on, -q quits at the first
+          # match, gunzip is killed mid-stream (SIGPIPE), and the pipeline
+          # reports failure: a good dump was being refused as "no sales table".
+          tables=$(gunzip -c "$file" | grep -c 'CREATE TABLE public.sales' || true)
+          if [ "${tables:-0}" -lt 1 ]; then
             echo "::error::Dump does not contain the sales table. Refusing to upload a partial backup."
             exit 1
           fi
 
           echo "Uploading to R2…"
-          aws s3 cp "$file" "s3://${R2_BUCKET}/daily/${file}" \
+          aws s3 cp "$file" "s3://${R2_BUCKET}/weekly/${file}" \
             --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
           # Confirm it is actually there. An upload that silently no-ops would
           # otherwise report success, which is the fault this job already had.
-          if ! aws s3 ls "s3://${R2_BUCKET}/daily/${file}" \
-                 --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" | grep -q "$file"; then
+          found=$(aws s3 ls "s3://${R2_BUCKET}/weekly/${file}" \
+                 --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" | grep -c "$file" || true)
+          if [ "${found:-0}" -lt 1 ]; then
             echo "::error::Upload reported success but the object is not in the bucket."
             exit 1
           fi
-          echo "✓ Backup verified in R2: daily/${file} (${size} bytes)"
+          echo "✓ Backup verified in R2: weekly/${file} (${size} bytes)"
+
+          # Delete backups older than 90 days (owner's choice, 25 Nov 2026).
+          # Runs only here, after tonight's file is verified in the bucket, so
+          # a failed backup never removes an old one. Only files this job
+          # names are touched, the age comes from the date in the name, and
+          # the newest four are kept whatever their age.
+          endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          cutoff=$(date -u -d '90 days ago' +%Y-%m-%d)
+          all=$( { aws s3 ls "s3://${R2_BUCKET}/weekly/" --endpoint-url "$endpoint" || true; } | awk '{print "weekly/" $4}'
+                 { aws s3 ls "s3://${R2_BUCKET}/daily/"  --endpoint-url "$endpoint" || true; } | awk '{print "daily/" $4}' )
+          keep=$(printf '%s\n' "$all" | grep -E 'ledgrpro-prod-[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}\.sql\.gz$' \
+                   | awk -F'ledgrpro-prod-' '{print $2 " " $0}' | sort -r | head -n 4 | awk '{print $2}' || true)
+          removed=0
+          while IFS= read -r key; do
+            [ -z "$key" ] && continue
+            name=${key##*/}
+            case "$name" in ledgrpro-prod-????-??-??_????.sql.gz) ;; *) continue ;; esac
+            day=${name#ledgrpro-prod-}; day=${day%%_*}
+            if [[ "$day" < "$cutoff" ]] && ! printf '%s\n' "$keep" | grep -qxF "$key"; then
+              aws s3 rm "s3://${R2_BUCKET}/${key}" --endpoint-url "$endpoint"
+              removed=$((removed + 1))
+            fi
+          done <<< "$all"
+          echo "Old backups removed (before ${cutoff}): ${removed}"
 
   # A cron job's red cross is addressed to nobody. These four failed every run
   # from June to October without anyone noticing.
@@ -108,7 +154,7 @@ jobs:
     if: always() && github.event_name == 'schedule'
     uses: ./.github/workflows/scheduled-failure-issue.yml
     with:
-      job: Nightly DB backup to R2
+      job: Weekly DB backup to R2
       outcome: ${{ needs.backup.result }}
     permissions:
       issues: write
