@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePayroll } from '../hooks/usePayroll';
-import { findOverlapping, describePeriod, monthIsPaid, paidByEmployeeInMonth, paidForWindow } from '../lib/payrollPeriods';
+import { findOverlapping, describePeriod, monthIsPaid, paidByEmployeeInMonth } from '../lib/payrollPeriods';
 import { usePeople } from '../hooks/usePeople';
 import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { DollarSign, Trash2, X, Check, CreditCard, UserPlus, Lock, Receipt, Link2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -13,8 +13,8 @@ import PayrollHeader from '../components/payroll/PayrollHeader';
 import EmployeeTable from '../components/payroll/EmployeeTable';
 import PayHistory from '../components/payroll/PayHistory';
 import { todayISOInAppTZ } from '../lib/utils';
-import { salariedBasePay } from '../lib/monthlyPay';
-import { statutoryDeductions, PT_STATES } from '../lib/statutory';
+import { PT_STATES } from '../lib/statutory';
+import { buildPayRun, netOf } from '../lib/payRun';
 import { needsOverlapConfirmation } from '../lib/payrollPeriods';
 import { iso } from '../lib/reportPeriods';
 import { classifyWriteFailure } from '../lib/writeOutcome';
@@ -150,7 +150,9 @@ const Payroll = () => {
     [employees]
   );
 
-  const STATUS_WEIGHT    = { PRESENT: 1, HALF_DAY: 0.5, OT: 1, ABSENT: 0 };
+  // Days WORKED. Leave and Sick are not worked days: a day-rate hand is not
+  // paid for them, a salaried one is (payRun.js decides the money).
+  const STATUS_WEIGHT    = { PRESENT: 1, HALF_DAY: 0.5, OT: 1, ABSENT: 0, LEAVE: 0, SICK: 0 };
 
   // Saved rows with unsaved edits laid over them. Everything downstream —
   // computeDays, computeWage, the wage column, the payout footer — reads this
@@ -385,7 +387,8 @@ const Payroll = () => {
   const openAdd = () => {
   setEditingEmployee(null);
   setEmpForm({ name: '', email: '', phone: '', department: DEPARTMENTS[0], position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '', dailyRate: 500, daysWorked: 0, userId: '', dob: '', gender: '', bloodGroup: '', emergencyContact: '', joiningDate: '', employmentType: 'FULL_TIME', aadhaar: '', pan: '', pfAccount: '', esiNo: '',
-    epfEnabled: false, epfOnFullWage: false, esiEnabled: false, professionalTaxState: '', tdsMonthly: 0 });
+    epfEnabled: false, epfOnFullWage: false, esiEnabled: false, professionalTaxState: '', tdsMonthly: 0,
+    status: 'ACTIVE', paidLeavePerMonth: 0 });
   setShowForm(true);
 };
 
@@ -408,6 +411,8 @@ const Payroll = () => {
   esiEnabled: !!emp.esi_enabled,
   professionalTaxState: emp.professional_tax_state || '',
   tdsMonthly: Number(emp.tds_monthly) || 0,
+  status: emp.status || 'ACTIVE',
+  paidLeavePerMonth: Number(emp.paid_leave_per_month) || 0,
 });
   setShowForm(true);
 };
@@ -482,104 +487,24 @@ const Payroll = () => {
     () => paidByEmployeeInMonth(attYear, attMonth, payrollRecords),
     [attYear, attMonth, payrollRecords]);
 
-  const buildPayRunItems = useCallback(() => {
-    const activeEmployees = employees.filter(e => e.status === 'ACTIVE');
-    // Weekly and custom both cost a date window; only the end date differs.
-    const ranged = isRangeRun;
-    return activeEmployees.map(emp => {
-      const isDW  = isDailyWage(emp.pay_type);
-      const days  = isDW
-        ? (ranged ? computeDaysForRange(emp.id, weekStart, rangeEnd) : computeDays(emp.id))
-        : null;
-      // Salaried staff: full salary, less only the days someone actually marked
-      // absent. An unmarked day is paid -- see monthlyPay.js. Reading a blank
-      // grid as absence would pay a manager nothing.
-      const monthly = isDW ? null : salariedBasePay({
-        salary: Number(emp.salary) || Number(emp.basePay) || 0,
-        // WEEKLY stores ONE WEEK's pay in the same column MONTHLY uses for a
-        // month's. Without the pay type both were paid flat for whatever window
-        // was run, so a weekly employee processed over August got a single
-        // week's wage for the month.
-        payType: emp.pay_type || emp.payType,
-        from: periodFrom, to: periodTo,
-        days: attendance[emp.id],
-      });
-      const base  = isDW
-        ? Math.round(ranged
-            ? computeWageForRange(emp.id, emp.daily_rate || 0, weekStart, rangeEnd)
-            : computeWage(emp.id, emp.daily_rate || 0))
-        : monthly.basePay;
-      // What this employee was already paid FOR THE DAYS IN THIS RUN'S WINDOW.
-      //
-      // This used to be the whole month's payments regardless of the window,
-      // which is right for a monthly run and badly wrong for any other: a
-      // custom 17-21 Aug run subtracted the month's 7,200 from 1,800 of
-      // earnings and offered nothing, while the screen beside it correctly said
-      // 900 was still due. Netting off more than the window covers UNDERPAYS.
-      const already = paidForWindow({
-        from: periodFrom, to: periodTo, employeeId: emp.id, records: payrollRecords,
-      });
+  // Staff marked On leave are held out of a run unless they are switched in
+  // here, one by one. Off by default: paying someone on long leave should be a
+  // choice somebody made, not what happens when nobody looked.
+  const [includeOnLeave, setIncludeOnLeave] = useState([]);
 
-      // Statutory deductions are computed HERE, in the run, not when a slip is
-      // printed. The run writes a salary expense of exactly netPay, and that
-      // expense posts to the ledger -- so a deduction applied at print time
-      // would put a figure on the employee's slip that DayBook, the P&L and the
-      // cash account had never heard of. Everything below flows from this one
-      // number.
-      //
-      // All of it is off unless the employee is configured for it.
-      const statutory = statutoryDeductions({
-        gross: base,
-        basic: base,
-        config: {
-          epf: !!emp.epf_enabled,
-          epfOnFullWage: !!emp.epf_on_full_wage,
-          esi: !!emp.esi_enabled,
-          professionalTaxState: emp.professional_tax_state || null,
-          tdsMonthly: Number(emp.tds_monthly) || 0,
-        },
-      });
-      const statutoryTotal = Math.round(statutory.reduce((t, l) => t + l.amount, 0));
+  // One calculation for web and phone: src/lib/payRun.js. The rules that used
+  // to be written out here (salaried paid in full less marked absence, day-rate
+  // paid for days worked, already-paid netted off for the window, statutory
+  // deductions taken in the run) all live there now, with their tests.
+  const payRun = useMemo(() => buildPayRun({
+    employees, attendance, records: payrollRecords,
+    from: periodFrom, to: periodTo, includeOnLeave,
+  }), [employees, attendance, payrollRecords, periodFrom, periodTo, includeOnLeave]);
 
-      const net = Math.max(0, base - already - statutoryTotal);
-      return {
-        employeeId:   emp.id,
-        employeeName: emp.name,
-        department:   emp.department,
-        payType:      emp.pay_type || emp.payType,
-        daysWorked:   days,
-        dailyRate:    emp.daily_rate || 0,
-        basePay:      base,
-        // The workings behind a salaried figure. A slip showing only the net
-        // gives the employee nothing to check.
-        salary:       monthly ? monthly.salary : null,
-        lopDays:      monthly ? monthly.lopDays : null,
-        lopAmount:    monthly ? monthly.lopAmount : null,
-        periodDays:   monthly ? monthly.periodDays : null,
-        cycleDays:    monthly ? monthly.cycleDays : null,
-        // Carried on the item so it reaches the saved run: the record should say
-        // what was earned AND what was outstanding when it was paid, not just a
-        // net figure nobody can explain later.
-        alreadyPaid:  already,
-        // Stored on the item so the saved run, the expense and the slip all
-        // quote the same deductions. The slip renders these; it does not
-        // recompute them.
-        statutoryLines: statutory,
-        statutoryTotal,
-        overtime:     0,
-        commission:   0,
-        bonus:        0,
-        deductions:   0,
-        netPay:       net,
-      };
-    });
-    // periodFrom/periodTo and payrollRecords are read directly now: without
-    // them the run keeps costing against the previous window, and a re-run does
-    // not see the record it just reversed.
-  }, [employees, isRangeRun, weekStart, rangeEnd, periodFrom, periodTo, payrollRecords,
-      attendance, computeDays, computeDaysForRange, computeWage, computeWageForRange]);
+  const buildPayRunItems = useCallback(() => payRun.items, [payRun]);
 
   const openPayRun = () => {
+    setIncludeOnLeave([]);
     setPayRunItems(buildPayRunItems());
     setShowPayRunModal(true);
   };
@@ -641,10 +566,27 @@ const Payroll = () => {
   // Manual bonus/commission/deduction entries are deliberately reset with it: a
   // different period is a different payout, and silently carrying an amount
   // typed for one window into another is how someone gets paid twice.
+  //
+  // They ARE kept when the period has not moved -- switching an on-leave person
+  // into the run should not wipe a bonus already typed for somebody else.
+  const costedPeriod = useRef(null);
+  // One id per run on screen. Sent with the save, so pressing Process again
+  // after a lost reply returns the run already saved instead of paying twice.
+  const runIdRef = useRef(null);
   useEffect(() => {
-    if (!showPayRunModal) return;
-    setPayRunItems(buildPayRunItems());
-  }, [showPayRunModal, payPeriodType, weekStart, rangeEnd, payRunMonth, buildPayRunItems]);
+    if (!showPayRunModal) { costedPeriod.current = null; runIdRef.current = null; return; }
+    const key = `${periodFrom}/${periodTo}`;
+    const samePeriod = costedPeriod.current === key;
+    if (!samePeriod) runIdRef.current = crypto.randomUUID();
+    costedPeriod.current = key;
+    const fresh = buildPayRunItems();
+    setPayRunItems(prev => !samePeriod ? fresh : fresh.map(item => {
+      const old = prev.find(o => o.employeeId === item.employeeId);
+      if (!old) return item;
+      const kept = { ...item, overtime: old.overtime, commission: old.commission, bonus: old.bonus, deductions: old.deductions };
+      return { ...kept, netPay: netOf(kept) };
+    }));
+  }, [showPayRunModal, payPeriodType, weekStart, rangeEnd, payRunMonth, periodFrom, periodTo, buildPayRunItems]);
 
   const updatePayRunItem = (empId, field, value) => {
   const numVal = parseFloat(value) || 0;
@@ -659,10 +601,8 @@ const Payroll = () => {
   // field -- a bonus, a deduction -- silently added the statutory deduction
   // back to the payout, and the figure that reached the expense was the one
   // AFTER the edit.
-  const net = updated.basePay + updated.overtime + updated.commission
-            + updated.bonus - updated.deductions - (updated.alreadyPaid || 0)
-            - (updated.statutoryTotal || 0);
-  return { ...updated, netPay: Math.round(net)};
+  // netOf is the shared formula (payRun.js) -- the same one the phone uses.
+  return { ...updated, netPay: netOf(updated)};
 }
   return item;
 });
@@ -700,15 +640,16 @@ const Payroll = () => {
   processedAt: new Date().toISOString()
 };
 
-  const result = await processPayroll(record);
+  // The run and its salary expenses are saved together by the database, so
+  // there is no longer a half-saved state to report.
+  const result = await processPayroll(record, runIdRef.current || undefined);
   if (result?.success) {
-    // The run can save while the salary expenses behind it fail. That gap is
-    // exactly what puts the payout in DayBook, so it must be said out loud
-    // rather than closing the modal as though everything went through.
-    if (result.expenseError) alert(result.message);
     setShowPayRunModal(false);
   } else {
-    alert('Failed to save payroll: ' + (result?.error?.message || 'Unknown error'));
+    // A lost connection can fail AFTER the database saved. Do not claim it was
+    // not saved; the same run id is reused, so pressing again cannot pay twice.
+    alert('Payroll may not have saved: ' + (result?.error?.message || 'Unknown error')
+      + '\n\nPress Process again. If it did go through the first time, it will not be paid twice.');
   }
 } catch(err) {
   console.error('Payroll process error:', err);
@@ -876,9 +817,11 @@ const Payroll = () => {
       if (s === 'PRESENT')  return 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200';
       if (s === 'ABSENT')   return 'bg-red-50 text-red-500 hover:bg-red-100';
       if (s === 'HALF_DAY') return 'bg-accent-signature/10 text-accent-signature hover:bg-accent-signature/15';
+      if (s === 'LEAVE')    return 'bg-blue-50 text-blue-600 hover:bg-blue-100';
+      if (s === 'SICK')     return 'bg-amber-50 text-amber-700 hover:bg-amber-100';
       return 'bg-canvas text-muted-foreground hover:bg-muted hover:text-muted-foreground';
     };
-    const statusLabel = (s) => s === 'PRESENT' ? '✓' : s === 'ABSENT' ? '✗' : s === 'HALF_DAY' ? '½' : '·';
+    const statusLabel = (s) => s === 'PRESENT' ? '✓' : s === 'ABSENT' ? '✗' : s === 'HALF_DAY' ? '½' : s === 'LEAVE' ? 'L' : s === 'SICK' ? 'S' : '·';
 
     return (
       <div className="flex flex-col gap-6">
@@ -1213,7 +1156,7 @@ const Payroll = () => {
                 <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-1 pb-1.5">
                   {new Date(attYear, attMonth - 1, attPicker.dayNum).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                 </div>
-                {[['PRESENT','Present','✓'],['ABSENT','Absent','✗'],['HALF_DAY','Half day','½']].map(([val, label, icon]) => (
+                {[['PRESENT','Present','✓'],['HALF_DAY','Half day','½'],['LEAVE','Leave','L'],['SICK','Sick','S'],['ABSENT','Absent','✗']].map(([val, label, icon]) => (
                   <button key={val}
                     onClick={() => { setAttStatus(attPicker.empId, attPicker.day, val); setAttPicker(null); }}
                     className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-pill text-[11px] font-semibold transition-all ${
@@ -1377,6 +1320,21 @@ const Payroll = () => {
               <option value="CONTRACT">Contract</option>
               <option value="INTERN">Intern</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Status</label>
+            <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer"
+              value={empForm.status || 'ACTIVE'} onChange={e => setEmpForm({...empForm, status: e.target.value})}>
+              <option value="ACTIVE">Active</option>
+              <option value="ON_LEAVE">On leave</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-ink-secondary mb-1">Paid leave allowed a month</label>
+            <input type="number" min="0" max="31" step="1"
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={empForm.paidLeavePerMonth ?? 0} onChange={e => setEmpForm({...empForm, paidLeavePerMonth: e.target.value})} />
           </div>
           <div>
             <label className="block text-[11px] font-medium text-ink-secondary mb-1">Department</label>
@@ -1716,6 +1674,16 @@ const Payroll = () => {
           <td className="px-5 py-4">
             <div className="text-sm font-semibold text-ink-primary leading-none">{item.employeeName}</div>
             <div className="text-[10px] text-muted-foreground font-medium mt-0.5">{item.department} · {item.payType}</div>
+            {item.onLeave && (
+              <button type="button" onClick={() => setIncludeOnLeave(ids => ids.filter(id => id !== item.employeeId))}
+                className="text-[10px] font-semibold text-blue-600 hover:underline mt-1 cursor-pointer">On leave · take out of run</button>
+            )}
+            {(item.leaveDays > 0 || item.sickDays > 0) && (
+              <div className={`text-[10px] font-medium mt-1 ${item.leaveExceeded ? 'text-amber-700' : 'text-muted-foreground'}`}>
+                {[item.leaveDays > 0 ? `${item.leaveDays} leave` : null, item.sickDays > 0 ? `${item.sickDays} sick` : null].filter(Boolean).join(' · ')}
+                {item.leaveExceeded ? ` · over the ${item.leaveAllowed} allowed this month` : ''}
+              </div>
+            )}
           </td>
           <td className="px-3 py-4 text-right">
             {isDailyWage(item.payType) ? (
@@ -1754,6 +1722,20 @@ const Payroll = () => {
           </td>
           <td className="px-5 py-4 text-right">
             <span className="text-base font-bold text-ink-primary tabular-nums">{sym}{Math.round(item.netPay).toLocaleString('en-IN')}</span>
+          </td>
+        </tr>
+      ))}
+      {/* On leave: listed, not paid, until switched in. */}
+      {payRun.held.map(emp => (
+        <tr key={emp.id} className="bg-canvas/50">
+          <td className="px-5 py-3">
+            <div className="text-sm font-semibold text-muted-foreground leading-none">{emp.name}</div>
+            <div className="text-[10px] text-muted-foreground font-medium mt-0.5">{emp.department} · On leave</div>
+          </td>
+          <td colSpan={6} className="px-3 py-3 text-[11px] text-muted-foreground">Not in this run</td>
+          <td className="px-5 py-3 text-right">
+            <button type="button" onClick={() => setIncludeOnLeave(ids => [...ids, emp.id])}
+              className="text-[11px] font-semibold text-accent-signature hover:underline cursor-pointer">Pay anyway</button>
           </td>
         </tr>
       ))}

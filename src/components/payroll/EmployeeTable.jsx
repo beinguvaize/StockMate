@@ -84,12 +84,14 @@ const EmployeeTable = ({
  const pending = totalSalary - amountPaid;
  
  return (
- <tr key={emp.id} className={`group hover:bg-canvas transition-all duration-300 ${emp.status !== 'ACTIVE' ? 'opacity-60 grayscale' : ''}`}>
+ <tr key={emp.id} className={`group hover:bg-canvas transition-all duration-300 ${emp.status === 'INACTIVE' ? 'opacity-60 grayscale' : ''}`}>
  <td className="p-2 pl-8">
  <div className="text-sm font-semibold text-ink-primary leading-none mb-1">{emp.name}</div>
  <div className="flex items-center gap-2">
  <span className="px-2 py-0.5 rounded bg-black/5 text-[9px] font-semibold text-ink-secondary">{emp.department || emp.role}</span>
- {emp.status !== 'ACTIVE' && <span className="text-[8px] font-semibold text-red-500">Inactive</span>}
+ {emp.status === 'ON_LEAVE'
+  ? <span className="text-[8px] font-semibold text-blue-600">On leave</span>
+  : emp.status !== 'ACTIVE' && <span className="text-[8px] font-semibold text-red-500">Inactive</span>}
  </div>
  </td>
  <td className="p-2">
