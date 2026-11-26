@@ -1001,7 +1001,7 @@ class SyncService {
     try {
       final response = await supabase
           .from('sales')
-          .select('id, tenant_id, "shopId", "paymentMethod", "paymentStatus", subtotal, tax, "totalAmount", "paidAmount", date, items, created_at, "customerInfo"')
+          .select('id, tenant_id, "shopId", "paymentMethod", "paymentStatus", subtotal, tax, "totalAmount", "paidAmount", date, items, created_at, sold_at, "customerInfo"')
           .isFilter('deleted_at', null)
           .order('date', ascending: false)
           .limit(500);
@@ -1026,7 +1026,8 @@ class SyncService {
               paidAmount:    Value((item['paidAmount'] ?? 0).toDouble()),
               date:          date,
               itemsJson:     item['items'] == null ? '[]' : jsonEncode(item['items']),
-              createdAt:     Value(_ts(item['created_at'])),
+              // Billed time when known (see Sale.fromJson).
+              createdAt:     Value(_ts(item['sold_at'] ?? item['created_at'])),
               customerInfoJson: Value(item['customerInfo'] == null ? null : jsonEncode(item['customerInfo'])),
             ),
             mode: InsertMode.insertOrReplace,

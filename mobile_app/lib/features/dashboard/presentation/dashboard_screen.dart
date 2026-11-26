@@ -217,6 +217,12 @@ class _TabBar extends StatelessWidget {
                               duration: motionDur(context, 160),
                               curve: MotionCurves.out,
                               height: 46,
+                              // Every tab's highlight is the same size. It
+                              // used to hug the label, so "Sales" got a thin
+                              // tall pill and "Dashboard" a wide one.
+                              width: double.infinity,
+                              margin:
+                                  const EdgeInsets.symmetric(horizontal: 2),
                               decoration: BoxDecoration(
                                 color: i == selected
                                     ? const Color(0xFFEFEFEF)

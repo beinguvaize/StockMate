@@ -73,7 +73,11 @@ class Sale {
       amountReceived: (json['amount_received'] as num?)?.toDouble(),
       date: json['date'] as String?,
       status: json['status'] as String?,
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
+      // The time shown for a sale: when it was billed (sold_at) if the phone
+      // sent it, else when it reached the server. A sale billed offline
+      // otherwise shows the next morning's upload time.
+      createdAt: DateTime.tryParse(
+          '${json['sold_at'] ?? json['created_at'] ?? ''}'),
       invoiceId: json['invoice_id'] as String?,
       syncState: json['_sync'] == 'synced' ? null : json['_sync'] as String?,
     );

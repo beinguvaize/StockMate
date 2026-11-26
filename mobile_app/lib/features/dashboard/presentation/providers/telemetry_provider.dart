@@ -197,14 +197,14 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
 
       try {
         final salesData = (await _countableSales(
-                'totalAmount, created_at', tenantId, todayStr,
+                'totalAmount, created_at, sold_at', tenantId, todayStr,
                 before: tomorrowStr))
             .toList();
         final rows = <(DateTime?, double)>[];
         for (var s in salesData) {
           final amount = double.tryParse(s['totalAmount']?.toString() ?? '0') ?? 0;
           salesSum += amount;
-          rows.add((DateTime.tryParse(s['created_at']?.toString() ?? ''), amount));
+          rows.add((DateTime.tryParse((s['sold_at'] ?? s['created_at'])?.toString() ?? ''), amount));
         }
         billCount = salesData.length;
         hourly = _bucketByHour(rows);
@@ -284,11 +284,11 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
         final y = today.subtract(const Duration(days: 1));
         final yStr = '${y.year}-${y.month.toString().padLeft(2, '0')}-${y.day.toString().padLeft(2, '0')}';
         final yRows = await _countableSales(
-            'totalAmount, created_at', tenantId, yStr,
+            'totalAmount, created_at, sold_at', tenantId, yStr,
             before: todayStr);
         yesterdaySoFar = _takingsUpToNow(
           yRows.map((r) => (
-            DateTime.tryParse(r['created_at']?.toString() ?? ''),
+            DateTime.tryParse((r['sold_at'] ?? r['created_at'])?.toString() ?? ''),
             double.tryParse(r['totalAmount']?.toString() ?? '0') ?? 0,
           )),
           now,

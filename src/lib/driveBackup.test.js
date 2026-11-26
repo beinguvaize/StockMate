@@ -63,7 +63,12 @@ describe('token encryption', () => {
   it('fails with the wrong key, tampering, or a short key', async () => {
     const a = await encryptToken(key, 'secret');
     await expect(decryptToken(Buffer.alloc(32, 8).toString('base64'), a)).rejects.toThrow();
-    await expect(decryptToken(key, a.slice(0, -2) + 'AA')).rejects.toThrow();
+    // Tamper with one character well inside the text. Overwriting the last two
+    // with 'AA' changed nothing whenever they already were 'AA' or fell in the
+    // padding, and the test then failed at random.
+    const i = a.length - 6;
+    const tampered = a.slice(0, i) + (a[i] === 'A' ? 'B' : 'A') + a.slice(i + 1);
+    await expect(decryptToken(key, tampered)).rejects.toThrow();
     await expect(encryptToken(Buffer.alloc(16).toString('base64'), 'x')).rejects.toThrow(/32 bytes/);
   });
 });

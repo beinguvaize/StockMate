@@ -476,6 +476,9 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         'p_payment_method':  pm,
         'p_payment_status':  ps,
         'p_date':            dateStr,
+        // When this bill was actually made. If it waits in the offline queue
+        // the server would otherwise only know when it arrived.
+        'p_sold_at':         now.toUtc().toIso8601String(),
         'p_user_id':         userId,
         // Van sale → vehicle location; POS → cashier-picked store (or null
         // for the default warehouse when single-store).
