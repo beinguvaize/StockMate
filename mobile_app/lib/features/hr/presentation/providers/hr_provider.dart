@@ -4,6 +4,7 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/database/offline_reads.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/hr/data/models/employee.dart';
+import 'package:mobile_app/features/hr/data/pay_run.dart';
 import 'package:mobile_app/main.dart' show databaseProvider;
 
 // Cache-first, matching clientsProvider: Supabase first, Drift cache on any
@@ -88,3 +89,75 @@ final payrollRecordsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) 
   }
   return out;
 });
+
+/// What everyone is owed for the current calendar month, worked out by the
+/// server with the web's rules. Feeds the "Still to pay" figure and the
+/// employee sheet. Needs a connection: there is no offline pay calculation,
+/// on purpose -- a second set of rules on the phone is how the two would drift.
+final monthPayRunProvider = FutureProvider<PayRun?>((ref) async {
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return null;
+  final now = DateTime.now();
+  return fetchPayRun(
+    tenantId: ctx.tenantId,
+    from: isoDay(DateTime(now.year, now.month, 1)),
+    to: isoDay(DateTime(now.year, now.month + 1, 0)),
+  );
+});
+
+/// Attendance marks for a span of days: employee id -> day -> row.
+///
+/// Cleared marks are soft-deleted (web does the same), so they are filtered
+/// out here; the old read ignored `deleted_at` and showed marks that had been
+/// cleared on the web.
+final attendanceRangeProvider = FutureProvider.family<
+    Map<String, Map<String, Map<String, dynamic>>>,
+    ({String from, String to})>((ref, span) async {
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return {};
+  final res = await supabase
+      .from('attendance')
+      .select('employee_id, day, status, custom_rate')
+      .eq('tenant_id', ctx.tenantId)
+      .isFilter('deleted_at', null)
+      .gte('day', span.from)
+      .lte('day', span.to)
+      .limit(5000);
+  final out = <String, Map<String, Map<String, dynamic>>>{};
+  for (final r in (res as List)) {
+    final m = Map<String, dynamic>.from(r as Map);
+    (out['${m['employee_id']}'] ??= {})['${m['day']}'.substring(0, 10)] = m;
+  }
+  return out;
+});
+
+/// Mark one day for one person, or clear it when [status] is null.
+///
+/// Throws on failure -- the caller says so on screen. `deleted_at: null` matters:
+/// a cleared day keeps its row, so re-marking it has to revive that row.
+Future<void> writeAttendance({
+  required String tenantId,
+  required String employeeId,
+  required String day,
+  required String? status,
+  double? customRate,
+  bool keepRate = false,
+}) async {
+  if (status == null) {
+    await supabase
+        .from('attendance')
+        .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('tenant_id', tenantId)
+        .eq('employee_id', employeeId)
+        .eq('day', day);
+    return;
+  }
+  await supabase.from('attendance').upsert({
+    'tenant_id': tenantId,
+    'employee_id': employeeId,
+    'day': day,
+    'status': status,
+    if (!keepRate) 'custom_rate': customRate,
+    'deleted_at': null,
+  }, onConflict: 'tenant_id,employee_id,day');
+}

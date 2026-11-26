@@ -15,6 +15,10 @@ class Employee {
   final String? bankAccount;
   final String? notes;
 
+  /// Paid leave days allowed in a month. A warning figure on the pay run; it
+  /// does not cut pay by itself.
+  final int paidLeavePerMonth;
+
   Employee({
     required this.id,
     this.name,
@@ -31,6 +35,7 @@ class Employee {
     this.payType,
     this.bankAccount,
     this.notes,
+    this.paidLeavePerMonth = 0,
   });
 
   factory Employee.fromJson(Map<String, dynamic> json) {
@@ -50,6 +55,30 @@ class Employee {
       payType: json['pay_type'] as String?,
       bankAccount: json['bank_account'] as String?,
       notes: json['notes'] as String?,
+      paidLeavePerMonth: (json['paid_leave_per_month'] as num?)?.toInt() ?? 0,
     );
+  }
+
+  /// ACTIVE, ON_LEAVE or INACTIVE, whatever spelling the row carries. Older
+  /// phone builds wrote 'Active' / 'On Leave'.
+  String get statusKey {
+    final s = (status ?? '').trim().toUpperCase().replaceAll(' ', '_');
+    if (s == 'ACTIVE' || s == 'ON_LEAVE') return s;
+    return 'INACTIVE';
+  }
+
+  /// MONTHLY, WEEKLY or DAILY. A legacy HOURLY row is paid by the day, as on web.
+  String get payKind {
+    final t = (payType ?? '').trim().toUpperCase();
+    if (t == 'DAILY' || t == 'HOURLY') return 'DAILY';
+    if (t == 'WEEKLY') return 'WEEKLY';
+    return 'MONTHLY';
+  }
+
+  String get jobTitle {
+    final r = (role ?? '').trim();
+    if (r.isNotEmpty) return r;
+    final p = (position ?? '').trim();
+    return p.isNotEmpty ? p : 'Staff';
   }
 }
