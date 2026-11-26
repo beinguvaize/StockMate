@@ -17,6 +17,9 @@
 #   R2_SECRET_ACCESS_KEY   R2 API token secret
 #   R2_BUCKET              target bucket name (e.g. stockmate-backups)
 #
+# Backups older than 90 days are deleted by this job (the newest four are
+# always kept).
+#
 # Restore: download the .sql.gz, `gunzip`, then `psql "<conn>" -f dump.sql`.
 #
 # THIS RAN AND FAILED EVERY NIGHT FOR WEEKS. The secrets below were never added,
@@ -119,6 +122,30 @@ jobs:
             exit 1
           fi
           echo "✓ Backup verified in R2: weekly/${file} (${size} bytes)"
+
+          # Delete backups older than 90 days (owner's choice, 25 Nov 2026).
+          # Runs only here, after tonight's file is verified in the bucket, so
+          # a failed backup never removes an old one. Only files this job
+          # names are touched, the age comes from the date in the name, and
+          # the newest four are kept whatever their age.
+          endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          cutoff=$(date -u -d '90 days ago' +%Y-%m-%d)
+          all=$( { aws s3 ls "s3://${R2_BUCKET}/weekly/" --endpoint-url "$endpoint" || true; } | awk '{print "weekly/" $4}'
+                 { aws s3 ls "s3://${R2_BUCKET}/daily/"  --endpoint-url "$endpoint" || true; } | awk '{print "daily/" $4}' )
+          keep=$(printf '%s\n' "$all" | grep -E 'ledgrpro-prod-[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}\.sql\.gz$' \
+                   | awk -F'ledgrpro-prod-' '{print $2 " " $0}' | sort -r | head -n 4 | awk '{print $2}' || true)
+          removed=0
+          while IFS= read -r key; do
+            [ -z "$key" ] && continue
+            name=${key##*/}
+            case "$name" in ledgrpro-prod-????-??-??_????.sql.gz) ;; *) continue ;; esac
+            day=${name#ledgrpro-prod-}; day=${day%%_*}
+            if [[ "$day" < "$cutoff" ]] && ! printf '%s\n' "$keep" | grep -qxF "$key"; then
+              aws s3 rm "s3://${R2_BUCKET}/${key}" --endpoint-url "$endpoint"
+              removed=$((removed + 1))
+            fi
+          done <<< "$all"
+          echo "Old backups removed (before ${cutoff}): ${removed}"
 
   # A cron job's red cross is addressed to nobody. These four failed every run
   # from June to October without anyone noticing.
