@@ -542,6 +542,44 @@ describe('paidForWindow', () => {
       .toBe(0);
   });
 
+  describe('a whole-month run made mid-month', () => {
+    // A month run on the 16th that paid one day's wage.
+    const monthRun = (payType) => [{ id: 'm', period: '2026-11', processed_at: '2026-11-16T11:15:46.527Z',
+      items: [{ employeeId: AK, netPay: 900, payType }] }];
+
+    it('does not count day-rate pay against days after it was made', () => {
+      for (const day of ['2026-11-19', '2026-11-26', '2026-11-30']) {
+        expect(paidForWindow({ from: day, to: day, employeeId: AK, records: monthRun('DAILY') }))
+          .toBe(0);
+      }
+    });
+
+    it('still counts it in full for the whole month', () => {
+      expect(paidForWindow({ from: '2026-11-01', to: '2026-11-30', employeeId: AK, records: monthRun('DAILY') }))
+        .toBe(900);
+    });
+
+    it('still spreads a salary over the whole month', () => {
+      expect(paidForWindow({ from: '2026-11-19', to: '2026-11-19', employeeId: AK, records: monthRun('MONTHLY') }))
+        .toBe(30);
+    });
+
+    it('reads the processed day in India time, not UTC', () => {
+      // 20:00 UTC on the 16th is already the 17th in the shop.
+      const late = [{ id: 'm', period: '2026-11', processed_at: '2026-11-16T20:00:00Z',
+        items: [{ employeeId: AK, netPay: 1700, payType: 'DAILY' }] }];
+      expect(paidForWindow({ from: '2026-11-17', to: '2026-11-17', employeeId: AK, records: late }))
+        .toBe(100);
+    });
+
+    it('keeps a day-rate run dated after it was processed', () => {
+      const ahead = [{ id: 'a', period: '2026-11-20/2026-11-20', processed_at: '2026-11-18T10:00:00Z',
+        items: [{ employeeId: AK, netPay: 900, payType: 'DAILY' }] }];
+      expect(paidForWindow({ from: '2026-11-20', to: '2026-11-20', employeeId: AK, records: ahead }))
+        .toBe(900);
+    });
+  });
+
   it('ignores other employees and deleted runs', () => {
     expect(paidForWindow({ from: '2026-08-01', to: '2026-08-31', employeeId: 'someone', records }))
       .toBe(0);

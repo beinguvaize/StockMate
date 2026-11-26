@@ -98,6 +98,17 @@ function needsOverlapConfirmation(items = [], overlappingRuns = []) {
   if (!overlappingRuns || overlappingRuns.length === 0) return false;
   return (items || []).some((i) => Number(i?.netPay || 0) > 0 && !(Number(i?.alreadyPaid || 0) > 0));
 }
+var SHOP_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Kolkata",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+function processedDay(stamp) {
+  if (!stamp) return null;
+  const d = new Date(stamp);
+  return Number.isNaN(d.getTime()) ? null : SHOP_DAY.format(d);
+}
 function paidForWindow({ from, to, employeeId, records = [] } = {}) {
   if (!from || !to || !employeeId) return 0;
   const wFrom = parseISO(from), wTo = parseISO(to);
@@ -108,13 +119,18 @@ function paidForWindow({ from, to, employeeId, records = [] } = {}) {
     if (!r || r.deleted_at) continue;
     const p = parsePeriod(r.period);
     if (!p) continue;
-    const lo = p.from > from ? p.from : from;
-    const hi = p.to < to ? p.to : to;
-    if (lo > hi) continue;
     const item = (r.items || []).find((i) => i.employeeId === employeeId);
     const net = Number(item?.netPay || 0);
     if (net <= 0) continue;
-    const runDays = dayCount(p.from, p.to);
+    let pTo = p.to;
+    if (["DAILY", "HOURLY"].includes(String(item.payType || "").toUpperCase())) {
+      const done = processedDay(r.processed_at);
+      if (done && done >= p.from && done < pTo) pTo = done;
+    }
+    const lo = p.from > from ? p.from : from;
+    const hi = pTo < to ? pTo : to;
+    if (lo > hi) continue;
+    const runDays = dayCount(p.from, pTo);
     const shared = dayCount(lo, hi);
     if (runDays <= 0 || shared <= 0) continue;
     total += shared >= runDays ? net : net * (shared / runDays);
