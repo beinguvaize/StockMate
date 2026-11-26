@@ -7,8 +7,8 @@ import 'package:mobile_app/features/logistics/presentation/providers/logistics_p
 import 'package:mobile_app/features/logistics/presentation/widgets/vehicle_picture.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 
-/// "Add Vehicle" (canvas): pick the kind, name it, give it a plate and a
-/// status. The same screen edits a vehicle.
+/// "Add Vehicle" (canvas): pick the kind, name it, give it a plate, a usual
+/// driver and a status. The same screen edits a vehicle.
 class AddVehicleScreen extends ConsumerStatefulWidget {
   /// Non-null = edit this vehicle.
   final Vehicle? vehicle;
@@ -21,6 +21,7 @@ class AddVehicleScreen extends ConsumerStatefulWidget {
 class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
   final _nameController = TextEditingController();
   final _plateController = TextEditingController();
+  final _driverController = TextEditingController();
   String _selectedStatus = 'ACTIVE';
   VehicleKind _kind = VehicleKind.van;
   bool _isLoading = false;
@@ -38,6 +39,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
     if (v != null) {
       _nameController.text = v.name ?? '';
       _plateController.text = v.displayPlate == '—' ? '' : v.displayPlate;
+      _driverController.text = v.driverName ?? '';
       _selectedStatus = _statusOptions.contains(v.status) ? v.status! : 'ACTIVE';
       _kind = vehicleKindOf(v.type);
     }
@@ -47,6 +49,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
   void dispose() {
     _nameController.dispose();
     _plateController.dispose();
+    _driverController.dispose();
     super.dispose();
   }
 
@@ -77,9 +80,11 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
         'name': _nameController.text.trim(),
         'plateNumber': _plateController.text.trim().toUpperCase(),
         'status': _selectedStatus,
-        // No driver here: vehicles has no driver column, and sending one made
-        // Postgres reject the whole save (PGRST204). A vehicle's driver is
-        // whoever is on its route.
+        // The vehicle's usual driver (vehicles."driverName", added
+        // 20261126). Null when left empty, so a cleared field clears it.
+        'driverName': _driverController.text.trim().isEmpty
+            ? null
+            : _driverController.text.trim(),
         'type': vehicleKindValue(_kind),
       };
 
@@ -127,7 +132,9 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
                     width: 1.5)),
             child: Column(
               children: [
-                VehiclePicture(k, width: 120),
+                VehiclePicture(k,
+                    width: 120,
+                    ground: on ? const Color(0xFFFFF8EC) : Bl.wellSoft),
                 const SizedBox(height: 4),
                 Text(vehicleKindLabel(k),
                     style: Bl.tight(12,
@@ -179,6 +186,12 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
                       hint: 'e.g. MH 12 AB 1234',
                       controller: _plateController,
                       capitalization: TextCapitalization.characters,
+                    ),
+                    BlField(
+                      label: 'Driver (optional)',
+                      hint: 'e.g. Suresh Patel',
+                      controller: _driverController,
+                      capitalization: TextCapitalization.words,
                     ),
                     const SizedBox(height: 12),
                     Text('Status',

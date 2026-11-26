@@ -25,7 +25,8 @@
     "electron:publish": "vite build --base=./ && electron-builder --publish always",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "landing:css": "tailwindcss -i landing-src/tailwind.css -o public/landing/tw.css --minify && node scripts/landing-stamp.mjs"
+    "landing:css": "tailwindcss -i landing-src/tailwind.css -o public/landing/tw.css --minify && node scripts/landing-stamp.mjs",
+    "build:payroll-fn": "esbuild src/lib/payRunServer.js --bundle --format=esm --platform=neutral --outfile=supabase/functions/payroll-run/payRun.bundle.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
@@ -72,7 +73,7 @@
     "vitest": "^4.1.10",
     "wait-on": "^9.0.10"
   },
-  "description": "StockMate — inventory, sales and logistics management.",
+  "description": "StockMate \u2014 inventory, sales and logistics management.",
   "main": "electron/main.cjs",
   "keywords": [],
   "author": "",

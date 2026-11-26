@@ -1504,3 +1504,45 @@ class BlTintAvatar extends StatelessWidget {
     );
   }
 }
+
+/// A dashed rounded outline drawn over its child (the "Run payroll" card, the "Add photo" tile).
+class DashedOutline extends StatelessWidget {
+  final Widget child;
+  final Color color;
+  final double radius;
+  const DashedOutline(
+      {super.key, required this.child, required this.color, this.radius = 16});
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+        foregroundPainter: _OutlinePainter(color, radius),
+        child: child,
+      );
+}
+
+class _OutlinePainter extends CustomPainter {
+  final Color color;
+  final double radius;
+  _OutlinePainter(this.color, this.radius);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          (Offset.zero & size).deflate(0.75), Radius.circular(radius)));
+    for (final m in path.computeMetrics()) {
+      for (double d = 0; d < m.length; d += 9) {
+        final end = d + 5 > m.length ? m.length : d + 5;
+        canvas.drawPath(m.extractPath(d, end), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_OutlinePainter old) =>
+      old.color != color || old.radius != radius;
+}

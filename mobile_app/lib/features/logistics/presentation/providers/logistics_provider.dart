@@ -42,7 +42,8 @@ final fleetDriverNamesProvider =
 });
 
 /// Who drives each vehicle: the driver of its route that is out now, or
-/// failing that its most recent route. Vehicles carry no driver of their own.
+/// failing that its most recent route. Used when the vehicle has no usual
+/// driver saved on it.
 Map<String, String> driversByVehicle(
     List<LogisticRoute> routes, Map<String, String> names) {
   const live = {'IN_TRANSIT', 'ACTIVE', 'PLANNED'};

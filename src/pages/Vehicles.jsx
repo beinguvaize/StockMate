@@ -36,7 +36,7 @@ const STATUS_STYLES = {
 const EMPTY_VEHICLE_FORM = {
   name: '', plate: '', type: 'VAN', status: 'ACTIVE',
   capacity: '', fuelType: 'PETROL', color: '', year: '',
-  lastServiceDate: '', nextServiceDate: '',
+  lastServiceDate: '', nextServiceDate: '', driverName: '',
 };
 
 const serviceStatus = (d) => {
@@ -185,7 +185,7 @@ const Vehicles = () => {
       status: v.status || 'ACTIVE', capacity: v.capacity || '',
       fuelType: v.fuelType || 'PETROL', color: v.color || '',
       year: v.year || '', lastServiceDate: v.lastServiceDate || '',
-      nextServiceDate: v.nextServiceDate || '',
+      nextServiceDate: v.nextServiceDate || '', driverName: v.driverName || '',
     });
     setShowVehicleModal(true);
   };
@@ -975,6 +975,7 @@ const Vehicles = () => {
                       </div>
 
                       <div className="flex flex-wrap gap-2 text-[9px] font-semibold text-muted-foreground">
+                        {v.driverName && <span className="flex items-center gap-1">Driver: {v.driverName}</span>}
                         {v.fuelType && <span className="flex items-center gap-1"><Fuel size={9} />{v.fuelType}</span>}
                         {v.capacity && <span className="flex items-center gap-1"><Truck size={9} />{v.capacity} cap</span>}
                         {v.year     && <span className="flex items-center gap-1"><Calendar size={9} />{v.year}</span>}
@@ -1147,6 +1148,13 @@ const Vehicles = () => {
                   value={vehicleForm.fuelType} onChange={e => setVehicleForm({ ...vehicleForm, fuelType: e.target.value })}>
                   {FUEL_TYPES.map(f => <option key={f}>{f}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Usual driver (optional)</label>
+                <input type="text"
+                  className="w-full bg-white border border-border shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  placeholder="e.g. Suresh Patel"
+                  value={vehicleForm.driverName} onChange={e => setVehicleForm({ ...vehicleForm, driverName: e.target.value })} />
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-muted-foreground mb-1.5">Capacity</label>

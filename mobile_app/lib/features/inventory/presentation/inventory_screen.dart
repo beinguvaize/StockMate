@@ -15,6 +15,7 @@ import 'package:mobile_app/main.dart' show databaseProvider;
 import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/core/utils/stock_levels.dart';
+import 'package:mobile_app/features/inventory/presentation/widgets/product_photo.dart';
 import 'package:mobile_app/widgets/motion/motion_refresh.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
@@ -554,14 +555,6 @@ class _ProductRow extends StatelessWidget {
   const _ProductRow(
       {required this.product, required this.pictures, required this.onTap});
 
-  // Tile tints for the picture view until a product has a photo.
-  static const _tints = [
-    (Color(0xFFFFF3D6), Color(0xFF8A5A00)),
-    (Color(0xFFE8F1FF), Color(0xFF1D4E9E)),
-    (Color(0xFFE6F6EC), Color(0xFF17663A)),
-    (Color(0xFFFDECEC), Color(0xFFA32A2A)),
-    (Color(0xFFF1ECFF), Color(0xFF5133A8)),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -577,9 +570,6 @@ class _ProductRow extends StatelessWidget {
         : isLow
             ? Bl.amberDeep
             : Bl.ink;
-    final (tintBg, tintFg) = _tints[product.name.hashCode.abs() % _tints.length];
-    final photo = product.image;
-    final hasPhoto = photo != null && photo.startsWith('http');
 
     return BlTap(
       onTap: onTap,
@@ -590,27 +580,7 @@ class _ProductRow extends StatelessWidget {
         child: Row(
           children: [
             if (pictures) ...[
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                    color: tintBg, borderRadius: BorderRadius.circular(11)),
-                child: hasPhoto
-                    ? Image.network(photo,
-                        width: 44,
-                        height: 44,
-                        fit: BoxFit.cover,
-                        excludeFromSemantics: true,
-                        errorBuilder: (_, _, _) => Text(
-                            BlPartyAvatar.initials(product.name),
-                            style: Bl.tight(13,
-                                w: FontWeight.w700, ls: 0, c: tintFg)))
-                    : Text(BlPartyAvatar.initials(product.name),
-                        style:
-                            Bl.tight(13, w: FontWeight.w700, ls: 0, c: tintFg)),
-              ),
+              ProductPicture(name: product.name, image: product.image),
               const SizedBox(width: 12),
             ],
             Expanded(
@@ -838,13 +808,6 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
     }
   }
 
-  static const _tints = [
-    (Color(0xFFFFF3D6), Color(0xFF8A5A00)),
-    (Color(0xFFE8F1FF), Color(0xFF1D4E9E)),
-    (Color(0xFFE6F6EC), Color(0xFF17663A)),
-    (Color(0xFFFDECEC), Color(0xFFA32A2A)),
-    (Color(0xFFF1ECFF), Color(0xFF5133A8)),
-  ];
 
   Widget _stat(String label, String value, {Color? c, bool last = false}) =>
       Expanded(
@@ -908,7 +871,6 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
             ? Bl.amberDeep
             : const Color(0xFF17663A);
     final statusLabel = isOut ? 'Out of stock' : (isLow ? 'Low stock' : 'In stock');
-    final (tintBg, tintFg) = _tints[p.name.hashCode.abs() % _tints.length];
     final unit = (p.unit ?? 'pcs').toLowerCase();
     final pack = _packSuffix(p);
     final double? margin = p.sellingPrice > 0
@@ -965,15 +927,12 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         const SizedBox(height: 10),
         Row(
           children: [
-            Container(
-              width: 64,
-              height: 64,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                  color: tintBg, borderRadius: BorderRadius.circular(16)),
-              child: Text(BlPartyAvatar.initials(p.name),
-                  style: Bl.tight(19, w: FontWeight.w700, ls: 0, c: tintFg)),
-            ),
+            ProductPicture(
+                name: p.name,
+                image: p.image,
+                size: 64,
+                radius: 16,
+                fontSize: 19),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

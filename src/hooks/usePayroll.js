@@ -52,6 +52,9 @@ const toEmployeeRow = (emp) => ({
   professional_tax_state: emp.professionalTaxState ?? emp.professional_tax_state ?? null,
   tds_monthly:            Number(emp.tdsMonthly ?? emp.tds_monthly ?? 0) || 0,
   esi_no:            emp.esiNo             ?? emp.esi_no            ?? null,
+  // Paid leave days allowed in a month. A warning figure only: going over it
+  // is flagged on the pay run, it does not cut pay by itself.
+  paid_leave_per_month: Math.max(0, Math.min(31, Math.round(Number(emp.paidLeavePerMonth ?? emp.paid_leave_per_month ?? 0)) || 0)),
 });
 
 export const usePayroll = (tenantId) => {
@@ -158,68 +161,36 @@ export const usePayroll = (tenantId) => {
     return { success: !error, error };
   };
 
-  const processPayroll = async (record) => {
-    const row = {
-      id:                crypto.randomUUID(),
-      tenant_id:         tenantId,
-      period:            record.period,
-      items:             record.items,
-      total_base:        record.totalBase,
-      total_net:         record.totalNet,
-      total_overtime:    record.totalOvertime,
-      total_commission:  record.totalCommission,
-      total_bonus:       record.totalBonus,
-      total_deductions:  record.totalDeductions,
-      processed_at:      record.processedAt,
-    };
-    const { data, error } = await supabase.from('payroll').insert([row]).select().single();
-    if (error) { console.error('processPayroll insert error:', error); return { success: false, error }; }
-    setPayrollRecords(prev => [toPayrollRecord(data), ...prev]);
-
-    // One salary expense per employee. That expense is what puts the payroll in
-    // DayBook and the P&L, and trg_expenses_post_ledger turns it into a money-OUT
-    // on the matching Cash/UPI/Bank account — so this insert is the whole reason
-    // the money shows up anywhere outside the payroll table.
-    //
-    // It used to be fired without await and with the error swallowed into
-    // console. A failure left a payroll record standing with nothing in DayBook
-    // and no way to know. Insert as one batch, and hand the error back.
-    //
-    // period is YYYY-MM (monthly) or YYYY-MM-DD/YYYY-MM-DD (a date range)
-    const isRange = record.period.includes('/');
-    const expDate = isRange
-      ? record.period.split('/')[1]   // last day of the range = the pay date
-      : (() => { const [yr, mo] = record.period.split('-').map(Number); return new Date(yr, mo, 0).toISOString().slice(0, 10); })();
-
-    const expenseRows = (record.items || [])
-      .filter(item => Number(item.netPay) > 0)
-      .map(item => ({
-        id: crypto.randomUUID(),
-        tenant_id: tenantId,
-        category: 'Salary',
-        amount: item.netPay,
-        note: `Payroll ${record.period} — ${item.employeeName}`,
-        date: expDate,
-        payment_method: record.paymentMethod || 'CASH',
-        // Which run made this. Deleting a run used to leave its expenses in the
-        // P&L because the only link was the note text above.
-        payroll_id: row.id,
-      }));
-
-    if (expenseRows.length) {
-      const { error: expError } = await supabase.from('expenses').insert(expenseRows);
-      if (expError) {
-        console.error('salary expense insert error:', expError);
-        // The run itself is saved; say plainly that the money side is not, so it
-        // can be entered by hand rather than quietly going missing from DayBook.
-        return {
-          success: true,
-          expenseError: expError,
-          message: `Payroll saved, but the ${expenseRows.length} salary expense${expenseRows.length === 1 ? '' : 's'} could not be posted: ${expError.message}. DayBook and the cash account will not show this payout until that is fixed.`,
-        };
-      }
+  /**
+   * Save a pay run and its salary expenses in ONE database call.
+   *
+   * This used to be two inserts from the browser: the payroll row, then the
+   * expenses. When the second failed the run stood with nothing in DayBook or
+   * the cash account. process_payroll_run writes both in a single transaction,
+   * so it is all saved or none of it is, and the phone calls the same function.
+   *
+   * The run id is made here and sent with the call. If the reply is lost and
+   * the same id is sent again, the function hands back the run it already
+   * saved instead of paying everyone a second time.
+   */
+  const processPayroll = async (record, runId = crypto.randomUUID()) => {
+    const { data, error } = await supabase.rpc('process_payroll_run', {
+      p_tenant_id:      tenantId,
+      p_run_id:         runId,
+      p_period:         record.period,
+      p_payment_method: record.paymentMethod || 'CASH',
+      p_items:          record.items || [],
+      p_processed_at:   record.processedAt || null,
+    });
+    if (error) {
+      console.error('process_payroll_run error:', error);
+      return { success: false, error, runId };
     }
-    return { success: true, expensesPosted: expenseRows.length };
+    const run = data?.run;
+    if (run) {
+      setPayrollRecords(prev => [toPayrollRecord(run), ...prev.filter(r => r.id !== run.id)]);
+    }
+    return { success: true, expensesPosted: Number(data?.expenses || 0), replayed: !!data?.replayed, runId };
   };
 
   /**
