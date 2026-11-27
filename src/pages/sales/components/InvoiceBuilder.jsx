@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { readPosStore, writePosStore, onPosStoreChange } from '../../../lib/posStore';
 import { parseScaleBarcode, quantityFrom } from '../../../lib/scaleBarcode';
 import { buildCatalogIndex, resolveScan, resolvePlu } from '../../../lib/pos/catalog';
 import { cameraScanSupported } from '../../../lib/pos/cameraScan';
@@ -183,16 +184,16 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   useEffect(() => {
     try { localStorage.setItem('pos_view_mode', viewMode); } catch { /* ignore */ }
   }, [viewMode]);
-  // Store the sale is rung at (multi-store). Persisted per device.
-  const [storeId, setStoreId] = useState(() => {
-    try { return localStorage.getItem('pos_store_id') || ''; } catch { return ''; }
-  });
+  // Store the sale is rung at (multi-store). Persisted per device; the side
+  // menu's shop card can change it too (lib/posStore), so listen for that.
+  const [storeId, setStoreId] = useState(() => readPosStore());
   useEffect(() => {
     if (stores.length && !stores.some(s => s.id === storeId)) setStoreId(stores[0].id);
   }, [stores]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    try { if (storeId) localStorage.setItem('pos_store_id', storeId); } catch { /* ignore */ }
+    if (storeId && storeId !== readPosStore()) writePosStore(storeId);
   }, [storeId]);
+  useEffect(() => onPosStoreChange((id) => { if (id) setStoreId(id); }), []);
   // Cashier-entered "Amount Received". Empty = method default (full pay
   // for CASH/UPI/BANK, 0 for CREDIT). > total → Change due. < total
   // with registered client → Balance to outstanding ledger.
