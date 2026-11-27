@@ -12,6 +12,7 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useOffline } from '../context/OfflineContext.jsx';
 import { useOfflineGrace } from '../lib/offline/useOfflineGrace.js';
+import { Button } from './ui/button';
 
 function useRelativeTime(isoTs) {
   const [label, setLabel] = useState('');
@@ -38,10 +39,44 @@ function useRelativeTime(isoTs) {
   return label;
 }
 
-export default function SyncStatus() {
+export default function SyncStatus({ variant = 'pill' }) {
   const { online, syncing, lastSyncAt, pendingCount, syncNow } = useOffline();
   const relTime = useRelativeTime(lastSyncAt);
   const grace = useOfflineGrace();
+
+  // Web redesign top bar: a dot and one word ("Synced" / "Offline"), the
+  // same state, tooltip and manual sync as the pill below. Replaces the old
+  // dashboard "System Status" dot.
+  if (variant === 'bar') {
+    const label = syncing ? 'Syncing' : online ? 'Synced' : grace ? `Offline, ${grace.daysLeft} days left` : 'Offline';
+    return (
+      <div className="flex items-center gap-2">
+        <div className="relative group flex items-center gap-1.5 text-[12.5px] text-body cursor-default whitespace-nowrap"
+          title={online ? 'Connected and syncing' : 'Working offline'} data-testid="sync-status">
+          <span className={`size-[7px] rounded-pill shrink-0 ${syncing ? 'bg-amber animate-pulse' : online ? 'bg-good' : 'bg-faint'}`} />
+          <span>{label}</span>
+          {pendingCount > 0 && (
+            <span className="rounded-pill bg-amber-soft px-1.5 py-px font-tight text-[11px] font-semibold text-amber-text tabular-nums">
+              {pendingCount > 99 ? '99+' : pendingCount} to send
+            </span>
+          )}
+          <div className="absolute top-full right-0 mt-2 w-48 bg-surface rounded-lg border border-line shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[130]">
+            <p className="font-tight text-[12px] font-semibold text-ink mb-1">{online ? 'Online' : 'Offline'}</p>
+            {pendingCount > 0 && (
+              <p className="text-[12px] text-amber-text mb-1">{pendingCount} change{pendingCount !== 1 ? 's' : ''} waiting to send</p>
+            )}
+            <div className="flex items-center justify-between pt-2 border-t border-sep text-[11.5px]">
+              <span className="text-mute">Last sync</span>
+              <span className="font-semibold text-ink">{relTime}</span>
+            </div>
+          </div>
+        </div>
+        <Button variant="secondary" size="icon-sm" onClick={syncNow} disabled={syncing} title="Sync now" aria-label="Sync now">
+          <RefreshCw className={syncing ? 'animate-spin' : ''} />
+        </Button>
+      </div>
+    );
+  }
 
   const dotColor = online ? 'bg-emerald-500' : 'bg-gray-400';
   const ringColor = online ? 'bg-emerald-50 border-emerald-100' : 'bg-muted border-border';
