@@ -20,6 +20,7 @@ import 'package:mobile_app/features/shell/desktop_shell.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:mobile_app/core/database/sync_service.dart';
+import 'package:mobile_app/core/errors/error_reporter.dart';
 import 'package:mobile_app/core/print/web_print_service.dart' show appNavigatorKey;
 
 // Providers
@@ -52,6 +53,8 @@ Future<void> main() async {
   // Fire-and-forget background sync — do NOT await here.
   unawaited(container.read(syncServiceProvider).sync());
   unawaited(container.read(syncServiceProvider).pullSync());
+  // Send error-log rows that waited offline; and again on every reconnect.
+  ErrorReporter.instance.start();
 
   runApp(
     UncontrolledProviderScope(
