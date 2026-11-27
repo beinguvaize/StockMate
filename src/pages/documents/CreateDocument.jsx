@@ -11,7 +11,8 @@ import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { useEstimates } from '../../hooks/useEstimates';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
-import { calculateGST, shareToWhatsApp } from '../../lib/gstEngine';
+import { calculateGST } from '../../lib/gstEngine';
+import ShareInvoiceDialog from '../../components/share/ShareInvoiceDialog';
 import { tierPrice } from '../../lib/priceResolver';
 import { PartyPicker, DocItemGrid, TotalsPanel, Field, inr } from '../../components/documents/DocParts';
 
@@ -60,6 +61,7 @@ const CreateDocument = () => {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [printBill, setPrintBill] = useState(null); // manual bill → invoice template preview
+  const [shareBillOpen, setShareBillOpen] = useState(false);
 
   // Money lands in the payment method's account (no separate picker).
   const depAcc = accountForMethod(accounts, payMethod);
@@ -333,12 +335,25 @@ const CreateDocument = () => {
               businessProfile={businessProfile}
               client={{ name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }}
               onPrint={() => window.print()}
-              onShare={() => shareToWhatsApp(printBill, { name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }, businessProfile)}
+              onShare={() => setShareBillOpen(true)}
               onClose={() => { setPrintBill(null); navigate('/estimates'); }}
             />
           </div>
         </div>
       )}
+      {/* A manual bill is not an invoices row: it goes out as a PDF, with no link. */}
+      <ShareInvoiceDialog
+        open={!!printBill && shareBillOpen}
+        invoice={printBill}
+        client={printBill ? {
+          name: printBill.client_name, gstin: printBill.client_gstin, state: printBill.place_of_supply,
+          phone: party?.phone, contact: party?.contact, email: party?.email,
+        } : null}
+        businessProfile={businessProfile}
+        title="Bill"
+        linkable={false}
+        onClose={() => setShareBillOpen(false)}
+      />
     </div>
   );
 };
