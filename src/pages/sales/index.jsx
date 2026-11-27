@@ -6,11 +6,12 @@ import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { usePeople } from '../../hooks/usePeople';
 import { useNotifications } from '../../context/NotificationContext';
-import { ShoppingCart, History, Plus, ReceiptText, TrendingUp, Receipt, BarChart2, LayoutGrid } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { generateRef, formatCurrency, todayISOInAppTZ } from '../../lib/utils';
-import Button from '../../shared/Button';
-import SegmentedTabs from '../../components/motion/SegmentedTabs';
-import Modal from '../../shared/Modal';
+import { Button } from '../../components/ui/button';
+import { Tabs } from '../../components/ui/Tabs';
+import Dialog from '../../components/ui/Dialog';
+import TopBarSlot from '../../components/TopBarSlot';
 import InvoiceBuilder from './components/InvoiceBuilder';
 import InvoiceList from './components/InvoiceList';
 import SalePrintDispatcher from './components/SalePrintDispatcher';
@@ -83,7 +84,7 @@ const SalesPage = () => {
   const handleReverseReturn = async (returnId) => {
     const { error } = await reverseSalesReturn(returnId);
     if (error) { addNotification('Undo failed: ' + error.message, 'error'); return; }
-    addNotification('Return undone — stock re-deducted, sale editable again.', 'success');
+    addNotification('Return undone. Stock re-deducted, the sale can be edited again.', 'success');
   };
 
   // Wrap placeSale: auto-create invoice for credit sales (settlement) and
@@ -187,8 +188,9 @@ const SalesPage = () => {
   const posStores = (inventoryLocations || []).filter(l => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
   const { users: staff = [], recordClientPayment } = usePeople(currentTenantId);
 
-  const [activeTab, setActiveTab] = useState('pos'); // 'tables' | 'pos' | 'history'
-  const [historyView, setHistoryView] = useState('sales'); // 'sales' | 'returns'
+  const [activeTab, setActiveTab] = useState('pos'); // 'tables' | 'pos' | 'history' | 'returns'
+  // The builder's full-page checkout is open (the tabs step aside for it).
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [printingSale, setPrintingSale] = useState(null);
   const [returnSale, setReturnSale] = useState(null);
   const [returnLoading, setReturnLoading] = useState(false);
@@ -276,7 +278,7 @@ const SalesPage = () => {
     setReturnLoading(false);
     if (error) { addNotification('Return failed: ' + error.message, 'error'); return; }
     setReturnSale(null);
-    addNotification('Return processed — stock restored.', 'success');
+    addNotification('Return processed, stock restored.', 'success');
   };
 
   // Fast-moving products — rank by total quantity sold over the recent
@@ -323,49 +325,44 @@ const SalesPage = () => {
 
   if (isLoading && !loadTimeout) return <PageSkeleton cards={3} rows={8} />;
 
+  // Today's figures sit in the shell's top bar (TopBarSlot); between the
+  // phone and desktop widths the top bar is hidden, so they show above the
+  // tabs there instead, as they did before.
+  const todayFigures = (
+    <div className="flex items-center gap-3.5 text-[12.5px] text-body whitespace-nowrap [&>span+span]:pl-3.5 [&>span+span]:border-l [&>span+span]:border-sep" title="Today so far">
+      <span>Today <b className="font-tight text-[13px] font-semibold text-ink tabular-nums">{formatCurrency(todayStats.revenue)}</b></span>
+      <span><b className="font-tight text-[13px] font-semibold text-ink tabular-nums">{todayStats.count}</b> {todayStats.count === 1 ? 'bill' : 'bills'}</span>
+      {todayStats.count > 0 && (
+        <span>avg <b className="font-tight text-[13px] font-semibold text-ink tabular-nums">{formatCurrency(todayStats.avg)}</b></span>
+      )}
+    </div>
+  );
+
+  const tabItems = [
+    ...(isResto ? [{ key: 'tables', label: 'Tables' }] : []),
+    { key: 'pos', label: isResto ? 'Order' : 'New sale' },
+    { key: 'history', label: 'History', count: (sales || []).length.toLocaleString('en-IN') },
+    { key: 'returns', label: 'Returns', count: (salesReturns || []).length.toLocaleString('en-IN') },
+  ];
+
   return (
-    <div className="animate-fade-in flex flex-col gap-2">
-      <div className="flex justify-between items-center py-2 border-b border-border/60">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-base font-semibold text-foreground tracking-tight">
-            {activeTab === 'tables' ? 'Tables' : activeTab === 'pos' ? (isResto ? 'Order' : 'Sales') : 'History'}
-          </h1>
-          {/* Today's live stats */}
-          <div className="hidden sm:flex items-center gap-1.5">
-            <div className="flex items-center gap-1.5 bg-card border border-border text-foreground px-2.5 py-1 rounded-lg h-7">
-              <TrendingUp size={10} className="text-emerald-500 shrink-0" />
-              <span className="text-[10px] font-semibold">{formatCurrency(todayStats.revenue)}</span>
-              <span className="text-[9px] font-medium text-muted-foreground">today</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-card border border-border text-foreground px-2.5 py-1 rounded-lg h-7">
-              <Receipt size={10} className="opacity-40 shrink-0" />
-              <span className="text-[10px] font-semibold">{todayStats.count}</span>
-              <span className="text-[9px] font-medium text-muted-foreground">txns</span>
-            </div>
-            {todayStats.count > 0 && (
-              <div className="flex items-center gap-1.5 bg-card border border-border text-foreground px-2.5 py-1 rounded-lg h-7">
-                <BarChart2 size={10} className="opacity-40 shrink-0" />
-                <span className="text-[10px] font-semibold">{formatCurrency(todayStats.avg)}</span>
-                <span className="text-[9px] font-medium text-muted-foreground">avg</span>
-              </div>
-            )}
-          </div>
-        </div>
-        <SegmentedTabs
+    <div className="flex flex-col">
+      <TopBarSlot>{todayFigures}</TopBarSlot>
+      <div className="hidden sm:flex md:hidden mb-3">{todayFigures}</div>
+
+      {/* Checkout takes the page over, as in the approved design: the tabs
+          step aside while it is open and come back with "Back to cart". */}
+      {!checkoutOpen && (
+        <Tabs
+          ariaLabel="Sales"
+          className="m-rise mb-[18px] -mt-1 overflow-x-auto no-scrollbar"
+          items={tabItems}
           value={activeTab}
           onChange={(k) => { if (k === 'tables') setActiveTable(null); setActiveTab(k); }}
-          trackClass="bg-canvas shadow-inner"
-          indicatorClass="bg-accent-signature shadow-lg"
-          activeClass="text-button-text"
-          items={[
-            ...(isResto ? [{ key: 'tables', label: 'Tables', icon: LayoutGrid }] : []),
-            { key: 'pos', label: isResto ? 'Order' : 'New Sale', icon: ShoppingCart },
-            { key: 'history', label: 'History', icon: History },
-          ]}
         />
-      </div>
+      )}
 
-<div>
+      <div>
         {isResto && activeTab === 'tables' ? (
           <TablesFloor
             tables={tablesApi.tables}
@@ -381,20 +378,25 @@ const SalesPage = () => {
           />
         ) : activeTab === 'pos' ? (
           <>
-            {isResto && activeTable && (
-              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-accent-signature/10 border border-accent-signature/25">
-                <span className="text-sm font-semibold text-foreground">Table {activeTable.table.label}</span>
-                <button onClick={() => { setActiveTable(null); setActiveTab('tables'); }}
-                  className="text-[12px] font-semibold text-accent-signature-hover hover:underline">← Back to floor</button>
+            {isResto && activeTable && !checkoutOpen && (
+              <div className="m-rise flex items-center justify-between gap-3 mb-3 px-4 py-2.5 rounded-xl bg-amber-soft">
+                <span className="font-tight text-[13.5px] font-semibold text-ink">Table {activeTable.table.label}</span>
+                <Button variant="link" size="xs" className="px-0"
+                  onClick={() => { setActiveTable(null); setActiveTab('tables'); }}>
+                  <ChevronLeft /> Back to floor
+                </Button>
               </div>
             )}
-            {editingSale && (
-              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-accent-signature/10 border border-accent-signature/25">
-                <span className="text-sm font-semibold text-foreground">
-                  Editing sale #{String(editingSale.id).split('-').pop()} — stock & balance re-sync on save
+            {editingSale && !checkoutOpen && (
+              <div className="m-rise flex items-center justify-between gap-3 mb-3 px-4 py-2.5 rounded-xl bg-amber-soft">
+                <span className="text-[13px] text-ink-2">
+                  <b className="font-tight font-semibold text-ink">Editing sale #{String(editingSale.id).split('-').pop()}</b>
+                  <span className="text-body">, stock and balance re-sync on save</span>
                 </span>
-                <button onClick={() => { setEditingSale(null); setActiveTab('history'); }}
-                  className="text-[12px] font-semibold text-accent-signature-hover hover:underline">Cancel edit</button>
+                <Button variant="secondary" size="xs" className="bg-surface"
+                  onClick={() => { setEditingSale(null); setActiveTab('history'); }}>
+                  Cancel edit
+                </Button>
               </div>
             )}
             <InvoiceBuilder
@@ -418,50 +420,39 @@ const SalesPage = () => {
               editMeta={editMeta}
               onEditDone={() => { setEditingSale(null); setActiveTab('history'); }}
               onRecordPayment={recordClientPayment}
+              onCheckoutChange={setCheckoutOpen}
             />
           </>
+        ) : activeTab === 'history' ? (
+          <InvoiceList
+            sales={sales}
+            clients={clients}
+            staff={staff}
+            products={products}
+            invoices={invoices}
+            returnedSaleIds={returnedSaleIds}
+            onDelete={removeSale}
+            onSettle={settleSale}
+            onPrint={printSale}
+            onReturn={setReturnSale}
+            onEdit={startEdit}
+            onDispatch={dispatchSale}
+            onConvertToInvoice={(sale) => setConvertSale(sale)}
+          />
         ) : (
-          <>
-            {/* Sales / Returns sub-tabs */}
-            <div className="mb-3">
-              <SegmentedTabs
-                value={historyView}
-                onChange={setHistoryView}
-                trackClass="bg-canvas"
-                indicatorClass="bg-foreground"
-                activeClass="text-background"
-                items={[{ key: 'sales', label: `Sales ${sales.length}` }, { key: 'returns', label: `Returns ${salesReturns.length}` }]}
-              />
-            </div>
-            {historyView === 'sales' ? (
-              <InvoiceList
-                sales={sales}
-                clients={clients}
-                staff={staff}
-                products={products}
-                invoices={invoices}
-                returnedSaleIds={returnedSaleIds}
-                onDelete={removeSale}
-                onSettle={settleSale}
-                onPrint={printSale}
-                onReturn={setReturnSale}
-                onEdit={startEdit}
-                onDispatch={dispatchSale}
-                onConvertToInvoice={(sale) => setConvertSale(sale)}
-              />
-            ) : (
-              <SalesReturnsList returns={salesReturns} onReverse={handleReverseReturn} />
-            )}
-          </>
+          <SalesReturnsList returns={salesReturns} onReverse={handleReverseReturn} />
         )}
       </div>
 
       {/* Convert to GST Invoice Modal — collects customer/GSTIN before RPC */}
-      <Modal
-        isOpen={!!convertSale}
+      <Dialog
+        open={!!convertSale}
         onClose={() => !convertSubmitting && setConvertSale(null)}
-        title="Issue GST Tax Invoice"
-        subtitle={convertSale ? `From sale ${convertSale.id?.slice(0, 12) || ''}` : ''}
+        width={540}
+        title="Issue GST tax invoice"
+        subtitle={convertSale
+          ? `From sale ${convertSale.id?.slice(0, 12) || ''} · ${formatCurrency(convertSale.totalAmount ?? convertSale.total_amount ?? 0)}`
+          : ''}
       >
         {convertSale && (
           <ConvertToInvoiceSheet
@@ -534,14 +525,14 @@ const SalesPage = () => {
             }}
           />
         )}
-      </Modal>
+      </Dialog>
 
       {/* Sales Return Modal */}
-      <Modal
-        isOpen={!!returnSale}
+      <Dialog
+        open={!!returnSale}
         onClose={() => setReturnSale(null)}
-        title="Process Sales Return"
-        subtitle="Credit note — stock will be restocked"
+        title="Return items"
+        subtitle="Credit note. Returned items go back into stock."
       >
         {returnSale && (
           <SalesReturnForm
@@ -550,9 +541,10 @@ const SalesPage = () => {
             products={products}
             onSave={handleSalesReturn}
             loading={returnLoading}
+            onCancel={() => setReturnSale(null)}
           />
         )}
-      </Modal>
+      </Dialog>
 
       {printingSale && (
         <SalePrintDispatcher
