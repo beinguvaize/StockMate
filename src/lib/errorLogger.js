@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { buildErrorRow, classifyError, newReference } from './errorCodes';
 
 /**
  * Platform Error Logger
@@ -102,4 +103,42 @@ export async function safeQuery(module, action, queryFn, severity = 'Medium') {
     }
     
     return result;
+}
+
+/**
+ * Log one shown error with its support code and reference -- the same row the
+ * phone writes (code, reference, outcome, screen, action, platform, app
+ * version, UTC time, scrubbed raw error). A direct INSERT, gated by the
+ * "Members log their own shop's errors" policy; no SECURITY DEFINER call.
+ *
+ * Fire-and-forget: never throws, never blocks the screen. Until the 20261127
+ * migration is applied the insert is refused, and that is returned, not
+ * thrown. Never pass shop name, client name, amounts or typed values.
+ *
+ * @returns {Promise<{success: boolean, reference: string, error?: string}>}
+ */
+export async function logCodedError({
+  error, result, reference, screen, action, tenantId, userId = null,
+  appVersion = null, sent = true, earlierWriteSucceeded = false,
+  offlineBeforeSend = false, client,
+}) {
+  const ref = reference || newReference();
+  try {
+    const r = result || classifyError(error, { sent, earlierWriteSucceeded, offlineBeforeSend });
+    const row = buildErrorRow({
+      result: r, reference: ref, screen, action, tenantId, userId,
+      raw: String(error?.message || error || ''), appVersion,
+    });
+    const db = client || supabase;
+    const { error: insertError } = await db.from('platform_error_logs').insert(row);
+    if (insertError && insertError.code !== '23505') {
+      // Local only: logging a logging failure would loop.
+      console.warn('[error-log] insert refused:', insertError.code, insertError.message);
+      return { success: false, reference: ref, error: insertError.message };
+    }
+    return { success: true, reference: ref };
+  } catch (err) {
+    console.warn('[error-log] insert failed:', err?.message || err);
+    return { success: false, reference: ref, error: String(err?.message || err) };
+  }
 }

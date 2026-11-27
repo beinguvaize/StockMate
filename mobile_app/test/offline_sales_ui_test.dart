@@ -113,6 +113,8 @@ void main() {
     expect(find.text('Bill SAL-9'), findsOneWidget);
     expect(find.text('Not enough stock'), findsOneWidget);
     expect(find.text('Salt has 0 in stock and this bill needs 1'), findsOneWidget);
+    // The support code: refused when sent, and why.
+    expect(find.text('SYNC-03 / DB-03'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
 
     await t.tap(find.text('Discard'));
