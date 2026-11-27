@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import SyncStatusButton from './SyncStatusButton';
 import TrialBanner from './TrialBanner';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, ShoppingCart, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode, PanelLeft, Plus, Landmark, ChefHat, FilePen, Car } from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, ShoppingCart, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode, PanelLeft, Plus, Landmark, ChefHat, FilePen, Car, Search } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { getDefaultAvatar } from '../lib/supabase';
 import NotificationStack from './NotificationStack';
@@ -20,6 +20,13 @@ import OfflineGraceBanner from './OfflineGraceBanner';
 import OfflineLockScreen from './OfflineLockScreen';
 import { TopBarSlotProvider, TopBarSlotTarget } from './TopBarSlot';
 import { useOfflineGrace } from '../lib/offline/useOfflineGrace';
+import { Button } from './ui/button';
+import SearchPalette from './shell/SearchPalette';
+import NotificationsBell from './shell/NotificationsBell';
+import ShopCard from './shell/ShopCard';
+import { useDashboardKpis } from '../hooks/useDashboardKpis';
+import { shellGates, lowStockBadge } from '../lib/shellGates';
+import { isPaletteShortcut, shortcutLabel } from '../lib/globalSearch';
 
 // Lazy: the panel, its Hindi font and its strings load only when it is opened.
 const AskPanel = React.lazy(() => import('./ask/AskPanel'));
@@ -170,6 +177,35 @@ export const useRail = () => {
   return { railCollapsed, toggleRail };
 };
 
+// ── The menu's items and gates, shared ──────────────────────────────────
+// The side menu, the top bar (search, bell, "Collect payment") and the
+// search palette all need the same items with the same gates, so they are
+// built in one place. Three independent gates per item:
+//   hidden  = role/permission (existing) OR vertical module off (Stage A)
+//   locked  = plan tier doesn't include it (existing)
+// `verticalKey` ties the item to a tenant.modules toggle; null = spine, always on.
+const useNavModel = () => {
+  const { currentUser, hasPermission } = useAuth();
+  const { isModuleAllowed, isModuleOn, t } = useTenant();
+  const { tenantSlug } = useParams();
+  const roles = currentUser?.roles || (currentUser?.role ? [currentUser?.role] : ['STAFF']);
+  const isOwner = roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN');
+  const basePath = tenantSlug ? `/${tenantSlug}` : '';
+  const navItem = (label, path, icon, moduleKey, verticalKey = null, extraHidden = false) => ({
+    label,
+    path: `${basePath}${path}`,
+    icon,
+    hidden: extraHidden
+      || !hasPermission(moduleKey || path.replace('/', ''), 'view')
+      || (verticalKey ? !isModuleOn(verticalKey) : false),
+    locked: moduleKey ? !isModuleAllowed(moduleKey) : false
+  });
+  const navGroups = buildNavGroups({ navItem, t, isOwner, basePath, ICON: 18 });
+  const allNavItems = navGroups.flatMap(g => g.items);
+  const gates = shellGates(allNavItems, hasPermission);
+  return { navGroups, allNavItems, basePath, isOwner, roles, gates };
+};
+
 const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  const config = {
  label: 'Cloud Live',
@@ -225,17 +261,11 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
 };
 
 const Navbar = () => {
-  const {
-    currentUser, logout, hasPermission, hasRole
-  } = useAuth();
+  const { currentUser, logout } = useAuth();
   const [showAvatarPicker, setShowAvatarPicker] = React.useState(false);
-  const {
-    currentTenant, isModuleAllowed, isImpersonating, stopImpersonating,
-    isModuleOn, t,
-    isOnline = true, syncStatus = 'SYNCED', lastSyncedAt = new Date().toISOString()
-  } = useTenant();
- const { tenantSlug } = useParams();
+  const { currentTenant, currentTenantId } = useTenant();
  const navigate = useNavigate();
+ const { navGroups, allNavItems, basePath, isOwner, roles, gates } = useNavModel();
  const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
  const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
  // Remembered per browser: a shop on a small laptop collapses once, not
@@ -263,8 +293,6 @@ const Navbar = () => {
  const dropdownRef = React.useRef(null);
  const moreMenuRef = React.useRef(null);
 
- const roles = currentUser?.roles || (currentUser?.role ? [currentUser?.role] : ['STAFF']);
- const isOwner = roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN');
  // Rollout flag per tenant (settings.ai_chat_available), set by the team, off by
  // default: merged code shows owners nothing until a shop is switched on.
  const canAsk = isOwner && currentTenant?.settings?.ai_chat_available === true;
@@ -274,32 +302,20 @@ const Navbar = () => {
    return () => window.removeEventListener('ask:open', open);
  }, [canAsk]);
  const isGlobalAdmin = roles.includes('GLOBAL_ADMIN');
- const basePath = tenantSlug ? `/${tenantSlug}` : '';
 
- // Nav item builder. Three independent gates:
- //   hidden  = role/permission (existing) OR vertical module off (Stage A)
- //   locked  = plan tier doesn't include it (existing)
- // `verticalKey` ties the item to a tenant.modules toggle; null = spine, always on.
- const navItem = (label, path, icon, moduleKey, verticalKey = null, extraHidden = false) => ({
-   label,
-   path: `${basePath}${path}`,
-   icon,
-   hidden: extraHidden
-     || !hasPermission(moduleKey || path.replace('/', ''), 'view')
-     || (verticalKey ? !isModuleOn(verticalKey) : false),
-   locked: moduleKey ? !isModuleAllowed(moduleKey) : false
- });
-
- // Every item, gate and module toggle is exactly what it was; only the
- // grouping is the redesign's (Money / People / More, as the phone drawer).
- const ICON = 18;
- const navGroups = buildNavGroups({ navItem, t, isOwner, basePath, ICON });
- const allNavItems = navGroups.flatMap(g => g.items);
+ // Every item, gate and module toggle is exactly what it was (useNavModel);
+ // only the grouping is the redesign's (Money / People / More, as the phone drawer).
  const adminItems = navGroups.find(g => g.key === 'more').items.filter(i => i.admin);
  // "New sale" opens Sales (it lands on the new-sale screen) and is shown only
  // to someone the Sales item itself is shown to.
  const salesItem = allNavItems.find(i => i.key === 'sales');
  const canSell = !!salesItem && !salesItem.hidden && !salesItem.locked;
+
+ // The count beside Inventory: the Dashboard's own low-stock figure, from the
+ // same shared read (useDashboardKpis), so the two always agree. Hidden while
+ // unknown and when 0; read only for someone who may see the Dashboard.
+ const { data: kpis } = useDashboardKpis(currentTenantId, { enabled: gates.lowStock });
+ const lowStock = gates.lowStock ? lowStockBadge(kpis) : null;
 
  React.useEffect(() => {
  const handleClickOutside = (event) => {
@@ -334,13 +350,20 @@ const Navbar = () => {
  );
 
  const renderSideItem = (item, { collapsed = false, onClick = null } = {}) => {
+   const count = item.key === 'inventory' && !item.locked ? lowStock : null;
+   const countLabel = count ? `${count} low on stock` : '';
    const body = (isActive) => (
      <>
-       <span className={`shrink-0 ${isActive ? 'text-amber' : 'text-mute'}`}>
+       <span className={`relative shrink-0 ${isActive ? 'text-amber' : 'text-mute'}`}>
          {item.icon}
+         {collapsed && count && <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-amber ring-2 ring-canvas" aria-hidden="true" />}
        </span>
        {!collapsed && <span className="truncate">{item.label}</span>}
        {!collapsed && item.locked && <Sparkles size={12} className="text-amber-text ml-auto shrink-0" />}
+       {!collapsed && count && (
+         <span className="ml-auto shrink-0 rounded-pill bg-amber-soft px-[7px] py-px font-tight text-[11px] font-semibold tabular-nums text-amber-text" aria-hidden="true">{count}</span>
+       )}
+       {count && <span className="sr-only">, {countLabel}</span>}
      </>
    );
    const shape = collapsed ? 'justify-center w-10 h-10' : 'gap-2.5 px-2.5 py-2';
@@ -362,7 +385,7 @@ const Navbar = () => {
        key={item.path}
        to={item.path}
        onClick={onClick}
-       title={item.label}
+       title={count ? `${item.label}, ${countLabel}` : item.label}
        className={({ isActive }) => `m-press group flex items-center ${shape} rounded-[10px] font-tight text-[14px] ${
          isActive
            ? 'bg-surface text-ink font-semibold shadow-[0_1px_2px_rgba(17,20,24,0.08)]'
@@ -413,17 +436,13 @@ const Navbar = () => {
        : <img src={brandLogo()} alt="bookledger" className="object-contain h-[26px] w-auto max-w-[140px]" />}
    </div>
 
-   {/* The shop this workspace is. There is no shop or store switching in the
-       web app today, so this card names the shop and does not open a menu. */}
+   {/* The shop this workspace is. Opens a menu only when there is something
+       to switch: the store new sales are rung at, for a shop with more than
+       one. A user belongs to one shop, so there is no shop to switch to. */}
    {currentTenant && !narrow && (
      <div className="px-3 pb-2.5 shrink-0">
-       <div className="flex items-center gap-2.5 px-2.5 py-[9px] rounded-xl bg-surface shadow-[0_1px_2px_rgba(17,20,24,0.08)] min-w-0" title={currentTenant.name}>
-         <span className="grid place-items-center size-8 shrink-0 rounded-pill bg-amber-soft font-tight text-[12px] font-semibold text-amber-text">{shopInitials || '•'}</span>
-         <span className="min-w-0 flex-1">
-           <b className="block font-tight text-[13px] font-semibold text-ink truncate">{currentTenant.name}</b>
-           <small className="block text-[11.5px] text-mute truncate">{[planLabel, roleLabel].filter(Boolean).join(' · ')}</small>
-         </span>
-       </div>
+       <ShopCard tenant={currentTenant} tenantId={currentTenantId} initials={shopInitials} canSell={canSell}
+         roleLabel={roleLabel} subtitle={[planLabel, roleLabel].filter(Boolean).join(' · ')} />
      </div>
    )}
 
@@ -670,13 +689,8 @@ const Navbar = () => {
  {/* The shop, as on the desktop side menu */}
  {currentTenant && (
    <div className="px-3 pb-2.5">
-     <div className="flex items-center gap-2.5 px-2.5 py-[9px] rounded-xl bg-surface shadow-[0_1px_2px_rgba(17,20,24,0.08)] min-w-0">
-       <span className="grid place-items-center size-8 shrink-0 rounded-pill bg-amber-soft font-tight text-[12px] font-semibold text-amber-text">{shopInitials || '•'}</span>
-       <span className="min-w-0 flex-1">
-         <b className="block font-tight text-[13px] font-semibold text-ink truncate">{currentTenant.name}</b>
-         <small className="block text-[11.5px] text-mute truncate">{[planLabel, roleLabel].filter(Boolean).join(' · ')}</small>
-       </span>
-     </div>
+     <ShopCard tenant={currentTenant} tenantId={currentTenantId} initials={shopInitials} canSell={canSell}
+       roleLabel={roleLabel} subtitle={[planLabel, roleLabel].filter(Boolean).join(' · ')} />
    </div>
  )}
 
@@ -756,11 +770,14 @@ const KioskBar = ({ onExit }) => (
 );
 
 // ── Top bar (desktop) ────────────────────────────────────────────────────
-// Page title on the left, then the page's own slot (TopBarSlot: Sales puts
-// today's figures there), sync state on the right. The approved mockup also
-// draws a centred search box (Ctrl K) and a notifications bell; the web app
-// has neither feature today, so neither is drawn here until the owner says
-// yes to building them.
+// As the approved mockup: page title, the centred search box (Ctrl K), the
+// page's own slot (TopBarSlot: Sales puts today's figures there), sync state,
+// the bell, and the dark "Collect payment" pill.
+//
+// Room: the search box is a pill from lg (xl on Sales, whose slot carries
+// figures) and a round button below that. "Collect payment" shows from lg,
+// and on Sales only from 2xl, where the figures and it both fit; it is not
+// drawn on the collection page itself.
 const TITLE_PATHS = (t) => [
   ...buildNavGroups({ navItem: (label, path) => ({ label, path }), t, isOwner: true, basePath: '', ICON: 18 })
     .flatMap(g => g.items).map(i => [i.path, i.label]),
@@ -772,18 +789,43 @@ export const pageTitleFor = (pathname, t = (k) => k) => {
   return hit ? hit[1] : '';
 };
 
-const TopBar = () => {
+const TopBar = ({ onOpenSearch }) => {
   const location = useLocation();
-  const { t } = useTenant();
+  const navigate = useNavigate();
+  const { t, currentTenantId } = useTenant();
+  const { basePath, gates } = useNavModel();
   const title = pageTitleFor(location.pathname, t);
+  const isSales = location.pathname.endsWith('/sales');
+  const onCollect = location.pathname.endsWith('/clients/collect');
+  const hint = shortcutLabel();
   return (
     <header className="hidden md:flex items-center gap-3 px-7 py-4 border-b border-sep min-h-[68px]">
-      <h1 className="min-w-0 flex-1 truncate font-tight text-[20px] font-semibold tracking-[-0.02em] text-ink">{title}</h1>
+      <h1 className="min-w-0 shrink truncate font-tight text-[20px] font-semibold tracking-[-0.02em] text-ink lg:min-w-[150px]">{title}</h1>
+      <div className="flex min-w-0 flex-1 justify-center">
+        <button type="button" onClick={onOpenSearch} aria-label={`Search products, clients, bills (${hint})`} aria-keyshortcuts="Control+K Meta+K"
+          data-testid="search-open"
+          className={`m-press items-center gap-2 rounded-pill bg-well py-[9px] pl-3.5 pr-3 text-[13px] text-mute hover:bg-[#E8E8E7] ${isSales ? 'hidden xl:flex w-[300px] 2xl:w-[360px]' : 'hidden lg:flex w-[260px] xl:w-[360px]'}`}>
+          <Search size={16} className="shrink-0" aria-hidden="true" />
+          <span className="truncate">Search products, clients, bills</span>
+          <kbd className="ml-auto shrink-0 rounded-[5px] bg-surface px-1.5 py-px font-tight text-[11px] font-semibold text-mute shadow-[0_0_0_1px_rgba(17,20,24,0.08)]">{hint}</kbd>
+        </button>
+      </div>
+      <Button variant="secondary" size="icon" onClick={onOpenSearch} aria-label={`Search (${hint})`} title={`Search (${hint})`}
+        className={`shrink-0 ${isSales ? 'xl:hidden' : 'lg:hidden'}`}>
+        <Search />
+      </Button>
       <TopBarSlotTarget className="flex items-center shrink-0 empty:hidden" />
       <div className="flex items-center gap-3 shrink-0">
         <SyncStatusButton />
         <SyncStatus variant="bar" />
       </div>
+      <NotificationsBell tenantId={currentTenantId} gates={gates} basePath={basePath} />
+      {gates.collect && !onCollect && (
+        <Button variant="dark" onClick={() => navigate(`${basePath}/clients/collect`)} data-testid="collect-payment"
+          className={`shrink-0 ${isSales ? 'hidden 2xl:inline-flex' : 'hidden lg:inline-flex'}`}>
+          Collect payment
+        </Button>
+      )}
     </header>
   );
 };
@@ -842,8 +884,29 @@ const AppLayout = () => {
   const offlineLock = startLock || ((grace?.expired || grace?.clockBack)
     ? { reason: grace.clockBack ? 'clock' : 'expired', graceDays: grace.graceDays, daysOffline: grace.daysOffline }
     : null);
-  const { currentTenant, isImpersonating, stopImpersonating, loading: tenantLoading } = useTenant();
+  const { currentTenant, currentTenantId, isImpersonating, stopImpersonating, loading: tenantLoading } = useTenant();
   const navigate = useNavigate();
+  const { allNavItems, basePath, gates } = useNavModel();
+
+  // Global search (Ctrl K / Cmd K). The only key it takes is that one
+  // combination, so a scanner gun typing into the Sales search box, and every
+  // page's own keys ("/" on Inventory, Escape, arrows), are untouched. It does
+  // not open over another open dialog, so it cannot pull a cashier out of a
+  // half-finished checkout.
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  React.useEffect(() => {
+    if (!currentUser || !currentTenantId) return undefined;
+    const onKey = (e) => {
+      if (!isPaletteShortcut(e)) return;
+      if (document.querySelector('[aria-modal="true"]:not([aria-label="Search"])')) return;
+      e.preventDefault();
+      setSearchOpen(true);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [currentUser, currentTenantId]);
   // Apply saved theme on every page load
   useTheme();
 
@@ -925,11 +988,14 @@ const AppLayout = () => {
         <div className="flex flex-col flex-1 transition-[padding] duration-200 ease-out motion-reduce:transition-none md:pl-[var(--rail-w)]"
           style={{ '--rail-w': `${railCollapsed ? 68 : RAIL_WIDE}px` }}>
           <div className="flex flex-col flex-1 min-w-0 bg-surface md:my-2.5 md:mr-2.5 md:rounded-2xl md:shadow-[0_0_0_1px_rgba(17,20,24,0.05),0_1px_3px_rgba(17,20,24,0.06)]">
-            <TopBar />
+            <TopBar onOpenSearch={openSearch} />
             <MainContent kioskMode={kioskMode} />
           </div>
         </div>
       )}
+
+      <SearchPalette open={searchOpen} onClose={closeSearch} navItems={allNavItems}
+        kinds={gates.search} tenantId={currentTenantId} basePath={basePath} />
 
       {Splash && !bulkSyncDismissed && currentTenant?.id && (
         <Splash tenantId={currentTenant.id} onDone={() => setBulkSyncDismissed(true)} />
