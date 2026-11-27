@@ -17,6 +17,11 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/database/sync_errors.dart';
 import 'package:mobile_app/core/database/unsynced_sales.dart';
 import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/core/errors/bl_error_card.dart';
+import 'package:mobile_app/core/errors/error_capture.dart';
+import 'package:mobile_app/core/errors/error_codes.dart';
+import 'package:mobile_app/core/errors/error_report.dart';
+import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/utils/money.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider, databaseProvider;
 
@@ -265,6 +270,31 @@ Widget _tile(String icon, Color bg, Color fg) => Container(
       child: BlIcon(icon, size: 16, color: fg),
     );
 
+// One report per refused job per app run: opening Details again shows the
+// same reference and does not log the refusal a second time.
+final Map<int, Future<ErrorReport>> _refusalReports = {};
+
+Future<void> _openRefusalDetails(BuildContext context, UnsyncedOp op, ErrorResult r) async {
+  final report = await (_refusalReports[op.jobId] ??= captureError(
+    op.lastError ?? 'Refused with no reason stored',
+    null,
+    screen: 'Sales on this phone',
+    action: op.rpcName == 'process_sale' ? 'Send queued sale' : 'Send queued collection',
+    tenantId: op.tenantId,
+    userId: _currentUserId(),
+    result: r,
+  ));
+  if (context.mounted) await showErrorDetails(context, report);
+}
+
+String? _currentUserId() {
+  try {
+    return supabase.auth.currentUser?.id;
+  } catch (_) {
+    return null; // not initialised (tests, offline start)
+  }
+}
+
 class _RefusedCard extends StatelessWidget {
   final UnsyncedOp op;
   final VoidCallback? onRetry;
@@ -274,6 +304,7 @@ class _RefusedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final info = describeRefusal(op.lastError, rpcName: op.rpcName);
+    final coded = classifyQueued(QueuedState.refused, op.lastError);
     return Container(
       key: Key('refused-${op.jobId}'),
       margin: const EdgeInsets.only(top: 8),
@@ -290,8 +321,17 @@ class _RefusedCard extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Refused by the server · not in the books',
-                  style: Bl.tight(14.5, w: FontWeight.w600, c: Bl.redDeep)),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(
+                  child: Text(
+                      coded.outcome == ErrorOutcome.mayHaveSaved
+                          ? 'May already be recorded'
+                          : 'Refused by the server · not in the books',
+                      style: Bl.tight(14.5, w: FontWeight.w600, c: Bl.redDeep)),
+                ),
+                const SizedBox(width: 6),
+                BlCodeChip(coded.chip),
+              ]),
               const SizedBox(height: 4),
               Row(children: [
                 Expanded(
@@ -311,6 +351,16 @@ class _RefusedCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text('Rung ${_when(op.createdAt)}',
                   style: Bl.inter(12, c: const Color(0xFF7A8088))),
+              BlTap(
+                label: 'Details for support',
+                onTap: () => _openRefusalDetails(context, op, coded),
+                child: Padding(
+                  key: Key('refused-details-${op.jobId}'),
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text('Details',
+                      style: Bl.tight(12.5, w: FontWeight.w600, ls: 0, c: Bl.body)),
+                ),
+              ),
             ]),
           ),
         ]),

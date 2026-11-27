@@ -35,6 +35,10 @@ import 'package:mobile_app/features/sales/data/models/sale.dart';
 import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:printing/printing.dart';
 import 'package:mobile_app/core/database/sync_errors.dart' show describeRefusal;
+import 'package:mobile_app/core/errors/bl_error_card.dart';
+import 'package:mobile_app/core/errors/error_capture.dart';
+import 'package:mobile_app/core/errors/error_codes.dart';
+import 'package:mobile_app/core/errors/error_report.dart';
 import 'package:mobile_app/core/database/offline_sales_ui.dart' show OfflineSalesBanner, nudgeSync;
 import 'package:mobile_app/core/auth/offline_context_cache.dart';
 import 'package:mobile_app/widgets/motion/motion_sheet.dart';
@@ -387,11 +391,32 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     }
   }
 
+  /// A failed save as the outcome card, in a dialog above the checkout sheet.
+  /// The cart is not touched, so the bill is still there to save again.
+  void _showFailure(ErrorReport report) {
+    if (!mounted) return;
+    final o = report.result.outcome;
+    showErrorCardDialog(
+      context,
+      report: report,
+      message: plainMessage(report.result,
+          noun: 'sale', checkWhere: 'the sales list'),
+      keptLine: o == ErrorOutcome.notSent || o == ErrorOutcome.mayHaveSaved
+          ? 'The bill is kept on screen'
+          : null,
+    ).ignore();
+  }
+
   Future<void> _submitInner(String paymentMethod, double? paidAmountOverride, [double discount = 0]) async {
     if (_cart.isEmpty) {
       _showError('Cart is empty');
       return;
     }
+    // For the outcome card: whether process_sale may have left the phone,
+    // and whether it already landed (or was queued) before a later step threw.
+    var saleSent = false;
+    var saleWritten = false;
+    String? failTenantId;
     try {
       // Bill total net of any discount — this is what's charged / owed / receipted.
       // The same total the checkout sheet showed: tax on top for EXCLUSIVE
@@ -452,6 +477,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
 
       final tenantCtx = ref.read(tenantContextProvider).valueOrNull;
       final tenantId = tenantCtx?.tenantId;
+      failTenantId = tenantId;
       final userId = supabase.auth.currentUser?.id;
 
       if (userId == null) {
@@ -496,7 +522,9 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       // resend a no-op -- so a queued sale is "saved on this phone", never
       // "not saved". A server refusal is thrown and shown below.
       final sync = ref.read(syncServiceProvider);
+      saleSent = true;
       final queued = await sync.rpcOnlineOrQueue('process_sale', rpcParams);
+      saleWritten = true;
       debugPrint(queued ? '[SALE] queued for offline sync' : '[SALE] RPC success');
 
       // NOTE: do NOT touch clients.outstanding_balance here. A DB trigger
@@ -655,11 +683,19 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       _lastOk = true;
     } catch (e, stack) {
       debugPrint('[SALE] FAILED: $e\n$stack');
-      // Only a server refusal reaches here (transport failures are queued).
-      // Say which rule refused it, in words, as the web till does.
-      final info = describeRefusal(e.toString());
-      _lastErr = info.title;
-      _showError('${info.title}: ${info.reason}');
+      // Mostly a server refusal (transport failures are queued), but not only:
+      // a step after the sale landed can throw too, and that is "May have
+      // saved", never "Sale failed". The card says which, in words; the raw
+      // error is only in its Details.
+      final report = await captureError(e, stack,
+          screen: 'New Sale',
+          action: 'Save sale',
+          tenantId: failTenantId,
+          userId: supabase.auth.currentUser?.id,
+          sent: saleSent,
+          earlierWriteSucceeded: saleWritten);
+      _lastErr = '${report.result.outcome.label} · ${report.result.chip}';
+      _showFailure(report);
     }
   }
 
@@ -2757,6 +2793,22 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
     );
   }
 
+  String? get _tenantId => widget.localSale?['tenant_id'] as String?;
+
+  /// APP-03: a print or share never changes the books. The sale is saved.
+  Future<void> _showPrintFailure(Object e, StackTrace st, String action) async {
+    final report = await captureError(e, st,
+        screen: 'New Sale',
+        action: action,
+        tenantId: _tenantId,
+        userId: supabase.auth.currentUser?.id,
+        printOrShare: true);
+    if (!mounted) return;
+    await showErrorCardDialog(context,
+        report: report,
+        message: 'The sale is saved. ${plainMessage(report.result, noun: 'receipt')}');
+  }
+
   Future<void> _print() async {
     setState(() => _printing = true);
     try {
@@ -2768,12 +2820,8 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
       // own correct page size; the paper picker in the print dialog is the
       // place to choose the roll.
       await Printing.layoutPdf(onLayout: (_) async => bytes);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Print failed: $e'), backgroundColor: AppColors.danger),
-        );
-      }
+    } catch (e, st) {
+      await _showPrintFailure(e, st, 'Print receipt');
     } finally {
       if (mounted) setState(() => _printing = false);
     }
@@ -2787,12 +2835,8 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
         bytes: bytes,
         filename: 'receipt_${widget.saleId}.pdf',
       );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Share failed: $e'), backgroundColor: AppColors.danger),
-        );
-      }
+    } catch (e, st) {
+      await _showPrintFailure(e, st, 'Share receipt');
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
@@ -2862,10 +2906,24 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
         MotionToast.show(context, 'Payment saved offline — will sync when online');
       }
       return true;
-    } catch (e) {
-      _collectErr = 'Payment failed';
+    } catch (e, st) {
+      // settle_client_payment is never resent blindly: a transport failure
+      // is queued or parked as Unconfirmed, so what reaches here is mostly
+      // a refusal. The card says which; the raw error is only in Details.
+      final report = await captureError(e, st,
+          screen: 'New Sale',
+          action: 'Collect payment',
+          tenantId: _tenantId,
+          userId: supabase.auth.currentUser?.id);
+      _collectErr = '${report.result.outcome.label} · ${report.result.chip}';
       if (mounted) {
-        MotionToast.show(context, 'Payment record failed: $e', isError: true);
+        await showErrorCardDialog(context,
+            report: report,
+            message: plainMessage(report.result,
+                noun: 'payment', checkWhere: "the client's payments"),
+            keptLine: report.result.outcome == ErrorOutcome.notSaved
+                ? null
+                : 'The amount is kept on screen');
       }
       return false;
     } finally {
