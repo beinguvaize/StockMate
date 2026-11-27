@@ -18,6 +18,7 @@ import AvatarPicker from './AvatarPicker';
 import SyncStatus from './SyncStatus';
 import OfflineGraceBanner from './OfflineGraceBanner';
 import OfflineLockScreen from './OfflineLockScreen';
+import { TopBarSlotProvider, TopBarSlotTarget } from './TopBarSlot';
 import { useOfflineGrace } from '../lib/offline/useOfflineGrace';
 
 // Lazy: the panel, its Hindi font and its strings load only when it is opened.
@@ -740,6 +741,8 @@ const Navbar = () => {
 const KioskBar = ({ onExit }) => (
   <header className="sticky top-0 z-50 h-10 flex items-center justify-between px-4 bg-canvas/90 backdrop-blur-md border-b border-black/5 shrink-0">
     <img src={brandLogo()} alt="StockMate" className="h-5 w-auto object-contain" />
+    {/* A page's own figures (TopBarSlot), as in the desktop top bar. */}
+    <TopBarSlotTarget className="flex items-center min-w-0" />
     <div className="flex items-center gap-3">
       <SyncStatusButton />
       <button
@@ -753,7 +756,8 @@ const KioskBar = ({ onExit }) => (
 );
 
 // ── Top bar (desktop) ────────────────────────────────────────────────────
-// Page title on the left, sync state on the right. The approved mockup also
+// Page title on the left, then the page's own slot (TopBarSlot: Sales puts
+// today's figures there), sync state on the right. The approved mockup also
 // draws a centred search box (Ctrl K) and a notifications bell; the web app
 // has neither feature today, so neither is drawn here until the owner says
 // yes to building them.
@@ -775,6 +779,7 @@ const TopBar = () => {
   return (
     <header className="hidden md:flex items-center gap-3 px-7 py-4 border-b border-sep min-h-[68px]">
       <h1 className="min-w-0 flex-1 truncate font-tight text-[20px] font-semibold tracking-[-0.02em] text-ink">{title}</h1>
+      <TopBarSlotTarget className="flex items-center shrink-0 empty:hidden" />
       <div className="flex items-center gap-3 shrink-0">
         <SyncStatusButton />
         <SyncStatus variant="bar" />
@@ -879,6 +884,7 @@ const AppLayout = () => {
   if (offlineLock) return <OfflineLockScreen lock={offlineLock} />;
 
   return (
+    <TopBarSlotProvider>
     <div className="min-h-screen bg-canvas font-inter selection:bg-accent-signature/30 flex flex-col relative">
       {isImpersonating && (
         <div className="group fixed top-0 left-0 right-0 z-[200] h-2.5 print:hidden">
@@ -929,6 +935,7 @@ const AppLayout = () => {
         <Splash tenantId={currentTenant.id} onDone={() => setBulkSyncDismissed(true)} />
       )}
     </div>
+    </TopBarSlotProvider>
   );
 };
 
