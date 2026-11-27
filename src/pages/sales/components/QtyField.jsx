@@ -65,14 +65,15 @@ const QtyField = ({
     if (e.key === 'ArrowDown') { e.preventDefault(); onStep(-1); }
   };
 
-  const btn = 'w-7 h-7 rounded-md flex items-center justify-center shrink-0 '
-    + 'text-foreground hover:bg-canvas disabled:opacity-30 '
+  // Web redesign: the phone's stepper, a grey pill with round − and +.
+  const btn = 'w-7 h-7 rounded-full flex items-center justify-center shrink-0 '
+    + 'text-ink-2 hover:bg-[#E8E8E7] disabled:opacity-30 '
     + 'transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) '
-    + 'active:scale-[0.92]';
+    + 'active:scale-[0.92] motion-reduce:active:scale-100';
 
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <div className="flex items-center gap-0.5 bg-card border border-border rounded-lg p-0.5 focus-within:border-accent-signature/70">
+      <div className="flex items-center bg-well rounded-pill h-7 transition-shadow duration-(--dur-press) focus-within:shadow-[inset_0_0_0_2px_var(--color-ink)]">
         <button
           type="button"
           onClick={() => onStep(-1)}
@@ -94,8 +95,8 @@ const QtyField = ({
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={onKeyDown}
-          className={`${fraction ? 'w-14' : 'w-11'} h-7 text-center text-sm font-semibold
-                      text-foreground bg-transparent outline-none tabular-nums`}
+          className={`${fraction ? 'w-12' : 'w-9'} h-7 text-center font-tight text-[13px] font-semibold
+                      text-ink bg-transparent outline-none tabular-nums`}
         />
 
         <button
@@ -112,7 +113,7 @@ const QtyField = ({
       {/* The unit sits under the number instead of between the number and the
           + button, where it used to read as part of the control. */}
       {String(unit ?? '').trim() && (
-        <span className="text-[10px] font-medium text-muted-foreground leading-none">
+        <span className="text-[10.5px] font-medium text-mute leading-none">
           {String(unit).trim()}
         </span>
       )}
