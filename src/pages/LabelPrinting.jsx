@@ -3,6 +3,7 @@ import Barcode from 'react-barcode';
 import { Printer, ScanBarcode, Search, Wand2, Minus, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../context/TenantContext';
+import { useAuth } from '../context/AuthContext';
 import {
   LABEL_TEMPLATES, barcodeFormat, genInternalBarcode, printLabels, paginate,
 } from '../lib/labelPrint';
@@ -13,6 +14,14 @@ import {
 // into a popup with exact-mm @page CSS (works on thermal + A4 printers).
 const LabelPrinting = () => {
   const { currentTenantId, businessProfile } = useTenant();
+  const { hasPermission } = useAuth();
+  // Filling products.barcode is an inventory edit, not a printing step: it
+  // PATCHes every product that lacks a code. The products RLS policies now
+  // check the inventory role (public.can_write_inventory()), so for a STAFF
+  // user this button used to fail at the database with an opaque error. The
+  // matrix is the gate here, same as on /inventory. Printing stays open to
+  // anyone who can see the page -- it writes nothing.
+  const canEditInventory = hasPermission('inventory', 'edit');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -101,6 +110,10 @@ const LabelPrinting = () => {
   // Fill products.barcode for every product that lacks one. Internal numeric
   // codes in the GS1 in-store range (prefix 21) with EAN-13 check digit.
   const generateMissing = async () => {
+    if (!canEditInventory) {
+      setMsg('You do not have permission to edit inventory, so barcodes cannot be generated. Ask an owner to run this.');
+      return;
+    }
     setGenerating(true);
     setMsg('');
     try {
@@ -224,7 +237,7 @@ const LabelPrinting = () => {
           <p className="text-[12px] text-ink-tertiary">Generate product barcodes and print price labels — thermal rolls or A4 sticker sheets.</p>
         </div>
         <div className="flex items-center gap-2">
-          {missingBarcodes > 0 && (
+          {missingBarcodes > 0 && canEditInventory && (
             <button
               onClick={generateMissing}
               disabled={generating}
