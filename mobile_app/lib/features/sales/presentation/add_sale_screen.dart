@@ -39,7 +39,7 @@ import 'package:mobile_app/core/errors/bl_error_card.dart';
 import 'package:mobile_app/core/errors/error_capture.dart';
 import 'package:mobile_app/core/errors/error_codes.dart';
 import 'package:mobile_app/core/errors/error_report.dart';
-import 'package:mobile_app/core/database/offline_sales_ui.dart' show OfflineSalesBanner, nudgeSync;
+import 'package:mobile_app/core/database/offline_sales_ui.dart' show OfflineSalesBanner, nudgeSync, syncOnlineProvider;
 import 'package:mobile_app/core/auth/offline_context_cache.dart';
 import 'package:mobile_app/widgets/motion/motion_sheet.dart';
 import 'package:mobile_app/widgets/motion/motion_toast.dart';
@@ -393,11 +393,27 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
 
   /// A failed save as the outcome card, in a dialog above the checkout sheet.
   /// The cart is not touched, so the bill is still there to save again.
-  void _showFailure(ErrorReport report) {
+  void _showFailure(ErrorReport report, {VoidCallback? retry}) {
     if (!mounted) return;
     final o = report.result.outcome;
+    final net01 = report.result.code == 'NET-01' && retry != null;
+    final transport = ref.read(syncServiceProvider).transport;
     showErrorCardDialog(
       context,
+      // NET-01: Try again is off while offline and switches on by itself when
+      // the internet returns. It never saves on its own; the cashier taps.
+      actions: net01
+          ? [
+              BlErrorAction('Try again',
+                  key: const Key('error-try-again'),
+                  primary: true,
+                  needsOnline: true,
+                  onTap: retry),
+              BlErrorAction('Got it', onTap: () {}),
+            ]
+          : null,
+      initialOnline: net01 ? ref.read(syncOnlineProvider).valueOrNull : null,
+      onlineChanges: net01 ? transport.onlineChanges : null,
       report: report,
       message: plainMessage(report.result,
           noun: 'sale', checkWhere: 'the sales list'),
@@ -695,7 +711,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
           sent: saleSent,
           earlierWriteSucceeded: saleWritten);
       _lastErr = '${report.result.outcome.label} · ${report.result.chip}';
-      _showFailure(report);
+      _showFailure(report,
+          retry: () => _submit(paymentMethod, paidAmountOverride, discount));
     }
   }
 

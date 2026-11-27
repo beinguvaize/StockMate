@@ -24,8 +24,16 @@ class BlErrorAction {
   final VoidCallback? onTap;
   final bool primary;
   final Key? key;
+
+  /// Off while the card's [BlErrorCard.online] is false (NET-01 "Try again").
+  /// It only switches the button on when the internet returns; it never taps
+  /// it. Unknown connectivity (null) leaves it on.
+  final bool needsOnline;
   const BlErrorAction(this.label,
-      {required this.onTap, this.primary = false, this.key});
+      {required this.onTap,
+      this.primary = false,
+      this.key,
+      this.needsOnline = false});
 }
 
 class _Tone {
@@ -94,6 +102,10 @@ class BlErrorCard extends StatelessWidget {
   /// have saved; a refusal does not need the reassurance.
   final String? keptLine;
   final List<BlErrorAction> actions;
+
+  /// The phone's connectivity as the app knows it: false offline, true
+  /// online, null unknown. Only [BlErrorAction.needsOnline] actions read it.
+  final bool? online;
   final EdgeInsets margin;
 
   const BlErrorCard({
@@ -103,6 +115,7 @@ class BlErrorCard extends StatelessWidget {
     required this.actions,
     this.keptLine,
     this.margin = EdgeInsets.zero,
+    this.online,
   });
 
   @override
@@ -161,7 +174,9 @@ class BlErrorCard extends StatelessWidget {
             Row(children: [
               for (var i = 0; i < actions.length; i++) ...[
                 if (i > 0) const SizedBox(width: 8),
-                Expanded(child: _ActionButton(actions[i])),
+                Expanded(
+                    child: _ActionButton(actions[i],
+                        waiting: actions[i].needsOnline && online == false)),
               ],
             ]),
           ],
@@ -213,10 +228,13 @@ class _Rise extends StatelessWidget {
 
 class _ActionButton extends StatelessWidget {
   final BlErrorAction a;
-  const _ActionButton(this.a);
+
+  /// Offline and the action needs the internet: shown off, taps ignored.
+  final bool waiting;
+  const _ActionButton(this.a, {this.waiting = false});
   @override
   Widget build(BuildContext context) {
-    final enabled = a.onTap != null;
+    final enabled = a.onTap != null && !waiting;
     return Semantics(
       button: true,
       enabled: enabled,
@@ -224,9 +242,12 @@ class _ActionButton extends StatelessWidget {
       excludeSemantics: true,
       child: BlTap(
         key: a.key,
-        onTap: a.onTap,
-        child: Opacity(
+        onTap: enabled ? a.onTap : null,
+        // Same size either way, so switching on is a fade, not a jump.
+        child: AnimatedOpacity(
           opacity: enabled ? 1 : 0.5,
+          duration: Motion.durationOf(context, const Duration(milliseconds: 220)),
+          curve: Motion.curveOf(context, MotionCurves.out),
           child: Container(
             height: 42,
             alignment: Alignment.center,
@@ -391,19 +412,26 @@ Future<void> showErrorCardDialog(
   required String message,
   String? keptLine,
   List<BlErrorAction>? actions,
+  bool? initialOnline,
+  Stream<bool>? onlineChanges,
 }) {
   return showBlCustomDialog<void>(
     context: context,
-    builder: (ctx) => BlErrorCard(
+    builder: (ctx) => StreamBuilder<bool>(
+      stream: onlineChanges,
+      initialData: initialOnline,
+      builder: (_, snap) => BlErrorCard(
       report: report,
       message: message,
       keptLine: keptLine,
+      online: snap.data,
       actions: [
         for (final a in actions ??
             [BlErrorAction('Got it', onTap: () {}, primary: true)])
           BlErrorAction(a.label,
               key: a.key,
               primary: a.primary,
+              needsOnline: a.needsOnline,
               onTap: a.onTap == null
                   ? null
                   : () {
@@ -411,6 +439,7 @@ Future<void> showErrorCardDialog(
                       a.onTap!();
                     }),
       ],
+    ),
     ),
   );
 }

@@ -146,4 +146,110 @@ Raw: ${r.raw}''');
         .first);
     expect(op.opacity, 1);
   });
+
+  group('NET-01 Try again waits for the internet', () {
+    final offline = const SocketException('Failed host lookup: example.supabase.co',
+        osError: OSError('No address associated with hostname', 7));
+
+    Future<int Function()> pumpGated(WidgetTester t, bool? online) async {
+      var taps = 0;
+      await t.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: BlErrorCard(
+            report: rep(offline),
+            message: 'm',
+            online: online,
+            actions: [
+              BlErrorAction('Try again',
+                  key: const Key('try'),
+                  primary: true,
+                  needsOnline: true,
+                  onTap: () => taps++),
+            ],
+          ),
+        ),
+      ));
+      await t.pump(const Duration(milliseconds: 400));
+      return () => taps;
+    }
+
+    testWidgets('disabled while offline', (t) async {
+      final taps = await pumpGated(t, false);
+      await t.tap(find.byKey(const Key('try')), warnIfMissed: false);
+      expect(taps(), 0);
+    });
+
+    testWidgets('enabled on reconnect, and never taps itself', (t) async {
+      final taps = await pumpGated(t, false);
+      // The internet returns: same widget, online now true.
+      final again = await pumpGated(t, true);
+      await t.pump(const Duration(milliseconds: 400));
+      expect(taps(), 0, reason: 'reconnecting must not send anything');
+      expect(again(), 0);
+      await t.tap(find.byKey(const Key('try')));
+      expect(again(), 1);
+    });
+
+    testWidgets('enabled when connectivity is unknown', (t) async {
+      final taps = await pumpGated(t, null);
+      await t.tap(find.byKey(const Key('try')));
+      expect(taps(), 1);
+    });
+
+    testWidgets('dialog: the stream switches it on, without submitting', (t) async {
+      final net = StreamController<bool>();
+      addTearDown(net.close);
+      var taps = 0;
+      await t.pumpWidget(MaterialApp(
+        home: Builder(
+          builder: (ctx) => Scaffold(
+            body: Center(
+              child: TextButton(
+                onPressed: () => showErrorCardDialog(ctx,
+                    report: rep(offline),
+                    message: 'm',
+                    initialOnline: false,
+                    onlineChanges: net.stream,
+                    actions: [
+                      BlErrorAction('Try again',
+                          key: const Key('try'),
+                          primary: true,
+                          needsOnline: true,
+                          onTap: () => taps++),
+                    ]),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await t.tap(find.text('open'));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const Key('try')), warnIfMissed: false);
+      expect(taps, 0, reason: 'offline: off');
+      net.add(true);
+      await t.pumpAndSettle();
+      expect(taps, 0, reason: 'coming online does not submit');
+      await t.tap(find.byKey(const Key('try')));
+      await t.pumpAndSettle();
+      expect(taps, 1);
+    });
+
+    testWidgets('only needsOnline actions wait', (t) async {
+      var taps = 0;
+      await t.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: BlErrorCard(
+            report: rep(offline),
+            message: 'm',
+            online: false,
+            actions: [BlErrorAction('Got it', key: const Key('ok'), onTap: () => taps++)],
+          ),
+        ),
+      ));
+      await t.pump(const Duration(milliseconds: 400));
+      await t.tap(find.byKey(const Key('ok')));
+      expect(taps, 1);
+    });
+  });
 }

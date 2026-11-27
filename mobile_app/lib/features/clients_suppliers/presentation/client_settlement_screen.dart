@@ -490,7 +490,7 @@ class _ClientSettlementScreenState
     );
   }
 
-  Widget _failureSlot(bool online) {
+  Widget _failureSlot(bool? online) {
     final f = _failure;
     if (f == null) return const SizedBox.shrink();
     final name = widget.client.name;
@@ -500,13 +500,13 @@ class _ClientSettlementScreenState
     void dismiss() => setState(() => _failure = null);
     final actions = switch (f.result.outcome) {
       ErrorOutcome.notSent => [
+          // NET-01: off while offline, back on by itself when the internet
+          // returns. It never sends; the shopkeeper still taps.
           BlErrorAction('Try again',
               key: const Key('error-try-again'),
               primary: true,
-              onTap: _isLoading ||
-                      (f.result.code == 'NET-01' && !online)
-                  ? null
-                  : _retry),
+              needsOnline: f.result.code == 'NET-01',
+              onTap: _isLoading ? null : _retry),
         ],
       ErrorOutcome.mayHaveSaved => [
           BlErrorAction(_checking ? 'Checking' : 'Check client',
@@ -524,6 +524,7 @@ class _ClientSettlementScreenState
     };
     return BlErrorCard(
       report: f,
+      online: online,
       margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
       message: plainMessage(f.result, noun: 'payment', checkWhere: where),
       keptLine: _failureKept,
@@ -568,8 +569,11 @@ class _ClientSettlementScreenState
     final name = client.name ?? 'Unnamed';
     final outstanding =
         _checkedOutstanding ?? client.outstandingBalance ?? 0.0;
-    final online = ref.watch(syncOnlineProvider).valueOrNull ?? true;
+    // null until the first reading: unknown leaves Try again and the slide on.
+    final onlineKnown = ref.watch(syncOnlineProvider).valueOrNull;
+    final online = onlineKnown ?? true;
     final failure = _failure?.result.outcome;
+    final waitingForNet = _failure?.result.code == 'NET-01' && !online;
     final sales = ref.watch(recentSalesProvider).valueOrNull ?? const <Sale>[];
     final unpaid = _unpaidInvoices(
         ref.watch(invoicesProvider).valueOrNull ?? const <Invoice>[], sales);
@@ -861,7 +865,7 @@ class _ClientSettlementScreenState
                     ),
                     // ── The last failed save (always a slot, so the
                     //    entrance sequence keeps its positions) ────────────
-                    _failureSlot(online),
+                    _failureSlot(onlineKnown),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 18),
                       child: BlField(
@@ -1082,7 +1086,7 @@ class _ClientSettlementScreenState
                     ? 'Recording'
                     : failure == ErrorOutcome.mayHaveSaved
                         ? 'Check first'
-                        : failure == ErrorOutcome.notSent && !online
+                        : waitingForNet
                             ? 'Waiting for internet'
                             : amount > 0
                                 ? 'Slide to record ${Money.inr(amount)}'
@@ -1092,7 +1096,7 @@ class _ClientSettlementScreenState
                 enabled: amount > 0 &&
                     !_isLoading &&
                     failure != ErrorOutcome.mayHaveSaved &&
-                    !(failure == ErrorOutcome.notSent && !online),
+                    !waitingForNet,
                 onConfirmed: _submit,
               ),
             ),
