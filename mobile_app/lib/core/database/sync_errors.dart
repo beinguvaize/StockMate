@@ -21,6 +21,7 @@
 import 'dart:async';
 import 'dart:io' show SocketException, HandshakeException;
 
+import 'package:http/http.dart' as http show ClientException;
 import 'package:supabase_flutter/supabase_flutter.dart'
     show PostgrestException, AuthException, AuthRetryableFetchException;
 
@@ -70,18 +71,51 @@ FailureKind classifyFailure(Object e) {
   return FailureKind.transport;
 }
 
-/// True only when the request provably never reached the server: the socket
+/// True only when the request provably never left the phone: the socket
 /// could not connect (no route, DNS, refused). A SocketException that says the
 /// connection was reset or closed can come AFTER the request was sent, so it is
 /// not "never left". A timeout, a 5xx, 408/429 or a ClientException never is.
+///
+/// The same socket failure also arrives wrapped, as text: the sign-in refresh
+/// that runs BEFORE a write throws `AuthRetryableFetchException(message:
+/// ClientException with SocketException: Failed host lookup ...)`, and the
+/// http client throws `ClientException with SocketException: ...`. Those count
+/// only when the text names a connect-time cause (host lookup, no route,
+/// refused, errno 7 / 101 / 111 / 113): the wrapper loses the type, so it has
+/// to say so in words. A wrapped "connection reset" never counts.
 bool requestNeverLeft(Object e) {
-  if (e is! SocketException) return false;
-  final m = '${e.message} ${e.osError?.message ?? ''}'.toLowerCase();
-  return !(m.contains('reset') ||
-      m.contains('closed') ||
-      m.contains('broken pipe') ||
-      m.contains('terminated') ||
-      m.contains('aborted'));
+  if (e is SocketException) {
+    final m = '${e.message} ${e.osError?.message ?? ''}'.toLowerCase();
+    return !_afterSend(m);
+  }
+  if (e is AuthRetryableFetchException || _isClientException(e)) {
+    return connectTimeSocketText(e.toString());
+  }
+  return false;
+}
+
+bool _afterSend(String m) =>
+    m.contains('reset') ||
+    m.contains('closed') ||
+    m.contains('broken pipe') ||
+    m.contains('terminated') ||
+    m.contains('aborted');
+
+bool _isClientException(Object e) => e is http.ClientException;
+
+/// True when [text] describes a socket that never connected. Used for the
+/// wrapped forms above, where only the text survives.
+bool connectTimeSocketText(String text) {
+  final m = text.toLowerCase();
+  if (!m.contains('socketexception')) return false;
+  if (_afterSend(m)) return false;
+  return m.contains('failed host lookup') ||
+      m.contains('no address associated with hostname') ||
+      m.contains('nodename nor servname') ||
+      m.contains('network is unreachable') ||
+      m.contains('no route to host') ||
+      m.contains('connection refused') ||
+      RegExp(r'errno = (7|8|101|111|113)\b').hasMatch(m);
 }
 
 /// What the owner calls a queued job, for "the ___ was refused".
