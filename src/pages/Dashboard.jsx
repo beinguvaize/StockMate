@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { isStocked } from '../lib/productTypes';
 import useRefetchOnFocus from '../hooks/useRefetchOnFocus';
+import { useDashboardKpis } from '../hooks/useDashboardKpis';
 import { useAuth } from '../context/AuthContext';
 import BannerCarousel from '../components/BannerCarousel';
 import ExpiryAlertCard from '../components/ExpiryAlertCard';
@@ -181,20 +182,11 @@ const Dashboard = () => {
 
   const isLoading = invLoading || salesLoading || purLoading || finLoading;
 
-  // Server-side KPI aggregation via Supabase RPC (replaces 7 client-side filters)
-  const [kpiData, setKpiData] = useState(null);
-  const [kpiLoading, setKpiLoading] = useState(true);
-  const fetchKpis = useCallback(() => {
-    if (!currentTenantId) return;
-    const todayStr = new Date().toISOString().split('T')[0];
-    supabase.rpc('get_dashboard_kpis', {
-      p_tenant_id: currentTenantId,
-      p_date: todayStr,
-    }).then(({ data, error }) => {
-      if (!error && data) setKpiData(data);
-      setKpiLoading(false);
-    });
-  }, [currentTenantId]);
+  // Server-side KPI aggregation via Supabase RPC (replaces 7 client-side filters).
+  // Shared with the side menu's low-stock count and the notifications
+  // (useDashboardKpis), so all three read one answer and cannot disagree.
+  // Same RPC and arguments as before; a fresh read on every visit as before.
+  const { data: kpiData, refetch: fetchKpis } = useDashboardKpis(currentTenantId);
 
   useEffect(() => { fetchKpis(); }, [fetchKpis]);
 
