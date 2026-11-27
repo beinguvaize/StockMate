@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/design/bl_widgets.dart';
+import 'package:mobile_app/core/database/offline_sales_ui.dart' show syncOnlineProvider;
+import 'package:mobile_app/core/errors/bl_error_card.dart';
+import 'package:mobile_app/core/errors/error_capture.dart';
+import 'package:mobile_app/core/errors/error_codes.dart';
+import 'package:mobile_app/core/errors/error_report.dart';
 import 'package:mobile_app/core/utils/money.dart';
 import 'package:mobile_app/features/clients_suppliers/data/party_aging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +36,14 @@ class _ClientSettlementScreenState
   String _method = 'CASH';
   Set<String> _selectedInvoiceIds = {};
   bool _isLoading = false;
+
+  // The last failed save, shown as the outcome card. What was typed stays in
+  // the fields; nothing here is cleared on failure.
+  ErrorReport? _failure;
+  String? _failureKept;
+  bool _checking = false;
+  // The client's balance as just re-read from the server by "Check client".
+  double? _checkedOutstanding;
 
   static String _todayIso() {
     final now = DateTime.now();
@@ -143,10 +156,21 @@ class _ClientSettlementScreenState
       );
       return;
     }
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _failure = null;
+    });
+    // For the outcome card: did any request of this action leave the phone,
+    // and did any WRITE already land? With bills ticked this action makes
+    // several writes one after another; once one has landed, a later failure
+    // can only be "May have saved".
+    var sent = false;
+    var writesOk = 0;
+    String? tenantId;
     try {
       final ctx = await ref.read(tenantContextProvider.future);
       if (ctx == null) return;
+      tenantId = ctx.tenantId;
 
       // 1. Allocate payment across selected rows — real invoices first, then
       //    SALE:-prefixed synthetic rows (part-paid cash sales without an
@@ -161,6 +185,7 @@ class _ClientSettlementScreenState
         double remaining = amt;
 
         if (realInvoiceIds.isNotEmpty) {
+          sent = true;
           final invRows = await supabase
               .from('invoices')
               .select('id, grand_total, paid_amount, sale_id')
@@ -179,12 +204,14 @@ class _ClientSettlementScreenState
               'paid_amount': newPaid,
               'payment_status': status,
             }).eq('id', inv['id'] as String);
+            writesOk++;
             final saleId = inv['sale_id'] as String?;
             if (saleId != null) {
               await supabase.from('sales').update({
                 'paidAmount': newPaid,
                 'paymentStatus': status,
               }).eq('id', saleId).eq('tenant_id', ctx.tenantId);
+              writesOk++;
             }
             remaining -= allocating;
           }
@@ -198,6 +225,7 @@ class _ClientSettlementScreenState
         // would double-count, and double-post Cash & Bank).
         double saleAllocated = 0;
         if (saleOnlyIds.isNotEmpty && remaining > 0) {
+          sent = true;
           final saleRows = await supabase
               .from('sales')
               .select('id, "totalAmount", "paidAmount"')
@@ -218,6 +246,7 @@ class _ClientSettlementScreenState
               'paymentStatus': status,
               'lastPaymentDate': _date,
             }).eq('id', sale['id'] as String).eq('tenant_id', ctx.tenantId);
+            writesOk++;
             saleAllocated += allocating;
             remaining -= allocating;
           }
@@ -229,6 +258,7 @@ class _ClientSettlementScreenState
         final auditAmount = amt - saleAllocated;
         if (auditAmount > 0.005) {
           final paymentId = 'CP-${DateTime.now().millisecondsSinceEpoch}';
+          sent = true;
           await supabase.from('client_payments').insert({
             'id': paymentId,
             'client_id': widget.client.id,
@@ -246,6 +276,7 @@ class _ClientSettlementScreenState
         // settle_client_payment RPC (FIFO across ALL unpaid/partial sales,
         // credit AND part-paid cash/UPI, oldest first). Same implementation
         // web and desktop use; it inserts the audit row itself.
+        sent = true;
         await supabase.rpc('settle_client_payment', params: {
           'p_id': 'CP-${DateTime.now().millisecondsSinceEpoch}',
           'p_tenant_id': ctx.tenantId,
@@ -274,21 +305,237 @@ class _ClientSettlementScreenState
         );
         Navigator.pop(context);
       }
-    } catch (e) {
+    } catch (e, st) {
+      // captureError prints the full error and stack first, then logs it.
+      final report = await captureError(e, st,
+          screen: 'Collect Payment',
+          action: 'Record payment',
+          tenantId: tenantId ?? ref.read(tenantContextProvider).valueOrNull?.tenantId,
+          userId: supabase.auth.currentUser?.id,
+          sent: sent,
+          earlierWriteSucceeded: writesOk > 0);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'The payment may not have saved. Check the client before trying again. ($e)'),
-            backgroundColor: Bl.redDeep,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 8),
-          ),
-        );
+        setState(() {
+          _failure = report;
+          _failureKept = _keptLine(amt);
+        });
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // ─── failure card ─────────────────────────────────────────────────────────
+
+  String _keptLine(double amt) {
+    final method = _methods
+        .firstWhere((m) => m.$1 == _method, orElse: () => _methods.first)
+        .$2;
+    final d = DateTime.tryParse(_date);
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final day = d == null ? _date : '${d.day} ${months[d.month - 1]}';
+    final n = _selectedInvoiceIds.length;
+    final bills = n == 0 ? '' : ', $n bill${n == 1 ? '' : 's'} ticked';
+    return '${Money.inr(amt)}, $method, $day$bills is kept on screen';
+  }
+
+  /// "Try again". After "May have saved" it asks once, so a payment that did
+  /// land is not recorded twice.
+  Future<void> _retry() async {
+    final f = _failure;
+    if (f == null) return;
+    if (f.result.outcome == ErrorOutcome.mayHaveSaved) {
+      final amt =
+          double.tryParse(_amountController.text.replaceAll(',', '')) ?? 0;
+      final ok = await showBlDialog<bool>(
+        context: context,
+        title: 'Record ${Money.inr(amt)} again?',
+        message: 'Only if it is not in the client\'s payments. If you are not '
+            'sure, tap Check client first.',
+        actions: (ctx) => [
+          Row(children: [
+            Expanded(
+              child: BlButton('Cancel',
+                  kind: BlButtonKind.soft,
+                  onTap: () => Navigator.pop(ctx, false)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BlButton('Record again',
+                  key: const Key('confirm-record-again'),
+                  onTap: () => Navigator.pop(ctx, true)),
+            ),
+          ]),
+        ],
+      );
+      if (ok != true || !mounted) return;
+    }
+    await _submit();
+  }
+
+  /// "Check client": re-read the client's balance and latest payments from
+  /// the SERVER. Not the list providers: those fall back to the phone's cache
+  /// when offline, which would show an old balance as if it were fresh.
+  Future<void> _checkClient() async {
+    if (_checking) return;
+    setState(() => _checking = true);
+    String? tenantId;
+    try {
+      final ctx = await ref.read(tenantContextProvider.future);
+      if (ctx == null) return;
+      tenantId = ctx.tenantId;
+      final row = await supabase
+          .from('clients')
+          .select('outstanding_balance')
+          .eq('id', widget.client.id)
+          .eq('tenant_id', ctx.tenantId)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 10));
+      final pays = await supabase
+          .from('client_payments')
+          .select('id, date, amount, payment_method, created_at')
+          .eq('client_id', widget.client.id)
+          .eq('tenant_id', ctx.tenantId)
+          .isFilter('deleted_at', null)
+          .order('created_at', ascending: false)
+          .limit(5)
+          .timeout(const Duration(seconds: 10));
+      ref.invalidate(clientPaymentsProvider);
+      ref.invalidate(clientPaymentsForClientProvider(widget.client.id));
+      ref.invalidate(clientsProvider);
+      ref.invalidate(invoicesProvider);
+      final owes = (row?['outstanding_balance'] as num?)?.toDouble();
+      if (!mounted) return;
+      setState(() => _checkedOutstanding = owes);
+      await _showChecked(owes, (pays as List).cast<Map<String, dynamic>>());
+    } catch (e, st) {
+      // A read changes nothing in the books, whatever the cause.
+      final base = classifyError(e);
+      final report = await captureError(e, st,
+          screen: 'Collect Payment',
+          action: 'Check client',
+          tenantId: tenantId,
+          userId: supabase.auth.currentUser?.id,
+          result: ErrorResult(base.info, outcome: ErrorOutcome.noChange));
+      if (!mounted) return;
+      await showErrorCardDialog(context,
+          report: report,
+          message: 'Could not check the client: ${base.info.title.toLowerCase()}. '
+              'Nothing was changed. ${base.info.advice}');
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  Future<void> _showChecked(double? owes, List<Map<String, dynamic>> pays) {
+    final name = widget.client.name ?? 'This client';
+    String when(Map<String, dynamic> p) {
+      final c = DateTime.tryParse('${p['created_at'] ?? ''}');
+      if (c == null) return _formatDate('${p['date'] ?? ''}');
+      return formatIst(c).replaceFirst(RegExp(r' \d{4},'), ',');
+    }
+
+    return showBlSheet<void>(
+      context: context,
+      builder: (ctx) => Column(
+        key: const Key('checked-client'),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const BlSheetTitle('Checked just now'),
+          const SizedBox(height: 6),
+          Text(
+              owes == null
+                  ? '$name was not found on the server.'
+                  : owes > 0.5
+                      ? '$name owes you ${Money.inr(owes)} now.'
+                      : owes < -0.5
+                          ? '$name has ${Money.inr(-owes)} paid in advance.'
+                          : '$name is settled.',
+              style: Bl.tight(15, w: FontWeight.w600)),
+          const SizedBox(height: 12),
+          Text('LATEST PAYMENTS', style: Bl.eyebrow),
+          const SizedBox(height: 4),
+          if (pays.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text('No payments recorded.',
+                  style: Bl.inter(13, c: Bl.mute)),
+            ),
+          for (final p in pays)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Bl.sep))),
+              child: Row(children: [
+                Expanded(
+                  child: Text(
+                      '${when(p)} · ${(p['payment_method'] ?? '').toString()}',
+                      style: Bl.inter(13, c: Bl.ink3)),
+                ),
+                Text(Money.inr((p['amount'] as num?)?.toDouble() ?? 0),
+                    style: Bl.tight(14, w: FontWeight.w600)),
+              ]),
+            ),
+          const SizedBox(height: 10),
+          Text(
+              'If the payment you just tried is in this list, it is saved: '
+              'tap Got it on the card. If it is not, tap Try again.',
+              style: Bl.inter(12.5, c: Bl.body, h: 1.4)),
+        ],
+      ),
+    );
+  }
+
+  Widget _failureSlot(bool online) {
+    final f = _failure;
+    if (f == null) return const SizedBox.shrink();
+    final name = widget.client.name;
+    final where = name == null || name.isEmpty
+        ? "the client's payments"
+        : "$name's payments";
+    void dismiss() => setState(() => _failure = null);
+    final actions = switch (f.result.outcome) {
+      ErrorOutcome.notSent => [
+          BlErrorAction('Try again',
+              key: const Key('error-try-again'),
+              primary: true,
+              onTap: _isLoading ||
+                      (f.result.code == 'NET-01' && !online)
+                  ? null
+                  : _retry),
+        ],
+      ErrorOutcome.mayHaveSaved => [
+          BlErrorAction(_checking ? 'Checking' : 'Check client',
+              key: const Key('error-check-client'),
+              primary: true,
+              onTap: _checking ? null : _checkClient),
+          BlErrorAction('Try again',
+              key: const Key('error-try-again'),
+              onTap: _isLoading ? null : _retry),
+        ],
+      _ => [
+          BlErrorAction('Got it',
+              key: const Key('error-got-it'), primary: true, onTap: dismiss),
+        ],
+    };
+    return BlErrorCard(
+      report: f,
+      margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+      message: plainMessage(f.result, noun: 'payment', checkWhere: where),
+      keptLine: _failureKept,
+      actions: [
+        ...actions,
+        // A checked "May have saved" can be closed once the list showed it.
+        if (f.result.outcome == ErrorOutcome.mayHaveSaved &&
+            _checkedOutstanding != null)
+          BlErrorAction('Got it',
+              key: const Key('error-got-it'), onTap: dismiss),
+      ],
+    );
   }
 
   // ─── build ────────────────────────────────────────────────────────────────
@@ -319,7 +566,10 @@ class _ClientSettlementScreenState
   Widget build(BuildContext context) {
     final client = widget.client;
     final name = client.name ?? 'Unnamed';
-    final outstanding = client.outstandingBalance ?? 0.0;
+    final outstanding =
+        _checkedOutstanding ?? client.outstandingBalance ?? 0.0;
+    final online = ref.watch(syncOnlineProvider).valueOrNull ?? true;
+    final failure = _failure?.result.outcome;
     final sales = ref.watch(recentSalesProvider).valueOrNull ?? const <Sale>[];
     final unpaid = _unpaidInvoices(
         ref.watch(invoicesProvider).valueOrNull ?? const <Invoice>[], sales);
@@ -609,6 +859,9 @@ class _ClientSettlementScreenState
                         ],
                       ),
                     ),
+                    // ── The last failed save (always a slot, so the
+                    //    entrance sequence keeps its positions) ────────────
+                    _failureSlot(online),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 18),
                       child: BlField(
@@ -827,10 +1080,19 @@ class _ClientSettlementScreenState
               child: BlSlide(
                 _isLoading
                     ? 'Recording'
-                    : amount > 0
-                        ? 'Slide to record ${Money.inr(amount)}'
-                        : 'Enter the amount received',
-                enabled: amount > 0 && !_isLoading,
+                    : failure == ErrorOutcome.mayHaveSaved
+                        ? 'Check first'
+                        : failure == ErrorOutcome.notSent && !online
+                            ? 'Waiting for internet'
+                            : amount > 0
+                                ? 'Slide to record ${Money.inr(amount)}'
+                                : 'Enter the amount received',
+                // After "May have saved" the slide is off: the card's Try
+                // again asks first, so the payment is not recorded twice.
+                enabled: amount > 0 &&
+                    !_isLoading &&
+                    failure != ErrorOutcome.mayHaveSaved &&
+                    !(failure == ErrorOutcome.notSent && !online),
                 onConfirmed: _submit,
               ),
             ),
