@@ -21,6 +21,8 @@ dashboard → **Workers & Pages → Create → Pages → Connect to Git**.
 SPA routing is handled by `public/_redirects` (`/* /index.html 200`) — copied
 into `dist` at build, Cloudflare reads it natively. No extra config.
 
+The public invoice page `/i/` (where a client opens a shared invoice, no sign-in) is its own built page, `dist/i/index.html`; `_redirects` sends `/i/` to it above the catch-all, and `public/_headers` gives it no-store, noindex, no-referrer and a strict CSP.
+
 The build runs the crash-guard first (`prebuild` → `lint:crash`), so a Cloudflare
 build fails fast on undefined refs/components.
 
@@ -33,6 +35,7 @@ Set for **Production** and **Preview**. Copy the values from Vercel.
 | `VITE_SUPABASE_URL` | yes | prod: `https://lmviftlynuhopzmvaxeu.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | yes | prod Supabase anon (publishable) key |
 | `VITE_BOOTSTRAP_ADMIN_EMAILS` | no | optional; not set on Vercel. Only stamps admin role on a brand-new user's first login. Skip — admins already exist in DB. |
+| `VITE_PUBLIC_APP_URL` | yes (for invoice share links) | The public address put in shared invoice links (`<this>/i/#<token>`). prod: `https://app.bookledger.in`. Without it the web app uses its own address; the desktop app (file://) cannot make links at all. |
 
 > Use the **dev** Supabase project (`tiywdsbaymrnqmlkxupj`) values on the
 > Preview environment if you want preview builds to hit dev.

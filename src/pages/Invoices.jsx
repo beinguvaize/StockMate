@@ -15,7 +15,8 @@ import { useSales } from '../hooks/useSales';
 import { useInventory } from '../hooks/useInventory';
 import { usePeople } from '../hooks/usePeople';
 import { useNotifications } from '../context/NotificationContext';
-import { formatINR, calculateGST, shareToWhatsApp } from '../lib/gstEngine';
+import { formatINR, calculateGST } from '../lib/gstEngine';
+import ShareInvoiceDialog from '../components/share/ShareInvoiceDialog';
 import { sendPaymentReminder } from '../lib/reminders';
 import { formatCurrency, todayISOInAppTZ, formatDate, formatDateTime, parseLocalDate } from '../lib/utils';
 import InvoiceTemplate from '../components/invoice/InvoiceTemplate';
@@ -121,6 +122,7 @@ const Invoices = () => {
   const [viewingInvoice, setViewingInvoice] = useState(null);
   const [invoiceMode,    setInvoiceMode]    = useState('gst');
   const [detailInv,      setDetailInv]      = useState(null);
+  const [shareInv,       setShareInv]       = useState(null);
   const [settleInput,    setSettleInput]    = useState('');
 
   // filters
@@ -338,9 +340,10 @@ const Invoices = () => {
               <Printer size={15} />
             </button>
             <button
-              onClick={() => shareToWhatsApp(inv, client, businessProfile)}
-              title="Share WhatsApp"
-              className="p-2 rounded-pill hover:bg-[#25D366]/10 text-muted-foreground hover:text-[#25D366] transition-colors"
+              onClick={() => setShareInv(inv)}
+              title="Share"
+              aria-label="Share"
+              className="p-2 rounded-pill hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature transition-colors"
             >
               <Share2 size={15} />
             </button>
@@ -640,12 +643,21 @@ const Invoices = () => {
             businessProfile={businessProfile}
             client={invClient}
             onPrint={() => window.print()}
-            onShare={(type) => { if (type === 'whatsapp') shareToWhatsApp(viewingInvoice, invClient, businessProfile); }}
+            onShare={() => setShareInv(viewingInvoice)}
             onToggleMode={() => setInvoiceMode('simple')}
             onClose={closeInv}
           />
         );
       })()}
+
+      {/* One share control for every entry point: WhatsApp, email, link, PDF */}
+      <ShareInvoiceDialog
+        open={!!shareInv}
+        invoice={shareInv}
+        client={shareInv ? clientOf(shareInv) : null}
+        businessProfile={businessProfile}
+        onClose={() => setShareInv(null)}
+      />
 
     </div>
   );

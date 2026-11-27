@@ -1,0 +1,28 @@
+# Cloudflare Pages response headers. Only the public invoice page (/i/) is
+# configured here; every other route keeps the platform defaults.
+#
+# /i/ is opened by a shop's clients from a shared link. Its script and
+# stylesheet are Vite-built files under /assets (script-src/style-src 'self');
+# it talks only to the Supabase functions host (connect-src). Both /i and /i/
+# are listed because a /i/* pattern may not match the bare folder path.
+
+/i
+  Cache-Control: no-store, max-age=0
+  X-Robots-Tag: noindex, nofollow, noarchive
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://*.supabase.co; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+
+/i/
+  Cache-Control: no-store, max-age=0
+  X-Robots-Tag: noindex, nofollow, noarchive
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://*.supabase.co; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+
+/i/*
+  Cache-Control: no-store, max-age=0
+  X-Robots-Tag: noindex, nofollow, noarchive
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://*.supabase.co; base-uri 'none'; form-action 'none'; frame-ancestors 'none'

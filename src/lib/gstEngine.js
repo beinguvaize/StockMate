@@ -5,6 +5,7 @@
  * and Number-to-Words conversion for GST Compliance.
  */
 import { computeLineTax } from './taxLine';
+import { buildShareMessage, whatsappUrl, pickClientPhone, isMobileBrowser } from './invoiceShare';
 
 /**
  * Formats a number as Indian Rupee (INR)
@@ -180,82 +181,17 @@ export const calculateGST = (items = [], businessState = '', clientState = '', o
 };
 
 /**
- * Generates a professionally formatted WhatsApp message for an invoice
- * and opens the WhatsApp Web/App sharing interface.
+ * Opens WhatsApp with a plain-text summary of the invoice (no link, no PDF).
+ *
+ * Kept for older callers only. The app's Share control
+ * (components/share/ShareInvoiceDialog) is the real path: it sends the PDF
+ * and a link the client can open without signing in. The old version linked
+ * to /embed/invoice/<id>, which needs a sign-in, so clients saw "Invoice not
+ * found"; it also read only client.contact and gst_no.
  */
 export const shareToWhatsApp = (invoice, client, businessProfile) => {
-  if (!invoice || !client || !businessProfile) return;
-
-  const formatDate = (date) => new Date(date).toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
-
-  const origin = (typeof window !== 'undefined' && window.location?.origin) || '';
-  const viewLink = (origin && invoice.id) ? `${origin}/embed/invoice/${invoice.id}` : '';
-
-  // POS-sourced invoices store only grand_total (no taxable / tax split).
-  // Derive the breakup from the line items so the message isn't blank/NaN.
-  const hasSplit = invoice.cgst_amount != null || invoice.sgst_amount != null || invoice.igst_amount != null;
-  const g = (!hasSplit && Array.isArray(invoice.items) && invoice.items.length)
-    ? calculateGST(invoice.items, businessProfile.state || '', client.state || '')
-    : null;
-  const taxable = invoice.subtotal ?? invoice.taxable_amount ?? g?.taxable;
-  const cgst = invoice.cgst_amount ?? g?.cgst ?? 0;
-  const sgst = invoice.sgst_amount ?? g?.sgst ?? 0;
-  const igst = invoice.igst_amount ?? g?.igst ?? 0;
-  const interstate = invoice.is_interstate ?? (g ? g.isInterstate : false);
-  const grand = invoice.grand_total ?? g?.grandTotal ?? 0;
-
-  const msg = `
-*${businessProfile.name}*
-*GST Invoice: ${invoice.invoice_number}*
-Date: ${formatDate(invoice.invoice_date)}
-
-*Bill To:* ${client.name}
-${client.gst_no ? `GSTIN: ${client.gst_no}` : 'GSTIN: URD'}
-
-*Items:*
-${(invoice.items || []).map(i => {
-  const qty  = Number(i.qty ?? i.quantity ?? 0);
-  const rate = Number(i.rate ?? i.price ?? i.sellingPrice ?? 0);
-  const disc = Number(i.discountPercent ?? 0);
-  const line = Number(
-    i.total ??
-    (i.taxable != null ? Number(i.taxable) + Number(i.totalTax || 0) : qty * rate * (1 - disc / 100))
-  ) || 0;
-  return `• ${i.name} × ${qty} = ${formatINR(line)}`;
-}).join('\n')}
-
-*Subtotal:* ${formatINR(taxable ?? grand)}
-${interstate ?
-  `*IGST:* ${formatINR(igst)}` :
-  `*CGST:* ${formatINR(cgst)}
-*SGST:* ${formatINR(sgst)}`}
-*─────────────────*
-*TOTAL: ${formatINR(grand)}*
-
-${invoice.payment_status?.toUpperCase() === 'UNPAID' ? 
-  `⚠️ *Amount Due: ${formatINR(invoice.balance_due ?? (grand - (invoice.paid_amount || 0)))}*` :
-  '✅ *PAID*'}
-
-${businessProfile.upi_id ?
-  `💳 Pay via UPI: ${businessProfile.upi_id}` : ''}
-${viewLink ? `\n🔗 View invoice: ${viewLink}` : ''}
-
-Thank you for your business! 🙏
-  `.trim();
-
-  const encoded = encodeURIComponent(msg);
-  const phone = client.contact?.replace(/[^0-9]/g, '');
-  
-  // Use 91 prefix for Indian numbers if it's 10 digits
-  const targetPhone = (phone && phone.length === 10) ? `91${phone}` : phone;
-
-  const url = targetPhone 
-    ? `https://wa.me/${targetPhone}?text=${encoded}`
-    : `https://wa.me/?text=${encoded}`;
-    
-  window.open(url, '_blank');
+  if (!invoice) return;
+  const text = buildShareMessage({ invoice, business: businessProfile || {}, client: client || {} });
+  const mobile = typeof navigator !== 'undefined' && isMobileBrowser(navigator.userAgent, navigator.maxTouchPoints);
+  window.open(whatsappUrl({ phone: pickClientPhone(client, invoice), text, mobile }), '_blank', 'noopener');
 };
