@@ -8,10 +8,11 @@
  * brand-color change here.
  */
 
-/* Typography (v1.1): Sora = display/headings, Inter = body/UI,
-   JetBrains Mono = numbers. Dropped DM Sans, Bebas Neue and Plus Jakarta
-   Sans — three unused/duplicated families — to cut font downloads. */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Sora:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Typography (web redesign, from the phone app): Inter Tight = headings,
+   figures and buttons; Inter = small text. Figures keep tabular numbers.
+   Manrope + JetBrains Mono are still loaded, but only printed documents use
+   them (see "Printed documents keep their own type" below). */
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* Global blur strip — no backdrop-filter anywhere */
@@ -20,37 +21,76 @@
   -webkit-backdrop-filter: none !important;
 }
 
-/* Primary font — Manrope (matches the landing). JetBrains Mono = numbers. */
+/* Body / small text — Inter. Headings, figures and buttons — Inter Tight. */
 body {
-    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--font-ui) !important;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
 .font-inter {
-    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--font-ui) !important;
 }
 
-/* Display/heading font — Manrope (matches the landing's wordmark + headings). */
+/* Display/heading font — Inter Tight. */
 .font-sora,
 .font-display,
 .font-bebas,
-.font-space {
-    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif !important;
+.font-space,
+.font-tight {
+    font-family: var(--font-tight) !important;
     letter-spacing: -0.02em;
+}
+
+/* Headings, buttons and table heads read in Inter Tight app-wide. Layered
+   (base) so any utility a page sets still wins. */
+@layer base {
+  h1, h2, h3, h4, h5, h6, button, th, [role="button"], [role="tab"] {
+    font-family: var(--font-tight);
+  }
 }
 
 .font-arial {
     font-family: Arial, Helvetica, sans-serif !important;
 }
 
-/* Use .font-display / .font-sora on titles + th, .font-mono on numeric cells. */
+/* Figures: Inter Tight with tabular numbers (was JetBrains Mono). The class
+   name stays so existing call sites keep working. */
 .font-mono,
 table.report-table td.numeric,
 table.report-table .numeric {
-    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace !important;
+    font-family: var(--font-tight) !important;
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum' 1;
+    letter-spacing: -0.01em;
+}
+
+/* ── Printed documents keep their own type ─────────────────────────────────
+   The invoice sheet and the cash bill inherit the body font, so moving the
+   app to Inter would have quietly re-set every bill a shop prints. Pinned
+   here to what they printed with before: Manrope, JetBrains Mono figures.
+   The payslip, KOT and POS receipt set their own fonts and are untouched.
+   Anything else printed from the app (reports, statements) prints in the
+   old type too, via the @media print rule. */
+#invoice-print-area,
+.print-sheet {
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+#invoice-print-area :is(h1, h2, h3, h4, h5, h6, button, th, [role="button"]),
+.print-sheet :is(h1, h2, h3, h4, h5, h6, button, th, [role="button"]),
+#invoice-print-area :is(.font-sora, .font-display),
+.print-sheet :is(.font-sora, .font-display) {
+    font-family: inherit !important;
+}
+#invoice-print-area .font-mono,
+.print-sheet .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace !important;
+    letter-spacing: normal;
+}
+@media print {
+  html body { font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif !important; }
+  :is(h1, h2, h3, h4, h5, h6, button, th, .font-sora, .font-display, .font-tight) { font-family: inherit !important; }
+  .font-mono, table.report-table .numeric { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace !important; letter-spacing: normal; }
 }
 
 /* ── Grey legibility ───────────────────────────────────────────────
@@ -76,7 +116,7 @@ table.report-table thead th {
     background: #f8fafc;            /* slate-50 */
     border-bottom: 1px solid #e2e8f0;/* slate-200 */
     color: #64748b;                  /* slate-500 */
-    font-family: 'Manrope', sans-serif;
+    font-family: var(--font-tight);
     font-weight: 700;
     font-size: 10px;
     letter-spacing: 0.08em;
@@ -200,6 +240,11 @@ table.report-table tbody td.numeric {
 /* ── Theme overrides ─────────────────────────────────────────────────────── */
 /* Applied via data-theme="X" on <html>. Default (signature) needs no attr.  */
 
+/* THE DEFAULT THEME. useTheme() (src/hooks/useTheme.js) stamps
+   data-theme="white" on <html> for every signed-in screen, whatever the
+   tenant has saved, so this block is what every shop sees. It carries the
+   web redesign palette, the phone app's: see the @theme block for the full
+   set. The other [data-theme] blocks below are left exactly as they were. */
 [data-theme="white"] {
   /* canvas is the GROUND and the quiet tint behind a chip, a table head and a
      row hover -- `bg-canvas` carries both jobs at 445 call sites. This theme
@@ -207,22 +252,25 @@ table.report-table tbody td.numeric {
      every other theme here uses. White cards then sat on a white ground and
      every chip disappeared, which read as "the theme does nothing". Warm and
      quiet, so a white card reads as a card. */
-  --color-canvas: #F6F5F3;
+  /* Redesign: the grey frame the white page panel sits in, and the quiet
+     tint for chips, table heads and hovers (it was #F6F5F3). */
+  --color-canvas: #F4F3F1;
   --color-surface: #FFFFFF;
-  --color-ink-primary: #111111;
-  --color-ink-secondary: #444444;
-  /* #6B7280 measured 4.44:1 once the ground stopped being pure white -- it had
-     room to spare against #FFFFFF and none against a tint. One step down: now
-     4.59:1 on the ground, 5.00:1 on a white card. */
-  --color-ink-tertiary: #68707C;
-  --color-accent-signature: #D97706;
-  --color-accent-signature-hover: #B45309;
-  /* The same amber, for the job the brand value cannot do. See the rule that
-     consumes it, below the theme blocks. */
-  --color-accent-text: #AB4F08;
+  --color-ink-primary: #111418;
+  --color-ink-secondary: #2E343B;
+  /* Muted text. The phone's body grey (#6E737A) measures 4.77:1 on white but
+     4.29:1 on the #F4F3F1 tint, under AA, and bg-canvas sits behind muted text
+     at hundreds of call sites. #676C73 is the same grey one step down: 5.29:1
+     on white, 4.75:1 on the tint. text-body still gives #6E737A on white. */
+  --color-ink-tertiary: #676C73;
+  /* White text on this amber is the approved look (2.6:1, as on the phone). */
+  --color-accent-signature: #E8890C;
+  --color-accent-signature-hover: #D67D08;
+  /* Amber as text: 5.02:1 on white, 4.52:1 on the amber-soft chip. */
+  --color-accent-text: #B45309;
   --color-button-text: #FFFFFF;
-  --bg-color: #F6F5F3;
-  --border-color: rgba(0,0,0,0.08);
+  --bg-color: #F4F3F1;
+  --border-color: #EDEDED;
 }
 
 /* Font is brand-constant (Manrope) across every theme; themes vary by
@@ -305,7 +353,7 @@ table.report-table tbody td.numeric {
 /* White theme: any element with black bg must show white text */
 [data-theme="white"] .bg-ink-primary { color: #FFFFFF; }
 [data-theme="white"] .bg-ink-primary * { color: #FFFFFF; }
-[data-theme="white"] .bg-ink-primary .text-accent-signature { color: #D97706; }
+[data-theme="white"] .bg-ink-primary .text-accent-signature { color: #E8890C; }
 [data-theme="white"] .bg-ink-primary .text-gray-400,
 [data-theme="white"] .bg-ink-primary .text-gray-500,
 [data-theme="white"] .bg-ink-primary .text-gray-600 { color: rgba(255,255,255,0.55); }
@@ -435,21 +483,53 @@ table.report-table tbody td.numeric {
   border-color: rgba(255,255,255,0.06);
 }
 
-/* Brand tokens — Indigo Premium (theme 1.1). Everything reads these, so
-   the whole app re-skins from here. */
+/* Brand tokens — web redesign (the phone app's palette). Everything reads
+   these, so the whole app re-skins from here. These are also what shows
+   before a theme is stamped (sign-in, workspace setup); once signed in the
+   [data-theme="white"] block above carries the same values. */
 @theme {
-  --color-canvas: #F8F9FC;          /* cool off-white page */
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-tight: 'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --color-canvas: #F4F3F1;          /* grey frame + quiet tint */
   --color-surface: #FFFFFF;
-  --color-ink-primary: #1E1B2E;     /* near-black with a violet cast */
-  --color-ink-secondary: #4B5563;
-  --color-ink-tertiary: #6B7280;    /* gray-500 — legible muted text */
-  --color-accent-signature: #D97706;       /* amber-600 (brand) -- fills only */
+  --color-ink-primary: #111418;
+  --color-ink-secondary: #2E343B;
+  --color-ink-tertiary: #676C73;    /* muted text, AA on white and on the tint */
+  --color-accent-signature: #E8890C;       /* amber (brand) -- fills only */
   /* Amber as text. Declared here as well as per-theme so it always resolves:
      an unresolved var() is invalid at computed-value time, which would drop
      the colour entirely on any page that has not stamped a theme yet. */
-  --color-accent-text: #AB4F08;
-  --color-accent-signature-hover: #B45309; /* amber-700 */
+  --color-accent-text: #B45309;
+  --color-accent-signature-hover: #D67D08;
   --color-button-text: #FFFFFF;            /* white text on amber */
+
+  /* The phone palette by name, for the redesigned shell, dashboard and the
+     shared parts in src/components/ui. Fixed values: they do not follow
+     the older [data-theme] variants. */
+  --color-ink: #111418;
+  --color-ink-2: #2E343B;
+  --color-body: #6E737A;            /* body grey, on white only */
+  --color-mute: #8A9099;            /* eyebrows, axis labels, hints */
+  --color-faint: #B7BCC2;
+  --color-frame: #F4F3F1;           /* the grey frame around the page */
+  --color-well: #F1F1F1;            /* pill switches, icon buttons, secondary buttons */
+  --color-tile: #F7F7F6;            /* tiles, row hover */
+  --color-sep: #F0EFED;             /* row separators */
+  --color-line: #EDEDED;            /* card borders */
+  --color-amber: #E8890C;
+  --color-amber-hover: #D67D08;
+  --color-amber-text: #B45309;
+  --color-amber-soft: #FFF1DE;
+  --color-good: #16A34A;
+  --color-good-text: #12803B;
+  --color-good-soft: #E6F6EC;
+  --color-bad: #DC2626;
+  --color-bad-text: #B91C1C;
+  --color-bad-soft: #FDECEC;
+  --color-info: #2563EB;
+  --color-info-text: #1D4ED8;
+  --color-info-soft: #E8EFFD;
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -497,7 +577,7 @@ table.report-table tbody td.numeric {
   --color-accent-foreground: var(--color-ink-primary);
   --color-destructive: #DC2626;
   --color-destructive-foreground: #FFFFFF;
-  --color-border: var(--border-color, rgba(0, 0, 0, 0.08));
+  --color-border: var(--border-color, #EDEDED);
   --color-input: var(--border-color, rgba(0, 0, 0, 0.12));
   --color-ring: var(--color-accent-signature);
   --color-chart-1: var(--color-accent-signature);
@@ -508,13 +588,13 @@ table.report-table tbody td.numeric {
 }
 
 :root {
-  /* Legacy explicit CSS vars — kept in sync with the Indigo @theme. */
-  --bg-color: #F8F9FC;
-  --bg-gradient: linear-gradient(135deg, #F8F9FC 0%, #EEF0F7 100%);
-  --text-main: #1E1B2E;
-  --text-muted: #4B5563;
+  /* Legacy explicit CSS vars — kept in sync with the @theme above. */
+  --bg-color: #F4F3F1;
+  --bg-gradient: linear-gradient(135deg, #F4F3F1 0%, #EFEEEB 100%);
+  --text-main: #111418;
+  --text-muted: #2E343B;
   --surface: #FFFFFF;
-  --border-color: rgba(30, 27, 46, 0.06);
+  --border-color: #EDEDED;
   
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -542,6 +622,9 @@ table.report-table tbody td.numeric {
   --dur-popover: 180ms;  /* tooltips, small popovers */
   --dur-menu: 200ms;     /* dropdowns, selects */
   --dur-modal: 260ms;    /* modals, drawers */
+  --dur-dialog: 220ms;   /* centred dialogs, side panels (redesign) */
+  --dur-enter: 280ms;    /* a block rising into place on page open */
+  --stagger: 70ms;       /* gap between blocks rising one after another */
 
   /* Was `all 0.4s`. Two faults in one token, and it is the default reached
      for across the app:
@@ -583,7 +666,7 @@ select, textarea, .input-field {
 }
 
 body {
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: var(--font-ui) !important;
   background: var(--color-canvas);
   color: var(--color-ink-primary);
   line-height: 1.5;
@@ -1214,7 +1297,7 @@ body {
 .kpi-expense:hover { border-color: rgba(239, 68, 68, 0.3); box-shadow: 0 12px 24px -10px var(--expense-glow); }
 
 .kpi-value {
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: var(--font-tight) !important;
   font-size: 3.5rem;
   line-height: 1;
   letter-spacing: 0.02em;
@@ -1466,7 +1549,7 @@ body {
 @keyframes firstOpen { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
 /* 14. Centered dialog (web): scale .96 -> 1 + opacity from centre */
-.dialog-pop { animation: dialogPop 200ms var(--ease-out) both; }
+.dialog-pop { animation: dialogPop var(--dur-dialog) var(--ease-out) both; }
 @keyframes dialogPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
 
 /* 15. Tooltip */
@@ -1505,3 +1588,49 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .drawer-panel, .drawer-backdrop, .dialog-pop { animation: none; }
 }
+
+
+/* ── Redesign motion (one shared set, same as the phone) ────────────────────
+   Transform and opacity only. Every entrance uses `backwards` fill, so the
+   element only borrows the start frame while it waits and is at its natural
+   state the moment the animation ends: nothing can rest at opacity 0.
+   Reduced motion turns all of it off (below), not just the movement.
+
+   .m-rise   block rises 10px + fades in; stagger with style="--i: n"
+   .m-press  button / tappable tile presses to 96% (hover stays colour only)
+   .m-dialog centred dialog scales in from 96% + fades
+   .m-panel  side panel slides in from the right
+   .m-scrim  backdrop fade                                                   */
+.m-rise {
+  animation: mRise var(--dur-enter) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+@keyframes mRise { from { opacity: 0; transform: translateY(10px); } }
+
+.m-press {
+  transition: background-color var(--dur-press) var(--ease-out),
+              color var(--dur-press) var(--ease-out),
+              border-color var(--dur-press) var(--ease-out),
+              box-shadow var(--dur-press) var(--ease-out),
+              transform var(--dur-press) var(--ease-out);
+}
+.m-press:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(0.96); }
+
+.m-dialog { animation: mDialog var(--dur-dialog) var(--ease-out) backwards; }
+@keyframes mDialog { from { opacity: 0; transform: scale(0.96); } }
+
+.m-panel { animation: mPanel var(--dur-dialog) var(--ease-out) backwards; }
+@keyframes mPanel { from { transform: translateX(100%); } }
+
+.m-scrim { animation: mScrim var(--dur-dialog) var(--ease-out) backwards; }
+@keyframes mScrim { from { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .m-rise, .m-dialog, .m-panel, .m-scrim { animation: none !important; }
+  .m-press, .m-press:active { transform: none !important; }
+}
+
+/* Phone menu drawer slides in from the left, same timing as .m-panel. */
+.m-panel-left { animation: mPanelLeft var(--dur-dialog) var(--ease-out) backwards; }
+@keyframes mPanelLeft { from { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) { .m-panel-left { animation: none !important; } }

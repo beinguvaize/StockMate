@@ -1,42 +1,44 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 
-/** shadcn/ui Table set, converted to JS. tabular-nums added on cells —
- *  money columns must align (accounting app). */
-const Table = React.forwardRef(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-x-auto">
-    <table ref={ref} className={cn('w-full caption-bottom text-sm', className)} {...props} />
+/** Table set, web redesign: open rows, hairline separators, Inter Tight
+ *  heads in the mute grey, tile hover. tabular-nums on cells — money columns
+ *  must align (accounting app). Put `numeric` on a head/cell to right-align
+ *  it in Inter Tight. */
+const Table = React.forwardRef(({ className, wrapperClassName, ...props }, ref) => (
+  <div className={cn('relative w-full overflow-x-auto', wrapperClassName)}>
+    <table ref={ref} className={cn('w-full border-collapse text-[13.5px] text-ink', className)} {...props} />
   </div>
 ));
 Table.displayName = 'Table';
 
 const TableHeader = React.forwardRef(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn('[&_tr]:border-b', className)} {...props} />
+  <thead ref={ref} className={className} {...props} />
 ));
 TableHeader.displayName = 'TableHeader';
 
 const TableBody = React.forwardRef(({ className, ...props }, ref) => (
-  <tbody ref={ref} className={cn('[&_tr:last-child]:border-0', className)} {...props} />
+  <tbody ref={ref} className={cn('[&_tr:last-child>td]:border-b-0', className)} {...props} />
 ));
 TableBody.displayName = 'TableBody';
 
 const TableFooter = React.forwardRef(({ className, ...props }, ref) => (
-  <tfoot ref={ref} className={cn('border-t bg-muted/50 font-medium [&>tr]:last:border-b-0', className)} {...props} />
+  <tfoot ref={ref} className={cn('border-t border-line font-tight font-semibold', className)} {...props} />
 ));
 TableFooter.displayName = 'TableFooter';
 
 const TableRow = React.forwardRef(({ className, ...props }, ref) => (
-  <tr ref={ref} className={cn('border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted', className)} {...props} />
+  <tr ref={ref} className={cn('group/row [&>td]:transition-colors [&>td]:duration-(--dur-press) hover:[&>td]:bg-tile data-[state=selected]:[&>td]:bg-amber-soft', className)} {...props} />
 ));
 TableRow.displayName = 'TableRow';
 
-const TableHead = React.forwardRef(({ className, ...props }, ref) => (
-  <th ref={ref} className={cn('h-10 px-3 text-left align-middle font-medium text-muted-foreground', className)} {...props} />
+const TableHead = React.forwardRef(({ className, numeric, ...props }, ref) => (
+  <th ref={ref} className={cn('px-3.5 py-2.5 text-left align-middle font-tight text-[12px] font-semibold text-mute border-b border-line', numeric && 'text-right', className)} {...props} />
 ));
 TableHead.displayName = 'TableHead';
 
-const TableCell = React.forwardRef(({ className, ...props }, ref) => (
-  <td ref={ref} className={cn('p-3 align-middle tabular-nums', className)} {...props} />
+const TableCell = React.forwardRef(({ className, numeric, ...props }, ref) => (
+  <td ref={ref} className={cn('px-3.5 py-[11px] align-middle tabular-nums border-b border-sep', numeric && 'text-right font-tight font-medium', className)} {...props} />
 ));
 TableCell.displayName = 'TableCell';
 
