@@ -8,6 +8,7 @@ import {
   ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import ReportHeader from './ReportHeader';
 import { KPI, SectionHead } from './ReportBits';
 import { isCountableSale, presetRange } from './reportUtils';
@@ -31,11 +32,11 @@ const ClientStatementReport = () => {
   const dateFilters = useMemo(() => ({ dateRange: range }), [range]);
 
   // Data fetching
-  const { data: clients,  loading: cLoading }  = useReportData({ table: 'clients',         select: 'id, name, phone, outstanding_balance' });
-  const { data: salesRaw,    loading: sLoading }  = useReportData({ table: 'sales',            select: 'id, date, totalAmount, paidAmount, paymentMethod, customerInfo, shopId, status, paymentStatus, voided_at', dateColumn: 'date', filters: dateFilters });
+  const { data: clients,  loading: cLoading, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'clients',         select: 'id, name, phone, outstanding_balance' });
+  const { data: salesRaw,    loading: sLoading, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'sales',            select: 'id, date, totalAmount, paidAmount, paymentMethod, customerInfo, shopId, status, paymentStatus, voided_at', dateColumn: 'date', filters: dateFilters });
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
-  const { data: invoices, loading: iLoading }  = useReportData({ table: 'invoices',         select: 'id, client_id, client_name, grand_total, paid_amount, payment_status, date, sale_id', dateColumn: 'date', filters: dateFilters });
-  const { data: payments, loading: pLoading }  = useReportData({ table: 'client_payments',  select: 'id, client_id, amount, date, payment_method', dateColumn: 'date', filters: dateFilters });
+  const { data: invoices, loading: iLoading, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'invoices',         select: 'id, client_id, client_name, grand_total, paid_amount, payment_status, date, sale_id', dateColumn: 'date', filters: dateFilters });
+  const { data: payments, loading: pLoading, error: rdErr4, refetch: rdRe4 } = useReportData({ table: 'client_payments',  select: 'id, client_id, amount, date, payment_method', dateColumn: 'date', filters: dateFilters });
 
   const loading = cLoading || sLoading || iLoading || pLoading;
 
@@ -151,7 +152,7 @@ const ClientStatementReport = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      <ReportHeader
+      <ReportHeader error={loadError(rdErr1, rdErr2, rdErr3, rdErr4)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); rdRe4(); }}
         title="Client Statement"
         subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
         preset={preset}

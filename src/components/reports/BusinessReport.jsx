@@ -28,6 +28,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import ReportHeader from './ReportHeader';
 import usePLRanged from './usePLRanged';
 import PLTieOut from './PLTieOut';
@@ -113,28 +114,28 @@ const BusinessReport = () => {
   const [prodSort,    setProdSort]    = useState('REVENUE');
 
 
-  const { data: salesRaw,     loading: salesLoading }     = useReportData({ table: 'sales',     select: '*', dateColumn: 'date', filters });
+  const { data: salesRaw,     loading: salesLoading, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales',     select: '*', dateColumn: 'date', filters });
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
-  const { data: purchases, loading: purchLoading }     = useReportData({ table: 'purchases', select: '*', dateColumn: 'date', filters });
-  const { data: clients }                              = useReportData({ table: 'clients',   select: 'id, name, outstanding_balance' });
+  const { data: purchases, loading: purchLoading, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date', filters });
+  const { data: clients, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'clients',   select: 'id, name, outstanding_balance' });
   // Collections banked in the period. These settle credit bills that may have
   // been raised earlier, so they are reported separately from sale-time cash
   // rather than added to it — adding them would double-count.
-  const { data: collections } = useReportData({
+  const { data: collections, error: rdErr4, refetch: rdRe4 } = useReportData({
     table: 'client_payments', select: 'id, amount, date, payment_method',
     dateColumn: 'date', filters,
   });
   // Per-product cost. Batch consumption is the real FIFO cost but covers only
   // part of the lines (356 of 436 sales here), so uncovered lines fall back to
   // products.costPrice — the same chain process_sale uses. See prodProfit.
-  const { data: products }    = useReportData({ table: 'products', select: 'id, costPrice, unit' });
-  const { data: consumption } = useReportData({
+  const { data: products, error: rdErr5, refetch: rdRe5 } = useReportData({ table: 'products', select: 'id, costPrice, unit' });
+  const { data: consumption, error: rdErr6, refetch: rdRe6 } = useReportData({
     table: 'sale_batch_consumption', select: 'sale_id, product_id, qty_taken, unit_cost',
   });
 
   /* Authoritative period P&L (returns netted, GST split per tax_mode,
      exclude_from_pl honoured). Never recomputed client-side. */
-  const { pl, loading: plLoading } = usePLRanged(range.start, range.end);
+  const { pl, loading: plLoading, error: plError, refetch: plRefetch } = usePLRanged(range.start, range.end);
   const pnl = useMemo(() => {
     const revenueNet  = Number(pl?.revenue_net   || 0);
     const cogs        = Number(pl?.cogs          || 0);
@@ -346,7 +347,7 @@ const BusinessReport = () => {
     <div className="space-y-4 pb-16">
 
       {/* ── HEADER ─────────────────────────────────────────────────────── */}
-      <ReportHeader
+      <ReportHeader error={loadError(plError, rdErr1, rdErr2, rdErr3, rdErr4, rdErr5, rdErr6)} onRetry={() => { plRefetch(); rdRe1(); rdRe2(); rdRe3(); rdRe4(); rdRe5(); rdRe6(); }}
         title="Business Report"
         {...win.headerProps}
         onExport={exportCSV}

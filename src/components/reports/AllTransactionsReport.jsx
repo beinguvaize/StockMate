@@ -9,6 +9,7 @@ import {
   TrendingUp, TrendingDown, Activity, Hash,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import ReportHeader from './ReportHeader';
 import ReportFilterRow from './ReportFilterRow';
 import { KPI, SectionHead } from './ReportBits';
@@ -36,12 +37,12 @@ const AllTransactionsReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: salesRaw,    loading: sLoading } = useReportData({ table: 'sales',           select: 'id, date, totalAmount, paymentMethod, customerInfo, shopId, status, paymentStatus, voided_at', dateColumn: 'date', filters });
+  const { data: salesRaw,    loading: sLoading, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales',           select: 'id, date, totalAmount, paymentMethod, customerInfo, shopId, status, paymentStatus, voided_at', dateColumn: 'date', filters });
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
-  const { data: payments, loading: pLoading } = useReportData({ table: 'client_payments', select: 'id, date, amount, client_id, payment_method',               dateColumn: 'date', filters });
-  const { data: purchases,loading: puLoading} = useReportData({ table: 'purchases',       select: 'id, date, total_amount, supplier_name',                      dateColumn: 'date', filters });
-  const { data: expenses, loading: eLoading } = useReportData({ table: 'expenses',        select: '*',                                                          dateColumn: 'date', filters });
-  const { data: clients }                     = useReportData({ table: 'clients',          select: 'id, name' });
+  const { data: payments, loading: pLoading, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'client_payments', select: 'id, date, amount, client_id, payment_method',               dateColumn: 'date', filters });
+  const { data: purchases,loading: puLoading, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'purchases',       select: 'id, date, total_amount, supplier_name',                      dateColumn: 'date', filters });
+  const { data: expenses, loading: eLoading, error: rdErr4, refetch: rdRe4 } = useReportData({ table: 'expenses',        select: '*',                                                          dateColumn: 'date', filters });
+  const { data: clients, error: rdErr5, refetch: rdRe5 } = useReportData({ table: 'clients',          select: 'id, name' });
 
   const loading = sLoading || pLoading || puLoading || eLoading;
 
@@ -159,7 +160,7 @@ const AllTransactionsReport = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      <ReportHeader
+      <ReportHeader error={loadError(rdErr1, rdErr2, rdErr3, rdErr4, rdErr5)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); rdRe4(); rdRe5(); }}
         title="All Transactions"
         subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
         preset={preset}

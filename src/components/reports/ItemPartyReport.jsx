@@ -9,6 +9,7 @@ import {
   Users, Package, Search, TrendingUp, Hash, BarChart3,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import ReportHeader from './ReportHeader';
 import { KPI, SectionHead } from './ReportBits';
 import { isCountableSale, presetRange } from './reportUtils';
@@ -89,10 +90,10 @@ const ItemPartyReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: salesRaw,    loading: sLoading } = useReportData({ table: 'sales',    select: '*',            dateColumn: 'date', filters });
+  const { data: salesRaw,    loading: sLoading, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales',    select: '*',            dateColumn: 'date', filters });
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
-  const { data: clients,  loading: cLoading } = useReportData({ table: 'clients',  select: 'id, name, phone' });
-  const { data: products, loading: pLoading } = useReportData({ table: 'products', select: 'id, name, sku' });
+  const { data: clients,  loading: cLoading, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'clients',  select: 'id, name, phone' });
+  const { data: products, loading: pLoading, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'products', select: 'id, name, sku' });
 
   const loading = sLoading || cLoading || pLoading;
 
@@ -165,7 +166,7 @@ const ItemPartyReport = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      <ReportHeader
+      <ReportHeader error={loadError(rdErr1, rdErr2, rdErr3)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); }}
         title="Item × Party"
         subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
         preset={preset}

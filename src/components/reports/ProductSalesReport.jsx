@@ -10,6 +10,7 @@ import {
   Package, Search, TrendingUp, Hash, DollarSign, UserCircle,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import ReportHeader from './ReportHeader';
 import { SectionHead } from './ReportBits'; // local KPI variant kept (truncate)
 import { presetRange, isCountableSale } from './reportUtils';
@@ -41,17 +42,17 @@ const ProductSalesReport = () => {
 
   const dateFilters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: products, loading: prodLoading } = useReportData({
+  const { data: products, loading: prodLoading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'products', select: 'id, name, sku, unit, sellingPrice, costPrice',
   });
-  const { data: salesRaw, loading: salesLoading } = useReportData({
+  const { data: salesRaw, loading: salesLoading, error: rdErr2, refetch: rdRe2 } = useReportData({
     table: 'sales',
     select: 'id, date, items, status, customerInfo, shopId, totalAmount, voided_at, paymentStatus',
     dateColumn: 'date', filters: dateFilters,
   });
   // Voided and cancelled sales are not revenue and were being counted here.
   const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
-  const { data: clients } = useReportData({
+  const { data: clients, error: rdErr3, refetch: rdRe3 } = useReportData({
     table: 'clients', select: 'id, name',
   });
 
@@ -149,7 +150,7 @@ const ProductSalesReport = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      <ReportHeader
+      <ReportHeader error={loadError(rdErr1, rdErr2, rdErr3)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); }}
         title="Product Sales"
         subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
         preset={preset}

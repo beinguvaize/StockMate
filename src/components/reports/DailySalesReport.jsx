@@ -5,6 +5,7 @@
  */
 import React, { useState, useMemo } from 'react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import ReportHeader from './ReportHeader';
 import ReportFilterRow from './ReportFilterRow';
 import { isCountableSale, presetRange } from './reportUtils';
@@ -43,11 +44,11 @@ const DailySalesReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: salesRaw, loading } = useReportData({ table: 'sales', select: '*', dateColumn: 'date', filters });
+  const { data: salesRaw, loading, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales', select: '*', dateColumn: 'date', filters });
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
-  const { data: clients } = useReportData({ table: 'clients', select: 'id, name' });
-  const { data: vehicles } = useReportData({ table: 'vehicles', select: 'id, plateNumber, name' });
-  const { data: users } = useReportData({ table: 'users', select: 'id, name, email' });
+  const { data: clients, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'clients', select: 'id, name' });
+  const { data: vehicles, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'vehicles', select: 'id, plateNumber, name' });
+  const { data: users, error: rdErr4, refetch: rdRe4 } = useReportData({ table: 'users', select: 'id, name, email' });
 
   const applyPreset = (id) => {
     setPreset(id);
@@ -98,7 +99,7 @@ const DailySalesReport = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      <ReportHeader
+      <ReportHeader error={loadError(rdErr1, rdErr2, rdErr3, rdErr4)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); rdRe4(); }}
         title="Daily Sales"
         subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
         preset={preset}

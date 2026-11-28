@@ -7,6 +7,7 @@ import {
   TrendingUp, DollarSign, Tag, BarChart3,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import ReportHeader from './ReportHeader';
 import { KPI, SectionHead } from './ReportBits';
 import PLTieOut from './PLTieOut';
@@ -22,13 +23,13 @@ const CategoryProfitReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: salesRaw,    loading: sLoading } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters });
+  const { data: salesRaw,    loading: sLoading, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters });
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
-  const { data: products, loading: pLoading } = useReportData({ table: 'products', select: 'id, name, category, costPrice' });
+  const { data: products, loading: pLoading, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'products', select: 'id, name, category, costPrice' });
   // FIFO truth — when a sale's batches were consumed, use the actual
   // unit_cost at that moment instead of the current products.costPrice.
   // Same data BillWiseProfitReport reads, so the two reports now agree.
-  const { data: consumption } = useReportData({
+  const { data: consumption, error: rdErr3, refetch: rdRe3 } = useReportData({
     table: 'sale_batch_consumption',
     select: 'sale_id, product_id, qty_taken, unit_cost',
   });
@@ -139,7 +140,7 @@ const CategoryProfitReport = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      <ReportHeader
+      <ReportHeader error={loadError(rdErr1, rdErr2, rdErr3)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); }}
         title="Category Profit & Loss"
         subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
         preset={preset}
