@@ -99,4 +99,14 @@ describe('Dashboard renders', () => {
     expect(t).toContain('Top-selling items could not be loaded');
     expect(t).toContain('Could not load');
   });
+
+  it('Salary pending says it could not load, never ₹0, when the server figure fails', () => {
+    state.people = ok({ ...state.people, employees: [{ id: 'e1', name: 'Staff A' }] });
+    state.staff = { rows: [], total: null, ready: false, error: new Error('down'), refetch: () => {} };
+    const t = text(render());
+    const tile = t.slice(t.indexOf('Salary pending'), t.indexOf('Salary pending') + 60);
+    expect(tile).toContain('Could not load');
+    expect(tile).not.toContain('₹0');
+    expect(t).toContain('Salary dues');
+  });
 });

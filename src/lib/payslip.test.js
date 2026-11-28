@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPayslip, amountInWords } from './payslip';
+import { buildPayslip, amountInWords, slipYearToDate, yearToDateLines, ytdFor } from './payslip';
 
 /**
  * A payslip is handed to a person as the record of their wage, so a wrong
@@ -57,6 +57,13 @@ describe('buildPayslip', () => {
     expect(s.earnings[0].note).toBe('1 day × ₹900.00');
     expect(buildPayslip({ run, item: { ...akbar, daysWorked: 3, basePay: 2700 } })
       .earnings[0].note).toBe('3 days × ₹900.00');
+  });
+
+  it('does not print the usual rate as the arithmetic when a day had its own rate', () => {
+    // 2 days at 900 and 1 at 1,200: "3 days × 900" would read 2,700 against 3,000.
+    const note = buildPayslip({ run, item: { ...akbar, daysWorked: 3, basePay: 3000, netPay: 3000 } }).earnings[0].note;
+    expect(note).toBe('3 days, some at their own rate (usual ₹900.00)');
+    expect(note).not.toMatch(/×/);
   });
 
   it('omits earnings lines that are zero', () => {
@@ -385,5 +392,63 @@ describe('statutory deductions come from the run, not from the slip', () => {
     const s = buildPayslip({ run, item: { ...akbar, basePay: 50000, netPay: 50000 } });
     expect(s.deductionLines).toHaveLength(0);
     expect(s.netPay).toBe(50000);
+  });
+});
+
+describe('year to date, line by line', () => {
+  const emp = 'e1';
+  const line = (o) => ({ employeeId: emp, employeeName: 'Staff A', payType: 'MONTHLY', salary: 15000, periodDays: 30, cycleDays: 30, overtime: 0, commission: 0, bonus: 0, deductions: 0, alreadyPaid: 0, statutoryTotal: 0, statutoryLines: [], ...o });
+  const runs = [
+    // Last run of the previous financial year: ends 31 March.
+    { id: 'r-mar', period: '2026-03', processed_at: '2026-03-31T10:00:00Z', items: [line({ basePay: 15000, netPay: 15000 })] },
+    // New year: April, with PF and a bonus.
+    { id: 'r-apr', period: '2026-04', processed_at: '2026-04-30T10:00:00Z', items: [line({ basePay: 15000, bonus: 1000, statutoryTotal: 1800, statutoryLines: [{ label: 'Provident fund', amount: 1800 }], netPay: 14200 })] },
+    // May, one day absent.
+    { id: 'r-may', period: '2026-05', processed_at: '2026-05-31T10:00:00Z', items: [line({ basePay: 14516, lopDays: 1, lopAmount: 484, periodDays: 31, cycleDays: 31, netPay: 14516 })] },
+    // A deleted run never counts.
+    { id: 'r-del', period: '2026-05', processed_at: '2026-05-31T11:00:00Z', deleted_at: '2026-06-01T00:00:00Z', items: [line({ basePay: 99999, netPay: 99999 })] },
+    // June, processed after the May slip: not "to date" for May.
+    { id: 'r-jun', period: '2026-06', processed_at: '2026-06-30T10:00:00Z', items: [line({ basePay: 15000, netPay: 15000 })] },
+  ];
+
+  it('adds up the saved lines of the financial year, to this run', () => {
+    const ytd = slipYearToDate({ run: runs[2], records: runs, employeeId: emp });
+    expect(ytd.year).toBe('2026-27');
+    expect(ytd.runs).toBe(2);                       // April and May; March is last year, June is later
+    expect(ytd.net).toBe(14200 + 14516);            // the sum of the nets actually paid
+    expect(ytdFor(ytd, 'earnings', 'Salary')).toBe(30000);
+    expect(ytdFor(ytd, 'earnings', 'Bonus')).toBe(1000);
+    expect(ytdFor(ytd, 'deductions', 'Provident fund')).toBe(1800);
+    expect(ytdFor(ytd, 'deductions', 'Loss of pay')).toBe(484);
+    expect(ytd.gross - ytd.deductionsTotal).toBe(ytd.net);
+  });
+
+  it('equals the sum of each saved slip', () => {
+    const ytd = slipYearToDate({ run: runs[4], records: runs, employeeId: emp });
+    const slips = ['r-apr', 'r-may', 'r-jun'].map((id) => { const r = runs.find((x) => x.id === id); return buildPayslip({ run: r, item: r.items[0] }); });
+    expect(ytd.gross).toBe(slips.reduce((t, s) => t + s.grossEarnings, 0));
+    expect(ytd.deductionsTotal).toBe(slips.reduce((t, s) => t + s.deductions, 0));
+    expect(ytd.net).toBe(slips.reduce((t, s) => t + s.netPay, 0));
+  });
+
+  it('starts again on 1 April', () => {
+    const march = slipYearToDate({ run: runs[0], records: runs, employeeId: emp });
+    expect(march.year).toBe('2025-26');
+    expect(march.runs).toBe(1);
+    expect(march.net).toBe(15000);
+    const april = slipYearToDate({ run: runs[1], records: runs, employeeId: emp });
+    expect(april.runs).toBe(1);
+    expect(april.net).toBe(14200);
+  });
+
+  it('is printed on the slip, beside this period', () => {
+    const s = buildPayslip({ run: runs[2], item: runs[2].items[0], records: runs });
+    expect(s.ytdLines.net).toBe(28716);
+  });
+
+  it('sums a whole year for the profile, by the window asked for', () => {
+    const y = yearToDateLines({ records: runs, employeeId: emp, fyFrom: '2026-04-01', fyTo: '2027-03-31' });
+    expect(y.runs).toBe(3);
+    expect(y.net).toBe(14200 + 14516 + 15000);
   });
 });

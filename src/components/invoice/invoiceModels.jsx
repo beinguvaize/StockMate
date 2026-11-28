@@ -207,6 +207,10 @@ const Sign = ({ d }) => (d.show.sign ? (
   </div>
 ) : null);
 
+const Custom = ({ d }) => (d.customFields.length ? (
+  <div className="cfx">{d.customFields.map((f, i) => <span key={i}>{f.label}: <b>{f.value}</b></span>)}</div>
+) : null);
+
 const Foot = ({ d }) => (d.show.thanks && d.footer ? <div className="foot3">{d.footer}</div> : null);
 
 // ── Model A, Classic GST ──────────────────────────────────────────────────
@@ -250,6 +254,7 @@ const ClassicModel = ({ d }) => (
           {d.meta.vehicle && <>Vehicle {d.meta.vehicle}</>}
         </div>
       </div>
+      {d.customFields.length > 0 && <div className="g2 b"><div className="cell" style={{ gridColumn: '1 / -1' }}><Custom d={d} /></div></div>}
       <Items d={d} cls="gridt" />
       <div className="g2 b">
         <div className="cell">
@@ -305,6 +310,7 @@ const ModernModel = ({ d }) => {
           )}
         </div>
       </div>
+      <Custom d={d} />
       <Items d={d} cls="line" />
       <div className="lower">
         <div className="lft">
@@ -355,6 +361,7 @@ const BoldModel = ({ d }) => {
           {d.meta.vehicle && <div><i>Vehicle</i><b>{d.meta.vehicle}</b></div>}
         </div>
       </div>
+      <Custom d={d} />
       <Items d={d} cls="solid" />
       <div className="lower">
         <div className="lft">
@@ -411,6 +418,7 @@ const CompactModel = ({ d }) => (
         {d.buyer.state && <> · State {d.buyer.state}</>}
       </span>
     </div>
+    <Custom d={d} />
     <Items d={d} cls="dense" />
     <div className="cfoot">
       <div className="cl">
@@ -440,6 +448,7 @@ export function modelData({ invoice, business, client, printPrefs, docKey, overr
     opts: overrides.opts ? { ...base.opts, ...overrides.opts } : base.opts,
     texts: overrides.texts ? { ...base.texts, ...overrides.texts } : base.texts,
     defaultTerms: MODEL_TEXT_DEFAULTS.invTerms,
+    customFields: overrides.customFields || printPrefs?.customFields || [],
   });
 }
 

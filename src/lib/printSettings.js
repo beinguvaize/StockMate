@@ -18,12 +18,14 @@
  * new page prints exactly as it did, and the old flat keys keep working for
  * every reader that knows only them.
  *
- * Who prints what:
+ * Who prints what (owner's decision: nobody's printed invoice changes at
+ * release without them choosing):
  *   - a shop with a saved invoiceTemplate (any of the older designs or a new
  *     model) keeps it exactly;
- *   - a shop that never saved one gets DEFAULT_INVOICE_TEMPLATE, the new
- *     Modern model (the owner's choice). Before the redesign those shops got
- *     the old Classic layout, so their printed invoice changes on release.
+ *   - a shop that never saved one keeps LEGACY_INVOICE_TEMPLATE, the old
+ *     Classic layout it prints today, title and fields unchanged;
+ *   - DEFAULT_INVOICE_TEMPLATE, the new Modern, is only what a NEW shop
+ *     should start with and what "Reset to default" on Customise picks.
  */
 import { documentRules } from './gstDocument';
 import { DEFAULT_INV_OPTS, DEFAULT_DOC_TEXTS } from '../components/invoice/invoiceLayouts';
@@ -37,8 +39,11 @@ export const INVOICE_MODELS = [
 ];
 export const INVOICE_MODEL_IDS = INVOICE_MODELS.map((m) => m.id);
 
-/** Owner's choice for shops that never saved a design. */
+/** The recommended design: Reset to default on Customise, and new shops. */
 export const DEFAULT_INVOICE_TEMPLATE = 'model-modern';
+
+/** What a shop with no saved design prints: the old Classic, as before the redesign. */
+export const LEGACY_INVOICE_TEMPLATE = 'classic';
 
 /** The designs that existed before the redesign; still printed for shops that chose them. */
 export const LEGACY_TEMPLATE_IDS = ['classic', 'modern', 'compact', 'letterhead', 'emerald', 'bold'];
@@ -83,7 +88,7 @@ export function resolvePrintFor(prefs = {}, docKey = 'TAX_INVOICE') {
   const p = obj(prefs);
   const per = obj(obj(p.docTypes)[docKey]);
   return {
-    template: per.invoiceTemplate || p.invoiceTemplate || DEFAULT_INVOICE_TEMPLATE,
+    template: per.invoiceTemplate || p.invoiceTemplate || LEGACY_INVOICE_TEMPLATE,
     accent: per.invAccent || p.invAccent || null,
     opts: { ...MODEL_OPT_DEFAULTS, ...obj(p.invOpts), ...obj(per.invOpts) },
     texts: { ...MODEL_TEXT_DEFAULTS, ...obj(p.docTexts), ...obj(per.docTexts) },
@@ -120,4 +125,37 @@ export function withDocTypeSaved(prefs = {}, docKey, values = {}) {
     docTexts: { ...obj(values.docTexts) },
   };
   return { ...p, docTypes };
+}
+
+/** The form's values for one document type, from what is stored. */
+export function formValuesFor(prefs = {}, docKey = 'TAX_INVOICE') {
+  const r = resolvePrintFor(prefs, docKey);
+  return {
+    invoiceTemplate: r.template,
+    invAccent: r.accent || DEFAULT_MODEL_ACCENT,
+    invOpts: r.opts,
+    docTexts: r.texts,
+  };
+}
+
+/** The form's values when "Reset to default" is pressed. */
+export const defaultFormValues = () => ({
+  invoiceTemplate: DEFAULT_INVOICE_TEMPLATE,
+  invAccent: DEFAULT_MODEL_ACCENT,
+  invOpts: { ...MODEL_OPT_DEFAULTS },
+  docTexts: { ...MODEL_TEXT_DEFAULTS },
+});
+
+/** How many settings differ between two form values ("4 unsaved changes"). */
+export function countChanges(a = {}, b = {}) {
+  let n = 0;
+  if ((a.invoiceTemplate || '') !== (b.invoiceTemplate || '')) n++;
+  if ((a.invAccent || '') !== (b.invAccent || '')) n++;
+  for (const group of ['invOpts', 'docTexts']) {
+    const x = obj(a[group]); const y = obj(b[group]);
+    for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) {
+      if ((x[k] ?? '') !== (y[k] ?? '')) n++;
+    }
+  }
+  return n;
 }

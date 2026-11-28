@@ -34,7 +34,7 @@ const DEFAULT_TERMS = (state) => [
   'E. & O.E.',
 ];
 
-export function buildInvoicePrintData({ invoice = {}, business = {}, client = null, opts = {}, texts = {}, defaultTerms = '' } = {}) {
+export function buildInvoicePrintData({ invoice = {}, business = {}, client = null, opts = {}, texts = {}, defaultTerms = '', customFields = [] } = {}) {
   const inv = invoice || {};
   const biz = business || {};
   const cli = client || { name: inv.client_name || 'Walk-in Customer' };
@@ -151,6 +151,8 @@ export function buildInvoicePrintData({ invoice = {}, business = {}, client = nu
     upiUri, due,
     terms,
     footer: texts.invFooter || '',
+    // The shop's own label: value lines (print_settings.customFields).
+    customFields: (Array.isArray(customFields) ? customFields : []).filter((f) => f && f.label && f.value),
     signLabel: texts.signLabel || 'Authorised signatory',
   };
 }
