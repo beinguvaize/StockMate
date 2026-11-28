@@ -5,9 +5,10 @@ import useReportData from './useReportData';
 import { loadError } from '../../lib/reportsView';
 import PremiumReportView from './PremiumReportView';
 import ReportPeriodBar, { useReportPeriod } from './ReportPeriodBar';
+import { ReportButton } from './frame';
 import {
   FileText, Users, Globe, ShoppingBag, Layers, BookOpen,
-  Building2, Hash, Receipt, Calendar, Tag, Download, ChevronDown
+  Building2, Hash, Receipt, Calendar, Tag, Download, ChevronDown, FileSpreadsheet, Share2
 } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
 import { buildGSTR1, downloadGSTR1JSON, downloadGSTR1Excel, shareGSTWithCA } from '../../utils/gstReporting';
@@ -54,79 +55,53 @@ const ExportMenu = ({ gstr1, gstin }) => {
     setOpen(false);
   };
 
+  const item = 'flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-left transition-colors duration-(--dur-press) hover:bg-tile';
+  const head = 'px-2.5 pt-2 pb-1 font-tight text-[10.5px] font-semibold uppercase tracking-[0.07em] text-mute';
+  const ico = 'grid h-7 w-7 shrink-0 place-items-center rounded-[8px] bg-tile text-ink-2';
   return (
     <div className="relative no-print">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-semibold transition-colors"
-      >
-        <Download size={13} /> Export <ChevronDown size={11} className={open ? 'rotate-180' : ''} />
-      </button>
+      <ReportButton tone="primary" icon={Download} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(o => !o)}>
+        Export <ChevronDown size={13} className={`chevron-turn ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+      </ReportButton>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-10 z-20 w-56 bg-card rounded-[10px] border border-black/8 shadow-xl py-1.5 overflow-hidden">
-            <div className="px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-body">
-              Portal Upload
-            </div>
-            <button
-              onClick={() => { downloadGSTR1Excel(gstr1, { gstin: gstin || 'export', fp: currentFP() }); setOpen(false); }}
-              className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-accent-signature/10 text-left transition-colors"
-            >
-              <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-good-text">
-                <Download size={12} />
-              </span>
+          <div role="menu" className="menu-pop absolute right-0 top-10 z-20 w-64 rounded-[14px] bg-surface p-1.5 shadow-[0_0_0_1px_rgba(17,20,24,.06),0_18px_40px_-14px_rgba(17,20,24,.35)]">
+            <div className={head}>Portal Upload</div>
+            <button data-card role="menuitem" onClick={() => { downloadGSTR1Excel(gstr1, { gstin: gstin || 'export', fp: currentFP() }); setOpen(false); }} className={item}>
+              <span className={ico}><FileSpreadsheet size={14} /></span>
               <div>
-                <div className="text-[12px] font-semibold text-ink">Excel Workbook (Offline Tool)</div>
-                <div className="text-[12px] text-body">b2b · b2cl · b2cs · hsn · docs sheets</div>
+                <div className="font-tight text-[13px] font-semibold text-ink">Excel Workbook (Offline Tool)</div>
+                <div className="text-[11.5px] text-mute">b2b · b2cl · b2cs · hsn · docs sheets</div>
               </div>
             </button>
-            <button
-              onClick={() => { shareGSTWithCA({ kind: 'GSTR-1', gstin, fp: currentFP(), totals: gstr1.totals || {} }); setOpen(false); }}
-              className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-green-50 text-left transition-colors"
-            >
-              <span className="w-6 h-6 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
-                <Download size={12} />
-              </span>
+            <button data-card role="menuitem" onClick={() => { shareGSTWithCA({ kind: 'GSTR-1', gstin, fp: currentFP(), totals: gstr1.totals || {} }); setOpen(false); }} className={item}>
+              <span className={ico}><Share2 size={14} /></span>
               <div>
-                <div className="text-[12px] font-semibold text-ink">Share with CA (WhatsApp)</div>
-                <div className="text-[12px] text-body">Summary message — attach files after</div>
+                <div className="font-tight text-[13px] font-semibold text-ink">Share with CA (WhatsApp)</div>
+                <div className="text-[11.5px] text-mute">Summary message — attach files after</div>
               </div>
             </button>
-            <button
-              onClick={handlePortalJSON}
-              className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-accent-signature/10 text-left transition-colors"
-            >
-              <span className="w-6 h-6 rounded-lg bg-accent-signature/15 flex items-center justify-center text-amber-text">
-                <Download size={12} />
-              </span>
+            <button data-card role="menuitem" onClick={handlePortalJSON} className={item}>
+              <span className={ico}><Download size={14} /></span>
               <div>
-                <div className="text-[12px] font-semibold text-ink">Download Portal JSON</div>
-                <div className="text-[12px] text-body">Upload directly to GST Portal</div>
+                <div className="font-tight text-[13px] font-semibold text-ink">Download Portal JSON</div>
+                <div className="text-[11.5px] text-mute">Upload directly to GST Portal</div>
               </div>
             </button>
-            <div className="border-t border-border/60 mt-1 pt-1">
-              <div className="px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-body">
-                CSV Downloads
-              </div>
-              {[
-                { key: 'b2b',  label: 'B2B Invoices' },
-                { key: 'b2cl', label: 'B2CL — Large B2C' },
-                { key: 'b2cs', label: 'B2CS — Small B2C' },
-                { key: 'hsn',  label: 'HSN Summary' },
-              ].map(s => (
-                <button
-                  key={s.key}
-                  onClick={() => handleCSV(s.key, s.key.toUpperCase())}
-                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-left transition-colors"
-                >
-                  <span className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center text-body">
-                    <FileText size={11} />
-                  </span>
-                  <span className="text-[12px] font-semibold text-ink">{s.label}</span>
-                </button>
-              ))}
-            </div>
+            <hr className="my-1 border-sep" />
+            <div className={head}>CSV Downloads</div>
+            {[
+              { key: 'b2b',  label: 'B2B Invoices' },
+              { key: 'b2cl', label: 'B2CL — Large B2C' },
+              { key: 'b2cs', label: 'B2CS — Small B2C' },
+              { key: 'hsn',  label: 'HSN Summary' },
+            ].map(s => (
+              <button data-card role="menuitem" key={s.key} onClick={() => handleCSV(s.key, s.key.toUpperCase())} className={item}>
+                <span className={ico}><FileText size={13} /></span>
+                <span className="font-tight text-[13px] font-semibold text-ink">{s.label}</span>
+              </button>
+            ))}
           </div>
         </>
       )}
@@ -382,33 +357,35 @@ const GSTR1Report = () => {
     ],
   };
 
+  const gstLoadError = loadError(rdErr1, rdErr2, rdErr3);
   return (
-    <div className="flex flex-col gap-4">
+    <div>
       {/* Period selector — matches the P&L / accounting reports */}
       <ReportPeriodBar {...period} />
 
-      {/* Compliance banner */}
-      <div className="no-print flex items-center gap-3 px-4 py-3 rounded-2xl border border-border/60 shadow-sm bg-accent-signature/10">
-        <FileText className="text-amber-text" size={20} />
-        <div className="flex-1">
-          <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-amber-text">
-            GSTR-1 · Outward Supplies Return · Business State: {businessState}
+      {/* Compliance banner (reports-19). Hidden while a load has failed, so
+          its totals never read as ₹0. */}
+      {!gstLoadError && (
+        <div className="no-print mb-4 flex flex-wrap items-center gap-3 rounded-[14px] border border-[#F6DDB8] bg-amber-soft px-3.5 py-3">
+          <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] bg-surface text-ink-2" aria-hidden="true"><FileText size={17} /></span>
+          <div className="min-w-0 flex-1">
+            <b className="block font-tight text-[13.5px] font-semibold text-ink">
+              GSTR-1 · Outward Supplies Return · Business State: {businessState}
+            </b>
+            <small className="text-[12.5px] text-body tabular-nums">
+              Total Turnover: <span className="font-semibold text-ink">{formatINR(gstr1.totals.taxable)}</span>
+              {' · '}
+              Tax Liability: <span className="font-semibold text-bad-text">{formatINR(gstr1.totals.cgst + gstr1.totals.sgst + gstr1.totals.igst)}</span>
+              {' · '}
+              <span>{gstr1.totals.invoiceCount}</span> Invoices
+              {businessGSTIN && <span> · GSTIN: {businessGSTIN}</span>}
+            </small>
           </div>
-          <div className="text-[11.5px] font-semibold text-body mt-0.5 tabular-nums">
-            Total Turnover: <span className="font-semibold text-ink tabular-nums">{formatINR(gstr1.totals.taxable)}</span>
-            {' · '}
-            Tax Liability: <span className="font-semibold text-bad-text tabular-nums">{formatINR(gstr1.totals.cgst + gstr1.totals.sgst + gstr1.totals.igst)}</span>
-            {' · '}
-            <span className="tabular-nums">{gstr1.totals.invoiceCount}</span> Invoices
-            {businessGSTIN && (
-              <span className="ml-2 tabular-nums text-amber-text">· GSTIN: {businessGSTIN}</span>
-            )}
-          </div>
+          <ExportMenu gstr1={gstr1} gstin={businessGSTIN} />
         </div>
-        <ExportMenu gstr1={gstr1} gstin={businessGSTIN} />
-      </div>
+      )}
 
-      <PremiumReportView error={loadError(rdErr1, rdErr2, rdErr3)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); }} title="GSTR-1" tabs={[b2bTab, b2clTab, b2csTab, hsnTab, docsTab]} />
+      <PremiumReportView error={gstLoadError} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); }} title="GSTR-1" tabs={[b2bTab, b2clTab, b2csTab, hsnTab, docsTab]} />
     </div>
   );
 };

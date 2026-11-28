@@ -5,13 +5,14 @@ import useReportData from './useReportData';
 import { loadError } from '../../lib/reportsView';
 import PremiumReportView from './PremiumReportView';
 import ReportPeriodBar, { useReportPeriod } from './ReportPeriodBar';
+import { ReportButton } from './frame';
 import {
   FileCheck, TrendingUp, Package, Globe, CheckCircle2,
   Landmark, Wallet, ArrowDownToLine, ArrowUpFromLine, Tag
 } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
 import { buildGSTR3B, buildGSTR1, downloadGSTR3BJSON, downloadGSTR3BExcel, shareGSTWithCA, computeGstSetOff } from '../../utils/gstReporting';
-import { Download } from 'lucide-react';
+import { Download, Share2 } from 'lucide-react';
 
 const fpNow = () => {
   const now = new Date();
@@ -333,55 +334,44 @@ const GSTR3BReport = () => {
   };
 
   const gstin = businessProfile?.gst_no || businessProfile?.gstin || '';
-  const exportBar = (
-    <div className="no-print flex justify-end gap-2 mb-3">
-      <button onClick={() => downloadGSTR3BExcel(gstr3b, { gstin, fp: fpNow() })}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-semibold transition-colors">
-        <Download size={13} /> Excel Summary
-      </button>
-      <button onClick={() => downloadGSTR3BJSON(gstr3b, { gstin, fp: fpNow() })}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-ink-primary text-white text-[12px] font-semibold hover:opacity-90 transition-colors">
-        <Download size={13} /> Portal JSON
-      </button>
-      <button onClick={() => shareGSTWithCA({ kind: 'GSTR-3B', gstin, fp: fpNow(), totals: { taxable: gstr3b.summary.totalTurnover, cgst: gstr3b.section3_1?.[0]?.centralTax, sgst: gstr3b.section3_1?.[0]?.stateTax, igst: gstr3b.section3_1?.[0]?.integratedTax } })}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-[#25D366] text-white text-[12px] font-semibold hover:opacity-90 transition-colors">
-        <Download size={13} /> Share with CA
-      </button>
+  const gstLoadError = loadError(rdErr1, rdErr2, rdErr3, rdErr4, rdErr5, rdErr6);
+  // Hidden while a load has failed: an export or a banner of zeros would
+  // read as a real return.
+  const exportBar = gstLoadError ? null : (
+    <div className="no-print mb-3.5 flex flex-wrap justify-end gap-2">
+      <ReportButton tone="ghost" icon={Download} onClick={() => downloadGSTR3BExcel(gstr3b, { gstin, fp: fpNow() })}>Excel Summary</ReportButton>
+      <ReportButton tone="dark" icon={Download} onClick={() => downloadGSTR3BJSON(gstr3b, { gstin, fp: fpNow() })}>Portal JSON</ReportButton>
+      <ReportButton tone="ghost" icon={Share2} onClick={() => shareGSTWithCA({ kind: 'GSTR-3B', gstin, fp: fpNow(), totals: { taxable: gstr3b.summary.totalTurnover, cgst: gstr3b.section3_1?.[0]?.centralTax, sgst: gstr3b.section3_1?.[0]?.stateTax, igst: gstr3b.section3_1?.[0]?.integratedTax } })}>
+        Share with CA
+      </ReportButton>
+    </div>
+  );
+  const fig = (label, value, cls) => (
+    <div>
+      <small className="block font-tight text-[10.5px] font-semibold uppercase tracking-[0.06em] text-mute">{label}</small>
+      <b className={`mt-0.5 block font-tight text-[15px] font-semibold tabular-nums ${cls}`}>{value}</b>
     </div>
   );
   return (
-    <>
-    {exportBar}
-    <div className="flex flex-col gap-4">
-      {/* Period selector — matches the P&L / accounting reports */}
+    <div>
+      {exportBar}
       <ReportPeriodBar {...period} />
 
-      {/* Compliance summary banner */}
-      <div className="no-print flex items-center gap-3 px-4 py-3 rounded-2xl border border-border/60 shadow-sm bg-good-soft">
-        <CheckCircle2 className="text-good-text" size={20} />
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">Taxable Turnover</div>
-            <div className="text-sm font-semibold text-ink mt-0.5">{formatINR(gstr3b.summary.totalTurnover)}</div>
-          </div>
-          <div>
-            <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">Gross Tax</div>
-            <div className="text-sm font-semibold text-bad-text mt-0.5">{formatINR(gstr3b.summary.grossTax)}</div>
-          </div>
-          <div>
-            <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">ITC Available</div>
-            <div className="text-sm font-semibold text-good-text mt-0.5">{formatINR(gstr3b.summary.totalITC)}</div>
-          </div>
-          <div>
-            <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">Net Payable</div>
-            <div className="text-sm font-semibold text-amber-text mt-0.5">{formatINR(gstr3b.summary.netTaxDue)}</div>
+      {/* Compliance summary banner (reports-21) */}
+      {!gstLoadError && (
+        <div className="no-print mb-4 flex items-center gap-3 rounded-[14px] border border-[#CDEBD8] bg-good-soft px-3.5 py-3">
+          <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] bg-surface text-ink-2" aria-hidden="true"><CheckCircle2 size={17} /></span>
+          <div className="grid flex-1 grid-cols-2 gap-4 md:grid-cols-4">
+            {fig('Taxable Turnover', formatINR(gstr3b.summary.totalTurnover), 'text-ink')}
+            {fig('Gross Tax', formatINR(gstr3b.summary.grossTax), 'text-bad-text')}
+            {fig('ITC Available', formatINR(gstr3b.summary.totalITC), 'text-good-text')}
+            {fig('Net Payable', formatINR(gstr3b.summary.netTaxDue), 'text-amber-text')}
           </div>
         </div>
-      </div>
+      )}
 
-      <PremiumReportView error={loadError(rdErr1, rdErr2, rdErr3, rdErr4, rdErr5, rdErr6)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); rdRe4(); rdRe5(); rdRe6(); }} title="GSTR-3B" tabs={[section3_1Tab, section3_2Tab, section4Tab, itcLedgerTab, setoffTab, section6_1Tab, tieoutTab]} />
+      <PremiumReportView error={gstLoadError} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); rdRe4(); rdRe5(); rdRe6(); }} title="GSTR-3B" tabs={[section3_1Tab, section3_2Tab, section4Tab, itcLedgerTab, setoffTab, section6_1Tab, tieoutTab]} />
     </div>
-    </>
   );
 };
 

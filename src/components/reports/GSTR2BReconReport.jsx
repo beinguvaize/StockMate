@@ -3,6 +3,9 @@ import { useTenant } from '../../context/TenantContext';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
 import ReportPeriodBar, { useReportPeriod } from './ReportPeriodBar';
+import { ReportButton, Banner, ErrorBlock, ReportBox, EmptyBlock } from './frame';
+import { Eyebrow } from '../ui/FigureStrip';
+import { loadError } from '../../lib/reportsView';
 import { Upload, ShieldCheck, AlertTriangle, FileWarning } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
 import { parseGSTR2B, reconcile2BInvoices } from '../../utils/gstReporting';
@@ -26,8 +29,9 @@ const GSTR2BReconReport = () => {
   const period = useReportPeriod('THIS_MONTH');
   const dateRange = { start: period.range.from, end: period.range.to };
 
-  const { data: purchases, loading } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date', filters: { dateRange } });
-  const { data: suppliers } = useReportData({ table: 'suppliers', select: 'id, name, gstin' });
+  const { data: purchases, loading, error: purchErr, refetch: refetchPurch } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date', filters: { dateRange } });
+  const { data: suppliers, error: supErr, refetch: refetchSup } = useReportData({ table: 'suppliers', select: 'id, name, gstin' });
+  const booksError = loadError(purchErr, supErr);
 
   // Aggregate the purchase register (books) into invoices, keyed by supplier
   // GSTIN + supplier bill number. Lines of one bill collapse into one invoice.
@@ -110,74 +114,73 @@ const GSTR2BReconReport = () => {
     ],
   } : null;
 
+  const sum = recon?.summary;
   return (
-    <div className="flex flex-col gap-4">
-      {/* Period selector — matches the P&L / accounting reports */}
+    <div className="pb-4">
       <ReportPeriodBar {...period} />
 
-      {/* Upload bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl border border-border/60 shadow-sm bg-card">
-        <div className="flex-1">
-          <div className="text-sm font-semibold text-ink">GSTR-2B Reconciliation</div>
-          <div className="text-[12px] text-body font-medium mt-0.5">
+      {/* Upload bar (reports-26) */}
+      <div className="mb-4 flex flex-col gap-3 rounded-[14px] border border-line bg-surface px-4 py-3.5 sm:flex-row sm:items-center">
+        <div className="min-w-0 flex-1">
+          <b className="block font-tight text-[14.5px] font-semibold text-ink">GSTR-2B Reconciliation</b>
+          <small className="text-[12.5px] text-body">
             Upload the GSTR-2B JSON downloaded from the GST portal (Returns → GSTR-2B → Download JSON).
-            {fileName && <span className="text-good-text font-semibold"> · {fileName}</span>}
-          </div>
+            {fileName && <b className="font-semibold text-good-text"> · {fileName}</b>}
+          </small>
         </div>
         <input ref={fileRef} type="file" accept=".json,application/json" onChange={onFile} className="hidden" />
-        <button onClick={() => fileRef.current?.click()}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-pill bg-ink-primary text-white text-[12px] font-semibold hover:opacity-90 transition-colors">
-          <Upload size={14} /> Upload GSTR-2B JSON
-        </button>
+        <ReportButton tone="dark" icon={Upload} onClick={() => fileRef.current?.click()}>Upload GSTR-2B JSON</ReportButton>
       </div>
 
-      {error && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-bad-soft border border-bad-soft text-bad-text text-[12px] font-semibold">
-          <FileWarning size={16} /> {error}
-        </div>
+      {error && <Banner tone="bad" icon={FileWarning} role="alert">{error}</Banner>}
+
+      {booksError && (
+        <ErrorBlock title="Your purchase register could not load" message={booksError}
+          hint="Nothing is matched until your own bills load. Try again in a moment."
+          onRetry={() => { refetchPurch(); refetchSup(); }} />
       )}
 
-      {recon && (
+      {recon && !booksError && (
         <>
-          {/* Summary band */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-border/60">
+          {/* Summary band (reports-27) */}
+          <div className="mb-3.5 grid grid-cols-2 overflow-hidden rounded-[14px] border border-line md:grid-cols-5">
             {[
-              { label: 'Matched', val: recon.summary.matched, sub: 'invoices', cls: 'text-good-text' },
-              { label: 'Mismatch', val: recon.summary.mismatch, sub: 'review', cls: 'text-bad-text' },
-              { label: 'Missing in 2B', val: recon.summary.missingIn2B, sub: 'ITC at risk', cls: 'text-amber-text' },
-              { label: 'Missing in Books', val: recon.summary.missingInBooks, sub: 'unclaimed', cls: 'text-info-text' },
-              { label: 'ITC at Risk', val: formatINR(recon.summary.atRiskItc), sub: 'follow up', cls: 'text-bad-text', money: true },
+              { label: 'Matched', val: sum.matched, sub: 'invoices', cls: 'text-good-text' },
+              { label: 'Mismatch', val: sum.mismatch, sub: 'review', cls: 'text-bad-text' },
+              { label: 'Missing in 2B', val: sum.missingIn2B, sub: 'ITC at risk', cls: 'text-amber-text' },
+              { label: 'Missing in Books', val: sum.missingInBooks, sub: 'unclaimed', cls: 'text-info-text' },
+              { label: 'ITC at Risk', val: formatINR(sum.atRiskItc), sub: 'follow up', cls: 'text-bad-text' },
             ].map((c, i) => (
-              <div key={i} className="bg-card px-4 py-3">
-                <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">{c.label}</div>
-                <div className={`text-lg font-semibold mt-0.5 ${c.cls}`}>{c.val}</div>
-                <div className="text-[12px] font-semibold text-body">{c.sub}</div>
+              <div key={i} className="border-l border-line px-4 py-3 first:border-l-0">
+                <Eyebrow className="text-[10.5px]">{c.label}</Eyebrow>
+                <b className={`my-[3px] block font-tight text-[20px] font-semibold tabular-nums ${c.cls}`}>{c.val}</b>
+                <span className="text-[12px] text-mute">{c.sub}</span>
               </div>
             ))}
           </div>
 
-          {recon.summary.missingIn2B + recon.summary.mismatch > 0 && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-accent-signature/10 border border-accent-signature/15 text-amber-text text-[12px] font-semibold">
-              <AlertTriangle size={16} /> {formatINR(recon.summary.atRiskItc)} of ITC may not be claimable yet — these invoices aren't in 2B or their values differ. Follow up before claiming.
-            </div>
+          {sum.missingIn2B + sum.mismatch > 0 && (
+            <Banner tone="amber" icon={AlertTriangle}>
+              {formatINR(sum.atRiskItc)} of ITC may not be claimable yet — these invoices aren't in 2B or their values differ. Follow up before claiming.
+            </Banner>
           )}
 
           {booksInvoices.noBill > 0 && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-info-soft border border-info-soft text-info-text text-[12px] font-semibold">
-              <FileWarning size={16} /> {booksInvoices.noBill} purchase{booksInvoices.noBill > 1 ? 's have' : ' has'} no bill number — can't invoice-match (shown as "Missing in 2B"). Add the supplier bill no on the purchase to match.
-            </div>
+            <Banner tone="info" icon={FileWarning}>
+              {booksInvoices.noBill} purchase{booksInvoices.noBill > 1 ? 's have' : ' has'} no bill number — can't invoice-match (shown as "Missing in 2B"). Add the supplier bill no on the purchase to match.
+            </Banner>
           )}
 
           <PremiumReportView title="GSTR-2B Reconciliation" tabs={[tab]} />
         </>
       )}
 
-      {!recon && !error && (
-        <div className="text-center py-16 text-body">
-          <ShieldCheck size={32} className="mx-auto mb-3 opacity-40" />
-          <p className="text-sm font-semibold">Upload your GSTR-2B JSON to reconcile it against your purchase register.</p>
-          <p className="text-[12px] mt-1">Matched invoice-by-invoice on supplier GSTIN + bill number.</p>
-        </div>
+      {!recon && !error && !booksError && (
+        <ReportBox>
+          <EmptyBlock icon={ShieldCheck}
+            title="Upload your GSTR-2B JSON to reconcile it against your purchase register."
+            text="Matched invoice-by-invoice on supplier GSTIN + bill number." />
+        </ReportBox>
       )}
     </div>
   );
